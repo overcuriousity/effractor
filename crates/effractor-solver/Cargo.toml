@@ -1,0 +1,13 @@
+[package]
+name = "effractor-solver"
+description = "Pure analyses: BDD, cut sets, Monte Carlo, importance, loss exceedance."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+effractor-core = { path = "../effractor-core" }
+
+[lints]
+workspace = true

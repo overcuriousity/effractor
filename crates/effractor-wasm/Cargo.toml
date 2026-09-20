@@ -1,0 +1,18 @@
+[package]
+name = "effractor-wasm"
+description = "Browser bindings for format and solver."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+effractor-core = { path = "../effractor-core" }
+effractor-format = { path = "../effractor-format" }
+effractor-solver = { path = "../effractor-solver" }
+
+[lints]
+workspace = true

@@ -1,0 +1,8 @@
+{
+  "name": "effractor-vendor",
+  "private": true,
+  "description": "Pins browser assets that are vendored into the binary, so Dependabot can see them. Not a build system.",
+  "scripts": {
+    "test": "node --test \"scripts/*.test.js\""
+  }
+}

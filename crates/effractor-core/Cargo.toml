@@ -1,0 +1,12 @@
+[package]
+name = "effractor-core"
+description = "Domain model and structural validation. No I/O."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

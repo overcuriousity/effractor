@@ -19,17 +19,8 @@ user input · no third-party origins, no telemetry · vanilla CSS + JS, no bundl
 
 ## Foundation
 
-### repo-scaffold — Workspace, PR CI, Dependabot
-needs: —            cost: 2   benefit: 5
-Cargo workspace with empty crates `effractor-{core,mal,format,solver,wasm,server}`;
-`rust-toolchain.toml` with the wasm32 target; PR workflow running fmt, clippy
-`-D warnings`, tests, wasm build; `.github/dependabot.yml` for `cargo`,
-`github-actions`, `npm`; `scripts/check-roadmap` (ids unique, `needs` targets
-exist, acyclic) wired into CI. Done when a PR to `master` runs green and the
-roadmap check rejects a deliberately cyclic fixture.
-
 ### core-model — Domain types and structural validation
-needs: repo-scaffold            cost: 3   benefit: 5
+needs: —            cost: 3   benefit: 5
 `Model`, `NodeId`, `Node {Gate(And|Or|Vote{k}) | Leaf(Basic|Undeveloped)}`,
 `Distribution` AST (spec 3.2 incl. product form and shorthands, `Pert`), `Asset`,
 `Consequence`, `Control`, `Effect`, `Profile`, `AnalysisConfig`,
@@ -138,7 +129,7 @@ before sampling starts. Done when a headless-browser test solves the reference
 tree and cancels a long run.
 
 ### server-shell — Binary, app shell, embedded assets
-needs: repo-scaffold            cost: 2   benefit: 4
+needs: —            cost: 2   benefit: 4
 `effractor` binary (axum; flags `--bind`, `--data`, `--max-ttl`); askama shell;
 rust-embed for CSS, JS, fonts, wasm; security headers and the strict CSP of spec
 §8. Done when an integration test asserts the headers and that no response
@@ -158,7 +149,7 @@ approved mockups; resizable, collapsible panels; tabular numerics. Static, no
 model yet. Done when it holds at 1280×720 and up in both themes.
 
 ### ui-vendor — ELK.js and fonts through npm
-needs: repo-scaffold            cost: 1   benefit: 3
+needs: —            cost: 1   benefit: 3
 Minimal `package.json` pinning `elkjs` and the font packages; `scripts/vendor`
 copying them to `assets/`; CI fails if `assets/vendor` is stale. Done when
 Dependabot opens an npm PR against it.
