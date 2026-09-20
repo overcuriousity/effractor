@@ -6,8 +6,9 @@ Date: 2026-09-20 · Status: draft for review · Scope: v1 only
 
 A tool for developing and analysing production security architectures: model the
 architecture, derive the attack graph, quantify risk, rank controls by risk
-reduction. Models are text — git-versioned, diffable, CI-runnable — so an
-architecture change shows up as a risk delta in a pull request.
+reduction. It is a web app. Models are text — git-versioned and diffable — and
+the solver is a pure library, so a CI risk delta on a pull request stays a cheap
+later addition; v1 ships no command-line analysis.
 
 v1 delivers the analytical core on hand-built trees. Its first real user is a
 university course on FTA / attack trees / securiCAD; that course is a test of
@@ -31,7 +32,7 @@ reporting.
 
 **cutset.** The minimal cut set is the one concept all three formalisms share
 (an FTA cut set is an attack tree's attack scenario is an attack graph's path
-set), it is short, it reads well as a command (`cutset solve model.yaml`), and
+set), it is short, and
 `cutset` / `cutset-*` are unclaimed on crates.io (checked 2026-09-20). The
 project directory may stay `SecGraph`; nothing depends on it.
 
@@ -220,7 +221,7 @@ analysis:
 Rules:
 
 - `cutset: <int>` is the schema version. `format` holds an explicit chain of
-  migrations `vN → vN+1`; loading an older file migrates in memory, `cutset fmt`
+  migrations `vN → vN+1`; loading an older file migrates in memory, the next save
   writes it back upgraded. A newer-than-known version is an error.
 - `nodes`, `assets`, `controls` are **maps keyed by id** (`[a-z0-9][a-z0-9-]*`):
   ids are unique by construction and adding a node is a pure insertion in a diff.
@@ -228,13 +229,13 @@ Rules:
   most one of `p` (= `Bernoulli(p)`), `rate` (= `Exponential(rate)`), `ttc`
   (expression string, grammar of 3.2). Attack-tree leaves may add `cost`,
   `detection`. Every node may have `label`, `description`, `consequences`.
-- **Canonical form** (`cutset fmt`, and every save from the UI): fixed key order
+- **Canonical form** (every save and export from the UI): fixed key order
   within each object as listed above; entry order of the maps preserved as
   authored, new entries appended; shorthands kept as written; block style except
-  short scalar lists and consequence/effect entries. `fmt` is idempotent.
+  short scalar lists and consequence/effect entries. Canonicalisation is idempotent.
 - Comments do not survive a canonical rewrite (serde round trip). `description`
   exists so that nothing worth keeping needs to be a comment. Hand-edited files
-  that are never passed through `fmt` or the UI keep their comments.
+  keep their comments until the UI first saves them.
 - No layout coordinates are stored. Layout is computed; diffs stay semantic.
 - Unknown keys are an error (typos must not silently drop a consequence), except
   under a reserved `x-` prefix, which round-trips untouched.
@@ -244,8 +245,8 @@ Validation returns **diagnostics** `{severity, code, message, path, line, col}`
 out of range, parameters out of domain, attributes not allowed by the profile
 (warning), unreachable nodes (warning), overlapping control effects (warning).
 
-Results have their own versioned JSON schema (`cutset-results: 1`), the CLI's
-machine output and the wasm return value.
+Results have their own versioned JSON schema (`cutset-results: 1`), the wasm return value and the
+export format of the results panel.
 
 ## 6. Architecture
 
@@ -259,8 +260,10 @@ htmx where a server round trip exists).
 | `cutset-format` | YAML ⇄ `Model`, schema version, migrations, canonical writer, line/col diagnostics. | core, mal |
 | `cutset-solver` | Everything in §4. | core |
 | `cutset-wasm` | wasm-bindgen surface: `validate`, `parse`, `serialize`, `solve_begin` / `solve_step` / `solve_finish`. | core, format, solver |
-| `cutset-server` | axum library: app shell, embedded assets (rust-embed), share API, `Storage` trait + filesystem impl. | — (never links solver) |
-| `cutset-cli` | The `cutset` binary. | format, solver, server |
+| `cutset-server` | The `cutset` binary: axum app shell, embedded assets incl. the wasm bundle (rust-embed), share API, `Storage` trait + filesystem impl. Flags: `--bind`, `--data`, `--max-ttl`; nothing else. | — (never links solver) |
+
+There is no CLI crate. `core` + `solver` + `format` still build and test natively
+— that is where the test suite runs and what keeps them UI-free.
 
 **Solving runs in the browser.** The wasm module runs in a Web Worker. Solving is
 stepped (`solve_step` processes one 4096-sample chunk and returns progress) so
@@ -395,7 +398,6 @@ cost × time): front points in `--color-accent`, dominated cut sets as small
 muted dots for context, the third attribute in the tooltip and the table. No
 size or colour encoding of the third objective, and no 3-D. Selecting a row or
 point highlights that cut set's leaves and edges on the canvas, and the reverse.
-The CLI emits the same rows.
 
 Charts (TTC CDF with band, LEC, scatter) are hand-rolled SVG, single series in
 `--color-accent`, recessive grid, hover crosshair + tooltip, and each has a
@@ -444,26 +446,44 @@ v1 implementation: filesystem, `data/{id[..2]}/{id}.bin` + `.meta.json`
 (expiry, delete-token hash, size), atomic write via rename. Auth and Postgres
 later implement the same trait.
 
-## 9. CLI — ships in v1
+## 9. Development process and delivery
 
-Yes. CI-runnability is the target's defining property, and the CLI is also the
-cheapest proof that core + solver are genuinely UI-free.
+**Roadmap.** All work is scheduled and checked through `ROADMAP.md`, which is
+itself a DAG. One entry per work item:
 
 ```
-cutset validate <model>                  diagnostics; exit 1 on errors
-cutset fmt [--check] <model>…            canonical rewrite / CI check
-cutset solve <model> [--format text|json|md] [--seed N] [--samples N]
-             [--max-p-top X] [--max-eal X]
-cutset diff <base> <head> [--format text|json|md] [--fail-if-worse PCT]
-cutset serve [--bind ADDR] [--data DIR]  the full server, locally
+### solver-bdd — BDD engine and exact P(top)
+needs: core-model            cost: 3   benefit: 5
+Shannon expansion, deterministic variable order, node limit. Done when the
+golden models and the brute-force property test pass.
 ```
 
-`diff` solves both models with the same seed and reports: ΔP(top), ΔEAL and
-Δp95, cut sets added / removed, new SPOFs, controls toggled, and structural
-changes by node id. `--format md` is sized for a PR comment. `--fail-if-worse`
-compares the risk measure (EAL if assets exist, else P(top)). Exit codes: 0 ok,
-1 threshold or validation failure, 2 usage / I/O error. A sample GitHub Actions
-and GitLab CI snippet ships in the docs.
+`needs` lists item ids (the edges); `cost` and `benefit` are 1–5; the body says
+what "done" means. An item is *ready* when everything it needs is gone. Work
+picks the ready item with the best benefit/cost. **Completed items are deleted**
+in the same PR that completes them — the file only ever shows remaining work;
+git history is the record. CI checks the file: ids unique, every `needs` target
+exists, no cycles. The implementation plan for v1 is delivered as the initial
+`ROADMAP.md`, not as a separate plan document.
+
+**Branches and releases.** Work lands on `master` by PR. PR CI: fmt, clippy,
+native tests, wasm build, native-vs-wasm determinism test, headless UI tests,
+token contrast script, roadmap check. **Every commit to `master` is a release**:
+the release workflow builds the wasm bundle, embeds it, compiles static
+`cutset` binaries (linux x86_64 + aarch64, musl), and publishes a GitHub Release
+with SHA-256 sums, versioned `<Cargo version>+<short sha>`, moving `latest`.
+
+**Dependabot, full:** `cargo`, `github-actions`, and `npm`. ELK.js and the fonts
+are vendored into the binary, but pinned through a minimal `package.json` whose
+only job is to let Dependabot see them; a `vendor` script copies them into
+`assets/`.
+
+**README.md** is concise: one paragraph of what it is, a screenshot, the
+installer, how to run, a link to the docs. The installer is one line —
+`curl -fsSL https://raw.githubusercontent.com/<owner>/cutset/master/install.sh | sh`
+— which detects the architecture, downloads the latest release binary, verifies
+its SHA-256 and installs to `~/.local/bin`. Then `cutset` serves the app on
+localhost: self-hosted and local-first with no other moving parts.
 
 ## 10. Error handling
 
@@ -504,6 +524,6 @@ and GitLab CI snippet ships in the docs.
 ## 12. v1 done means
 
 The course's reference fault tree and one attack tree can be built by keyboard in
-the browser, solved locally, shared by link and deleted again; the same files
-pass `cutset solve` in CI with identical numbers; and a PR that toggles a
-control shows its risk delta as a Markdown comment.
+the browser, solved locally, shared by link and deleted again; toggling a control shows its risk delta and
+rank; native and wasm solves of the same file give identical numbers; and a
+fresh machine gets a running instance from the README's one-line installer.
