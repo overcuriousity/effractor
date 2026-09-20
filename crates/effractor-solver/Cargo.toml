@@ -9,6 +9,12 @@ repository.workspace = true
 
 [dependencies]
 effractor-core = { path = "../effractor-core" }
+libm = "0.2.16"
+rand_chacha = "0.10.0"
+rand_core = "0.10.1"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+proptest = { version = "1.11.0", default-features = false, features = ["std"] }

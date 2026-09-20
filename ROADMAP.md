@@ -31,14 +31,6 @@ the spec's example file loads, and unknown keys error with a position.
 
 ## Solver
 
-### solver-dist — Sampling and CDFs
-needs: —            cost: 3   benefit: 5
-For every `Distribution`: `cdf(t) -> f64` and `sample(&mut ChaCha8Rng) -> f64`
-(∞ allowed), all through `libm`; the chunked stream scheme
-(`fn chunk_rng(seed, chunk_idx)`). Done when CDFs match closed forms, sample
-moments match within tolerance, and a fixed seed gives a byte-identical sample
-vector natively and under wasmtime.
-
 ### solver-bdd — BDD engine and exact P(top ≤ t)
 needs: —            cost: 4   benefit: 5
 Reduced ordered BDD with unique table and ITE cache; deterministic DFS variable
@@ -56,13 +48,13 @@ SPOF. Done when proptest shows every set satisfies `top`, none is a superset of
 another, and none is missing versus brute force.
 
 ### solver-importance — Birnbaum and Fussell-Vesely
-needs: solver-mcs, solver-dist            cost: 2   benefit: 4
+needs: solver-mcs            cost: 2   benefit: 4
 Birnbaum by cofactor evaluation; FV by definition from the ZBDD subset
 containing the leaf (spec §4 — not the rare-event form). Done when both match
 brute force under proptest and a fixture shows FV ≠ the approximation.
 
 ### solver-mc — Monte Carlo, Wilson CI, TTC CDF
-needs: solver-dist, solver-bdd            cost: 3   benefit: 5
+needs: solver-bdd            cost: 3   benefit: 5
 Stepped sampler: `begin(model, config) -> Run`, `step(&mut Run) -> Progress`
 (one 4096 chunk), `finish(Run) -> Sampled`; node completion times by
 min/max/k-th; Wilson interval on P(top ≤ T); empirical TTC CDF with pointwise
@@ -80,7 +72,7 @@ p50/p90/p95/p99, LEC points, per-asset breakdown. Done when the dedup fixture
 model matches `P × magnitude` within CI, and a zero-asset model skips cleanly.
 
 ### solver-attacker — Cheapest path and Pareto front
-needs: solver-mcs, solver-dist            cost: 3   benefit: 4
+needs: solver-mcs            cost: 3   benefit: 4
 Per-MCS cost (shared leaf once), detection, success, `E[max TTC | finite]`
 (numerical integration of the product CDF, via `libm`); min-cost set with
 time → id tie-break; non-dominated filter over (cost, time, detection). Done when

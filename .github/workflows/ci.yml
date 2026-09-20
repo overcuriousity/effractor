@@ -35,6 +35,22 @@ jobs:
           -p effractor-core -p effractor-mal -p effractor-format
           -p effractor-solver -p effractor-wasm
 
+  wasm-determinism:
+    # The solver's tests, fingerprints included, run as wasm. They hold the
+    # same frozen constants as the native run above, so both passing means
+    # native and wasm agree bit for bit.
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TARGET_WASM32_WASIP1_RUNNER: wasmtime run --dir .
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wasip1
+      - uses: bytecodealliance/actions/wasmtime/setup@v1
+      - run: cargo test --locked --target wasm32-wasip1 -p effractor-solver
+
   scripts:
     runs-on: ubuntu-latest
     steps:
