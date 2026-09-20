@@ -128,15 +128,8 @@ with progress, cancel-between-chunks and restart-on-panic; exact results posted
 before sampling starts. Done when a headless-browser test solves the reference
 tree and cancels a long run.
 
-### server-shell — Binary, app shell, embedded assets
-needs: —            cost: 2   benefit: 4
-`effractor` binary (axum; flags `--bind`, `--data`, `--max-ttl`); askama shell;
-rust-embed for CSS, JS, fonts, wasm; security headers and the strict CSP of spec
-§8. Done when an integration test asserts the headers and that no response
-references a third-party origin.
-
 ### ui-tokens — Engram tokens, theme switch, validated ramp
-needs: server-shell            cost: 2   benefit: 4
+needs: —            cost: 2   benefit: 4
 Port `00-tokens.css` unchanged; add the `--viz-*` tokens and ink pairs of spec
 7.3; three-state switch, initial state light; `scripts/check-contrast.js`
 asserting every ratio in the spec table, in CI. Done when the script passes and
@@ -196,7 +189,7 @@ baseline, ranking table with the "marginal, not additive" note.
 ## Sharing and delivery
 
 ### share-server — Storage trait, filesystem impl, API
-needs: server-shell            cost: 3   benefit: 4
+needs: —            cost: 3   benefit: 4
 `Storage` trait per spec §8 with reusable contract tests; filesystem impl
 (atomic rename, `.meta.json`); `POST/GET/DELETE /api/share`; TTL options and
 `--max-ttl`; hourly + startup sweep; hashed delete token; 1 MiB and per-IP
@@ -209,7 +202,7 @@ loads a local copy; "My shares" list with delete. Done when a headless test
 shares, opens in a fresh profile, deletes, and then gets 404.
 
 ### release — Release workflow, installer, README
-needs: server-shell            cost: 2   benefit: 5
+needs: —            cost: 2   benefit: 5
 On push to `master`: build wasm, embed, compile static musl binaries (x86_64,
 aarch64), publish a GitHub Release `<Cargo version>+<short sha>` with SHA-256
 sums, move `latest`. `install.sh` (arch detect, checksum verify,

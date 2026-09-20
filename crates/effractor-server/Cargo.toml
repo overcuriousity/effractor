@@ -6,11 +6,29 @@ edition.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 
+[lib]
+path = "src/lib.rs"
+
 [[bin]]
 name = "effractor"
 path = "src/main.rs"
 
 [dependencies]
+anyhow = "1"
+askama = "0.16"
+axum = "0.8"
+clap = { version = "4", features = ["derive"] }
+mime_guess = "2"
+# The whole app ships inside the binary: no asset directory to deploy, and no
+# third-party origin to fetch from.
+rust-embed = "8"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+http-body-util = "0.1"
+tower = { version = "0.5", features = ["util"] }
 
 [lints]
 workspace = true
