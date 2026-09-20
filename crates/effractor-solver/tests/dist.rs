@@ -153,6 +153,34 @@ fn cdfs_match_closed_forms() {
     );
 }
 
+/// Found by proptest on CI: with the mean far below zero, `1 - Φ(-mean/sd)`
+/// rounds to 0 and the CDF was 0 / 0.
+#[test]
+fn a_normal_truncated_far_into_its_tail_is_still_a_distribution() {
+    for (mean, sd) in [(-10.0, 0.1), (-10.0, 1.0), (-3.0, 0.1), (-400.0, 10.0)] {
+        let d = D::TruncatedNormal { mean, sd };
+        let mut last = 0.0;
+        for t in [0.0, 1e-6, 1e-3, 0.01, 0.1, 1.0, 10.0, 1e4] {
+            let f = cdf(&d, t);
+            assert!((0.0..=1.0).contains(&f) && f >= last, "{d:?}: F({t}) = {f}");
+            last = f;
+        }
+        close(last, 1.0, 1e-12);
+        let mut rng = chunk_rng(5, 0);
+        assert!((0..1000).all(|_| sample(&d, &mut rng) >= 0.0), "{d:?}");
+    }
+    // Where both forms are usable they agree: a = 30 sits just inside the tail form.
+    let inside = D::TruncatedNormal {
+        mean: -30.0,
+        sd: 1.0,
+    };
+    close(
+        cdf(&inside, 0.02),
+        1.0 - (-30.0f64 * 0.02 - 0.02 * 0.02 / 2.0).exp() * 0.999_55,
+        2e-4,
+    );
+}
+
 #[test]
 fn nothing_happens_before_time_zero() {
     for d in [

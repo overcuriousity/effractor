@@ -55,6 +55,33 @@ fn gamma(shape: f64, rng: &mut ChaCha8Rng) -> f64 {
     }
 }
 
+/// Standard normal upper tail, Q(z) = 1 - Φ(z), without the subtraction.
+fn upper(z: f64) -> f64 {
+    phi(-z)
+}
+
+enum Truncation {
+    /// Q(a), the mass of the normal above 0, where a = -mean / sd.
+    Tail(f64),
+    /// That mass underflowed.
+    Exponential(f64),
+}
+
+/// A normal truncated at 0 is worked in its upper tail: what is left above 0
+/// can be tiny, and `1 - Φ(a)` would round it to nothing long before `Q(a)`
+/// does. Past a ≈ 38 even `Q(a)` underflows; out there the truncated normal
+/// *is* an exponential with rate a / sd to every digit f64 has, so it is
+/// computed as one instead of as 0 / 0.
+fn truncation(mean: f64, sd: f64) -> Truncation {
+    let a = -mean / sd;
+    let q_a = upper(a);
+    if q_a > 1e-300 {
+        Truncation::Tail(q_a)
+    } else {
+        Truncation::Exponential(a / sd)
+    }
+}
+
 fn pert_shape(min: f64, mode: f64, max: f64) -> (f64, f64) {
     let range = max - min;
     (
@@ -78,12 +105,11 @@ pub fn sample(d: &Distribution, rng: &mut ChaCha8Rng) -> f64 {
         D::Gamma { shape, scale } => gamma(*shape, rng) * scale,
         D::LogNormal { mu, sigma } => exp(mu + sigma * normal(rng)),
         D::Pareto { xm, alpha } => xm / pow(uniform(rng), 1.0 / alpha),
-        D::TruncatedNormal { mean, sd } => {
-            // Inverse CDF over the part of the normal above 0.
-            let below = phi(-mean / sd);
-            let u = below + uniform(rng) * (1.0 - below);
-            (mean + sd * phi_inv(u.min(1.0 - f64::EPSILON / 2.0))).max(0.0)
-        }
+        D::TruncatedNormal { mean, sd } => match truncation(*mean, *sd) {
+            // X = mean + sd * Q⁻¹(U * Q(a)), all in the upper tail.
+            Truncation::Tail(q_a) => (mean - sd * phi_inv(uniform(rng) * q_a)).max(0.0),
+            Truncation::Exponential(rate) => -log(uniform(rng)) / rate,
+        },
         D::Zero => 0.0,
         D::Infinity => f64::INFINITY,
         D::Product(p, inner) => {
@@ -128,10 +154,10 @@ pub fn cdf(d: &Distribution, t: f64) -> f64 {
                 1.0 - pow(xm / t, *alpha)
             }
         }
-        D::TruncatedNormal { mean, sd } => {
-            let below = phi(-mean / sd);
-            ((phi((t - mean) / sd) - below) / (1.0 - below)).clamp(0.0, 1.0)
-        }
+        D::TruncatedNormal { mean, sd } => match truncation(*mean, *sd) {
+            Truncation::Tail(q_a) => (1.0 - upper((t - mean) / sd) / q_a).clamp(0.0, 1.0),
+            Truncation::Exponential(rate) => -expm1(-rate * t),
+        },
         D::Zero => 1.0,
         D::Infinity => 0.0,
         D::Product(p, inner) => p * cdf(inner, t),
