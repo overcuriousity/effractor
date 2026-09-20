@@ -148,14 +148,8 @@ Top bar, tool rail, left/right panels, canvas region, legend footer per the
 approved mockups; resizable, collapsible panels; tabular numerics. Static, no
 model yet. Done when it holds at 1280×720 and up in both themes.
 
-### ui-vendor — ELK.js and fonts through npm
-needs: —            cost: 1   benefit: 3
-Minimal `package.json` pinning `elkjs` and the font packages; `scripts/vendor`
-copying them to `assets/`; CI fails if `assets/vendor` is stale. Done when
-Dependabot opens an npm PR against it.
-
 ### ui-renderer — Renderer interface and SVG implementation
-needs: ui-workspace, ui-vendor, wasm-api            cost: 5   benefit: 5
+needs: ui-workspace, wasm-api            cost: 5   benefit: 5
 The interface of spec 7.1; ELK layered layout in its own worker; DIN 25424
 symbols (`&`, `≥1`, `≥k`, circle, diamond, description boxes); attack-tree
 labelling; a repeated node drawn once with a `shared · n parents` badge; pan,

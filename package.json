@@ -3,6 +3,13 @@
   "private": true,
   "description": "Pins browser assets that are vendored into the binary, so Dependabot can see them. Not a build system.",
   "scripts": {
-    "test": "node --test \"scripts/*.test.js\""
+    "test": "node --test \"scripts/*.test.js\"",
+    "vendor": "node scripts/vendor.js",
+    "vendor:check": "node scripts/vendor.js --check"
+  },
+  "dependencies": {
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "elkjs": "0.12.0"
   }
 }
