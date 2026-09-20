@@ -44,3 +44,4 @@ jobs:
       - run: npm test
       - run: npm run vendor:check
       - run: node scripts/check-roadmap.js
+      - run: node scripts/check-contrast.js

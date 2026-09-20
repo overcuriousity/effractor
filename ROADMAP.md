@@ -128,15 +128,8 @@ with progress, cancel-between-chunks and restart-on-panic; exact results posted
 before sampling starts. Done when a headless-browser test solves the reference
 tree and cancels a long run.
 
-### ui-tokens — Engram tokens, theme switch, validated ramp
-needs: —            cost: 2   benefit: 4
-Port `00-tokens.css` unchanged; add the `--viz-*` tokens and ink pairs of spec
-7.3; three-state switch, initial state light; `scripts/check-contrast.js`
-asserting every ratio in the spec table, in CI. Done when the script passes and
-fails on a deliberately broken token.
-
 ### ui-workspace — Docked-panel layout
-needs: ui-tokens            cost: 3   benefit: 4
+needs: —            cost: 3   benefit: 4
 Top bar, tool rail, left/right panels, canvas region, legend footer per the
 approved mockups; resizable, collapsible panels; tabular numerics. Static, no
 model yet. Done when it holds at 1280×720 and up in both themes.

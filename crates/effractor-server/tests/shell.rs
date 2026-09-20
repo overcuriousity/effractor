@@ -84,3 +84,20 @@ async fn unknown_paths_are_404_with_headers() {
         assert_security_headers(&res);
     }
 }
+
+#[tokio::test]
+async fn everything_the_shell_links_is_embedded() {
+    let html = text(get("/").await).await;
+    let mut linked = 0;
+    for attr in ["href=\"", "src=\""] {
+        for part in html.split(attr).skip(1) {
+            let path = part.split('"').next().unwrap();
+            assert_eq!(get(path).await.status(), StatusCode::OK, "{path}");
+            linked += 1;
+        }
+    }
+    assert!(
+        linked >= 3,
+        "the shell should link its tokens, base css and theme script"
+    );
+}

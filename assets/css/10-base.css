@@ -1,0 +1,18 @@
+/* The page itself. Panels and components come in later layers. */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--color-bg-base);
+  color: var(--color-fg-primary);
+  font: var(--text-base)/1.55 var(--font-sans);
+}
+
+/* Every number in the app: monospace, tabular, right-aligned. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
