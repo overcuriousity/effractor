@@ -1,0 +1,180 @@
+/* The docked-panel workspace: top bar, tool rail, model panel, canvas, results
+   panel, legend. One grid; the two panel widths are custom properties that
+   workspace.js writes through the CSSOM — the CSP allows no style attributes,
+   and none are needed. */
+
+.workspace {
+  --left-w: 220px;
+  --right-w: 264px;
+  display: grid;
+  height: 100%;
+  grid-template-columns: 40px var(--left-w) 5px minmax(0, 1fr) 5px var(--right-w);
+  grid-template-rows: 42px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "top  top  top   top    top    top"
+    "rail left lgrip canvas rgrip  right"
+    "foot foot foot  foot   foot   foot";
+}
+.workspace[data-left="closed"]  { --left-w: 0px; }
+.workspace[data-right="closed"] { --right-w: 0px; }
+
+.spacer { flex: 1; }
+.muted { color: var(--color-fg-muted); }
+
+.label {
+  margin: 0 0 7px;
+  font: 600 0.625rem/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
+}
+
+/* ---- top bar ---- */
+.topbar {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  background: var(--color-bg-elevated);
+  border-bottom: 1px solid var(--color-border);
+  min-width: 0;
+}
+.brand { display: flex; align-items: center; gap: 7px; font-weight: 600; }
+.brand-mark { width: 9px; height: 9px; border-radius: var(--radius-sm); background: var(--color-accent); }
+.crumb { color: var(--color-fg-muted); font-size: var(--text-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crumb b { color: var(--color-fg-primary); font-weight: 500; }
+
+.chip {
+  font: 500 0.6875rem/1 var(--font-mono);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  color: var(--color-fg-muted);
+  white-space: nowrap;
+}
+
+.btn {
+  font: 600 0.6875rem/1 var(--font-sans);
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-accent-muted);
+  background: var(--color-accent-dim);
+  color: var(--color-accent);
+  cursor: pointer;
+}
+.btn-ghost { border-color: var(--color-border); background: var(--color-bg-surface); color: var(--color-fg-secondary); }
+.btn:hover:not(:disabled) { background: var(--color-bg-hover); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+/* ---- tool rail ---- */
+.rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-top: 7px;
+  background: var(--color-bg-surface);
+  border-right: 1px solid var(--color-border);
+}
+.tool {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  padding: 0;
+  border: 0; border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+}
+.tool svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.tool:hover:not(:disabled) { background: var(--color-bg-hover); color: var(--color-fg-primary); }
+.tool[aria-pressed="true"] { background: var(--color-accent-dim); color: var(--color-accent); }
+.tool:disabled { opacity: 0.4; cursor: default; }
+.rail-rule { width: 18px; height: 1px; margin: 5px 0; background: var(--color-border); }
+
+/* ---- side panels ---- */
+.panel {
+  min-width: 0;
+  overflow: hidden auto;
+  background: var(--color-bg-surface);
+  font-size: var(--text-xs);
+}
+.panel-left  { grid-area: left; }
+.panel-right { grid-area: right; }
+.workspace[data-left="closed"]  .panel-left,
+.workspace[data-right="closed"] .panel-right { visibility: hidden; }
+.panel-section { padding: 11px; border-bottom: 1px solid var(--color-border-subtle); }
+.empty { margin: 0; color: var(--color-fg-muted); }
+
+.resizer {
+  background: var(--color-border);
+  background-clip: content-box;
+  padding: 0 2px;            /* a 1px line with a 5px grip */
+  cursor: col-resize;
+  touch-action: none;
+}
+.resizer[data-resize="left"]  { grid-area: lgrip; }
+.resizer[data-resize="right"] { grid-area: rgrip; }
+.resizer:hover, .resizer:focus-visible, .resizer[data-dragging] { background-color: var(--color-accent); outline: none; }
+
+/* ---- canvas ---- */
+.canvas {
+  grid-area: canvas;
+  position: relative;
+  overflow: hidden;
+  background: var(--viz-canvas);
+}
+.canvas-grid {
+  position: absolute; inset: 0;
+  opacity: 0.45;
+  background-image:
+    linear-gradient(var(--color-border-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border-subtle) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+.hud { position: absolute; display: flex; gap: 8px; }
+.hud-top-right { top: 10px; right: 10px; }
+.hud-card {
+  display: grid;
+  min-width: 118px;
+  padding: 7px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+.hud-card .label { margin-bottom: 5px; }
+.stat { font-weight: 600; font-size: 1.05rem; line-height: 1.1; letter-spacing: -0.02em; }
+.hud-sub { font-size: 0.6875rem; color: var(--color-fg-muted); }
+
+/* ---- legend ---- */
+.legend {
+  grid-area: foot;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 6px 11px;
+  font-size: 0.6875rem;
+  color: var(--color-fg-muted);
+  background: var(--color-bg-elevated);
+  border-top: 1px solid var(--color-border);
+}
+.legend-group { display: inline-flex; align-items: center; gap: 5px; }
+.legend-title { margin-right: 3px; }
+.legend .num { margin-right: 5px; }
+/* The outline is what makes the pale steps a shape at all; see 00-tokens.css. */
+.swatch { width: 11px; height: 11px; border-radius: 50%; border: 1px solid var(--viz-outline); }
+.swatch-1 { background: var(--viz-imp-1); }
+.swatch-2 { background: var(--viz-imp-2); }
+.swatch-3 { background: var(--viz-imp-3); }
+.swatch-4 { background: var(--viz-imp-4); }
+.swatch-5 { background: var(--viz-imp-5); }
+.swatch-none { background: var(--color-bg-elevated); }
+
+/* A closed panel has nothing to resize. */
+.workspace[data-left="closed"]  .resizer[data-resize="left"],
+.workspace[data-right="closed"] .resizer[data-resize="right"] { visibility: hidden; }

@@ -101,3 +101,26 @@ async fn everything_the_shell_links_is_embedded() {
         "the shell should link its tokens, base css and theme script"
     );
 }
+
+#[tokio::test]
+async fn shell_has_the_workspace_regions_and_no_inline_style_or_script() {
+    let html = text(get("/").await).await;
+    for region in [
+        "class=\"topbar\"",
+        "class=\"rail\"",
+        "id=\"panel-left\"",
+        "id=\"canvas\"",
+        "id=\"panel-right\"",
+        "class=\"legend\"",
+    ] {
+        assert!(html.contains(region), "missing {region}");
+    }
+    // The CSP would block these silently; better to fail here, loudly.
+    assert!(!html.contains("style=\""), "inline style attribute");
+    assert!(!html.contains("<style"), "inline stylesheet");
+    assert!(!html.contains("onclick="), "inline handler");
+    assert!(
+        !html.replace("<script src=", "").contains("<script"),
+        "inline script"
+    );
+}

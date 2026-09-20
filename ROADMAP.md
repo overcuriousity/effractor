@@ -94,14 +94,8 @@ before sampling starts. The build embeds the wasm bundle, so `ci.yml` and
 `release.yml` both gain the wasm-bindgen step. Done when a headless-browser test
 solves the reference tree and cancels a long run.
 
-### ui-workspace — Docked-panel layout
-needs: —            cost: 3   benefit: 4
-Top bar, tool rail, left/right panels, canvas region, legend footer per the
-approved mockups; resizable, collapsible panels; tabular numerics. Static, no
-model yet. Done when it holds at 1280×720 and up in both themes.
-
 ### ui-renderer — Renderer interface and SVG implementation
-needs: ui-workspace, wasm-api            cost: 5   benefit: 5
+needs: wasm-api            cost: 5   benefit: 5
 The interface of spec 7.1; ELK layered layout in its own worker; DIN 25424
 symbols (`&`, `≥1`, `≥k`, circle, diamond, description boxes); attack-tree
 labelling; a repeated node drawn once with a `shared · n parents` badge; pan,

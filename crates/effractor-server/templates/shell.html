@@ -5,11 +5,83 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>effractor</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/assets/css/00-tokens.css">
 <link rel="stylesheet" href="/assets/css/10-base.css">
+<link rel="stylesheet" href="/assets/css/20-workspace.css">
 <script src="/assets/js/theme.js"></script>
+<script src="/assets/js/workspace.js" defer></script>
 </head>
 <body>
-<main id="app" data-version="{{ version }}"></main>
+<div class="workspace" id="app" data-version="{{ version }}">
+
+  <header class="topbar">
+    <span class="brand"><span class="brand-mark" aria-hidden="true"></span>effractor</span>
+    <span class="crumb">Models / <b id="model-name">Untitled</b></span>
+    <span class="chip" id="profile-chip">no profile</span>
+    <span class="chip" id="analysis-chip">not solved</span>
+    <span class="spacer"></span>
+    <button class="btn btn-ghost" id="theme-switch" type="button" aria-label="Theme">Light</button>
+    <button class="btn btn-ghost" id="share" type="button" disabled>Share</button>
+    <button class="btn" id="solve" type="button" disabled>Solve</button>
+  </header>
+
+  <nav class="rail" aria-label="Tools">
+    <button class="tool" type="button" data-tool="select" aria-pressed="true" title="Select"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2l9 5.5-4 1.2L6.5 13z"/></svg></button>
+    <button class="tool" type="button" data-tool="add" disabled title="Add node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+    <button class="tool" type="button" data-tool="link" disabled title="Link existing node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8"/></svg></button>
+    <span class="rail-rule" aria-hidden="true"></span>
+    <button class="tool" type="button" data-toggle="left" aria-pressed="true" title="Model panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM6 3v10"/></svg></button>
+    <button class="tool" type="button" data-toggle="right" aria-pressed="true" title="Results panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM10 3v10"/></svg></button>
+    <button class="tool" type="button" data-tool="source" disabled title="YAML source"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4L2.5 8 6 12M10 4l3.5 4L10 12"/></svg></button>
+    <button class="tool" type="button" data-tool="controls" disabled title="Controls"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/></svg></button>
+  </nav>
+
+  <aside class="panel panel-left" id="panel-left" aria-label="Model">
+    <section class="panel-section">
+      <h2 class="label">Model</h2>
+      <p class="empty">No model yet.</p>
+    </section>
+    <section class="panel-section">
+      <h2 class="label">Assets</h2>
+      <p class="empty">No assets.</p>
+    </section>
+  </aside>
+  <div class="resizer" data-resize="left" role="separator" aria-orientation="vertical" aria-controls="panel-left" aria-label="Resize model panel" tabindex="0"></div>
+
+  <main class="canvas" id="canvas" aria-label="Graph">
+    <div class="canvas-grid" aria-hidden="true"></div>
+    <div class="hud hud-top-right">
+      <div class="hud-card"><span class="label">P(top)</span><span class="stat num" id="hud-p">—</span><span class="hud-sub num" id="hud-p-ci">&nbsp;</span></div>
+      <div class="hud-card"><span class="label">Expected loss</span><span class="stat num" id="hud-eal">—</span><span class="hud-sub num" id="hud-p95">&nbsp;</span></div>
+    </div>
+  </main>
+
+  <div class="resizer" data-resize="right" role="separator" aria-orientation="vertical" aria-controls="panel-right" aria-label="Resize results panel" tabindex="0"></div>
+  <aside class="panel panel-right" id="panel-right" aria-label="Results">
+    <section class="panel-section">
+      <h2 class="label">Minimal cut sets</h2>
+      <p class="empty">Solve to list them.</p>
+    </section>
+    <section class="panel-section">
+      <h2 class="label">Selected</h2>
+      <p class="empty">Nothing selected.</p>
+    </section>
+  </aside>
+
+  <footer class="legend" aria-label="Legend">
+    <span class="legend-group"><span class="legend-title">Importance</span>
+      <span class="swatch swatch-1"></span><span class="num">&lt;0.01</span>
+      <span class="swatch swatch-2"></span><span class="num">&lt;0.05</span>
+      <span class="swatch swatch-3"></span><span class="num">&lt;0.2</span>
+      <span class="swatch swatch-4"></span><span class="num">&lt;0.5</span>
+      <span class="swatch swatch-5"></span><span class="num">&ge;0.5</span>
+    </span>
+    <span class="legend-group"><span class="swatch swatch-none"></span>not solved</span>
+    <span class="spacer"></span>
+    <span class="legend-group muted num">{{ version }}</span>
+  </footer>
+
+</div>
 </body>
 </html>
