@@ -19,16 +19,8 @@ user input · no third-party origins, no telemetry · vanilla CSS + JS, no bundl
 
 ## Foundation
 
-### mal-ttc — TTC expression parser
-needs: —            cost: 2   benefit: 4
-`fn parse_ttc(&str) -> Result<Distribution, ParseError{col, message}>`:
-hand-written recursive descent for exactly spec 3.2, plus
-`fn to_expr(&Distribution) -> String` that round-trips. Done when every
-shorthand, the product form, bad arity and out-of-domain parameters are tested,
-and a fuzz/proptest run finds no panic.
-
 ### format-yaml — YAML ⇄ Model, canonical writer, migrations
-needs: mal-ttc            cost: 4   benefit: 5
+needs: —            cost: 4   benefit: 5
 `fn load(&str) -> Result<Model, Vec<Diagnostic>>` with line/col on diagnostics;
 `fn save(&Model) -> String` in canonical form (spec §5: key order, authored map
 order preserved, shorthands `p`/`rate`/`ttc` kept as written, `x-` keys

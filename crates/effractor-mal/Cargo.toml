@@ -10,5 +10,8 @@ repository.workspace = true
 [dependencies]
 effractor-core = { path = "../effractor-core" }
 
+[dev-dependencies]
+proptest = "1"
+
 [lints]
 workspace = true
