@@ -97,7 +97,7 @@ toggle is a one-line diff.
 A control has `cost` (defender cost per horizon), `enabled` (the as-is state),
 and `effects`: a list of `{node, ttc}` replacing a leaf's TTC while the control
 is enabled (`ttc: Infinity` blocks the step). If two enabled controls affect the
-same leaf, the stochastically later one wins, decided by comparing `pᵢ(T)`;
+same leaf, the effect with the lowest `pᵢ(T)` applies (ties: control id order);
 validation warns about the overlap.
 
 ### 3.5 Impact
