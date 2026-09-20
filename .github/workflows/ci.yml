@@ -10,8 +10,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  # A superseded PR run is waste; a superseded release is still a release.
+  # One group per pull request, so a new push supersedes the old run — and one
+  # per commit when called from the release workflow, so two releases never
+  # share a group. They must not: GitHub cancels a *pending* run whenever a
+  # newer one joins its group, whatever cancel-in-progress says, and that
+  # once cancelled a release's gate.
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
