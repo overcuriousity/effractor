@@ -1,4 +1,4 @@
-# cutset — v1 design
+# effractor — v1 design
 
 Date: 2026-09-20 · Status: draft for review · Scope: v1 only
 
@@ -30,11 +30,12 @@ reporting.
 
 ## 2. Name
 
-**cutset.** The minimal cut set is the one concept all three formalisms share
-(an FTA cut set is an attack tree's attack scenario is an attack graph's path
-set), it is short, and
-`cutset` / `cutset-*` are unclaimed on crates.io (checked 2026-09-20). The
-project directory may stay `SecGraph`; nothing depends on it.
+**effractor** — Latin, "one who breaks in; burglar". The tool takes the
+intruder's view of an architecture: every analysis answers how, how fast, how
+cheaply and how quietly someone gets in. `effractor` / `effractor-*` are
+unclaimed on crates.io (checked 2026-09-20). The minimal cut set stays the
+central *concept*; it is just no longer the name. The project directory may
+stay `SecGraph`; nothing depends on it.
 
 ## 3. Semantics
 
@@ -166,7 +167,7 @@ YAML, the stable interface v2/v3 build on. Example (the course's reference
 tree):
 
 ```yaml
-cutset: 1
+effractor: 1
 profile: fault-tree
 name: Mangelnde Verfügbarkeit Webserver
 time_unit: h
@@ -220,7 +221,7 @@ analysis:
 
 Rules:
 
-- `cutset: <int>` is the schema version. `format` holds an explicit chain of
+- `effractor: <int>` is the schema version. `format` holds an explicit chain of
   migrations `vN → vN+1`; loading an older file migrates in memory, the next save
   writes it back upgraded. A newer-than-known version is an error.
 - `nodes`, `assets`, `controls` are **maps keyed by id** (`[a-z0-9][a-z0-9-]*`):
@@ -245,7 +246,7 @@ Validation returns **diagnostics** `{severity, code, message, path, line, col}`
 out of range, parameters out of domain, attributes not allowed by the profile
 (warning), unreachable nodes (warning), overlapping control effects (warning).
 
-Results have their own versioned JSON schema (`cutset-results: 1`), the wasm return value and the
+Results have their own versioned JSON schema (`effractor-results: 1`), the wasm return value and the
 export format of the results panel.
 
 ## 6. Architecture
@@ -255,12 +256,12 @@ htmx where a server round trip exists).
 
 | Crate | Responsibility | Depends on |
 |---|---|---|
-| `cutset-core` | Domain types: `Model`, `Node`, `Gate`, `Distribution`, `Asset`, `Control`, `Profile`, `Diagnostic`; structural validation. No I/O, no serde-format knowledge. | — |
-| `cutset-mal` | Parses TTC distribution expressions into `core::Distribution`. v1 is a hand-written recursive-descent parser for exactly the grammar in 3.2, pure Rust so it compiles to wasm. tree-sitter-mal arrives with v2's full MAL parsing, behind a native-only feature. | core |
-| `cutset-format` | YAML ⇄ `Model`, schema version, migrations, canonical writer, line/col diagnostics. | core, mal |
-| `cutset-solver` | Everything in §4. | core |
-| `cutset-wasm` | wasm-bindgen surface: `validate`, `parse`, `serialize`, `solve_begin` / `solve_step` / `solve_finish`. | core, format, solver |
-| `cutset-server` | The `cutset` binary: axum app shell, embedded assets incl. the wasm bundle (rust-embed), share API, `Storage` trait + filesystem impl. Flags: `--bind`, `--data`, `--max-ttl`; nothing else. | — (never links solver) |
+| `effractor-core` | Domain types: `Model`, `Node`, `Gate`, `Distribution`, `Asset`, `Control`, `Profile`, `Diagnostic`; structural validation. No I/O, no serde-format knowledge. | — |
+| `effractor-mal` | Parses TTC distribution expressions into `core::Distribution`. v1 is a hand-written recursive-descent parser for exactly the grammar in 3.2, pure Rust so it compiles to wasm. tree-sitter-mal arrives with v2's full MAL parsing, behind a native-only feature. | core |
+| `effractor-format` | YAML ⇄ `Model`, schema version, migrations, canonical writer, line/col diagnostics. | core, mal |
+| `effractor-solver` | Everything in §4. | core |
+| `effractor-wasm` | wasm-bindgen surface: `validate`, `parse`, `serialize`, `solve_begin` / `solve_step` / `solve_finish`. | core, format, solver |
+| `effractor-server` | The `effractor` binary: axum app shell, embedded assets incl. the wasm bundle (rust-embed), share API, `Storage` trait + filesystem impl. Flags: `--bind`, `--data`, `--max-ttl`; nothing else. | — (never links solver) |
 
 There is no CLI crate. `core` + `solver` + `format` still build and test natively
 — that is where the test suite runs and what keeps them UI-free.
@@ -470,7 +471,7 @@ exists, no cycles. The implementation plan for v1 is delivered as the initial
 native tests, wasm build, native-vs-wasm determinism test, headless UI tests,
 token contrast script, roadmap check. **Every commit to `master` is a release**:
 the release workflow builds the wasm bundle, embeds it, compiles static
-`cutset` binaries (linux x86_64 + aarch64, musl), and publishes a GitHub Release
+`effractor` binaries (linux x86_64 + aarch64, musl), and publishes a GitHub Release
 with SHA-256 sums, versioned `<Cargo version>+<short sha>`, moving `latest`.
 
 **Dependabot, full:** `cargo`, `github-actions`, and `npm`. ELK.js and the fonts
@@ -480,9 +481,9 @@ only job is to let Dependabot see them; a `vendor` script copies them into
 
 **README.md** is concise: one paragraph of what it is, a screenshot, the
 installer, how to run, a link to the docs. The installer is one line —
-`curl -fsSL https://raw.githubusercontent.com/<owner>/cutset/master/install.sh | sh`
+`curl -fsSL https://raw.githubusercontent.com/<owner>/effractor/master/install.sh | sh`
 — which detects the architecture, downloads the latest release binary, verifies
-its SHA-256 and installs to `~/.local/bin`. Then `cutset` serves the app on
+its SHA-256 and installs to `~/.local/bin`. Then `effractor` serves the app on
 localhost: self-hosted and local-first with no other moving parts.
 
 ## 10. Error handling
