@@ -19,18 +19,8 @@ user input · no third-party origins, no telemetry · vanilla CSS + JS, no bundl
 
 ## Foundation
 
-### core-model — Domain types and structural validation
-needs: —            cost: 3   benefit: 5
-`Model`, `NodeId`, `Node {Gate(And|Or|Vote{k}) | Leaf(Basic|Undeveloped)}`,
-`Distribution` AST (spec 3.2 incl. product form and shorthands, `Pert`), `Asset`,
-`Consequence`, `Control`, `Effect`, `Profile`, `AnalysisConfig`,
-`Diagnostic {severity, code, message, path}`. `fn validate(&Model) -> Vec<Diagnostic>`:
-dangling refs, cycles (reported with the cycle), `k` range, parameter domains,
-profile-disallowed attributes, unreachable nodes, overlapping effects. Done when
-each diagnostic code has a passing fixture test.
-
 ### mal-ttc — TTC expression parser
-needs: core-model            cost: 2   benefit: 4
+needs: —            cost: 2   benefit: 4
 `fn parse_ttc(&str) -> Result<Distribution, ParseError{col, message}>`:
 hand-written recursive descent for exactly spec 3.2, plus
 `fn to_expr(&Distribution) -> String` that round-trips. Done when every
@@ -38,7 +28,7 @@ shorthand, the product form, bad arity and out-of-domain parameters are tested,
 and a fuzz/proptest run finds no panic.
 
 ### format-yaml — YAML ⇄ Model, canonical writer, migrations
-needs: core-model, mal-ttc            cost: 4   benefit: 5
+needs: mal-ttc            cost: 4   benefit: 5
 `fn load(&str) -> Result<Model, Vec<Diagnostic>>` with line/col on diagnostics;
 `fn save(&Model) -> String` in canonical form (spec §5: key order, authored map
 order preserved, shorthands `p`/`rate`/`ttc` kept as written, `x-` keys
@@ -50,7 +40,7 @@ the spec's example file loads, and unknown keys error with a position.
 ## Solver
 
 ### solver-dist — Sampling and CDFs
-needs: core-model            cost: 3   benefit: 5
+needs: —            cost: 3   benefit: 5
 For every `Distribution`: `cdf(t) -> f64` and `sample(&mut ChaCha8Rng) -> f64`
 (∞ allowed), all through `libm`; the chunked stream scheme
 (`fn chunk_rng(seed, chunk_idx)`). Done when CDFs match closed forms, sample
@@ -58,7 +48,7 @@ moments match within tolerance, and a fixed seed gives a byte-identical sample
 vector natively and under wasmtime.
 
 ### solver-bdd — BDD engine and exact P(top ≤ t)
-needs: core-model            cost: 4   benefit: 5
+needs: —            cost: 4   benefit: 5
 Reduced ordered BDD with unique table and ITE cache; deterministic DFS variable
 order; `and`/`or`/`vote` compilation with shared subgraphs compiled once;
 `bdd_node_limit` → `Unavailable(reason)`; `fn prob(&Bdd, leaf_p: &[f64]) -> f64`.

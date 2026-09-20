@@ -67,8 +67,8 @@ plus `Zero`, `Infinity`, the product form `Bernoulli(p) * <dist>`, and MAL's
 named shorthands (`EasyAndCertain` = `Exponential(1)`, `EasyAndUncertain` =
 `Bernoulli(0.5)`, `HardAndCertain` = `Exponential(0.1)`, `HardAndUncertain` =
 `Bernoulli(0.5) * Exponential(0.1)`, `VeryHardAndCertain` = `Exponential(0.01)`,
-`VeryHardAndUncertain` = `Bernoulli(0.5) * Exponential(0.01)`, `Enabled`,
-`Disabled`).
+`VeryHardAndUncertain` = `Bernoulli(0.5) * Exponential(0.01)`; `Enabled` = `Infinity`, a defence that is
+on and blocks the step; `Disabled` = `Zero`).
 
 `Bernoulli(p)` alone means: time 0 with probability `p`, else ∞.
 `Bernoulli(p) * D` means: ∞ with probability `1 − p`, else a draw from `D`.
@@ -244,7 +244,9 @@ Rules:
 Validation returns **diagnostics** `{severity, code, message, path, line, col}`
 — dangling child/asset/node references, cycles (reported with the cycle), `k`
 out of range, parameters out of domain, attributes not allowed by the profile
-(warning), unreachable nodes (warning), overlapping control effects (warning).
+(warning), unreachable nodes (warning), overlapping control effects (warning);
+also a child listed twice in one gate, an effect that targets a gate, and a
+consequence on a dimension its asset declares no loss for (all errors).
 
 Results have their own versioned JSON schema (`effractor-results: 1`), the wasm return value and the
 export format of the results panel.

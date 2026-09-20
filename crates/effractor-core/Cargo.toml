@@ -8,6 +8,9 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+# Maps that remember the order they were written in: the document's node order
+# is the author's, and a canonical save must not reshuffle it into a diff.
+indexmap = "2"
 
 [lints]
 workspace = true
