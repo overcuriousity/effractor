@@ -31,17 +31,8 @@ the spec's example file loads, and unknown keys error with a position.
 
 ## Solver
 
-### solver-bdd — BDD engine and exact P(top ≤ t)
-needs: —            cost: 4   benefit: 5
-Reduced ordered BDD with unique table and ITE cache; deterministic DFS variable
-order; `and`/`or`/`vote` compilation with shared subgraphs compiled once;
-`bdd_node_limit` → `Unavailable(reason)`; `fn prob(&Bdd, leaf_p: &[f64]) -> f64`.
-Done when golden models (series, parallel, 2-of-3, the repeated-event bridge DAG)
-match analytic values and proptest equals brute-force enumeration for ≤ 16
-leaves.
-
 ### solver-mcs — Minimal cut sets and SPOFs
-needs: solver-bdd            cost: 3   benefit: 5
+needs: —            cost: 3   benefit: 5
 Rauzy minimal solutions into a ZBDD; enumeration honouring `mcs_max_order` /
 `mcs_max_sets` with a `truncated` flag; cut-set probability; order-1 flagged
 SPOF. Done when proptest shows every set satisfies `top`, none is a superset of
@@ -54,7 +45,7 @@ containing the leaf (spec §4 — not the rare-event form). Done when both match
 brute force under proptest and a fixture shows FV ≠ the approximation.
 
 ### solver-mc — Monte Carlo, Wilson CI, TTC CDF
-needs: solver-bdd            cost: 3   benefit: 5
+needs: —            cost: 3   benefit: 5
 Stepped sampler: `begin(model, config) -> Run`, `step(&mut Run) -> Progress`
 (one 4096 chunk), `finish(Run) -> Sampled`; node completion times by
 min/max/k-th; Wilson interval on P(top ≤ T); empirical TTC CDF with pointwise

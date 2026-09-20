@@ -5,5 +5,6 @@
 //! the same bits in both, which is why every transcendental function in this
 //! crate comes from `libm` and none from `std`.
 
+pub mod bdd;
 pub mod dist;
 mod special;
