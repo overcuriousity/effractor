@@ -4,6 +4,7 @@ description = "Pure analyses: BDD, cut sets, Monte Carlo, importance, loss excee
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 repository.workspace = true
 
 [dependencies]

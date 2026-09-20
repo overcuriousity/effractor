@@ -1,16 +1,18 @@
 name: ci
 
+# Pull requests run this directly; the release workflow calls it as its gate,
+# so master is tested once per commit, not twice.
 on:
   pull_request:
-  push:
-    branches: [master]
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A superseded PR run is waste; a superseded release is still a release.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
@@ -45,3 +47,5 @@ jobs:
       - run: npm run vendor:check
       - run: node scripts/check-roadmap.js
       - run: node scripts/check-contrast.js
+      - run: shellcheck install.sh scripts/install.test.sh
+      - run: sh scripts/install.test.sh

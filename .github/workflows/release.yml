@@ -1,0 +1,91 @@
+name: release
+
+# Every commit to master is a release.
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: ci
+    strategy:
+      matrix:
+        include:
+          # Native runners for both architectures: no cross toolchain to keep.
+          - { target: x86_64-unknown-linux-musl, runner: ubuntu-latest }
+          - { target: aarch64-unknown-linux-musl, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+      - name: version
+        run: |
+          base=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "effractor-server") | .version')
+          echo "EFFRACTOR_VERSION=$base+$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
+      - run: cargo build --release --locked --target ${{ matrix.target }} -p effractor-server
+      - name: stage
+        run: |
+          bin=target/${{ matrix.target }}/release/effractor
+          # Static, or the installer's promise of "any Linux" is false.
+          if ldd "$bin" 2>&1 | grep -q '=>'; then echo "$bin is dynamically linked"; exit 1; fi
+          test "$("$bin" --version)" = "effractor $EFFRACTOR_VERSION"
+          cp "$bin" effractor-${{ matrix.target }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: effractor-${{ matrix.target }}
+          path: effractor-${{ matrix.target }}
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          merge-multiple: true
+          path: dist
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          base=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
+          tag="v$base+$(git rev-parse --short=7 HEAD)"
+          cd dist
+          sha256sum effractor-* > SHA256SUMS
+          cat SHA256SUMS
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" \
+            --notes "$(git log -1 --format=%B)" --latest effractor-* SHA256SUMS
+
+  verify:
+    # The README's promise, kept honest: a clean machine, the installer, a
+    # running instance.
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          docker run --rm -v "$PWD/install.sh:/install.sh:ro" debian:stable-slim sh -euc '
+            apt-get update -qq && apt-get install -y -qq curl ca-certificates >/dev/null
+            sh /install.sh
+            "$HOME/.local/bin/effractor" --version
+            "$HOME/.local/bin/effractor" --bind 127.0.0.1:8080 &
+            sleep 1
+            curl -fsS http://127.0.0.1:8080/ | grep -q "<title>effractor</title>"
+            echo "running instance verified"
+          '

@@ -125,8 +125,9 @@ needs: format-yaml, solver-results            cost: 3   benefit: 5
 Exports `validate`, `parse`, `serialize`, `solve_begin`/`solve_step`/`solve_finish`,
 each returning `{ok}` or `{diagnostics}`; panic hook; `assets/js/solver-worker.js`
 with progress, cancel-between-chunks and restart-on-panic; exact results posted
-before sampling starts. Done when a headless-browser test solves the reference
-tree and cancels a long run.
+before sampling starts. The build embeds the wasm bundle, so `ci.yml` and
+`release.yml` both gain the wasm-bindgen step. Done when a headless-browser test
+solves the reference tree and cancels a long run.
 
 ### ui-workspace — Docked-panel layout
 needs: —            cost: 3   benefit: 4
@@ -194,16 +195,8 @@ WebCrypto AES-256-GCM, key in the fragment; share dialog with TTL; `/s/{id}`
 loads a local copy; "My shares" list with delete. Done when a headless test
 shares, opens in a fresh profile, deletes, and then gets 404.
 
-### release — Release workflow, installer, README
-needs: —            cost: 2   benefit: 5
-On push to `master`: build wasm, embed, compile static musl binaries (x86_64,
-aarch64), publish a GitHub Release `<Cargo version>+<short sha>` with SHA-256
-sums, move `latest`. `install.sh` (arch detect, checksum verify,
-`~/.local/bin`). Concise `README.md` with the curl one-liner. Done when the
-one-liner yields a running instance on a clean container in CI.
-
 ### v1-acceptance — The spec's "done means"
-needs: ui-editor, ui-charts, ui-pareto, ui-controls, share-ui, release            cost: 2   benefit: 5
+needs: ui-editor, ui-charts, ui-pareto, ui-controls, share-ui            cost: 2   benefit: 5
 End-to-end headless run of spec §12 against a release binary; performance
 budget check (10 000 samples < 1 s, first exact result < 100 ms on the reference
 tree); docs page for the course with the reference fault tree and one attack
