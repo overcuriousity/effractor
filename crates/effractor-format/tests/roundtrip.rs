@@ -138,3 +138,18 @@ fn a_long_child_list_goes_block_and_stays_there() {
     assert!(out.lines().all(|l| l.chars().count() <= 80), "{out}");
     assert_eq!(canonicalize(&out).unwrap(), out);
 }
+
+/// The documents the app ships are canonical: what a user opens first is what
+/// a save would write.
+#[test]
+fn shipped_examples_are_canonical() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/examples");
+    let mut seen = 0;
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(canonicalize(&text).unwrap(), text, "{}", path.display());
+        seen += 1;
+    }
+    assert!(seen > 0);
+}

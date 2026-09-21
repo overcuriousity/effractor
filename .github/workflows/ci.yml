@@ -26,6 +26,10 @@ jobs:
       - run: rustup show
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
+      # Before anything links the server: it embeds assets/, the bundle included,
+      # and its tests ask for it.
+      - name: wasm bundle
+        run: scripts/build-wasm.sh --fetch-cli
       - run: cargo clippy --workspace --all-targets --locked
       - run: cargo test --workspace --locked
       - name: wasm build
@@ -62,5 +66,5 @@ jobs:
       - run: npm run vendor:check
       - run: node scripts/check-roadmap.js
       - run: node scripts/check-contrast.js
-      - run: shellcheck install.sh scripts/install.test.sh scripts/dev/*.sh
+      - run: shellcheck install.sh scripts/*.sh scripts/dev/*.sh
       - run: sh scripts/install.test.sh

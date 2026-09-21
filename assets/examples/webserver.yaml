@@ -1,0 +1,65 @@
+effractor: 1
+profile: fault-tree
+name: Mangelnde Verfügbarkeit Webserver
+time_unit: h
+horizon: 8760
+currency: EUR
+top: mangelnde-verfuegbarkeit
+
+nodes:
+  mangelnde-verfuegbarkeit:
+    label: Mangelnde Verfügbarkeit
+    gate: or
+    children: [ohne-zugang, ohne-funktion]
+    consequences:
+      - {asset: webserver, dim: a}
+  ohne-zugang:
+    label: Server ohne Zugang
+    gate: or
+    children: [administration, vernetzung, ausfall-server]
+  ohne-funktion:
+    label: Server ohne Funktion
+    gate: or
+    children: [hardware, software, malware, ausfall-server]
+  administration:
+    label: Fehler in der Administration
+    leaf: basic
+    rate: 7e-7
+  vernetzung:
+    label: Ausfall der Vernetzung
+    leaf: basic
+    rate: 3.5e-7
+  ausfall-server:
+    label: Ausfall Server
+    leaf: basic
+    rate: 2.5e-6
+  hardware:
+    label: Hardware defekt
+    leaf: basic
+    rate: 1.3e-6
+  software:
+    label: Softwarefehler
+    leaf: basic
+    rate: 2.3e-7
+  malware:
+    label: Malware
+    leaf: undeveloped
+    p: 0.004
+
+assets:
+  webserver:
+    label: Webserver
+    loss: {c: 20000, i: 40000, a: "Pert(60000, 120000, 400000)"}
+
+controls:
+  redundant-psu:
+    label: Redundantes Netzteil
+    cost: 1800
+    enabled: false
+    effects:
+      - {node: hardware, ttc: "Exponential(4e-7)"}
+
+analysis:
+  seed: 42
+  samples: 10000
+  confidence: 0.95

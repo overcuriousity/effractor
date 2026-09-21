@@ -230,8 +230,11 @@ impl Cx {
         None
     }
 
+    /// Quoted digits count too: that is how a whole number above 2^53 comes
+    /// back from JavaScript, which cannot hold it as a number.
     fn integer(&mut self, node: &Node, path: &str) -> Option<u64> {
-        if let Value::Scalar { text, plain: true } = &node.value
+        if let Value::Scalar { text, .. } = &node.value
+            && !text.is_empty()
             && text.bytes().all(|b| b.is_ascii_digit())
             && let Ok(v) = text.parse()
         {

@@ -15,6 +15,9 @@ indexmap = "2"
 # The format needs positions for diagnostics and says no to most of YAML, so it
 # reads events itself rather than accept a library's idea of a document.
 saphyr-parser = "0.1.0"
+# The document's JSON image, which is what the browser edits. `preserve_order`
+# because the order of a map is the author's here, in JSON as in YAML.
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
 
 [lints]
 workspace = true

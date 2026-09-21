@@ -30,8 +30,25 @@ jobs:
           echo "successful ci runs for $GITHUB_SHA: $green"
           test "$green" -ge 1
 
-  build:
+  wasm:
+    # Once, not per architecture: both binaries embed the same bytes.
     needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-wasm
+      - run: scripts/build-wasm.sh --fetch-cli
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wasm-bundle
+          path: assets/wasm
+          if-no-files-found: error
+
+  build:
+    needs: wasm
     strategy:
       matrix:
         include:
@@ -46,6 +63,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-${{ matrix.target }}
+      # Into the embedded folder, before the build that embeds it.
+      - uses: actions/download-artifact@v8
+        with:
+          name: wasm-bundle
+          path: assets/wasm
       - name: version
         run: |
           base=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "effractor-server") | .version')
@@ -57,6 +79,8 @@ jobs:
           # Static, or the installer's promise of "any Linux" is false.
           if ldd "$bin" 2>&1 | grep -q '=>'; then echo "$bin is dynamically linked"; exit 1; fi
           test "$("$bin" --version)" = "effractor $EFFRACTOR_VERSION"
+          # The bundle is inside: a binary without it serves a page that cannot solve.
+          grep -qa "effractor_wasm_bg" "$bin"
           cp "$bin" effractor-${{ matrix.target }}
       - uses: actions/upload-artifact@v7
         with:
@@ -73,6 +97,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
+          # The binaries; the wasm bundle is inside them already.
+          pattern: effractor-*
           merge-multiple: true
           path: dist
       - name: publish
@@ -102,5 +128,6 @@ jobs:
             "$HOME/.local/bin/effractor" --bind 127.0.0.1:8080 &
             sleep 1
             curl -fsS http://127.0.0.1:8080/ | grep -q "<title>effractor</title>"
+            curl -fsS -o /dev/null http://127.0.0.1:8080/assets/wasm/effractor_wasm_bg.wasm
             echo "running instance verified"
           '

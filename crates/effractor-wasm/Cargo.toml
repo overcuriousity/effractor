@@ -14,6 +14,14 @@ crate-type = ["cdylib", "rlib"]
 effractor-core = { path = "../effractor-core" }
 effractor-format = { path = "../effractor-format" }
 effractor-solver = { path = "../effractor-solver" }
+serde = "1.0.229"
+# `float_roundtrip`: a document comes back from JavaScript as JSON, and without
+# this serde_json reads a float fast and, now and then, one bit off — an edit
+# to a label would nudge a failure rate.
+serde_json = { version = "1.0.151", features = ["preserve_order", "float_roundtrip"] }
+# Pinned exactly: the CLI that post-processes the module must be this version,
+# and scripts/build-wasm.sh reads it from Cargo.lock.
+wasm-bindgen = "=0.2.128"
 
 [lints]
 workspace = true

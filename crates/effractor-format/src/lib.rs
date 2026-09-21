@@ -8,6 +8,7 @@
 
 #[cfg(test)]
 mod extension_tests;
+mod json;
 mod lower;
 mod migrate;
 mod tree;
@@ -18,33 +19,50 @@ use effractor_core::{Diagnostic, Model, Severity, validate};
 use lower::{Extras, Lowered};
 pub use migrate::CURRENT_VERSION;
 
-fn read(text: &str) -> (Option<Lowered>, Vec<Diagnostic>) {
-    let root = match tree::parse(text) {
-        Ok(root) => root,
-        Err(diagnostics) => return (None, diagnostics),
+/// What a text says: the migrated tree, and what it lowers to.
+struct Read {
+    root: tree::Node,
+    lowered: Lowered,
+}
+
+fn read(text: &str) -> (Option<Read>, Vec<Diagnostic>) {
+    match tree::parse(text) {
+        Ok(root) => read_tree(root, true),
+        Err(diagnostics) => (None, diagnostics),
+    }
+}
+
+/// `positioned` says whether the tree came from a text, and so whether a path
+/// is somewhere.
+fn read_tree(root: tree::Node, positioned: bool) -> (Option<Read>, Vec<Diagnostic>) {
+    let nowhere = |mut diagnostics: Vec<Diagnostic>| {
+        for d in diagnostics.iter_mut().filter(|_| !positioned) {
+            d.pos = None;
+        }
+        diagnostics
     };
     let root = match migrate::migrate(root) {
         Ok(root) => root,
-        Err(diagnostic) => return (None, vec![diagnostic]),
+        Err(diagnostic) => return (None, nowhere(vec![diagnostic])),
     };
     let lowered = match lower::lower(&root) {
         Ok(lowered) => lowered,
-        Err(diagnostics) => return (None, diagnostics),
+        Err(diagnostics) => return (None, nowhere(diagnostics)),
     };
     // The model knows paths; only the text knows where they are.
     let mut diagnostics = validate(&lowered.model);
-    for d in &mut diagnostics {
+    for d in diagnostics.iter_mut().filter(|_| positioned) {
         d.pos = Some(tree::locate(&root, &d.path));
     }
     let failed = diagnostics.iter().any(|d| d.severity == Severity::Error);
-    ((!failed).then_some(lowered), diagnostics)
+    ((!failed).then_some(Read { root, lowered }), diagnostics)
 }
 
 /// Everything there is to say about a text, each with its line and column, and
 /// the model if nothing said was an error.
 pub fn diagnose(text: &str) -> (Option<Model>, Vec<Diagnostic>) {
-    let (lowered, diagnostics) = read(text);
-    (lowered.map(|l| l.model), diagnostics)
+    let (read, diagnostics) = read(text);
+    (read.map(|r| r.lowered.model), diagnostics)
 }
 
 /// The model a text describes. Warnings do not stop a load — [`diagnose`]
@@ -66,7 +84,30 @@ pub fn save(model: &Model) -> String {
 /// survive. Idempotent.
 pub fn canonicalize(text: &str) -> Result<String, Vec<Diagnostic>> {
     match read(text) {
-        (Some(l), _) => Ok(write::write(&l.model, &l.extras)),
+        (Some(r), _) => Ok(write::write(&r.lowered.model, &r.lowered.extras)),
+        (None, diagnostics) => Err(diagnostics),
+    }
+}
+
+/// A text as JSON, for an editor that is not written in Rust: an image of the
+/// document — the same maps, lists and keys, `x-` keys included, migrated to the
+/// current version — and not of the `Model`, which has no place for what it
+/// does not understand. `None` if the text has errors.
+///
+/// A whole number above 2^53 is a string in the image, because its reader is
+/// JavaScript; [`from_document`] takes it back either way.
+pub fn document(text: &str) -> (Option<serde_json::Value>, Vec<Diagnostic>) {
+    let (read, diagnostics) = read(text);
+    (read.map(|r| json::image(&r.root)), diagnostics)
+}
+
+/// The canonical text of an edited [`document`]. It is read exactly as a text
+/// would be, so whatever an edit broke comes back as diagnostics — with paths,
+/// and without positions, since there is no text for them to be in.
+pub fn from_document(document: &serde_json::Value) -> Result<String, Vec<Diagnostic>> {
+    let root = json::tree(document).map_err(|d| vec![d])?;
+    match read_tree(root, false) {
+        (Some(r), _) => Ok(write::write(&r.lowered.model, &r.lowered.extras)),
         (None, diagnostics) => Err(diagnostics),
     }
 }

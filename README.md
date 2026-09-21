@@ -30,10 +30,13 @@ the [design](docs/superpowers/specs/2026-09-20-effractor-v1-design.md).
 ## Build
 
 ```sh
+scripts/build-wasm.sh            # the solver, as wasm, into assets/wasm/
 cargo run -p effractor-server
 ```
 
-Browser assets are vendored; `npm ci && npm run vendor` only after bumping a pin
+The first line needs the `wasm-bindgen` CLI in the version `Cargo.lock` names;
+it says how to get it, or fetches it itself with `--fetch-cli`. Run it again
+after changing a crate the browser runs. Other browser assets are vendored; `npm ci && npm run vendor` only after bumping a pin
 in `package.json`.
 
 AGPL-3.0-or-later.

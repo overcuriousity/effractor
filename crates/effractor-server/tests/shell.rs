@@ -124,3 +124,43 @@ async fn shell_has_the_workspace_regions_and_no_inline_style_or_script() {
         "inline script"
     );
 }
+
+/// What the page fetches after the shell: none of it is linked from the HTML,
+/// so the link test above cannot see it go missing.
+#[tokio::test]
+async fn the_solver_and_its_example_are_embedded() {
+    for (path, mime) in [
+        ("/assets/js/solver-worker.js", "text/javascript"),
+        ("/assets/examples/webserver.yaml", "text/x-yaml"),
+        // Built by scripts/build-wasm.sh, not committed. If these two are
+        // missing, that script has not run since the last checkout.
+        ("/assets/wasm/effractor_wasm.js", "text/javascript"),
+        // Exactly this type, or the browser refuses to compile it as it streams.
+        ("/assets/wasm/effractor_wasm_bg.wasm", "application/wasm"),
+    ] {
+        let res = get(path).await;
+        assert_eq!(
+            res.status(),
+            StatusCode::OK,
+            "{path} — run scripts/build-wasm.sh"
+        );
+        assert_eq!(res.headers()[header::CONTENT_TYPE], mime, "{path}");
+        assert_security_headers(&res);
+    }
+}
+
+#[tokio::test]
+async fn the_policy_lets_the_worker_run_and_nothing_else_in() {
+    let res = get("/").await;
+    let csp = res.headers()["content-security-policy"].to_str().unwrap();
+    // The worker script, the wasm it fetches and compiles, the example it loads.
+    for needed in [
+        "worker-src 'self'",
+        "connect-src 'self'",
+        "'wasm-unsafe-eval'",
+    ] {
+        assert!(csp.contains(needed), "{needed} missing from {csp}");
+    }
+    // Compiling wasm is allowed; evaluating JavaScript text is not.
+    assert!(!csp.contains(" 'unsafe-eval'"), "{csp}");
+}
