@@ -23,11 +23,12 @@ tests cover each asynchronous parse/serialize/adopt stage and normal file undo.
 
 Local npm/workspace tests, fmt, Clippy and roadmap checks passed. The WASM build
 ran, and all 13 shipped examples encoded, decoded and parsed in the real WASM
-module. Code review has no remaining findings. **Owner UI acceptance is still
-pending; do not merge before it.** No browser was driven. The preview worktree
+module. Code review has no remaining findings. **The owner accepted the UI and
+authorized merging on 2026-09-22.** No agent drove a browser. The preview worktree
 is `/tmp/effractor-self-contained-links`; static preview is
 `http://127.0.0.1:8082/effractor/`, server preview is `http://127.0.0.1:8081/`.
-Check create/copy/open, editing and re-sharing, Ctrl+Z, and both server modes.
+The previews cover create/copy/open, editing and re-sharing, Ctrl+Z, and both
+server modes. Follow the exact-commit CI and fast-forward release process.
 
 ## Continuation — successor scope
 
