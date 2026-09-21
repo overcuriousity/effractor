@@ -30,3 +30,20 @@
   font-family: var(--font-mono); font-size: 9px; line-height: 13px;
 }
 .legend-measure { padding: 1px 6px; font-size: var(--text-xs); }
+
+/* The right panel's tabs, and the controls under the second one. */
+.tabs { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--color-border-subtle); }
+.tab { padding: 4px 8px 5px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--color-fg-muted); font: 600 0.625rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+.tab:hover { color: var(--color-fg-primary); }
+.tab[aria-selected="true"] { border-bottom-color: var(--color-accent); color: var(--color-fg-primary); }
+.controls { margin: 0; padding: 0; list-style: none; }
+.control { padding: 6px 0; border-bottom: 1px solid var(--color-border-subtle); }
+.control:last-child { border-bottom: 0; }
+.control-head { display: flex; align-items: baseline; gap: 6px; font-size: var(--text-sm); cursor: pointer; }
+.control-head input { flex: none; margin: 0; accent-color: var(--color-accent); }
+.control-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.control-rank { flex: none; color: var(--color-fg-muted); font-size: var(--text-xs); }
+.control-facts, .control-worth { margin: 2px 0 0 19px; color: var(--color-fg-muted); font-size: var(--text-xs); line-height: 1.35; }
+.control-worth { color: var(--color-fg-secondary); }
+.controls-baseline { margin: 0 0 4px; text-align: left; font-size: var(--text-xs); color: var(--color-fg-secondary); }
+#tab-controls .hint { margin: 8px 0 0; color: var(--color-fg-muted); font-size: var(--text-xs); line-height: 1.35; }

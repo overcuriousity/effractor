@@ -108,7 +108,42 @@
     return typeof lastExactMs === "number" && lastExactMs < AUTO_SOLVE_MS;
   }
 
-  var api = { bin: bin, number: number, leafStyles: leafStyles, rankCutSets: rankCutSets, reasons: reasons, nodeFacts: nodeFacts, rowsContaining: rowsContaining, shouldAutoSolve: shouldAutoSolve };
+  // The controls of the document, with what the last solve said each is worth.
+  // Ranked ones first, best buy on top; then the enabled ones; without results,
+  // the document's order. `close`: the interval of its value reaches another
+  // ranked control's value — more samples would settle which is better.
+  function controlRows(doc, results) {
+    var controls = (doc && doc.controls) || {};
+    var solved = (results && results.controls && results.controls.available) || null;
+    var rows = Object.keys(controls).map(function (id, index) {
+      var r = solved ? find(solved.controls, id) : null;
+      return {
+        id: id,
+        label: controls[id].label || id,
+        enabled: !!controls[id].enabled,
+        cost: typeof controls[id].cost === "number" ? controls[id].cost : null,
+        effects: (controls[id].effects || []).length,
+        order: index,
+        rank: r && r.rank != null ? r.rank : null,
+        value: r ? r.value : null,
+        ci: (r && r.value_ci) || null,
+        perCost: r && r.value_per_cost != null ? r.value_per_cost : null,
+        close: false,
+      };
+    });
+    var ranked = rows.filter(function (row) { return row.rank !== null; });
+    ranked.forEach(function (row) {
+      row.close = !!row.ci && ranked.some(function (other) {
+        return other !== row && other.value >= row.ci.lo && other.value <= row.ci.hi;
+      });
+    });
+    return rows.sort(function (a, b) {
+      if ((a.rank === null) !== (b.rank === null)) return a.rank === null ? 1 : -1;
+      return a.rank !== null ? a.rank - b.rank : a.order - b.order;
+    });
+  }
+
+  var api = { bin: bin, number: number, leafStyles: leafStyles, rankCutSets: rankCutSets, reasons: reasons, nodeFacts: nodeFacts, rowsContaining: rowsContaining, shouldAutoSolve: shouldAutoSolve, controlRows: controlRows };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorResults = api;
 })();

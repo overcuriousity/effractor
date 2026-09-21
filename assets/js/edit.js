@@ -336,6 +336,14 @@
     return { doc: doc, select: null, removed: 1 };
   }
 
+  // A control's as-is state: the one-line diff the format was shaped for.
+  function toggleControl(doc, id) {
+    if (!has(doc.controls || {}, id)) return null;
+    doc = clone(doc);
+    doc.controls[id].enabled = !doc.controls[id].enabled;
+    return { doc: doc, select: null, control: id };
+  }
+
   // A rate is how the format says "how often"; people say it the other way
   // round: once every so long. Both directions, in the document's time unit.
   var HOURS = { h: 1, d: 24, y: 8760 };
@@ -419,7 +427,7 @@
     slug: slug, parentsOf: parentsOf, addChild: addChild, addSibling: addSibling, rename: rename, setId: setId,
     cycleGate: cycleGate, setLeafKind: setLeafKind, link: link, removeEdge: removeEdge, deleteNode: deleteNode, removal: removal,
     reparent: reparent, setAttribute: setAttribute, outline: outline, rateFrom: rateFrom, meanTime: meanTime,
-    addAsset: addAsset, setAssetLabel: setAssetLabel, setAssetLoss: setAssetLoss, removeAsset: removeAsset, usesOfAsset: usesOfAsset, walk: walk, createHistory: createHistory,
+    addAsset: addAsset, setAssetLabel: setAssetLabel, setAssetLoss: setAssetLoss, removeAsset: removeAsset, usesOfAsset: usesOfAsset, toggleControl: toggleControl, walk: walk, createHistory: createHistory,
   };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorEdit = api;

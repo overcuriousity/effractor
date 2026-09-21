@@ -440,6 +440,7 @@
   window.effractor.select = select;
   window.effractor.applyEdit = applyEdit;
   window.effractor.say = say;
+  window.effractor.format = { money: money, probability: probability };
   window.effractor.adoptSource = adoptSource;
   // A crash with nothing waiting on the worker would otherwise pass unseen.
   solver.onCrash = function (message) {

@@ -26,6 +26,7 @@
 <script src="/assets/js/app.js" defer></script>
 <script src="/assets/js/editor.js" defer></script>
 <script src="/assets/js/source.js" defer></script>
+<script src="/assets/js/controls.js" defer></script>
 </head>
 <body>
 <div class="workspace" id="app" data-version="{{ version }}">
@@ -56,7 +57,7 @@
     <button class="tool" type="button" data-toggle="left" aria-pressed="true" title="Model panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM6 3v10"/></svg></button>
     <button class="tool" type="button" data-toggle="right" aria-pressed="true" title="Results panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM10 3v10"/></svg></button>
     <button class="tool" type="button" data-tool="source" disabled aria-pressed="false" title="YAML source"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4L2.5 8 6 12M10 4l3.5 4L10 12"/></svg></button>
-    <button class="tool" type="button" data-tool="controls" disabled title="Controls"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/></svg></button>
+    <button class="tool" type="button" data-tool="controls" title="Controls"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/></svg></button>
     <span class="spacer"></span>
     <button class="tool tool-text" type="button" id="help" title="Keys and pointer actions (?)" aria-label="Keys and pointer actions">?</button>
   </nav>
@@ -95,6 +96,11 @@
 
   <div class="resizer" data-resize="right" role="separator" aria-orientation="vertical" aria-controls="panel-right" aria-label="Resize results panel" tabindex="0"></div>
   <aside class="panel panel-right" id="panel-right" aria-label="Results">
+    <div class="tabs" role="tablist" aria-label="Right panel">
+      <button class="tab" type="button" role="tab" id="tab-btn-results" data-tab="results" aria-selected="true" aria-controls="tab-results">Results</button>
+      <button class="tab" type="button" role="tab" id="tab-btn-controls" data-tab="controls" aria-selected="false" aria-controls="tab-controls">Controls <span class="count num" id="controls-count"></span></button>
+    </div>
+    <div id="tab-results" role="tabpanel" aria-labelledby="tab-btn-results">
     <section class="panel-section">
       <h2 class="label">Minimal cut sets <span class="count num" id="cutsets-count"></span></h2>
       <ul class="notices" id="notices" hidden></ul>
@@ -111,6 +117,15 @@
       <form class="properties" id="properties" hidden autocomplete="off"></form>
       <dl class="selected-facts" id="selected-facts" hidden></dl>
     </section>
+    </div>
+    <div id="tab-controls" role="tabpanel" aria-labelledby="tab-btn-controls" hidden>
+      <section class="panel-section">
+        <p class="empty" id="controls-empty">No controls. A control replaces the likelihood of one or more leaves while it is enabled; for now they are written in the source view (<code>controls:</code>).</p>
+        <p class="controls-baseline num" id="controls-baseline" hidden></p>
+        <ul class="controls" id="controls"></ul>
+        <p class="hint" id="controls-note" hidden>Each control is valued alone, flipped against the model as written. Values are marginal, not additive: two controls on one path do not save twice.</p>
+      </section>
+    </div>
   </aside>
 
   <footer class="legend" aria-label="Legend">

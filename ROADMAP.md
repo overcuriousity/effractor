@@ -36,9 +36,14 @@ Spec 7.4: primary table with pinned cheapest path; scatter with axis pickers;
 two-way highlight with the canvas. Attack-tree profile only.
 
 ### ui-controls — Control toggles and ranking
-needs: —            cost: 2   benefit: 5
-Controls panel: toggle (edits `enabled` in the document), delta against
-baseline, ranking table with the "marginal, not additive" note.
+needs: —            cost: 1   benefit: 5
+Built, waiting for the owner's look: the right panel's tabs (Results · Controls,
+the rail's shield goes to the second), each control with its switch, cost and
+reach, and after a solve what it is worth with its interval, value per money
+spent, rank, "too close to call", and the marginal-not-additive note; a switch
+edits `enabled` and solves again if there were results. Still to build: making
+and editing controls and their effects in the panel — today that is the source
+view. Delete this item when both have been seen.
 
 ## Sharing and delivery
 

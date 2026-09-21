@@ -185,3 +185,12 @@ test("assets are made by name, given losses, and taken away with what points at 
   assert.equal(E.removeAsset(gone, "other").doc.assets, undefined, "no assets: no key");
   assert.equal(E.usesOfAsset(d, "personnel-files"), 2);
 });
+
+test("a control is switched in the document", () => {
+  const doc = { nodes: {}, controls: { mfa: { label: "MFA", cost: 1, enabled: false } } };
+  const r = E.toggleControl(doc, "mfa");
+  assert.equal(r.doc.controls.mfa.enabled, true);
+  assert.equal(doc.controls.mfa.enabled, false, "the original is left alone");
+  assert.equal(E.toggleControl(r.doc, "mfa").doc.controls.mfa.enabled, false);
+  assert.equal(E.toggleControl(doc, "nobody"), null);
+});

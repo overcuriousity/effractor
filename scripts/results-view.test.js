@@ -1,6 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
-const { bin, leafStyles, rankCutSets, reasons, nodeFacts, rowsContaining, shouldAutoSolve } = require("../assets/js/results-view.js");
+const view = require("../assets/js/results-view.js");
+const { bin, leafStyles, rankCutSets, reasons, nodeFacts, rowsContaining, shouldAutoSolve } = view;
 const snapshot = require("../crates/effractor-solver/tests/snapshots/webserver.json");
 
 test("importance bins are the fixed thresholds of the spec", () => {
@@ -91,4 +92,22 @@ test("exact results refresh by themselves only when that is cheap", () => {
   assert.equal(shouldAutoSolve(100), false);
   // Never solved: nothing is known about the cost, so do not presume.
   assert.equal(shouldAutoSolve(null), false);
+});
+
+test("controls are listed best buy first, then the enabled ones; too close to call is said", () => {
+  const doc = { controls: { edr: { label: "EDR", cost: 3000, enabled: true, effects: [{}] }, psu: { label: "Second PSU", cost: 1800, enabled: false, effects: [{}, {}] }, cluster: { cost: 4000, enabled: false } } };
+  // Before a solve: the document's order, nothing claimed.
+  assert.deepEqual(view.controlRows(doc, null).map((r) => [r.id, r.rank, r.value]), [["edr", null, null], ["psu", null, null], ["cluster", null, null]]);
+  const results = { controls: { available: { measure: "expected_loss", baseline: 6000, controls: [
+    { id: "cluster", enabled: false, cost: 4000, flipped: 3600, value: 2400, value_ci: { lo: 1400, hi: 3400 }, value_per_cost: 0.6, rank: 2 },
+    { id: "psu", enabled: false, cost: 1800, flipped: 4500, value: 1500, value_ci: { lo: 1200, hi: 1800 }, value_per_cost: 0.83, rank: 1 },
+    { id: "edr", enabled: true, cost: 3000, flipped: 6500, value: 500, value_ci: { lo: 300, hi: 700 }, value_per_cost: null, rank: null },
+  ] } } };
+  const rows = view.controlRows(doc, results);
+  assert.deepEqual(rows.map((r) => r.id), ["psu", "cluster", "edr"]);
+  assert.deepEqual([rows[0].label, rows[0].effects, rows[0].perCost], ["Second PSU", 2, 0.83]);
+  assert.equal(rows[1].label, "cluster", "no label: the id");
+  // cluster's interval reaches psu's value; psu's own does not reach cluster's.
+  assert.deepEqual(rows.map((r) => r.close), [false, true, false]);
+  assert.deepEqual(view.controlRows({}, results), []);
 });
