@@ -179,3 +179,13 @@ test("ids that are also property names of every object are just ids", () => {
   assert.ok(!node("constructor").classList.contains("hl-selected"));
   assert.equal(dom.byClass(host, "hl-selected").length, 1);
 });
+
+test("a style may carry a tag, drawn as words: colour is never the only channel", () => {
+  const { r, node } = mounted();
+  r.render(layout(), { phish: { classes: ["imp-5"], value: "0.61", tag: "SPOF" } });
+  assert.ok(dom.text(node("phish")).includes("SPOF"));
+  assert.ok(node("phish").classList.contains("has-tag"));
+  assert.ok(!dom.text(node("mfa")).includes("SPOF"));
+  r.render(layout(), {});
+  assert.ok(!dom.text(node("phish")).includes("SPOF"));
+});

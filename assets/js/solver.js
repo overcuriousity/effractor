@@ -24,6 +24,24 @@
         solving = nextId;
         return request({ type: "solve", text: text }, on || {});
       },
+      // The exact results alone: what an edit refreshes by itself when that is
+      // cheap. Resolves to {ok: exact results} or {diagnostics}.
+      exact: function (text) {
+        return new Promise(function (resolve, reject) {
+          var id = nextId;
+          solver
+            .solve(text, {
+              onExact: function (begun) {
+                resolve({ ok: begun });
+                if (worker) worker.postMessage({ id: id, type: "cancel" });
+              },
+            })
+            .then(function (outcome) {
+              // Only a document with errors ends without exact results.
+              if (outcome.result) resolve(outcome.result);
+            }, reject);
+        });
+      },
       cancel: function () {
         if (solving !== null && worker) worker.postMessage({ id: solving, type: "cancel" });
       },

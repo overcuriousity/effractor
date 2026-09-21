@@ -73,3 +73,7 @@
 .selected-facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: var(--text-sm); }
 .selected-facts dt { color: var(--color-fg-muted); }
 .selected-facts dd { margin: 0; overflow-wrap: anywhere; }
+
+/* A tag says in words what must not rest on colour alone (SPOF). */
+.tag { fill: var(--color-fg-primary); }
+.node .tag-text { fill: var(--color-bg-base); font-family: var(--font-mono); font-size: 9px; font-weight: 600; letter-spacing: 0.04em; }

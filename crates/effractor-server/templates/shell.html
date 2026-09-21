@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="/assets/css/10-base.css">
 <link rel="stylesheet" href="/assets/css/20-workspace.css">
 <link rel="stylesheet" href="/assets/css/30-graph.css">
+<link rel="stylesheet" href="/assets/css/40-results.css">
 <script src="/assets/js/theme.js"></script>
 <script src="/assets/js/workspace.js" defer></script>
 <script src="/assets/vendor/elk/elk-api.js" defer></script>
@@ -17,6 +18,7 @@
 <script src="/assets/js/view.js" defer></script>
 <script src="/assets/js/renderer-svg.js" defer></script>
 <script src="/assets/js/layout.js" defer></script>
+<script src="/assets/js/results-view.js" defer></script>
 <script src="/assets/js/solver.js" defer></script>
 <script src="/assets/js/app.js" defer></script>
 </head>
@@ -69,8 +71,14 @@
   <div class="resizer" data-resize="right" role="separator" aria-orientation="vertical" aria-controls="panel-right" aria-label="Resize results panel" tabindex="0"></div>
   <aside class="panel panel-right" id="panel-right" aria-label="Results">
     <section class="panel-section">
-      <h2 class="label">Minimal cut sets</h2>
-      <p class="empty">Solve to list them.</p>
+      <h2 class="label">Minimal cut sets <span class="count num" id="cutsets-count"></span></h2>
+      <ul class="notices" id="notices" hidden></ul>
+      <p class="empty" id="cutsets-empty">Solve to list them.</p>
+      <table class="cutsets" id="cutsets" hidden>
+        <thead><tr><th class="num">#</th><th>Leaves</th><th class="num">P</th></tr></thead>
+        <tbody id="cutsets-body"></tbody>
+      </table>
+      <p class="empty" id="cutsets-more" hidden></p>
     </section>
     <section class="panel-section">
       <h2 class="label">Selected</h2>
@@ -80,7 +88,7 @@
   </aside>
 
   <footer class="legend" aria-label="Legend">
-    <span class="legend-group"><span class="legend-title">Importance</span>
+    <span class="legend-group"><button class="btn btn-ghost legend-measure" id="measure" type="button" title="Switch the importance measure">Fussell-Vesely</button>
       <span class="swatch swatch-1"></span><span class="num">&lt;0.01</span>
       <span class="swatch swatch-2"></span><span class="num">&lt;0.05</span>
       <span class="swatch swatch-3"></span><span class="num">&lt;0.2</span>
@@ -88,6 +96,8 @@
       <span class="swatch swatch-5"></span><span class="num">&ge;0.5</span>
     </span>
     <span class="legend-group"><span class="swatch swatch-none"></span>not solved</span>
+    <span class="legend-group"><span class="legend-tag">SPOF</span>single point of failure</span>
+    <span class="legend-group"><span class="legend-badge">shared · n</span>one node, several parents</span>
     <span class="spacer"></span>
     <span class="legend-group muted num">{{ version }}</span>
   </footer>

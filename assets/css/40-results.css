@@ -1,0 +1,32 @@
+/* The results panel: cut sets, notices, the legend's keys. Numbers are
+   monospace, right-aligned, tabular — everywhere. */
+
+.count { margin-left: 6px; color: var(--color-fg-muted); font-weight: 400; }
+
+.notices { margin: 0 0 8px; padding: 6px 8px; list-style: none; border: 1px solid var(--color-warning); border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.notices li + li { margin-top: 4px; }
+
+.cutsets { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.cutsets th { padding: 3px 4px; color: var(--color-fg-muted); font-weight: 500; text-align: left; border-bottom: 1px solid var(--color-border); }
+.cutsets td { padding: 4px; vertical-align: top; border-bottom: 1px solid var(--color-border-subtle); overflow-wrap: anywhere; }
+.cutsets .num { text-align: right; white-space: nowrap; }
+.cutsets tbody tr { cursor: pointer; }
+.cutsets tbody tr:hover { background: var(--color-bg-hover); }
+.cutsets tbody tr.is-active { background: var(--color-bg-active); box-shadow: inset 2px 0 0 var(--color-accent); }
+/* Rows holding the node selected on the canvas. */
+.cutsets tbody tr.has-selected td:nth-child(2) { color: var(--color-accent); }
+.cutsets tbody tr:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+
+.spof-flag, .legend-tag {
+  display: inline-block; margin-left: 6px; padding: 0 4px;
+  border-radius: 3px;
+  background: var(--color-fg-primary); color: var(--color-bg-base);
+  font-family: var(--font-mono); font-size: 9px; font-weight: 600; letter-spacing: 0.04em; line-height: 14px;
+}
+.legend-tag { margin: 0 5px 0 0; }
+.legend-badge {
+  display: inline-block; margin-right: 5px; padding: 0 6px;
+  border: 1px solid var(--viz-outline); border-radius: 8px;
+  font-family: var(--font-mono); font-size: 9px; line-height: 13px;
+}
+.legend-measure { padding: 1px 6px; font-size: var(--text-xs); }

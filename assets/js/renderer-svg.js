@@ -157,13 +157,20 @@
       el("title", {}, [], g).textContent = n.label;
 
       var w = geometry.width;
-      el("rect", { x: 0, y: 0, width: w, height: geometry.box, rx: 2 }, ["shape", "box"], g);
+      var boxHeight = geometry.box + (n.badge ? geometry.badge : 0);
+      el("rect", { x: 0, y: 0, width: w, height: boxHeight, rx: 2 }, ["shape", "box"], g);
       var first = geometry.box / 2 + 4 - (n.lines.length - 1) * 7;
       n.lines.forEach(function (line, i) {
         text(g, w / 2, first + i * 14, line, "label-line");
       });
+      if (n.badge) {
+        // Inside the box: the space between nodes belongs to the neighbours.
+        var bw = n.badge.length * 5.4 + 12;
+        el("rect", { x: (w - bw) / 2, y: geometry.box - 3, width: bw, height: 14, rx: 7 }, ["badge"], g);
+        text(g, w / 2, geometry.box + 7, n.badge, "badge-text");
+      }
 
-      var below = geometry.box;
+      var below = boxHeight;
       if (n.attributes) {
         el("rect", { x: 0, y: below, width: w, height: geometry.strip }, ["shape", "strip"], g);
         text(g, w / 2, below + geometry.strip / 2 + 3.5, n.attributes, "attributes");
@@ -175,14 +182,16 @@
         text(g, w / 2, below + geometry.stem + geometry.symbol / 2 + 3.5, style.value, "value");
       }
 
-      if (n.badge) {
-        // Beside the symbol: the top edge is where the parents' edges arrive.
-        var bw = n.badge.length * 5.4 + 12;
-        var bx = w / 2 + geometry.symbol / 2 + 8;
-        var by = below + geometry.stem + geometry.symbol / 2;
-        el("rect", { x: bx, y: by - 8, width: bw, height: 16, rx: 8 }, ["badge"], g);
-        text(g, bx + bw / 2, by + 3, n.badge, "badge-text");
+      if (style.tag) {
+        // Left of the symbol; the badge, if any, is on its right.
+        g.classList.add("has-tag");
+        var tw = String(style.tag).length * 5.6 + 12;
+        var ty = below + geometry.stem + geometry.symbol / 2;
+        var tx = w / 2 - geometry.symbol / 2 - 8 - tw;
+        el("rect", { x: tx, y: ty - 8, width: tw, height: 16, rx: 3 }, ["tag"], g);
+        text(g, tx + tw / 2, ty + 3, style.tag, "tag-text");
       }
+
       return g;
     }
 

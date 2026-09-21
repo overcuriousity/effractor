@@ -91,8 +91,10 @@ test("the ELK graph pins edges to the bottom and top centres, in written order",
     targets: ["ohne-zugang:in"],
   });
   // The attribute strip makes an attack-tree leaf taller.
+  // … and the badge row makes a shared node taller again.
   const a = toElk(describe(attack));
-  assert.equal(a.children.find((c) => c.id === "phish").height, SIZE.leaf + SIZE.strip);
+  assert.equal(a.children.find((c) => c.id === "mfa").height, SIZE.leaf + SIZE.strip);
+  assert.equal(a.children.find((c) => c.id === "phish").height, SIZE.leaf + SIZE.strip + SIZE.badge);
 });
 
 test("ELK lays the reference tree out top-down without overlaps", async () => {

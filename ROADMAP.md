@@ -61,12 +61,15 @@ IndexedDB working state; `.yaml` import/export. Done when a text edit and a
 canvas edit round-trip into each other — checked by hand.
 
 ### ui-results — Cut sets, node stats, importance colouring
-needs: ui-renderer            cost: 3   benefit: 5
-Solve button / `Ctrl+Enter`, progress and cancel; HUD cards (P(top) ± CI, EAL /
-p95); ranked cut-set table with SPOF flags and canvas cross-highlight;
-selected-node stats; leaf fills from fixed FV/Birnbaum bins; legend; auto
-re-solve of exact results when the last took < 100 ms; visible
-unavailable/truncated reasons.
+needs: ui-renderer            cost: 1   benefit: 5
+Built and tested: fixed FV/Birnbaum bins, leaf styles with the value printed and
+SPOF said in words, the ranked cut-set table, reasons for whatever is
+unavailable or truncated, node stats, the exact-only re-solve under 100 ms (no
+edit path calls it yet — the editor will). What is left is the look, which is
+the item's "done": after **Solve**, cut sets list at once and the leaves colour
+when sampling ends; a row lights its leaves on the canvas and a selected node
+marks its rows; the legend's measure button switches Fussell-Vesely / Birnbaum;
+*Selected* shows the node's numbers. Delete this item when that has been seen.
 
 ### ui-charts — TTC CDF and LEC
 needs: ui-results            cost: 3   benefit: 4

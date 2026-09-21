@@ -83,3 +83,22 @@ test("a worker that fails to load is a crash too", async () => {
   await assert.rejects(pending, /script error/);
   assert.ok(h.workers[0].terminated);
 });
+
+test("an exact-only solve stops as soon as the exact results are in", async () => {
+  const h = harness();
+  const exact = h.solver.exact("doc");
+  const id = h.last().sent[0].id;
+  assert.equal(h.last().sent[0].type, "solve");
+  h.reply({ id, type: "exact", result: { exact: { available: { p_top: 0.5 } } } });
+  // It asks for the sampling to be dropped, and does not wait to be told.
+  assert.deepEqual(h.last().sent[1], { id, type: "cancel" });
+  assert.deepEqual(await exact, { ok: { exact: { available: { p_top: 0.5 } } } });
+  h.reply({ id, type: "cancelled" });
+});
+
+test("an exact-only solve of a broken document resolves with its diagnostics", async () => {
+  const h = harness();
+  const exact = h.solver.exact("bad");
+  h.reply({ id: h.last().sent[0].id, type: "result", result: { diagnostics: [{ code: "syntax" }] } });
+  assert.deepEqual(await exact, { diagnostics: [{ code: "syntax" }] });
+});

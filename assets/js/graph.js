@@ -3,8 +3,9 @@
 (function () {
   // One geometry for both profiles (spec 7.1). A node is a description box, a
   // stem, and its symbol under it; an attack-tree leaf adds a strip for cost
-  // and detection between box and stem.
-  var SIZE = { width: 148, box: 44, stem: 10, symbol: 40, strip: 18 };
+  // and detection between box and stem, and a shared node a row in its box for
+  // the badge — inside the node, because the space between nodes is not its own.
+  var SIZE = { width: 148, box: 44, stem: 10, symbol: 40, strip: 18, badge: 16 };
   SIZE.gate = SIZE.box + SIZE.stem + SIZE.symbol;
   SIZE.leaf = SIZE.gate;
 
@@ -108,7 +109,7 @@
   }
 
   function height(node) {
-    return node.symbol === "gate" ? SIZE.gate : SIZE.leaf + (node.attributes ? SIZE.strip : 0);
+    return SIZE.gate + (node.attributes ? SIZE.strip : 0) + (node.badge ? SIZE.badge : 0);
   }
 
   // `arrivals` maps a shared node to its parents, left to right: each then

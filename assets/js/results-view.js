@@ -1,0 +1,114 @@
+// Results → what the panels and the canvas show. Pure: numbers in, text and
+// class names out. The solver decides what is true; this decides how it reads.
+(function () {
+  // Fixed, so a colour means the same in every model and on both sides of a
+  // diff (spec 7.3): <0.01 · <0.05 · <0.2 · <0.5 · ≥0.5.
+  var THRESHOLDS = [0.01, 0.05, 0.2, 0.5];
+  var AUTO_SOLVE_MS = 100;
+
+  function bin(v) {
+    if (typeof v !== "number" || v !== v) return null;
+    var b = 1;
+    THRESHOLDS.forEach(function (t) {
+      if (v >= t) b += 1;
+    });
+    return b;
+  }
+
+  function number(v) {
+    if (typeof v !== "number") return "—";
+    if (v === 0) return "0";
+    return Math.abs(v) < 1e-4 ? v.toExponential(2) : v.toPrecision(3);
+  }
+
+  function short(v) {
+    if (v === 0) return "0";
+    return v < 0.001 ? "<.001" : String(Number(v.toPrecision(2)));
+  }
+
+  // By leaf id, for the renderer: a class for the bin, the value printed in
+  // the symbol, and a tag for a single point of failure — colour is never the
+  // only channel.
+  function leafStyles(results, measure) {
+    var styles = Object.create(null);
+    (results.leaves || []).forEach(function (leaf) {
+      var b = bin(leaf[measure]);
+      styles[leaf.id] = {
+        classes: b ? ["imp-" + b] : [],
+        // Two digits fit a symbol; the panel has the rest.
+        value: b ? short(leaf[measure]) : null,
+        tag: leaf.spof ? "SPOF" : null,
+      };
+    });
+    return styles;
+  }
+
+  function rankCutSets(sets) {
+    var known = function (s) {
+      return typeof s.probability === "number";
+    };
+    return sets
+      .slice()
+      .sort(function (a, b) {
+        if (known(a) !== known(b)) return known(a) ? -1 : 1;
+        if (known(a) && a.probability !== b.probability) return b.probability - a.probability;
+        if (a.leaves.length !== b.leaves.length) return a.leaves.length - b.leaves.length;
+        return a.leaves.join("\u0000") < b.leaves.join("\u0000") ? -1 : 1;
+      })
+      .map(function (s, i) {
+        return { rank: i + 1, leaves: s.leaves, probability: s.probability, text: number(s.probability), spof: s.leaves.length === 1 };
+      });
+  }
+
+  // What the solver could not say, or said only in part. Never silent.
+  function reasons(results) {
+    var out = [];
+    var cuts = results.cut_sets || {};
+    if (cuts.unavailable) out.push("Cut sets: " + cuts.unavailable.reason);
+    else if (cuts.available && cuts.available.truncated) {
+      out.push("Cut sets: " + cuts.available.truncated + " (" + cuts.available.total + " in all)");
+    }
+    if (results.exact && results.exact.unavailable) out.push("Exact results: " + results.exact.unavailable.reason);
+    if (results.sampled && results.sampled.unavailable) out.push("Sampled results: " + results.sampled.unavailable.reason);
+    if (results.attacker && results.attacker.unavailable) out.push("Attacker: " + results.attacker.unavailable.reason);
+    return out;
+  }
+
+  function find(list, id) {
+    for (var i = 0; i < (list || []).length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  function nodeFacts(results, id) {
+    if (!results) return [];
+    var facts = [];
+    var node = find(results.nodes, id);
+    if (node) {
+      facts.push(["P within horizon", number(node.p_exact)]);
+      facts.push(["sampled", number(node.p_sampled)]);
+    }
+    var leaf = find(results.leaves, id);
+    if (leaf) {
+      facts.push(["Fussell-Vesely", number(leaf.fussell_vesely)]);
+      facts.push(["Birnbaum", number(leaf.birnbaum)]);
+      facts.push(["single point of failure", leaf.spof ? "yes" : "no"]);
+    }
+    return facts;
+  }
+
+  function rowsContaining(ranked, id) {
+    var rows = [];
+    ranked.forEach(function (s, i) {
+      if (id !== null && s.leaves.indexOf(id) >= 0) rows.push(i);
+    });
+    return rows;
+  }
+
+  function shouldAutoSolve(lastExactMs) {
+    return typeof lastExactMs === "number" && lastExactMs < AUTO_SOLVE_MS;
+  }
+
+  var api = { bin: bin, number: number, leafStyles: leafStyles, rankCutSets: rankCutSets, reasons: reasons, nodeFacts: nodeFacts, rowsContaining: rowsContaining, shouldAutoSolve: shouldAutoSolve };
+  if (typeof module !== "undefined") module.exports = api;
+  if (typeof window !== "undefined") window.effractorResults = api;
+})();

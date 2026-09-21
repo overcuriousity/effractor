@@ -55,7 +55,9 @@
   // For the console: effractor.solver.crash() shows the recovery path.
   window.effractor = { solver: solver };
 
-  var state = { text: null, doc: null, running: false, selected: null };
+  var state = { text: null, doc: null, running: false, selected: null, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastExactMs: null };
+  var view = window.effractorResults;
+  var MAX_ROWS = 200; // a table is for reading; ten thousand rows are not read
 
   var renderer = window.effractorRenderer.createSvgRenderer(document);
   var layout = window.effractorLayout.createLayout();
@@ -68,6 +70,7 @@
     dd.textContent = value;
     list.appendChild(dt);
     list.appendChild(dd);
+    return dd;
   }
 
   function select(id) {
@@ -83,15 +86,103 @@
     fact(facts, "id", state.selected);
     fact(facts, "kind", node.gate ? node.gate + " gate" : node.leaf + " event");
     if (node.description) fact(facts, "note", node.description);
+    view.nodeFacts(state.results, state.selected).forEach(function (f) {
+      fact(facts, f[0], f[1]).classList.add("num");
+    });
+  }
+
+  // Canvas → table: the rows holding the selected node.
+  function markRows() {
+    var rows = $("cutsets-body").children;
+    var holding = view.rowsContaining(state.ranked.slice(0, MAX_ROWS), state.selected);
+    for (var i = 0; i < rows.length; i++) rows[i].classList.toggle("has-selected", holding.indexOf(i) >= 0);
+  }
+
+  // Table → canvas: a row lights its leaves, and again puts them out.
+  function activateRow(index) {
+    state.activeRow = state.activeRow === index ? null : index;
+    var rows = $("cutsets-body").children;
+    for (var i = 0; i < rows.length; i++) rows[i].classList.toggle("is-active", i === state.activeRow);
+    renderer.highlight(state.activeRow === null ? [] : state.ranked[state.activeRow].leaves, "cutset");
+  }
+
+  function labelOf(id) {
+    var node = state.doc.nodes[id];
+    return node && node.label ? node.label : id;
+  }
+
+  function showCutSets(results) {
+    var body = $("cutsets-body");
+    body.replaceChildren();
+    state.activeRow = null;
+    renderer.highlight([], "cutset");
+    var cuts = results.cut_sets.available;
+    state.ranked = cuts ? view.rankCutSets(cuts.sets) : [];
+    state.ranked.slice(0, MAX_ROWS).forEach(function (set, index) {
+      var row = document.createElement("tr");
+      row.tabIndex = 0;
+      var cells = [String(set.rank), set.leaves.map(labelOf).join(" · "), set.text];
+      cells.forEach(function (content, i) {
+        var cell = document.createElement("td");
+        cell.textContent = content;
+        if (i !== 1) cell.className = "num";
+        row.appendChild(cell);
+      });
+      row.title = set.leaves.join(", ");
+      if (set.spof) {
+        var flag = document.createElement("span");
+        flag.className = "spof-flag";
+        flag.textContent = "SPOF";
+        row.children[1].appendChild(flag);
+      }
+      row.addEventListener("click", function () {
+        activateRow(index);
+      });
+      row.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          activateRow(index);
+        }
+      });
+      body.appendChild(row);
+    });
+    $("cutsets").hidden = state.ranked.length === 0;
+    $("cutsets-empty").hidden = state.ranked.length > 0;
+    $("cutsets-empty").textContent = cuts ? "No cut sets: the top event cannot occur." : "Not available.";
+    $("cutsets-count").textContent = cuts ? cuts.total : "";
+    var more = state.ranked.length - MAX_ROWS;
+    $("cutsets-more").hidden = more <= 0;
+    $("cutsets-more").textContent = more > 0 ? "and " + grouped(more) + " less likely ones" : "";
+    markRows();
+  }
+
+  function showNotices(results) {
+    var list = $("notices");
+    list.replaceChildren();
+    view.reasons(results).forEach(function (reason) {
+      var item = document.createElement("li");
+      item.textContent = reason;
+      list.appendChild(item);
+    });
+    list.hidden = list.children.length === 0;
+  }
+
+  // Colour the leaves from what is known: `results` is a finished solve, or
+  // the exact part of one that is still sampling.
+  function paint() {
+    if (!state.laid) return;
+    renderer.render(state.laid, state.results ? view.leafStyles(state.results, state.measure) : {});
   }
 
   renderer.on("select", function (e) {
     select(e.id);
+    markRows();
   });
 
   function draw() {
     return layout(window.effractorGraph.describe(state.doc)).then(function (laid) {
-      renderer.render(laid, {});
+      state.laid = laid;
+      paint();
       renderer.fit();
     });
   }
@@ -167,6 +258,16 @@
     hud("hud-p95", sampled.loss ? "p95 " + money(sampled.loss.p95, results.currency) : "no assets");
   }
 
+  function showAll(results) {
+    state.results = results;
+    showResults(results);
+    showCutSets(results);
+    showNotices(results);
+    paint();
+    select(state.selected);
+    markRows();
+  }
+
   function finished() {
     state.running = false;
     $("solve").textContent = "Solve";
@@ -178,9 +279,15 @@
     state.running = true;
     $("solve").textContent = "Cancel";
     chip("solving…");
+    var started = performance.now();
     solver
       .solve(state.text, {
-        onExact: showExact,
+        onExact: function (begun) {
+          state.lastExactMs = performance.now() - started;
+          showExact(begun);
+          // The cut sets are exact too: list them while the sampling runs.
+          showCutSets(begun);
+        },
         onProgress: function (done, total) {
           chip("sampling " + grouped(done) + " / " + grouped(total) + " chunks");
         },
@@ -189,7 +296,7 @@
         finished();
         if (outcome.cancelled) return chip("cancelled · " + analysisLabel(state.doc.analysis));
         if (!outcome.result.ok) return chip(describe(outcome.result.diagnostics[0]));
-        showResults(outcome.result.ok);
+        showAll(outcome.result.ok);
         chip(analysisLabel(state.doc.analysis));
       })
       .catch(function (e) {
@@ -198,6 +305,27 @@
         console.error(e);
       });
   }
+
+  // After an edit: refresh what is exact, if the last time showed that to be
+  // cheap. Sampled numbers wait for an explicit Solve. (Nothing edits yet; the
+  // editor calls this.)
+  function documentChanged() {
+    if (state.running || !view.shouldAutoSolve(state.lastExactMs)) return;
+    var started = performance.now();
+    solver.exact(state.text).then(function (answer) {
+      if (!answer.ok) return;
+      state.lastExactMs = performance.now() - started;
+      showExact(answer.ok);
+      showCutSets(answer.ok);
+    }, console.error);
+  }
+  window.effractor.documentChanged = documentChanged;
+
+  $("measure").addEventListener("click", function () {
+    state.measure = state.measure === "fussell_vesely" ? "birnbaum" : "fussell_vesely";
+    $("measure").textContent = state.measure === "birnbaum" ? "Birnbaum" : "Fussell-Vesely";
+    paint();
+  });
 
   $("solve").addEventListener("click", solve);
   $("fit").addEventListener("click", renderer.fit);
