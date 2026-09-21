@@ -80,6 +80,31 @@ impl Plan {
         Ok(plan)
     }
 
+    /// Test each leaf alone, with every other leaf false. In this coherent
+    /// model (no constants or negation), top being true makes that leaf a
+    /// singleton minimal cut set. This stays exact without a BDD or a cut-set
+    /// listing. O(leaves * (steps + edges)) time, O(steps) scratch space.
+    pub(crate) fn single_points_of_failure(&self) -> Vec<bool> {
+        let mut values = vec![false; self.steps.len()];
+        (0..self.leaves.len())
+            .map(|single| {
+                for (i, step) in self.steps.iter().enumerate() {
+                    values[i] = match step {
+                        Step::Leaf(leaf) => *leaf == single,
+                        Step::Gate { gate, inputs } => match gate {
+                            Gate::Or => inputs.iter().any(|j| values[*j]),
+                            Gate::And => inputs.iter().all(|j| values[*j]),
+                            Gate::Vote { k } => {
+                                inputs.iter().filter(|j| values[**j]).take(*k).count() == *k
+                            }
+                        },
+                    };
+                }
+                values[self.top()]
+            })
+            .collect()
+    }
+
     /// When does each step complete, given when each leaf does? A leaf is its
     /// own time; `or` is the first of its inputs, `and` the last, `vote` the
     /// k-th. `INFINITY` is "never" and needs no special case: min, max and

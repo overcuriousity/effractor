@@ -317,6 +317,95 @@ fn cut_set_limits_are_reported() {
     );
 }
 
+#[test]
+fn spofs_do_not_depend_on_cut_set_or_bdd_limits() {
+    let m = model(
+        "top",
+        vec![
+            ("top", gate(Gate::Or, &["s1", "s2", "pair"])),
+            ("s1", leaf(0.1)),
+            ("s2", leaf(0.2)),
+            ("pair", gate(Gate::And, &["a", "b"])),
+            ("a", leaf(0.3)),
+            ("b", leaf(0.4)),
+        ],
+    );
+    for (bdd_node_limit, mcs_max_sets, mcs_max_order) in [
+        (1_000_000, 10_000, None),
+        (1_000_000, 1, None),
+        (1_000_000, 0, None),
+        (1_000_000, 10_000, Some(0)),
+        (2, 10_000, None),
+    ] {
+        let r = solve(
+            &m,
+            &Config {
+                samples: 10,
+                bdd_node_limit,
+                mcs_max_sets,
+                mcs_max_order,
+                ..Config::from_model(&m)
+            },
+        )
+        .unwrap();
+        for leaf in r.leaves {
+            assert_eq!(
+                leaf.spof,
+                matches!(leaf.id.as_str(), "s1" | "s2"),
+                "{} with BDD limit {bdd_node_limit}, set cap {mcs_max_sets}, order {mcs_max_order:?}",
+                leaf.id
+            );
+        }
+    }
+}
+
+#[test]
+fn a_leaf_top_is_a_structural_spof_even_with_zero_probability_and_no_bdd() {
+    let m = model("top", vec![("top", leaf(0.0))]);
+    let r = solve(
+        &m,
+        &Config {
+            samples: 10,
+            bdd_node_limit: 2,
+            ..Config::from_model(&m)
+        },
+    )
+    .unwrap();
+    assert!(r.cut_sets.available().is_none());
+    assert_eq!(r.leaves.len(), 1);
+    assert_eq!(r.leaves[0].p, Some(0.0));
+    assert!(r.leaves[0].spof);
+}
+
+#[test]
+fn spofs_without_bdd_handle_shared_events_and_voting_without_probabilities() {
+    let m = model(
+        "top",
+        vec![
+            ("top", gate(Gate::Vote { k: 2 }, &["left", "right", "c"])),
+            ("left", gate(Gate::Or, &["s", "a"])),
+            ("right", gate(Gate::Or, &["s", "b"])),
+            ("s", Node::leaf("S", LeafKind::Undeveloped, None)),
+            ("a", Node::leaf("A", LeafKind::Basic, None)),
+            ("b", Node::leaf("B", LeafKind::Basic, None)),
+            ("c", Node::leaf("C", LeafKind::Basic, None)),
+        ],
+    );
+    let r = solve(
+        &m,
+        &Config {
+            bdd_node_limit: 2,
+            ..Config::from_model(&m)
+        },
+    )
+    .unwrap();
+    assert!(r.cut_sets.available().is_none());
+    assert!(r.exact.available().is_none());
+    for leaf in r.leaves {
+        assert_eq!(leaf.spof, leaf.id == "s", "{}", leaf.id);
+    }
+}
+
 fn attack_tree() -> Model {
     let step = |ttc: &str, cost: Option<f64>, detection: Option<f64>| {
         let d = match ttc {

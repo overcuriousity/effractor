@@ -25,6 +25,25 @@ effractor --bind 0.0.0.0:9000
 The [course walkthrough](docs/course/README.md) includes fault-tree and attack-tree
 files, timing explanations, and a step-by-step analysis exercise.
 
+## Fault-tree methods and references
+
+Effractor analyses static, coherent fault trees with independent basic events.
+Repeated events share one variable; minimal cut sets identify combinations that
+cause the top event, and singleton cut sets identify single points of failure.
+Exact probabilities use binary decision diagrams (BDDs). Failure rates describe
+time to first failure without repair; simulation confidence intervals measure
+sampling error, not uncertainty in the supplied failure rates.
+
+Public background and reference material:
+
+- [NRC Fault Tree Handbook, NUREG-0492 (1981)](https://www.nrc.gov/regulations-legislation/nureg-series-publications/publications-prepared-by-nrc-staff/sr0492)
+  — fault-tree construction and evaluation.
+- [NASA Fault Tree Handbook with Aerospace Applications, version 1.1 (2002)](https://s3vi.ndc.nasa.gov/ssri-kb/static/resources/Fault%20Tree%20Handbook_NASA.pdf)
+  — Boolean logic and BDDs (§6), quantification and uncertainty (§7), and dynamic
+  fault trees (§8). Effractor does not implement the handbook's full range of methods.
+
+These references describe the methods; they do not establish DIN/IEC conformity.
+
 ## Status
 
 Early. What is left is in [ROADMAP.md](ROADMAP.md); what it is meant to be is in

@@ -98,7 +98,8 @@ pub struct LeafResult {
     pub p: Option<f64>,
     pub birnbaum: Option<f64>,
     pub fussell_vesely: Option<f64>,
-    /// A cut set of its own: a single point of failure.
+    /// A cut set of its own: a single point of failure, independent of BDD
+    /// and cut-set listing limits.
     pub spof: bool,
 }
 
@@ -294,15 +295,14 @@ impl Solve {
             .ok()
             .map(|z| z.enumerate(config.mcs_max_order, config.mcs_max_sets));
 
+        let spofs = plan.single_points_of_failure();
         let mut leaves: Vec<LeafResult> = (0..plan.leaves.len())
             .map(|i| LeafResult {
                 id: name(&i),
                 p: leaf_p.as_ref().map(|p| p[i]),
                 birnbaum: None,
                 fussell_vesely: None,
-                spof: listed
-                    .as_ref()
-                    .is_some_and(|l| l.sets.iter().any(|s| *s == [i])),
+                spof: spofs[i],
             })
             .collect();
 
