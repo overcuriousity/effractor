@@ -14,3 +14,19 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
+
+# Tests run the solver for real: Monte Carlo, proptest, and all of it again as
+# wasm under wasmtime. Unoptimised that is minutes; optimised, seconds. Only the
+# numeric crates are raised, so everything else keeps its fast debug builds.
+# Overflow checks and debug assertions stay on, and Rust has no fast-math, so
+# the frozen fingerprints hold at any opt-level — which the tests then prove.
+[profile.dev.package.effractor-solver]
+opt-level = 2
+[profile.dev.package.libm]
+opt-level = 2
+[profile.dev.package.rand_chacha]
+opt-level = 2
+[profile.dev.package.rand_core]
+opt-level = 2
+[profile.dev.package.ppv-lite86]
+opt-level = 2

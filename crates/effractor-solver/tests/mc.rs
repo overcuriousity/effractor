@@ -132,18 +132,18 @@ fn the_sample_agrees_with_the_exact_answer() {
 fn the_interval_covers_at_its_nominal_rate() {
     let m = shared();
     let want = exact(&m, m.horizon);
-    let runs = 300;
+    let runs = 100;
     let covered = (0..runs)
         .filter(|seed| {
             let s = run(&m, *seed, 2_000);
             s.p_top_ci.lo <= want && want <= s.p_top_ci.hi
         })
         .count();
-    // 95% nominal; 300 runs put the 0.1% lower bound near 91%.
-    assert!(
-        covered as f64 / runs as f64 > 0.91,
-        "covered {covered} of {runs}"
-    );
+    // 95% nominal. A correct interval covers 86 or fewer of 100 runs once in
+    // 2000 tries; one that really covers 85% fails here three times in four.
+    // That is all this test is for — a wrong z or a lost square root — and
+    // more runs only buy resolution nothing here needs.
+    assert!(covered > 86, "covered {covered} of {runs}");
 }
 
 #[test]

@@ -12,11 +12,26 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  ci:
-    uses: ./.github/workflows/ci.yml
+  gate:
+    # master takes fast-forward merges only, so this commit is byte for byte
+    # the one its pull request tested. Re-running ci.yml would prove nothing
+    # new; what is worth proving is that the run exists and was green — a
+    # commit pushed straight to master has none, and is not released.
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    steps:
+      - name: this commit passed ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          green=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml \
+            --commit "$GITHUB_SHA" --status success --json databaseId --jq length)
+          echo "successful ci runs for $GITHUB_SHA: $green"
+          test "$green" -ge 1
 
   build:
-    needs: ci
+    needs: gate
     strategy:
       matrix:
         include:

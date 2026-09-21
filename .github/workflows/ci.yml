@@ -1,22 +1,17 @@
 name: ci
 
-# Pull requests run this directly; the release workflow calls it as its gate,
-# so master is tested once per commit, not twice.
+# Pull requests only. master takes fast-forward merges, so the commit that
+# lands is the commit tested here; the release workflow checks that this run
+# exists and succeeded instead of repeating it.
 on:
   pull_request:
-  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  # One group per pull request, so a new push supersedes the old run — and one
-  # per commit when called from the release workflow, so two releases never
-  # share a group. They must not: GitHub cancels a *pending* run whenever a
-  # newer one joins its group, whatever cancel-in-progress says, and that
-  # once cancelled a release's gate.
-  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
