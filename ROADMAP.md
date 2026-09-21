@@ -84,15 +84,8 @@ baseline, ranking table with the "marginal, not additive" note.
 
 ## Sharing and delivery
 
-### share-server — Storage trait, filesystem impl, API
-needs: —            cost: 3   benefit: 4
-`Storage` trait per spec §8 with reusable contract tests; filesystem impl
-(atomic rename, `.meta.json`); `POST/GET/DELETE /api/share`; TTL options and
-`--max-ttl`; hourly + startup sweep; hashed delete token; 1 MiB and per-IP
-limits; 404 for unknown and expired alike.
-
 ### share-ui — Encrypted share, open, delete
-needs: share-server, ui-source            cost: 2   benefit: 4
+needs: ui-source            cost: 2   benefit: 4
 WebCrypto AES-256-GCM, key in the fragment; share dialog with TTL; `/s/{id}`
 loads a local copy; "My shares" list with delete. Done when sharing, opening in a
 fresh profile, deleting, and then getting 404 all work — checked by hand; the

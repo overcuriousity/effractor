@@ -449,8 +449,14 @@ Hosted instance, no accounts. Sharing creates an **immutable snapshot**.
 - No telemetry, no analytics, no request logging of ids beyond the standard
   trace level, which is off by default for `/s/` and `/api/share/`.
 
-API: `POST /api/share` (body: ciphertext, `ttl`) → `{id, delete_token,
-expires_at}` · `GET /api/share/{id}` → ciphertext · `DELETE /api/share/{id}`.
+API: `POST /api/share?ttl=1d|30d|90d|1y|never` (body: the ciphertext, as it is)
+→ 201 `{id, delete_token, expires_at}` — `expires_at` in Unix seconds, `null`
+for never; a `ttl` beyond `--max-ttl` is a 400, and without one the default is
+90 days or the cap, whichever is shorter · `GET /api/share/{id}` → ciphertext,
+`no-store` · `DELETE /api/share/{id}` with `Authorization: Bearer
+<delete_token>` → 204, or 403 for a wrong token: whoever holds the id can fetch
+the share anyway, so that gives nothing away. Creation is limited to 30 per hour
+per peer address (a /64 for IPv6), as a token bucket, with `Retry-After`.
 
 ```rust
 #[async_trait]
@@ -463,7 +469,10 @@ trait Storage {
 ```
 
 v1 implementation: filesystem, `data/{id[..2]}/{id}.bin` + `.meta.json`
-(expiry, delete-token hash, size), atomic write via rename. Auth and Postgres
+(expiry, delete-token hash, size), atomic write via rename. The metadata is
+written last and removed first — it is the commit — and `sweep` also clears what
+a crash leaves behind once it is ten minutes old. Storage does not judge expiry
+on `get`; the API does, so an expired share is a 404 before any sweep. Auth and Postgres
 later implement the same trait.
 
 ## 9. Development process and delivery

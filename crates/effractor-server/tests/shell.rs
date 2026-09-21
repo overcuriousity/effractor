@@ -5,7 +5,7 @@ use http_body_util::BodyExt;
 use tower::ServiceExt;
 
 async fn get(path: &str) -> Response {
-    effractor_server::app()
+    effractor_server::app(effractor_server::share::Shares::in_memory())
         .oneshot(Request::get(path).body(Body::empty()).unwrap())
         .await
         .unwrap()
@@ -64,7 +64,7 @@ async fn embedded_asset_is_served_with_type_etag_and_headers() {
     assert_eq!(res.headers()[header::CACHE_CONTROL], "no-cache");
     let etag = res.headers()[header::ETAG].clone();
 
-    let revalidated = effractor_server::app()
+    let revalidated = effractor_server::app(effractor_server::share::Shares::in_memory())
         .oneshot(
             Request::get("/assets/vendor/fonts/inter-400.woff2")
                 .header(header::IF_NONE_MATCH, etag)
