@@ -187,7 +187,7 @@
   // ---- keyboard ----
 
   function typingElsewhere(e) {
-    return !!e.target.closest(".analysis-chart, .chart-table") || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName) || $("link-dialog").open;
+    return !!e.target.closest(".analysis-chart, .chart-table, .cutsets, summary") || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName) || $("link-dialog").open;
   }
 
   // Everything the page does by key or pointer that is not in MENU: the help
@@ -218,6 +218,9 @@
   var KEYS = { m: "move", p: "properties", Tab: "addChild", Enter: "addSibling", F2: "rename", g: "cycleGate", b: "basic", u: "undeveloped", l: "link", Delete: "remove", Backspace: "remove" };
 
   document.addEventListener("keydown", function (e) {
+    // A focused control may already have handled this key (for example a
+    // cut-set row or panel resizer). Never turn it into a second graph action.
+    if (e.defaultPrevented) return;
     var mod = e.ctrlKey || e.metaKey;
     // In a field, undo is the field's own: a typo is not a document edit.
     var inText = /^(INPUT|TEXTAREA)$/.test(e.target.tagName);

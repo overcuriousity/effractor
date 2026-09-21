@@ -5,7 +5,9 @@ The owner explicitly requested an agent-run browser/headless-browser walkthrough
 in place of the previously required owner walkthrough. The checks below used
 isolated headless Chromium profiles, real keyboard/pointer events, and the
 published release binary. Screenshots were also inspected by the agent.
-No product code or bundled assets differ between that release and this PR.
+The initial release walkthrough found two keyboard shortcut collisions. This
+PR fixes them; the corrected branch was then checked with the same browser
+walkthrough and the focused regression cases described below.
 
 ## Release walkthrough
 
@@ -71,10 +73,22 @@ are in `/tmp/effractor-pr47-acceptance/` on the acceptance host. Playwright was
 installed there, not added as a project dependency or permanent test harness.
 The course walkthrough and the Node budget check remain reproducible repo files.
 
-## Non-blocking observation
+## Keyboard findings fixed in this PR
 
-Use **Space** to open the property panel's More disclosure with the keyboard.
-Enter is intercepted by the editor's add-sibling shortcut. The walkthrough
-completed using Space; Enter on a focused disclosure should be corrected in a
-follow-up. At the default narrow results-panel width, wide tables scroll
+The release had two reproduced shortcut collisions:
+
+- Enter on the property panel's More disclosure was intercepted as add sibling.
+- Enter on a cut-set row highlighted the cut set and also added a sibling to
+  the selected graph node, unintentionally changing the model.
+
+The editor now leaves disclosure and cut-set-table keys to their controls and
+ignores key events already handled by another control. A one-off Chromium
+regression script failed on both cases before the fix and passed after it:
+Enter opens/closes More, Space still opens it, Enter highlights a cut set
+without changing the model, and Tab leaves a cut-set row without adding a node.
+Panel resizing and Tab navigation also passed without changing model/selection.
+The full keyboard construction and interaction walkthroughs were repeated
+against the corrected branch, using Enter for More.
+
+At the default narrow results-panel width, wide tables intentionally scroll
 horizontally; resize the panel to see more columns together.

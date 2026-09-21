@@ -14,7 +14,7 @@ the redundant-power control changes the hardware failure rate.
 
 1. Build the outline with Tab (child), Enter (sibling), F2 (rename), and G
    (gate). Use L to link the existing server-outage leaf under the other branch.
-   P opens properties; Esc returns to the canvas. Space opens More when focused. The `?` button lists keys.
+   P opens properties; Esc returns to the canvas. Enter or Space opens More when focused. The `?` button lists keys.
 2. Fill in the leaf probabilities/rates from the file. Solve. Compare exact and
    sampled P(top), inspect minimal cut sets, and select a cut-set row.
 3. Open TTC. Compare the solid exact curve with the dashed sampled curve and

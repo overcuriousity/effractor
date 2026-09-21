@@ -22,9 +22,11 @@ agreement passed. See `docs/V1-ACCEPTANCE.md` for exact scope and measurements.
 The `v1-acceptance` roadmap item is complete. The installation check used a
 fresh Alpine userspace, not a physical machine or VM.
 
-One non-blocking keyboard issue was observed: use Space to open More in the
-property panel; Enter is intercepted as add sibling. Record this for a future
-keyboard-accessibility fix. No product code changed in the acceptance PR.
+The walkthrough found and this PR fixed two keyboard bugs: Enter on More
+failed to open the disclosure, and Enter on a cut-set row could also add a
+sibling. Graph shortcuts now respect controls that own the key. Both failures
+were reproduced before the fix; the focused regression and full browser
+walkthroughs were rerun on the corrected branch.
 
 The remainder of this document records the original handoff and conventions.
 
