@@ -50,7 +50,8 @@ impl Writer<'_> {
     /// The `x-` entries of the map at `path`, one line each.
     fn extension_lines(&mut self, indent: usize, path: &str) {
         for e in self.extras.get(path).map_or(&[][..], Vec::as_slice) {
-            let (key, value) = (string(&e.key, Context::Block), flow(&e.value));
+            let key = string(&e.key, Context::BlockKey);
+            let value = flow(&e.value, Context::Block);
             self.line(indent, &key, &value);
         }
     }
@@ -223,34 +224,42 @@ fn expression(d: &Distribution) -> String {
 enum Context {
     /// The value of `key: …` on a line of its own.
     Block,
+    /// The key of such a line.
+    BlockKey,
     /// Inside `[…]` or `{…}`, where `,` and brackets end a scalar.
     Flow,
+    /// A key inside `{…}`, and the value after it.
+    FlowKey,
+    FlowValue,
 }
 
 /// Would YAML read `text`, written bare at this place, as exactly `text`?
-/// Asking the parser is the one test that cannot disagree with the parser.
+/// Asking the parser is the one test that cannot disagree with the parser —
+/// and the place matters: `|` is a word in `[|]` and the start of a block
+/// scalar after `key: `.
 fn reads_back_plain(text: &str, context: Context) -> bool {
-    let document = match context {
-        Context::Block => format!("k: {text}\n"),
-        Context::Flow => format!("[{text}]\n"),
+    // Where the text goes, and which of the document's scalars it then is.
+    let (document, index, count) = match context {
+        Context::Block => (format!("k: {text}\n"), 1, 2),
+        Context::BlockKey => (format!("{text}: v\n"), 0, 2),
+        Context::Flow => (format!("[{text}]\n"), 0, 1),
+        Context::FlowKey => (format!("{{{text}: v}}\n"), 0, 2),
+        Context::FlowValue => (format!("{{k: {text}}}\n"), 1, 2),
     };
-    let mut scalars = 0;
-    let mut same = false;
+    let mut scalars = Vec::new();
+    let mut collections = 0;
     for event in Parser::new_from_str(&document) {
         match event {
-            Ok((Event::Scalar(value, style, 0, None), _)) => {
-                scalars += 1;
-                same = value == text && style == ScalarStyle::Plain;
-            }
+            Ok((Event::Scalar(value, style, 0, None), _)) => scalars.push((value, style)),
             Ok((Event::Scalar(..) | Event::Alias(_), _)) | Err(_) => return false,
-            Ok((Event::SequenceStart(..) | Event::MappingStart(..), _)) if scalars > 0 => {
-                return false;
-            }
+            Ok((Event::SequenceStart(..) | Event::MappingStart(..), _)) => collections += 1,
             Ok(_) => {}
         }
     }
-    // The block document has its key as well.
-    same && scalars == if context == Context::Block { 2 } else { 1 }
+    collections == 1
+        && scalars.len() == count
+        && scalars[index].0 == text
+        && scalars[index].1 == ScalarStyle::Plain
 }
 
 /// Would a bare `text` be read as something other than text — a number, a
@@ -300,23 +309,26 @@ fn string(text: &str, context: Context) -> String {
 }
 
 fn flow_entry(e: &Entry) -> String {
-    format!("{}: {}", string(&e.key, Context::Flow), flow(&e.value))
+    let value = flow(&e.value, Context::FlowValue);
+    format!("{}: {value}", string(&e.key, Context::FlowKey))
 }
 
-/// An `x-` value, on one line. Recursion is bounded by `tree::MAX_DEPTH`.
-fn flow(node: &Node) -> String {
+/// An `x-` value, on one line. `context` is where that line puts it — a scalar
+/// needs to know; a list or map brings its own brackets. Recursion is bounded
+/// by `tree::MAX_DEPTH`.
+fn flow(node: &Node, context: Context) -> String {
     match &node.value {
         _ if node.is_null() => "null".into(),
         // Written bare, it stays bare, so `42` does not become `"42"`.
         Value::Scalar { text, plain: true }
-            if !text.chars().any(needs_escape) && reads_back_plain(text, Context::Flow) =>
+            if !text.chars().any(needs_escape) && reads_back_plain(text, context) =>
         {
             text.clone()
         }
         Value::Scalar { text, plain: true } => quoted(text),
-        Value::Scalar { text, plain: false } => string(text, Context::Flow),
+        Value::Scalar { text, plain: false } => string(text, context),
         Value::Seq(items) => {
-            let items: Vec<String> = items.iter().map(flow).collect();
+            let items: Vec<String> = items.iter().map(|i| flow(i, Context::Flow)).collect();
             format!("[{}]", items.join(", "))
         }
         Value::Map(entries) => {

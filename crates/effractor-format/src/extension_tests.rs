@@ -21,7 +21,9 @@ fn json() -> impl Strategy<Value = Json> {
         any::<String>(),
         "[ -~]{0,12}",
         prop::sample::select(vec![
-            "", "null", "true", "42", "a: b", "a, b", "[", "#", "x-y"
+            "", "null", "true", "42", "a: b", "a, b", "[", "#", "x-y", "|", ">", "|-", "? a", "?",
+            "- a", "-", ":", "a:", ":a", "&a", "*a", "!a", "%a", "@a", "`a", "'", "\"", "{", "}",
+            "]", ",", "a #b", "---", "...", " a", "a ", "~", ".inf", "0x1f", "1_000",
         ])
         .prop_map(str::to_owned),
     ];
@@ -118,8 +120,23 @@ fn extension(text: &str) -> Node {
         .value
 }
 
+/// The places a scalar can stand are different places to YAML: `|` is a word
+/// inside `[…]` and opens a block scalar after `key: `.
+#[test]
+fn a_scalar_is_quoted_for_the_place_it_is_written_in() {
+    let text = concat!(
+        "effractor: 1\nprofile: fault-tree\nname: \"|\"\ntop: t\nnodes:\n",
+        "  t: {label: \">\", leaf: basic, x-a: \"|\", x-b: [\"|\", {\"?\": \"- a\"}]}\n",
+        "x-data: \"|\"\n\"x-? k\": \"? v\"\n",
+    );
+    let once = canonicalize(text).unwrap();
+    assert_eq!(canonicalize(&once).unwrap(), once);
+    assert!(same(&extension(text), &extension(&once)));
+    assert!(once.contains("\nx-data: \"|\"\n"), "{once}");
+}
+
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(512))]
+    #![proptest_config(ProptestConfig::with_cases(1024))]
 
     #[test]
     fn any_value_survives(j in json()) {
