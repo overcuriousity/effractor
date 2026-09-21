@@ -35,16 +35,6 @@ needs: —            cost: 2   benefit: 3
 Spec 7.4: primary table with pinned cheapest path; scatter with axis pickers;
 two-way highlight with the canvas. Attack-tree profile only.
 
-### ui-controls — Control toggles and ranking
-needs: —            cost: 1   benefit: 5
-Built, waiting for the owner's look: the right panel's tabs (Results · Controls,
-the rail's shield goes to the second), each control with its switch, cost and
-reach, and after a solve what it is worth with its interval, value per money
-spent, rank, "too close to call", and the marginal-not-additive note; a switch
-edits `enabled` and solves again if there were results; and making and editing
-controls in the tab — **+**, a name, then label, cost and effects (leaf →
-likelihood while on). Delete this item when both have been seen.
-
 ## Sharing and delivery
 
 ### share-ui — Encrypted share, open, delete
@@ -55,7 +45,7 @@ fresh profile, deleting, and then getting 404 all work — checked by hand; the
 crypto and list logic have `node --test` tests.
 
 ### v1-acceptance — The spec's "done means"
-needs: ui-charts, ui-pareto, ui-controls, share-ui            cost: 2   benefit: 5
+needs: ui-charts, ui-pareto, share-ui            cost: 2   benefit: 5
 A walk through spec §12 against a release binary, by hand; performance
 budget check (10 000 samples < 1 s, first exact result < 100 ms on the reference
 tree); docs page for the course with the reference fault tree and one attack

@@ -112,6 +112,10 @@ run it. Do not repeat that:
 
 ## Suggested order
 
-1. `ui-controls`, then `ui-charts`, `ui-pareto`, `share-ui`, `v1-acceptance`.
-   `ui-source` is done: file menu on the document's name, IndexedDB working
-   text, the source view — all walked by the owner.
+1. `ui-charts`, `ui-pareto`, `share-ui`, then `v1-acceptance`. Done and walked
+   by the owner: `ui-source` (file menu, IndexedDB, source view), assets and
+   controls made and edited in the panels, the Controls tab with ranking.
+2. House rules learnt the hard way: UI copy is a few words, no other product is
+   named, form controls are the app's own (`menu.js`), and after a scripted edit
+   to a DOM file read the deleted lines of the diff — `node --check` does not
+   see a function that went missing.
