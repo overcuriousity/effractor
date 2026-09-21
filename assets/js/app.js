@@ -48,6 +48,7 @@
   var $ = function (id) {
     return document.getElementById(id);
   };
+  var store = window.effractorStore.createStore(window.indexedDB);
   var solver = window.createSolver(function () {
     return new Worker("/assets/js/solver-worker.js");
   });
@@ -253,11 +254,12 @@
   }
 
   // A text becomes the document: the one way in, for an edit, an undo, a redo.
-  function adopt(text, selectId, parent) {
+  function adopt(text, selectId, parent, fit) {
     return solver.parse(text).then(function (parsed) {
       if (!parsed.ok) throw new Error(describe(parsed.diagnostics[0]));
       clearResults();
-      return loaded(text, parsed.ok, false).then(function () {
+      store.save(text);
+      return loaded(text, parsed.ok, !!fit).then(function () {
         select(selectId, parent);
         documentChanged();
       });
@@ -296,11 +298,24 @@
     if (text !== null) adopt(text, state.selected, state.parent);
   }
 
+  function template(url) {
+    return fetch(url).then(function (res) {
+      if (!res.ok) throw new Error("could not load " + url);
+      return res.text();
+    });
+  }
+
+  // What was being worked on in this browser, or else an empty document.
   function load() {
-    return fetch(TEMPLATE)
-      .then(function (res) {
-        if (!res.ok) throw new Error("could not load " + TEMPLATE);
-        return res.text();
+    return store
+      .load()
+      .then(function (kept) {
+        if (kept === null || /[?&]new=/.test(location.search)) return template(TEMPLATE);
+        // Kept text that no longer parses (an older version's, say) must not
+        // lock the page out of itself.
+        return solver.parse(kept).then(function (parsed) {
+          return parsed.ok ? kept : template(TEMPLATE);
+        });
       })
       .then(function (text) {
         return solver.parse(text).then(function (parsed) {
@@ -421,6 +436,90 @@
   window.effractor.redo = function () {
     timeTravel("redo");
   };
+  // ---- New, open, save. Another document is an edit like any other: the one
+  // it replaces is a Ctrl+Z away, so nothing is asked and nothing is lost.
+
+  function replaceDocument(text, said) {
+    if (state.running) return say("solving — cancel it or wait");
+    solver.parse(text).then(function (parsed) {
+      if (!parsed.ok) return say("not opened: " + describe(parsed.diagnostics[0]));
+      // In canonical form, as every other text the page holds.
+      return solver.serialize(parsed.ok).then(function (written) {
+        if (!written.ok) return say("not opened: " + describe(written.diagnostics[0]));
+        if (state.text !== null) undoStack.push(state.text);
+        return adopt(written.ok, null, null, true).then(function () {
+          say(said + " · Ctrl+Z goes back");
+        });
+      });
+    }).catch(function (e) {
+      console.error(e);
+      say("not opened: " + e.message);
+    });
+  }
+
+  function saveFile() {
+    if (state.text === null) return;
+    var url = URL.createObjectURL(new Blob([state.text], { type: "text/yaml" }));
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = window.effractorStore.fileName(state.doc.name);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 1000);
+  }
+
+  var fileActions = {
+    new: function () {
+      template("/assets/templates/new.yaml").then(function (text) {
+        replaceDocument(text, "new fault tree");
+      });
+    },
+    "new-attack": function () {
+      template("/assets/templates/new-attack.yaml").then(function (text) {
+        replaceDocument(text, "new attack tree");
+      });
+    },
+    open: function () {
+      $("open-file").click();
+    },
+    save: saveFile,
+  };
+
+  $("open-file").addEventListener("change", function () {
+    var file = $("open-file").files[0];
+    $("open-file").value = ""; // the same file again is a change again
+    if (!file) return;
+    file.text().then(function (text) {
+      replaceDocument(text, "opened " + file.name);
+    });
+  });
+
+  function closeFileMenu() {
+    $("file-menu").hidden = true;
+    $("file").setAttribute("aria-expanded", "false");
+  }
+  $("file").addEventListener("click", function () {
+    var menu = $("file-menu");
+    if (!menu.hidden) return closeFileMenu();
+    var box = $("file").getBoundingClientRect();
+    menu.style.setProperty("--menu-x", box.left + "px");
+    menu.style.setProperty("--menu-y", box.bottom + 4 + "px");
+    menu.hidden = false;
+    $("file").setAttribute("aria-expanded", "true");
+  });
+  document.querySelectorAll("[data-file]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      closeFileMenu();
+      fileActions[button.getAttribute("data-file")]();
+    });
+  });
+  document.addEventListener("pointerdown", function (e) {
+    if (!$("file-menu").contains(e.target) && !$("file").contains(e.target)) closeFileMenu();
+  });
+
   window.effractor.canUndo = undoStack.canUndo;
   window.effractor.canRedo = undoStack.canRedo;
   window.effractor.solve = solve;
@@ -446,6 +545,11 @@
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       solve();
+    } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === "s" || e.key === "o")) {
+      e.preventDefault();
+      fileActions[e.key === "s" ? "save" : "open"]();
+    } else if (e.key === "Escape") {
+      closeFileMenu();
     } else if (e.key === "f" && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
       renderer.fit();
     } else if ((e.key === "+" || e.key === "-") && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {

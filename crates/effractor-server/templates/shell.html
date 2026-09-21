@@ -22,6 +22,7 @@
 <script src="/assets/js/results-view.js" defer></script>
 <script src="/assets/js/edit.js" defer></script>
 <script src="/assets/js/solver.js" defer></script>
+<script src="/assets/js/store.js" defer></script>
 <script src="/assets/js/app.js" defer></script>
 <script src="/assets/js/editor.js" defer></script>
 </head>
@@ -30,7 +31,8 @@
 
   <header class="topbar">
     <span class="brand"><span class="brand-mark" aria-hidden="true"></span>effractor</span>
-    <span class="crumb">Models / <b id="model-name">Untitled</b></span>
+    <span class="crumb">Models / <button class="crumb-name" id="file" type="button" aria-haspopup="menu" aria-controls="file-menu" title="New, open, save"><b id="model-name">Untitled</b><span aria-hidden="true"> ▾</span></button></span>
+    <input id="open-file" type="file" accept=".yaml,.yml,text/yaml" hidden>
     <span class="chip" id="profile-chip">no profile</span>
     <span class="chip" id="analysis-chip">not solved</span>
     <span class="spacer"></span>
@@ -130,6 +132,12 @@
   <dl class="help-keys" id="help-keys"></dl>
   <button class="btn btn-ghost" id="help-close" type="button">Close <kbd>Esc</kbd></button>
 </dialog>
+<div class="menu" id="file-menu" role="menu" hidden>
+  <button type="button" role="menuitem" data-file="new">New fault tree</button>
+  <button type="button" role="menuitem" data-file="new-attack">New attack tree</button>
+  <button type="button" role="menuitem" data-file="open">Open a .yaml file…<kbd>Ctrl+O</kbd></button>
+  <button type="button" role="menuitem" data-file="save">Save as .yaml<kbd>Ctrl+S</kbd></button>
+</div>
 <div class="menu" id="context-menu" role="menu" hidden></div>
 </body>
 </html>
