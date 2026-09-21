@@ -17,65 +17,28 @@ browser by its author. The owner's first quick look found three defects
     assets/js/app.js  editor.js  renderer-svg.js (event wiring)  layout.js
     assets/js/solver-worker.js (bootstrap part)   assets/css/30-, 40-, 50-*.css
 
-Those four roadmap items are still on the roadmap, narrowed to their check by
-hand. Do not delete one until the owner has seen it work. The editor in
-particular is "far from functional" in the owner's words — assume more is
-broken than is listed here.
+The owner has since walked the renderer and the editor in a browser (see
+below); solving, the results panel, the attack-tree look and the light/dark
+themes have not been walked yet.
 
-## Defects found by the owner — fix these first
+## The three defects of 2026-09-21 — fixed and seen by the owner
 
-### 1. A German example dataset is shipped and opens by default — neither is wanted
+1. No example ships; `/` opens an empty document (`assets/templates/`),
+   `?new=attack-tree` an empty attack tree. Fixtures and the spec's example are
+   English.
+2. **Fit**: the HUD is stacked above the graph.
+3. Nothing could be removed because nothing could be *selected*: the renderer
+   captured the pointer on every press, and a captured pointer's `click` goes
+   to the svg. Capture now starts with the drag; selection comes from the
+   release. The canvas takes focus on a press, so keys survive a button click.
 
-- `assets/examples/webserver.yaml` (German labels, the course's reference tree)
-  is what `/` loads; `office.yaml` is German too. `app.js` (`EXAMPLES`,
-  `exampleName`, `load`) fetches one on every start.
-- Wanted: no dataset opening by default, and nothing German in what ships. The
-  obvious shape: `/` starts with an empty document (what `?example=new` does
-  now); if examples stay at all they are English and opened on request. Ask the
-  owner whether examples should ship at all before writing new ones.
-- Touches: `assets/examples/*`, `app.js`, the server test
-  `the_solver_and_its_example_are_embedded`, the format test
-  `shipped_examples_are_canonical`, `scripts/fixtures/webserver.doc.json` and
-  its Rust pin `the_javascript_fixture_is_the_real_image`, and the three
-  narrowed roadmap items that name German labels. Test *fixtures* under
-  `crates/effractor-format/tests/fixtures/` are German as well; they are not
-  shipped, but ask whether they should be translated too. The spec's §5 example
-  is the same German tree.
-- The `?example=` / `?samples=` query parameters were scaffolding for hand
-  checks before an editor and a source view existed. `ui-source` (New, import,
-  export, persistence) is their replacement.
-
-### 2. The **Fit** button does nothing
-
-Cause, read from the source, not yet confirmed in a browser: the SVG covers the
-HUD. `renderer.mount($("canvas"))` appends `svg.graph` *after* the `.hud`
-elements in `#canvas`; both are `position: absolute` with no `z-index`, so the
-SVG (`inset: 0`) is on top and takes the click — and starts a pan. The P(top) /
-loss cards are under it too. Fix: stack `.hud` above `.graph` (`z-index`), or
-mount the SVG before the HUD; and check the `F` key separately, it goes through
-a different path (`app.js` keydown).
-
-### 3. Nodes cannot be removed
-
-Not diagnosed. `Del`/`Backspace` → `actions.remove` in `editor.js` →
-`E.removeEdge` (tested, works under node, also through the real wasm module) →
-`app.applyEdit`. Leads, in the order I would check them:
-
-1. Keys never arrive. `typingElsewhere` ignores keydown whenever the event
-   target is a `BUTTON`/`INPUT`/…; clicking the SVG does not move focus, so
-   after any button click (Solve, Fit, a rail tool) the canvas keys may be dead
-   until something else takes focus. If so, *all* canvas keys are affected, not
-   just Del. Likely fix: make the canvas focusable and focus it on select, and
-   scope the key handler to it.
-2. `state.parent` is null, so `remove` returns early — check what `select()`
-   computes for a node clicked on the canvas.
-3. `window.confirm` (shown when the node has attributes) or `applyEdit`
-   returning early because `state.running` is stuck `true`.
-4. The context-menu path (`Remove this edge`) — is the menu even shown? It is
-   positioned with `position: fixed` via CSS custom properties.
-
-Removing the **top** node is refused by design (no parent edge); say so in the
-UI rather than doing nothing.
+Since then, asked for by the owner: every action is an icon in the rail with
+its key in the tooltip, `?` lists all keys, the node menu also opens from the
+model tree, a refused edit leaves a notice on the canvas, and removal is worded
+by what it does (delete / unlink from a parent / delete everywhere) with undo
+instead of a confirm. `ui-renderer` and `ui-editor` are off the roadmap;
+`wasm-api` and `ui-results` still wait for their check by hand. The owner's
+taste: Chainalysis Reactor — quiet chrome, detail on demand.
 
 ## How to verify UI work from now on
 
@@ -148,9 +111,7 @@ run it. Do not repeat that:
 
 ## Suggested order
 
-1. Defects 1–3 above, each looked at by the owner before it lands.
-2. Walk the four narrowed roadmap items with the owner; fix what falls out;
-   delete each item only then.
-3. `ui-source` next — it removes the query-parameter scaffolding and gives the
+1. Walk `wasm-api` and `ui-results` with the owner; delete each only then.
+2. `ui-source` next — it removes the query-parameter scaffolding and gives the
    editor New/open/save — then `ui-controls`, `ui-charts`, `ui-pareto`,
    `share-ui`, `v1-acceptance`.

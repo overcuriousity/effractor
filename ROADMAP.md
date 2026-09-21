@@ -29,39 +29,14 @@ user input · no third-party origins, no telemetry · vanilla CSS + JS, no bundl
 needs: —            cost: 1   benefit: 5
 Built and tested: the exports, the worker, the page's first solve. What is left
 is the check by hand, which is the item's "done": with `scripts/build-wasm.sh`
-run and the server up, the reference tree solves on **Solve** / `Ctrl+Enter`
+run and the server up, a tree built in the editor solves on **Solve** / `Ctrl+Enter`
 with P(top) shown at once and progress after; `/?samples=20000000` runs long
 enough to **Cancel**; and `effractor.solver.crash()` in the console, then Solve
 again, shows a crash reported and the worker replaced. Delete this item when
 that has been seen.
 
-### ui-renderer — Renderer interface and SVG implementation
-needs: wasm-api            cost: 1   benefit: 5
-Built and tested: the interface of spec 7.1 with its contract tests, ELK in its
-own worker, both profiles' symbols, the repeated node drawn once, pan, zoom,
-fit, highlight. What is left is the look, which is the item's "done". No
-example ships and `/` opens empty, so the trees to look at are built in the
-editor, or imported once `ui-source` has landed (the reference trees are test
-fixtures: `crates/effractor-format/tests/fixtures/canonical/`): the fault tree
-(`&`/`≥1` boxes, circles, the diamond on Malware, `shared · 2 parents` on Server
-outage with each parent arriving at its own point) and the attack tree
-(AND/OR/`2/3`, cost · detection strips); in both themes; drag pans, the wheel zooms, **Fit** or `F` fits, a click
-selects and fills *Selected*. Delete this item when that has been seen.
-
-### ui-editor — Keyboard-first structure editing
-needs: ui-renderer            cost: 1   benefit: 5
-Built: the editing operations (tested, and driven through the real wasm module
-to build the reference tree with its repeated event), the key table, link
-search, drop to reparent / Ctrl-drop to link, context menu, property panel with
-the distribution sketch and `p(T)`, undo/redo, the model tree and assets on the
-left. What is left is the item's "done", by hand: open `/` and build
-the reference tree by keyboard alone — `Tab`, type the label, `Enter`; `P` for
-the panel and `Esc` back; `L` to link *Server outage* under the second gate;
-`Ctrl+Z` — and `/?new=attack-tree` for an attack tree. Delete this item when
-that has been done.
-
 ### ui-source — YAML source view and persistence
-needs: ui-editor            cost: 2   benefit: 4
+needs: —            cost: 2   benefit: 4
 Textarea with diagnostics list (click → line); stale-canvas state while invalid;
 IndexedDB working state; `.yaml` import/export; a **New** action in place of
 `?new=attack-tree`, and editing of the header, assets and controls, which the canvas
@@ -69,7 +44,7 @@ editor does not reach. Done when a text edit and a
 canvas edit round-trip into each other — checked by hand.
 
 ### ui-results — Cut sets, node stats, importance colouring
-needs: ui-renderer            cost: 1   benefit: 5
+needs: —            cost: 1   benefit: 5
 Built and tested: fixed FV/Birnbaum bins, leaf styles with the value printed and
 SPOF said in words, the ranked cut-set table, reasons for whatever is
 unavailable or truncated, node stats, the exact-only re-solve under 100 ms (no
@@ -104,7 +79,7 @@ fresh profile, deleting, and then getting 404 all work — checked by hand; the
 crypto and list logic have `node --test` tests.
 
 ### v1-acceptance — The spec's "done means"
-needs: ui-editor, ui-charts, ui-pareto, ui-controls, share-ui            cost: 2   benefit: 5
+needs: ui-charts, ui-pareto, ui-controls, share-ui            cost: 2   benefit: 5
 A walk through spec §12 against a release binary, by hand; performance
 budget check (10 000 samples < 1 s, first exact result < 100 ms on the reference
 tree); docs page for the course with the reference fault tree and one attack
