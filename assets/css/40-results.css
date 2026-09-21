@@ -80,11 +80,17 @@
 .analysis-table .num { text-align: right; white-space: nowrap; }
 .analysis-chart:focus-visible { outline: 2px solid var(--color-accent); }
 
-.pareto-table th { text-align: left; }
+.pareto-table { min-width: 480px; border: 1px solid var(--color-border-subtle); }
+.pareto-table th, .pareto-table td { vertical-align: top; text-align: right; padding: 6px 8px; border-right: 1px solid var(--color-border-subtle); }
+.pareto-table th:first-child, .pareto-table td:first-child { text-align: left; }
+.pareto-table th { background: var(--color-bg-surface); border-bottom-color: var(--color-border); }
+.pareto-sort { display: block; width: 100%; }
+.pareto-table th .pareto-sort { text-align: right; }
+.pareto-table th:first-child .pareto-sort { text-align: left; }
 .pareto-sort, .pareto-path { border: 0; padding: 0; background: none; color: inherit; font: inherit; text-align: inherit; cursor: pointer; }
 .pareto-sort:hover, .pareto-path:hover { text-decoration: underline; }
-.pareto-path { min-width: 100px; }
-.pareto-table .cheapest { position: sticky; top: 0; background: var(--color-bg-elevated); }
+.pareto-path { display: block; width: 100%; min-width: 140px; text-align: left; }
+.pareto-table .cheapest { background: var(--color-bg-elevated); }
 .pareto-cheapest { display: block; font-size: var(--text-xs); color: var(--color-accent); }
 .pareto-table tr.is-active { background: var(--color-bg-active); box-shadow: inset 2px 0 var(--color-accent); }
 .pareto-table tr.has-selected .pareto-path { text-decoration: underline; color: var(--color-accent); }
