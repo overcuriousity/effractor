@@ -22,7 +22,7 @@ is a third profile in v2 and must need no change to the document model.
 
 **Successor correction, 2026-09-21:** the preceding no-model-change assumption
 does not hold for ordered actions with their own durations. The
-[successor design](2026-09-21-lecture-workflow-design.md), pending owner review,
+[approved successor design](2026-09-21-lecture-workflow-design.md)
 specifies a separate architecture document and sequential generated-graph
 semantics. The tree semantics in this v1 specification remain unchanged.
 

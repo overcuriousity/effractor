@@ -1,13 +1,14 @@
 # Roadmap
 
 Remaining work for effractor, as a DAG. The existing tree profiles are specified
-in `docs/superpowers/specs/2026-09-20-effractor-v1-design.md`; the successor
-design is the first item below. How work lands is in `CONTRIBUTING.md`.
+in `docs/superpowers/specs/2026-09-20-effractor-v1-design.md`; the approved
+successor design is linked below. How work lands is in `CONTRIBUTING.md`.
 
-Written successor spec, awaiting owner review:
+Approved successor spec:
 [`2026-09-21-lecture-workflow-design.md`](docs/superpowers/specs/2026-09-21-lecture-workflow-design.md).
-The implementation items below are its delivery decomposition; implementation
-starts after the written spec and subsequent detailed plan reviews.
+The [implementation plan](docs/superpowers/plans/2026-09-21-lecture-workflow.md)
+is awaiting owner review and execution-method selection. The items below are
+its delivery decomposition; implementation starts after that checkpoint.
 
 **Rules.** `needs` = item ids that must be gone first. `cost` / `benefit` are
 1–5. An item is *ready* when everything it needs has been deleted; pick the
@@ -40,24 +41,11 @@ routes to server compromise and compare defenses such as patching, credential
 protection and network permissions. Keep the exercise in course documentation
 and test fixtures; the app still opens an empty document for a new user.
 
-The milestones below are decomposed into branch-sized work by the draft design. The
+The lecture milestone is decomposed into branch-sized work by the approved design. The
 existing tree profiles, local-first operation and native/wasm determinism remain
 requirements. The v1 spec's assumption that generated attack graphs need no
-document-model changes must be revisited: its parallel leaf timing does not
-represent prerequisite-dependent attack steps with accumulated durations.
-
-### successor-design — Specify the lecture workflow and attack-graph semantics
-needs: —            cost: 2   benefit: 5
-Write the successor spec around the chosen exercise. Define architecture
-entities and associations, the component-library contract, graph generation
-with traceability to component rules, attacker entry points and targets,
-sequential TTC semantics, cycle handling, defense comparisons and linked
-architecture/attack-graph views. State which analyses apply to generated graphs
-and preserve the existing tree semantics. Specify how assumptions, unknown
-parameters and illustrative distributions are represented; the lecture does
-not supply a complete calibrated knowledge base. Done when the owner has
-reviewed the written spec and the lecture milestone has been decomposed into
-implementation items with explicit acceptance checks and dependencies.
+document-model changes is superseded: generated graphs use explicit
+prerequisite-dependent attack steps with accumulated durations.
 
 ### lecture-workflow — Deliver the first successor milestone
 needs: defense-comparison            cost: 2   benefit: 5
@@ -78,7 +66,7 @@ the underlying rules and calibrated inputs.
 ## Lecture implementation
 
 ### architecture-document — Typed architecture documents and library contract
-needs: successor-design            cost: 3   benefit: 5
+needs: —            cost: 3   benefit: 5
 Add the separate architecture document, schema 2 migration and strict typed
 entities, associations, flows, footholds, target, assumptions and scenario
 overlays. Preserve the tree model and result semantics. Expose the bundled

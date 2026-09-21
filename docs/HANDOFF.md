@@ -16,20 +16,42 @@ compromised workstation, generate attack routes and compare defenses.
 
 The written successor design is now
 [`2026-09-21-lecture-workflow-design.md`](superpowers/specs/2026-09-21-lecture-workflow-design.md),
-**awaiting owner review**. It separates the architecture/generated graph from
+**approved by the owner on 2026-09-21**. It separates the architecture/generated graph from
 the existing tree model, specifies accumulated action durations and justified
 cycle entry, and defines a versioned transparent component library, explicit
 unknown/illustrative assumptions, defense overlays and linked views. All 23
 reference pages were rendered and inspected, with detailed renders of figures
 5.36 and 5.38; the page-to-requirement record is in the spec.
 
-`ROADMAP.md` now has the branch-sized implementation decomposition. Neither
-milestone is complete: after written-spec review, prepare the detailed plan
-and present it for the second review before implementation. No product code
-has changed at this checkpoint. The starting checkout was clean `master` at
-`c58d0cf`. The lecture does not supply the complete component rules or
-calibrated distributions needed for numerical equivalence. Later compatibility
-work remains on the roadmap and is outside this session's implementation.
+`successor-design` is complete: the written spec is approved and `ROADMAP.md`
+contains the branch-sized implementation decomposition. The detailed
+[implementation plan](superpowers/plans/2026-09-21-lecture-workflow.md) is written
+and awaiting the second review and execution-method selection. Native execution
+is recommended because the eight branches share interfaces and have sequential
+owner UI checkpoints. No product code has changed; `lecture-workflow` remains
+pending. The starting checkout was clean `master` at `c58d0cf`; the written-spec
+review commit is signed `c2e748b`.
+
+The owner requested that this session end after committing and pushing the plan
+directly to master. Stop at that documentation checkpoint; the next step is
+plan review and execution-method selection, not implementation without review.
+
+Baseline `npm test`, `cargo test --workspace`, `cargo fmt --all --check`,
+`cargo clippy --workspace --all-targets -- -D warnings` and the roadmap check
+passed, and `scripts/build-wasm.sh` ran successfully. The wasip1 target is
+installed but wasmtime was not on PATH; resolve the verification tool before
+the sequential-simulation task. These are baseline checks, not implementation
+acceptance. The lecture does not supply calibrated distributions needed for
+numerical equivalence. Compatibility work remains on the roadmap and is outside
+this session's implementation.
+
+Delivery observation: the starting documentation commit's
+[release run](https://github.com/overcuriousity/effractor/actions/runs/35653913216)
+failed at `gate / this commit passed ci`, since release.yml requires PR CI
+although documentation-only commits go straight to master. The implementation
+plan records that existing mismatch; code branches still require exact-SHA CI
+and a successful release. Do not describe a documentation push as a published
+code release.
 
 ## Continuation — v1 acceptance
 

@@ -1,6 +1,9 @@
 # effractor — architecture and sequential attack graphs
 
-Date: 2026-09-21 · Status: written spec awaiting owner review
+Date: 2026-09-21 · Status: approved by the owner, 2026-09-21
+
+Implementation plan: [lecture workflow](../plans/2026-09-21-lecture-workflow.md),
+awaiting the separate plan review before implementation.
 
 ## 1. Purpose and boundary
 
