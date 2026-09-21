@@ -22,6 +22,8 @@
   function open(anchor, items, current, chosen, keepFocus) {
     close();
     if (!items.length) return;
+    // A modal makes body siblings inert; keep its popup in the same layer.
+    (anchor.closest("dialog") || document.body).appendChild(list);
     owner = anchor;
     anchor.setAttribute("aria-expanded", "true");
     list.replaceChildren();

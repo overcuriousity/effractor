@@ -167,3 +167,11 @@ async fn the_policy_lets_the_worker_run_and_nothing_else_in() {
     // Compiling wasm is allowed; evaluating JavaScript text is not.
     assert!(!csp.contains(" 'unsafe-eval'"), "{csp}");
 }
+
+#[tokio::test]
+async fn shared_links_serve_the_local_editor_with_security_headers() {
+    let res = get("/s/AAAAAAAAAAAAAAAAAAAAAA").await;
+    assert_eq!(res.status(), StatusCode::OK);
+    assert_security_headers(&res);
+    assert!(text(res).await.contains("<title>effractor</title>"));
+}

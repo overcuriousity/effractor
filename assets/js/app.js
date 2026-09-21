@@ -458,7 +458,7 @@
 
   function replaceDocument(text, said) {
     if (state.running) return say("solving — cancel it or wait");
-    solver.parse(text).then(function (parsed) {
+    return solver.parse(text).then(function (parsed) {
       if (!parsed.ok) return say("not opened: " + describe(parsed.diagnostics[0]));
       // In canonical form, as every other text the page holds.
       return solver.serialize(parsed.ok).then(function (written) {
@@ -466,6 +466,7 @@
         if (state.text !== null) undoStack.push(state.text);
         return adopt(written.ok, null, null, true).then(function () {
           say(said + " · Ctrl+Z goes back");
+          return true;
         });
       });
     }).catch(function (e) {
@@ -574,7 +575,8 @@
     }
   });
 
-  load().then(notify).catch(function (e) {
+  window.effractor.replaceDocument = replaceDocument;
+  window.effractor.ready = load().then(notify).catch(function (e) {
     chip("no document: " + e.message);
     console.error(e);
   });

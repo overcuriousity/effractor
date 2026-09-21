@@ -33,3 +33,24 @@ test("a document's name becomes a file name a file system will take", () => {
   assert.equal(fileName(undefined), "untitled.yaml");
   assert.ok(fileName("x".repeat(500)).length <= 65);
 });
+
+test("upgrading a working database preserves text and persists independent share records", async () => {
+  const idb = fakeIndexedDB({ version: 1, working: 'my existing document' });
+  const store = createStore(idb);
+  assert.equal(await store.load(), 'my existing document');
+  const a = { id: 'a', delete_token: 'token-a', expires_at: null, url: '/s/a#key', name: 'A' };
+  const b = { id: 'b', delete_token: 'token-b', expires_at: 123, url: '/s/b#key', name: 'B' };
+  assert.equal(await store.saveShare(a), true);
+  assert.equal(await store.saveShare(b), true);
+  assert.deepEqual(await createStore(idb).shares(), [a, b]);
+  assert.equal(await store.removeShare('a'), true);
+  assert.deepEqual(await store.shares(), [b]);
+  assert.equal(await store.load(), 'my existing document');
+});
+
+test("share storage reports refused or aborted writes instead of losing deletion tokens silently", async () => {
+  for (const idb of [undefined, fakeIndexedDB({ refuses: true }), fakeIndexedDB({ abort: true })]) {
+    const store = createStore(idb);
+    assert.equal(await store.saveShare({ id: 'a', delete_token: 'token' }), false);
+  }
+});

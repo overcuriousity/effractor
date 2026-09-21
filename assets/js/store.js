@@ -17,14 +17,16 @@
         if (!idb) return resolve(null);
         var req;
         try {
-          req = idb.open(DB, 1);
+          req = idb.open(DB, 2);
         } catch (e) {
           return resolve(null);
         }
         req.onupgradeneeded = function () {
-          req.result.createObjectStore(STORE);
+          if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
+          if (!req.result.objectStoreNames.contains("shares")) req.result.createObjectStore("shares");
         };
         req.onsuccess = function () {
+          req.result.onversionchange = function () { req.result.close(); opened = null; };
           resolve(req.result);
         };
         req.onerror = req.onblocked = function () {
@@ -34,29 +36,33 @@
       return opened;
     }
 
-    // `run` gets the object store and returns a request; resolves to its result,
-    // or to null if there is no database or the request fails.
-    function request(mode, run) {
+    // Writes succeed only when the transaction commits, not at request success.
+    function request(mode, run, name, strict) {
       return open().then(function (db) {
-        if (!db) return null;
+        if (!db) return strict ? false : null;
         return new Promise(function (resolve) {
-          var req;
+          var req, tx, value;
           try {
-            req = run(db.transaction(STORE, mode).objectStore(STORE));
-          } catch (e) {
-            return resolve(null);
-          }
-          req.onsuccess = function () {
-            resolve(req.result === undefined ? null : req.result);
-          };
-          req.onerror = function () {
-            resolve(null);
-          };
+            tx = db.transaction(name || STORE, mode);
+            req = run(tx.objectStore(name || STORE));
+          } catch (e) { return resolve(strict ? false : null); }
+          req.onsuccess = function () { value = req.result; };
+          tx.oncomplete = function () { resolve(strict ? true : (value === undefined ? null : value)); };
+          req.onerror = tx.onerror = tx.onabort = function () { resolve(strict ? false : null); };
         });
       });
     }
 
     return {
+      shares: function () {
+        return request("readonly", function (s) { return s.getAll(); }, "shares").then(function (rows) { return rows || []; });
+      },
+      saveShare: function (share) {
+        return request("readwrite", function (s) { return s.put(share, share.id); }, "shares", true);
+      },
+      removeShare: function (id) {
+        return request("readwrite", function (s) { return s.delete(id); }, "shares", true);
+      },
       // The text last saved, or null.
       load: function () {
         return request("readonly", function (s) {

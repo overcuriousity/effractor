@@ -17,6 +17,7 @@ use axum::routing::get;
 pub fn app(shares: share::Shares) -> Router {
     Router::new()
         .route("/", get(shell::shell))
+        .route("/s/{id}", get(shell::shell))
         .route("/assets/{*path}", get(assets::asset))
         .merge(share::routes(shares))
         .layer(axum::middleware::from_fn(headers::security_headers))

@@ -28,6 +28,8 @@
 <script src="/assets/js/editor.js" defer></script>
 <script src="/assets/js/source.js" defer></script>
 <script src="/assets/js/controls.js" defer></script>
+<script src="/assets/js/share.js" defer></script>
+<script src="/assets/js/share-ui.js" defer></script>
 </head>
 <body>
 <div class="workspace" id="app" data-version="{{ version }}">
@@ -148,6 +150,14 @@
 
 </div>
 
+<dialog class="help-dialog share-dialog" id="share-dialog" aria-labelledby="share-title">
+  <h2 class="label" id="share-title">Share snapshot</h2>
+  <div class="share-actions"><span id="share-expiry"></span><button class="btn" id="share-create" type="button">Create link</button></div>
+  <div id="share-created" hidden><label for="share-link">Link</label><input id="share-link" readonly><button class="btn btn-ghost" id="share-copy" type="button">Copy</button></div>
+  <p id="share-status" role="status" class="hint"></p>
+  <h3 class="label">My shares</h3><p class="hint" id="shares-empty">No shares</p><ul id="my-shares"></ul>
+  <button class="btn btn-ghost" id="share-close" type="button">Close</button>
+</dialog>
 <dialog class="link-dialog" id="link-dialog" aria-label="Link an existing node">
   <input class="link-search" id="link-search" type="search" placeholder="Link an existing node…" aria-controls="link-results">
   <ul class="link-results" id="link-results" role="listbox"></ul>
