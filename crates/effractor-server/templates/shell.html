@@ -34,21 +34,27 @@
     <span class="chip" id="profile-chip">no profile</span>
     <span class="chip" id="analysis-chip">not solved</span>
     <span class="spacer"></span>
-    <button class="btn btn-ghost" id="help" type="button" title="Keys and pointer actions (?)">Keys <kbd>?</kbd></button>
     <button class="btn btn-ghost" id="theme-switch" type="button" aria-label="Theme">Light</button>
     <button class="btn btn-ghost" id="share" type="button" disabled>Share</button>
     <button class="btn" id="solve" type="button" disabled>Solve</button>
   </header>
 
   <nav class="rail" aria-label="Tools">
-    <button class="tool" type="button" data-tool="select" aria-pressed="true" title="Select"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2l9 5.5-4 1.2L6.5 13z"/></svg></button>
-    <button class="tool" type="button" data-tool="add" title="Add child (Tab)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
-    <button class="tool" type="button" data-tool="link" title="Link existing node (L)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8"/></svg></button>
+    <button class="tool" type="button" data-action="addChild" disabled title="Add child (Tab)" aria-label="Add child"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+    <button class="tool" type="button" data-action="addSibling" disabled title="Add sibling (Enter)" aria-label="Add sibling"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3v10M10 5v6M7 8h6"/></svg></button>
+    <button class="tool" type="button" data-action="link" disabled title="Link existing node… (L)" aria-label="Link existing node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8"/></svg></button>
+    <button class="tool" type="button" data-action="move" disabled title="Move under… (M)" aria-label="Move under another node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h7M7 5l3 3-3 3M13 3v10"/></svg></button>
+    <button class="tool" type="button" data-action="remove" disabled title="Remove this edge (Del)" aria-label="Remove this edge"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    <span class="rail-rule" aria-hidden="true"></span>
+    <button class="tool" type="button" data-action="undo" disabled title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3L3 6l3 3M3 6h6a4 4 0 010 8H7"/></svg></button>
+    <button class="tool" type="button" data-action="redo" disabled title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3l3 3-3 3M13 6H7a4 4 0 000 8h2"/></svg></button>
     <span class="rail-rule" aria-hidden="true"></span>
     <button class="tool" type="button" data-toggle="left" aria-pressed="true" title="Model panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM6 3v10"/></svg></button>
     <button class="tool" type="button" data-toggle="right" aria-pressed="true" title="Results panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM10 3v10"/></svg></button>
     <button class="tool" type="button" data-tool="source" disabled title="YAML source"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4L2.5 8 6 12M10 4l3.5 4L10 12"/></svg></button>
     <button class="tool" type="button" data-tool="controls" disabled title="Controls"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/></svg></button>
+    <span class="spacer"></span>
+    <button class="tool tool-text" type="button" id="help" title="Keys and pointer actions (?)" aria-label="Keys and pointer actions">?</button>
   </nav>
 
   <aside class="panel panel-left" id="panel-left" aria-label="Model">
@@ -69,7 +75,8 @@
 
   <main class="canvas" id="canvas" aria-label="Graph">
     <div class="canvas-grid" aria-hidden="true"></div>
-    <div class="hud hud-bottom-left"><button class="btn btn-ghost" id="fit" type="button" title="Fit to view (F)">Fit <kbd>F</kbd></button><button class="btn btn-ghost" id="zoom-out" type="button" title="Zoom out (−)" aria-label="Zoom out">−</button><button class="btn btn-ghost" id="zoom-in" type="button" title="Zoom in (+)" aria-label="Zoom in">+</button></div>
+    <div class="hud hud-bottom-left"><button class="btn btn-ghost" id="fit" type="button" title="Fit to view (F)">Fit</button><button class="btn btn-ghost" id="zoom-out" type="button" title="Zoom out (−)" aria-label="Zoom out">−</button><button class="btn btn-ghost" id="zoom-in" type="button" title="Zoom in (+)" aria-label="Zoom in">+</button></div>
+    <p class="hud hud-note" id="note" role="status" hidden></p>
     <div class="hud hud-top-right">
       <div class="hud-card"><span class="label">P(top)</span><span class="stat num" id="hud-p">—</span><span class="hud-sub num" id="hud-p-ci">&nbsp;</span></div>
       <div class="hud-card"><span class="label">Expected loss</span><span class="stat num" id="hud-eal">—</span><span class="hud-sub num" id="hud-p95">&nbsp;</span></div>
@@ -87,10 +94,6 @@
         <tbody id="cutsets-body"></tbody>
       </table>
       <p class="empty" id="cutsets-more" hidden></p>
-    </section>
-    <section class="panel-section">
-      <h2 class="label">Edit</h2>
-      <div class="actions" id="actions" role="toolbar" aria-label="Edit actions"></div>
     </section>
     <section class="panel-section">
       <h2 class="label">Selected</h2>

@@ -199,6 +199,18 @@
     $("analysis-chip").textContent = text;
   }
 
+  // A word on the canvas that goes away again: why something did not happen.
+  var noteTimer = null;
+  function say(text) {
+    var note = $("note");
+    note.textContent = text;
+    note.hidden = false;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(function () {
+      note.hidden = true;
+    }, 6000);
+  }
+
   function hud(id, text) {
     $(id).textContent = text || " ";
   }
@@ -253,14 +265,21 @@
   // canvas shows is always what the canonical text says. An edit the format
   // refuses changes nothing and says why. Resolves to whether it was applied.
   function applyEdit(edit) {
-    if (!edit || state.running) return Promise.resolve(false);
+    if (!edit) return Promise.resolve(false);
+    if (state.running) {
+      say("solving — cancel it or wait before editing");
+      return Promise.resolve(false);
+    }
     var before = state.text;
     return solver.serialize(edit.doc).then(function (written) {
       if (!written.ok) {
-        chip(describe(written.diagnostics[0]));
+        say(describe(written.diagnostics[0]));
         return false;
       }
-      if (written.ok === before) return false;
+      if (written.ok === before) {
+        say("that changes nothing");
+        return false;
+      }
       undoStack.push(before);
       return adopt(written.ok, edit.select, edit.parent).then(function () {
         return true;
@@ -387,7 +406,7 @@
   window.effractor.renderer = renderer;
   window.effractor.select = select;
   window.effractor.applyEdit = applyEdit;
-  window.effractor.say = chip;
+  window.effractor.say = say;
   window.effractor.undo = function () {
     timeTravel("undo");
   };

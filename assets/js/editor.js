@@ -23,16 +23,35 @@
     return selected() ? doc().nodes[selected()] : null;
   }
 
+  // An edit that fails says so on the canvas: nothing is refused in silence.
   function apply(edit, then) {
-    return app.applyEdit(edit).then(function (applied) {
-      if (applied && then) then();
-      return applied;
-    });
+    if (!edit) {
+      app.say("that edit is not possible here");
+      return Promise.resolve(false);
+    }
+    return app.applyEdit(edit).then(
+      function (applied) {
+        if (applied && then) then();
+        return applied;
+      },
+      function (e) {
+        console.error(e);
+        app.say("the edit failed: " + e.message);
+        return false;
+      }
+    );
+  }
+
+  // The fields live in the right panel; an action that goes there opens it.
+  function openPanel() {
+    var toggle = document.querySelector('[data-toggle="right"]');
+    if ($("app").getAttribute("data-right") === "closed" && toggle) toggle.click();
   }
 
   function focusLabel() {
     var field = $("prop-label");
     if (!field) return;
+    openPanel();
     field.focus();
     field.select();
   }
@@ -63,6 +82,7 @@
     // tree buildable without a pointer. Esc comes back out.
     properties: function () {
       var first = $("prop-quantity") || $("prop-gate");
+      openPanel();
       if (first) first.focus();
     },
     cycleGate: function () {
@@ -79,7 +99,9 @@
     },
     // What a drop does, for those who do not drag.
     move: function () {
-      if (app.state.parent) openLinkDialog("move");
+      if (!selected()) return;
+      if (!app.state.parent) return app.say("the top event cannot be moved");
+      openLinkDialog("move");
     },
     undo: function () {
       app.undo();
@@ -181,19 +203,13 @@
     }
   });
 
-  // ---- pointer: drop reparents, Ctrl-drop links; the rail mirrors two keys ----
+  // ---- pointer: drop reparents, Ctrl-drop links ----
 
   app.renderer.on("drop", function (e) {
     if (e.ctrl) return apply(E.link(doc(), e.target, e.id));
     var edit = E.reparent(doc(), e.id, E.parentsOf(doc(), e.id)[0] || null, e.target);
     if (edit) edit.parent = e.target;
     apply(edit);
-  });
-
-  document.querySelectorAll('[data-tool="add"], [data-tool="link"]').forEach(function (button) {
-    button.addEventListener("click", function () {
-      actions[button.getAttribute("data-tool") === "add" ? "addChild" : "link"]();
-    });
   });
 
   // ---- context menu ----
@@ -585,36 +601,24 @@
 
   // ---- every action as a button, with its key; and the list of all keys ----
 
-  function keyed(parent, label, key) {
-    parent.appendChild(document.createTextNode(label));
-    var k = document.createElement("kbd");
-    k.textContent = key;
-    parent.appendChild(k);
-  }
+  // The rail: each action as an icon, its key in the tooltip; the context menu
+  // and the keys list (?) spell them out. Off where the action does not apply.
+  var railButtons = document.querySelectorAll("[data-action]");
+  railButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      button.blur(); // the keys stay with the canvas
+      actions[button.getAttribute("data-action")]();
+    });
+  });
 
   function renderActions() {
-    var bar = $("actions");
-    bar.replaceChildren();
     var n = node();
-    var items = [
-      ["undo", "Undo", "Ctrl+Z", app.canUndo()],
-      ["redo", "Redo", "Ctrl+Shift+Z", app.canRedo()],
-    ].concat(
-      MENU.map(function (item) {
-        return [item[0], item[1], item[2], !!n && !!item[3](n)];
-      })
-    );
-    items.forEach(function (item) {
-      var button = document.createElement("button");
-      button.type = "button";
-      button.className = "action";
-      button.disabled = !item[3];
-      keyed(button, item[1], item[2]);
-      button.addEventListener("click", function () {
-        button.blur(); // the keys stay with the canvas
-        actions[item[0]]();
-      });
-      bar.appendChild(button);
+    var allowed = { undo: app.canUndo(), redo: app.canRedo() };
+    MENU.forEach(function (item) {
+      allowed[item[0]] = !!n && !!item[3](n);
+    });
+    railButtons.forEach(function (button) {
+      button.disabled = !allowed[button.getAttribute("data-action")];
     });
   }
 
