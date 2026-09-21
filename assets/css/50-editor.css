@@ -15,9 +15,10 @@
 .outline .repeat { margin-left: 4px; color: var(--color-fg-muted); font-size: var(--text-xs); }
 
 .assets { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
-.assets th { padding: 2px 4px; color: var(--color-fg-muted); font-weight: 500; text-align: left; }
-.assets td { padding: 2px 4px; overflow-wrap: anywhere; }
-.assets .num { text-align: right; }
+.assets th { padding: 6px 4px 2px; font-weight: 500; text-align: left; overflow-wrap: anywhere; }
+.assets td { padding: 1px 4px; }
+.assets .dim { width: 1.5em; color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
+.assets .num { text-align: right; font-size: var(--text-xs); }
 
 .properties { display: grid; grid-template-columns: auto 1fr; gap: 5px 8px; align-items: center; margin-bottom: 10px; font-size: var(--text-sm); }
 .properties label { color: var(--color-fg-muted); }
@@ -28,7 +29,8 @@
   background: var(--color-bg-base); color: var(--color-fg-primary);
   font: inherit;
 }
-.properties input[type="number"], .properties .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.properties input[type="number"], .properties .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.properties input[type="number"] { text-align: right; }
 .properties textarea { resize: vertical; min-height: 3.2em; }
 .properties :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 0; }
 .properties .wide { grid-column: 1 / -1; }

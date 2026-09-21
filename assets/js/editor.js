@@ -507,16 +507,30 @@
     var body = $("assets-body");
     body.replaceChildren();
     Object.keys(assets).forEach(function (id) {
-      var tr = document.createElement("tr");
+      // One block per asset, a line per dimension: a loss may be a number or
+      // a whole distribution, and the panel is narrow.
+      var head = document.createElement("tr");
+      var name = document.createElement("th");
+      name.colSpan = 2;
+      name.scope = "rowgroup";
+      name.textContent = assets[id].label || id;
+      head.title = id;
+      head.appendChild(name);
+      body.appendChild(head);
       var loss = assets[id].loss || {};
-      [assets[id].label || id, loss.c, loss.i, loss.a].forEach(function (value, i) {
-        var td = document.createElement("td");
-        td.textContent = value == null ? "—" : value;
-        if (i) td.className = "num";
-        tr.appendChild(td);
+      ["c", "i", "a"].forEach(function (dim) {
+        if (loss[dim] == null) return;
+        var tr = document.createElement("tr");
+        var key = document.createElement("td");
+        key.className = "dim";
+        key.textContent = dim.toUpperCase();
+        var value = document.createElement("td");
+        value.className = "num";
+        value.textContent = loss[dim];
+        tr.appendChild(key);
+        tr.appendChild(value);
+        body.appendChild(tr);
       });
-      tr.title = id;
-      body.appendChild(tr);
     });
     $("assets").hidden = !body.children.length;
     $("assets-empty").hidden = !!body.children.length;
