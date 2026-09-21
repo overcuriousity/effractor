@@ -242,6 +242,15 @@ Rules:
   within each object as listed above; entry order of the maps preserved as
   authored, new entries appended; shorthands kept as written; block style except
   short scalar lists and consequence/effect entries. Canonicalisation is idempotent.
+  Defaults are written out (`time_unit`, `horizon`, `currency`, `analysis`), so
+  a file says what was solved; `fraction: 1` is not. Text is bare where YAML
+  reads it back as the same text and double-quoted otherwise; expressions are
+  always quoted. An `x-` key follows the known keys of its map, its value on one
+  line in flow style.
+- Required: `effractor`, `profile`, `name`, `top`, `nodes`; a node's `label` and
+  one of `gate` / `leaf`; a gate's `children`; a control's `label`, `cost`,
+  `enabled`. The format is one document of maps, lists and scalars: anchors,
+  aliases, tags and a second document are errors, not features.
 - Comments do not survive a canonical rewrite (serde round trip). `description`
   exists so that nothing worth keeping needs to be a comment. Hand-edited files
   keep their comments until the UI first saves them.

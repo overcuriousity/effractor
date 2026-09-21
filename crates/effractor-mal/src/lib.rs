@@ -77,7 +77,8 @@ pub fn to_expr(d: &Distribution) -> String {
 
 /// Shortest text that reads back as the same f64. Rust's `{}` never uses an
 /// exponent, which turns 2.5e-6 into a row of zeros someone has to count.
-fn number(v: f64) -> String {
+/// Public because a document writes its bare numbers the same way.
+pub fn number(v: f64) -> String {
     let magnitude = v.abs();
     if v != 0.0 && !(1e-4..1e15).contains(&magnitude) {
         format!("{v:e}")

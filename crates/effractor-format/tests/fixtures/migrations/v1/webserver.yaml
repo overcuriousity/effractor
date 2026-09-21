@@ -1,0 +1,61 @@
+# The course's reference tree, as a person would write it: comments, keys in
+# any order, quotes where none are needed, defaults left out.
+effractor: 1
+name: "Mangelnde Verfügbarkeit Webserver"
+profile: fault-tree
+top: mangelnde-verfuegbarkeit
+horizon: 8760.0
+
+nodes:
+  mangelnde-verfuegbarkeit:
+    gate: or
+    label: Mangelnde Verfügbarkeit
+    children:
+      - ohne-zugang
+      - ohne-funktion
+    consequences:
+      - asset: webserver
+        dim: a
+        fraction: 1
+  ohne-zugang:
+    label: Server ohne Zugang
+    gate: or
+    children: [administration, vernetzung, ausfall-server]
+  ohne-funktion:
+    label: Server ohne Funktion
+    gate: or
+    children: [hardware, software, malware, ausfall-server]   # repeated event
+  administration: {label: Fehler in der Administration, leaf: basic, rate: 0.0000007}
+  vernetzung:
+    label: Ausfall der Vernetzung
+    leaf: basic
+    rate: 3.5e-7
+  ausfall-server:
+    label: Ausfall Server
+    leaf: basic
+    rate: 2.5e-6
+  hardware:
+    label: Hardware defekt
+    rate: 1.3e-6
+    leaf: basic
+  software:
+    label: 'Softwarefehler'
+    leaf: basic
+    rate: 2.3e-7
+  malware:
+    label: Malware
+    leaf: undeveloped
+    p: 0.004
+
+assets:
+  webserver:
+    label: Webserver
+    loss: {c: 20000, i: 40000, a: "Pert(60000, 120000, 400000)"}
+
+controls:
+  redundant-psu:
+    label: Redundantes Netzteil
+    cost: 1800
+    enabled: false
+    effects:
+      - {node: hardware, ttc: Exponential(4e-7)}

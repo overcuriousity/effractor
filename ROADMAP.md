@@ -21,29 +21,21 @@ user input · no third-party origins, no telemetry · vanilla CSS + JS, no bundl
 
 ## Foundation
 
-### format-yaml — YAML ⇄ Model, canonical writer, migrations
-needs: —            cost: 4   benefit: 5
-`fn load(&str) -> Result<Model, Vec<Diagnostic>>` with line/col on diagnostics;
-`fn save(&Model) -> String` in canonical form (spec §5: key order, authored map
-order preserved, shorthands `p`/`rate`/`ttc` kept as written, `x-` keys
-round-trip); `effractor: <int>` version gate with a migration chain (v1 is the
-identity, with the fixture harness in place). Done when `save∘load` is the
-identity on canonical fixtures, canonicalisation is idempotent under proptest,
-the spec's example file loads, and unknown keys error with a position.
-
 ## Solver
 
 ## Browser
 
 ### wasm-api — wasm-bindgen surface and worker
-needs: format-yaml            cost: 3   benefit: 5
+needs: —            cost: 3   benefit: 5
 Exports `validate`, `parse`, `serialize`, `solve_begin`/`solve_step`/`solve_finish`,
-each returning `{ok}` or `{diagnostics}`; panic hook; `assets/js/solver-worker.js`
-with progress, cancel-between-chunks and restart-on-panic; exact results posted
-before sampling starts. The build embeds the wasm bundle, so `ci.yml` and
-`release.yml` both gain the wasm-bindgen step. Done when the reference tree
-solves in the browser with progress shown and a long run can be cancelled —
-checked by hand.
+each returning `{ok}` or `{diagnostics}`; panic hook. `parse` hands JS the
+document as a JSON image of its YAML tree and `serialize` takes one back through
+the same lowering, so `x-` keys — which a `Model` does not hold — survive an
+edit. `assets/js/solver-worker.js` with progress, cancel-between-chunks and
+restart-on-panic; exact results posted before sampling starts. The build embeds
+the wasm bundle, so `ci.yml` and `release.yml` both gain the wasm-bindgen step.
+Done when the reference tree solves in the browser with progress shown and a
+long run can be cancelled — checked by hand.
 
 ### ui-renderer — Renderer interface and SVG implementation
 needs: wasm-api            cost: 5   benefit: 5

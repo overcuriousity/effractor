@@ -10,6 +10,14 @@ repository.workspace = true
 [dependencies]
 effractor-core = { path = "../effractor-core" }
 effractor-mal = { path = "../effractor-mal" }
+indexmap = "2"
+# An event parser with source spans and nothing else: no serde, no I/O, no_std.
+# The format needs positions for diagnostics and says no to most of YAML, so it
+# reads events itself rather than accept a library's idea of a document.
+saphyr-parser = "0.1.0"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+proptest = { version = "1.11.0", default-features = false, features = ["std"] }

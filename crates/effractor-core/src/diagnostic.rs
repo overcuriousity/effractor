@@ -6,6 +6,18 @@ pub enum Severity {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Code {
+    // What only a text can get wrong; `effractor-format` reports these.
+    Syntax,
+    Unsupported,
+    Version,
+    UnknownKey,
+    MissingKey,
+    DuplicateKey,
+    MisplacedKey,
+    WrongType,
+    InvalidId,
+    Expression,
+    // What a model can get wrong; `validate` reports these.
     UnknownTop,
     UnknownChild,
     UnknownAsset,
@@ -28,6 +40,16 @@ impl Code {
     /// Stable, kebab-case: what a UI or a results file refers to.
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::Syntax => "syntax",
+            Self::Unsupported => "unsupported",
+            Self::Version => "version",
+            Self::UnknownKey => "unknown-key",
+            Self::MissingKey => "missing-key",
+            Self::DuplicateKey => "duplicate-key",
+            Self::MisplacedKey => "misplaced-key",
+            Self::WrongType => "wrong-type",
+            Self::InvalidId => "invalid-id",
+            Self::Expression => "expression",
             Self::UnknownTop => "unknown-top",
             Self::UnknownChild => "unknown-child",
             Self::UnknownAsset => "unknown-asset",
@@ -68,7 +90,7 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
-    pub(crate) fn error(code: Code, path: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn error(code: Code, path: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             severity: Severity::Error,
             code,
@@ -78,7 +100,7 @@ impl Diagnostic {
         }
     }
 
-    pub(crate) fn warning(code: Code, path: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn warning(code: Code, path: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             severity: Severity::Warning,
             ..Self::error(code, path, message)
