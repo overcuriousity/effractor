@@ -37,15 +37,8 @@ two-way highlight with the canvas. Attack-tree profile only.
 
 ## Sharing and delivery
 
-### share-ui — Encrypted share, open, delete
-needs: —            cost: 2   benefit: 4
-WebCrypto AES-256-GCM, key in the fragment; share dialog with TTL; `/s/{id}`
-loads a local copy; "My shares" list with delete. Done when sharing, opening in a
-fresh profile, deleting, and then getting 404 all work — checked by hand; the
-crypto and list logic have `node --test` tests.
-
 ### v1-acceptance — The spec's "done means"
-needs: ui-charts, ui-pareto, share-ui            cost: 2   benefit: 5
+needs: ui-charts, ui-pareto            cost: 2   benefit: 5
 A walk through spec §12 against a release binary, by hand; performance
 budget check (10 000 samples < 1 s, first exact result < 100 ms on the reference
 tree); docs page for the course with the reference fault tree and one attack
