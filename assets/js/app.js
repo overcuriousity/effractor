@@ -410,6 +410,11 @@
   window.effractor.select = select;
   window.effractor.applyEdit = applyEdit;
   window.effractor.say = say;
+  // A crash with nothing waiting on the worker would otherwise pass unseen.
+  solver.onCrash = function (message) {
+    console.error("solver crashed:", message);
+    say("the solver crashed and was restarted");
+  };
   window.effractor.undo = function () {
     timeTravel("undo");
   };
