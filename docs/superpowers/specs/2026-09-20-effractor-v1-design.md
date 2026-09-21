@@ -20,6 +20,12 @@ There is one document model; a `profile` selects symbols, leaf attributes and
 available analyses. v1 ships the two tree profiles. The generated attack graph
 is a third profile in v2 and must need no change to the document model.
 
+**Successor correction, 2026-09-21:** the preceding no-model-change assumption
+does not hold for ordered actions with their own durations. The
+[successor design](2026-09-21-lecture-workflow-design.md), pending owner review,
+specifies a separate architecture document and sequential generated-graph
+semantics. The tree semantics in this v1 specification remain unchanged.
+
 **Hard constraints.** Self-hostable, local-first, no telemetry. Models never
 leave the machine unless the user shares them. One implementation of the
 semantics, compiled native and to wasm32.

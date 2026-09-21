@@ -14,12 +14,22 @@ dependent on that milestone. The reference is `extract.pdf`, printed
 pp. 112–134: model a client/router/SSH-server architecture, start from a
 compromised workstation, generate attack routes and compare defenses.
 
-The next task is the written successor design. The v1 spec's proposed reuse of
-the tree document model needs review: all current leaves start at time zero,
-whereas generated attack steps need prerequisite-dependent, accumulated timing.
-The selected scope is recorded; a detailed successor spec and implementation
-plan have not yet been reviewed. The lecture does not supply the complete
-component rules or calibrated distributions needed for numerical equivalence.
+The written successor design is now
+[`2026-09-21-lecture-workflow-design.md`](superpowers/specs/2026-09-21-lecture-workflow-design.md),
+**awaiting owner review**. It separates the architecture/generated graph from
+the existing tree model, specifies accumulated action durations and justified
+cycle entry, and defines a versioned transparent component library, explicit
+unknown/illustrative assumptions, defense overlays and linked views. All 23
+reference pages were rendered and inspected, with detailed renders of figures
+5.36 and 5.38; the page-to-requirement record is in the spec.
+
+`ROADMAP.md` now has the branch-sized implementation decomposition. Neither
+milestone is complete: after written-spec review, prepare the detailed plan
+and present it for the second review before implementation. No product code
+has changed at this checkpoint. The starting checkout was clean `master` at
+`c58d0cf`. The lecture does not supply the complete component rules or
+calibrated distributions needed for numerical equivalence. Later compatibility
+work remains on the roadmap and is outside this session's implementation.
 
 ## Continuation — v1 acceptance
 

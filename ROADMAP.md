@@ -4,6 +4,11 @@ Remaining work for effractor, as a DAG. The existing tree profiles are specified
 in `docs/superpowers/specs/2026-09-20-effractor-v1-design.md`; the successor
 design is the first item below. How work lands is in `CONTRIBUTING.md`.
 
+Written successor spec, awaiting owner review:
+[`2026-09-21-lecture-workflow-design.md`](docs/superpowers/specs/2026-09-21-lecture-workflow-design.md).
+The implementation items below are its delivery decomposition; implementation
+starts after the written spec and subsequent detailed plan reviews.
+
 **Rules.** `needs` = item ids that must be gone first. `cost` / `benefit` are
 1–5. An item is *ready* when everything it needs has been deleted; pick the
 ready item with the best benefit/cost. Delete an item in the PR that completes
@@ -35,7 +40,7 @@ routes to server compromise and compare defenses such as patching, credential
 protection and network permissions. Keep the exercise in course documentation
 and test fixtures; the app still opens an empty document for a new user.
 
-These are milestones to refine into branch-sized work during design. The
+The milestones below are decomposed into branch-sized work by the draft design. The
 existing tree profiles, local-first operation and native/wasm determinism remain
 requirements. The v1 spec's assumption that generated attack graphs need no
 document-model changes must be revisited: its parallel leaf timing does not
@@ -55,7 +60,7 @@ reviewed the written spec and the lecture milestone has been decomposed into
 implementation items with explicit acceptance checks and dependencies.
 
 ### lecture-workflow — Deliver the first successor milestone
-needs: successor-design            cost: 5   benefit: 5
+needs: defense-comparison            cost: 2   benefit: 5
 Build the lecture's architecture → generated attack graph → simulation → defense
 comparison workflow using a small, transparent component library. Cover
 networks/zones, routers/firewalls, hosts, applications/services,
@@ -69,6 +74,77 @@ sequential timing and graph generation with automated fixtures, native/wasm
 agreement in CI, and the workflow by the owner's browser walkthrough. Numerical
 agreement with the lecture's screenshots is not an acceptance criterion without
 the underlying rules and calibrated inputs.
+
+## Lecture implementation
+
+### architecture-document — Typed architecture documents and library contract
+needs: successor-design            cost: 3   benefit: 5
+Add the separate architecture document, schema 2 migration and strict typed
+entities, associations, flows, footholds, target, assumptions and scenario
+overlays. Preserve the tree model and result semantics. Expose the bundled
+core-components@1 catalog and dispatch format/wasm document APIs by profile.
+Done when empty and populated architectures round-trip with extensions,
+invalid references/types/routes/versions have positioned diagnostics, unknown
+inputs remain explicit, and migrated tree fixtures keep their frozen results.
+
+### component-generation — Transparent component rules and generated graphs
+needs: architecture-document            cost: 3   benefit: 5
+Generate stable state/action identities and explicit prerequisites from the
+small component library, with rule, entity, relationship and parameter
+provenance. Retain blocked alternatives; distinguish connectivity, permission,
+credentials and privilege. Add the lecture and unknown-input fixtures and a
+wasm generation API. Done when every rule has meaningful generation tests,
+reordering/renaming preserves identities, isolation and privilege boundaries
+hold, cycles remain finite, and generation limits fail with diagnostics.
+
+### sequential-simulation — Prerequisite-dependent timing and paired scenarios
+needs: component-generation            cost: 4   benefit: 5
+Implement iterative event evaluation for generated graphs, accumulated action
+durations, justified cycle entry, explicit unknown-result states, sampled
+probability/CDF and route witnesses. Compare typed defense overlays with common
+random draws and paired intervals; expose stepped/cancellable wasm solves and
+profile-specific result capabilities. Done when timing/cycle/shared-action
+oracles, analytic chain CDF, unknowns, no-op/combined scenarios and limits pass;
+new frozen fingerprints pass native and wasmtime; browser wasm agrees with
+native generation/results; and existing tree fingerprints remain unchanged.
+
+### architecture-editor — Empty architecture creation and component editing
+needs: architecture-document            cost: 3   benefit: 4
+Add New Architecture and quiet component/type/parameter editing through the
+existing workspace, source, persistence and undo paths. New users still open an
+empty document, and newly created attack parameters remain unknown. Isolate
+tree actions by profile. Done when pure editing and profile-dispatch tests pass
+and the owner accepts a short walkthrough of component creation, parameter
+editing, save/reopen, source diagnostics and undo in both themes.
+
+### architecture-links — Relationships, flows and attacker configuration
+needs: architecture-editor            cost: 3   benefit: 5
+Edit typed hosting, network, firewall, administration, credential and privilege
+relationships; directional routed flows; footholds and target states. Keep
+atomic reference-safe deletion undoable and do not infer permissive defaults.
+Done when editing tests cover endpoint/cardinality errors, incomplete models,
+multi-network routes and reference cleanup, and the owner can build the
+lecture architecture and configure the compromised workstation/server target.
+
+### attack-graph-inspection — Linked architecture, routes and simulation views
+needs: architecture-links, sequential-simulation            cost: 3   benefit: 5
+Add Generate, linked component/step selection, rule and assumption inspection,
+blocked and unknown route states, graph focus and the full step table. Show
+sampled compromise probability/CDF with table and bands, and capability-gate
+tree-only analyses. Reject stale worker responses after edits and navigation.
+Done when selection/provenance/results tests pass, the fixture's exploit and
+login routes are inspectable, and the owner accepts generation, source links,
+solving, unknown inputs, cancellation and graph navigation in the browser.
+
+### defense-comparison — Inspect defense changes and remaining alternatives
+needs: attack-graph-inspection            cost: 3   benefit: 5
+Add named defense overlay editing, baseline/scenario CDFs, paired probability
+deltas and visible changed/remaining/blocked routes. Surface illustrative
+inputs and missing replacement assumptions; clear comparisons on structural
+edits. Done when comparison view/edit tests pass and the owner verifies
+patch-only, credential-only, combined and denied-flow cases, including finite
+replacement TTCs and an explicit administration alternative. The final
+lecture-workflow item records full acceptance, checks and released delivery.
 
 ## Compatibility after the lecture milestone
 
