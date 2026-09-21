@@ -190,3 +190,8 @@
   background: var(--color-bg-elevated); color: var(--color-fg-primary);
   font-size: var(--text-sm);
 }
+
+/* The document's name is its file menu. */
+.crumb-name { padding: 1px 4px; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; cursor: pointer; }
+.crumb-name:hover { background: var(--color-bg-hover); }
+.crumb-name span { color: var(--color-fg-muted); font-size: var(--text-xs); }

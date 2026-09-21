@@ -199,6 +199,8 @@
     ["Ctrl+Z", "Undo"],
     ["Ctrl+Shift+Z", "Redo"],
     ["Ctrl+Enter", "Solve, or cancel a running solve"],
+    ["Ctrl+S", "Save as a .yaml file"],
+    ["Ctrl+O", "Open a .yaml file"],
     ["F", "Fit to view"],
     ["+  −", "Zoom in, zoom out"],
     ["?", "This list"],
