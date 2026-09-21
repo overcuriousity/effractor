@@ -737,18 +737,25 @@
       item.setAttribute("role", "treeitem");
       item.style.setProperty("--depth", row.depth);
       item.classList.toggle("is-selected", row.id === selected() && (row.parent === app.state.parent || row.parent === null));
+      // The same signs as on the canvas: what is inscribed in a gate, the
+      // shape of a leaf.
+      var n = doc().nodes[row.id];
       var kind = document.createElement("span");
       kind.className = "kind";
-      kind.textContent = row.gate ? row.gate : "·";
+      kind.textContent = row.gate ? window.effractorGraph.inscription(n, doc().profile === "attack-tree") : n.leaf === "undeveloped" ? "◇" : "○";
       item.appendChild(kind);
-      item.appendChild(document.createTextNode(row.label));
+      var name = document.createElement("span");
+      name.className = "name";
+      name.textContent = row.label;
+      item.appendChild(name);
       if (row.repeated) {
         var again = document.createElement("span");
         again.className = "repeat";
-        again.textContent = "↺ repeated";
+        again.textContent = "↺";
+        again.title = "Repeated: the same node as above";
         item.appendChild(again);
       }
-      item.title = row.id;
+      item.title = row.label + (row.repeated ? " — repeated" : "");
       item.addEventListener("click", function () {
         app.select(row.id, row.parent);
       });

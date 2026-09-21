@@ -27,6 +27,7 @@
     var highlights = {}; // kind -> {id: true}
     var handlers = {};
     var gesture = null; // {id | null, x, y, moved}
+    var fitted = false; // the view is as fit() left it: a resize may fit again
 
     function el(tag, attrs, classes, parent) {
       var e = doc.createElementNS(NS, tag);
@@ -100,6 +101,7 @@
         gesture.moved = true;
         svg.classList.add(gesture.id ? "is-dragging" : "is-panning");
         if (gesture.id) return; // a node in hand: nothing moves until it is dropped
+        fitted = false;
         view = viewMath.pan(view, dx, dy);
         gesture.x = e.clientX;
         gesture.y = e.clientY;
@@ -121,10 +123,18 @@
         gesture = null;
         svg.classList.remove("is-dragging", "is-panning");
       });
+      // A panel opening or the window changing size: a view nobody has moved
+      // since it was fitted is fitted again; one the author placed stays put.
+      if (typeof ResizeObserver !== "undefined") {
+        new ResizeObserver(function () {
+          if (fitted) fit();
+        }).observe(svg);
+      }
       svg.addEventListener("wheel", function (e) {
         e.preventDefault();
         var box = svg.getBoundingClientRect();
         var point = { x: e.clientX - box.left, y: e.clientY - box.top };
+        fitted = false;
         view = viewMath.zoomAt(view, point, Math.pow(1.0015, -e.deltaY));
         applyView();
       });
@@ -265,6 +275,7 @@
     function fit() {
       var box = svg.getBoundingClientRect();
       view = viewMath.fit(size, { width: box.width, height: box.height }, PADDING);
+      fitted = true;
       applyView();
     }
 
@@ -272,6 +283,7 @@
     // zooms about the middle.
     function zoomBy(factor) {
       var box = svg.getBoundingClientRect();
+      fitted = false;
       view = viewMath.zoomAt(view, { x: box.width / 2, y: box.height / 2 }, factor);
       applyView();
     }

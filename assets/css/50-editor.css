@@ -7,18 +7,19 @@
   padding: 2px 4px 2px calc(4px + var(--depth, 0) * 12px);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: flex; align-items: baseline; gap: 6px;
 }
+.outline .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .outline li:hover { background: var(--color-bg-hover); }
 .outline li.is-selected { background: var(--color-bg-active); box-shadow: inset 2px 0 0 var(--color-accent); }
-.outline .kind { display: inline-block; width: 2.4em; color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
-.outline .repeat { margin-left: 4px; color: var(--color-fg-muted); font-size: var(--text-xs); }
+.outline .kind { flex: none; width: 2.6em; color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); text-align: center; }
+.outline .repeat { flex: none; color: var(--color-fg-muted); font-size: var(--text-xs); }
 
 .assets { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .assets th { padding: 6px 4px 2px; font-weight: 500; text-align: left; overflow-wrap: anywhere; }
 .assets td { padding: 1px 4px; }
 .assets .dim { width: 1.5em; color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
-.assets .num { text-align: right; font-size: var(--text-xs); }
+.assets .num { text-align: left; font-size: var(--text-xs); overflow-wrap: anywhere; }
 
 .properties { display: grid; grid-template-columns: auto 1fr; gap: 5px 8px; align-items: center; margin-bottom: 10px; font-size: var(--text-sm); }
 .properties label { color: var(--color-fg-muted); }

@@ -217,7 +217,7 @@
     };
   }
 
-  var api = { describe: describe, wrap: wrap, toElk: toElk, fromElk: fromElk, layoutWith: layoutWith, SIZE: SIZE };
+  var api = { inscription: inscription, describe: describe, wrap: wrap, toElk: toElk, fromElk: fromElk, layoutWith: layoutWith, SIZE: SIZE };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorGraph = api;
 })();
