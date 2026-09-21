@@ -1,0 +1,79 @@
+# Fictional training model; hourly rates and EUR losses are illustrative.
+effractor: 1
+profile: fault-tree
+name: Water booster station cannot meet demand
+time_unit: h
+horizon: 720
+currency: EUR
+top: pressure-lost
+
+nodes:
+  pressure-lost:
+    label: Delivery pressure falls below the service requirement
+    description: >-
+      A 30-day mission with no credited repair. Either pump train can meet demand.
+      The shared feeder is one common-cause event, referenced by both trains.
+      This is mission failure probability, not steady-state unavailability.
+    gate: or
+    children: [both-trains-lost, outlet-main-rupture]
+    consequences:
+      - {asset: water-service, dim: a}
+  both-trains-lost:
+    label: Both full-capacity pump trains are unavailable
+    gate: and
+    children: [train-a-lost, train-b-lost]
+  train-a-lost:
+    label: Pump train A unavailable
+    gate: or
+    children: [shared-feeder, motor-a, valve-a]
+  train-b-lost:
+    label: Pump train B unavailable
+    gate: or
+    children: [shared-feeder, motor-b, valve-b]
+  shared-feeder:
+    label: Common electrical feeder fails
+    leaf: basic
+    rate: 0.00002
+  motor-a:
+    label: Pump A motor fails
+    leaf: basic
+    rate: 0.00005
+  valve-a:
+    label: Pump A discharge valve fails shut
+    leaf: basic
+    rate: 0.000015
+  motor-b:
+    label: Pump B motor fails
+    leaf: basic
+    rate: 0.00004
+  valve-b:
+    label: Pump B discharge valve fails shut
+    leaf: basic
+    rate: 0.000015
+  outlet-main-rupture:
+    label: Common outlet main ruptures
+    leaf: undeveloped
+    rate: 0.000003
+
+assets:
+  water-service:
+    label: Local water distribution service
+    loss: {a: "Pert(15000, 55000, 180000)"}
+
+controls:
+  feeder-resilience:
+    label: Independent backup electrical supply
+    description: Residual rate includes failure of the backup arrangement.
+    cost: 850
+    enabled: false
+    effects:
+      - {node: shared-feeder, ttc: "Exponential(0.000002)"}
+  motor-monitoring:
+    label: Condition monitoring of both motors
+    cost: 320
+    enabled: false
+    effects:
+      - {node: motor-a, ttc: "Exponential(0.00002)"}
+      - {node: motor-b, ttc: "Exponential(0.000016)"}
+
+analysis: {seed: 102, samples: 10000, confidence: 0.95}

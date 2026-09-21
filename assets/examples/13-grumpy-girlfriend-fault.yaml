@@ -1,0 +1,105 @@
+# Affectionate fiction; probabilities are made up and snacks are not magic.
+effractor: 1
+profile: fault-tree
+name: "Date night: the grumpy girlfriend fault tree"
+time_unit: h
+horizon: 4
+currency: EUR
+top: girlfriend-remains-grumpy
+
+nodes:
+  girlfriend-remains-grumpy:
+    label: Girlfriend remains grumpy
+    description: >-
+      A playful four-hour date-night model, equally applicable with the roles
+      reversed. The narrator is responsible for their own planning, listening
+      and chores. Feelings are not equipment failures, and nobody owes anyone
+      cheerfulness. The only priced asset is the shared evening's plans.
+    gate: or
+    children: [dinner-disaster, planning-fiasco, feeling-unheard, chores-abandoned]
+    consequences:
+      - {asset: evening-plans, dim: a}
+  dinner-disaster:
+    label: Hungry and dinner is still nowhere in sight
+    gate: and
+    children: [hungry, no-dinner]
+  hungry:
+    label: Lunch was a distant memory
+    leaf: basic
+    p: 0.65
+  no-dinner:
+    label: Neither the booking nor the backup produces dinner
+    gate: and
+    children: [booking-forgotten, takeaway-backup-fails]
+  booking-forgotten:
+    label: I said I booked it; I had only thought about booking it
+    leaf: basic
+    p: 0.35
+  takeaway-backup-fails:
+    label: The backup takeaway is closed
+    leaf: basic
+    p: 0.2
+  planning-fiasco:
+    label: At least two date-night plans go sideways
+    gate: vote
+    k: 2
+    children: [booking-forgotten, late-departure, tickets-wrong-day]
+  late-departure:
+    label: My five more minutes becomes forty
+    leaf: basic
+    p: 0.4
+  tickets-wrong-day:
+    label: The tickets are excellent, but for tomorrow
+    leaf: basic
+    p: 0.12
+  feeling-unheard:
+    label: She asked for listening; I delivered a troubleshooting lecture
+    gate: and
+    children: [rough-day, unsolicited-solutions]
+  rough-day:
+    label: It has been one of those days
+    leaf: undeveloped
+    p: 0.45
+  unsolicited-solutions:
+    label: I interrupt instead of asking what would help
+    leaf: basic
+    p: 0.55
+  chores-abandoned:
+    label: My promised half of the chores is still waiting
+    leaf: basic
+    p: 0.3
+
+assets:
+  evening-plans:
+    label: Wasted bookings and emergency change of plans
+    description: Money spent on the evening, never a price on a person or their mood.
+    loss: {a: "Pert(20, 65, 180)"}
+
+controls:
+  snack-stop:
+    label: Offer a snack she actually likes
+    cost: 8
+    enabled: false
+    effects:
+      - {node: hungry, ttc: "Bernoulli(0.15)"}
+  confirm-plans:
+    label: Actually confirm the booking and the ticket date
+    cost: 2
+    enabled: false
+    effects:
+      - {node: booking-forgotten, ttc: "Bernoulli(0.02)"}
+      - {node: tickets-wrong-day, ttc: "Bernoulli(0.01)"}
+  listen-first:
+    label: Put the phone away and ask whether she wants advice
+    cost: 0
+    enabled: false
+    effects:
+      - {node: unsolicited-solutions, ttc: "Bernoulli(0.08)"}
+  do-my-chores:
+    label: Do my share before getting ready
+    cost: 0
+    enabled: true
+    effects:
+      - {node: chores-abandoned, ttc: "Bernoulli(0.03)"}
+
+analysis: {seed: 113, samples: 10000, confidence: 0.95}

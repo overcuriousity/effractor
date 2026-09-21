@@ -120,8 +120,11 @@ everything (shared nodes, vote gate, assets, controls, both profiles) are in
 The reference is Chainalysis Reactor: quiet chrome, detail on demand. Decided
 today, all of it after seeing the alternative:
 
-- **No examples ship**, nothing German ships; `/` opens the working text from
-  IndexedDB, else an empty document. Fixtures and the spec's example are English.
+- **Examples ship as opt-in YAML files** in `assets/examples/`, per the owner's
+  2026-09-21 request: twelve domain examples and a playful date-night bonus.
+  The catalog is `assets/examples/README.md`. This supersedes the earlier
+  no-examples decision. `/` opens the working text from IndexedDB, else an empty
+  document. Shipped examples, fixtures and the spec's example are English.
 - **No walls of buttons.** Actions are icons in the rail with the key in the
   tooltip; the context menu (canvas *and* model tree) and the `?` list spell
   them out. Every interaction has a button and every key is listed.
