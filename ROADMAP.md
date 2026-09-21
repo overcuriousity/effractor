@@ -31,24 +31,6 @@ the spec's example file loads, and unknown keys error with a position.
 
 ## Solver
 
-### solver-mc — Monte Carlo, Wilson CI, TTC CDF
-needs: —            cost: 3   benefit: 5
-Stepped sampler: `begin(model, config) -> Run`, `step(&mut Run) -> Progress`
-(one 4096 chunk), `finish(Run) -> Sampled`; node completion times by
-min/max/k-th; Wilson interval on P(top ≤ T); empirical TTC CDF with pointwise
-band; exact TTC CDF by sweeping the BDD over a 64-point grid. Native driver uses
-rayon over chunks, merged in chunk order. Done when results are identical for
-1 and N threads, and CIs cover the exact value at the nominal rate under
-proptest.
-
-### solver-impact — Consequences and the loss exceedance curve
-needs: solver-mc            cost: 3   benefit: 5
-Per-iteration: occurring nodes → consequences → dedupe per `(asset, dim)` by max
-fraction → one magnitude draw per needed `(asset, dim)` → loss. Outputs EAL,
-p50/p90/p95/p99, LEC points, per-asset breakdown. Done when the dedup fixture
-(two occurring nodes, same asset/dim) yields one loss, a constant-magnitude
-model matches `P × magnitude` within CI, and a zero-asset model skips cleanly.
-
 ### solver-attacker — Cheapest path and Pareto front
 needs: —            cost: 3   benefit: 4
 Per-MCS cost (shared leaf once), detection, success, `E[max TTC | finite]`
@@ -57,7 +39,7 @@ time → id tie-break; non-dominated filter over (cost, time, detection). Done w
 proptest finds no dominated member and no missing non-dominated MCS.
 
 ### solver-controls — Toggles, deltas, ranking
-needs: solver-impact            cost: 3   benefit: 5
+needs: —            cost: 3   benefit: 5
 Apply enabled effects (lowest `p(T)` wins); per-control flip re-solve with
 common random numbers; Δrisk (EAL if assets else P(top)), Δ/cost ranking for
 disabled controls, removal cost for enabled ones. Done when a blocking control

@@ -155,9 +155,14 @@ still produced. Leaves with no TTC make quantitative results unavailable;
 qualitative results (MCS, SPOF) still compute.
 
 **Reproducibility.** RNG is ChaCha8 seeded from `Config.seed`. Samples are
-partitioned into fixed chunks of 4096; chunk *n* uses stream *n*; results merge
-in chunk order — so output is identical for any thread count (rayon native,
-single thread in wasm). All transcendental maths goes through the `libm` crate
+partitioned into fixed chunks of 4096; chunk *n* uses stream *n*; a chunk
+depends on nothing but its index, and results merge in chunk order — so output
+is identical however and wherever chunks are computed. (v1 computes them on one
+thread, in the browser; nothing native needs more yet.) Within a chunk every
+random quantity draws from its own window of the stream, addressed by
+(iteration, leaf), and loss magnitudes use a twin stream: a leaf sees the same
+random numbers whatever else changes, which is what makes a control's delta the
+control and not noise. All transcendental maths goes through the `libm` crate
 on both targets, so native and wasm results are **bit-identical**; CI asserts
 it. BDD variable order is a deterministic DFS from `top` in child order.
 

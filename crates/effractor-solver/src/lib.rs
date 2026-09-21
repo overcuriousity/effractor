@@ -8,6 +8,8 @@
 pub mod bdd;
 pub mod dist;
 pub mod importance;
+pub mod mc;
 pub mod mcs;
 pub mod plan;
+pub mod scenario;
 mod special;

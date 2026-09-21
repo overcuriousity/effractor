@@ -80,6 +80,33 @@ impl Plan {
         Ok(plan)
     }
 
+    /// When does each step complete, given when each leaf does? A leaf is its
+    /// own time; `or` is the first of its inputs, `and` the last, `vote` the
+    /// k-th. `INFINITY` is "never" and needs no special case: min, max and
+    /// ordering already treat it correctly. `out` is reused across iterations.
+    pub fn times(&self, leaf_times: &[f64], out: &mut Vec<f64>, scratch: &mut Vec<f64>) {
+        out.clear();
+        for step in &self.steps {
+            let t = match step {
+                Step::Leaf(leaf) => leaf_times[*leaf],
+                Step::Gate { gate, inputs } => match gate {
+                    Gate::Or => inputs.iter().map(|i| out[*i]).fold(f64::INFINITY, f64::min),
+                    Gate::And => inputs.iter().map(|i| out[*i]).fold(0.0, f64::max),
+                    Gate::Vote { k } => {
+                        scratch.clear();
+                        scratch.extend(inputs.iter().map(|i| out[*i]));
+                        scratch.sort_by(f64::total_cmp);
+                        scratch
+                            .get(k.wrapping_sub(1))
+                            .copied()
+                            .unwrap_or(f64::INFINITY)
+                    }
+                },
+            };
+            out.push(t);
+        }
+    }
+
     /// The last step is top: it is finished last.
     pub fn top(&self) -> usize {
         self.steps.len() - 1
