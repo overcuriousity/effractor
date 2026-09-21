@@ -109,17 +109,58 @@
     redo: function () {
       app.redo();
     },
+    // Del. A node with one parent is deleted; a shared one is unlinked from
+    // the parent it was reached through — and if it was not reached through
+    // any (a click on the canvas, where it is drawn once), the choice is shown.
     remove: function () {
-      var id = selected();
-      var parent = app.state.parent;
-      if (!id) return;
-      if (!parent) return app.say("the top event cannot be removed");
-      if (E.losesAttributes(doc(), parent, id) && !window.confirm("Delete “" + doc().nodes[id].label + "” and what was entered for it?")) return;
-      var edit = E.removeEdge(doc(), parent, id);
-      if (edit) edit.parent = E.parentsOf(edit.doc, edit.select)[0] || null;
-      apply(edit);
+      var ways = removals();
+      if (!selected()) return;
+      if (!ways.length) return app.say("the top event cannot be removed");
+      if (ways.length === 1) return ways[0][2]();
+      var chosen = ways.filter(function (w) { return w[1]; })[0];
+      if (chosen) return chosen[2]();
+      var at = document.querySelector("#canvas .node.hl-selected");
+      var box = (at || $("canvas")).getBoundingClientRect();
+      showMenu(ways, box.left + box.width / 2, box.top + box.height / 2);
     },
   };
+
+  function quoted(id) {
+    return "“" + (doc().nodes[id].label || id) + "”";
+  }
+
+  function andBelow(n) {
+    return n ? " and " + n + " below" : "";
+  }
+
+  // No question is asked before a removal: what it did is said, and how to
+  // take it back.
+  function removeWith(edit, done) {
+    if (edit) edit.parent = E.parentsOf(edit.doc, edit.select)[0] || null;
+    apply(edit, function () {
+      app.say(done + " · Ctrl+Z undoes");
+    });
+  }
+
+  // The ways the selection can go, worded as what will happen: [label, key,
+  // run]. The key is on the one that Del takes without asking.
+  function removals() {
+    var id = selected();
+    var r = id ? E.removal(doc(), id) : null;
+    if (!r) return [];
+    var name = quoted(id);
+    function del() {
+      removeWith(E.deleteNode(doc(), id), "deleted " + name + andBelow(r.below));
+    }
+    if (!r.shared) return [["Delete " + name + andBelow(r.below), "Del", del]];
+    var ways = r.parents.map(function (parent) {
+      var from = quoted(parent);
+      return ["Unlink from " + from, app.state.parentChosen && parent === app.state.parent ? "Del" : "", function () {
+        removeWith(E.removeEdge(doc(), parent, id), "unlinked " + name + " from " + from);
+      }];
+    });
+    return ways.concat([["Delete everywhere" + andBelow(r.below), "", del]]);
+  }
 
   var MENU = [
     ["addChild", "Add child", "Tab", function () { return true; }],
@@ -131,7 +172,7 @@
     ["undeveloped", "Undeveloped event", "U", function (n) { return n.leaf === "basic"; }],
     ["link", "Link existing…", "L", function () { return true; }],
     ["move", "Move under…", "M", function () { return !!app.state.parent; }],
-    ["remove", "Remove this edge", "Del", function () { return !!app.state.parent; }],
+    ["remove", "Delete, or unlink a shared node", "Del", function () { return !!app.state.parent; }],
   ];
 
   // ---- keyboard ----
@@ -220,30 +261,41 @@
 
   // The same menu wherever a node is shown: on the canvas, and in the model
   // tree, where `parent` is the edge the row stands for.
+  // `items`: [label, key, run].
+  function showMenu(items, x, y) {
+    closeMenu();
+    var menu = $("context-menu");
+    menu.replaceChildren();
+    items.forEach(function (item) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("role", "menuitem");
+      button.appendChild(document.createTextNode(item[0]));
+      var key = document.createElement("kbd");
+      key.textContent = item[1];
+      button.appendChild(key);
+      button.addEventListener("click", function () {
+        closeMenu();
+        item[2]();
+      });
+      menu.appendChild(button);
+    });
+    menu.style.setProperty("--menu-x", Math.max(0, Math.min(x, window.innerWidth - 260)) + "px");
+    menu.style.setProperty("--menu-y", Math.max(0, Math.min(y, window.innerHeight - 30 * menu.children.length - 12)) + "px");
+    menu.hidden = false;
+    menu.children[0].focus(); // Tab and Enter work from here; Esc closes
+  }
+
   function openMenu(id, parent, x, y) {
     closeMenu();
     if (!id) return;
     app.select(id, parent);
-    var menu = $("context-menu");
-    menu.replaceChildren();
-    MENU.forEach(function (item) {
-      if (!item[3](node())) return;
-      var button = document.createElement("button");
-      button.type = "button";
-      button.setAttribute("role", "menuitem");
-      button.appendChild(document.createTextNode(item[1]));
-      var key = document.createElement("kbd");
-      key.textContent = item[2];
-      button.appendChild(key);
-      button.addEventListener("click", function () {
-        closeMenu();
-        actions[item[0]]();
-      });
-      menu.appendChild(button);
+    var items = MENU.filter(function (item) {
+      return item[0] !== "remove" && item[3](node());
+    }).map(function (item) {
+      return [item[1], item[2], actions[item[0]]];
     });
-    menu.style.setProperty("--menu-x", Math.min(x, window.innerWidth - 210) + "px");
-    menu.style.setProperty("--menu-y", Math.min(y, window.innerHeight - 30 * menu.children.length - 12) + "px");
-    menu.hidden = false;
+    showMenu(items.concat(removals()), x, y);
   }
 
   app.renderer.on("context", function (e) {
@@ -627,8 +679,11 @@
     MENU.forEach(function (item) {
       allowed[item[0]] = !!n && !!item[3](n);
     });
+    var ways = removals();
     railButtons.forEach(function (button) {
-      button.disabled = !allowed[button.getAttribute("data-action")];
+      var action = button.getAttribute("data-action");
+      button.disabled = !allowed[action];
+      if (action === "remove") button.title = (ways.length === 1 ? ways[0][0] : "Unlink or delete…") + " (Del)";
     });
   }
 

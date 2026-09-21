@@ -55,7 +55,7 @@
   window.effractor = { solver: solver };
   var listeners = []; // told after every load and every selection
 
-  var state = { text: null, doc: null, running: false, selected: null, parent: null, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastExactMs: null };
+  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastExactMs: null };
   var view = window.effractorResults;
   var MAX_ROWS = 200; // a table is for reading; ten thousand rows are not read
 
@@ -78,7 +78,9 @@
   function select(id, parent) {
     state.selected = id && Object.prototype.hasOwnProperty.call(state.doc.nodes, id) ? id : null;
     var parents = state.selected ? window.effractorEdit.parentsOf(state.doc, state.selected) : [];
-    state.parent = parents.indexOf(parent) >= 0 ? parent : parents[0] || null;
+    // `parentChosen`: the edge was named (a tree row, an arrow key), not guessed.
+    state.parentChosen = parents.indexOf(parent) >= 0;
+    state.parent = state.parentChosen ? parent : parents[0] || null;
     renderer.highlight(state.selected ? [state.selected] : [], "selected");
     var facts = $("selected-facts");
     facts.replaceChildren();

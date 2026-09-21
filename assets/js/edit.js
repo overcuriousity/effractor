@@ -217,18 +217,33 @@
     children.splice(at, 1);
     if (!children.length) toLeaf(doc.nodes[parent]);
     else if (doc.nodes[parent].gate === "vote") doc.nodes[parent].k = Math.min(doc.nodes[parent].k, children.length);
+    var before = Object.keys(doc.nodes).length;
     dropNodes(doc, [child]);
-    return { doc: doc, select: has(doc.nodes, child) ? child : parent };
+    return { doc: doc, select: has(doc.nodes, child) ? child : parent, removed: before - Object.keys(doc.nodes).length };
   }
 
-  // Would Del take the node, and with it things someone typed?
-  function losesAttributes(doc, parent, child) {
-    var node = doc.nodes[child];
-    if (!node || parentsOf(doc, child).length > 1) return false;
-    return ["p", "rate", "ttc", "cost", "detection", "description", "consequences", "children"].some(function (k) {
-      return has(node, k);
+  // Every edge into the node at once: the node goes, wherever it was used.
+  function deleteNode(doc, id) {
+    if (!has(doc.nodes, id) || id === doc.top) return null;
+    var parents = parentsOf(doc, id);
+    if (!parents.length) return null;
+    var before = Object.keys(doc.nodes).length;
+    var out = doc;
+    parents.forEach(function (parent) {
+      out = removeEdge(out, parent, id).doc;
     });
+    return { doc: out, select: has(out.nodes, parents[0]) ? parents[0] : out.top, removed: before - Object.keys(out.nodes).length };
   }
+
+  // What removing would mean, for whoever words the button: a shared node can
+  // be unlinked from one parent and stay; `below` is what goes with the node.
+  function removal(doc, id) {
+    var gone = deleteNode(doc, id);
+    if (!gone) return null;
+    var parents = parentsOf(doc, id);
+    return { shared: parents.length > 1, parents: parents, below: gone.removed - 1 };
+  }
+
 
   // Drop without Ctrl: from one parent to another.
   function reparent(doc, id, from, to) {
@@ -316,7 +331,7 @@
 
   var api = {
     slug: slug, parentsOf: parentsOf, addChild: addChild, addSibling: addSibling, rename: rename, setId: setId,
-    cycleGate: cycleGate, setLeafKind: setLeafKind, link: link, removeEdge: removeEdge, losesAttributes: losesAttributes,
+    cycleGate: cycleGate, setLeafKind: setLeafKind, link: link, removeEdge: removeEdge, deleteNode: deleteNode, removal: removal,
     reparent: reparent, setAttribute: setAttribute, outline: outline, walk: walk, createHistory: createHistory,
   };
   if (typeof module !== "undefined") module.exports = api;

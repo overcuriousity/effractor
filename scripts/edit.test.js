@@ -73,9 +73,25 @@ test("Del removes the edge; the node goes with its last edge, and its orphans wi
   assert.equal(r.doc.nodes.physical.k, 1);
   r = E.removeEdge(r.doc, "physical", "phish");
   assert.deepEqual([r.doc.nodes.physical.leaf, r.doc.nodes.physical.gate, r.doc.nodes.physical.k], ["basic", undefined, undefined]);
-  assert.equal(E.losesAttributes(attack, "account", "mfa"), true);
-  assert.equal(E.losesAttributes(attack, "account", "phish"), false, "it stays, under its other parent");
-  assert.equal(E.losesAttributes(attack, "physical", "key"), false, "nothing typed into it");
+});
+
+test("removing says what it is going to do, and did: unlink a shared node, delete any other", () => {
+  // One parent: the node goes, and what hangs under it alone.
+  assert.deepEqual(E.removal(attack, "account"), { shared: false, parents: ["files"], below: 1 });
+  assert.deepEqual(E.removal(attack, "mfa"), { shared: false, parents: ["account"], below: 0 });
+  // Two parents: each edge can go by itself; deleting takes them all.
+  assert.deepEqual(E.removal(attack, "phish"), { shared: true, parents: ["account", "physical"], below: 0 });
+  assert.equal(E.removal(attack, "files"), null, "the top event stays");
+
+  assert.equal(E.removeEdge(attack, "account", "phish").removed, 0);
+  assert.equal(E.removeEdge(attack, "files", "account").removed, 2);
+
+  const r = E.deleteNode(attack, "phish");
+  assert.equal(r.doc.nodes.phish, undefined);
+  assert.deepEqual(r.doc.nodes.account.children, ["mfa"]);
+  assert.deepEqual(r.doc.nodes.physical.children, ["key", "alarm"]);
+  assert.deepEqual([r.removed, r.select], [1, "account"]);
+  assert.equal(E.deleteNode(attack, "files"), null);
 });
 
 test("a drop reparents, unless that would close a cycle", () => {
