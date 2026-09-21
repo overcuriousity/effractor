@@ -25,16 +25,6 @@ user input · no third-party origins, no telemetry · vanilla CSS + JS, no bundl
 
 ## Browser
 
-### wasm-api — wasm-bindgen surface and worker
-needs: —            cost: 1   benefit: 5
-Built and tested: the exports, the worker, the page's first solve. What is left
-is the check by hand, which is the item's "done": with `scripts/build-wasm.sh`
-run and the server up, a tree built in the editor solves on **Solve** / `Ctrl+Enter`
-with P(top) shown at once and progress after; `/?samples=20000000` runs long
-enough to **Cancel**; and `effractor.solver.crash()` in the console, then Solve
-again, shows a crash reported and the worker replaced. Delete this item when
-that has been seen.
-
 ### ui-source — YAML source view and persistence
 needs: —            cost: 2   benefit: 4
 Textarea with diagnostics list (click → line); stale-canvas state while invalid;
@@ -43,29 +33,18 @@ IndexedDB working state; `.yaml` import/export; a **New** action in place of
 editor does not reach. Done when a text edit and a
 canvas edit round-trip into each other — checked by hand.
 
-### ui-results — Cut sets, node stats, importance colouring
-needs: —            cost: 1   benefit: 5
-Built and tested: fixed FV/Birnbaum bins, leaf styles with the value printed and
-SPOF said in words, the ranked cut-set table, reasons for whatever is
-unavailable or truncated, node stats, the exact-only re-solve under 100 ms (no
-edit path calls it yet — the editor will). What is left is the look, which is
-the item's "done": after **Solve**, cut sets list at once and the leaves colour
-when sampling ends; a row lights its leaves on the canvas and a selected node
-marks its rows; the legend's measure button switches Fussell-Vesely / Birnbaum;
-*Selected* shows the node's numbers. Delete this item when that has been seen.
-
 ### ui-charts — TTC CDF and LEC
-needs: ui-results            cost: 3   benefit: 4
+needs: —            cost: 3   benefit: 4
 Hand-rolled SVG charts: exact + sampled CDF with band, LEC with percentiles and
 the one-event-per-horizon note; crosshair tooltip; table view for each.
 
 ### ui-pareto — Pareto table and scatter
-needs: ui-results            cost: 2   benefit: 3
+needs: —            cost: 2   benefit: 3
 Spec 7.4: primary table with pinned cheapest path; scatter with axis pickers;
 two-way highlight with the canvas. Attack-tree profile only.
 
 ### ui-controls — Control toggles and ranking
-needs: ui-results            cost: 2   benefit: 5
+needs: —            cost: 2   benefit: 5
 Controls panel: toggle (edits `enabled` in the document), delta against
 baseline, ranking table with the "marginal, not additive" note.
 

@@ -17,9 +17,9 @@ browser by its author. The owner's first quick look found three defects
     assets/js/app.js  editor.js  renderer-svg.js (event wiring)  layout.js
     assets/js/solver-worker.js (bootstrap part)   assets/css/30-, 40-, 50-*.css
 
-The owner has since walked the renderer and the editor in a browser (see
-below); solving, the results panel, the attack-tree look and the light/dark
-themes have not been walked yet.
+The owner has since walked the renderer, the editor, solving and the results
+panel in a browser (see below); the attack-tree look and the dark theme have
+been seen only in passing.
 
 ## The three defects of 2026-09-21 — fixed and seen by the owner
 
@@ -37,7 +37,8 @@ its key in the tooltip, `?` lists all keys, the node menu also opens from the
 model tree, a refused edit leaves a notice on the canvas, and removal is worded
 by what it does (delete / unlink from a parent / delete everywhere) with undo
 instead of a confirm. `ui-renderer` and `ui-editor` are off the roadmap;
-`wasm-api` and `ui-results` still wait for their check by hand. The owner's
+`wasm-api` and `ui-results` followed once solving, cancel, the crash recovery
+and the results panel had been walked. The owner's
 taste: Chainalysis Reactor — quiet chrome, detail on demand.
 
 ## How to verify UI work from now on
@@ -111,7 +112,6 @@ run it. Do not repeat that:
 
 ## Suggested order
 
-1. Walk `wasm-api` and `ui-results` with the owner; delete each only then.
-2. `ui-source` next — it removes the query-parameter scaffolding and gives the
+1. `ui-source` next — it removes the query-parameter scaffolding and gives the
    editor New/open/save — then `ui-controls`, `ui-charts`, `ui-pareto`,
    `share-ui`, `v1-acceptance`.
