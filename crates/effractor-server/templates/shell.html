@@ -120,7 +120,9 @@
     </div>
     <div id="tab-controls" role="tabpanel" aria-labelledby="tab-btn-controls" hidden>
       <section class="panel-section">
-        <p class="empty" id="controls-empty">No controls. A control replaces the likelihood of one or more leaves while it is enabled; for now they are written in the source view (<code>controls:</code>).</p>
+        <h2 class="label">Controls <button class="label-action" id="control-add" type="button" title="Add a control: a measure that changes the likelihood of leaves" aria-label="Add a control">+</button></h2>
+        <p class="empty" id="controls-empty">No controls. A control is a measure you could take: while it is on, the leaves it acts on get another likelihood. Add one, then say which leaves it changes.</p>
+        <input class="asset-new" id="control-new" type="text" placeholder="Name of the control, then Enter" aria-label="Name of the new control" hidden autocomplete="off">
         <p class="controls-baseline num" id="controls-baseline" hidden></p>
         <ul class="controls" id="controls"></ul>
         <p class="hint" id="controls-note" hidden>Each control is valued alone, flipped against the model as written. Values are marginal, not additive: two controls on one path do not save twice.</p>

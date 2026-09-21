@@ -49,6 +49,167 @@
     return text;
   }
 
+  // An edit from this tab leaves the canvas selection where it was. Resolves
+  // to whether it was applied; a refusal has been said on the canvas by then.
+  function edit(change) {
+    if (!change) {
+      app.say("that is not possible here");
+      return Promise.resolve(false);
+    }
+    change.select = app.state.selected;
+    change.parent = app.state.parent;
+    return app.applyEdit(change).then(function (applied) {
+      if (!applied) render(); // the fields go back to what the document says
+      return applied;
+    }, function (e) {
+      console.error(e);
+      app.say("the edit failed: " + e.message);
+      render();
+      return false;
+    });
+  }
+
+  var openControl = null; // the one control being edited, if any
+  // securiCAD's words, and the one that blocks a step.
+  var TTC_WORDS = ["Infinity", "VeryHardAndUncertain", "VeryHardAndCertain", "HardAndUncertain", "HardAndCertain", "EasyAndUncertain", "EasyAndCertain", "Exponential(0.01)", "Bernoulli(0.1)"];
+
+  function labelled(form, id, text, control) {
+    var l = document.createElement("label");
+    l.htmlFor = id;
+    l.textContent = text;
+    control.id = id;
+    form.appendChild(l);
+    form.appendChild(control);
+    return control;
+  }
+
+  function textInput(value, mono) {
+    var i = document.createElement("input");
+    i.type = "text";
+    i.value = value == null ? "" : value;
+    if (mono) {
+      i.classList.add("mono");
+      i.setAttribute("list", "effect-ttc-words");
+    }
+    return i;
+  }
+
+  function nodeLabel(id) {
+    var n = app.state.doc.nodes[id];
+    return n && n.label ? n.label : id;
+  }
+
+  function editor(id) {
+    var doc = app.state.doc;
+    var control = doc.controls[id];
+    var form = document.createElement("div");
+    form.className = "properties-inner asset-form control-form";
+
+    var label = labelled(form, "control-label", "Label", textInput(control.label));
+    label.addEventListener("change", function () {
+      edit(E.setControl(app.state.doc, id, "label", label.value));
+    });
+    var cost = labelled(form, "control-cost", "Cost", textInput(control.cost, false));
+    cost.classList.add("mono");
+    cost.inputMode = "decimal";
+    cost.title = "What the control costs over the horizon, in " + (doc.currency || "money");
+    cost.addEventListener("change", function () {
+      edit(E.setControl(app.state.doc, id, "cost", cost.value));
+    });
+
+    var title = document.createElement("p");
+    title.className = "hint";
+    title.textContent = "While it is on, these leaves get this likelihood instead of their own:";
+    form.appendChild(title);
+
+    (control.effects || []).forEach(function (effect, index) {
+      var row = document.createElement("div");
+      row.className = "effect";
+      var name = document.createElement("span");
+      name.className = "effect-node";
+      name.textContent = nodeLabel(effect.node);
+      name.title = effect.node;
+      var ttc = textInput(effect.ttc, true);
+      ttc.id = "effect-ttc-" + index;
+      ttc.setAttribute("aria-label", "Likelihood of " + nodeLabel(effect.node) + " while the control is on");
+      ttc.addEventListener("change", function () {
+        edit(E.setEffect(app.state.doc, id, index, ttc.value));
+      });
+      var remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "btn btn-ghost btn-small";
+      remove.textContent = "×";
+      remove.title = "Remove this effect";
+      remove.setAttribute("aria-label", "Remove the effect on " + nodeLabel(effect.node));
+      remove.addEventListener("click", function () {
+        edit(E.removeEffect(app.state.doc, id, index));
+      });
+      row.appendChild(name);
+      row.appendChild(ttc);
+      row.appendChild(remove);
+      form.appendChild(row);
+    });
+
+    var targets = E.effectTargets(doc, id);
+    if (targets.length) {
+      var add = document.createElement("div");
+      add.className = "effect effect-add";
+      var leaf = document.createElement("select");
+      leaf.id = "effect-leaf";
+      leaf.setAttribute("aria-label", "Leaf to act on");
+      targets.forEach(function (node) {
+        var option = document.createElement("option");
+        option.value = node;
+        option.textContent = nodeLabel(node);
+        leaf.appendChild(option);
+      });
+      // The leaf selected on the canvas is the likely one.
+      if (targets.indexOf(app.state.selected) >= 0) leaf.value = app.state.selected;
+      var to = textInput("", true);
+      to.id = "effect-new-ttc";
+      to.placeholder = "Infinity, HardAndUncertain, …";
+      to.setAttribute("aria-label", "Its likelihood while the control is on");
+      var go = document.createElement("button");
+      go.type = "button";
+      go.className = "btn btn-ghost btn-small";
+      go.textContent = "Add";
+      var commit = function () {
+        if (!to.value.trim()) return to.focus();
+        edit(E.addEffect(app.state.doc, id, leaf.value, to.value));
+      };
+      go.addEventListener("click", commit);
+      to.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        }
+      });
+      add.appendChild(leaf);
+      add.appendChild(to);
+      add.appendChild(go);
+      form.appendChild(add);
+    }
+
+    var hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent = "Written like a leaf's time to compromise: securiCAD's words, a distribution such as Exponential(0.01), or Infinity for a step the control makes impossible. If two enabled controls act on one leaf, the stronger effect applies.";
+    form.appendChild(hint);
+
+    var removeControl = document.createElement("button");
+    removeControl.type = "button";
+    removeControl.className = "btn btn-ghost btn-small asset-remove";
+    removeControl.textContent = "Remove the control";
+    removeControl.addEventListener("click", function () {
+      var name = control.label || id;
+      openControl = null;
+      edit(E.removeControl(app.state.doc, id)).then(function (applied) {
+        if (applied) app.say("removed the control “" + name + "” · Ctrl+Z undoes");
+      });
+    });
+    form.appendChild(removeControl);
+    return form;
+  }
+
   function toggle(id) {
     var solvedBefore = !!app.state.results;
     var edit = E.toggleControl(app.state.doc, id);
@@ -67,9 +228,11 @@
     var solved = (results && results.controls && results.controls.available) || null;
     var rows = view.controlRows(doc, results);
     var list = $("controls");
+    var keepFocus = document.activeElement && list.contains(document.activeElement) ? document.activeElement.id : null;
     list.replaceChildren();
+    if (openControl && !(doc.controls || {})[openControl]) openControl = null;
     $("controls-count").textContent = rows.length || "";
-    $("controls-empty").hidden = rows.length > 0;
+    $("controls-empty").hidden = rows.length > 0 || !$("control-new").hidden;
     $("controls-note").hidden = !(rows.length && solved);
     var baseline = $("controls-baseline");
     baseline.hidden = !(rows.length && solved);
@@ -79,7 +242,7 @@
     rows.forEach(function (row) {
       var item = document.createElement("li");
       item.className = "control";
-      var head = document.createElement("label");
+      var head = document.createElement("div");
       head.className = "control-head";
       var box = document.createElement("input");
       box.type = "checkbox";
@@ -87,10 +250,19 @@
       box.addEventListener("change", function () {
         toggle(row.id);
       });
-      var name = document.createElement("span");
+      box.setAttribute("aria-label", "Enabled: " + row.label);
+      box.title = "Enabled in the model as written";
+      // The name opens the control to be edited; the box alone switches it.
+      var name = document.createElement("button");
+      name.type = "button";
       name.className = "control-name";
       name.textContent = row.label;
       name.title = row.id;
+      name.setAttribute("aria-expanded", String(openControl === row.id));
+      name.addEventListener("click", function () {
+        openControl = openControl === row.id ? null : row.id;
+        render();
+      });
       head.appendChild(box);
       head.appendChild(name);
       if (row.rank !== null) {
@@ -111,9 +283,51 @@
       value.className = "control-worth";
       value.textContent = unavailable ? unavailable.reason : worth(row, solved, results && results.currency);
       item.appendChild(value);
+      if (openControl === row.id) item.appendChild(editor(row.id));
       list.appendChild(item);
     });
+    if (keepFocus && $(keepFocus)) $(keepFocus).focus();
   }
+
+  // ---- a new control: by name, like an asset ----
+
+  var words = document.createElement("datalist");
+  words.id = "effect-ttc-words";
+  TTC_WORDS.forEach(function (word) {
+    var option = document.createElement("option");
+    option.value = word;
+    words.appendChild(option);
+  });
+  document.body.appendChild(words);
+
+  $("control-add").addEventListener("click", function () {
+    var name = $("control-new");
+    name.hidden = false;
+    name.value = "";
+    $("controls-empty").hidden = true;
+    name.focus();
+  });
+  $("control-new").addEventListener("keydown", function (e) {
+    var name = $("control-new");
+    if (e.key === "Escape") {
+      name.hidden = true;
+      return render();
+    }
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    var made = E.addControl(app.state.doc, name.value);
+    if (!made) return;
+    name.hidden = true;
+    openControl = made.control;
+    edit(made).then(function (applied) {
+      var next = $("effect-new-ttc") || $("control-cost");
+      if (applied && next) next.focus();
+    });
+  });
+  $("control-new").addEventListener("blur", function () {
+    $("control-new").hidden = true;
+    if (app.state.doc) render();
+  });
 
   app.onChange(function () {
     if (app.state.doc) render();
