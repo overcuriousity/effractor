@@ -5,6 +5,22 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — successor scope
+
+The owner selected the lecture workflow with a small, transparent component
+library as the first successor milestone. Compatibility with existing
+securiCAD/MAL models and libraries is recorded as later work in `ROADMAP.md`,
+dependent on that milestone. The reference is `extract.pdf`, printed
+pp. 112–134: model a client/router/SSH-server architecture, start from a
+compromised workstation, generate attack routes and compare defenses.
+
+The next task is the written successor design. The v1 spec's proposed reuse of
+the tree document model needs review: all current leaves start at time zero,
+whereas generated attack steps need prerequisite-dependent, accumulated timing.
+The selected scope is recorded; a detailed successor spec and implementation
+plan have not yet been reviewed. The lecture does not supply the complete
+component rules or calibrated distributions needed for numerical equivalence.
+
 ## Continuation — v1 acceptance
 
 Sharing (#43), timing (#48), charts (#44), and Pareto (#46) are merged and
