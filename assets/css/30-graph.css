@@ -13,6 +13,7 @@
   touch-action: none;
   user-select: none;
 }
+.graph:focus:not(:focus-visible) { outline: none; }
 .graph.is-panning { cursor: grabbing; }
 .graph.is-dragging { cursor: copy; }
 

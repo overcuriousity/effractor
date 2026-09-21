@@ -387,6 +387,7 @@
   window.effractor.renderer = renderer;
   window.effractor.select = select;
   window.effractor.applyEdit = applyEdit;
+  window.effractor.say = chip;
   window.effractor.undo = function () {
     timeTravel("undo");
   };

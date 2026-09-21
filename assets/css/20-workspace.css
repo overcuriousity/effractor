@@ -136,7 +136,8 @@
     linear-gradient(90deg, var(--color-border-subtle) 1px, transparent 1px);
   background-size: 26px 26px;
 }
-.hud { position: absolute; display: flex; gap: 8px; }
+/* Above the graph, which is mounted after it and fills the canvas. */
+.hud { position: absolute; z-index: 1; display: flex; gap: 8px; }
 .hud-top-right { top: 10px; right: 10px; }
 .hud-card {
   display: grid;

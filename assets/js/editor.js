@@ -78,7 +78,8 @@
     remove: function () {
       var id = selected();
       var parent = app.state.parent;
-      if (!id || !parent) return;
+      if (!id) return;
+      if (!parent) return app.say("the top event cannot be removed");
       if (E.losesAttributes(doc(), parent, id) && !window.confirm("Delete “" + doc().nodes[id].label + "” and what was entered for it?")) return;
       var edit = E.removeEdge(doc(), parent, id);
       if (edit) edit.parent = E.parentsOf(edit.doc, edit.select)[0] || null;

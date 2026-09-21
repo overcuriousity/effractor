@@ -109,8 +109,13 @@ test("clicks are reported as ids: select, activate, context", () => {
   r.on("context", (e) => seen.push(["context", e.id, e.x, e.y]));
 
   // The click lands on a shape inside the node, as it would.
-  node("mfa").children[0].dispatch("click", {});
+  // The press lands on a shape inside the node, as it would; the release is
+  // what selects, and the browser's click, wherever it lands, adds nothing.
+  node("mfa").children[0].dispatch("pointerdown", { clientX: 10, clientY: 10, button: 0, pointerId: 1 });
+  node("mfa").children[0].dispatch("pointerup", { clientX: 10, clientY: 10, pointerId: 1 });
   host.children[0].dispatch("click", {});
+  host.children[0].dispatch("pointerdown", { clientX: 1, clientY: 1, button: 0, pointerId: 1 });
+  host.children[0].dispatch("pointerup", { clientX: 1, clientY: 1, pointerId: 1 });
   node("mfa").children[0].dispatch("dblclick", {});
   let prevented = false;
   node("key").dispatch("contextmenu", { clientX: 40, clientY: 50, preventDefault: () => (prevented = true) });

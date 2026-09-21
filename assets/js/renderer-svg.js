@@ -27,7 +27,6 @@
     var highlights = {}; // kind -> {id: true}
     var handlers = {};
     var gesture = null; // {id | null, x, y, moved}
-    var swallowClick = false;
 
     function el(tag, attrs, classes, parent) {
       var e = doc.createElementNS(NS, tag);
@@ -61,15 +60,13 @@
     }
 
     function mount(host) {
-      svg = el("svg", { role: "group", "aria-label": "Graph" }, ["graph"], host);
+      // Focusable: a press on the canvas takes the keyboard back from whatever
+      // button or field had it, so the editor's keys go where the eye is.
+      svg = el("svg", { role: "group", "aria-label": "Graph", tabindex: "0" }, ["graph"], host);
       viewport = el("g", {}, ["viewport"], svg);
       edgeLayer = el("g", {}, ["edges"], viewport);
       nodeLayer = el("g", {}, ["nodes"], viewport);
 
-      svg.addEventListener("click", function (e) {
-        if (swallowClick) return void (swallowClick = false);
-        emit("select", { id: idAt(e.target) });
-      });
       svg.addEventListener("dblclick", function (e) {
         var id = idAt(e.target);
         if (id) emit("activate", { id: id });
@@ -82,13 +79,16 @@
       svg.addEventListener("pointerdown", function (e) {
         if (e.button !== 0) return;
         gesture = { id: idAt(e.target), x: e.clientX, y: e.clientY, moved: false };
-        svg.setPointerCapture(e.pointerId);
+        if (svg.focus) svg.focus();
       });
       svg.addEventListener("pointermove", function (e) {
         if (!gesture) return;
         var dx = e.clientX - gesture.x;
         var dy = e.clientY - gesture.y;
         if (!gesture.moved && Math.abs(dx) + Math.abs(dy) < DRAG_PX) return;
+        // Captured only once it is a drag: a captured pointer sends its click
+        // to the svg, not to the node under it.
+        if (!gesture.moved) svg.setPointerCapture(e.pointerId);
         gesture.moved = true;
         svg.classList.add(gesture.id ? "is-dragging" : "is-panning");
         if (gesture.id) return; // a node in hand: nothing moves until it is dropped
@@ -101,11 +101,11 @@
         if (!gesture) return;
         var g = gesture;
         gesture = null;
-        svg.releasePointerCapture(e.pointerId);
         svg.classList.remove("is-dragging", "is-panning");
-        if (!g.moved) return;
-        // The browser follows a drag with a click; it is not a selection.
-        swallowClick = true;
+        // A press and release in place is the selection: of the node the press
+        // landed on, whatever the browser makes the target of its click.
+        if (!g.moved) return emit("select", { id: g.id });
+        svg.releasePointerCapture(e.pointerId);
         var target = idAt(dropTarget(e));
         if (g.id && target && target !== g.id) emit("drop", { id: g.id, target: target, ctrl: !!(e.ctrlKey || e.metaKey) });
       });
