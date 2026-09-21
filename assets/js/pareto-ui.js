@@ -5,6 +5,8 @@
   function el(tag, text, cls) { var e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
   function svg(tag, attrs, text) { var e = document.createElementNS('http://www.w3.org/2000/svg', tag); Object.keys(attrs).forEach(function (key) { e.setAttribute(key, attrs[key]); }); if (text != null) e.textContent = text; return e; }
   function label(id) { return app.state.doc.nodes[id] ? app.state.doc.nodes[id].label : id; }
+  var TIME_HELP = 'Average completion time, assuming all steps succeed.';
+  function timeUnit(result) { return ({ h: 'hours', d: 'days', y: 'years' })[result.time_unit] || result.time_unit; }
   function amount(row, key) { return row[key] === null ? '∞' : number(row[key]); }
   function select(index) {
     selected = selected === index ? null : index;
@@ -22,8 +24,8 @@
   }
   function scatter(result) {
     var section = el('section', null, 'pareto-scatter'), pickers = el('div', null, 'pareto-axes');
-    var units = { cost: result.currency, time: result.time_unit, detection: 'probability' };
-    var titles = { cost: 'Cost', time: 'E[time]', detection: 'Detection' };
+    var units = { cost: result.currency, time: timeUnit(result), detection: 'probability' };
+    var titles = { cost: 'Cost', time: 'Mean time', detection: 'Detection' };
     ['x', 'y'].forEach(function (which) {
       var picker = window.effractorMenu.dropdown(['cost', 'time', 'detection'].map(function (k) { return [k, titles[k] + ' · ' + units[k]]; }), axis[which]);
       picker.id = 'pareto-axis-' + which; picker.setAttribute('aria-label', which.toUpperCase() + ' axis');
@@ -51,7 +53,7 @@
     var active = 0;
     function inspect(i) {
       active = (i + points.length) % points.length; var r = points[active];
-      tooltip.textContent = r.leaves.map(label).join(' · ') + ' — cost ' + amount(r, 'cost') + ' ' + result.currency + ' · E[time] ' + amount(r, 'time') + ' ' + result.time_unit + ' · detection ' + amount(r, 'detection') + ' · success ' + amount(r, 'success');
+      tooltip.textContent = r.leaves.map(label).join(' · ') + ' — cost ' + amount(r, 'cost') + ' ' + result.currency + ' · mean time ' + amount(r, 'time') + ' ' + timeUnit(result) + ' · detection ' + amount(r, 'detection') + ' · success ' + amount(r, 'success');
       vertical.setAttribute('x1', x(r[axis.x])); vertical.setAttribute('x2', x(r[axis.x]));
       horizontal.setAttribute('y1', y(r[axis.y])); horizontal.setAttribute('y2', y(r[axis.y])); cross.setAttribute('visibility', 'visible');
     }
@@ -82,11 +84,12 @@
     var rows = data.rows(result, sort, descending, label);
     if (!rows.length) { root.appendChild(el('p', 'No attack paths', 'empty')); return; }
     var scroll = el('div', null, 'analysis-scroll'), table = el('table', null, 'analysis-table pareto-table'), head = el('thead'), header = el('tr');
-    var headings = [['leaves', 'Path'], ['cost', 'Cost · ' + result.currency], ['time', 'E[time] · ' + result.time_unit], ['detection', 'Detection'], ['success', 'Success']];
+    var headings = [['leaves', 'Path'], ['cost', 'Cost · ' + result.currency], ['time', 'Mean time (' + timeUnit(result) + ')'], ['detection', 'Detection'], ['success', 'Success']];
     headings.forEach(function (h) {
       var th = el('th', null, h[0] === 'leaves' ? '' : 'num'); th.scope = 'col';
       th.setAttribute('aria-sort', sort === h[0] ? descending ? 'descending' : 'ascending' : 'none');
       var button = el('button', h[1], 'pareto-sort'); button.type = 'button'; button.id = 'pareto-sort-' + h[0];
+      if (h[0] === 'time') button.title = TIME_HELP;
       button.addEventListener('click', function () { descending = sort === h[0] ? !descending : false; sort = h[0]; render(); $('pareto-sort-' + h[0]).focus(); });
       th.appendChild(button); header.appendChild(th);
     });
@@ -96,11 +99,14 @@
       var tr = el('tr'); tr.dataset.attack = r.index; if (r.cheapest) tr.classList.add('cheapest');
       var cell = el('td'), button = el('button', r.leaves.map(label).join(' · '), 'pareto-path');
       button.type = 'button'; button.dataset.attack = r.index; button.addEventListener('click', function () { select(r.index); }); cell.appendChild(button);
-      if (r.cheapest) cell.appendChild(el('span', 'Cheapest', 'pareto-cheapest'));
-      tr.appendChild(cell); ['cost', 'time', 'detection', 'success'].forEach(function (key) { tr.appendChild(el('td', amount(r, key), 'num')); }); body.appendChild(tr);
+      if (r.cheapest) {
+        var pinned = el('span', 'Cheapest · pinned', 'pareto-cheapest');
+        pinned.title = 'Remains first when sorting'; cell.appendChild(pinned);
+      }
+      tr.appendChild(cell); ['cost', 'time', 'detection', 'success'].forEach(function (key) { tr.appendChild(el('td', amount(r, key) + (key === 'time' ? ' ' + result.time_unit : ''), 'num')); }); body.appendChild(tr);
     });
     table.appendChild(body); scroll.appendChild(table); root.appendChild(scroll);
-    root.appendChild(el('p', 'E[time] conditional on all steps succeeding', 'hint'));
+    root.appendChild(el('p', TIME_HELP, 'hint'));
     if (a.assumed_free.length || a.assumed_unnoticed.length) root.appendChild(el('p', 'Missing attributes count as zero: ' + a.assumed_free.length + ' cost · ' + a.assumed_unnoticed.length + ' detection', 'hint'));
     var cuts = result.cut_sets && result.cut_sets.available;
     if (cuts && cuts.truncated) root.appendChild(el('p', 'Partial paths · ' + cuts.truncated, 'hint'));
