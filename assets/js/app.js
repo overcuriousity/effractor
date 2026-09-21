@@ -32,21 +32,19 @@
     return n >= 1 && Number.isSafeInteger(n) ? n : null;
   }
 
-  // ?example=office opens the attack tree, ?example=new and new-attack an empty
-  // one to build in; anything else, the reference tree.
-  var EXAMPLES = ["webserver", "office", "new", "new-attack"];
-
-  function exampleName(search) {
-    var m = /[?&]example=([a-z0-9-]+)(&|$)/.exec(search);
-    return m && EXAMPLES.indexOf(m[1]) >= 0 ? m[1] : "webserver";
+  // The page opens on an empty document: a fault tree, or with
+  // ?new=attack-tree an attack tree. No example ships.
+  function templateName(search) {
+    var m = /[?&]new=([a-z-]+)(&|$)/.exec(search);
+    return m && m[1] === "attack-tree" ? "new-attack" : "new";
   }
 
   if (typeof module !== "undefined") {
-    module.exports = { exampleName: exampleName, grouped: grouped, probability: probability, money: money, analysisLabel: analysisLabel, samplesOverride: samplesOverride };
+    module.exports = { templateName: templateName, grouped: grouped, probability: probability, money: money, analysisLabel: analysisLabel, samplesOverride: samplesOverride };
   }
   if (typeof document === "undefined") return;
 
-  var EXAMPLE = "/assets/examples/" + exampleName(location.search) + ".yaml";
+  var TEMPLATE = "/assets/templates/" + templateName(location.search) + ".yaml";
   var $ = function (id) {
     return document.getElementById(id);
   };
@@ -275,9 +273,9 @@
   }
 
   function load() {
-    return fetch(EXAMPLE)
+    return fetch(TEMPLATE)
       .then(function (res) {
-        if (!res.ok) throw new Error("could not load " + EXAMPLE);
+        if (!res.ok) throw new Error("could not load " + TEMPLATE);
         return res.text();
       })
       .then(function (text) {

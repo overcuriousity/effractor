@@ -83,7 +83,7 @@ fn a_valid_model_with_a_repeated_event_is_clean() {
 
 #[test]
 fn ids_are_lowercase_kebab() {
-    assert!("ausfall-server".parse::<NodeId>().is_ok());
+    assert!("server-outage".parse::<NodeId>().is_ok());
     assert!("7".parse::<NodeId>().is_ok());
     for bad in ["", "-a", "A", "a_b", "a b", "ä"] {
         assert!(bad.parse::<NodeId>().is_err(), "{bad:?}");

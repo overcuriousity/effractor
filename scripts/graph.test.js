@@ -9,34 +9,34 @@ const byId = (nodes) => Object.fromEntries(nodes.map((n) => [n.id, n]));
 test("a repeated node is described once, with its parents counted", () => {
   const g = describe(webserver);
   assert.equal(g.nodes.length, 9);
-  assert.equal(g.nodes.filter((n) => n.id === "ausfall-server").length, 1);
+  assert.equal(g.nodes.filter((n) => n.id === "server-outage").length, 1);
   const n = byId(g.nodes);
-  assert.equal(n["ausfall-server"].parents, 2);
-  assert.equal(n["ausfall-server"].badge, "shared · 2 parents");
+  assert.equal(n["server-outage"].parents, 2);
+  assert.equal(n["server-outage"].badge, "shared · 2 parents");
   assert.equal(n.hardware.badge, null);
-  assert.equal(n["mangelnde-verfuegbarkeit"].top, true);
+  assert.equal(n["loss-of-availability"].top, true);
   // One edge per parent-child pair, in the order the children are written.
   assert.equal(g.edges.length, 9);
   assert.deepEqual(
-    g.edges.filter((e) => e.from === "ohne-funktion").map((e) => e.to),
-    ["hardware", "software", "malware", "ausfall-server"]
+    g.edges.filter((e) => e.from === "no-function").map((e) => e.to),
+    ["hardware", "software", "malware", "server-outage"]
   );
 });
 
 test("fault-tree gates are inscribed as DIN 25424 has them", () => {
   const n = byId(describe(webserver).nodes);
-  assert.equal(n["ohne-zugang"].symbol, "gate");
-  assert.equal(n["ohne-zugang"].inscription, "≥1");
+  assert.equal(n["no-access"].symbol, "gate");
+  assert.equal(n["no-access"].inscription, "≥1");
   assert.equal(n.hardware.symbol, "basic");
   assert.equal(n.malware.symbol, "undeveloped");
   assert.equal(n.hardware.attributes, null);
   const doc = JSON.parse(JSON.stringify(webserver));
-  doc.nodes["ohne-zugang"].gate = "and";
-  doc.nodes["ohne-funktion"].gate = "vote";
-  doc.nodes["ohne-funktion"].k = 3;
+  doc.nodes["no-access"].gate = "and";
+  doc.nodes["no-function"].gate = "vote";
+  doc.nodes["no-function"].k = 3;
   const m = byId(describe(doc).nodes);
-  assert.equal(m["ohne-zugang"].inscription, "&");
-  assert.equal(m["ohne-funktion"].inscription, "≥3");
+  assert.equal(m["no-access"].inscription, "&");
+  assert.equal(m["no-function"].inscription, "≥3");
 });
 
 test("attack trees say AND and OR, and leaves show cost and detection", () => {
@@ -66,7 +66,7 @@ test("a dangling child makes no edge and no crash", () => {
 
 test("labels wrap on words, and what does not fit ends in an ellipsis", () => {
   assert.deepEqual(wrap("Malware", 20, 2), ["Malware"]);
-  assert.deepEqual(wrap("Fehler in der Administration", 20, 2), ["Fehler in der", "Administration"]);
+  assert.deepEqual(wrap("Error in the administration", 20, 2), ["Error in the", "administration"]);
   assert.deepEqual(wrap("one two three four five six seven eight nine ten", 12, 2), ["one two", "three four…"]);
   // A word longer than a line is cut rather than allowed to overflow its box.
   assert.deepEqual(wrap("Donaudampfschifffahrtsgesellschaft", 12, 2), ["Donaudampfs…"]);
@@ -77,18 +77,18 @@ test("the ELK graph pins edges to the bottom and top centres, in written order",
   const elk = toElk(describe(webserver));
   assert.equal(elk.layoutOptions["elk.algorithm"], "layered");
   assert.equal(elk.layoutOptions["elk.direction"], "DOWN");
-  const top = elk.children.find((c) => c.id === "mangelnde-verfuegbarkeit");
+  const top = elk.children.find((c) => c.id === "loss-of-availability");
   assert.deepEqual([top.width, top.height], [SIZE.width, SIZE.gate]);
   assert.deepEqual(top.ports.map((p) => [p.id, p.x, p.y]), [
-    ["mangelnde-verfuegbarkeit:in", SIZE.width / 2, 0],
-    ["mangelnde-verfuegbarkeit:out", SIZE.width / 2, SIZE.gate],
+    ["loss-of-availability:in", SIZE.width / 2, 0],
+    ["loss-of-availability:out", SIZE.width / 2, SIZE.gate],
   ]);
   const leaf = elk.children.find((c) => c.id === "hardware");
   assert.equal(leaf.height, SIZE.leaf);
   assert.deepEqual(elk.edges[0], {
-    id: "mangelnde-verfuegbarkeit>ohne-zugang",
-    sources: ["mangelnde-verfuegbarkeit:out"],
-    targets: ["ohne-zugang:in"],
+    id: "loss-of-availability>no-access",
+    sources: ["loss-of-availability:out"],
+    targets: ["no-access:in"],
   });
   // The attribute strip makes an attack-tree leaf taller.
   // … and the badge row makes a shared node taller again.
@@ -118,7 +118,7 @@ test("ELK lays the reference tree out top-down without overlaps", async () => {
       assert.ok(apart, `${a.id} overlaps ${b.id}`);
     }
   // Children left to right as written.
-  assert.ok(at["ohne-zugang"].x < at["ohne-funktion"].x);
+  assert.ok(at["no-access"].x < at["no-function"].x);
   // The description rides along for the renderer.
   assert.equal(at.malware.node.symbol, "undeveloped");
 });

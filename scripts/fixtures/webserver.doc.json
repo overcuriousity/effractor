@@ -1,18 +1,18 @@
 {
   "effractor": 1,
   "profile": "fault-tree",
-  "name": "Mangelnde Verfügbarkeit Webserver",
+  "name": "Web server unavailable",
   "time_unit": "h",
   "horizon": 8760,
   "currency": "EUR",
-  "top": "mangelnde-verfuegbarkeit",
+  "top": "loss-of-availability",
   "nodes": {
-    "mangelnde-verfuegbarkeit": {
-      "label": "Mangelnde Verfügbarkeit",
+    "loss-of-availability": {
+      "label": "Loss of availability",
       "gate": "or",
       "children": [
-        "ohne-zugang",
-        "ohne-funktion"
+        "no-access",
+        "no-function"
       ],
       "consequences": [
         {
@@ -21,47 +21,47 @@
         }
       ]
     },
-    "ohne-zugang": {
-      "label": "Server ohne Zugang",
+    "no-access": {
+      "label": "Server unreachable",
       "gate": "or",
       "children": [
         "administration",
-        "vernetzung",
-        "ausfall-server"
+        "network",
+        "server-outage"
       ]
     },
-    "ohne-funktion": {
-      "label": "Server ohne Funktion",
+    "no-function": {
+      "label": "Server not working",
       "gate": "or",
       "children": [
         "hardware",
         "software",
         "malware",
-        "ausfall-server"
+        "server-outage"
       ]
     },
     "administration": {
-      "label": "Fehler in der Administration",
+      "label": "Administration error",
       "leaf": "basic",
       "rate": 7e-7
     },
-    "vernetzung": {
-      "label": "Ausfall der Vernetzung",
+    "network": {
+      "label": "Network outage",
       "leaf": "basic",
       "rate": 3.5e-7
     },
-    "ausfall-server": {
-      "label": "Ausfall Server",
+    "server-outage": {
+      "label": "Server outage",
       "leaf": "basic",
       "rate": 0.0000025
     },
     "hardware": {
-      "label": "Hardware defekt",
+      "label": "Hardware defect",
       "leaf": "basic",
       "rate": 0.0000013
     },
     "software": {
-      "label": "Softwarefehler",
+      "label": "Software fault",
       "leaf": "basic",
       "rate": 2.3e-7
     },
@@ -73,7 +73,7 @@
   },
   "assets": {
     "webserver": {
-      "label": "Webserver",
+      "label": "Web server",
       "loss": {
         "c": 20000,
         "i": 40000,
@@ -83,7 +83,7 @@
   },
   "controls": {
     "redundant-psu": {
-      "label": "Redundantes Netzteil",
+      "label": "Redundant power supply",
       "cost": 1800,
       "enabled": false,
       "effects": [

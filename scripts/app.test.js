@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
-const { exampleName, grouped, probability, money, analysisLabel, samplesOverride } = require("../assets/js/app.js");
+const { templateName, grouped, probability, money, analysisLabel, samplesOverride } = require("../assets/js/app.js");
 
 test("whole numbers are grouped in threes with a no-break space", () => {
   assert.equal(grouped(42), "42");
@@ -37,10 +37,10 @@ test("?samples= is a whole number of at least one, or nothing", () => {
   assert.equal(samplesOverride("?samples=1.5"), null);
 });
 
-test("?example= picks a shipped example and nothing else", () => {
-  assert.equal(exampleName(""), "webserver");
-  assert.equal(exampleName("?example=office"), "office");
-  assert.equal(exampleName("?samples=5&example=office"), "office");
-  assert.equal(exampleName("?example=../../etc/passwd"), "webserver");
-  assert.equal(exampleName("?example=constructor"), "webserver");
+test("the page opens on an empty document; ?new= picks its profile and nothing else", () => {
+  assert.equal(templateName(""), "new");
+  assert.equal(templateName("?new=attack-tree"), "new-attack");
+  assert.equal(templateName("?samples=5&new=attack-tree"), "new-attack");
+  assert.equal(templateName("?new=../../etc/passwd"), "new");
+  assert.equal(templateName("?example=webserver"), "new");
 });

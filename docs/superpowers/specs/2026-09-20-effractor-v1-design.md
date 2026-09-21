@@ -177,29 +177,29 @@ tree):
 ```yaml
 effractor: 1
 profile: fault-tree
-name: Mangelnde Verfügbarkeit Webserver
+name: Web server unavailable
 time_unit: h
 horizon: 8760
 currency: EUR
-top: mangelnde-verfuegbarkeit
+top: loss-of-availability
 
 nodes:
-  mangelnde-verfuegbarkeit:
-    label: Mangelnde Verfügbarkeit
+  loss-of-availability:
+    label: Loss of availability
     gate: or
-    children: [ohne-zugang, ohne-funktion]
+    children: [no-access, no-function]
     consequences:
       - {asset: webserver, dim: a}
-  ohne-zugang:
-    label: Server ohne Zugang
+  no-access:
+    label: Server unreachable
     gate: or
-    children: [administration, vernetzung, ausfall-server]
-  ohne-funktion:
-    label: Server ohne Funktion
+    children: [administration, network, server-outage]
+  no-function:
+    label: Server not working
     gate: or
-    children: [hardware, software, malware, ausfall-server]   # repeated event
-  ausfall-server:
-    label: Ausfall Server
+    children: [hardware, software, malware, server-outage]   # repeated event
+  server-outage:
+    label: Server outage
     leaf: basic
     rate: 2.5e-6
   malware:
@@ -210,12 +210,12 @@ nodes:
 
 assets:
   webserver:
-    label: Webserver
+    label: Web server
     loss: {c: 20000, i: 40000, a: "Pert(60000, 120000, 400000)"}
 
 controls:
   redundant-psu:
-    label: Redundantes Netzteil
+    label: Redundant power supply
     cost: 1800
     enabled: false
     effects:

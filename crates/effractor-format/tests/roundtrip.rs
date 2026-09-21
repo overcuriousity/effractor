@@ -34,8 +34,8 @@ fn without_extension_keys_both_writers_agree() {
         .filter(|l| !l.trim_start().starts_with("x-"))
         .map(|l| format!("{l}\n"))
         .collect::<String>()
-        .replace(", x-note: FAIR-Workshop", "")
-        .replace(", x-why: [Vier-Augen-Prinzip]", "");
+        .replace(", x-note: FAIR workshop", "")
+        .replace(", x-why: [four-eyes principle]", "");
     let canonical = canonicalize(&stripped).unwrap();
     assert_eq!(save(&load(&stripped).unwrap()), canonical);
 }
@@ -43,8 +43,8 @@ fn without_extension_keys_both_writers_agree() {
 #[test]
 fn the_reference_tree_loads_as_written() {
     let m = load(WEBSERVER).unwrap();
-    assert_eq!(m.name, "Mangelnde Verfügbarkeit Webserver");
-    assert_eq!(m.top, id("mangelnde-verfuegbarkeit"));
+    assert_eq!(m.name, "Web server unavailable");
+    assert_eq!(m.top, id("loss-of-availability"));
     assert_eq!(m.nodes.len(), 9);
     // Authored order, not sorted.
     assert_eq!(m.nodes.keys().nth(3).unwrap(), &id("administration"));
@@ -53,11 +53,11 @@ fn the_reference_tree_loads_as_written() {
     let parents = m
         .nodes
         .values()
-        .filter(|n| matches!(&n.kind, NodeKind::Gate { children, .. } if children.contains(&id("ausfall-server"))))
+        .filter(|n| matches!(&n.kind, NodeKind::Gate { children, .. } if children.contains(&id("server-outage"))))
         .count();
     assert_eq!(parents, 2);
 
-    let NodeKind::Leaf(server) = &m.nodes[&id("ausfall-server")].kind else {
+    let NodeKind::Leaf(server) = &m.nodes[&id("server-outage")].kind else {
         panic!("a leaf")
     };
     assert_eq!(server.ttc, Some(Ttc::Rate(2.5e-6)));
@@ -91,7 +91,7 @@ fn the_reference_tree_loads_as_written() {
 #[test]
 fn the_attack_tree_loads_as_written() {
     let m = load(OFFICE).unwrap();
-    let NodeKind::Gate { gate, children } = &m.nodes[&id("physisch")].kind else {
+    let NodeKind::Gate { gate, children } = &m.nodes[&id("physical")].kind else {
         panic!("a gate")
     };
     assert_eq!((*gate, children.len()), (Gate::Vote { k: 2 }, 3));
@@ -107,8 +107,8 @@ fn the_attack_tree_loads_as_written() {
         (Some(200.0), Some(0.3))
     );
     // A label that looks like a boolean is still a label.
-    assert_eq!(m.nodes[&id("schluessel")].label, "true");
-    let NodeKind::Leaf(alarm) = &m.nodes[&id("alarm-aus")].kind else {
+    assert_eq!(m.nodes[&id("key")].label, "true");
+    let NodeKind::Leaf(alarm) = &m.nodes[&id("alarm-off")].kind else {
         panic!("a leaf")
     };
     assert_eq!(alarm.ttc, None);
@@ -139,11 +139,11 @@ fn a_long_child_list_goes_block_and_stays_there() {
     assert_eq!(canonicalize(&out).unwrap(), out);
 }
 
-/// The documents the app ships are canonical: what a user opens first is what
-/// a save would write.
+/// The empty documents the app opens on are canonical: what a user starts from
+/// is what a save would write.
 #[test]
-fn shipped_examples_are_canonical() {
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/examples");
+fn shipped_templates_are_canonical() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/templates");
     let mut seen = 0;
     for entry in std::fs::read_dir(dir).unwrap() {
         let path = entry.unwrap().path();
