@@ -22,6 +22,9 @@ effractor            # http://127.0.0.1:8080
 effractor --bind 0.0.0.0:9000
 ```
 
+The [course walkthrough](docs/course/README.md) includes fault-tree and attack-tree
+files, timing explanations, and a step-by-step analysis exercise.
+
 ## Status
 
 Early. What is left is in [ROADMAP.md](ROADMAP.md); what it is meant to be is in

@@ -5,7 +5,28 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
-## Where things stand
+## Continuation — current session
+
+Sharing was visually accepted and merged in PR #43; master is `6010f7f`, with
+CI and release green. Work continues on normal feature branches in the main
+checkout, as requested by the owner:
+
+- PR #44 (`feature/ui-charts`): TTC and loss charts, tables, crosshair and keys.
+- PR #45 (`feature/ttc-picker`): explained TTC pickers for leaves/controls and
+  a visible, undoable top-bar horizon editor; requested during chart review.
+- PR #46 (`feature/ui-pareto`): sortable table, pinned cheapest path, axis
+  pickers, scatter and two-way graph highlighting.
+- `feature/v1-acceptance`: course docs/files, performance check, and an honest
+  acceptance record in `docs/V1-ACCEPTANCE.md`.
+
+These are stacked in that order. Chart, timing and Pareto visual acceptance
+and merge approval are pending; do not infer approval from passing tests.
+The roadmap still lists the unfinished acceptance items. Read the acceptance
+record for measured results and the remaining release-binary walkthrough.
+
+The remainder of this document records the original handoff and conventions.
+
+## Where things stood before this session
 
 Master is `2e6166c` plus this file; CI and the release are green; no PR is open.
 The Rust side (`core`, `mal`, `solver`, `format`, `wasm`, share server) is

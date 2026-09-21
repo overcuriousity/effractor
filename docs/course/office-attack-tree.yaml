@@ -1,0 +1,81 @@
+effractor: 1
+profile: attack-tree
+name: "Office: access to the file server"
+time_unit: d
+horizon: 30
+currency: EUR
+top: fileserver
+
+nodes:
+  fileserver:
+    label: Read data from the file server
+    description: "Two ways in: through an account, or physically.\nThe physical way takes two of three steps."
+    gate: or
+    children: [account, physical]
+    consequences:
+      - {asset: files, dim: c}
+      - {asset: files, dim: i, fraction: 0.25}
+  account:
+    label: Take over an account
+    gate: and
+    children: [phishing, mfa-bypass]
+  physical:
+    label: Physical access
+    gate: vote
+    k: 2
+    children: [key, alarm-off, insider]
+    x-source: {ref: Site visit 2026-03, pages: [4, 5]}
+  phishing:
+    label: Phishing
+    leaf: basic
+    ttc: "HardAndUncertain"
+    cost: 200
+    detection: 0.3
+  mfa-bypass:
+    label: Bypass MFA (push fatigue)
+    leaf: basic
+    ttc: "Bernoulli(0.2) * LogNormal(1.5, 0.8)"
+    cost: 50
+    detection: 0.6
+  key:
+    label: Copy a key
+    leaf: basic
+    p: 0.1
+    cost: 1500
+    detection: 0.05
+  alarm-off:
+    label: Alarm switched off
+    leaf: undeveloped
+    ttc: "Exponential(0.2)"
+    cost: 100
+    detection: 0.2
+  insider:
+    label: Insider
+    leaf: undeveloped
+    ttc: "Gamma(2, 10)"
+    cost: 10000
+    detection: 0.5
+
+assets:
+  files:
+    label: Personnel files
+    description: Everything the GDPR covers — naïvely, all of it.
+    loss: {c: "Pert(5000, 40000, 2000000)", i: 15000, x-note: FAIR workshop}
+
+controls:
+  training:
+    label: Phishing training
+    cost: 2500
+    enabled: false
+    effects:
+      - {node: phishing, ttc: "VeryHardAndUncertain"}
+      - {node: insider, ttc: "Infinity", x-why: [four-eyes principle]}
+
+analysis:
+  seed: 7
+  samples: 10000
+  confidence: 0.9
+  x-last-run: "2026-09-01"
+
+x-owner: IT security
+x-tags: [course, "example, with comma"]

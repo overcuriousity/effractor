@@ -1,0 +1,65 @@
+effractor: 1
+profile: fault-tree
+name: Web server unavailable
+time_unit: h
+horizon: 8760
+currency: EUR
+top: loss-of-availability
+
+nodes:
+  loss-of-availability:
+    label: Loss of availability
+    gate: or
+    children: [no-access, no-function]
+    consequences:
+      - {asset: webserver, dim: a}
+  no-access:
+    label: Server unreachable
+    gate: or
+    children: [administration, network, server-outage]
+  no-function:
+    label: Server not working
+    gate: or
+    children: [hardware, software, malware, server-outage]
+  administration:
+    label: Administration error
+    leaf: basic
+    rate: 7e-7
+  network:
+    label: Network outage
+    leaf: basic
+    rate: 3.5e-7
+  server-outage:
+    label: Server outage
+    leaf: basic
+    rate: 2.5e-6
+  hardware:
+    label: Hardware defect
+    leaf: basic
+    rate: 1.3e-6
+  software:
+    label: Software fault
+    leaf: basic
+    rate: 2.3e-7
+  malware:
+    label: Malware
+    leaf: undeveloped
+    p: 0.004
+
+assets:
+  webserver:
+    label: Web server
+    loss: {c: 20000, i: 40000, a: "Pert(60000, 120000, 400000)"}
+
+controls:
+  redundant-psu:
+    label: Redundant power supply
+    cost: 1800
+    enabled: false
+    effects:
+      - {node: hardware, ttc: "Exponential(4e-7)"}
+
+analysis:
+  seed: 42
+  samples: 10000
+  confidence: 0.95
