@@ -47,8 +47,9 @@ No product code or bundled assets differ between that release and this PR.
   The same release also installed into an empty temporary host directory.
 - Six reference-tree runs in the released Chromium app produced first exact
   results in **7.0–14.1 ms** and complete 10,000-sample results in
-  **47.1–59.4 ms**. Timing begins at Solve, includes worker communication and
-  UI updates through the next animation frame, and excludes initial page load.
+  **47.1–59.4 ms**. Timing begins at Solve and excludes initial page load. Exact timing measures
+  worker-result arrival before rendering; total timing includes UI updates
+  through the next animation frame.
   All runs meet the <100 ms exact / <1 s total budgets.
 - The reproducible Node-hosted wasm check,
   `node scripts/check-performance.js`, also passed all six runs:
