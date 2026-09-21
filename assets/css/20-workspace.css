@@ -165,6 +165,8 @@
   border-top: 1px solid var(--color-border);
 }
 .legend-group { display: inline-flex; align-items: center; gap: 5px; }
+.legend a { color: var(--color-fg-secondary); text-underline-offset: 2px; }
+.legend a:hover { color: var(--color-fg-primary); }
 .legend-title { margin-right: 3px; }
 .legend .num { margin-right: 5px; }
 /* The outline is what makes the pale steps a shape at all; see 00-tokens.css. */

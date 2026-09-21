@@ -19,8 +19,16 @@ fn exports_a_self_contained_site_without_overwriting_existing_files() {
     assert!(html.contains("<title>effractor</title>"));
     assert!(!html.contains("share-ui.js"));
     assert!(site.join(".nojekyll").exists());
-    for attr in ["href=\"", "src=\""] {
-        for part in html.split(attr).skip(1) {
+    for tag in html
+        .split('<')
+        .filter(|tag| tag.starts_with("link ") || tag.starts_with("script "))
+    {
+        let attr = if tag.starts_with("link ") {
+            "href=\""
+        } else {
+            "src=\""
+        };
+        for part in tag.split(attr).skip(1) {
             let url = part.split('"').next().unwrap();
             let relative = url.strip_prefix("./").expect("portable asset URL");
             assert!(site.join(relative).is_file(), "missing {url}");

@@ -11,6 +11,8 @@ never leaves your machine unless you share it. No accounts, no telemetry.
 [Open effractor in your browser](https://overcuriousity.github.io/effractor/).
 The public site runs the same editor and solver, with local persistence and
 file import/export. Sharing is disabled because GitHub Pages has no backend.
+Install the server below to add encrypted share links with expiry and deletion,
+stored on your own server.
 
 ## Install
 
