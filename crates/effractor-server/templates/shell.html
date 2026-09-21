@@ -25,6 +25,7 @@
 <script src="/assets/js/store.js" defer></script>
 <script src="/assets/js/app.js" defer></script>
 <script src="/assets/js/editor.js" defer></script>
+<script src="/assets/js/source.js" defer></script>
 </head>
 <body>
 <div class="workspace" id="app" data-version="{{ version }}">
@@ -54,13 +55,14 @@
     <span class="rail-rule" aria-hidden="true"></span>
     <button class="tool" type="button" data-toggle="left" aria-pressed="true" title="Model panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM6 3v10"/></svg></button>
     <button class="tool" type="button" data-toggle="right" aria-pressed="true" title="Results panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM10 3v10"/></svg></button>
-    <button class="tool" type="button" data-tool="source" disabled title="YAML source"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4L2.5 8 6 12M10 4l3.5 4L10 12"/></svg></button>
+    <button class="tool" type="button" data-tool="source" disabled aria-pressed="false" title="YAML source"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4L2.5 8 6 12M10 4l3.5 4L10 12"/></svg></button>
     <button class="tool" type="button" data-tool="controls" disabled title="Controls"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/></svg></button>
     <span class="spacer"></span>
     <button class="tool tool-text" type="button" id="help" title="Keys and pointer actions (?)" aria-label="Keys and pointer actions">?</button>
   </nav>
 
   <aside class="panel panel-left" id="panel-left" aria-label="Model">
+    <div id="view-model">
     <section class="panel-section">
       <h2 class="label">Model</h2>
       <p class="empty" id="outline-empty">No model yet.</p>
@@ -73,6 +75,12 @@
         <tbody id="assets-body"></tbody>
       </table>
     </section>
+    </div>
+    <div class="view-source" id="view-source" hidden>
+      <h2 class="label">Source <span class="count" id="source-state" role="status"></span></h2>
+      <textarea class="source" id="source" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off" aria-label="YAML source"></textarea>
+      <ul class="source-problems" id="source-problems" aria-label="Problems"></ul>
+    </div>
   </aside>
   <div class="resizer" data-resize="left" role="separator" aria-orientation="vertical" aria-controls="panel-left" aria-label="Resize model panel" tabindex="0"></div>
 

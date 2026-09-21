@@ -292,6 +292,21 @@
     });
   }
 
+  // From the source view: the text as typed. Resolves to what the parser had
+  // to say; with no error among it, the text is now the document — as typed,
+  // not rewritten, or the caret would jump.
+  function adoptSource(text) {
+    if (text === state.text) return Promise.resolve([]);
+    return solver.parse(text).then(function (parsed) {
+      if (!parsed.ok) return parsed.diagnostics;
+      if (state.running) solver.cancel();
+      if (state.text !== null) undoStack.push(state.text);
+      return adopt(text, state.selected, state.parent).then(function () {
+        return parsed.diagnostics || [];
+      });
+    });
+  }
+
   var undoStack = window.effractorEdit.createHistory();
   function timeTravel(direction) {
     var text = undoStack[direction](state.text);
@@ -425,6 +440,7 @@
   window.effractor.select = select;
   window.effractor.applyEdit = applyEdit;
   window.effractor.say = say;
+  window.effractor.adoptSource = adoptSource;
   // A crash with nothing waiting on the worker would otherwise pass unseen.
   solver.onCrash = function (message) {
     console.error("solver crashed:", message);

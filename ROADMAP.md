@@ -26,12 +26,14 @@ user input · no third-party origins, no telemetry · vanilla CSS + JS, no bundl
 ## Browser
 
 ### ui-source — YAML source view and persistence
-needs: —            cost: 2   benefit: 4
-Textarea with diagnostics list (click → line); stale-canvas state while invalid;
-IndexedDB working state; `.yaml` import/export; a **New** action in place of
-`?new=attack-tree`, and editing of the header, assets and controls, which the canvas
-editor does not reach. Done when a text edit and a
-canvas edit round-trip into each other — checked by hand.
+needs: —            cost: 1   benefit: 4
+Landed and seen: New / Open / Save on the document's name, the working text in
+IndexedDB. Built, waiting for the owner's look: the source view (rail `<>`) — a
+textarea whose text becomes the document after a pause, a problems list (click
+→ line), the canvas marked stale while the text is not valid; it is also how the
+header, assets and controls are edited. Done when a text edit and a canvas edit
+round-trip into each other — checked by hand. Delete this item when that has
+been seen.
 
 ### ui-charts — TTC CDF and LEC
 needs: —            cost: 3   benefit: 4

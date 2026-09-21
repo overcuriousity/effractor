@@ -217,11 +217,13 @@
 
   document.addEventListener("keydown", function (e) {
     var mod = e.ctrlKey || e.metaKey;
-    if (mod && e.key.toLowerCase() === "z") {
+    // In a field, undo is the field's own: a typo is not a document edit.
+    var inText = /^(INPUT|TEXTAREA)$/.test(e.target.tagName);
+    if (mod && !inText && e.key.toLowerCase() === "z") {
       e.preventDefault();
       return e.shiftKey ? app.redo() : app.undo();
     }
-    if (mod && e.key.toLowerCase() === "y") {
+    if (mod && !inText && e.key.toLowerCase() === "y") {
       e.preventDefault();
       return app.redo();
     }
