@@ -28,3 +28,13 @@ test('highlight includes connecting ancestors in a shared DAG without unrelated 
  const doc={top:'top',nodes:{top:{children:['left','right','other']},left:{children:['a']},right:{children:['a','b']},other:{children:['c']},a:{},b:{},c:{}}};
  assert.deepEqual(new Set(p.path(doc,['a'])),new Set(['a','left','right','top']));
 });
+
+test('path sorting follows displayed labels rather than hidden ids',()=>{
+ const r={attacker:{available:{cheapest:null,attacks:[{...attacks[0],leaves:['z']},{...attacks[1],leaves:['a']}]}}};
+ const labels={z:'Alpha',a:'Zulu'};
+ assert.deepEqual(p.rows(r,'leaves',false,id=>labels[id]).map(r=>r.index),[0,1]);
+});
+test('unreachable parents and ancestors above top do not enter highlighted paths',()=>{
+ const doc={top:'top',nodes:{top:{children:['a']},a:{},spare:{children:['a']},above:{children:['top']}}};
+ assert.deepEqual(new Set(p.path(doc,['a'])),new Set(['a','top']));
+});
