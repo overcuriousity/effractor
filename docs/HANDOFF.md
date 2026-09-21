@@ -1,121 +1,154 @@
-# Handoff — 2026-09-21
+# Handoff — 2026-09-21, evening
 
 For the next session. Read `CONTRIBUTING.md`, `ROADMAP.md` and the design
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
-says where things stand and what is wrong, which those do not.
+says where things stand, how the owner wants the UI to be, and what bit today.
 
-## The honest state
+## Where things stand
 
-The Rust side is solid: `core`, `mal`, `solver`, `format`, `wasm` and the share
-server are tested (property tests included), deterministic native vs wasm, and
-released. **The browser UI is not.** `wasm-api`, `ui-renderer`, `ui-results` and
-`ui-editor` were landed in one session without anyone looking at the page: their
-pure logic has `node --test` tests, the DOM code has none and was never run in a
-browser by its author. The owner's first quick look found three defects
-(below). Treat every DOM-facing file as unverified:
+Master is `2e6166c` plus this file; CI and the release are green; no PR is open.
+The Rust side (`core`, `mal`, `solver`, `format`, `wasm`, share server) is
+tested and released, deterministic native vs wasm. The browser UI has now been
+**walked by the owner in a browser, piece by piece**: canvas, editor, solving,
+results, file menu and persistence, source view, assets, controls. Nothing is
+known to be broken.
 
-    assets/js/app.js  editor.js  renderer-svg.js (event wiring)  layout.js
-    assets/js/solver-worker.js (bootstrap part)   assets/css/30-, 40-, 50-*.css
+Four items are left on the roadmap, and the owner wants **all of them done in
+the next session**, so cost is no criterion — only an efficient order:
 
-The owner has since walked the renderer, the editor, solving and the results
-panel in a browser (see below); the attack-tree look and the dark theme have
-been seen only in passing.
+1. **`share-ui`** — the server side (`POST/GET/DELETE /api/share`, spec §8) is
+   built and tested; this is WebCrypto AES-256-GCM with the key in the fragment,
+   a share dialog with TTL, `/s/{id}` loading a local copy, a "My shares" list
+   with delete. The `Share` button in the top bar is there, disabled.
+   `store.js` already wraps IndexedDB (one object store, `working`); the share
+   list belongs in the same database — that needs a version bump and a second
+   store. Crypto and list logic get `node --test` tests.
+2. **`ui-charts`** — TTC CDF (exact + sampled with band) and LEC, hand-rolled
+   SVG, crosshair tooltip, a table view each. The numbers are in the results
+   already: `exact.ttc_cdf`, `sampled.ttc_cdf` (with band), `sampled.loss`
+   `exceedance`. New tabs in the right panel (`controls.js` has the tab code;
+   the tablist is in `shell.html`). Load the `dataviz` skill before drawing.
+3. **`ui-pareto`** — attack-tree profile only; `results.attacker` has the sets
+   with `on_front`. Table with the cheapest path pinned, scatter with axis
+   pickers, two-way highlight with the canvas (`renderer.highlight(ids, kind)`
+   and the cut-set table in `app.js` show how).
+4. **`v1-acceptance`** — spec §12 by hand against a release binary, the
+   performance budget, the course docs page. Needs the three above.
 
-## The three defects of 2026-09-21 — fixed and seen by the owner
+Order 1–3 is free (none needs another); charts and pareto both add right-panel
+tabs, so doing them back to back saves a rebase. Sample documents that exercise
+everything (shared nodes, vote gate, assets, controls, both profiles) are in
+`~/effractor-samples/` on the owner's machine — outside the repo on purpose.
 
-1. No example ships; `/` opens an empty document (`assets/templates/`),
-   `?new=attack-tree` an empty attack tree. Fixtures and the spec's example are
-   English.
-2. **Fit**: the HUD is stacked above the graph.
-3. Nothing could be removed because nothing could be *selected*: the renderer
-   captured the pointer on every press, and a captured pointer's `click` goes
-   to the svg. Capture now starts with the drag; selection comes from the
-   release. The canvas takes focus on a press, so keys survive a button click.
+## How the owner wants the UI
 
-Since then, asked for by the owner: every action is an icon in the rail with
-its key in the tooltip, `?` lists all keys, the node menu also opens from the
-model tree, a refused edit leaves a notice on the canvas, and removal is worded
-by what it does (delete / unlink from a parent / delete everywhere) with undo
-instead of a confirm. `ui-renderer` and `ui-editor` are off the roadmap;
-`wasm-api` and `ui-results` followed once solving, cancel, the crash recovery
-and the results panel had been walked. The owner's
-taste: Chainalysis Reactor — quiet chrome, detail on demand.
+The reference is Chainalysis Reactor: quiet chrome, detail on demand. Decided
+today, all of it after seeing the alternative:
 
-## How to verify UI work from now on
+- **No examples ship**, nothing German ships; `/` opens the working text from
+  IndexedDB, else an empty document. Fixtures and the spec's example are English.
+- **No walls of buttons.** Actions are icons in the rail with the key in the
+  tooltip; the context menu (canvas *and* model tree) and the `?` list spell
+  them out. Every interaction has a button and every key is listed.
+- **UI copy is a few words** — a unit, a range, a format — never sentences. **No
+  other product is named** in the product (securiCAD is our orientation, not the
+  user's; the preset names stay because they are the file format).
+- **No native form pop-ups.** `menu.js` has the app's own dropdown (answers to
+  `value` / `change` like a select) and suggestions under a text field; use
+  them, not `<select>` / `<datalist>`.
+- **No confirm dialogs.** Destructive things are undoable and say so in the
+  canvas notice (`app.say`): delete, unlink, remove asset/control, New/Open.
+- **No made-up numbers.** A likelihood kind opens an empty field; a leaf without
+  a number is drawn dashed with `?`.
+- Things are named by what they do: *Delete "X" and 3 below*, *Unlink from "P"*.
 
-The rule stands: no headless-browser harness in the repo, the owner judges the
-page. What went wrong this session is that code was landed with *nobody* having
-run it. Do not repeat that:
+## How UI work is verified
 
-- After any DOM change, run the server and ask the owner to look **before**
-  landing, with a short list of what to try. Small PRs, one interaction each.
-- This environment has a Chrome extension tool (`claude-in-chrome`) that could
-  drive the owner's real browser for a smoke check. It was not used, because the
-  standing instruction is that the owner verifies the UI. Ask once whether it
-  may be used for smoke checks; it is not a test harness and leaves nothing in
-  the repo.
-- A one-off trick that did catch real layout bugs: serialise the renderer's
-  output through `scripts/fixtures/fake-dom.js` to an `.svg`, inline the token
-  values, rasterise with ImageMagick, look at the PNG. Geometry only — it says
-  nothing about events, focus or stacking, which is exactly where the defects
-  above are.
+No headless-browser harness in the repo, and the owner said **no** to driving
+their Chrome with `claude-in-chrome`: they look, you hand them a short numbered
+list of what to try. What worked today:
+
+- One interaction per PR; pure logic (`edit.js`, `results-view.js`, `store.js`,
+  `source.js` helpers, `view.js`, `graph.js`) under `node --test`; then run the
+  server, say what to try, wait for the look, merge only on the owner's word.
+- `cargo run -p effractor-server` serves `assets/` **from disk** in debug, so
+  the page follows whatever branch the main checkout is on; `shell.html` is
+  compiled in, so a change there needs a restart. To keep working while the
+  owner looks, use a `git worktree` and a second server
+  (`-- --bind 127.0.0.1:8081`, own `CARGO_TARGET_DIR`, copy `assets/wasm/` in).
+  A different port is a different origin: separate IndexedDB and localStorage.
+- Everything that refuses or fails says so through `app.say` — blind debugging
+  of "nothing happens" cost an hour before that existed.
+- A scratch script can drive the real wasm module under node
+  (`new Function(src + "; return wasm_bindgen;")()`, then `initSync`) to check
+  that an edit serialises, parses and solves; ELK runs under node too
+  (`elkjs/lib/elk.bundled.js`). Good for ruling the logic out.
+
+## What bit today
+
+- **A scripted edit cut 90 lines too many** out of `editor.js` (rail wiring, the
+  keys dialog). `node --check` and every test passed; the page was dead. After
+  any scripted edit to a DOM file, read the *deleted* lines of the diff
+  (`git diff | grep '^-'`) before saying it is ready.
+- **Pointer capture moves the click.** `setPointerCapture` on every press made
+  the browser send `click` to the svg, so nothing could be selected. Capture
+  only once a press becomes a drag; select from `pointerup`.
+- **Stacking.** The svg is mounted after the HUD and covered it; `.hud` has
+  `z-index: 1`.
+- **`solver.onCrash` was never set**, so a crash with nothing pending was
+  silent. It is set now.
+- `git push --force` and deleting branches are blocked by the permission
+  classifier here. A rebased branch goes up under a new name with a new PR and
+  the old PR is closed; a stacked PR whose base is not `master` shows as closed,
+  not merged, after the fast-forward — close it with a comment.
+- The process stands (see `CONTRIBUTING.md`): branch → PR → `wait-ci.sh ci.yml
+  <sha>` for that exact commit, unpiped → `git merge --ff-only` on master →
+  push → `wait-ci.sh release.yml <sha>`. Wait for one release before pushing
+  master again. `commit.gpgsign` is on; master stays signed.
+- `pkill -f target/debug/effractor` kills the shell that runs it. Stop the
+  server by port: `ss -ltnp | grep :8080`, then `kill` the pid.
+
+## Housekeeping left behind
+
+- Two finished worktrees, `../SecGraph-noexamples` and `../SecGraph-source`, and
+  some twenty merged branches, local and on origin. All are merged into master;
+  removing them was blocked by the classifier, so it is the owner's to run:
+  `git worktree remove --force <dir>`, `git branch -d …`,
+  `git push origin --delete …`.
 
 ## What exists, briefly
 
 - `effractor-format`: `load` / `save` / `canonicalize` / `diagnose`, and
-  `document` / `from_document` — the JSON image of a document that the browser
-  edits. `x-` keys are **not** in `core::Model`; the reader hands them to the
-  writer by path. Text is written bare only where the YAML parser reads it back
-  identically *in that position* (block value, block key, flow item/key/value).
+  `document` / `from_document` — the JSON image the browser edits. `x-` keys are
+  not in `core::Model`; the reader hands them to the writer by path.
 - `effractor-wasm`: `validate`, `parse`, `serialize`, `solve_begin/step/finish/
-  cancel`, `ttc_sketch`, `crash`; JSON text in and out; logic in `api.rs`,
-  tested natively. `serde_json` needs `float_roundtrip` (a test fails without).
-- `scripts/build-wasm.sh [--fetch-cli]` → `assets/wasm/` (git-ignored). The
-  server test for the bundle fails until it has run. CI and the release run it;
-  the release builds the bundle once for both architectures.
-- JS, pure and tested: `graph.js` (document → drawn nodes → ELK graph; shared
-  nodes get one in-port per parent via a second layout pass), `view.js`,
-  `results-view.js`, `edit.js`, `solver.js`, and the message handler in
-  `solver-worker.js`. Maps keyed by node id are prototype-less: `constructor`
-  is a valid id.
-- Share server: `share::Storage` with one contract test for memory and
-  filesystem; `POST/GET/DELETE /api/share`; details in spec §8.
+  cancel`, `ttc_sketch`, `crash`; JSON text in and out. `scripts/build-wasm.sh
+  [--fetch-cli]` → `assets/wasm/` (git-ignored; a server test fails without it).
+- Page scripts, in load order: `theme`, `workspace` (panels), `graph`, `view`,
+  `renderer-svg` (interface of spec 7.1, plus `zoomBy`, pressable edges, refit
+  on resize), `layout` (ELK worker), `results-view`, `edit` (every document
+  edit, pure), `solver`, `store`, `app` (state, solve, undo, file menu, notice),
+  `menu` (dropdown, suggestions), `editor` (keys, rail, context menu, property
+  panel, model tree, assets), `source`, `controls` (tabs, controls).
+- `window.effractor` is how they talk: `state`, `select`, `applyEdit`,
+  `adoptSource`, `solve`, `undo`/`redo`, `say`, `format`, `onChange`.
+- Every edit goes document → `serialize` → `parse` in wasm; JS never judges a
+  model. Maps keyed by node id are prototype-less.
 
 ## Known limits and loose ends
 
-- JavaScript reorders object keys that look like array indices: a node whose id
-  is all digits moves to the front of `nodes` on a trip through the editor.
-  Either forbid such ids in `core::id` (a spec change) or carry order explicitly.
+- A node id of digits only moves to the front of `nodes` on a trip through the
+  editor (JavaScript orders such keys first). Forbid them in `core::id` or
+  carry order explicitly.
 - Via JSON, a bare `x-` string that looks typed (`2026-09-01`) comes back
-  quoted. Same value to every reader; documented in `tests/json.rs`.
-- Descriptions with line breaks are written as one double-quoted line; a block
-  scalar would diff better.
-- The editor cannot edit the header, assets or controls, and there is no New /
-  open / save — all noted on `ui-source`.
-- `fresh` ids (derive the id from the first label) live in `editor.js` memory
-  only; an undo or a reload forgets which nodes were still unnamed.
-- Behind a reverse proxy the share rate limit sees one address. By design there
-  is no flag for it.
-- ELK may order a shared node's siblings differently from the document to avoid
-  crossings.
-
-## Process reminders that bit this session
-
-- `ship.sh` runs `git add -A`. Build products that are ignored only on another
-  branch (it was `assets/wasm/`) get committed; `.git/info/exclude` has the entry
-  locally now.
-- `ship.sh` switches the checkout to `master`; a worktree holding `master`
-  blocks it. Once it has fast-forwarded it only watches the release and the tree
-  is free.
-- Run `cargo fmt --all` *after* the last edit; rustfmt rewraps lines, which also
-  breaks scripted search-and-replace against them.
-
-## Suggested order
-
-1. `ui-charts`, `ui-pareto`, `share-ui`, then `v1-acceptance`. Done and walked
-   by the owner: `ui-source` (file menu, IndexedDB, source view), assets and
-   controls made and edited in the panels, the Controls tab with ranking.
-2. House rules learnt the hard way: UI copy is a few words, no other product is
-   named, form controls are the app's own (`menu.js`), and after a scripted edit
-   to a DOM file read the deleted lines of the diff — `node --check` does not
-   see a function that went missing.
+  quoted; a description with line breaks is written as one quoted line.
+- `fresh` ids (id derived from the first label) live in `editor.js` memory; an
+  undo or a reload forgets which nodes were still unnamed.
+- After an undo the results are cleared and not solved again (a control toggle
+  does re-solve).
+- The theme switch has three states (Light → Dark → System); with the OS in
+  dark mode two of them look the same. The owner noticed once; a two-state
+  toggle was offered and not asked for.
+- Tab order and ARIA of the custom dropdown are basic (arrows, Enter, Esc).
+- Behind a reverse proxy the share rate limit sees one address, by design.
+- ELK may order a shared node's siblings differently from the document.
