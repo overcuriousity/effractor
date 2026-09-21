@@ -25,20 +25,10 @@ user input · no third-party origins, no telemetry · vanilla CSS + JS, no bundl
 
 ## Browser
 
-### ui-charts — TTC CDF and LEC
-needs: —            cost: 3   benefit: 4
-Hand-rolled SVG charts: exact + sampled CDF with band, LEC with percentiles and
-the one-event-per-horizon note; crosshair tooltip; table view for each.
-
-### ui-pareto — Pareto table and scatter
-needs: —            cost: 2   benefit: 3
-Spec 7.4: primary table with pinned cheapest path; scatter with axis pickers;
-two-way highlight with the canvas. Attack-tree profile only.
-
 ## Sharing and delivery
 
 ### v1-acceptance — The spec's "done means"
-needs: ui-charts, ui-pareto            cost: 2   benefit: 5
+needs: —            cost: 2   benefit: 5
 A walk through spec §12 against a release binary, by hand; performance
 budget check (10 000 samples < 1 s, first exact result < 100 ms on the reference
 tree); docs page for the course with the reference fault tree and one attack
