@@ -582,12 +582,6 @@
   }
 
   var UNIT = { h: "hour", d: "day", y: "year" };
-  // The presets for a time to compromise, and the shapes behind them.
-  var TTC_EXAMPLES = [
-    "EasyAndCertain", "EasyAndUncertain", "HardAndCertain", "HardAndUncertain", "VeryHardAndCertain", "VeryHardAndUncertain",
-    "Exponential(0.1)", "LogNormal(1.5, 0.8)", "Gamma(2, 10)", "Bernoulli(0.2) * LogNormal(1.5, 0.8)", "Infinity",
-  ];
-
   // A kind of likelihood picked but not yet given a number: the field is there
   // and empty, and the document is untouched until something is typed. No
   // number is ever made up.
@@ -652,12 +646,11 @@
     } else {
       var ttc = field(form, "prop-value", "ttc", input("text", given === "ttc" ? n.ttc : ""));
       ttc.classList.add("mono");
-      ttc.placeholder = "HardAndUncertain";
-      window.effractorMenu.suggest(ttc, TTC_EXAMPLES);
+      var timing = window.effractorTtc.attach(ttc, unit);
+      form.appendChild(timing);
       ttc.addEventListener("change", function () {
         if (ttc.value.trim() !== "") commit("ttc", ttc.value.trim());
       });
-      hint(form, "Time to success in " + UNIT[unit] + "s: a preset or a distribution.");
     }
     if (given && given === quantity) sketch(form, n);
   }

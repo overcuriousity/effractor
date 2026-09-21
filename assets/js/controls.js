@@ -70,9 +70,6 @@
   }
 
   var openControl = null; // the one control being edited, if any
-  // The presets, and the one that blocks a step.
-  var TTC_WORDS = ["Infinity", "VeryHardAndUncertain", "VeryHardAndCertain", "HardAndUncertain", "HardAndCertain", "EasyAndUncertain", "EasyAndCertain", "Exponential(0.01)", "Bernoulli(0.1)"];
-
   function labelled(form, id, text, control) {
     var l = document.createElement("label");
     l.htmlFor = id;
@@ -89,7 +86,6 @@
     i.value = value == null ? "" : value;
     if (mono) {
       i.classList.add("mono");
-      window.effractorMenu.suggest(i, TTC_WORDS);
     }
     return i;
   }
@@ -145,7 +141,7 @@
         edit(E.removeEffect(app.state.doc, id, index));
       });
       row.appendChild(name);
-      row.appendChild(ttc);
+      row.appendChild(window.effractorTtc.attach(ttc, doc.time_unit));
       row.appendChild(remove);
       form.appendChild(row);
     });
@@ -181,7 +177,7 @@
         }
       });
       add.appendChild(leaf);
-      add.appendChild(to);
+      add.appendChild(window.effractorTtc.attach(to, doc.time_unit));
       add.appendChild(go);
       form.appendChild(add);
     }

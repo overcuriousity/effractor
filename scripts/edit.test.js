@@ -225,3 +225,15 @@ test("controls are made by name, given a cost and effects on leaves, and taken a
   assert.equal(E.removeControl(d, "phishing-training").doc.controls, undefined, "no controls: no key");
   assert.equal(E.removeControl(d, "nobody"), null);
 });
+
+test('changing the horizon preserves timings and the original document', () => {
+  const original = { ...attack, horizon: 30, time_unit: 'd' };
+  const result = E.setHorizon(original, '90');
+  assert.equal(result.doc.horizon, 90);
+  assert.equal(original.horizon, 30);
+  assert.equal(result.doc.time_unit, 'd');
+  assert.deepEqual(result.doc.nodes, original.nodes);
+  assert.equal(E.setHorizon(original, ''), null);
+  assert.equal(E.setHorizon(original, 'Infinity'), null);
+  assert.equal(E.setHorizon(original, 'not a number'), null);
+});

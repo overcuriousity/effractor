@@ -25,6 +25,8 @@
 <script src="/assets/js/store.js" defer></script>
 <script src="/assets/js/app.js" defer></script>
 <script src="/assets/js/menu.js" defer></script>
+<script src="/assets/js/horizon.js" defer></script>
+<script src="/assets/js/ttc.js" defer></script>
 <script src="/assets/js/editor.js" defer></script>
 <script src="/assets/js/source.js" defer></script>
 <script src="/assets/js/controls.js" defer></script>
@@ -39,6 +41,7 @@
     <span class="crumb">Models / <button class="crumb-name" id="file" type="button" aria-haspopup="menu" aria-controls="file-menu" title="New, open, save"><b id="model-name">Untitled</b><span aria-hidden="true"> ▾</span></button></span>
     <input id="open-file" type="file" accept=".yaml,.yml,text/yaml" hidden>
     <span class="chip" id="profile-chip">no profile</span>
+    <button class="chip horizon-chip" id="horizon" type="button" title="Edit analysis horizon" disabled>Horizon —</button>
     <span class="chip" id="analysis-chip">not solved</span>
     <span class="spacer"></span>
     <button class="btn btn-ghost" id="theme-switch" type="button" aria-label="Theme">Light</button>
@@ -150,6 +153,15 @@
 
 </div>
 
+<dialog class="help-dialog" id="horizon-dialog" aria-labelledby="horizon-title">
+  <form id="horizon-form" novalidate>
+    <h2 class="label" id="horizon-title">Analysis horizon</h2>
+    <p><label for="horizon-value">Duration <span id="horizon-unit"></span></label> <input class="num" id="horizon-value" type="text" inputmode="decimal" autocomplete="off" aria-describedby="horizon-error"></p>
+    <p class="hint">Time window for probabilities and loss.</p>
+    <p id="horizon-error" class="hint" role="status"></p>
+    <button class="btn" type="submit">Apply</button><button class="btn btn-ghost" id="horizon-close" type="button">Cancel</button>
+  </form>
+</dialog>
 <dialog class="help-dialog share-dialog" id="share-dialog" aria-labelledby="share-title">
   <h2 class="label" id="share-title">Share snapshot</h2>
   <div class="share-actions"><span id="share-expiry"></span><button class="btn" id="share-create" type="button">Create link</button></div>
