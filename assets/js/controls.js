@@ -40,12 +40,12 @@
   }
 
   function worth(row, solved, currency) {
-    if (row.value === null) return solved ? "not valued" : "Solve to see what it is worth.";
+    if (row.value === null) return solved ? "not valued" : "not solved";
     var m = solved.measure;
-    var text = (row.enabled ? "removing it adds " : "enabling it saves ") + amount(m, row.value, currency);
+    var text = row.enabled ? "adds " + amount(m, row.value, currency) + " if removed" : "saves " + amount(m, row.value, currency);
     if (row.ci) text += " (" + amount(m, row.ci.lo, currency) + " – " + amount(m, row.ci.hi, currency) + ")";
-    if (row.perCost !== null) text += " · " + view.number(row.perCost) + " per " + (currency || "unit") + " spent";
-    if (row.close) text += " · too close to another to call: more samples would settle it";
+    if (row.perCost !== null) text += " · " + view.number(row.perCost) + " per " + (currency || "unit");
+    if (row.close) text += " · too close to call";
     return text;
   }
 
@@ -70,7 +70,7 @@
   }
 
   var openControl = null; // the one control being edited, if any
-  // securiCAD's words, and the one that blocks a step.
+  // The presets, and the one that blocks a step.
   var TTC_WORDS = ["Infinity", "VeryHardAndUncertain", "VeryHardAndCertain", "HardAndUncertain", "HardAndCertain", "EasyAndUncertain", "EasyAndCertain", "Exponential(0.01)", "Bernoulli(0.1)"];
 
   function labelled(form, id, text, control) {
@@ -89,7 +89,7 @@
     i.value = value == null ? "" : value;
     if (mono) {
       i.classList.add("mono");
-      i.setAttribute("list", "effect-ttc-words");
+      window.effractorMenu.suggest(i, TTC_WORDS);
     }
     return i;
   }
@@ -119,7 +119,7 @@
 
     var title = document.createElement("p");
     title.className = "hint";
-    title.textContent = "While it is on, these leaves get this likelihood instead of their own:";
+    title.textContent = "Effects: likelihood while on";
     form.appendChild(title);
 
     (control.effects || []).forEach(function (effect, index) {
@@ -154,20 +154,16 @@
     if (targets.length) {
       var add = document.createElement("div");
       add.className = "effect effect-add";
-      var leaf = document.createElement("select");
+      var leaf = window.effractorMenu.dropdown(targets.map(function (node) {
+        return [node, nodeLabel(node)];
+      }), targets[0]);
       leaf.id = "effect-leaf";
       leaf.setAttribute("aria-label", "Leaf to act on");
-      targets.forEach(function (node) {
-        var option = document.createElement("option");
-        option.value = node;
-        option.textContent = nodeLabel(node);
-        leaf.appendChild(option);
-      });
       // The leaf selected on the canvas is the likely one.
       if (targets.indexOf(app.state.selected) >= 0) leaf.value = app.state.selected;
       var to = textInput("", true);
       to.id = "effect-new-ttc";
-      to.placeholder = "Infinity, HardAndUncertain, …";
+      to.placeholder = "likelihood";
       to.setAttribute("aria-label", "Its likelihood while the control is on");
       var go = document.createElement("button");
       go.type = "button";
@@ -192,13 +188,13 @@
 
     var hint = document.createElement("p");
     hint.className = "hint";
-    hint.textContent = "Written like a leaf's time to compromise: securiCAD's words, a distribution such as Exponential(0.01), or Infinity for a step the control makes impossible. If two enabled controls act on one leaf, the stronger effect applies.";
+    hint.textContent = "Infinity blocks the step. Overlapping controls: the stronger applies.";
     form.appendChild(hint);
 
     var removeControl = document.createElement("button");
     removeControl.type = "button";
     removeControl.className = "btn btn-ghost btn-small asset-remove";
-    removeControl.textContent = "Remove the control";
+    removeControl.textContent = "Remove";
     removeControl.addEventListener("click", function () {
       var name = control.label || id;
       openControl = null;
@@ -275,9 +271,9 @@
       item.appendChild(head);
       var facts = document.createElement("p");
       facts.className = "control-facts";
-      var cost = row.cost === null ? "no cost given" : "costs " + app.format.money(row.cost, doc.currency);
+      var cost = row.cost === null ? "no cost" : app.format.money(row.cost, doc.currency);
       var reach = row.effects === 1 ? "1 leaf" : row.effects + " leaves";
-      facts.textContent = cost + " · acts on " + reach;
+      facts.textContent = cost + " · " + reach;
       item.appendChild(facts);
       var value = document.createElement("p");
       value.className = "control-worth";
@@ -290,15 +286,6 @@
   }
 
   // ---- a new control: by name, like an asset ----
-
-  var words = document.createElement("datalist");
-  words.id = "effect-ttc-words";
-  TTC_WORDS.forEach(function (word) {
-    var option = document.createElement("option");
-    option.value = word;
-    words.appendChild(option);
-  });
-  document.body.appendChild(words);
 
   $("control-add").addEventListener("click", function () {
     var name = $("control-new");

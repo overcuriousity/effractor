@@ -424,16 +424,9 @@
     return i;
   }
 
+  // The app's own dropdown; it answers to `value` and `change` like a select.
   function choice(options, value) {
-    var s = document.createElement("select");
-    options.forEach(function (o) {
-      var option = document.createElement("option");
-      option.value = o[0];
-      option.textContent = o[1];
-      s.appendChild(option);
-    });
-    s.value = value;
-    return s;
+    return window.effractorMenu.dropdown(options, value == null ? "" : value);
   }
 
   // A number field commits a number; an empty one removes the key.
@@ -499,7 +492,7 @@
     var assets = Object.keys(doc().assets || {});
     if (!assets.length && !(n.consequences || []).length) {
       // Said where it is looked for: a consequence needs something to cost.
-      hint(form, "Consequences: none possible yet — add an asset under Assets, on the left, and this node can cost something.");
+      hint(form, "Consequences need an asset.");
       return;
     }
     var title = document.createElement("p");
@@ -589,7 +582,7 @@
   }
 
   var UNIT = { h: "hour", d: "day", y: "year" };
-  // securiCAD's words for a time to compromise, and the shapes behind them.
+  // The presets for a time to compromise, and the shapes behind them.
   var TTC_EXAMPLES = [
     "EasyAndCertain", "EasyAndUncertain", "HardAndCertain", "HardAndUncertain", "VeryHardAndCertain", "VeryHardAndUncertain",
     "Exponential(0.1)", "LogNormal(1.5, 0.8)", "Gamma(2, 10)", "Bernoulli(0.2) * LogNormal(1.5, 0.8)", "Infinity",
@@ -621,14 +614,14 @@
     }
 
     if (!quantity) {
-      hint(form, "No number yet: the tree still gives its cut sets, but no probabilities.");
+      hint(form, "No number: cut sets only.");
     } else if (quantity === "p") {
       var p = field(form, "prop-value", "p", input("number", given === "p" ? n.p : ""));
       p.min = 0; p.max = 1; p.placeholder = "0 … 1";
       p.addEventListener("change", function () {
         if (p.value.trim() !== "") commit("p", Number(p.value));
       });
-      hint(form, "The chance that this happens at all within the horizon (" + horizon + "): 0 never, 1 certainly. It does not depend on time.");
+      hint(form, "Chance within the horizon (" + horizon + ").");
     } else if (quantity === "rate") {
       var mean = given === "rate" ? E.meanTime(n.rate, unit) : null;
       var row = document.createElement("div");
@@ -655,24 +648,16 @@
       rate.addEventListener("change", function () {
         if (rate.value.trim() !== "") commit("rate", Number(rate.value));
       });
-      hint(form, "For things that happen by themselves, like a failure: how long, on average, between two of them. The rate is the same thing the other way round — occurrences per " + UNIT[unit] + " — and is what the file stores.");
+      hint(form, "Mean time between occurrences; stored as a rate per " + UNIT[unit] + ".");
     } else {
       var ttc = field(form, "prop-value", "ttc", input("text", given === "ttc" ? n.ttc : ""));
       ttc.classList.add("mono");
       ttc.placeholder = "HardAndUncertain";
-      ttc.setAttribute("list", "ttc-examples");
-      var list = document.createElement("datalist");
-      list.id = "ttc-examples";
-      TTC_EXAMPLES.forEach(function (example) {
-        var option = document.createElement("option");
-        option.value = example;
-        list.appendChild(option);
-      });
-      form.appendChild(list);
+      window.effractorMenu.suggest(ttc, TTC_EXAMPLES);
       ttc.addEventListener("change", function () {
         if (ttc.value.trim() !== "") commit("ttc", ttc.value.trim());
       });
-      hint(form, "For an attacker's step: how long until it succeeds, in " + UNIT[unit] + "s, as a distribution. securiCAD's words work (EasyAndCertain … VeryHardAndUncertain); so do Exponential(λ) with mean 1/λ, LogNormal, Gamma, and Bernoulli(p) * … for a step that is possible at all only with chance p.");
+      hint(form, "Time to success in " + UNIT[unit] + "s: a preset or a distribution.");
     }
     if (given && given === quantity) sketch(form, n);
   }
@@ -893,7 +878,7 @@
             });
           });
         });
-        hint(form, "What it costs, in " + (doc().currency || "money") + ", when that property of the asset is lost. A number, or a distribution such as Pert(least, likely, most). Leave empty what does not apply.");
+        hint(form, "Loss in " + (doc().currency || "money") + ": a number or a distribution.");
         var uses = E.usesOfAsset(doc(), id);
         var remove = document.createElement("button");
         remove.type = "button";
