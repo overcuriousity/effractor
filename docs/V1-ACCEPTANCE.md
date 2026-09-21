@@ -1,7 +1,7 @@
 # v1 acceptance record
 
-Date: 2026-09-21. Final release acceptance is **pending** until the chart,
-Pareto and timing PRs are visually accepted and released, and the owner completes
+Date: 2026-09-21. Final release acceptance is **pending** until the chart and
+Pareto PRs are visually accepted and released, and the owner completes
 the keyboard walkthrough against that release binary. Do not remove
 `v1-acceptance` from the roadmap before that check.
 
@@ -34,6 +34,11 @@ the keyboard walkthrough against that release binary. Do not remove
   the editor and passed encrypted snapshot create, fetch/decrypt, delete and
   subsequent 404 checks using the reference fixture. This smoke test does not
   replace visual acceptance.
+
+- Timing UI (TTC preset pickers and horizon editor) was visually accepted by
+  the owner and merged independently through PR #48 at `1b064d4`; exact-commit
+  CI and release verification passed. Pareto
+  remains pending another visual check after the table alignment correction.
 
 ## Owner walkthrough still required
 

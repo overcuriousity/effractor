@@ -7,20 +7,20 @@ says where things stand, how the owner wants the UI to be, and what bit today.
 
 ## Continuation — current session
 
-Sharing was visually accepted and merged in PR #43; master is `6010f7f`, with
-CI and release green. Work continues on normal feature branches in the main
+Sharing was visually accepted and merged in PR #43. Timing UI was accepted
+and merged independently through PR #48 at `1b064d4`; CI and release are green.
+Stacked PR #45 is closed. Work continues on normal feature branches in the main
 checkout, as requested by the owner:
 
 - PR #44 (`feature/ui-charts`): TTC and loss charts, tables, crosshair and keys.
-- PR #45 (`feature/ttc-picker`): explained TTC pickers for leaves/controls and
-  a visible, undoable top-bar horizon editor; requested during chart review.
 - PR #46 (`feature/ui-pareto`): sortable table, pinned cheapest path, axis
   pickers, scatter and two-way graph highlighting.
 - `feature/v1-acceptance`: course docs/files, performance check, and an honest
   acceptance record in `docs/V1-ACCEPTANCE.md`.
 
-These are stacked in that order. Chart, timing and Pareto visual acceptance
-and merge approval are pending; do not infer approval from passing tests.
+These are stacked in that order on the timing merge. Charts remain pending
+visual acceptance. Pareto needs another owner look after the header/cell
+alignment fix in `4611161`; do not infer approval from passing tests.
 The roadmap still lists the unfinished acceptance items. Read the acceptance
 record for measured results and the remaining release-binary walkthrough.
 
