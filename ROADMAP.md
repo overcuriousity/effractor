@@ -31,13 +31,6 @@ the spec's example file loads, and unknown keys error with a position.
 
 ## Solver
 
-### solver-attacker — Cheapest path and Pareto front
-needs: —            cost: 3   benefit: 4
-Per-MCS cost (shared leaf once), detection, success, `E[max TTC | finite]`
-(numerical integration of the product CDF, via `libm`); min-cost set with
-time → id tie-break; non-dominated filter over (cost, time, detection). Done when
-proptest finds no dominated member and no missing non-dominated MCS.
-
 ### solver-controls — Toggles, deltas, ranking
 needs: —            cost: 3   benefit: 5
 Apply enabled effects (lowest `p(T)` wins); per-control flip re-solve with
@@ -46,7 +39,7 @@ disabled controls, removal cost for enabled ones. Done when a blocking control
 on a SPOF ranks first in the fixture and a no-op control has Δ exactly 0.
 
 ### solver-results — `solve` façade and results JSON
-needs: solver-controls, solver-attacker            cost: 2   benefit: 5
+needs: solver-controls            cost: 2   benefit: 5
 `fn solve(&Model, &Config) -> Results` plus the stepped form; `Results` serde
 schema `effractor-results: 1` with `unavailable` / `truncated` reasons; profile
 gating of analyses. Done when the reference tree's results JSON is
