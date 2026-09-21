@@ -36,7 +36,7 @@ for confidentiality and integrity plus a control scenario.
 1. Build the gates with the keyboard, then enter the file's leaf attributes.
    A shared event can be added with L without duplicating its random variable.
 2. Solve and open Pareto. The cheapest path is pinned. Sort by cost, time,
-   detection or success. Expected time is conditional on all steps succeeding;
+   detection or success. Mean time shows the model unit and assumes all steps succeed;
    an infinite expected time is shown as ∞.
 3. Switch the scatter axes. Diamonds mark the front and dots the dominated
    paths; nonfinite points are excluded only from axes that cannot plot them.

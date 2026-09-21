@@ -38,7 +38,8 @@ the keyboard walkthrough against that release binary. Do not remove
 - Timing UI (TTC preset pickers and horizon editor) was visually accepted by
   the owner and merged independently through PR #48 at `1b064d4`; exact-commit
   CI and release verification passed. Pareto
-  remains pending another visual check after the table alignment correction.
+  table alignment was accepted; Mean time/unit/pinned wording was then clarified.
+  Overall Pareto merge approval remains pending.
 
 ## Owner walkthrough still required
 

@@ -19,8 +19,9 @@ checkout, as requested by the owner:
   acceptance record in `docs/V1-ACCEPTANCE.md`.
 
 These are stacked in that order on the timing merge. Charts remain pending
-visual acceptance. Pareto needs another owner look after the header/cell
-alignment fix in `4611161`; do not infer approval from passing tests.
+visual acceptance. The owner accepted Pareto table alignment; follow-up
+wording now says Mean time with explicit units and Cheapest · pinned.
+Overall Pareto merge approval remains pending; do not infer it from passing tests.
 The roadmap still lists the unfinished acceptance items. Read the acceptance
 record for measured results and the remaining release-binary walkthrough.
 
