@@ -6,7 +6,7 @@ use axum::response::Response;
 /// `'self'` is the only origin this names, and that is the point: fonts, ELK
 /// and the wasm module all come out of the binary. `'wasm-unsafe-eval'` is what
 /// compiling a wasm module is called under CSP; it permits no JavaScript eval.
-const CSP: &str = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; \
+pub(crate) const CSP: &str = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; \
 style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; \
 worker-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 

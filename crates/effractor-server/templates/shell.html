@@ -4,38 +4,44 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+{% if !sharing %}
+<meta http-equiv="Content-Security-Policy" content="{{ csp }}">
+<meta name="referrer" content="no-referrer">
+{% endif %}
 <title>effractor</title>
-<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/assets/css/00-tokens.css">
-<link rel="stylesheet" href="/assets/css/10-base.css">
-<link rel="stylesheet" href="/assets/css/20-workspace.css">
-<link rel="stylesheet" href="/assets/css/30-graph.css">
-<link rel="stylesheet" href="/assets/css/40-results.css">
-<link rel="stylesheet" href="/assets/css/50-editor.css">
-<script src="/assets/js/theme.js"></script>
-<script src="/assets/js/workspace.js" defer></script>
-<script src="/assets/vendor/elk/elk-api.js" defer></script>
-<script src="/assets/js/graph.js" defer></script>
-<script src="/assets/js/view.js" defer></script>
-<script src="/assets/js/renderer-svg.js" defer></script>
-<script src="/assets/js/layout.js" defer></script>
-<script src="/assets/js/results-view.js" defer></script>
-<script src="/assets/js/edit.js" defer></script>
-<script src="/assets/js/solver.js" defer></script>
-<script src="/assets/js/store.js" defer></script>
-<script src="/assets/js/charts.js" defer></script>
-<script src="/assets/js/app.js" defer></script>
-<script src="/assets/js/menu.js" defer></script>
-<script src="/assets/js/horizon.js" defer></script>
-<script src="/assets/js/ttc.js" defer></script>
-<script src="/assets/js/editor.js" defer></script>
-<script src="/assets/js/source.js" defer></script>
-<script src="/assets/js/controls.js" defer></script>
-<script src="/assets/js/pareto.js" defer></script>
-<script src="/assets/js/pareto-ui.js" defer></script>
-<script src="/assets/js/charts-ui.js" defer></script>
-<script src="/assets/js/share.js" defer></script>
-<script src="/assets/js/share-ui.js" defer></script>
+<link rel="icon" href="{{ asset_prefix }}assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="{{ asset_prefix }}assets/css/00-tokens.css">
+<link rel="stylesheet" href="{{ asset_prefix }}assets/css/10-base.css">
+<link rel="stylesheet" href="{{ asset_prefix }}assets/css/20-workspace.css">
+<link rel="stylesheet" href="{{ asset_prefix }}assets/css/30-graph.css">
+<link rel="stylesheet" href="{{ asset_prefix }}assets/css/40-results.css">
+<link rel="stylesheet" href="{{ asset_prefix }}assets/css/50-editor.css">
+<script src="{{ asset_prefix }}assets/js/theme.js"></script>
+<script src="{{ asset_prefix }}assets/js/workspace.js" defer></script>
+<script src="{{ asset_prefix }}assets/vendor/elk/elk-api.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/graph.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/view.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/renderer-svg.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/layout.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/results-view.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/edit.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/solver.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/store.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/charts.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/app.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/menu.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/horizon.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/ttc.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/editor.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/source.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/controls.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/pareto.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/pareto-ui.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/charts-ui.js" defer></script>
+{% if sharing %}
+<script src="{{ asset_prefix }}assets/js/share.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/share-ui.js" defer></script>
+{% endif %}
 </head>
 <body>
 <div class="workspace" id="app" data-version="{{ version }}">
@@ -49,7 +55,7 @@
     <span class="chip" id="analysis-chip">not solved</span>
     <span class="spacer"></span>
     <button class="btn btn-ghost" id="theme-switch" type="button" aria-label="Theme">Light</button>
-    <button class="btn btn-ghost" id="share" type="button" disabled>Share</button>
+    <button class="btn btn-ghost" id="share" type="button" disabled{% if !sharing %} title="Sharing unavailable on this site"{% endif %}>Share</button>
     <button class="btn" id="solve" type="button" disabled>Solve</button>
   </header>
 
@@ -172,6 +178,7 @@
     <button class="btn" type="submit">Apply</button><button class="btn btn-ghost" id="horizon-close" type="button">Cancel</button>
   </form>
 </dialog>
+{% if sharing %}
 <dialog class="help-dialog share-dialog" id="share-dialog" aria-labelledby="share-title">
   <h2 class="label" id="share-title">Share snapshot</h2>
   <div class="share-actions"><span id="share-expiry"></span><button class="btn" id="share-create" type="button">Create link</button></div>
@@ -180,6 +187,7 @@
   <h3 class="label">My shares</h3><p class="hint" id="shares-empty">No shares</p><ul id="my-shares"></ul>
   <button class="btn btn-ghost" id="share-close" type="button">Close</button>
 </dialog>
+{% endif %}
 <dialog class="link-dialog" id="link-dialog" aria-label="Link an existing node">
   <input class="link-search" id="link-search" type="search" placeholder="Link an existing node…" aria-controls="link-results">
   <ul class="link-results" id="link-results" role="listbox"></ul>

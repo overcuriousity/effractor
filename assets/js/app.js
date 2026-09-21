@@ -44,13 +44,15 @@
   }
   if (typeof document === "undefined") return;
 
-  var TEMPLATE = "/assets/templates/" + templateName(location.search) + ".yaml";
+  // Resolve from this script, including on /s/id and repository Pages URLs.
+  var assets = new URL("../", document.currentScript.src);
+  var TEMPLATE = new URL("templates/" + templateName(location.search) + ".yaml", assets).href;
   var $ = function (id) {
     return document.getElementById(id);
   };
   var store = window.effractorStore.createStore(window.indexedDB);
   var solver = window.createSolver(function () {
-    return new Worker("/assets/js/solver-worker.js");
+    return new Worker(new URL("js/solver-worker.js", assets));
   });
   // For the console: effractor.solver.crash() shows the recovery path.
   window.effractor = { solver: solver };
@@ -495,12 +497,12 @@
 
   var fileActions = {
     new: function () {
-      template("/assets/templates/new.yaml").then(function (text) {
+      template(new URL("templates/new.yaml", assets).href).then(function (text) {
         replaceDocument(text, "new fault tree");
       });
     },
     "new-attack": function () {
-      template("/assets/templates/new-attack.yaml").then(function (text) {
+      template(new URL("templates/new-attack.yaml", assets).href).then(function (text) {
         replaceDocument(text, "new attack tree");
       });
     },

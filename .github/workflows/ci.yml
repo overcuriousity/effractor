@@ -32,6 +32,8 @@ jobs:
         run: scripts/build-wasm.sh --fetch-cli
       - run: cargo clippy --workspace --all-targets --locked
       - run: cargo test --workspace --locked
+      - name: static site export
+        run: scripts/build-site.sh
       - name: wasm build
         run: >
           cargo build --locked --target wasm32-unknown-unknown

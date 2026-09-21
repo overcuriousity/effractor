@@ -7,6 +7,9 @@ mod assets;
 mod headers;
 pub mod share;
 mod shell;
+mod static_site;
+
+pub use static_site::export_static;
 
 use axum::Router;
 use axum::routing::get;

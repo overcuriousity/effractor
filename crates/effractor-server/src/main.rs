@@ -19,6 +19,10 @@ const VERSION: &str = match option_env!("EFFRACTOR_VERSION") {
 #[derive(Parser)]
 #[command(name = "effractor", version = VERSION)]
 struct Args {
+    /// Export a static site to a new directory, without sharing, then exit.
+    #[arg(long, value_name = "DIRECTORY")]
+    export_static: Option<PathBuf>,
+
     /// Address to listen on.
     #[arg(long, default_value = "127.0.0.1:8080")]
     bind: SocketAddr,
@@ -43,6 +47,9 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let args = Args::parse();
+    if let Some(destination) = args.export_static {
+        return effractor_server::export_static(&destination);
+    }
     let limits = Limits {
         max_ttl: args.max_ttl,
         ..Limits::default()

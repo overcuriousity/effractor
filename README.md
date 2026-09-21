@@ -8,6 +8,10 @@ never leaves your machine unless you share it. No accounts, no telemetry.
 
 *effractor* — Latin: one who breaks in.
 
+[Open effractor in your browser](https://overcuriousity.github.io/effractor/).
+The public site runs the same editor and solver, with local persistence and
+file import/export. Sharing is disabled because GitHub Pages has no backend.
+
 ## Install
 
 ```sh
@@ -60,5 +64,14 @@ The first line needs the `wasm-bindgen` CLI in the version `Cargo.lock` names;
 it says how to get it, or fetches it itself with `--fetch-cli`. Run it again
 after changing a crate the browser runs. Other browser assets are vendored; `npm ci && npm run vendor` only after bumping a pin
 in `package.json`.
+
+To build a static site after building WASM, run `scripts/build-site.sh`.
+Serve `target/site/` with any static web server. The export uses the server's
+own HTML template and assets; no separate UI is maintained. Asset paths work
+at a domain root or under a repository path.
+
+The `pages` workflow builds and deploys it on every push to `master`, including
+documentation-only pushes. Repository Settings → Pages → Source must be
+**GitHub Actions** (one-time setup). The workflow can also be run manually.
 
 AGPL-3.0-or-later.

@@ -5,7 +5,7 @@ use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
 #[folder = "../../assets"]
-struct Assets;
+pub(crate) struct Assets;
 
 /// Release builds look the path up as a key among the embedded files, so a
 /// `..` names nothing. Debug builds read from disk, where rust-embed refuses

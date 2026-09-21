@@ -4,13 +4,13 @@
    scripts/check-contrast.js asserts every ratio claimed below, in CI. */
 
 @font-face { font-family: Inter; font-weight: 400; font-display: swap;
-  src: url("/assets/vendor/fonts/inter-400.woff2") format("woff2"); }
+  src: url("../vendor/fonts/inter-400.woff2") format("woff2"); }
 @font-face { font-family: Inter; font-weight: 500; font-display: swap;
-  src: url("/assets/vendor/fonts/inter-500.woff2") format("woff2"); }
+  src: url("../vendor/fonts/inter-500.woff2") format("woff2"); }
 @font-face { font-family: Inter; font-weight: 600; font-display: swap;
-  src: url("/assets/vendor/fonts/inter-600.woff2") format("woff2"); }
+  src: url("../vendor/fonts/inter-600.woff2") format("woff2"); }
 @font-face { font-family: "JetBrains Mono"; font-weight: 400; font-display: swap;
-  src: url("/assets/vendor/fonts/jetbrains-mono-400.woff2") format("woff2"); }
+  src: url("../vendor/fonts/jetbrains-mono-400.woff2") format("woff2"); }
 
 :root {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
