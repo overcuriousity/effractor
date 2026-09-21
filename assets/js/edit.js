@@ -495,7 +495,14 @@
     };
   }
 
-  var api = {
+  function setHorizon(doc, value) {
+    var typed = String(value == null ? "" : value).trim();
+    if (!typed || !Number.isFinite(Number(typed))) return null;
+    doc = clone(doc); doc.horizon = Number(typed);
+    return { doc: doc, select: null };
+  }
+
+  var api = { setHorizon: setHorizon,
     slug: slug, parentsOf: parentsOf, addChild: addChild, addSibling: addSibling, rename: rename, setId: setId,
     cycleGate: cycleGate, setLeafKind: setLeafKind, link: link, removeEdge: removeEdge, deleteNode: deleteNode, removal: removal,
     reparent: reparent, setAttribute: setAttribute, outline: outline, rateFrom: rateFrom, meanTime: meanTime,
