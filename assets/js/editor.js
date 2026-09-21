@@ -218,10 +218,12 @@
     $("context-menu").hidden = true;
   }
 
-  app.renderer.on("context", function (e) {
+  // The same menu wherever a node is shown: on the canvas, and in the model
+  // tree, where `parent` is the edge the row stands for.
+  function openMenu(id, parent, x, y) {
     closeMenu();
-    if (!e.id) return;
-    app.select(e.id);
+    if (!id) return;
+    app.select(id, parent);
     var menu = $("context-menu");
     menu.replaceChildren();
     MENU.forEach(function (item) {
@@ -239,9 +241,13 @@
       });
       menu.appendChild(button);
     });
-    menu.style.setProperty("--menu-x", Math.min(e.x, window.innerWidth - 210) + "px");
-    menu.style.setProperty("--menu-y", Math.min(e.y, window.innerHeight - 30 * menu.children.length - 12) + "px");
+    menu.style.setProperty("--menu-x", Math.min(x, window.innerWidth - 210) + "px");
+    menu.style.setProperty("--menu-y", Math.min(y, window.innerHeight - 30 * menu.children.length - 12) + "px");
     menu.hidden = false;
+  }
+
+  app.renderer.on("context", function (e) {
+    openMenu(e.id, undefined, e.x, e.y);
   });
   document.addEventListener("pointerdown", function (e) {
     if (!$("context-menu").contains(e.target)) closeMenu();
@@ -562,6 +568,10 @@
       item.title = row.id;
       item.addEventListener("click", function () {
         app.select(row.id, row.parent);
+      });
+      item.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        openMenu(row.id, row.parent, e.clientX, e.clientY);
       });
       list.appendChild(item);
     });
