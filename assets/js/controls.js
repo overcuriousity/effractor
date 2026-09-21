@@ -257,7 +257,7 @@
       // The name opens the control to be edited; the box alone switches it.
       var name = document.createElement("button");
       name.type = "button";
-      name.className = "control-name";
+      name.className = "control-name disclosure";
       name.textContent = row.label;
       name.title = row.id;
       name.setAttribute("aria-expanded", String(openControl === row.id));

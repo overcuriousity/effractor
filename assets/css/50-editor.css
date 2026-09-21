@@ -19,9 +19,7 @@
 .label-action:hover { background: var(--color-bg-hover); color: var(--color-fg-primary); }
 .asset-new { width: 100%; margin-bottom: 6px; padding: 3px 5px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-base); color: var(--color-fg-primary); font: inherit; font-size: var(--text-sm); }
 .asset { margin-bottom: 4px; font-size: var(--text-sm); }
-.asset-head { display: block; width: 100%; padding: 2px 4px; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; font-weight: 500; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
-.asset-head:hover { background: var(--color-bg-hover); }
-.asset-head[aria-expanded="true"] { background: var(--color-bg-active); }
+.asset-head { width: 100%; }
 .asset-loss { display: grid; grid-template-columns: 1.5em 1fr; gap: 1px 6px; margin: 0; padding: 0 4px; font: var(--text-xs)/1.5 var(--font-mono); }
 .asset-loss dt { color: var(--color-fg-muted); }
 .asset-loss dd { margin: 0; overflow-wrap: anywhere; }

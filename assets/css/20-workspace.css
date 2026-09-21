@@ -70,6 +70,26 @@
 
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
+/* Expandable asset and control rows share one disclosure affordance. */
+.disclosure {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px;
+  padding: 2px 4px;
+  border: 0; border-radius: var(--radius-sm);
+  background: none; color: inherit;
+  font: inherit; font-weight: 500; text-align: left;
+  overflow-wrap: anywhere; cursor: pointer;
+}
+.disclosure::after {
+  content: "";
+  width: 7px; height: 7px; margin: 0 3px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  color: var(--color-fg-secondary);
+  transform: rotate(-45deg);
+}
+.disclosure:hover, .disclosure:focus-visible { background: var(--color-bg-hover); }
+.disclosure[aria-expanded="true"] { background: var(--color-bg-active); }
+.disclosure[aria-expanded="true"]::after { transform: rotate(45deg); }
+
 /* ---- tool rail ---- */
 .rail {
   grid-area: rail;

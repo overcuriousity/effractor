@@ -39,9 +39,9 @@
 .controls { margin: 0; padding: 0; list-style: none; }
 .control { padding: 6px 0; border-bottom: 1px solid var(--color-border-subtle); }
 .control:last-child { border-bottom: 0; }
-.control-head { display: flex; align-items: baseline; gap: 6px; font-size: var(--text-sm); cursor: pointer; }
+.control-head { display: flex; align-items: baseline; gap: 6px; font-size: var(--text-sm); }
 .control-head input { flex: none; margin: 0; accent-color: var(--color-accent); }
-.control-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.control-name { flex: 1; min-width: 0; }
 .control-rank { flex: none; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .control-facts, .control-worth { margin: 2px 0 0 19px; color: var(--color-fg-muted); font-size: var(--text-xs); line-height: 1.35; }
 .control-worth { color: var(--color-fg-secondary); }
@@ -49,8 +49,6 @@
 #tab-controls .hint { margin: 8px 0 0; color: var(--color-fg-muted); font-size: var(--text-xs); line-height: 1.35; }
 
 /* A control opened to be edited. */
-.control-name { border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: 500; text-align: left; cursor: pointer; }
-.control-name:hover { text-decoration: underline; }
 .control-form { margin: 6px 0 2px 19px; padding: 0; }
 .control-form .hint { grid-column: 1 / -1; }
 .effect { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto; gap: 4px; align-items: center; }

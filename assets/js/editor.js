@@ -836,7 +836,7 @@
       block.className = "asset";
       var head = document.createElement("button");
       head.type = "button";
-      head.className = "asset-head";
+      head.className = "asset-head disclosure";
       head.setAttribute("aria-expanded", String(openAsset === id));
       head.title = id;
       head.textContent = asset.label || id;
