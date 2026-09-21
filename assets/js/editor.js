@@ -194,6 +194,7 @@
   // dialog lists both, so a key that exists is a key that is shown.
   var OTHER_KEYS = [
     ["← → in a chart", "Inspect plotted values"],
+    ["Enter in Pareto scatter", "Highlight an attack path"],
     ["↑ ↓ ← →", "Walk the tree: parent, child, siblings"],
     ["any letter", "Rename, starting with that letter"],
     ["Esc", "Leave a field, close a menu"],

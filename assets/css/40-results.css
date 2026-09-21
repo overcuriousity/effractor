@@ -79,3 +79,20 @@
 .analysis-table th { color: var(--color-fg-muted); font-weight: 500; }
 .analysis-table .num { text-align: right; white-space: nowrap; }
 .analysis-chart:focus-visible { outline: 2px solid var(--color-accent); }
+
+.pareto-table th { text-align: left; }
+.pareto-sort, .pareto-path { border: 0; padding: 0; background: none; color: inherit; font: inherit; text-align: inherit; cursor: pointer; }
+.pareto-sort:hover, .pareto-path:hover { text-decoration: underline; }
+.pareto-path { min-width: 100px; }
+.pareto-table .cheapest { position: sticky; top: 0; background: var(--color-bg-elevated); }
+.pareto-cheapest { display: block; font-size: var(--text-xs); color: var(--color-accent); }
+.pareto-table tr.is-active { background: var(--color-bg-active); box-shadow: inset 2px 0 var(--color-accent); }
+.pareto-table tr.has-selected .pareto-path { text-decoration: underline; color: var(--color-accent); }
+.pareto-scatter { margin-top: 16px; }
+.pareto-axes { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 6px; align-items: center; font-size: var(--text-xs); }
+.pareto-point { cursor: pointer; stroke: var(--viz-outline); stroke-width: 1; }
+.pareto-point.front { fill: var(--color-accent); }
+.pareto-point.dominated { fill: var(--color-fg-muted); }
+.pareto-point.is-active, .pareto-point.has-selected { stroke: var(--color-fg-primary); stroke-width: 3; }
+.node.hl-pareto { filter: drop-shadow(0 0 3px var(--color-accent)); }
+.edge.hl-pareto { stroke: var(--color-accent); stroke-width: 2.5; }
