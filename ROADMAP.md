@@ -26,16 +26,14 @@ user input · no third-party origins, no telemetry · vanilla CSS + JS, no bundl
 ## Browser
 
 ### wasm-api — wasm-bindgen surface and worker
-needs: —            cost: 3   benefit: 5
-Exports `validate`, `parse`, `serialize`, `solve_begin`/`solve_step`/`solve_finish`,
-each returning `{ok}` or `{diagnostics}`; panic hook. `parse` hands JS the
-document as a JSON image of its YAML tree and `serialize` takes one back through
-the same lowering, so `x-` keys — which a `Model` does not hold — survive an
-edit. `assets/js/solver-worker.js` with progress, cancel-between-chunks and
-restart-on-panic; exact results posted before sampling starts. The build embeds
-the wasm bundle, so `ci.yml` and `release.yml` both gain the wasm-bindgen step.
-Done when the reference tree solves in the browser with progress shown and a
-long run can be cancelled — checked by hand.
+needs: —            cost: 1   benefit: 5
+Built and tested: the exports, the worker, the page's first solve. What is left
+is the check by hand, which is the item's "done": with `scripts/build-wasm.sh`
+run and the server up, the reference tree solves on **Solve** / `Ctrl+Enter`
+with P(top) shown at once and progress after; `/?samples=20000000` runs long
+enough to **Cancel**; and `effractor.solver.crash()` in the console, then Solve
+again, shows a crash reported and the worker replaced. Delete this item when
+that has been seen.
 
 ### ui-renderer — Renderer interface and SVG implementation
 needs: wasm-api            cost: 5   benefit: 5
