@@ -1,0 +1,127 @@
+# Fictional training model; access assumptions and EUR losses are illustrative.
+effractor: 1
+profile: attack-tree
+name: Payroll funds diverted to an unauthorized destination
+time_unit: d
+horizon: 30
+currency: EUR
+top: funds-diverted
+
+nodes:
+  funds-diverted:
+    label: Divert a payroll payment
+    description: >-
+      One monthly payroll cycle. The normal workflow requires a changed payee
+      and any two of three independent approvers. A separate bank-upload route
+      bypasses that workflow. AND combines conditions, not sequential durations.
+    gate: or
+    children: [approved-payee-change, bank-upload-abuse]
+    consequences:
+      - {asset: payroll-funds, dim: i}
+      - {asset: payroll-service, dim: a}
+  approved-payee-change:
+    label: Unauthorized payee change gains sufficient approval
+    gate: and
+    children: [payee-edit-access, approval-quorum]
+  payee-edit-access:
+    label: Gain the ability to edit payee details
+    gate: or
+    children: [payroll-clerk-account, hr-integration-token]
+  payroll-clerk-account:
+    label: Compromise a payroll clerk account
+    leaf: basic
+    ttc: "Bernoulli(0.4) * LogNormal(2.2, 0.7)"
+    cost: 1800
+    detection: 0.25
+  hr-integration-token:
+    label: Obtain a payee-write integration token
+    leaf: basic
+    ttc: "Bernoulli(0.2) * Gamma(2, 8)"
+    cost: 4500
+    detection: 0.1
+  approval-quorum:
+    label: Control at least two of three approval authorities
+    description: Each leaf represents a distinct authority; no shared accounts are assumed.
+    gate: vote
+    k: 2
+    children: [approver-a, approver-b, approver-c]
+  approver-a:
+    label: Obtain finance manager approval authority
+    leaf: basic
+    ttc: "Bernoulli(0.3) * Gamma(2, 6)"
+    cost: 4000
+    detection: 0.3
+  approver-b:
+    label: Obtain HR manager approval authority
+    leaf: basic
+    ttc: "Bernoulli(0.35) * Gamma(2, 5)"
+    cost: 3000
+    detection: 0.4
+  approver-c:
+    label: Obtain controller approval authority
+    leaf: basic
+    ttc: "Bernoulli(0.18) * LogNormal(2.8, 0.5)"
+    cost: 6500
+    detection: 0.15
+  bank-upload-abuse:
+    label: Submit an unauthorized payment file directly
+    gate: and
+    children: [treasury-workstation, bank-signing-key, reconciliation-gap]
+  treasury-workstation:
+    label: Control the treasury upload workstation
+    leaf: basic
+    ttc: "Bernoulli(0.25) * Exponential(0.04)"
+    cost: 7000
+    detection: 0.45
+  bank-signing-key:
+    label: Obtain use of the bank-file signing key
+    leaf: basic
+    ttc: "Bernoulli(0.2) * Gamma(3, 5)"
+    cost: 8500
+    detection: 0.2
+  reconciliation-gap:
+    label: Evade reconciliation until the payment is final
+    leaf: undeveloped
+    ttc: "Bernoulli(0.35) * Exponential(0.08)"
+    cost: 1200
+    detection: 0.1
+
+assets:
+  payroll-funds:
+    label: Unrecovered diverted funds
+    loss: {i: "Pert(15000, 90000, 300000)"}
+  payroll-service:
+    label: Payroll correction and interruption
+    loss: {a: "Pert(5000, 18000, 55000)"}
+
+controls:
+  payee-callback:
+    label: Independent payee-change verification
+    description: Replacement assumptions include the independent verification barrier.
+    cost: 700
+    enabled: false
+    effects:
+      - {node: payroll-clerk-account, ttc: "Bernoulli(0.08) * LogNormal(2.8, 0.7)"}
+      - {node: hr-integration-token, ttc: "Bernoulli(0.04) * Gamma(2, 12)"}
+  approver-authentication:
+    label: Hardware-bound authentication for all approvers
+    cost: 450
+    enabled: true
+    effects:
+      - {node: approver-a, ttc: "Bernoulli(0.08) * Gamma(2, 12)"}
+      - {node: approver-b, ttc: "Bernoulli(0.1) * Gamma(2, 10)"}
+      - {node: approver-c, ttc: "Bernoulli(0.04) * LogNormal(3.3, 0.5)"}
+  bank-key-custody:
+    label: Hardware custody of bank-file signing keys
+    cost: 1100
+    enabled: false
+    effects:
+      - {node: bank-signing-key, ttc: "Bernoulli(0.03) * Gamma(3, 10)"}
+  daily-reconciliation:
+    label: Independent payment reconciliation
+    cost: 600
+    enabled: false
+    effects:
+      - {node: reconciliation-gap, ttc: "Bernoulli(0.05) * Exponential(0.04)"}
+
+analysis: {seed: 109, samples: 10000, confidence: 0.95}

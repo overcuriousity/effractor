@@ -1,0 +1,188 @@
+# Fictional exploratory model. One likelihood is intentionally unknown.
+effractor: 1
+profile: attack-tree
+name: Wind farm remote operations compromised
+time_unit: d
+horizon: 90
+currency: EUR
+top: fleet-operations-compromised
+
+nodes:
+  fleet-operations-compromised:
+    label: Unauthorized control or interruption of the wind farm
+    description: >-
+      An early architecture workshop covering operator access, maintenance and
+      remote communications. Vendor gateway compromise deliberately has no TTC:
+      inspect minimal cut sets and single points of failure, then supply an
+      assessed likelihood in the editor before requesting quantitative results.
+      Other numbers are illustrative. This is a parallel-condition tree, not
+      the successor architecture or sequential attack-graph profile.
+    gate: or
+    children: [dispatch-abuse, maintenance-abuse, telemetry-denial]
+  dispatch-abuse:
+    label: Send unauthorized fleet operating commands
+    gate: and
+    children: [control-network-access, dispatch-authority, command-check-defeated]
+    consequences:
+      - {asset: operating-configuration, dim: i}
+      - {asset: generation-service, dim: a, fraction: 0.5}
+  control-network-access:
+    label: Reach the operations control network
+    gate: or
+    children: [operator-remote-access, vendor-gateway, site-access]
+  operator-remote-access:
+    label: Gain an operator remote-access session
+    gate: and
+    children: [operator-identity, managed-device]
+  operator-identity:
+    label: Control an operator identity
+    leaf: basic
+    ttc: "Bernoulli(0.3) * LogNormal(3, 0.7)"
+    cost: 6000
+    detection: 0.3
+  managed-device:
+    label: Satisfy the managed-device access requirement
+    leaf: basic
+    ttc: "Bernoulli(0.25) * Gamma(2, 18)"
+    cost: 9000
+    detection: 0.2
+  vendor-gateway:
+    label: Compromise the vendor maintenance gateway
+    description: >-
+      Unknown pending supplier evidence and an access review. No probability
+      has been invented here. Use the likelihood editor to complete this model.
+    leaf: undeveloped
+    cost: 15000
+    detection: 0.15
+    x-assessment: {status: unknown, owner: Supplier assurance}
+  site-access:
+    label: Gain control-network access from a turbine site
+    gate: and
+    children: [cabinet-access, local-network-boundary]
+  cabinet-access:
+    label: Obtain access to a communications cabinet
+    leaf: basic
+    ttc: "Bernoulli(0.4) * Exponential(0.025)"
+    cost: 4000
+    detection: 0.4
+  local-network-boundary:
+    label: Defeat site-to-control-network restrictions
+    leaf: basic
+    ttc: "Bernoulli(0.2) * Gamma(3, 15)"
+    cost: 12000
+    detection: 0.25
+  dispatch-authority:
+    label: Obtain dispatch write authority
+    leaf: basic
+    ttc: "Bernoulli(0.25) * Gamma(2, 20)"
+    cost: 10000
+    detection: 0.15
+  command-check-defeated:
+    label: Defeat independent command validation
+    leaf: basic
+    ttc: "Bernoulli(0.3) * LogNormal(3.5, 0.6)"
+    cost: 7000
+    detection: 0.35
+  maintenance-abuse:
+    label: Apply unauthorized turbine configuration
+    gate: and
+    children: [control-network-access, maintenance-authority, configuration-check-defeated]
+    consequences:
+      - {asset: operating-configuration, dim: i}
+      - {asset: generation-service, dim: a}
+  maintenance-authority:
+    label: Obtain maintenance write authority
+    gate: or
+    children: [technician-account, maintenance-service-token]
+  technician-account:
+    label: Control an authorized technician account
+    leaf: basic
+    ttc: "Bernoulli(0.3) * Exponential(0.02)"
+    cost: 6500
+    detection: 0.25
+  maintenance-service-token:
+    label: Obtain a maintenance automation token
+    leaf: basic
+    ttc: "Bernoulli(0.2) * Gamma(3, 16)"
+    cost: 11000
+    detection: 0.08
+  configuration-check-defeated:
+    label: Defeat configuration approval and validation
+    leaf: basic
+    ttc: "Bernoulli(0.2) * LogNormal(3.7, 0.7)"
+    cost: 8000
+    detection: 0.4
+  telemetry-denial:
+    label: Disable both remote telemetry channels
+    gate: and
+    children: [primary-channel-lost, backup-channel-lost]
+    consequences:
+      - {asset: generation-service, dim: a, fraction: 0.2}
+  primary-channel-lost:
+    label: Primary telemetry channel unavailable
+    gate: or
+    children: [primary-link-disruption, shared-router-control]
+  backup-channel-lost:
+    label: Backup telemetry channel unavailable
+    gate: or
+    children: [backup-link-disruption, shared-router-control]
+  primary-link-disruption:
+    label: Sustain disruption of the primary link
+    leaf: basic
+    ttc: "Bernoulli(0.35) * Exponential(0.04)"
+    cost: 5000
+    detection: 0.85
+  backup-link-disruption:
+    label: Sustain disruption of the independent backup link
+    leaf: basic
+    ttc: "Bernoulli(0.2) * Gamma(2, 12)"
+    cost: 9500
+    detection: 0.9
+  shared-router-control:
+    label: Control the common telemetry router
+    description: A single attack event defeats both nominally redundant links.
+    leaf: basic
+    ttc: "Bernoulli(0.18) * Gamma(3, 20)"
+    cost: 14000
+    detection: 0.2
+
+assets:
+  operating-configuration:
+    label: Trusted turbine configuration
+    loss: {i: "Pert(40000, 180000, 700000)"}
+  generation-service:
+    label: Lost generation and operational recovery
+    description: Simultaneous routes take the maximum outage fraction, not their sum.
+    loss: {a: "Pert(90000, 450000, 1800000)"}
+
+controls:
+  privileged-access:
+    label: Strengthen operator and technician access
+    cost: 14000
+    enabled: false
+    effects:
+      - {node: operator-identity, ttc: "Bernoulli(0.06) * LogNormal(3.8, 0.7)"}
+      - {node: technician-account, ttc: "Bernoulli(0.05) * Exponential(0.01)"}
+  site-segmentation:
+    label: Restrict turbine-site network access
+    cost: 22000
+    enabled: true
+    effects:
+      - {node: local-network-boundary, ttc: "Bernoulli(0.035) * Gamma(3, 25)"}
+  independent-validation:
+    label: Independently validate commands and configuration
+    cost: 18000
+    enabled: false
+    effects:
+      - {node: command-check-defeated, ttc: "Bernoulli(0.05) * LogNormal(4, 0.6)"}
+      - {node: configuration-check-defeated, ttc: "Bernoulli(0.03) * LogNormal(4.2, 0.7)"}
+  separate-telemetry-routers:
+    label: Remove common administration of both telemetry paths
+    description: Residual likelihood summarizes the stronger boundary, not perfect protection.
+    cost: 16000
+    enabled: false
+    effects:
+      - {node: shared-router-control, ttc: "Bernoulli(0.03) * Gamma(3, 30)"}
+
+analysis: {seed: 112, samples: 10000, confidence: 0.95}
+x-workshop: {stage: initial assessment, missing-input: vendor-gateway}
