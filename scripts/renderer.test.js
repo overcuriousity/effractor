@@ -123,6 +123,20 @@ test("clicks are reported as ids: select, activate, context", () => {
   assert.ok(prevented, "the browser's own menu is suppressed");
 });
 
+test("an edge can be pressed too: it selects the child along that edge", () => {
+  const { r, host } = mounted();
+  r.render(layout(), {});
+  const seen = [];
+  r.on("select", (e) => seen.push([e.id, e.parent]));
+  r.on("context", (e) => seen.push(["context", e.id, e.parent]));
+  // The wide, unseen path over the line is what takes the press.
+  const hit = dom.byClass(host, "edge-hit").find((e) => e.getAttribute("data-from") === "physical" && e.getAttribute("data-to") === "key");
+  hit.dispatch("pointerdown", { clientX: 10, clientY: 10, button: 0, pointerId: 1 });
+  hit.dispatch("pointerup", { clientX: 10, clientY: 10, pointerId: 1 });
+  hit.dispatch("contextmenu", { clientX: 4, clientY: 5 });
+  assert.deepEqual(seen, [["key", "physical"], ["context", "key", "physical"]]);
+});
+
 test("dragging a node onto another is a drop; a click is not", () => {
   const { r, node } = mounted();
   r.render(layout(), {});

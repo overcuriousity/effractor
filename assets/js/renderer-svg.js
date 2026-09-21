@@ -55,6 +55,13 @@
       return node ? node.getAttribute("data-id") : null;
     }
 
+    // An edge under the pointer, as {from, to}: a press on a line means the
+    // child *along that line*, which for a shared node is the whole point.
+    function edgeAt(target) {
+      var hit = target && target.closest ? target.closest(".edge-hit") : null;
+      return hit ? { from: hit.getAttribute("data-from"), to: hit.getAttribute("data-to") } : null;
+    }
+
     function applyView() {
       viewport.setAttribute("transform", "translate(" + view.x + " " + view.y + ") scale(" + view.k + ")");
     }
@@ -73,12 +80,13 @@
       });
       svg.addEventListener("contextmenu", function (e) {
         e.preventDefault();
-        emit("context", { id: idAt(e.target), x: e.clientX, y: e.clientY });
+        var edge = edgeAt(e.target);
+        emit("context", { id: edge ? edge.to : idAt(e.target), parent: edge ? edge.from : undefined, x: e.clientX, y: e.clientY });
       });
 
       svg.addEventListener("pointerdown", function (e) {
         if (e.button !== 0) return;
-        gesture = { id: idAt(e.target), x: e.clientX, y: e.clientY, moved: false };
+        gesture = { id: idAt(e.target), edge: edgeAt(e.target), x: e.clientX, y: e.clientY, moved: false };
         if (svg.focus) svg.focus();
       });
       svg.addEventListener("pointermove", function (e) {
@@ -104,7 +112,7 @@
         svg.classList.remove("is-dragging", "is-panning");
         // A press and release in place is the selection: of the node the press
         // landed on, whatever the browser makes the target of its click.
-        if (!g.moved) return emit("select", { id: g.id });
+        if (!g.moved) return emit("select", g.edge ? { id: g.edge.to, parent: g.edge.from } : { id: g.id, parent: undefined });
         svg.releasePointerCapture(e.pointerId);
         var target = idAt(dropTarget(e));
         if (g.id && target && target !== g.id) emit("drop", { id: g.id, target: target, ctrl: !!(e.ctrlKey || e.metaKey) });
@@ -201,7 +209,15 @@
           return (i ? "L" : "M") + p.x + " " + p.y;
         })
         .join(" ");
-      return el("path", { d: d, "data-id": edge.id, "data-from": edge.from, "data-to": edge.to }, ["edge"], edgeLayer);
+      var line = el("path", { d: d, "data-id": edge.id, "data-from": edge.from, "data-to": edge.to }, ["edge"], edgeLayer);
+      // A line is thin; what takes the pointer is a wide, unseen one over it —
+      // over its last stretch only, into the child: siblings share the rest.
+      var last = edge.points.slice(-2);
+      if (last.length === 2) {
+        var into = "M" + last[0].x + " " + last[0].y + "L" + last[1].x + " " + last[1].y;
+        el("path", { d: into, "data-from": edge.from, "data-to": edge.to }, ["edge-hit"], edgeLayer);
+      }
+      return line;
     }
 
     function applyHighlights() {

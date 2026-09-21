@@ -24,6 +24,9 @@
   stroke-linejoin: round;
 }
 
+.edge-hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
+.edge.hl-via { stroke: var(--color-accent); stroke-width: 2.25; stroke-dasharray: 5 3; }
+
 .node { cursor: pointer; }
 .node .shape {
   fill: var(--color-bg-elevated);

@@ -82,6 +82,9 @@
     state.parentChosen = parents.indexOf(parent) >= 0;
     state.parent = state.parentChosen ? parent : parents[0] || null;
     renderer.highlight(state.selected ? [state.selected] : [], "selected");
+    // The edge a shared node was reached along, when that was said: it is what
+    // Del and Unlink act on.
+    renderer.highlight(state.selected && state.parentChosen && parents.length > 1 ? [state.selected, state.parent] : [], "via");
     var facts = $("selected-facts");
     facts.replaceChildren();
     facts.hidden = !state.selected;
@@ -183,7 +186,7 @@
   }
 
   renderer.on("select", function (e) {
-    select(e.id);
+    select(e.id, e.parent);
     markRows();
   });
 

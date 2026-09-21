@@ -103,6 +103,17 @@
       if (!app.state.parent) return app.say("the top event cannot be moved");
       openLinkDialog("move");
     },
+    // The rail's two halves of Del, for those who want to say which.
+    deleteNode: function () {
+      var ways = removals();
+      if (ways.length) ways[ways.length - 1][2]();
+    },
+    unlink: function () {
+      var ways = removals().slice(0, -1);
+      var chosen = ways.filter(function (w) { return w[1]; })[0];
+      if (chosen) return chosen[2]();
+      if (ways.length) showMenuAtSelection(ways);
+    },
     undo: function () {
       app.undo();
     },
@@ -119,9 +130,7 @@
       if (ways.length === 1) return ways[0][2]();
       var chosen = ways.filter(function (w) { return w[1]; })[0];
       if (chosen) return chosen[2]();
-      var at = document.querySelector("#canvas .node.hl-selected");
-      var box = (at || $("canvas")).getBoundingClientRect();
-      showMenu(ways, box.left + box.width / 2, box.top + box.height / 2);
+      showMenuAtSelection(ways);
     },
   };
 
@@ -195,6 +204,7 @@
     ["?", "This list"],
     ["click", "Select a node"],
     ["right-click", "Menu of the node's actions"],
+    ["click a line", "Select the child along that edge: Del unlinks exactly it"],
     ["drag the background", "Pan"],
     ["wheel", "Zoom at the pointer"],
     ["drag a node onto another", "Move it under that node"],
@@ -261,6 +271,12 @@
 
   // The same menu wherever a node is shown: on the canvas, and in the model
   // tree, where `parent` is the edge the row stands for.
+  function showMenuAtSelection(items) {
+    var at = document.querySelector("#canvas .node.hl-selected");
+    var box = (at || $("canvas")).getBoundingClientRect();
+    showMenu(items, box.left + box.width / 2, box.top + box.height / 2);
+  }
+
   // `items`: [label, key, run].
   function showMenu(items, x, y) {
     closeMenu();
@@ -299,7 +315,7 @@
   }
 
   app.renderer.on("context", function (e) {
-    openMenu(e.id, undefined, e.x, e.y);
+    openMenu(e.id, e.parent, e.x, e.y);
   });
   document.addEventListener("pointerdown", function (e) {
     if (!$("context-menu").contains(e.target)) closeMenu();
@@ -680,10 +696,13 @@
       allowed[item[0]] = !!n && !!item[3](n);
     });
     var ways = removals();
+    allowed.deleteNode = ways.length > 0;
+    allowed.unlink = ways.length > 1;
     railButtons.forEach(function (button) {
       var action = button.getAttribute("data-action");
       button.disabled = !allowed[action];
-      if (action === "remove") button.title = (ways.length === 1 ? ways[0][0] : "Unlink or delete…") + " (Del)";
+      if (action === "deleteNode") button.title = ways.length ? ways[ways.length - 1][0] + (ways.length === 1 ? " (Del)" : "") : "Delete";
+      if (action === "unlink") button.title = ways.length > 1 ? "Unlink from a parent… (Del)" : "Unlink — for a node with several parents";
     });
   }
 
