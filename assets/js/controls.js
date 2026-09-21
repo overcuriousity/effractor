@@ -16,10 +16,20 @@
     document.querySelectorAll("[data-tab]").forEach(function (tab) {
       var on = tab.getAttribute("data-tab") === name;
       tab.setAttribute("aria-selected", String(on));
+      tab.tabIndex = on ? 0 : -1;
       $("tab-" + tab.getAttribute("data-tab")).hidden = !on;
     });
   }
   document.querySelectorAll("[data-tab]").forEach(function (tab) {
+    tab.tabIndex = tab.getAttribute("aria-selected") === "true" ? 0 : -1;
+    tab.addEventListener("keydown", function (e) {
+      if (["ArrowLeft", "ArrowRight", "Home", "End"].indexOf(e.key) < 0) return;
+      e.preventDefault(); e.stopPropagation();
+      var tabs = Array.from(document.querySelectorAll("[data-tab]")).filter(function (t) { return !t.hidden; });
+      var at = tabs.indexOf(tab);
+      var next = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : (at + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+      showTab(tabs[next].getAttribute("data-tab")); tabs[next].focus();
+    });
     tab.addEventListener("click", function () {
       tab.blur();
       showTab(tab.getAttribute("data-tab"));

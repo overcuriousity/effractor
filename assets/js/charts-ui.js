@@ -20,8 +20,10 @@
     rows.forEach(function (row) { var r = el('tr'); row.forEach(function (value) { r.appendChild(el('td', number(value), 'num')); }); body.appendChild(r); });
     t.appendChild(body); scroll.appendChild(t); details.append(summary, scroll); return details;
   }
+  var positions = Object.create(null);
   function draw(kind, result) {
     var root = document.getElementById(kind + '-chart');
+    var focused = root.contains(document.activeElement) ? document.activeElement.tagName.toLowerCase() : null;
     var open = root.querySelector('details'); open = open && open.open;
     root.replaceChildren();
     var cdf = kind === 'ttc', model = cdf ? data.cdf(result) : data.loss(result), rows = model.rows;
@@ -58,9 +60,10 @@
     var vertical = svg('line', { y1: 32, y2: 204 }), horizontal = svg('line', { x1: 48, x2: 344 });
     cross.append(vertical, horizontal); plot.appendChild(cross);
     var tooltip = el('p', 'Left/Right: values', 'chart-tooltip num'); tooltip.setAttribute('aria-live', 'polite');
-    var active = 0;
+    var active = positions[kind] || 0;
     function inspect(index) {
       active = Math.max(0, Math.min(rows.length - 1, index));
+      positions[kind] = active;
       var row = rows[active], value = cdf ? (row[1] === null ? row[2] : row[1]) : row[1];
       cross.setAttribute('visibility', 'visible');
       vertical.setAttribute('x1', data.x(row[0], max)); vertical.setAttribute('x2', data.x(row[0], max));
@@ -87,6 +90,7 @@
     }
     var equivalent = table(cdf ? [unit, 'Exact', 'Sampled', 'Lower', 'Upper'] : [unit, 'P(loss ≥)'], rows);
     equivalent.open = !!open; root.appendChild(equivalent);
+    if (focused) (focused === "summary" ? equivalent.querySelector("summary") : plot).focus();
   }
   var last;
   app.onChange(function () {
