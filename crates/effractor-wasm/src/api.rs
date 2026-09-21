@@ -67,6 +67,26 @@ pub fn serialize(document: &str) -> String {
     }
 }
 
+/// A time-to-compromise as the property panel sketches it: `P(T ≤ horizon)` and
+/// the CDF at 33 points from 0 to the horizon. `{"error"}` if the expression
+/// does not parse or is not a TTC — the panel shows that next to the field.
+pub fn ttc_sketch(expression: &str, horizon: f64) -> String {
+    let d = match effractor_mal::parse_expr(expression) {
+        Ok(d) => d,
+        Err(e) => return error(&e.message),
+    };
+    if let Err(message) = d.check_ttc().and_then(|()| d.check_params()) {
+        return error(&message);
+    }
+    if !(horizon.is_finite() && horizon > 0.0) {
+        return error("the horizon must be > 0");
+    }
+    let cdf: Vec<f64> = (0..=32)
+        .map(|i| effractor_solver::dist::cdf(&d, horizon * f64::from(i) / 32.0))
+        .collect();
+    json!({"ok": {"p_horizon": cdf[32], "cdf": cdf}}).to_string()
+}
+
 /// One solve at a time: begun, stepped a chunk at a time so the caller can
 /// show progress and stop between chunks, finished.
 #[derive(Default)]

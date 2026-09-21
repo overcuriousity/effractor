@@ -1,0 +1,71 @@
+/* The editor's chrome: model tree, property panel, link dialog, context menu.
+   Anything positioned by script gets its numbers through custom properties
+   set with the CSSOM — the CSP allows no style attributes. */
+
+.outline { margin: 0; padding: 0; list-style: none; font-size: var(--text-sm); }
+.outline li {
+  padding: 2px 4px 2px calc(4px + var(--depth, 0) * 12px);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.outline li:hover { background: var(--color-bg-hover); }
+.outline li.is-selected { background: var(--color-bg-active); box-shadow: inset 2px 0 0 var(--color-accent); }
+.outline .kind { display: inline-block; width: 2.4em; color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
+.outline .repeat { margin-left: 4px; color: var(--color-fg-muted); font-size: var(--text-xs); }
+
+.assets { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.assets th { padding: 2px 4px; color: var(--color-fg-muted); font-weight: 500; text-align: left; }
+.assets td { padding: 2px 4px; overflow-wrap: anywhere; }
+.assets .num { text-align: right; }
+
+.properties { display: grid; grid-template-columns: auto 1fr; gap: 5px 8px; align-items: center; margin-bottom: 10px; font-size: var(--text-sm); }
+.properties label { color: var(--color-fg-muted); }
+.properties input, .properties select, .properties textarea {
+  width: 100%; min-width: 0;
+  padding: 3px 5px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  background: var(--color-bg-base); color: var(--color-fg-primary);
+  font: inherit;
+}
+.properties input[type="number"], .properties .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.properties textarea { resize: vertical; min-height: 3.2em; }
+.properties :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 0; }
+.properties .wide { grid-column: 1 / -1; }
+.properties .pair { display: grid; grid-template-columns: auto 1fr; gap: 4px; }
+.properties .hint { grid-column: 1 / -1; margin: 0; color: var(--color-fg-muted); font-size: var(--text-xs); }
+.properties .problem { color: var(--color-danger); }
+
+.sketch { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.sketch svg { width: 100%; height: 36px; border-bottom: 1px solid var(--color-border); }
+.sketch rect { fill: var(--color-accent); }
+.sketch .num { font-size: var(--text-xs); color: var(--color-fg-secondary); }
+
+.consequences { grid-column: 1 / -1; margin: 0; padding: 0; list-style: none; }
+.consequences li { display: flex; gap: 6px; align-items: center; justify-content: space-between; padding: 1px 0; }
+.consequence-add { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto 4.5em auto; gap: 4px; }
+.btn-small { padding: 1px 7px; font-size: var(--text-xs); }
+
+.link-dialog {
+  width: min(420px, 90vw); padding: 8px;
+  border: 1px solid var(--color-border-strong); border-radius: var(--radius-md);
+  background: var(--color-bg-elevated); color: var(--color-fg-primary);
+}
+.link-dialog::backdrop { background: rgb(0 0 0 / 0.25); }
+.link-search { width: 100%; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-base); color: inherit; font: inherit; }
+.link-results { max-height: 50vh; margin: 6px 0 0; padding: 0; overflow: auto; list-style: none; font-size: var(--text-sm); }
+.link-results li { display: flex; justify-content: space-between; gap: 10px; padding: 4px 8px; border-radius: var(--radius-sm); cursor: pointer; }
+.link-results li[aria-selected="true"] { background: var(--color-bg-active); }
+.link-results .id { color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
+
+.menu {
+  position: fixed; left: var(--menu-x, 0); top: var(--menu-y, 0); z-index: 20;
+  min-width: 190px; padding: 4px;
+  border: 1px solid var(--color-border-strong); border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
+  font-size: var(--text-sm);
+}
+.menu button { display: flex; justify-content: space-between; gap: 16px; width: 100%; padding: 4px 8px; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.menu button:hover, .menu button:focus-visible { background: var(--color-bg-hover); outline: none; }
+.menu kbd { color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); }

@@ -2,6 +2,7 @@
 //
 // in   {id, type: "validate" | "parse", text}    out  {id, type: "result", result}
 //      {id, type: "serialize", document}              {id, type: "result", result}
+//      {id, type: "sketch", expression, horizon}      {id, type: "result", result}
 //      {id, type: "solve", text}                      {id, type: "exact", result}
 //                                                     {id, type: "progress", done, total}…
 //                                                     {id, type: "result", result}
@@ -71,6 +72,8 @@
         // Sampling starts in a later turn: the exact results are on their way
         // to the page before the first sample is drawn.
         next(m.id);
+      } else if (m.type === "sketch") {
+        env.post({ id: m.id, type: "result", result: JSON.parse(api.ttc_sketch(m.expression, m.horizon)) });
       } else if (m.type === "crash") {
         api.crash();
       } else {

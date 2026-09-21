@@ -32,8 +32,9 @@
     return n >= 1 && Number.isSafeInteger(n) ? n : null;
   }
 
-  // ?example=office opens the attack tree; anything else, the reference tree.
-  var EXAMPLES = ["webserver", "office"];
+  // ?example=office opens the attack tree, ?example=new and new-attack an empty
+  // one to build in; anything else, the reference tree.
+  var EXAMPLES = ["webserver", "office", "new", "new-attack"];
 
   function exampleName(search) {
     var m = /[?&]example=([a-z0-9-]+)(&|$)/.exec(search);
@@ -54,8 +55,9 @@
   });
   // For the console: effractor.solver.crash() shows the recovery path.
   window.effractor = { solver: solver };
+  var listeners = []; // told after every load and every selection
 
-  var state = { text: null, doc: null, running: false, selected: null, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastExactMs: null };
+  var state = { text: null, doc: null, running: false, selected: null, parent: null, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastExactMs: null };
   var view = window.effractorResults;
   var MAX_ROWS = 200; // a table is for reading; ten thousand rows are not read
 
@@ -73,19 +75,19 @@
     return dd;
   }
 
-  function select(id) {
+  // `parent` is the edge the selection came along, which is what Enter, Del
+  // and the arrows act on; without one it is the node's first parent.
+  function select(id, parent) {
     state.selected = id && Object.prototype.hasOwnProperty.call(state.doc.nodes, id) ? id : null;
+    var parents = state.selected ? window.effractorEdit.parentsOf(state.doc, state.selected) : [];
+    state.parent = parents.indexOf(parent) >= 0 ? parent : parents[0] || null;
     renderer.highlight(state.selected ? [state.selected] : [], "selected");
     var facts = $("selected-facts");
     facts.replaceChildren();
     facts.hidden = !state.selected;
     $("selected-empty").hidden = !!state.selected;
+    notify();
     if (!state.selected) return;
-    var node = state.doc.nodes[state.selected];
-    fact(facts, "label", node.label);
-    fact(facts, "id", state.selected);
-    fact(facts, "kind", node.gate ? node.gate + " gate" : node.leaf + " event");
-    if (node.description) fact(facts, "note", node.description);
     view.nodeFacts(state.results, state.selected).forEach(function (f) {
       fact(facts, f[0], f[1]).classList.add("num");
     });
@@ -174,16 +176,22 @@
     renderer.render(state.laid, state.results ? view.leafStyles(state.results, state.measure) : {});
   }
 
+  function notify() {
+    listeners.forEach(function (f) {
+      f();
+    });
+  }
+
   renderer.on("select", function (e) {
     select(e.id);
     markRows();
   });
 
-  function draw() {
+  function draw(fit) {
     return layout(window.effractorGraph.describe(state.doc)).then(function (laid) {
       state.laid = laid;
       paint();
-      renderer.fit();
+      if (fit) renderer.fit();
     });
   }
 
@@ -200,14 +208,70 @@
     return problem.message + where;
   }
 
-  function loaded(text, doc) {
+  // `fit` on a fresh document; an edit leaves the view where the author put it.
+  function loaded(text, doc, fit) {
     state.text = text;
     state.doc = doc;
     $("model-name").textContent = doc.name;
     $("profile-chip").textContent = doc.profile;
     chip(analysisLabel(doc.analysis));
     $("solve").disabled = false;
-    return draw();
+    return draw(fit);
+  }
+
+  // What was solved is no longer what is on the canvas.
+  function clearResults() {
+    state.results = null;
+    state.ranked = [];
+    hud("hud-p", "—");
+    hud("hud-p-ci", "");
+    hud("hud-eal", "—");
+    hud("hud-p95", "");
+    $("cutsets-body").replaceChildren();
+    $("cutsets").hidden = true;
+    $("cutsets-empty").hidden = false;
+    $("cutsets-empty").textContent = "Solve to list them.";
+    $("cutsets-count").textContent = "";
+    $("cutsets-more").hidden = true;
+    $("notices").hidden = true;
+    renderer.highlight([], "cutset");
+  }
+
+  // A text becomes the document: the one way in, for an edit, an undo, a redo.
+  function adopt(text, selectId, parent) {
+    return solver.parse(text).then(function (parsed) {
+      if (!parsed.ok) throw new Error(describe(parsed.diagnostics[0]));
+      clearResults();
+      return loaded(text, parsed.ok, false).then(function () {
+        select(selectId, parent);
+        documentChanged();
+      });
+    });
+  }
+
+  // Every edit goes document → serialize → parse, in wasm (spec 7.2): what the
+  // canvas shows is always what the canonical text says. An edit the format
+  // refuses changes nothing and says why. Resolves to whether it was applied.
+  function applyEdit(edit) {
+    if (!edit || state.running) return Promise.resolve(false);
+    var before = state.text;
+    return solver.serialize(edit.doc).then(function (written) {
+      if (!written.ok) {
+        chip(describe(written.diagnostics[0]));
+        return false;
+      }
+      if (written.ok === before) return false;
+      undoStack.push(before);
+      return adopt(written.ok, edit.select, edit.parent).then(function () {
+        return true;
+      });
+    });
+  }
+
+  var undoStack = window.effractorEdit.createHistory();
+  function timeTravel(direction) {
+    var text = undoStack[direction](state.text);
+    if (text !== null) adopt(text, state.selected, state.parent);
   }
 
   function load() {
@@ -220,13 +284,13 @@
         return solver.parse(text).then(function (parsed) {
           if (!parsed.ok) throw new Error(describe(parsed.diagnostics[0]));
           var samples = samplesOverride(location.search);
-          if (samples === null) return loaded(text, parsed.ok);
+          if (samples === null) return loaded(text, parsed.ok, true);
           // The edit goes the way every edit will: through the document and
           // back into canonical text.
           parsed.ok.analysis.samples = samples;
           return solver.serialize(parsed.ok).then(function (written) {
             if (!written.ok) throw new Error(describe(written.diagnostics[0]));
-            return loaded(written.ok, parsed.ok);
+            return loaded(written.ok, parsed.ok, true);
           });
         });
       });
@@ -319,7 +383,19 @@
       showCutSets(answer.ok);
     }, console.error);
   }
-  window.effractor.documentChanged = documentChanged;
+  window.effractor.state = state;
+  window.effractor.renderer = renderer;
+  window.effractor.select = select;
+  window.effractor.applyEdit = applyEdit;
+  window.effractor.undo = function () {
+    timeTravel("undo");
+  };
+  window.effractor.redo = function () {
+    timeTravel("redo");
+  };
+  window.effractor.onChange = function (f) {
+    listeners.push(f);
+  };
 
   $("measure").addEventListener("click", function () {
     state.measure = state.measure === "fussell_vesely" ? "birnbaum" : "fussell_vesely";
@@ -338,7 +414,7 @@
     }
   });
 
-  load().catch(function (e) {
+  load().then(notify).catch(function (e) {
     chip("no document: " + e.message);
     console.error(e);
   });

@@ -18,6 +18,10 @@
       serialize: function (document) {
         return request({ type: "serialize", document: document });
       },
+      // A TTC expression's CDF over the horizon, for the property panel.
+      sketch: function (expression, horizon) {
+        return request({ type: "sketch", expression: expression, horizon: horizon });
+      },
       // Resolves to {result} or {cancelled: true}. `result` is what the solver
       // said: {ok, diagnostics} or {diagnostics}.
       solve: function (text, on) {

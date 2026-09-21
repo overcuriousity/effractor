@@ -351,6 +351,7 @@ Keyboard-first, outliner-style, on the selected node:
 | `L` | **link existing**: pick a node by search to add as a child — this is how a repeated event is made |
 | `Del` | remove this edge; the node itself is deleted when its last parent edge goes (confirmed if it has attributes) |
 | arrows | walk the DAG |
+| `P` / `Esc` | into the property panel and back to the canvas — `Tab` is taken, and the tree must be buildable without a pointer |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | undo / redo (document snapshots) |
 
 Pointer: click selects, drag a node onto a gate reparents (or links, with

@@ -45,6 +45,11 @@ pub fn serialize(document: &str) -> String {
 }
 
 #[wasm_bindgen]
+pub fn ttc_sketch(expression: &str, horizon: f64) -> String {
+    api::ttc_sketch(expression, horizon)
+}
+
+#[wasm_bindgen]
 pub fn solve_begin(text: &str) -> String {
     SESSION.with_borrow_mut(|s| s.begin(text))
 }

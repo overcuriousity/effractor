@@ -47,17 +47,23 @@ strips); in both themes; drag pans, the wheel zooms, **Fit** or `F` fits, a clic
 selects and fills *Selected*. Delete this item when that has been seen.
 
 ### ui-editor — Keyboard-first structure editing
-needs: ui-renderer            cost: 5   benefit: 5
-Spec 7.2 in full: key table, link-existing search, drag reparent/link, context
-menu, property panel with density sketch and `p(T)`, undo/redo snapshots, model
-tree in the left panel. Every edit goes `parse → Model → serialize` in wasm.
-Done when the reference tree, including its repeated event, can be built by
-keyboard alone — checked by hand.
+needs: ui-renderer            cost: 1   benefit: 5
+Built: the editing operations (tested, and driven through the real wasm module
+to build the reference tree with its repeated event), the key table, link
+search, drop to reparent / Ctrl-drop to link, context menu, property panel with
+the distribution sketch and `p(T)`, undo/redo, the model tree and assets on the
+left. What is left is the item's "done", by hand: open `/?example=new` and build
+the reference tree by keyboard alone — `Tab`, type the label, `Enter`; `P` for
+the panel and `Esc` back; `L` to link *Ausfall Server* under the second gate;
+`Ctrl+Z` — and `/?example=new-attack` for an attack tree. Delete this item when
+that has been done.
 
 ### ui-source — YAML source view and persistence
 needs: ui-editor            cost: 2   benefit: 4
 Textarea with diagnostics list (click → line); stale-canvas state while invalid;
-IndexedDB working state; `.yaml` import/export. Done when a text edit and a
+IndexedDB working state; `.yaml` import/export; a **New** action in place of
+`?example=new`, and editing of the header, assets and controls, which the canvas
+editor does not reach. Done when a text edit and a
 canvas edit round-trip into each other — checked by hand.
 
 ### ui-results — Cut sets, node stats, importance colouring

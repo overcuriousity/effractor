@@ -1,0 +1,17 @@
+effractor: 1
+profile: fault-tree
+name: Untitled
+time_unit: h
+horizon: 8760
+currency: EUR
+top: top-event
+
+nodes:
+  top-event:
+    label: Top event
+    leaf: basic
+
+analysis:
+  seed: 42
+  samples: 10000
+  confidence: 0.95

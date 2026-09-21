@@ -447,6 +447,7 @@ version = "0.1.0"
 dependencies = [
  "effractor-core",
  "effractor-format",
+ "effractor-mal",
  "effractor-solver",
  "serde",
  "serde_json",

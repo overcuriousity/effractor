@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/assets/css/20-workspace.css">
 <link rel="stylesheet" href="/assets/css/30-graph.css">
 <link rel="stylesheet" href="/assets/css/40-results.css">
+<link rel="stylesheet" href="/assets/css/50-editor.css">
 <script src="/assets/js/theme.js"></script>
 <script src="/assets/js/workspace.js" defer></script>
 <script src="/assets/vendor/elk/elk-api.js" defer></script>
@@ -19,8 +20,10 @@
 <script src="/assets/js/renderer-svg.js" defer></script>
 <script src="/assets/js/layout.js" defer></script>
 <script src="/assets/js/results-view.js" defer></script>
+<script src="/assets/js/edit.js" defer></script>
 <script src="/assets/js/solver.js" defer></script>
 <script src="/assets/js/app.js" defer></script>
+<script src="/assets/js/editor.js" defer></script>
 </head>
 <body>
 <div class="workspace" id="app" data-version="{{ version }}">
@@ -38,8 +41,8 @@
 
   <nav class="rail" aria-label="Tools">
     <button class="tool" type="button" data-tool="select" aria-pressed="true" title="Select"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2l9 5.5-4 1.2L6.5 13z"/></svg></button>
-    <button class="tool" type="button" data-tool="add" disabled title="Add node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
-    <button class="tool" type="button" data-tool="link" disabled title="Link existing node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8"/></svg></button>
+    <button class="tool" type="button" data-tool="add" title="Add child (Tab)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+    <button class="tool" type="button" data-tool="link" title="Link existing node (L)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8"/></svg></button>
     <span class="rail-rule" aria-hidden="true"></span>
     <button class="tool" type="button" data-toggle="left" aria-pressed="true" title="Model panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM6 3v10"/></svg></button>
     <button class="tool" type="button" data-toggle="right" aria-pressed="true" title="Results panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM10 3v10"/></svg></button>
@@ -50,11 +53,16 @@
   <aside class="panel panel-left" id="panel-left" aria-label="Model">
     <section class="panel-section">
       <h2 class="label">Model</h2>
-      <p class="empty">No model yet.</p>
+      <p class="empty" id="outline-empty">No model yet.</p>
+      <ul class="outline" id="outline" role="tree" aria-label="Model tree"></ul>
     </section>
     <section class="panel-section">
       <h2 class="label">Assets</h2>
-      <p class="empty">No assets.</p>
+      <p class="empty" id="assets-empty">No assets.</p>
+      <table class="assets" id="assets" hidden>
+        <thead><tr><th>Asset</th><th class="num">C</th><th class="num">I</th><th class="num">A</th></tr></thead>
+        <tbody id="assets-body"></tbody>
+      </table>
     </section>
   </aside>
   <div class="resizer" data-resize="left" role="separator" aria-orientation="vertical" aria-controls="panel-left" aria-label="Resize model panel" tabindex="0"></div>
@@ -83,6 +91,7 @@
     <section class="panel-section">
       <h2 class="label">Selected</h2>
       <p class="empty" id="selected-empty">Nothing selected.</p>
+      <form class="properties" id="properties" hidden autocomplete="off"></form>
       <dl class="selected-facts" id="selected-facts" hidden></dl>
     </section>
   </aside>
@@ -103,5 +112,11 @@
   </footer>
 
 </div>
+
+<dialog class="link-dialog" id="link-dialog" aria-label="Link an existing node">
+  <input class="link-search" id="link-search" type="search" placeholder="Link an existing node…" aria-controls="link-results">
+  <ul class="link-results" id="link-results" role="listbox"></ul>
+</dialog>
+<div class="menu" id="context-menu" role="menu" hidden></div>
 </body>
 </html>

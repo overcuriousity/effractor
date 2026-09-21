@@ -135,3 +135,16 @@ fn numbers_survive_the_trip_through_json_to_the_bit() {
         assert_eq!(leaf.ttc, Some(effractor_core::Ttc::Rate(rate)), "{rate:e}");
     }
 }
+
+#[test]
+fn a_ttc_is_sketched_or_refused() {
+    let out = call(api::ttc_sketch("Exponential(2.5e-6)", 8760.0));
+    let cdf = out["ok"]["cdf"].as_array().unwrap();
+    assert_eq!(cdf.len(), 33);
+    assert_eq!(cdf[0], json!(0.0));
+    assert!((out["ok"]["p_horizon"].as_f64().unwrap() - 0.021_661_936).abs() < 1e-9);
+    assert!(call(api::ttc_sketch("Exponential(", 1.0))["error"].is_string());
+    assert!(call(api::ttc_sketch("Exponential(-1)", 1.0))["error"].is_string());
+    assert!(call(api::ttc_sketch("Pert(1, 2, 3)", 1.0))["error"].is_string());
+    assert!(call(api::ttc_sketch("Zero", 0.0))["error"].is_string());
+}
