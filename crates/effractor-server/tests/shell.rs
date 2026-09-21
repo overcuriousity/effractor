@@ -128,11 +128,11 @@ async fn shell_has_the_workspace_regions_and_no_inline_style_or_script() {
 /// What the page fetches after the shell: none of it is linked from the HTML,
 /// so the link test above cannot see it go missing.
 #[tokio::test]
-async fn the_solver_and_its_example_are_embedded() {
+async fn the_solver_and_the_empty_documents_are_embedded() {
     for (path, mime) in [
         ("/assets/js/solver-worker.js", "text/javascript"),
-        ("/assets/examples/webserver.yaml", "text/x-yaml"),
-        ("/assets/examples/office.yaml", "text/x-yaml"),
+        ("/assets/templates/new.yaml", "text/x-yaml"),
+        ("/assets/templates/new-attack.yaml", "text/x-yaml"),
         // ELK's engine: the page loads the shim, the shim starts this worker.
         ("/assets/vendor/elk/elk-worker.min.js", "text/javascript"),
         // Built by scripts/build-wasm.sh, not committed. If these two are

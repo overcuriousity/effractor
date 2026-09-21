@@ -1,45 +1,45 @@
 # The course's reference tree, as a person would write it: comments, keys in
 # any order, quotes where none are needed, defaults left out.
 effractor: 1
-name: "Mangelnde Verfügbarkeit Webserver"
+name: "Web server unavailable"
 profile: fault-tree
-top: mangelnde-verfuegbarkeit
+top: loss-of-availability
 horizon: 8760.0
 
 nodes:
-  mangelnde-verfuegbarkeit:
+  loss-of-availability:
     gate: or
-    label: Mangelnde Verfügbarkeit
+    label: Loss of availability
     children:
-      - ohne-zugang
-      - ohne-funktion
+      - no-access
+      - no-function
     consequences:
       - asset: webserver
         dim: a
         fraction: 1
-  ohne-zugang:
-    label: Server ohne Zugang
+  no-access:
+    label: Server unreachable
     gate: or
-    children: [administration, vernetzung, ausfall-server]
-  ohne-funktion:
-    label: Server ohne Funktion
+    children: [administration, network, server-outage]
+  no-function:
+    label: Server not working
     gate: or
-    children: [hardware, software, malware, ausfall-server]   # repeated event
-  administration: {label: Fehler in der Administration, leaf: basic, rate: 0.0000007}
-  vernetzung:
-    label: Ausfall der Vernetzung
+    children: [hardware, software, malware, server-outage]   # repeated event
+  administration: {label: Administration error, leaf: basic, rate: 0.0000007}
+  network:
+    label: Network outage
     leaf: basic
     rate: 3.5e-7
-  ausfall-server:
-    label: Ausfall Server
+  server-outage:
+    label: Server outage
     leaf: basic
     rate: 2.5e-6
   hardware:
-    label: Hardware defekt
+    label: Hardware defect
     rate: 1.3e-6
     leaf: basic
   software:
-    label: 'Softwarefehler'
+    label: 'Software fault'
     leaf: basic
     rate: 2.3e-7
   malware:
@@ -49,12 +49,12 @@ nodes:
 
 assets:
   webserver:
-    label: Webserver
+    label: Web server
     loss: {c: 20000, i: 40000, a: "Pert(60000, 120000, 400000)"}
 
 controls:
   redundant-psu:
-    label: Redundantes Netzteil
+    label: Redundant power supply
     cost: 1800
     enabled: false
     effects:

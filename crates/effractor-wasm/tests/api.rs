@@ -22,7 +22,7 @@ fn validate_reports_positions() {
     let d = &out["diagnostics"][0];
     assert_eq!(d["severity"], "error");
     assert_eq!(d["code"], "unknown-child");
-    assert_eq!(d["path"], "nodes.ohne-funktion.children[0]");
+    assert_eq!(d["path"], "nodes.no-function.children[0]");
     assert_eq!(
         (d["line"].as_u64(), d["col"].as_u64()),
         (Some(23), Some(16))
@@ -128,7 +128,7 @@ fn numbers_survive_the_trip_through_json_to_the_bit() {
         let text = WEBSERVER.replace("rate: 2.5e-6", &format!("rate: {rate:e}"));
         let text = call(api::serialize(&call(api::parse(&text))["ok"].to_string()));
         let model = effractor_format::load(text["ok"].as_str().unwrap()).unwrap();
-        let id: effractor_core::NodeId = "ausfall-server".parse().unwrap();
+        let id: effractor_core::NodeId = "server-outage".parse().unwrap();
         let effractor_core::NodeKind::Leaf(leaf) = &model.nodes[&id].kind else {
             panic!("a leaf")
         };

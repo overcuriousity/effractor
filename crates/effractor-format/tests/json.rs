@@ -18,10 +18,10 @@ fn the_image_has_the_documents_shape_and_types() {
     let d = doc(WEBSERVER);
     assert_eq!(d["effractor"], json!(1));
     assert_eq!(d["horizon"], json!(8760));
-    assert_eq!(d["nodes"]["ausfall-server"]["rate"], json!(2.5e-6));
+    assert_eq!(d["nodes"]["server-outage"]["rate"], json!(2.5e-6));
     assert_eq!(
-        d["nodes"]["ohne-zugang"]["children"][2],
-        json!("ausfall-server")
+        d["nodes"]["no-access"]["children"][2],
+        json!("server-outage")
     );
     assert_eq!(d["controls"]["redundant-psu"]["enabled"], json!(false));
     assert_eq!(
@@ -30,7 +30,7 @@ fn the_image_has_the_documents_shape_and_types() {
     );
     // Authored order survives: it is the order of the canvas and of the diff.
     let ids: Vec<&String> = d["nodes"].as_object().unwrap().keys().collect();
-    assert_eq!(ids[0], "mangelnde-verfuegbarkeit");
+    assert_eq!(ids[0], "loss-of-availability");
     assert_eq!(ids[3], "administration");
 }
 
@@ -49,9 +49,9 @@ fn there_and_back_is_the_identity_on_canonical_text() {
 #[test]
 fn a_quoted_scalar_is_a_string_and_stays_one() {
     let d = doc(OFFICE);
-    assert_eq!(d["nodes"]["schluessel"]["label"], json!("true"));
-    assert_eq!(d["x-tags"], json!(["kurs", "beispiel, mit komma"]));
-    assert_eq!(d["nodes"]["physisch"]["x-source"]["pages"], json!([4, 5]));
+    assert_eq!(d["nodes"]["key"]["label"], json!("true"));
+    assert_eq!(d["x-tags"], json!(["course", "example, with comma"]));
+    assert_eq!(d["nodes"]["physical"]["x-source"]["pages"], json!([4, 5]));
     assert_eq!(d["analysis"]["x-last-run"], json!("2026-09-01"));
 }
 
@@ -71,7 +71,7 @@ fn an_edit_in_json_is_an_edit_in_the_text() {
 #[test]
 fn a_bad_edit_comes_back_as_diagnostics_with_paths() {
     let mut d = doc(WEBSERVER);
-    d["nodes"]["ohne-zugang"]["children"][0] = json!("nobody");
+    d["nodes"]["no-access"]["children"][0] = json!("nobody");
     d["nodes"]["malware"]["p"] = json!("often");
     d["colour"] = json!("red");
     let diagnostics = from_document(&d).unwrap_err();
@@ -86,10 +86,10 @@ fn a_bad_edit_comes_back_as_diagnostics_with_paths() {
     assert!(got.contains(&("unknown-key", "colour", None)), "{got:?}");
 
     let mut d = doc(WEBSERVER);
-    d["nodes"]["ohne-zugang"]["children"][0] = json!("nobody");
+    d["nodes"]["no-access"]["children"][0] = json!("nobody");
     let diagnostics = from_document(&d).unwrap_err();
     assert_eq!(diagnostics[0].code.as_str(), "unknown-child");
-    assert_eq!(diagnostics[0].path, "nodes.ohne-zugang.children[0]");
+    assert_eq!(diagnostics[0].path, "nodes.no-access.children[0]");
 }
 
 #[test]
@@ -127,11 +127,14 @@ fn json_this_format_cannot_hold() {
 }
 
 /// The page's JavaScript is tested against this file; this keeps the file
-/// what `document` really returns for the shipped example.
+/// what `document` really returns for the reference tree.
 #[test]
 fn the_javascript_fixture_is_the_real_image() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let text = std::fs::read_to_string(root.join("assets/examples/webserver.yaml")).unwrap();
+    let text = std::fs::read_to_string(
+        root.join("crates/effractor-format/tests/fixtures/canonical/webserver.yaml"),
+    )
+    .unwrap();
     let fixture =
         std::fs::read_to_string(root.join("scripts/fixtures/webserver.doc.json")).unwrap();
     let fixture: Value = serde_json::from_str(&fixture).unwrap();

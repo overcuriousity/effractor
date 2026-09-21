@@ -39,11 +39,13 @@ that has been seen.
 needs: wasm-api            cost: 1   benefit: 5
 Built and tested: the interface of spec 7.1 with its contract tests, ELK in its
 own worker, both profiles' symbols, the repeated node drawn once, pan, zoom,
-fit, highlight. What is left is the look, which is the item's "done": `/` shows
-the reference fault tree (`&`/`≥1` boxes, circles, the diamond on Malware,
-`shared · 2 parents` on Ausfall Server with each parent arriving at its own
-point), `/?example=office` the attack tree (AND/OR/`2/3`, cost · detection
-strips); in both themes; drag pans, the wheel zooms, **Fit** or `F` fits, a click
+fit, highlight. What is left is the look, which is the item's "done". No
+example ships and `/` opens empty, so the trees to look at are built in the
+editor, or imported once `ui-source` has landed (the reference trees are test
+fixtures: `crates/effractor-format/tests/fixtures/canonical/`): the fault tree
+(`&`/`≥1` boxes, circles, the diamond on Malware, `shared · 2 parents` on Server
+outage with each parent arriving at its own point) and the attack tree
+(AND/OR/`2/3`, cost · detection strips); in both themes; drag pans, the wheel zooms, **Fit** or `F` fits, a click
 selects and fills *Selected*. Delete this item when that has been seen.
 
 ### ui-editor — Keyboard-first structure editing
@@ -52,17 +54,17 @@ Built: the editing operations (tested, and driven through the real wasm module
 to build the reference tree with its repeated event), the key table, link
 search, drop to reparent / Ctrl-drop to link, context menu, property panel with
 the distribution sketch and `p(T)`, undo/redo, the model tree and assets on the
-left. What is left is the item's "done", by hand: open `/?example=new` and build
+left. What is left is the item's "done", by hand: open `/` and build
 the reference tree by keyboard alone — `Tab`, type the label, `Enter`; `P` for
-the panel and `Esc` back; `L` to link *Ausfall Server* under the second gate;
-`Ctrl+Z` — and `/?example=new-attack` for an attack tree. Delete this item when
+the panel and `Esc` back; `L` to link *Server outage* under the second gate;
+`Ctrl+Z` — and `/?new=attack-tree` for an attack tree. Delete this item when
 that has been done.
 
 ### ui-source — YAML source view and persistence
 needs: ui-editor            cost: 2   benefit: 4
 Textarea with diagnostics list (click → line); stale-canvas state while invalid;
 IndexedDB working state; `.yaml` import/export; a **New** action in place of
-`?example=new`, and editing of the header, assets and controls, which the canvas
+`?new=attack-tree`, and editing of the header, assets and controls, which the canvas
 editor does not reach. Done when a text edit and a
 canvas edit round-trip into each other — checked by hand.
 
