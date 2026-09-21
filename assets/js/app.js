@@ -238,6 +238,7 @@
   // What was solved is no longer what is on the canvas.
   function clearResults() {
     state.results = null;
+    state.chartResults = null;
     state.ranked = [];
     hud("hud-p", "—");
     hud("hud-p-ci", "");
@@ -349,6 +350,8 @@
   }
 
   function showExact(begun) {
+    state.chartResults = window.effractorCharts.exactSnapshot(begun, state.doc);
+    notify();
     var exact = begun.exact.available;
     hud("hud-p", exact ? probability(exact.p_top) : "—");
     hud("hud-p-ci", exact ? "exact" : begun.exact.unavailable.reason);
@@ -376,6 +379,7 @@
 
   function showAll(results) {
     state.results = results;
+    state.chartResults = results;
     showResults(results);
     showCutSets(results);
     showNotices(results);

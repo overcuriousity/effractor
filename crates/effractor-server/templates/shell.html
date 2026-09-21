@@ -23,11 +23,13 @@
 <script src="/assets/js/edit.js" defer></script>
 <script src="/assets/js/solver.js" defer></script>
 <script src="/assets/js/store.js" defer></script>
+<script src="/assets/js/charts.js" defer></script>
 <script src="/assets/js/app.js" defer></script>
 <script src="/assets/js/menu.js" defer></script>
 <script src="/assets/js/editor.js" defer></script>
 <script src="/assets/js/source.js" defer></script>
 <script src="/assets/js/controls.js" defer></script>
+<script src="/assets/js/charts-ui.js" defer></script>
 <script src="/assets/js/share.js" defer></script>
 <script src="/assets/js/share-ui.js" defer></script>
 </head>
@@ -101,6 +103,8 @@
   <aside class="panel panel-right" id="panel-right" aria-label="Results">
     <div class="tabs" role="tablist" aria-label="Right panel">
       <button class="tab" type="button" role="tab" id="tab-btn-results" data-tab="results" aria-selected="true" aria-controls="tab-results">Results</button>
+      <button class="tab" type="button" role="tab" id="tab-btn-ttc" data-tab="ttc" aria-selected="false" aria-controls="tab-ttc">TTC</button>
+      <button class="tab" type="button" role="tab" id="tab-btn-loss" data-tab="loss" aria-selected="false" aria-controls="tab-loss">Loss</button>
       <button class="tab" type="button" role="tab" id="tab-btn-controls" data-tab="controls" aria-selected="false" aria-controls="tab-controls">Controls <span class="count num" id="controls-count"></span></button>
     </div>
     <div id="tab-results" role="tabpanel" aria-labelledby="tab-btn-results">
@@ -121,6 +125,8 @@
       <dl class="selected-facts" id="selected-facts" hidden></dl>
     </section>
     </div>
+    <div id="tab-ttc" role="tabpanel" aria-labelledby="tab-btn-ttc" hidden><section class="panel-section"><h2 class="label">Time to top event</h2><div id="ttc-chart"><p class="empty">Solve to plot</p></div></section></div>
+    <div id="tab-loss" role="tabpanel" aria-labelledby="tab-btn-loss" hidden><section class="panel-section"><h2 class="label">Loss exceedance</h2><div id="loss-chart"><p class="empty">Solve to plot</p></div></section></div>
     <div id="tab-controls" role="tabpanel" aria-labelledby="tab-btn-controls" hidden>
       <section class="panel-section">
         <h2 class="label">Controls <button class="label-action" id="control-add" type="button" title="Add a control" aria-label="Add a control">+</button></h2>

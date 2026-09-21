@@ -187,12 +187,13 @@
   // ---- keyboard ----
 
   function typingElsewhere(e) {
-    return /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName) || $("link-dialog").open;
+    return !!e.target.closest(".analysis-chart, .chart-table") || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName) || $("link-dialog").open;
   }
 
   // Everything the page does by key or pointer that is not in MENU: the help
   // dialog lists both, so a key that exists is a key that is shown.
   var OTHER_KEYS = [
+    ["← → in a chart", "Inspect plotted values"],
     ["↑ ↓ ← →", "Walk the tree: parent, child, siblings"],
     ["any letter", "Rename, starting with that letter"],
     ["Esc", "Leave a field, close a menu"],
