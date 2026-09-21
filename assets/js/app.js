@@ -32,12 +32,20 @@
     return n >= 1 && Number.isSafeInteger(n) ? n : null;
   }
 
+  // ?example=office opens the attack tree; anything else, the reference tree.
+  var EXAMPLES = ["webserver", "office"];
+
+  function exampleName(search) {
+    var m = /[?&]example=([a-z0-9-]+)(&|$)/.exec(search);
+    return m && EXAMPLES.indexOf(m[1]) >= 0 ? m[1] : "webserver";
+  }
+
   if (typeof module !== "undefined") {
-    module.exports = { grouped: grouped, probability: probability, money: money, analysisLabel: analysisLabel, samplesOverride: samplesOverride };
+    module.exports = { exampleName: exampleName, grouped: grouped, probability: probability, money: money, analysisLabel: analysisLabel, samplesOverride: samplesOverride };
   }
   if (typeof document === "undefined") return;
 
-  var EXAMPLE = "/assets/examples/webserver.yaml";
+  var EXAMPLE = "/assets/examples/" + exampleName(location.search) + ".yaml";
   var $ = function (id) {
     return document.getElementById(id);
   };
@@ -47,7 +55,46 @@
   // For the console: effractor.solver.crash() shows the recovery path.
   window.effractor = { solver: solver };
 
-  var state = { text: null, doc: null, running: false };
+  var state = { text: null, doc: null, running: false, selected: null };
+
+  var renderer = window.effractorRenderer.createSvgRenderer(document);
+  var layout = window.effractorLayout.createLayout();
+  renderer.mount($("canvas"));
+
+  function fact(list, term, value) {
+    var dt = document.createElement("dt");
+    var dd = document.createElement("dd");
+    dt.textContent = term;
+    dd.textContent = value;
+    list.appendChild(dt);
+    list.appendChild(dd);
+  }
+
+  function select(id) {
+    state.selected = id && Object.prototype.hasOwnProperty.call(state.doc.nodes, id) ? id : null;
+    renderer.highlight(state.selected ? [state.selected] : [], "selected");
+    var facts = $("selected-facts");
+    facts.replaceChildren();
+    facts.hidden = !state.selected;
+    $("selected-empty").hidden = !!state.selected;
+    if (!state.selected) return;
+    var node = state.doc.nodes[state.selected];
+    fact(facts, "label", node.label);
+    fact(facts, "id", state.selected);
+    fact(facts, "kind", node.gate ? node.gate + " gate" : node.leaf + " event");
+    if (node.description) fact(facts, "note", node.description);
+  }
+
+  renderer.on("select", function (e) {
+    select(e.id);
+  });
+
+  function draw() {
+    return layout(window.effractorGraph.describe(state.doc)).then(function (laid) {
+      renderer.render(laid, {});
+      renderer.fit();
+    });
+  }
 
   function chip(text) {
     $("analysis-chip").textContent = text;
@@ -69,6 +116,7 @@
     $("profile-chip").textContent = doc.profile;
     chip(analysisLabel(doc.analysis));
     $("solve").disabled = false;
+    return draw();
   }
 
   function load() {
@@ -87,7 +135,7 @@
           parsed.ok.analysis.samples = samples;
           return solver.serialize(parsed.ok).then(function (written) {
             if (!written.ok) throw new Error(describe(written.diagnostics[0]));
-            loaded(written.ok, parsed.ok);
+            return loaded(written.ok, parsed.ok);
           });
         });
       });
@@ -152,10 +200,13 @@
   }
 
   $("solve").addEventListener("click", solve);
+  $("fit").addEventListener("click", renderer.fit);
   document.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       solve();
+    } else if (e.key === "f" && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
+      renderer.fit();
     }
   });
 

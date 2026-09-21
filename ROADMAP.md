@@ -36,12 +36,15 @@ again, shows a crash reported and the worker replaced. Delete this item when
 that has been seen.
 
 ### ui-renderer — Renderer interface and SVG implementation
-needs: wasm-api            cost: 5   benefit: 5
-The interface of spec 7.1; ELK layered layout in its own worker; DIN 25424
-symbols (`&`, `≥1`, `≥k`, circle, diamond, description boxes); attack-tree
-labelling; a repeated node drawn once with a `shared · n parents` badge; pan,
-zoom, fit; highlight. Done when interface contract tests pass and the reference
-tree renders symbol-correct in both profiles.
+needs: wasm-api            cost: 1   benefit: 5
+Built and tested: the interface of spec 7.1 with its contract tests, ELK in its
+own worker, both profiles' symbols, the repeated node drawn once, pan, zoom,
+fit, highlight. What is left is the look, which is the item's "done": `/` shows
+the reference fault tree (`&`/`≥1` boxes, circles, the diamond on Malware,
+`shared · 2 parents` on Ausfall Server with each parent arriving at its own
+point), `/?example=office` the attack tree (AND/OR/`2/3`, cost · detection
+strips); in both themes; drag pans, the wheel zooms, **Fit** or `F` fits, a click
+selects and fills *Selected*. Delete this item when that has been seen.
 
 ### ui-editor — Keyboard-first structure editing
 needs: ui-renderer            cost: 5   benefit: 5

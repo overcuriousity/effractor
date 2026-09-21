@@ -1,0 +1,253 @@
+// The SVG renderer, behind the interface of spec 7.1:
+//
+//   mount(el) · render(layout, styles) · highlight(ids, kind) · fit() · on(event, handler)
+//
+// It is told node ids, class names and positions, and tells back node ids.
+// Nothing above it sees SVG, so a canvas or WebGL renderer can take its place.
+// All appearance is in 30-graph.css: the CSP forbids style attributes, and the
+// classes are the interface anyway.
+(function () {
+  var NS = "http://www.w3.org/2000/svg";
+  var EVENTS = ["select", "activate", "context", "drop"];
+  var DRAG_PX = 4; // movement below this is a click
+  var PADDING = 32;
+
+  function createSvgRenderer(doc) {
+    var geometry = (typeof module !== "undefined" ? require("./graph.js") : window.effractorGraph).SIZE;
+    var viewMath = typeof module !== "undefined" ? require("./view.js") : window.effractorView;
+
+    var svg = null;
+    var viewport = null;
+    var edgeLayer = null;
+    var nodeLayer = null;
+    // Keyed by node id, which may be any word (`constructor`…): no prototype.
+    var drawn = { nodes: Object.create(null), edges: [] };
+    var size = { width: 0, height: 0 };
+    var view = { k: 1, x: 0, y: 0 };
+    var highlights = {}; // kind -> {id: true}
+    var handlers = {};
+    var gesture = null; // {id | null, x, y, moved}
+    var swallowClick = false;
+
+    function el(tag, attrs, classes, parent) {
+      var e = doc.createElementNS(NS, tag);
+      for (var k in attrs) e.setAttribute(k, attrs[k]);
+      (classes || []).forEach(function (c) {
+        e.classList.add(c);
+      });
+      if (parent) parent.appendChild(e);
+      return e;
+    }
+
+    function text(parent, x, y, content, cls) {
+      var t = el("text", { x: x, y: y, "text-anchor": "middle" }, [cls], parent);
+      t.textContent = content;
+      return t;
+    }
+
+    function emit(name, payload) {
+      (handlers[name] || []).forEach(function (h) {
+        h(payload);
+      });
+    }
+
+    function idAt(target) {
+      var node = target && target.closest ? target.closest(".node") : null;
+      return node ? node.getAttribute("data-id") : null;
+    }
+
+    function applyView() {
+      viewport.setAttribute("transform", "translate(" + view.x + " " + view.y + ") scale(" + view.k + ")");
+    }
+
+    function mount(host) {
+      svg = el("svg", { role: "group", "aria-label": "Graph" }, ["graph"], host);
+      viewport = el("g", {}, ["viewport"], svg);
+      edgeLayer = el("g", {}, ["edges"], viewport);
+      nodeLayer = el("g", {}, ["nodes"], viewport);
+
+      svg.addEventListener("click", function (e) {
+        if (swallowClick) return void (swallowClick = false);
+        emit("select", { id: idAt(e.target) });
+      });
+      svg.addEventListener("dblclick", function (e) {
+        var id = idAt(e.target);
+        if (id) emit("activate", { id: id });
+      });
+      svg.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        emit("context", { id: idAt(e.target), x: e.clientX, y: e.clientY });
+      });
+
+      svg.addEventListener("pointerdown", function (e) {
+        if (e.button !== 0) return;
+        gesture = { id: idAt(e.target), x: e.clientX, y: e.clientY, moved: false };
+        svg.setPointerCapture(e.pointerId);
+      });
+      svg.addEventListener("pointermove", function (e) {
+        if (!gesture) return;
+        var dx = e.clientX - gesture.x;
+        var dy = e.clientY - gesture.y;
+        if (!gesture.moved && Math.abs(dx) + Math.abs(dy) < DRAG_PX) return;
+        gesture.moved = true;
+        svg.classList.add(gesture.id ? "is-dragging" : "is-panning");
+        if (gesture.id) return; // a node in hand: nothing moves until it is dropped
+        view = viewMath.pan(view, dx, dy);
+        gesture.x = e.clientX;
+        gesture.y = e.clientY;
+        applyView();
+      });
+      svg.addEventListener("pointerup", function (e) {
+        if (!gesture) return;
+        var g = gesture;
+        gesture = null;
+        svg.releasePointerCapture(e.pointerId);
+        svg.classList.remove("is-dragging", "is-panning");
+        if (!g.moved) return;
+        // The browser follows a drag with a click; it is not a selection.
+        swallowClick = true;
+        var target = idAt(dropTarget(e));
+        if (g.id && target && target !== g.id) emit("drop", { id: g.id, target: target, ctrl: !!(e.ctrlKey || e.metaKey) });
+      });
+      svg.addEventListener("pointercancel", function () {
+        gesture = null;
+        svg.classList.remove("is-dragging", "is-panning");
+      });
+      svg.addEventListener("wheel", function (e) {
+        e.preventDefault();
+        var box = svg.getBoundingClientRect();
+        var point = { x: e.clientX - box.left, y: e.clientY - box.top };
+        view = viewMath.zoomAt(view, point, Math.pow(1.0015, -e.deltaY));
+        applyView();
+      });
+    }
+
+    // With the pointer captured, the event's target is the svg; what is under
+    // the pointer has to be asked for.
+    function dropTarget(e) {
+      if (typeof doc.elementFromPoint === "function") return doc.elementFromPoint(e.clientX, e.clientY) || e.target;
+      return e.target;
+    }
+
+    function symbol(group, n, top) {
+      var cx = geometry.width / 2;
+      var s = geometry.symbol;
+      if (n.symbol === "gate") {
+        el("rect", { x: cx - s / 2 - 2, y: top, width: s + 4, height: s, rx: 2 }, ["shape", "symbol"], group);
+        text(group, cx, top + s / 2 + 4.5, n.inscription, "inscription");
+      } else if (n.symbol === "undeveloped") {
+        var h = s / 2;
+        var points = [cx, top, cx + h, top + h, cx, top + s, cx - h, top + h].join(" ");
+        el("polygon", { points: points }, ["shape", "symbol"], group);
+      } else {
+        el("circle", { cx: cx, cy: top + s / 2, r: s / 2 }, ["shape", "symbol"], group);
+      }
+    }
+
+    function drawNode(item, style) {
+      var n = item.node;
+      var classes = ["node", "node-" + n.symbol];
+      if (n.top) classes.push("is-top");
+      if (n.badge) classes.push("is-shared");
+      if (n.unreachable) classes.push("is-unreachable");
+      (style.classes || []).forEach(function (c) {
+        classes.push(c);
+      });
+      var g = el("g", { "data-id": n.id, transform: "translate(" + item.x + " " + item.y + ")" }, classes, nodeLayer);
+      el("title", {}, [], g).textContent = n.label;
+
+      var w = geometry.width;
+      el("rect", { x: 0, y: 0, width: w, height: geometry.box, rx: 2 }, ["shape", "box"], g);
+      var first = geometry.box / 2 + 4 - (n.lines.length - 1) * 7;
+      n.lines.forEach(function (line, i) {
+        text(g, w / 2, first + i * 14, line, "label-line");
+      });
+
+      var below = geometry.box;
+      if (n.attributes) {
+        el("rect", { x: 0, y: below, width: w, height: geometry.strip }, ["shape", "strip"], g);
+        text(g, w / 2, below + geometry.strip / 2 + 3.5, n.attributes, "attributes");
+        below += geometry.strip;
+      }
+      el("line", { x1: w / 2, y1: below, x2: w / 2, y2: below + geometry.stem }, ["stem"], g);
+      symbol(g, n, below + geometry.stem);
+      if (style.value != null && n.symbol !== "gate") {
+        text(g, w / 2, below + geometry.stem + geometry.symbol / 2 + 3.5, style.value, "value");
+      }
+
+      if (n.badge) {
+        // Beside the symbol: the top edge is where the parents' edges arrive.
+        var bw = n.badge.length * 5.4 + 12;
+        var bx = w / 2 + geometry.symbol / 2 + 8;
+        var by = below + geometry.stem + geometry.symbol / 2;
+        el("rect", { x: bx, y: by - 8, width: bw, height: 16, rx: 8 }, ["badge"], g);
+        text(g, bx + bw / 2, by + 3, n.badge, "badge-text");
+      }
+      return g;
+    }
+
+    function drawEdge(edge) {
+      var d = edge.points
+        .map(function (p, i) {
+          return (i ? "L" : "M") + p.x + " " + p.y;
+        })
+        .join(" ");
+      return el("path", { d: d, "data-id": edge.id, "data-from": edge.from, "data-to": edge.to }, ["edge"], edgeLayer);
+    }
+
+    function applyHighlights() {
+      Object.keys(highlights).forEach(function (kind) {
+        var ids = highlights[kind];
+        var cls = "hl-" + kind;
+        Object.keys(drawn.nodes).forEach(function (id) {
+          drawn.nodes[id].classList.toggle(cls, !!ids[id]);
+        });
+        drawn.edges.forEach(function (e) {
+          e.el.classList.toggle(cls, !!(ids[e.from] && ids[e.to]));
+        });
+      });
+    }
+
+    function render(layout, styles) {
+      styles = styles || {};
+      edgeLayer.replaceChildren();
+      nodeLayer.replaceChildren();
+      drawn = { nodes: Object.create(null), edges: [] };
+      size = { width: layout.width, height: layout.height };
+      layout.edges.forEach(function (e) {
+        drawn.edges.push({ el: drawEdge(e), from: e.from, to: e.to });
+      });
+      layout.nodes.forEach(function (item) {
+        var style = Object.prototype.hasOwnProperty.call(styles, item.id) ? styles[item.id] : {};
+        drawn.nodes[item.id] = drawNode(item, style);
+      });
+      applyHighlights();
+    }
+
+    function highlight(ids, kind) {
+      var set = Object.create(null);
+      ids.forEach(function (id) {
+        set[id] = true;
+      });
+      highlights[kind] = set;
+      applyHighlights();
+    }
+
+    function fit() {
+      var box = svg.getBoundingClientRect();
+      view = viewMath.fit(size, { width: box.width, height: box.height }, PADDING);
+      applyView();
+    }
+
+    function on(name, handler) {
+      if (EVENTS.indexOf(name) < 0) throw new Error("the renderer has no event called " + name);
+      (handlers[name] = handlers[name] || []).push(handler);
+    }
+
+    return { mount: mount, render: render, highlight: highlight, fit: fit, on: on };
+  }
+
+  var api = { createSvgRenderer: createSvgRenderer, EVENTS: EVENTS };
+  if (typeof module !== "undefined") module.exports = api;
+  if (typeof window !== "undefined") window.effractorRenderer = api;
+})();

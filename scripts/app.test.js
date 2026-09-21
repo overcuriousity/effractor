@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
-const { grouped, probability, money, analysisLabel, samplesOverride } = require("../assets/js/app.js");
+const { exampleName, grouped, probability, money, analysisLabel, samplesOverride } = require("../assets/js/app.js");
 
 test("whole numbers are grouped in threes with a no-break space", () => {
   assert.equal(grouped(42), "42");
@@ -35,4 +35,12 @@ test("?samples= is a whole number of at least one, or nothing", () => {
   assert.equal(samplesOverride("?samples=lots"), null);
   assert.equal(samplesOverride("?samples=0"), null);
   assert.equal(samplesOverride("?samples=1.5"), null);
+});
+
+test("?example= picks a shipped example and nothing else", () => {
+  assert.equal(exampleName(""), "webserver");
+  assert.equal(exampleName("?example=office"), "office");
+  assert.equal(exampleName("?samples=5&example=office"), "office");
+  assert.equal(exampleName("?example=../../etc/passwd"), "webserver");
+  assert.equal(exampleName("?example=constructor"), "webserver");
 });

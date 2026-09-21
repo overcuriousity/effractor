@@ -16,3 +16,6 @@ body {
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+
+/* `hidden` must win over any display a class sets. */
+[hidden] { display: none !important; }

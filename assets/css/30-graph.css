@@ -1,0 +1,75 @@
+/* The graph. The SVG renderer sets geometry as attributes and everything
+   visible here, by class — the classes are its interface (spec 7.1), and the
+   CSP allows no style attributes anyway.
+
+   Colour is importance and nothing else (spec 7.3): an unsolved node is
+   neutral, a gate always is, and every shape wears --viz-outline so that it
+   never depends on its fill to be seen. */
+
+.graph {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.graph.is-panning { cursor: grabbing; }
+.graph.is-dragging { cursor: copy; }
+
+.edge {
+  fill: none;
+  stroke: var(--viz-edge);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.node { cursor: pointer; }
+.node .shape {
+  fill: var(--color-bg-elevated);
+  stroke: var(--viz-outline);
+  stroke-width: 1.25;
+}
+.node .stem { stroke: var(--viz-outline); stroke-width: 1.25; }
+.node text {
+  fill: var(--color-fg-primary);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  pointer-events: none;
+}
+.node .inscription { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+.node .attributes,
+.node .value { font-family: var(--font-mono); font-size: 10px; font-variant-numeric: tabular-nums; }
+.node .attributes { fill: var(--color-fg-secondary); }
+
+.node.is-top .box { stroke-width: 2.25; }
+.node.is-unreachable { opacity: 0.45; }
+.node.is-unreachable .shape { stroke-dasharray: 4 3; }
+
+.badge { fill: var(--color-bg-surface); stroke: var(--viz-outline); stroke-width: 1; }
+.node .badge-text { font-family: var(--font-mono); font-size: 9px; fill: var(--color-fg-secondary); }
+
+/* Importance: fixed bins, one hue, ink paired with each step. Leaves only. */
+.node.imp-1 .shape { fill: var(--viz-imp-1); }
+.node.imp-2 .shape { fill: var(--viz-imp-2); }
+.node.imp-3 .shape { fill: var(--viz-imp-3); }
+.node.imp-4 .shape { fill: var(--viz-imp-4); }
+.node.imp-5 .shape { fill: var(--viz-imp-5); }
+.node.imp-1 .label-line, .node.imp-1 .value, .node.imp-1 .attributes { fill: var(--viz-imp-1-ink); }
+.node.imp-2 .label-line, .node.imp-2 .value, .node.imp-2 .attributes { fill: var(--viz-imp-2-ink); }
+.node.imp-3 .label-line, .node.imp-3 .value, .node.imp-3 .attributes { fill: var(--viz-imp-3-ink); }
+.node.imp-4 .label-line, .node.imp-4 .value, .node.imp-4 .attributes { fill: var(--viz-imp-4-ink); }
+.node.imp-5 .label-line, .node.imp-5 .value, .node.imp-5 .attributes { fill: var(--viz-imp-5-ink); }
+
+/* Highlights are strokes, never fills: the fill already means something. */
+.node.hl-selected .shape,
+.node.hl-selected .stem { stroke: var(--color-accent); stroke-width: 2.5; }
+.node.hl-cutset .shape,
+.node.hl-cutset .stem { stroke: var(--color-accent); stroke-width: 2; }
+.edge.hl-cutset, .edge.hl-selected { stroke: var(--color-accent); stroke-width: 2.25; }
+.node:hover .box { stroke-width: 2; }
+
+.hud-bottom-left { left: 10px; bottom: 10px; }
+
+.selected-facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: var(--text-sm); }
+.selected-facts dt { color: var(--color-fg-muted); }
+.selected-facts dd { margin: 0; overflow-wrap: anywhere; }

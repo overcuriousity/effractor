@@ -125,3 +125,17 @@ fn json_this_format_cannot_hold() {
         "unsupported"
     );
 }
+
+/// The page's JavaScript is tested against this file; this keeps the file
+/// what `document` really returns for the shipped example.
+#[test]
+fn the_javascript_fixture_is_the_real_image() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let text = std::fs::read_to_string(root.join("assets/examples/webserver.yaml")).unwrap();
+    let fixture =
+        std::fs::read_to_string(root.join("scripts/fixtures/webserver.doc.json")).unwrap();
+    let fixture: Value = serde_json::from_str(&fixture).unwrap();
+    assert_eq!(doc(&text), fixture);
+    // Key order is part of it: it is the order of the canvas.
+    assert_eq!(doc(&text).to_string(), fixture.to_string());
+}

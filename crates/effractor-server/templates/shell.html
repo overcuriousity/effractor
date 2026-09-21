@@ -9,8 +9,14 @@
 <link rel="stylesheet" href="/assets/css/00-tokens.css">
 <link rel="stylesheet" href="/assets/css/10-base.css">
 <link rel="stylesheet" href="/assets/css/20-workspace.css">
+<link rel="stylesheet" href="/assets/css/30-graph.css">
 <script src="/assets/js/theme.js"></script>
 <script src="/assets/js/workspace.js" defer></script>
+<script src="/assets/vendor/elk/elk-api.js" defer></script>
+<script src="/assets/js/graph.js" defer></script>
+<script src="/assets/js/view.js" defer></script>
+<script src="/assets/js/renderer-svg.js" defer></script>
+<script src="/assets/js/layout.js" defer></script>
 <script src="/assets/js/solver.js" defer></script>
 <script src="/assets/js/app.js" defer></script>
 </head>
@@ -53,6 +59,7 @@
 
   <main class="canvas" id="canvas" aria-label="Graph">
     <div class="canvas-grid" aria-hidden="true"></div>
+    <div class="hud hud-bottom-left"><button class="btn btn-ghost" id="fit" type="button" title="Fit to view (F)">Fit</button></div>
     <div class="hud hud-top-right">
       <div class="hud-card"><span class="label">P(top)</span><span class="stat num" id="hud-p">—</span><span class="hud-sub num" id="hud-p-ci">&nbsp;</span></div>
       <div class="hud-card"><span class="label">Expected loss</span><span class="stat num" id="hud-eal">—</span><span class="hud-sub num" id="hud-p95">&nbsp;</span></div>
@@ -67,7 +74,8 @@
     </section>
     <section class="panel-section">
       <h2 class="label">Selected</h2>
-      <p class="empty">Nothing selected.</p>
+      <p class="empty" id="selected-empty">Nothing selected.</p>
+      <dl class="selected-facts" id="selected-facts" hidden></dl>
     </section>
   </aside>
 

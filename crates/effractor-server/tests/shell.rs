@@ -132,6 +132,9 @@ async fn the_solver_and_its_example_are_embedded() {
     for (path, mime) in [
         ("/assets/js/solver-worker.js", "text/javascript"),
         ("/assets/examples/webserver.yaml", "text/x-yaml"),
+        ("/assets/examples/office.yaml", "text/x-yaml"),
+        // ELK's engine: the page loads the shim, the shim starts this worker.
+        ("/assets/vendor/elk/elk-worker.min.js", "text/javascript"),
         // Built by scripts/build-wasm.sh, not committed. If these two are
         // missing, that script has not run since the last checkout.
         ("/assets/wasm/effractor_wasm.js", "text/javascript"),
