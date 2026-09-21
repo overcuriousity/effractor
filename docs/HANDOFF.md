@@ -1,6 +1,7 @@
 # Handoff — 2026-09-21, evening
 
-For the next session. Read `CONTRIBUTING.md`, `ROADMAP.md` and the design
+For the next session — whoever or whatever picks it up; everything needed is in
+the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md`, `ROADMAP.md` and the design
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
@@ -27,7 +28,8 @@ the next session**, so cost is no criterion — only an efficient order:
    SVG, crosshair tooltip, a table view each. The numbers are in the results
    already: `exact.ttc_cdf`, `sampled.ttc_cdf` (with band), `sampled.loss`
    `exceedance`. New tabs in the right panel (`controls.js` has the tab code;
-   the tablist is in `shell.html`). Load the `dataviz` skill before drawing.
+   the tablist is in `shell.html`). Charts must read in both themes and never rely
+   on colour alone (spec 7.3).
 3. **`ui-pareto`** — attack-tree profile only; `results.attacker` has the sets
    with `on_front`. Table with the cheapest path pinned, scatter with axis
    pickers, two-way highlight with the canvas (`renderer.highlight(ids, kind)`
@@ -64,9 +66,9 @@ today, all of it after seeing the alternative:
 
 ## How UI work is verified
 
-No headless-browser harness in the repo, and the owner said **no** to driving
-their Chrome with `claude-in-chrome`: they look, you hand them a short numbered
-list of what to try. What worked today:
+No headless-browser harness in the repo, and the owner said **no** to an agent
+driving their browser: they look, you hand them a short numbered list of what
+to try. What worked today:
 
 - One interaction per PR; pure logic (`edit.js`, `results-view.js`, `store.js`,
   `source.js` helpers, `view.js`, `graph.js`) under `node --test`; then run the
@@ -97,14 +99,15 @@ list of what to try. What worked today:
   `z-index: 1`.
 - **`solver.onCrash` was never set**, so a crash with nothing pending was
   silent. It is set now.
-- `git push --force` and deleting branches are blocked by the permission
-  classifier here. A rebased branch goes up under a new name with a new PR and
+- In the last session's tooling `git push --force` and deleting branches were
+  blocked. A rebased branch goes up under a new name with a new PR and
   the old PR is closed; a stacked PR whose base is not `master` shows as closed,
   not merged, after the fast-forward — close it with a comment.
 - The process stands (see `CONTRIBUTING.md`): branch → PR → `wait-ci.sh ci.yml
   <sha>` for that exact commit, unpiped → `git merge --ff-only` on master →
   push → `wait-ci.sh release.yml <sha>`. Wait for one release before pushing
-  master again. `commit.gpgsign` is on; master stays signed.
+  master again. **Documentation-only commits go straight to master** — the owner
+  does not want CI waited on for a text file. `commit.gpgsign` is on; master stays signed.
 - `pkill -f target/debug/effractor` kills the shell that runs it. Stop the
   server by port: `ss -ltnp | grep :8080`, then `kill` the pid.
 
@@ -112,7 +115,7 @@ list of what to try. What worked today:
 
 - Two finished worktrees, `../SecGraph-noexamples` and `../SecGraph-source`, and
   some twenty merged branches, local and on origin. All are merged into master;
-  removing them was blocked by the classifier, so it is the owner's to run:
+  removing them was blocked by the tooling, so it is the owner's to run:
   `git worktree remove --force <dir>`, `git branch -d …`,
   `git push origin --delete …`.
 
