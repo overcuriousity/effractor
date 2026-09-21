@@ -10,7 +10,9 @@
 
 use std::collections::HashMap;
 
-use effractor_core::{Gate, Model, NodeId, NodeKind};
+use effractor_core::{Gate, Model, NodeId};
+
+use crate::plan::{Plan, Step};
 
 /// A function in the diagram. `FALSE` and `TRUE` are the terminals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -35,11 +37,8 @@ struct Decision {
     hi: Ref,
 }
 
-#[derive(Debug)]
 pub struct Bdd {
-    /// Index 0 and 1 are the terminals. Children always sit at a lower index
-    /// than their parent, which is what makes bottom-up passes a plain loop.
-    nodes: Vec<Decision>,
+    b: Builder,
     vars: Vec<NodeId>,
     functions: HashMap<NodeId, Ref>,
     root: Ref,
@@ -48,6 +47,8 @@ pub struct Bdd {
 const TERMINAL: u32 = u32::MAX;
 
 struct Builder {
+    /// Index 0 and 1 are the terminals. Children always sit at a lower index
+    /// than their parent, which is what makes bottom-up passes a plain loop.
     nodes: Vec<Decision>,
     unique: HashMap<(u32, Ref, Ref), Ref>,
     ite_cache: HashMap<(Ref, Ref, Ref), Ref>,
@@ -158,6 +159,11 @@ impl Bdd {
     /// deterministic, and it keeps leaves that are near each other in the model
     /// near each other in the diagram.
     pub fn compile(model: &Model, node_limit: usize) -> Result<Bdd, BddError> {
+        let plan = Plan::build(model).map_err(|_| BddError::InvalidModel)?;
+        Bdd::from_plan(&plan, node_limit)
+    }
+
+    pub fn from_plan(plan: &Plan, node_limit: usize) -> Result<Bdd, BddError> {
         let terminal = |lo| Decision {
             var: TERMINAL,
             lo,
@@ -169,58 +175,23 @@ impl Bdd {
             ite_cache: HashMap::new(),
             limit: node_limit.max(2),
         };
-        let mut vars: Vec<NodeId> = Vec::new();
-        let mut functions: HashMap<NodeId, Ref> = HashMap::new();
-        let mut on_path: HashMap<&NodeId, ()> = HashMap::new();
-
-        let (top, _) = model
-            .nodes
-            .get_key_value(&model.top)
-            .ok_or(BddError::InvalidModel)?;
-        let mut path: Vec<(&NodeId, usize)> = vec![(top, 0)];
-        on_path.insert(top, ());
-        while let Some((id, next)) = path.last_mut() {
-            let id = *id;
-            let children: &[NodeId] = match &model.nodes[id].kind {
-                NodeKind::Gate { children, .. } => children,
-                NodeKind::Leaf(_) => &[],
-            };
-            if let Some(child) = children.get(*next) {
-                *next += 1;
-                let (child, _) = model
-                    .nodes
-                    .get_key_value(child)
-                    .ok_or(BddError::InvalidModel)?;
-                if functions.contains_key(child) {
-                    continue;
-                }
-                if on_path.insert(child, ()).is_some() {
-                    return Err(BddError::InvalidModel);
-                }
-                path.push((child, 0));
-                continue;
-            }
-            let f = match &model.nodes[id].kind {
-                NodeKind::Leaf(_) => {
-                    vars.push(id.clone());
-                    b.make(vars.len() as u32 - 1, FALSE, TRUE)?
-                }
-                NodeKind::Gate { gate, children } => {
-                    let inputs: Vec<Ref> = children.iter().map(|c| functions[c]).collect();
+        let mut refs: Vec<Ref> = Vec::with_capacity(plan.steps.len());
+        for step in &plan.steps {
+            let f = match step {
+                Step::Leaf(var) => b.make(*var as u32, FALSE, TRUE)?,
+                Step::Gate { gate, inputs } => {
+                    let inputs: Vec<Ref> = inputs.iter().map(|i| refs[*i]).collect();
                     b.gate(*gate, &inputs)?
                 }
             };
-            functions.insert(id.clone(), f);
-            on_path.remove(id);
-            path.pop();
+            refs.push(f);
         }
-
-        let root = functions[top];
+        let functions = plan.ids.iter().cloned().zip(refs.iter().copied()).collect();
         Ok(Bdd {
-            nodes: b.nodes,
-            vars,
+            b,
+            vars: plan.leaves.clone(),
             functions,
-            root,
+            root: refs[plan.top()],
         })
     }
 
@@ -239,8 +210,38 @@ impl Bdd {
         self.functions.get(id).copied()
     }
 
+    pub(crate) fn decision(&self, f: Ref) -> (u32, Ref, Ref) {
+        let n = self.b.nodes[f.0 as usize];
+        (n.var, n.lo, n.hi)
+    }
+
+    /// The node at index `i`, which must not exceed `upto`'s.
+    pub(crate) fn ref_at(&self, i: usize, upto: Ref) -> Ref {
+        debug_assert!(i <= upto.0 as usize);
+        Ref(i as u32)
+    }
+
+    pub(crate) fn index(f: Ref) -> usize {
+        f.0 as usize
+    }
+
+    pub(crate) fn ite(&mut self, f: Ref, g: Ref, h: Ref) -> Result<Ref, BddError> {
+        self.b.ite(f, g, h)
+    }
+
+    pub(crate) fn variable(&mut self, var: usize) -> Result<Ref, BddError> {
+        self.b.make(var as u32, FALSE, TRUE)
+    }
+
+    /// P(f) with one leaf forced to hold, or not to.
+    pub fn prob_given(&self, f: Ref, leaf_p: &[f64], var: usize, holds: bool) -> f64 {
+        let mut p = leaf_p.to_vec();
+        p[var] = if holds { 1.0 } else { 0.0 };
+        self.prob(f, &p)
+    }
+
     pub fn size(&self) -> usize {
-        self.nodes.len()
+        self.b.nodes.len()
     }
 
     /// P(f), given independent leaf probabilities in `vars()` order: Shannon
@@ -257,7 +258,7 @@ impl Bdd {
             value[1] = 1.0;
         }
         for i in 2..=upto {
-            let n = self.nodes[i];
+            let n = self.b.nodes[i];
             let p = leaf_p[n.var as usize];
             value[i] = (1.0 - p) * value[n.lo.0 as usize] + p * value[n.hi.0 as usize];
         }

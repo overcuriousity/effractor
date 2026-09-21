@@ -31,19 +31,6 @@ the spec's example file loads, and unknown keys error with a position.
 
 ## Solver
 
-### solver-mcs — Minimal cut sets and SPOFs
-needs: —            cost: 3   benefit: 5
-Rauzy minimal solutions into a ZBDD; enumeration honouring `mcs_max_order` /
-`mcs_max_sets` with a `truncated` flag; cut-set probability; order-1 flagged
-SPOF. Done when proptest shows every set satisfies `top`, none is a superset of
-another, and none is missing versus brute force.
-
-### solver-importance — Birnbaum and Fussell-Vesely
-needs: solver-mcs            cost: 2   benefit: 4
-Birnbaum by cofactor evaluation; FV by definition from the ZBDD subset
-containing the leaf (spec §4 — not the rare-event form). Done when both match
-brute force under proptest and a fixture shows FV ≠ the approximation.
-
 ### solver-mc — Monte Carlo, Wilson CI, TTC CDF
 needs: —            cost: 3   benefit: 5
 Stepped sampler: `begin(model, config) -> Run`, `step(&mut Run) -> Progress`
@@ -63,14 +50,14 @@ p50/p90/p95/p99, LEC points, per-asset breakdown. Done when the dedup fixture
 model matches `P × magnitude` within CI, and a zero-asset model skips cleanly.
 
 ### solver-attacker — Cheapest path and Pareto front
-needs: solver-mcs            cost: 3   benefit: 4
+needs: —            cost: 3   benefit: 4
 Per-MCS cost (shared leaf once), detection, success, `E[max TTC | finite]`
 (numerical integration of the product CDF, via `libm`); min-cost set with
 time → id tie-break; non-dominated filter over (cost, time, detection). Done when
 proptest finds no dominated member and no missing non-dominated MCS.
 
 ### solver-controls — Toggles, deltas, ranking
-needs: solver-impact, solver-importance            cost: 3   benefit: 5
+needs: solver-impact            cost: 3   benefit: 5
 Apply enabled effects (lowest `p(T)` wins); per-control flip re-solve with
 common random numbers; Δrisk (EAL if assets else P(top)), Δ/cost ranking for
 disabled controls, removal cost for enabled ones. Done when a blocking control

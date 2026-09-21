@@ -7,4 +7,7 @@
 
 pub mod bdd;
 pub mod dist;
+pub mod importance;
+pub mod mcs;
+pub mod plan;
 mod special;
