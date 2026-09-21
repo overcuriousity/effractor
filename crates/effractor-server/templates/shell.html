@@ -69,11 +69,10 @@
       <ul class="outline" id="outline" role="tree" aria-label="Model tree"></ul>
     </section>
     <section class="panel-section">
-      <h2 class="label">Assets</h2>
-      <p class="empty" id="assets-empty">No assets.</p>
-      <table class="assets" id="assets" hidden>
-        <tbody id="assets-body"></tbody>
-      </table>
+      <h2 class="label">Assets <button class="label-action" id="asset-add" type="button" title="Add an asset: something a consequence can cost" aria-label="Add an asset">+</button></h2>
+      <p class="empty" id="assets-empty">No assets. An asset is what a consequence costs: add one, then give nodes consequences on it.</p>
+      <input class="asset-new" id="asset-new" type="text" placeholder="Name of the asset, then Enter" aria-label="Name of the new asset" hidden autocomplete="off">
+      <div class="assets" id="assets"></div>
     </section>
     </div>
     <div class="view-source" id="view-source" hidden>

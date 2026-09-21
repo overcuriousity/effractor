@@ -497,7 +497,11 @@
 
   function consequences(form, n) {
     var assets = Object.keys(doc().assets || {});
-    if (!assets.length && !(n.consequences || []).length) return;
+    if (!assets.length && !(n.consequences || []).length) {
+      // Said where it is looked for: a consequence needs something to cost.
+      hint(form, "Consequences: none possible yet — add an asset under Assets, on the left, and this node can cost something.");
+      return;
+    }
     var title = document.createElement("p");
     title.className = "hint";
     title.textContent = "Consequences";
@@ -766,90 +770,128 @@
       list.appendChild(item);
     });
 
-    var assets = doc().assets || {};
-    var body = $("assets-body");
-    body.replaceChildren();
-    Object.keys(assets).forEach(function (id) {
-      // One block per asset, a line per dimension: a loss may be a number or
-      // a whole distribution, and the panel is narrow.
-      var head = document.createElement("tr");
-      var name = document.createElement("th");
-      name.colSpan = 2;
-      name.scope = "rowgroup";
-      name.textContent = assets[id].label || id;
-      head.title = id;
-      head.appendChild(name);
-      body.appendChild(head);
-      var loss = assets[id].loss || {};
-      ["c", "i", "a"].forEach(function (dim) {
-        if (loss[dim] == null) return;
-        var tr = document.createElement("tr");
-        var key = document.createElement("td");
-        key.className = "dim";
-        key.textContent = dim.toUpperCase();
-        var value = document.createElement("td");
-        value.className = "num";
-        value.textContent = loss[dim];
-        tr.appendChild(key);
-        tr.appendChild(value);
-        body.appendChild(tr);
-      });
-    });
-    $("assets").hidden = !body.children.length;
-    $("assets-empty").hidden = !!body.children.length;
-  }
-
-  // ---- every action as a button, with its key; and the list of all keys ----
-
-  // The rail: each action as an icon, its key in the tooltip; the context menu
-  // and the keys list (?) spell them out. Off where the action does not apply.
-  var railButtons = document.querySelectorAll("[data-action]");
-  railButtons.forEach(function (button) {
-    button.addEventListener("click", function () {
-      button.blur(); // the keys stay with the canvas
-      actions[button.getAttribute("data-action")]();
-    });
-  });
-
-  function renderActions() {
-    var n = node();
-    var allowed = { undo: app.canUndo(), redo: app.canRedo() };
-    MENU.forEach(function (item) {
-      allowed[item[0]] = !!n && !!item[3](n);
-    });
-    var ways = removals();
-    allowed.deleteNode = ways.length > 0;
-    allowed.unlink = ways.length > 1;
-    railButtons.forEach(function (button) {
-      var action = button.getAttribute("data-action");
-      button.disabled = !allowed[action];
-      if (action === "deleteNode") button.title = ways.length ? ways[ways.length - 1][0] + (ways.length === 1 ? " (Del)" : "") : "Delete";
-      if (action === "unlink") button.title = ways.length > 1 ? "Unlink from a parent… (Del)" : "Unlink — for a node with several parents";
-    });
-  }
-
-  function openHelp() {
-    var list = $("help-keys");
-    list.replaceChildren();
-    MENU.map(function (item) {
-      return [item[2], item[1]];
-    })
-      .concat(OTHER_KEYS)
-      .forEach(function (row) {
-        var dt = document.createElement("dt");
-        var k = document.createElement("kbd");
-        k.textContent = row[0];
-        dt.appendChild(k);
-        var dd = document.createElement("dd");
-        dd.textContent = row[1];
-        list.appendChild(dt);
-        list.appendChild(dd);
-      });
-    $("help-dialog").showModal();
+    renderAssets();
   }
   $("help").addEventListener("click", openHelp);
   $("help-close").addEventListener("click", function () {
     $("help-dialog").close();
+  });
+
+  // ---- assets: listed closed, one opened at a time to be edited ----
+
+  var openAsset = null;
+
+  // An asset edit leaves the selection where it was.
+  function applyAsset(edit, then) {
+    if (edit) {
+      edit.select = selected();
+      edit.parent = app.state.parent;
+    }
+    return apply(edit, then);
+  }
+
+  function renderAssets() {
+    var assets = doc().assets || {};
+    var ids = Object.keys(assets);
+    var list = $("assets");
+    var keepFocus = document.activeElement && list.contains(document.activeElement) ? document.activeElement.id : null;
+    list.replaceChildren();
+    $("assets-empty").hidden = ids.length > 0 || !$("asset-new").hidden;
+    ids.forEach(function (id) {
+      var asset = assets[id];
+      var loss = asset.loss || {};
+      var block = document.createElement("div");
+      block.className = "asset";
+      var head = document.createElement("button");
+      head.type = "button";
+      head.className = "asset-head";
+      head.setAttribute("aria-expanded", String(openAsset === id));
+      head.title = id;
+      head.textContent = asset.label || id;
+      head.addEventListener("click", function () {
+        openAsset = openAsset === id ? null : id;
+        renderAssets();
+      });
+      block.appendChild(head);
+
+      if (openAsset !== id) {
+        var summary = document.createElement("dl");
+        summary.className = "asset-loss";
+        ["c", "i", "a"].forEach(function (dim) {
+          if (loss[dim] == null) return;
+          var dt = document.createElement("dt");
+          dt.textContent = dim.toUpperCase();
+          var dd = document.createElement("dd");
+          dd.textContent = loss[dim];
+          summary.appendChild(dt);
+          summary.appendChild(dd);
+        });
+        if (summary.children.length) block.appendChild(summary);
+      } else {
+        var form = document.createElement("div");
+        form.className = "properties-inner asset-form";
+        var label = field(form, "asset-label", "Label", input("text", asset.label));
+        label.addEventListener("change", function () {
+          applyAsset(E.setAssetLabel(doc(), id, label.value));
+        });
+        [["c", "Confidentiality"], ["i", "Integrity"], ["a", "Availability"]].forEach(function (dim) {
+          var f = field(form, "asset-" + dim[0], dim[1], input("text", loss[dim[0]]));
+          f.classList.add("mono");
+          f.placeholder = "—";
+          f.addEventListener("change", function () {
+            applyAsset(E.setAssetLoss(doc(), id, dim[0], f.value)).then(function (applied) {
+              if (!applied) f.value = loss[dim[0]] == null ? "" : loss[dim[0]];
+            });
+          });
+        });
+        hint(form, "What it costs, in " + (doc().currency || "money") + ", when that property of the asset is lost. A number, or a distribution such as Pert(least, likely, most). Leave empty what does not apply.");
+        var uses = E.usesOfAsset(doc(), id);
+        var remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "btn btn-ghost btn-small asset-remove";
+        remove.textContent = uses ? "Remove, with its " + uses + " consequence" + (uses > 1 ? "s" : "") : "Remove";
+        remove.addEventListener("click", function () {
+          var name = asset.label || id;
+          openAsset = null;
+          applyAsset(E.removeAsset(doc(), id), function () {
+            app.say("removed the asset “" + name + "” · Ctrl+Z undoes");
+          });
+        });
+        form.appendChild(remove);
+        block.appendChild(form);
+      }
+      list.appendChild(block);
+    });
+    if (keepFocus && $(keepFocus)) $(keepFocus).focus();
+  }
+
+  $("asset-add").addEventListener("click", function () {
+    var name = $("asset-new");
+    name.hidden = false;
+    name.value = "";
+    $("assets-empty").hidden = true;
+    name.focus();
+  });
+  $("asset-new").addEventListener("keydown", function (e) {
+    var name = $("asset-new");
+    if (e.key === "Escape") {
+      name.hidden = true;
+      return renderAssets();
+    }
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    var edit = E.addAsset(doc(), name.value);
+    if (!edit) return;
+    name.hidden = true;
+    openAsset = edit.asset;
+    applyAsset(edit, function () {
+      var first = $("asset-c");
+      if (first) first.focus();
+    });
+  });
+  $("asset-new").addEventListener("blur", function () {
+    $("asset-new").hidden = true;
+    if (doc()) renderAssets();
   });
 
   app.onChange(function () {

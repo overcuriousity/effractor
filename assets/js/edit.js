@@ -267,6 +267,75 @@
     return { doc: doc, select: id };
   }
 
+  // ---- assets: what a consequence costs. Made by name, so the id is right
+  // from the start; the id is what consequences hold, so a new label keeps it.
+
+  function addAsset(doc, label) {
+    label = String(label == null ? "" : label).trim();
+    if (!label) return null;
+    doc = clone(doc);
+    doc.assets = doc.assets || {};
+    var base = slug(label);
+    var id = base;
+    for (var n = 2; has(doc.assets, id); n++) id = base + "-" + n;
+    doc.assets[id] = { label: label, loss: {} };
+    return { doc: doc, select: null, asset: id };
+  }
+
+  function setAssetLabel(doc, id, label) {
+    label = String(label == null ? "" : label).trim();
+    if (!has(doc.assets || {}, id) || !label) return null;
+    doc = clone(doc);
+    doc.assets[id].label = label;
+    return { doc: doc, select: null, asset: id };
+  }
+
+  // `value` as typed: empty removes the dimension, a number is a number, the
+  // rest is a distribution for wasm to judge.
+  function setAssetLoss(doc, id, dim, value) {
+    if (!has(doc.assets || {}, id) || ["c", "i", "a"].indexOf(dim) < 0) return null;
+    doc = clone(doc);
+    var asset = doc.assets[id];
+    var typed = String(value == null ? "" : value).trim();
+    var loss = {};
+    // Rebuilt in c, i, a order, whatever was there before.
+    ["c", "i", "a"].forEach(function (d) {
+      var v = d === dim ? typed : (asset.loss || {})[d];
+      if (v === undefined || v === "") return;
+      loss[d] = d === dim && /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(typed) ? Number(typed) : v;
+    });
+    Object.keys(asset.loss || {}).forEach(function (k) {
+      if (!has(loss, k) && ["c", "i", "a"].indexOf(k) < 0) loss[k] = asset.loss[k]; // x- keys
+    });
+    asset.loss = loss;
+    return { doc: doc, select: null, asset: id };
+  }
+
+  function usesOfAsset(doc, id) {
+    var n = 0;
+    Object.keys(doc.nodes).forEach(function (node) {
+      (doc.nodes[node].consequences || []).forEach(function (c) {
+        if (c.asset === id) n++;
+      });
+    });
+    return n;
+  }
+
+  function removeAsset(doc, id) {
+    if (!has(doc.assets || {}, id)) return null;
+    doc = clone(doc);
+    delete doc.assets[id];
+    if (!Object.keys(doc.assets).length) delete doc.assets;
+    Object.keys(doc.nodes).forEach(function (node) {
+      var list = doc.nodes[node].consequences;
+      if (!list) return;
+      list = list.filter(function (c) { return c.asset !== id; });
+      if (list.length) doc.nodes[node].consequences = list;
+      else delete doc.nodes[node].consequences;
+    });
+    return { doc: doc, select: null, removed: 1 };
+  }
+
   // A rate is how the format says "how often"; people say it the other way
   // round: once every so long. Both directions, in the document's time unit.
   var HOURS = { h: 1, d: 24, y: 8760 };
@@ -349,7 +418,8 @@
   var api = {
     slug: slug, parentsOf: parentsOf, addChild: addChild, addSibling: addSibling, rename: rename, setId: setId,
     cycleGate: cycleGate, setLeafKind: setLeafKind, link: link, removeEdge: removeEdge, deleteNode: deleteNode, removal: removal,
-    reparent: reparent, setAttribute: setAttribute, outline: outline, rateFrom: rateFrom, meanTime: meanTime, walk: walk, createHistory: createHistory,
+    reparent: reparent, setAttribute: setAttribute, outline: outline, rateFrom: rateFrom, meanTime: meanTime,
+    addAsset: addAsset, setAssetLabel: setAssetLabel, setAssetLoss: setAssetLoss, removeAsset: removeAsset, usesOfAsset: usesOfAsset, walk: walk, createHistory: createHistory,
   };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorEdit = api;

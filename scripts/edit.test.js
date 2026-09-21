@@ -153,3 +153,35 @@ test("a rate can be said as once every so long, and back", () => {
   assert.equal(E.rateFrom(0, "d", "h"), null);
   assert.equal(E.meanTime(0, "h"), null);
 });
+
+test("assets are made by name, given losses, and taken away with what points at them", () => {
+  let r = E.addAsset(attack, "Personnel files");
+  assert.equal(r.asset, "personnel-files");
+  assert.deepEqual(r.doc.assets["personnel-files"], { label: "Personnel files", loss: {} });
+  assert.equal(E.addAsset(r.doc, "Personnel files").asset, "personnel-files-2", "ids stay unique");
+  assert.equal(E.addAsset(attack, "   "), null);
+
+  // A plain number is a number; anything else is a distribution, as text.
+  let d = E.setAssetLoss(r.doc, "personnel-files", "c", "40000").doc;
+  d = E.setAssetLoss(d, "personnel-files", "a", " Pert(1, 2, 3) ").doc;
+  assert.deepEqual(d.assets["personnel-files"].loss, { c: 40000, a: "Pert(1, 2, 3)" });
+  d = E.setAssetLoss(d, "personnel-files", "c", "").doc;
+  assert.deepEqual(d.assets["personnel-files"].loss, { a: "Pert(1, 2, 3)" });
+  assert.equal(E.setAssetLoss(d, "nobody", "c", "1"), null);
+  assert.equal(E.setAssetLoss(d, "personnel-files", "x", "1"), null);
+
+  d = E.setAssetLabel(d, "personnel-files", "HR files").doc;
+  assert.equal(d.assets["personnel-files"].label, "HR files");
+  assert.equal(Object.keys(d.assets)[0], "personnel-files", "the id is what consequences hold: it stays");
+
+  // Removing it removes the consequences that name it, and the empty lists.
+  d.nodes.files.consequences = [{ asset: "personnel-files", dim: "c" }];
+  d.nodes.mfa.consequences = [{ asset: "personnel-files", dim: "a" }, { asset: "other", dim: "a" }];
+  d.assets.other = { label: "Other", loss: {} };
+  const gone = E.removeAsset(d, "personnel-files").doc;
+  assert.deepEqual(Object.keys(gone.assets), ["other"]);
+  assert.equal(gone.nodes.files.consequences, undefined);
+  assert.deepEqual(gone.nodes.mfa.consequences, [{ asset: "other", dim: "a" }]);
+  assert.equal(E.removeAsset(gone, "other").doc.assets, undefined, "no assets: no key");
+  assert.equal(E.usesOfAsset(d, "personnel-files"), 2);
+});
