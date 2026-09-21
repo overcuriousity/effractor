@@ -40,14 +40,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn static_shell_keeps_the_editor_but_disables_server_sharing() {
+    fn static_shell_offers_self_contained_sharing_without_server_controls() {
         let html = render(false).unwrap();
         assert!(html.contains("id=\"canvas\""));
         assert!(html.contains("src=\"./assets/js/app.js\""));
         assert!(!html.contains("src=\"/assets/"));
-        assert!(!html.contains("share-ui.js"));
-        assert!(!html.contains("id=\"share-dialog\""));
-        assert!(html.contains("disabled title=\"Sharing unavailable on this site\""));
+        assert!(html.contains("./assets/js/share-ui.js"));
+        assert!(html.contains("id=\"share-dialog\""));
+        assert!(html.contains("data-server-sharing=\"false\""));
+        assert!(!html.contains("id=\"share-expiry\""));
+        assert!(!html.contains("id=\"my-shares\""));
         assert!(html.contains("http-equiv=\"Content-Security-Policy\""));
         assert!(!html.contains("frame-ancestors"));
     }
@@ -58,5 +60,7 @@ mod tests {
         assert!(html.contains("src=\"/assets/js/app.js\""));
         assert!(html.contains("/assets/js/share-ui.js"));
         assert!(html.contains("id=\"share-dialog\""));
+        assert!(html.contains("data-server-sharing=\"true\""));
+        assert!(html.contains("id=\"share-expiry\""));
     }
 }

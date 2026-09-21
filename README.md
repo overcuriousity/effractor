@@ -9,10 +9,16 @@ never leaves your machine unless you share it. No accounts, no telemetry.
 *effractor* — Latin: one who breaks in.
 
 [Open effractor in your browser](https://overcuriousity.github.io/effractor/).
-The public site runs the same editor and solver, with local persistence and
-file import/export. Sharing is disabled because GitHub Pages has no backend.
-Install the server below to add encrypted share links with expiry and deletion,
-stored on your own server.
+The public site runs the same editor and solver, with local persistence,
+file import/export and self-contained share links. These links carry compressed
+YAML in the URL fragment: no model is uploaded. Anyone with the link can read
+it; links are not encrypted and cannot expire or be revoked. Opening one makes
+an editable local copy; Ctrl+Z restores the previous document.
+
+Self-contained links are limited to 8,192 characters and 1 MiB of expanded YAML.
+Long links may not survive every messaging service; use a YAML file for larger
+models. Install the server below to also offer short, encrypted share links
+with expiry and deletion, stored on your own server.
 
 ## Install
 

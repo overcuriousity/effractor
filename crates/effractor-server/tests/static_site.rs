@@ -17,7 +17,9 @@ fn exports_a_self_contained_site_without_overwriting_existing_files() {
     );
     let html = fs::read_to_string(site.join("index.html")).unwrap();
     assert!(html.contains("<title>effractor</title>"));
-    assert!(!html.contains("share-ui.js"));
+    assert!(html.contains("./assets/js/share-ui.js"));
+    assert!(html.contains("data-server-sharing=\"false\""));
+    assert!(!html.contains("id=\"share-expiry\""));
     assert!(site.join(".nojekyll").exists());
     for tag in html
         .split('<')

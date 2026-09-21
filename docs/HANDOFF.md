@@ -5,6 +5,30 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — self-contained links (2026-09-22)
+
+The owner approved optional self-contained sharing. Branch
+`feature/self-contained-links` adds `#tree=v1.<base64url(gzip(YAML))>` links to
+both hosting modes. Pages offers self-contained links; the server keeps its
+encrypted links as default and adds a mode picker. Inline links upload nothing,
+are not encrypted, and have no expiry or revocation. Limits are 8,192 URL
+characters and 1 MiB of expanded UTF-8 YAML. The additional contract is in
+the v1 spec's hosting/sharing section and README.
+
+Opening uses the validating, undoable document replacement and detaches to the
+deployment base only after success. A live navigation guard prevents a link
+that finishes parsing after Back/navigation from changing the document,
+persistence or undo history. The reviewer identified this race; regression
+tests cover each asynchronous parse/serialize/adopt stage and normal file undo.
+
+Local npm/workspace tests, fmt, Clippy and roadmap checks passed. The WASM build
+ran, and all 13 shipped examples encoded, decoded and parsed in the real WASM
+module. Code review has no remaining findings. **Owner UI acceptance is still
+pending; do not merge before it.** No browser was driven. The preview worktree
+is `/tmp/effractor-self-contained-links`; static preview is
+`http://127.0.0.1:8082/effractor/`, server preview is `http://127.0.0.1:8081/`.
+Check create/copy/open, editing and re-sharing, Ctrl+Z, and both server modes.
+
 ## Continuation — successor scope
 
 The owner selected the lecture workflow with a small, transparent component

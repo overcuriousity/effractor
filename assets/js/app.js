@@ -257,14 +257,16 @@
   }
 
   // A text becomes the document: the one way in, for an edit, an undo, a redo.
-  function adopt(text, selectId, parent, fit) {
+  function adopt(text, selectId, parent, fit, beforeCommit) {
     return solver.parse(text).then(function (parsed) {
       if (!parsed.ok) throw new Error(describe(parsed.diagnostics[0]));
+      if (beforeCommit && !beforeCommit()) return false;
       clearResults();
       store.save(text);
       return loaded(text, parsed.ok, !!fit).then(function () {
         select(selectId, parent);
         documentChanged();
+        return true;
       });
     });
   }
@@ -462,20 +464,29 @@
   // ---- New, open, save. Another document is an edit like any other: the one
   // it replaces is a Ctrl+Z away, so nothing is asked and nothing is lost.
 
-  function replaceDocument(text, said) {
+  function replaceDocument(text, said, isCurrent) {
     if (state.running) return say("solving — cancel it or wait");
     return solver.parse(text).then(function (parsed) {
+      if (isCurrent && !isCurrent()) return false;
       if (!parsed.ok) return say("not opened: " + describe(parsed.diagnostics[0]));
       // In canonical form, as every other text the page holds.
       return solver.serialize(parsed.ok).then(function (written) {
+        if (isCurrent && !isCurrent()) return false;
         if (!written.ok) return say("not opened: " + describe(written.diagnostics[0]));
-        if (state.text !== null) undoStack.push(state.text);
-        return adopt(written.ok, null, null, true).then(function () {
+        return adopt(written.ok, null, null, true, function () {
+          // Link navigation may have changed during the worker round trips.
+          // Check before touching either the document or its undo history.
+          if (isCurrent && !isCurrent()) return false;
+          if (state.text !== null) undoStack.push(state.text);
+          return true;
+        }).then(function (applied) {
+          if (!applied || (isCurrent && !isCurrent())) return false;
           say(said + " · Ctrl+Z goes back");
           return true;
         });
       });
     }).catch(function (e) {
+      if (isCurrent && !isCurrent()) return false;
       console.error(e);
       say("not opened: " + e.message);
     });

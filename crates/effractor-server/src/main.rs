@@ -19,7 +19,7 @@ const VERSION: &str = match option_env!("EFFRACTOR_VERSION") {
 #[derive(Parser)]
 #[command(name = "effractor", version = VERSION)]
 struct Args {
-    /// Export a static site to a new directory, without sharing, then exit.
+    /// Export a static site with self-contained sharing to a new directory, then exit.
     #[arg(long, value_name = "DIRECTORY")]
     export_static: Option<PathBuf>,
 

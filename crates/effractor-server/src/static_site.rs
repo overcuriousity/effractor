@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::{assets::Assets, shell};
 
-/// Export the same shell and assets the server serves, without share controls.
+/// Export the same shell and assets, with self-contained sharing only.
 /// The destination must not exist: never mix stale files into a deployment or
 /// overwrite a user's directory. Build scripts may clear their own output first.
 pub fn export_static(destination: &Path) -> anyhow::Result<()> {

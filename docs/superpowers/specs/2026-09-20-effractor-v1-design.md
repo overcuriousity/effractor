@@ -434,6 +434,29 @@ table view.
 
 Hosted instance, no accounts. Sharing creates an **immutable snapshot**.
 
+**Additional mode approved 2026-09-22: self-contained links.** Both the server
+and the static GitHub Pages site can put the YAML in the link itself:
+`<app-base>/#tree=v1.<base64url(gzip(UTF-8 YAML))>`. The `v1` identifies the link
+encoding independently of the YAML schema version. No upload, encryption,
+expiry or revocation; anyone holding the full link can recover the document.
+The static site offers this mode; the server keeps encrypted server links as
+the default and offers a sharing-mode picker. TTL and My shares apply only to
+server links. Browser-native compression adds no dependency or third-party
+origin.
+
+Creation is capped at 8,192 URL characters and 1 MiB of UTF-8 YAML. Decoding
+checks the fragment length, version, canonical base64url, gzip integrity and
+UTF-8, and stops decompression above 1 MiB before parsing. Oversized links offer
+YAML export or server sharing; the URL cap is an application policy, not a
+guarantee that all messaging services preserve links of that length. Opening
+a link uses the existing validating, undoable document replacement, then
+removes the fragment by replacing history at the app base. Failure keeps the
+previous document and reports why. Static links preserve the deployment's
+subdirectory. Editing a local copy does not change a previously copied link.
+
+The following storage, encryption, expiry and deletion rules apply to
+**server links**:
+
 - The browser encrypts the YAML with a fresh AES-256-GCM key (WebCrypto) and
   uploads only ciphertext. The link is `/s/{id}#{key}`; the fragment never
   reaches the server. The server cannot read shared models — "models never leave
