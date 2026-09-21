@@ -772,6 +772,55 @@
 
     renderAssets();
   }
+
+  // ---- every action as a button, with its key; and the list of all keys ----
+
+  // The rail: each action as an icon, its key in the tooltip; the context menu
+  // and the keys list (?) spell them out. Off where the action does not apply.
+  var railButtons = document.querySelectorAll("[data-action]");
+  railButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      button.blur(); // the keys stay with the canvas
+      actions[button.getAttribute("data-action")]();
+    });
+  });
+
+  function renderActions() {
+    var n = node();
+    var allowed = { undo: app.canUndo(), redo: app.canRedo() };
+    MENU.forEach(function (item) {
+      allowed[item[0]] = !!n && !!item[3](n);
+    });
+    var ways = removals();
+    allowed.deleteNode = ways.length > 0;
+    allowed.unlink = ways.length > 1;
+    railButtons.forEach(function (button) {
+      var action = button.getAttribute("data-action");
+      button.disabled = !allowed[action];
+      if (action === "deleteNode") button.title = ways.length ? ways[ways.length - 1][0] + (ways.length === 1 ? " (Del)" : "") : "Delete";
+      if (action === "unlink") button.title = ways.length > 1 ? "Unlink from a parent… (Del)" : "Unlink — for a node with several parents";
+    });
+  }
+
+  function openHelp() {
+    var list = $("help-keys");
+    list.replaceChildren();
+    MENU.map(function (item) {
+      return [item[2], item[1]];
+    })
+      .concat(OTHER_KEYS)
+      .forEach(function (row) {
+        var dt = document.createElement("dt");
+        var k = document.createElement("kbd");
+        k.textContent = row[0];
+        dt.appendChild(k);
+        var dd = document.createElement("dd");
+        dd.textContent = row[1];
+        list.appendChild(dt);
+        list.appendChild(dd);
+      });
+    $("help-dialog").showModal();
+  }
   $("help").addEventListener("click", openHelp);
   $("help-close").addEventListener("click", function () {
     $("help-dialog").close();
