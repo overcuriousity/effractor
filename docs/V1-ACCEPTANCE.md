@@ -1,56 +1,79 @@
 # v1 acceptance record
 
-Date: 2026-09-21. Final release acceptance is **pending** until the chart and
-Pareto PRs are visually accepted and released, and the owner completes
-the keyboard walkthrough against that release binary. Do not remove
-`v1-acceptance` from the roadmap before that check.
+Completed 2026-09-21 against release `v0.1.0+361b206` (Linux x86_64).
+The owner explicitly requested an agent-run browser/headless-browser walkthrough
+in place of the previously required owner walkthrough. The checks below used
+isolated headless Chromium profiles, real keyboard/pointer events, and the
+published release binary. Screenshots were also inspected by the agent.
+No product code or bundled assets differ between that release and this PR.
 
-## Automated evidence
+## Release walkthrough
 
-- The reference fault-tree and office attack-tree documentation files parse and
-  solve. Native `effractor-wasm::api::Session` and browser wasm results match
-  byte-for-byte for both files, including control comparisons.
-- `npm test`, `cargo test --workspace`, `cargo fmt --all --check`,
-  `cargo clippy --workspace --all-targets -- -D warnings`, and
-  `node scripts/check-roadmap.js` have passed during implementation. CI must
-  still pass for the exact commit being merged.
-- `scripts/build-wasm.sh` built the browser module. The reproducible budget
-  check is `node scripts/check-performance.js`; it requires 10,000 samples,
-  first exact result under 100 ms and total solve under 1 s in every run.
-- Measurement before the performance script was added: Node v22.22.3, Linux
-  x86_64, AMD Ryzen AI 7 350. Reference fixture: first exact 10.98 ms, first
-  full solve 66.04 ms; five subsequent runs exact 0.45–0.67 ms, total
-  39.44–50.33 ms. Includes parsing, baseline sampling, control comparisons and
-  result serialization; excludes browser worker startup, layout and paint.
-  This is a Node-hosted wasm check, not a browser timing claim.
-- The documented installer downloaded and verified the SHA-256 of release
-  `0.1.0+6010f7f` into an empty temporary installation directory. That release
-  includes accepted sharing but predates the remaining UI work. Installation
-  was checked on the existing Linux host, not a fresh OS installation.
-- Sharing was visually accepted by the owner and merged in PR #43; exact-commit
-  CI and release verification passed.
+- Built the reference fault tree's nine nodes and the office attack tree's
+  eight nodes through the structured editor with keyboard input: labels, ids,
+  gates, 2-of-3 threshold, repeated-event link, leaf kinds, probabilities,
+  rates, TTC expressions, attacker costs and detection. Asserted the resulting
+  node structure and numerical attributes against the course fixtures; both
+  trees solved locally. Initial selection used the outline. Property fields
+  were focused directly by the browser driver and edited with keyboard events.
+- Imported the complete course files for their asset, consequence, control and
+  analysis settings, then solved each with 10,000 samples. Exact P(top) displays
+  `0.0474` for the fault tree and `0.836` for the attack tree.
+- Checked TTC and loss charts in light and dark themes: plotted paths,
+  confidence band, keyboard inspection, pointer hover, tooltips and table
+  equivalents. Inspected screenshots of the rendered views.
+- Checked Pareto sorting with the cheapest path remaining pinned, changed
+  scatter axes, inspected/selected points by keyboard, and verified path-to-graph
+  and graph-selection-to-table highlighting in both themes.
+- Changed horizon and TTC, solved and verified changed probabilities, then
+  undid the edits. Undoing the horizon and solving restored the complete
+  baseline results exactly; undoing TTC restored the original leaf attributes.
+- Checked control rank `#1` and its risk delta, enabled it, and verified the
+  updated results and the displayed cost of removing the enabled control.
+- For each course file, shared from the UI, opened the link in a fresh browser
+  profile, compared the decrypted model, edited its horizon, and reloaded to
+  verify local persistence without changing the original. Deleted the share
+  after its eight-second undo window. A third fresh profile displayed the
+  deleted/expired notice; the share API returned 404.
+- Neither successful walkthrough reported an uncaught browser page error.
 
-- A local release-mode build with embedded chart/timing/Pareto assets served
-  the editor and passed encrypted snapshot create, fetch/decrypt, delete and
-  subsequent 404 checks using the reference fixture. This smoke test does not
-  replace visual acceptance.
+## Installation and performance
 
-- Timing UI (TTC preset pickers and horizon editor) was visually accepted by
-  the owner and merged independently through PR #48 at `1b064d4`; exact-commit
-  CI and release verification passed. Pareto
-  table alignment was accepted; Mean time/unit/pinned wording was then clarified.
-  Overall Pareto merge approval remains pending.
+- The README installer downloaded and SHA-256-verified the published release
+  in a clean disposable Alpine 3.20 container with only curl/CA certificates
+  added. The installed binary started and served the complete browser app;
+  chart, edit, control and sharing checks above ran against that container.
+  This checks a fresh Linux userspace, not a separate physical machine or VM.
+  The same release also installed into an empty temporary host directory.
+- Six reference-tree runs in the released Chromium app produced first exact
+  results in **7.0–14.1 ms** and complete 10,000-sample results in
+  **47.1–59.4 ms**. Timing begins at Solve, includes worker communication and
+  UI updates through the next animation frame, and excludes initial page load.
+  All runs meet the <100 ms exact / <1 s total budgets.
+- The reproducible Node-hosted wasm check,
+  `node scripts/check-performance.js`, also passed all six runs:
+  exact **0.42–11.23 ms**, total **34.48–66.09 ms**. Node v22.22.3,
+  Linux x86_64, AMD Ryzen AI 7 350.
+- Complete results from the release's browser wasm and the native
+  `effractor-wasm::api::Session` matched for both course files, including
+  sampled results and control comparisons.
 
-## Owner walkthrough still required
+## Repository checks
 
-Follow [the course walkthrough](course/README.md) against the final release:
+`scripts/build-wasm.sh`, `npm test`, `cargo test --workspace`,
+`cargo fmt --all --check`,
+`cargo clippy --workspace --all-targets -- -D warnings`, and
+`node scripts/check-roadmap.js` passed. Exact-commit CI remains the merge gate.
 
-- Build both trees using the keyboard and solve locally.
-- Verify charts and Pareto in light/dark themes and their table equivalents.
-- Edit horizon and TTC in the UI; undo and verify the result changes.
-- Toggle a control and inspect risk delta/rank.
-- Share, open in a fresh profile, edit/reload the local copy, delete, and confirm
-  the old link is unavailable.
-- Install and run the final release on a fresh Linux machine.
+The one-off Playwright drivers, screenshots, JSON results and timing records
+are in `/tmp/effractor-pr47-acceptance/` on the acceptance host. Playwright was
+installed there, not added as a project dependency or permanent test harness.
+The course walkthrough and the Node budget check remain reproducible repo files.
 
-Record the release version and the owner's result here when completed.
+## Non-blocking observation
+
+Use **Space** to open the property panel's More disclosure with the keyboard.
+Enter is intercepted by the editor's add-sibling shortcut. The walkthrough
+completed using Space; Enter on a focused disclosure should be corrected in a
+follow-up. At the default narrow results-panel width, wide tables scroll
+horizontally; resize the panel to see more columns together.

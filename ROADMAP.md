@@ -26,10 +26,3 @@ user input · no third-party origins, no telemetry · vanilla CSS + JS, no bundl
 ## Browser
 
 ## Sharing and delivery
-
-### v1-acceptance — The spec's "done means"
-needs: —            cost: 2   benefit: 5
-A walk through spec §12 against a release binary, by hand; performance
-budget check (10 000 samples < 1 s, first exact result < 100 ms on the reference
-tree); docs page for the course with the reference fault tree and one attack
-tree as example files.

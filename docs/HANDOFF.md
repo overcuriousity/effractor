@@ -5,25 +5,26 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
-## Continuation — current session
+## Continuation — v1 acceptance
 
-Sharing was visually accepted and merged in PR #43. Timing UI was accepted
-and merged independently through PR #48 at `1b064d4`; CI and release are green.
-Stacked PR #45 is closed. Work continues on normal feature branches in the main
-checkout, as requested by the owner:
+Sharing (#43), timing (#48), charts (#44), and Pareto (#46) are merged and
+released in `v0.1.0+361b206`. PR #47 now records the completed release
+acceptance, the course docs/files, and the reproducible wasm budget check.
+The owner explicitly requested an agent-driven browser/headless-browser
+walkthrough for this acceptance, overriding the earlier browser restriction
+for this task. The agent ran isolated Chromium profiles against the released
+binary and inspected screenshots; no owner's personal browser was driven.
 
-- PR #44 (`feature/ui-charts`): TTC and loss charts, tables, crosshair and keys.
-- PR #46 (`feature/ui-pareto`): sortable table, pinned cheapest path, axis
-  pickers, scatter and two-way graph highlighting.
-- `feature/v1-acceptance`: course docs/files, performance check, and an honest
-  acceptance record in `docs/V1-ACCEPTANCE.md`.
+Both keyboard-built trees, charts in both themes, Pareto interaction, timing
+edits/undo, control deltas, encrypted sharing/local persistence/deletion,
+clean-container installation, browser performance, and native/browser result
+agreement passed. See `docs/V1-ACCEPTANCE.md` for exact scope and measurements.
+The `v1-acceptance` roadmap item is complete. The installation check used a
+fresh Alpine userspace, not a physical machine or VM.
 
-These are stacked in that order on the timing merge. Charts remain pending
-visual acceptance. The owner accepted Pareto table alignment; follow-up
-wording now says Mean time with explicit units and Cheapest · pinned.
-Overall Pareto merge approval remains pending; do not infer it from passing tests.
-The roadmap still lists the unfinished acceptance items. Read the acceptance
-record for measured results and the remaining release-binary walkthrough.
+One non-blocking keyboard issue was observed: use Space to open More in the
+property panel; Enter is intercepted as add sibling. Record this for a future
+keyboard-accessibility fix. No product code changed in the acceptance PR.
 
 The remainder of this document records the original handoff and conventions.
 
