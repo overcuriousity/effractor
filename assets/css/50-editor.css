@@ -84,3 +84,11 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--col
 .help-keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 10px 0 14px; font-size: var(--text-sm); }
 .help-keys dt, .help-keys dd { margin: 0; }
 .help-keys kbd { color: var(--color-fg-primary); }
+
+/* Likelihood in words, and what the canvas does not need behind "More". */
+.properties .field-hint { line-height: 1.35; }
+.every { display: grid; grid-template-columns: 1fr auto; gap: 4px; }
+.properties .every select { width: auto; }
+.more { grid-column: 1 / -1; margin-top: 4px; }
+.more summary { color: var(--color-fg-muted); font-size: var(--text-xs); cursor: pointer; }
+.properties-inner { display: grid; grid-template-columns: auto 1fr; gap: 5px 8px; align-items: center; margin-top: 6px; }

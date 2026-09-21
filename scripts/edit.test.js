@@ -142,3 +142,14 @@ test("the history says whether there is anywhere to go, for its buttons", () => 
   h.undo("b");
   assert.deepEqual([h.canUndo(), h.canRedo()], [false, true]);
 });
+
+test("a rate can be said as once every so long, and back", () => {
+  // 1e-6 per hour: once in about 114 years.
+  assert.deepEqual(E.meanTime(1e-6, "h"), { every: 114.2, unit: "y" });
+  assert.deepEqual(E.meanTime(0.5, "d"), { every: 2, unit: "d" });
+  assert.deepEqual(E.meanTime(2, "d"), { every: 12, unit: "h" });
+  assert.equal(E.rateFrom(2, "y", "y"), 0.5);
+  assert.equal(E.rateFrom(10, "d", "h"), 1 / 240);
+  assert.equal(E.rateFrom(0, "d", "h"), null);
+  assert.equal(E.meanTime(0, "h"), null);
+});

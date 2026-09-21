@@ -487,7 +487,7 @@
         bar.setAttribute("height", h);
         svg.appendChild(bar);
       });
-      note.textContent = "p(T) = " + window.effractorResults.number(answer.ok.p_horizon);
+      note.textContent = "within the horizon: " + window.effractorResults.number(answer.ok.p_horizon);
     }, function () {});
   }
 
@@ -540,6 +540,135 @@
     form.appendChild(row);
   }
 
+  // What the canvas does not need: the note, and the id the YAML knows the
+  // node by. Closed until asked for.
+  var moreOpen = false;
+
+  function more(form, n, id) {
+    var details = document.createElement("details");
+    details.className = "more";
+    details.open = moreOpen;
+    details.addEventListener("toggle", function () {
+      moreOpen = details.open;
+    });
+    var summary = document.createElement("summary");
+    summary.textContent = "More";
+    details.appendChild(summary);
+    var inner = document.createElement("div");
+    inner.className = "properties-inner";
+    details.appendChild(inner);
+    var note = field(inner, "prop-description", "Note", input("textarea", n.description));
+    note.addEventListener("change", function () {
+      apply(E.setAttribute(doc(), id, "description", note.value.trim()));
+    });
+    var idField = field(inner, "prop-id", "Id", input("text", id));
+    idField.classList.add("mono");
+    idField.title = "The name this node has in the YAML; made from its first label";
+    idField.addEventListener("change", function () {
+      apply(E.setId(doc(), id, idField.value)).then(function (applied) {
+        if (!applied) idField.value = id;
+      });
+    });
+    form.appendChild(details);
+  }
+
+  function hint(form, text) {
+    var p = document.createElement("p");
+    p.className = "hint field-hint";
+    p.textContent = text;
+    form.appendChild(p);
+    return p;
+  }
+
+  var UNIT = { h: "hour", d: "day", y: "year" };
+  // securiCAD's words for a time to compromise, and the shapes behind them.
+  var TTC_EXAMPLES = [
+    "EasyAndCertain", "EasyAndUncertain", "HardAndCertain", "HardAndUncertain", "VeryHardAndCertain", "VeryHardAndUncertain",
+    "Exponential(0.1)", "LogNormal(1.5, 0.8)", "Gamma(2, 10)", "Bernoulli(0.2) * LogNormal(1.5, 0.8)", "Infinity",
+  ];
+
+  // A kind of likelihood picked but not yet given a number: the field is there
+  // and empty, and the document is untouched until something is typed. No
+  // number is ever made up.
+  var pending = { id: null, kind: "" };
+
+  // The fields under Likelihood, each said in the words of the question it
+  // answers, with the document's own unit and horizon.
+  function likelihood(form, n, id) {
+    var unit = doc().time_unit || "h";
+    var horizon = doc().horizon + " " + unit;
+    var given = quantityOf(n);
+    var quantity = pending.id === id && pending.kind ? pending.kind : given;
+    var how = field(form, "prop-quantity", "Likelihood", choice([["", "not given"], ["p", "probability"], ["rate", "how often (rate)"], ["ttc", "time to compromise"]], quantity));
+    how.addEventListener("change", function () {
+      pending = { id: id, kind: how.value };
+      if (!how.value) return void apply(E.setAttribute(doc(), id, "p", ""));
+      renderProperties();
+      var value = $("prop-every") || $("prop-value");
+      if (value) value.focus();
+    });
+    function commit(key, value) {
+      pending = { id: null, kind: "" };
+      apply(E.setAttribute(doc(), id, key, value));
+    }
+
+    if (!quantity) {
+      hint(form, "No number yet: the tree still gives its cut sets, but no probabilities.");
+    } else if (quantity === "p") {
+      var p = field(form, "prop-value", "p", input("number", given === "p" ? n.p : ""));
+      p.min = 0; p.max = 1; p.placeholder = "0 … 1";
+      p.addEventListener("change", function () {
+        if (p.value.trim() !== "") commit("p", Number(p.value));
+      });
+      hint(form, "The chance that this happens at all within the horizon (" + horizon + "): 0 never, 1 certainly. It does not depend on time.");
+    } else if (quantity === "rate") {
+      var mean = given === "rate" ? E.meanTime(n.rate, unit) : null;
+      var row = document.createElement("div");
+      row.className = "every";
+      var every = input("number", mean ? mean.every : "");
+      every.id = "prop-every";
+      every.min = 0; every.placeholder = "e.g. 10";
+      var per = choice([["h", "hours"], ["d", "days"], ["y", "years"]], mean ? mean.unit : "y");
+      per.setAttribute("aria-label", "Unit");
+      row.appendChild(every);
+      row.appendChild(per);
+      var l = document.createElement("label");
+      l.htmlFor = "prop-every";
+      l.textContent = "once every";
+      form.appendChild(l);
+      form.appendChild(row);
+      var fromEvery = function () {
+        var rate = E.rateFrom(Number(every.value), per.value, unit);
+        if (rate) commit("rate", Number(rate.toPrecision(6)));
+      };
+      every.addEventListener("change", fromEvery);
+      per.addEventListener("change", fromEvery);
+      var rate = field(form, "prop-value", "rate / " + unit, input("number", given === "rate" ? n.rate : ""));
+      rate.addEventListener("change", function () {
+        if (rate.value.trim() !== "") commit("rate", Number(rate.value));
+      });
+      hint(form, "For things that happen by themselves, like a failure: how long, on average, between two of them. The rate is the same thing the other way round — occurrences per " + UNIT[unit] + " — and is what the file stores.");
+    } else {
+      var ttc = field(form, "prop-value", "ttc", input("text", given === "ttc" ? n.ttc : ""));
+      ttc.classList.add("mono");
+      ttc.placeholder = "HardAndUncertain";
+      ttc.setAttribute("list", "ttc-examples");
+      var list = document.createElement("datalist");
+      list.id = "ttc-examples";
+      TTC_EXAMPLES.forEach(function (example) {
+        var option = document.createElement("option");
+        option.value = example;
+        list.appendChild(option);
+      });
+      form.appendChild(list);
+      ttc.addEventListener("change", function () {
+        if (ttc.value.trim() !== "") commit("ttc", ttc.value.trim());
+      });
+      hint(form, "For an attacker's step: how long until it succeeds, in " + UNIT[unit] + "s, as a distribution. securiCAD's words work (EasyAndCertain … VeryHardAndUncertain); so do Exponential(λ) with mean 1/λ, LogNormal, Gamma, and Bernoulli(p) * … for a step that is possible at all only with chance p.");
+    }
+    if (given && given === quantity) sketch(form, n);
+  }
+
   function renderProperties() {
     var form = $("properties");
     var keepFocus = document.activeElement && document.activeElement.id;
@@ -562,17 +691,6 @@
       if (e.key === "Escape") label.value = n.label;
       label.blur(); // back to the canvas's keys
     });
-    var idField = field(form, "prop-id", "Id", input("text", id));
-    idField.classList.add("mono");
-    idField.addEventListener("change", function () {
-      apply(E.setId(doc(), id, idField.value)).then(function (applied) {
-        if (!applied) idField.value = id;
-      });
-    });
-    var note = field(form, "prop-description", "Note", input("textarea", n.description));
-    note.addEventListener("change", function () {
-      apply(E.setAttribute(doc(), id, "description", note.value.trim()));
-    });
 
     if (n.gate) {
       var gate = field(form, "prop-gate", "Gate", choice([["or", "or"], ["and", "and"], ["vote", "vote (k of n)"]], n.gate));
@@ -587,26 +705,19 @@
       kind.addEventListener("change", function () {
         apply(E.setLeafKind(doc(), id, kind.value));
       });
-      var quantity = quantityOf(n);
-      var how = field(form, "prop-quantity", "Likelihood", choice([["", "not given"], ["p", "p — probability"], ["rate", "rate — per " + (doc().time_unit || "h")], ["ttc", "ttc — distribution"]], quantity));
-      how.addEventListener("change", function () {
-        var start = { "": "", p: 0.5, rate: 1e-6, ttc: "Exponential(1)" }[how.value];
-        apply(E.setAttribute(doc(), id, how.value || "p", start));
-      });
-      if (quantity === "ttc") {
-        var ttc = field(form, "prop-value", "ttc", input("text", n.ttc));
-        ttc.classList.add("mono");
-        ttc.addEventListener("change", function () {
-          apply(E.setAttribute(doc(), id, "ttc", ttc.value.trim()));
-        });
-      } else if (quantity) numeric(field(form, "prop-value", quantity, input("number", n[quantity])), quantity);
-      sketch(form, n);
+      likelihood(form, n, id);
       if (doc().profile === "attack-tree") {
-        numeric(field(form, "prop-cost", "Cost", input("number", n.cost)), "cost");
-        numeric(field(form, "prop-detection", "Detection", input("number", n.detection)), "detection");
+        var cost = field(form, "prop-cost", "Cost", input("number", n.cost));
+        cost.title = "What this step costs the attacker, in " + (doc().currency || "money");
+        numeric(cost, "cost");
+        var detection = field(form, "prop-detection", "Detection", input("number", n.detection));
+        detection.title = "The chance that this step is noticed: 0 never, 1 always";
+        detection.placeholder = "0 … 1";
+        numeric(detection, "detection");
       }
     }
     consequences(form, n);
+    more(form, n, id);
     if (keepFocus && $(keepFocus)) $(keepFocus).focus();
   }
 

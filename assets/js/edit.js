@@ -267,6 +267,23 @@
     return { doc: doc, select: id };
   }
 
+  // A rate is how the format says "how often"; people say it the other way
+  // round: once every so long. Both directions, in the document's time unit.
+  var HOURS = { h: 1, d: 24, y: 8760 };
+
+  function rateFrom(every, unit, docUnit) {
+    if (!(every > 0) || !HOURS[unit] || !HOURS[docUnit]) return null;
+    return HOURS[docUnit] / (every * HOURS[unit]);
+  }
+
+  // The largest unit in which the mean time is at least one.
+  function meanTime(rate, docUnit) {
+    if (!(rate > 0) || !HOURS[docUnit]) return null;
+    var hours = HOURS[docUnit] / rate;
+    var unit = hours >= HOURS.y ? "y" : hours >= HOURS.d ? "d" : "h";
+    return { every: Number((hours / HOURS[unit]).toPrecision(4)), unit: unit };
+  }
+
   // The left panel: the DAG as an outline. A repeated node appears under each
   // parent, marked, and is opened only the first time, so the outline is no
   // bigger than the graph. Iterative.
@@ -332,7 +349,7 @@
   var api = {
     slug: slug, parentsOf: parentsOf, addChild: addChild, addSibling: addSibling, rename: rename, setId: setId,
     cycleGate: cycleGate, setLeafKind: setLeafKind, link: link, removeEdge: removeEdge, deleteNode: deleteNode, removal: removal,
-    reparent: reparent, setAttribute: setAttribute, outline: outline, walk: walk, createHistory: createHistory,
+    reparent: reparent, setAttribute: setAttribute, outline: outline, rateFrom: rateFrom, meanTime: meanTime, walk: walk, createHistory: createHistory,
   };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorEdit = api;

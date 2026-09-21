@@ -158,6 +158,7 @@
       if (n.top) classes.push("is-top");
       if (n.badge) classes.push("is-shared");
       if (n.unreachable) classes.push("is-unreachable");
+      if (n.unquantified) classes.push("is-unquantified");
       (style.classes || []).forEach(function (c) {
         classes.push(c);
       });
@@ -188,6 +189,9 @@
       symbol(g, n, below + geometry.stem);
       if (style.value != null && n.symbol !== "gate") {
         text(g, w / 2, below + geometry.stem + geometry.symbol / 2 + 3.5, style.value, "value");
+      } else if (n.unquantified) {
+        // Said in a sign as well as in the dashes: a number is still owed.
+        text(g, w / 2, below + geometry.stem + geometry.symbol / 2 + 4.5, "?", "value");
       }
 
       if (style.tag) {

@@ -28,6 +28,8 @@
 .edge.hl-via { stroke: var(--color-accent); stroke-width: 2.25; stroke-dasharray: 5 3; }
 
 .node { cursor: pointer; }
+.node.is-unquantified .symbol { stroke-dasharray: 3 2.5; }
+.node.is-unquantified .value { fill: var(--color-fg-muted); font-size: 13px; }
 .node .shape {
   fill: var(--color-bg-elevated);
   stroke: var(--viz-outline);

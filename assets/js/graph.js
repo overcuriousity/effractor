@@ -101,6 +101,8 @@
         attributes: !gate && attack ? "cost " + shown(node.cost) + " · det " + shown(node.detection) : null,
         parents: n,
         badge: n > 1 ? "shared · " + n + " parents" : null,
+        // No p, rate or ttc: the tree is still good for cut sets, not for numbers.
+        unquantified: !gate && node.p === undefined && node.rate === undefined && node.ttc === undefined,
         top: id === doc.top,
         unreachable: !reached[id],
       };
