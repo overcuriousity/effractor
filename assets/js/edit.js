@@ -344,6 +344,78 @@
     return { doc: doc, select: null, control: id };
   }
 
+  // ---- controls: made by name like assets; an effect replaces one leaf's
+  // likelihood while the control is on (spec 3.4). Whether a ttc makes sense is
+  // for wasm to say.
+
+  function addControl(doc, label) {
+    label = String(label == null ? "" : label).trim();
+    if (!label) return null;
+    doc = clone(doc);
+    doc.controls = doc.controls || {};
+    var base = slug(label);
+    var id = base;
+    for (var n = 2; has(doc.controls, id); n++) id = base + "-" + n;
+    doc.controls[id] = { label: label, cost: 0, enabled: false, effects: [] };
+    return { doc: doc, select: null, control: id };
+  }
+
+  // `key`: "label" or "cost", `value` as typed.
+  function setControl(doc, id, key, value) {
+    if (!has(doc.controls || {}, id)) return null;
+    var typed = String(value == null ? "" : value).trim();
+    if (key === "label" ? !typed : key !== "cost" || typed === "" || !(Number(typed) >= 0)) return null;
+    doc = clone(doc);
+    doc.controls[id][key] = key === "cost" ? Number(typed) : typed;
+    return { doc: doc, select: null, control: id };
+  }
+
+  function isLeaf(doc, id) {
+    return has(doc.nodes, id) && typeof doc.nodes[id].leaf === "string";
+  }
+
+  // The leaves a control could still act on, in the document's order.
+  function effectTargets(doc, id) {
+    var taken = ((doc.controls || {})[id] || {}).effects || [];
+    return Object.keys(doc.nodes).filter(function (node) {
+      return isLeaf(doc, node) && !taken.some(function (e) { return e.node === node; });
+    });
+  }
+
+  function addEffect(doc, id, node, ttc) {
+    ttc = String(ttc == null ? "" : ttc).trim();
+    if (!has(doc.controls || {}, id) || !ttc || effectTargets(doc, id).indexOf(node) < 0) return null;
+    doc = clone(doc);
+    var control = doc.controls[id];
+    control.effects = (control.effects || []).concat([{ node: node, ttc: ttc }]);
+    return { doc: doc, select: null, control: id };
+  }
+
+  function setEffect(doc, id, index, ttc) {
+    ttc = String(ttc == null ? "" : ttc).trim();
+    var effects = ((doc.controls || {})[id] || {}).effects || [];
+    if (!effects[index] || !ttc) return null;
+    doc = clone(doc);
+    doc.controls[id].effects[index].ttc = ttc;
+    return { doc: doc, select: null, control: id };
+  }
+
+  function removeEffect(doc, id, index) {
+    var effects = ((doc.controls || {})[id] || {}).effects || [];
+    if (!effects[index]) return null;
+    doc = clone(doc);
+    doc.controls[id].effects.splice(index, 1);
+    return { doc: doc, select: null, control: id };
+  }
+
+  function removeControl(doc, id) {
+    if (!has(doc.controls || {}, id)) return null;
+    doc = clone(doc);
+    delete doc.controls[id];
+    if (!Object.keys(doc.controls).length) delete doc.controls;
+    return { doc: doc, select: null };
+  }
+
   // A rate is how the format says "how often"; people say it the other way
   // round: once every so long. Both directions, in the document's time unit.
   var HOURS = { h: 1, d: 24, y: 8760 };
@@ -427,7 +499,8 @@
     slug: slug, parentsOf: parentsOf, addChild: addChild, addSibling: addSibling, rename: rename, setId: setId,
     cycleGate: cycleGate, setLeafKind: setLeafKind, link: link, removeEdge: removeEdge, deleteNode: deleteNode, removal: removal,
     reparent: reparent, setAttribute: setAttribute, outline: outline, rateFrom: rateFrom, meanTime: meanTime,
-    addAsset: addAsset, setAssetLabel: setAssetLabel, setAssetLoss: setAssetLoss, removeAsset: removeAsset, usesOfAsset: usesOfAsset, toggleControl: toggleControl, walk: walk, createHistory: createHistory,
+    addAsset: addAsset, setAssetLabel: setAssetLabel, setAssetLoss: setAssetLoss, removeAsset: removeAsset, usesOfAsset: usesOfAsset, toggleControl: toggleControl, addControl: addControl, setControl: setControl, effectTargets: effectTargets,
+    addEffect: addEffect, setEffect: setEffect, removeEffect: removeEffect, removeControl: removeControl, walk: walk, createHistory: createHistory,
   };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorEdit = api;
