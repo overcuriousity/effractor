@@ -25,16 +25,6 @@ user input · no third-party origins, no telemetry · vanilla CSS + JS, no bundl
 
 ## Browser
 
-### ui-source — YAML source view and persistence
-needs: —            cost: 1   benefit: 4
-Landed and seen: New / Open / Save on the document's name, the working text in
-IndexedDB. Built, waiting for the owner's look: the source view (rail `<>`) — a
-textarea whose text becomes the document after a pause, a problems list (click
-→ line), the canvas marked stale while the text is not valid; it is also how the
-header, assets and controls are edited. Done when a text edit and a canvas edit
-round-trip into each other — checked by hand. Delete this item when that has
-been seen.
-
 ### ui-charts — TTC CDF and LEC
 needs: —            cost: 3   benefit: 4
 Hand-rolled SVG charts: exact + sampled CDF with band, LEC with percentiles and
@@ -53,7 +43,7 @@ baseline, ranking table with the "marginal, not additive" note.
 ## Sharing and delivery
 
 ### share-ui — Encrypted share, open, delete
-needs: ui-source            cost: 2   benefit: 4
+needs: —            cost: 2   benefit: 4
 WebCrypto AES-256-GCM, key in the fragment; share dialog with TTL; `/s/{id}`
 loads a local copy; "My shares" list with delete. Done when sharing, opening in a
 fresh profile, deleting, and then getting 404 all work — checked by hand; the

@@ -112,6 +112,6 @@ run it. Do not repeat that:
 
 ## Suggested order
 
-1. `ui-source` next — it removes the query-parameter scaffolding and gives the
-   editor New/open/save — then `ui-controls`, `ui-charts`, `ui-pareto`,
-   `share-ui`, `v1-acceptance`.
+1. `ui-controls`, then `ui-charts`, `ui-pareto`, `share-ui`, `v1-acceptance`.
+   `ui-source` is done: file menu on the document's name, IndexedDB working
+   text, the source view — all walked by the owner.
