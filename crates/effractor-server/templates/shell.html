@@ -34,6 +34,7 @@
     <span class="chip" id="profile-chip">no profile</span>
     <span class="chip" id="analysis-chip">not solved</span>
     <span class="spacer"></span>
+    <button class="btn btn-ghost" id="help" type="button" title="Keys and pointer actions (?)">Keys <kbd>?</kbd></button>
     <button class="btn btn-ghost" id="theme-switch" type="button" aria-label="Theme">Light</button>
     <button class="btn btn-ghost" id="share" type="button" disabled>Share</button>
     <button class="btn" id="solve" type="button" disabled>Solve</button>
@@ -68,7 +69,7 @@
 
   <main class="canvas" id="canvas" aria-label="Graph">
     <div class="canvas-grid" aria-hidden="true"></div>
-    <div class="hud hud-bottom-left"><button class="btn btn-ghost" id="fit" type="button" title="Fit to view (F)">Fit</button></div>
+    <div class="hud hud-bottom-left"><button class="btn btn-ghost" id="fit" type="button" title="Fit to view (F)">Fit <kbd>F</kbd></button><button class="btn btn-ghost" id="zoom-out" type="button" title="Zoom out (−)" aria-label="Zoom out">−</button><button class="btn btn-ghost" id="zoom-in" type="button" title="Zoom in (+)" aria-label="Zoom in">+</button></div>
     <div class="hud hud-top-right">
       <div class="hud-card"><span class="label">P(top)</span><span class="stat num" id="hud-p">—</span><span class="hud-sub num" id="hud-p-ci">&nbsp;</span></div>
       <div class="hud-card"><span class="label">Expected loss</span><span class="stat num" id="hud-eal">—</span><span class="hud-sub num" id="hud-p95">&nbsp;</span></div>
@@ -86,6 +87,10 @@
         <tbody id="cutsets-body"></tbody>
       </table>
       <p class="empty" id="cutsets-more" hidden></p>
+    </section>
+    <section class="panel-section">
+      <h2 class="label">Edit</h2>
+      <div class="actions" id="actions" role="toolbar" aria-label="Edit actions"></div>
     </section>
     <section class="panel-section">
       <h2 class="label">Selected</h2>
@@ -115,6 +120,11 @@
 <dialog class="link-dialog" id="link-dialog" aria-label="Link an existing node">
   <input class="link-search" id="link-search" type="search" placeholder="Link an existing node…" aria-controls="link-results">
   <ul class="link-results" id="link-results" role="listbox"></ul>
+</dialog>
+<dialog class="help-dialog" id="help-dialog" aria-labelledby="help-title">
+  <h2 class="label" id="help-title">Keys and pointer</h2>
+  <dl class="help-keys" id="help-keys"></dl>
+  <button class="btn btn-ghost" id="help-close" type="button">Close <kbd>Esc</kbd></button>
 </dialog>
 <div class="menu" id="context-menu" role="menu" hidden></div>
 </body>

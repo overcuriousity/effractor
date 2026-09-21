@@ -305,6 +305,12 @@
         past.push(current);
         return future.pop();
       },
+      canUndo: function () {
+        return past.length > 0;
+      },
+      canRedo: function () {
+        return future.length > 0;
+      },
     };
   }
 

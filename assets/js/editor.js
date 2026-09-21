@@ -74,7 +74,19 @@
     undeveloped: function () {
       apply(E.setLeafKind(doc(), selected(), "undeveloped"));
     },
-    link: openLinkDialog,
+    link: function () {
+      openLinkDialog("link");
+    },
+    // What a drop does, for those who do not drag.
+    move: function () {
+      if (app.state.parent) openLinkDialog("move");
+    },
+    undo: function () {
+      app.undo();
+    },
+    redo: function () {
+      app.redo();
+    },
     remove: function () {
       var id = selected();
       var parent = app.state.parent;
@@ -92,10 +104,11 @@
     ["addSibling", "Add sibling", "Enter", function () { return !!app.state.parent; }],
     ["rename", "Rename", "F2", function () { return true; }],
     ["properties", "Edit properties", "P", function () { return true; }],
-    ["cycleGate", "Gate: or → and → vote", "G", function (n) { return !!n.gate; }],
+    ["cycleGate", "Cycle gate", "G", function (n) { return !!n.gate; }],
     ["basic", "Basic event", "B", function (n) { return n.leaf === "undeveloped"; }],
     ["undeveloped", "Undeveloped event", "U", function (n) { return n.leaf === "basic"; }],
     ["link", "Link existing…", "L", function () { return true; }],
+    ["move", "Move under…", "M", function () { return !!app.state.parent; }],
     ["remove", "Remove this edge", "Del", function () { return !!app.state.parent; }],
   ];
 
@@ -105,7 +118,27 @@
     return /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName) || $("link-dialog").open;
   }
 
-  var KEYS = { p: "properties", Tab: "addChild", Enter: "addSibling", F2: "rename", g: "cycleGate", b: "basic", u: "undeveloped", l: "link", Delete: "remove", Backspace: "remove" };
+  // Everything the page does by key or pointer that is not in MENU: the help
+  // dialog lists both, so a key that exists is a key that is shown.
+  var OTHER_KEYS = [
+    ["↑ ↓ ← →", "Walk the tree: parent, child, siblings"],
+    ["any letter", "Rename, starting with that letter"],
+    ["Esc", "Leave a field, close a menu"],
+    ["Ctrl+Z", "Undo"],
+    ["Ctrl+Shift+Z", "Redo"],
+    ["Ctrl+Enter", "Solve, or cancel a running solve"],
+    ["F", "Fit to view"],
+    ["+  −", "Zoom in, zoom out"],
+    ["?", "This list"],
+    ["click", "Select a node"],
+    ["right-click", "Menu of the node's actions"],
+    ["drag the background", "Pan"],
+    ["wheel", "Zoom at the pointer"],
+    ["drag a node onto another", "Move it under that node"],
+    ["Ctrl + drag onto another", "Link it under that node as well"],
+  ];
+
+  var KEYS = { m: "move", p: "properties", Tab: "addChild", Enter: "addSibling", F2: "rename", g: "cycleGate", b: "basic", u: "undeveloped", l: "link", Delete: "remove", Backspace: "remove" };
 
   document.addEventListener("keydown", function (e) {
     var mod = e.ctrlKey || e.metaKey;
@@ -121,7 +154,12 @@
       closeMenu();
       if ($("properties").contains(document.activeElement)) document.activeElement.blur();
     }
-    if (typingElsewhere(e) || mod || e.altKey || !selected()) return;
+    if (typingElsewhere(e) || mod || e.altKey) return;
+    if (e.key === "?") {
+      e.preventDefault();
+      return openHelp();
+    }
+    if (!selected()) return;
 
     if (e.key.indexOf("Arrow") === 0) {
       var to = E.walk(doc(), selected(), app.state.parent, e.key);
@@ -134,7 +172,7 @@
       return actions[action]();
     }
     // Any other character starts a rename with that character.
-    if (e.key.length === 1 && e.key !== " " && e.key.toLowerCase() !== "f") {
+    if (e.key.length === 1 && " +-".indexOf(e.key) < 0 && e.key.toLowerCase() !== "f") {
       var field = $("prop-label");
       if (!field) return;
       e.preventDefault();
@@ -196,12 +234,23 @@
   // ---- link existing: a search over the nodes ----
 
   var linkChoice = 0;
+  var linkMode = "link"; // "link": pick a child for the selection; "move": pick its new parent
+
+  function linkEdit(id) {
+    if (linkMode === "move") {
+      var moved = E.reparent(doc(), selected(), app.state.parent, id);
+      if (moved) moved.parent = id;
+      return moved;
+    }
+    var linked = E.link(doc(), selected(), id);
+    if (linked) linked.parent = selected();
+    return linked;
+  }
 
   function linkCandidates(query) {
     var q = query.trim().toLowerCase();
-    var children = (node() && node().children) || [];
     return Object.keys(doc().nodes).filter(function (id) {
-      if (id === selected() || children.indexOf(id) >= 0) return false;
+      if (!linkEdit(id)) return false;
       return !q || id.indexOf(q) >= 0 || String(doc().nodes[id].label).toLowerCase().indexOf(q) >= 0;
     });
   }
@@ -232,16 +281,14 @@
 
   function chooseLink(id) {
     $("link-dialog").close();
-    var parent = selected();
-    var edit = E.link(doc(), parent, id);
-    if (!edit) return;
-    edit.parent = parent;
-    apply(edit);
+    apply(linkEdit(id));
   }
 
-  function openLinkDialog() {
+  function openLinkDialog(mode) {
     if (!selected()) return;
+    linkMode = mode;
     $("link-search").value = "";
+    $("link-search").placeholder = mode === "move" ? "Move under which node…" : "Link an existing node…";
     linkChoice = 0;
     renderLinkResults();
     $("link-dialog").showModal();
@@ -536,8 +583,68 @@
     $("assets-empty").hidden = !!body.children.length;
   }
 
+  // ---- every action as a button, with its key; and the list of all keys ----
+
+  function keyed(parent, label, key) {
+    parent.appendChild(document.createTextNode(label));
+    var k = document.createElement("kbd");
+    k.textContent = key;
+    parent.appendChild(k);
+  }
+
+  function renderActions() {
+    var bar = $("actions");
+    bar.replaceChildren();
+    var n = node();
+    var items = [
+      ["undo", "Undo", "Ctrl+Z", app.canUndo()],
+      ["redo", "Redo", "Ctrl+Shift+Z", app.canRedo()],
+    ].concat(
+      MENU.map(function (item) {
+        return [item[0], item[1], item[2], !!n && !!item[3](n)];
+      })
+    );
+    items.forEach(function (item) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "action";
+      button.disabled = !item[3];
+      keyed(button, item[1], item[2]);
+      button.addEventListener("click", function () {
+        button.blur(); // the keys stay with the canvas
+        actions[item[0]]();
+      });
+      bar.appendChild(button);
+    });
+  }
+
+  function openHelp() {
+    var list = $("help-keys");
+    list.replaceChildren();
+    MENU.map(function (item) {
+      return [item[2], item[1]];
+    })
+      .concat(OTHER_KEYS)
+      .forEach(function (row) {
+        var dt = document.createElement("dt");
+        var k = document.createElement("kbd");
+        k.textContent = row[0];
+        dt.appendChild(k);
+        var dd = document.createElement("dd");
+        dd.textContent = row[1];
+        list.appendChild(dt);
+        list.appendChild(dd);
+      });
+    $("help-dialog").showModal();
+  }
+  $("help").addEventListener("click", openHelp);
+  $("help-close").addEventListener("click", function () {
+    $("help-dialog").close();
+  });
+
   app.onChange(function () {
     if (!doc()) return;
+    renderActions();
     renderProperties();
     renderOutline();
   });

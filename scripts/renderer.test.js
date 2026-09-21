@@ -166,6 +166,12 @@ test("dragging the background pans, the wheel zooms, fit undoes both", () => {
   assert.notEqual(viewport.getAttribute("transform"), "translate(130 120) scale(1)");
   r.fit();
   assert.equal(viewport.getAttribute("transform"), fitted);
+
+  // A button has no pointer: it zooms about the middle of the 800×600 view.
+  r.zoomBy(2);
+  assert.equal(viewport.getAttribute("transform"), "translate(-200 -100) scale(2)");
+  r.zoomBy(0.5);
+  assert.equal(viewport.getAttribute("transform"), fitted);
 });
 
 test("the events are the four of the interface, and no others", () => {

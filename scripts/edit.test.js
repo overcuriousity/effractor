@@ -117,3 +117,12 @@ test("undo and redo are snapshots", () => {
   h.push("x");
   assert.equal(h.redo("y"), null, "a new edit ends the redo line");
 });
+
+test("the history says whether there is anywhere to go, for its buttons", () => {
+  const h = E.createHistory();
+  assert.deepEqual([h.canUndo(), h.canRedo()], [false, false]);
+  h.push("a");
+  assert.deepEqual([h.canUndo(), h.canRedo()], [true, false]);
+  h.undo("b");
+  assert.deepEqual([h.canUndo(), h.canRedo()], [false, true]);
+});

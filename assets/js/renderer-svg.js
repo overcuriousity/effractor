@@ -1,6 +1,6 @@
 // The SVG renderer, behind the interface of spec 7.1:
 //
-//   mount(el) · render(layout, styles) · highlight(ids, kind) · fit() · on(event, handler)
+//   mount(el) · render(layout, styles) · highlight(ids, kind) · fit() · zoomBy(factor) · on(event, handler)
 //
 // It is told node ids, class names and positions, and tells back node ids.
 // Nothing above it sees SVG, so a canvas or WebGL renderer can take its place.
@@ -248,12 +248,20 @@
       applyView();
     }
 
+    // The wheel zooms about the pointer; a button or a key has none, and
+    // zooms about the middle.
+    function zoomBy(factor) {
+      var box = svg.getBoundingClientRect();
+      view = viewMath.zoomAt(view, { x: box.width / 2, y: box.height / 2 }, factor);
+      applyView();
+    }
+
     function on(name, handler) {
       if (EVENTS.indexOf(name) < 0) throw new Error("the renderer has no event called " + name);
       (handlers[name] = handlers[name] || []).push(handler);
     }
 
-    return { mount: mount, render: render, highlight: highlight, fit: fit, on: on };
+    return { mount: mount, render: render, highlight: highlight, fit: fit, zoomBy: zoomBy, on: on };
   }
 
   var api = { createSvgRenderer: createSvgRenderer, EVENTS: EVENTS };

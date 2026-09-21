@@ -394,6 +394,9 @@
   window.effractor.redo = function () {
     timeTravel("redo");
   };
+  window.effractor.canUndo = undoStack.canUndo;
+  window.effractor.canRedo = undoStack.canRedo;
+  window.effractor.solve = solve;
   window.effractor.onChange = function (f) {
     listeners.push(f);
   };
@@ -406,12 +409,20 @@
 
   $("solve").addEventListener("click", solve);
   $("fit").addEventListener("click", renderer.fit);
+  $("zoom-in").addEventListener("click", function () {
+    renderer.zoomBy(1.25);
+  });
+  $("zoom-out").addEventListener("click", function () {
+    renderer.zoomBy(0.8);
+  });
   document.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       solve();
     } else if (e.key === "f" && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
       renderer.fit();
+    } else if ((e.key === "+" || e.key === "-") && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
+      renderer.zoomBy(e.key === "+" ? 1.25 : 0.8);
     }
   });
 
