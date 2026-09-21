@@ -12,5 +12,8 @@ pub mod importance;
 pub mod mc;
 pub mod mcs;
 pub mod plan;
+pub mod results;
 pub mod scenario;
 mod special;
+
+pub use results::{Config, Progress, Results, Solve, SolveError, solve};

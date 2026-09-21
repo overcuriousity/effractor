@@ -145,8 +145,11 @@ with that one control flipped. Risk measure = EAL if the model has assets, else
 P(top ≤ T). Report Δrisk and, for disabled controls, Δrisk / cost, ranked
 descending; for enabled controls report the risk *increase* if removed. Deltas
 use exact P where available and **common random numbers** (same seed) for
-sampled quantities, so a delta is not noise. Ranking is marginal, one control at
-a time; the UI says so, because control effects are not additive.
+sampled quantities, so a delta is not noise. A sampled delta carries the
+confidence interval of the *paired* per-iteration difference, so the UI can show
+when two controls are too close to call at the current sample count. Ranking is
+marginal, one control at a time; the UI says so, because control effects are not
+additive.
 
 **Limits, never silent.** `Config` carries `bdd_node_limit` (default 1 000 000),
 `mcs_max_order` (unset), `mcs_max_sets` (default 10 000). Exceeding one yields a

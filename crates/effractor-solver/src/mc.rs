@@ -29,8 +29,8 @@ const WINDOW: u128 = 256;
 /// Stream ids with this bit set belong to loss magnitudes.
 const MONEY: u64 = 1 << 63;
 
-pub struct Sampler<'a> {
-    plan: &'a Plan,
+pub struct Sampler {
+    plan: Plan,
     leaves: Vec<Distribution>,
     /// (step, magnitude slot, fraction)
     consequences: Vec<(usize, usize, f64)>,
@@ -84,13 +84,13 @@ pub struct Loss {
     pub by_asset: Vec<(AssetId, Dim, f64)>,
 }
 
-impl<'a> Sampler<'a> {
+impl Sampler {
     /// `leaves` is one distribution per plan leaf — see
     /// [`crate::scenario::leaf_distributions`]; the caller has already dealt
     /// with leaves that have none.
     pub fn new(
-        model: &'a Model,
-        plan: &'a Plan,
+        model: &Model,
+        plan: &Plan,
         leaves: Vec<Distribution>,
         seed: u64,
         samples: u64,
@@ -114,7 +114,7 @@ impl<'a> Sampler<'a> {
             }
         }
         Self {
-            plan,
+            plan: plan.clone(),
             leaves,
             consequences,
             magnitudes,
@@ -122,6 +122,11 @@ impl<'a> Sampler<'a> {
             seed,
             samples,
         }
+    }
+
+    /// Does any consequence carry a loss? If not, there is no money to sample.
+    pub fn has_losses(&self) -> bool {
+        !self.magnitudes.is_empty()
     }
 
     pub fn chunks(&self) -> u64 {
@@ -263,6 +268,29 @@ impl<'a> Sampler<'a> {
             loss,
         }
     }
+}
+
+/// Mean of `a − b` per iteration, with its interval. The two runs must share a
+/// seed: then iteration i is the same world in both, the difference is paired,
+/// and its interval is far tighter than the two means' own would suggest.
+pub fn paired_difference(a: &[Chunk], b: &[Chunk], confidence: f64) -> (f64, Interval) {
+    let d: Vec<f64> = a
+        .iter()
+        .flat_map(|c| &c.losses)
+        .zip(b.iter().flat_map(|c| &c.losses))
+        .map(|(x, y)| x - y)
+        .collect();
+    let n = d.len() as f64;
+    let mean = d.iter().sum::<f64>() / n;
+    let variance = d.iter().map(|x| (x - mean) * (x - mean)).sum::<f64>() / (n - 1.0).max(1.0);
+    let half = phi_inv((1.0 + confidence) / 2.0) * sqrt(variance / n);
+    (
+        mean,
+        Interval {
+            lo: mean - half,
+            hi: mean + half,
+        },
+    )
 }
 
 /// The Wilson score interval: honest near 0 and 1, where a fault tree lives

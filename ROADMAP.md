@@ -31,24 +31,10 @@ the spec's example file loads, and unknown keys error with a position.
 
 ## Solver
 
-### solver-controls — Toggles, deltas, ranking
-needs: —            cost: 3   benefit: 5
-Apply enabled effects (lowest `p(T)` wins); per-control flip re-solve with
-common random numbers; Δrisk (EAL if assets else P(top)), Δ/cost ranking for
-disabled controls, removal cost for enabled ones. Done when a blocking control
-on a SPOF ranks first in the fixture and a no-op control has Δ exactly 0.
-
-### solver-results — `solve` façade and results JSON
-needs: solver-controls            cost: 2   benefit: 5
-`fn solve(&Model, &Config) -> Results` plus the stepped form; `Results` serde
-schema `effractor-results: 1` with `unavailable` / `truncated` reasons; profile
-gating of analyses. Done when the reference tree's results JSON is
-snapshot-tested and byte-identical natively and under wasmtime in CI.
-
 ## Browser
 
 ### wasm-api — wasm-bindgen surface and worker
-needs: format-yaml, solver-results            cost: 3   benefit: 5
+needs: format-yaml            cost: 3   benefit: 5
 Exports `validate`, `parse`, `serialize`, `solve_begin`/`solve_step`/`solve_finish`,
 each returning `{ok}` or `{diagnostics}`; panic hook; `assets/js/solver-worker.js`
 with progress, cancel-between-chunks and restart-on-panic; exact results posted
