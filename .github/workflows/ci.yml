@@ -67,5 +67,5 @@ jobs:
       - run: npm run vendor:check
       - run: node scripts/check-roadmap.js
       - run: node scripts/check-contrast.js
-      - run: shellcheck install.sh scripts/install.test.sh
+      - run: shellcheck install.sh scripts/install.test.sh scripts/dev/*.sh
       - run: sh scripts/install.test.sh

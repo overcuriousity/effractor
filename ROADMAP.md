@@ -2,12 +2,14 @@
 
 Remaining work for effractor, as a DAG. Spec:
 `docs/superpowers/specs/2026-09-20-effractor-v1-design.md` — items argue from
-it; read both.
+it; read both. How work lands is in `CONTRIBUTING.md`.
 
 **Rules.** `needs` = item ids that must be gone first. `cost` / `benefit` are
 1–5. An item is *ready* when everything it needs has been deleted; pick the
 ready item with the best benefit/cost. Delete an item in the PR that completes
-it. Every item is built test-first, and its "done when" is checked in CI.
+it. Every item is built test-first. Its "done when" is checked in CI where it can
+be; what a page looks like and how it handles is checked by eye — there is no
+headless-browser harness, by decision.
 
 **Global constraints.** Rust edition 2024 · `core`/`mal`/`format`/`solver` have
 no I/O and compile to `wasm32-unknown-unknown` · all transcendental maths via
@@ -39,8 +41,9 @@ Exports `validate`, `parse`, `serialize`, `solve_begin`/`solve_step`/`solve_fini
 each returning `{ok}` or `{diagnostics}`; panic hook; `assets/js/solver-worker.js`
 with progress, cancel-between-chunks and restart-on-panic; exact results posted
 before sampling starts. The build embeds the wasm bundle, so `ci.yml` and
-`release.yml` both gain the wasm-bindgen step. Done when a headless-browser test
-solves the reference tree and cancels a long run.
+`release.yml` both gain the wasm-bindgen step. Done when the reference tree
+solves in the browser with progress shown and a long run can be cancelled —
+checked by hand.
 
 ### ui-renderer — Renderer interface and SVG implementation
 needs: wasm-api            cost: 5   benefit: 5
@@ -55,14 +58,14 @@ needs: ui-renderer            cost: 5   benefit: 5
 Spec 7.2 in full: key table, link-existing search, drag reparent/link, context
 menu, property panel with density sketch and `p(T)`, undo/redo snapshots, model
 tree in the left panel. Every edit goes `parse → Model → serialize` in wasm.
-Done when a headless test builds the reference tree, including its repeated
-event, by keyboard alone.
+Done when the reference tree, including its repeated event, can be built by
+keyboard alone — checked by hand.
 
 ### ui-source — YAML source view and persistence
 needs: ui-editor            cost: 2   benefit: 4
 Textarea with diagnostics list (click → line); stale-canvas state while invalid;
 IndexedDB working state; `.yaml` import/export. Done when a text edit and a
-canvas edit round-trip into each other in a headless test.
+canvas edit round-trip into each other — checked by hand.
 
 ### ui-results — Cut sets, node stats, importance colouring
 needs: ui-renderer            cost: 3   benefit: 5
@@ -99,12 +102,13 @@ limits; 404 for unknown and expired alike.
 ### share-ui — Encrypted share, open, delete
 needs: share-server, ui-source            cost: 2   benefit: 4
 WebCrypto AES-256-GCM, key in the fragment; share dialog with TTL; `/s/{id}`
-loads a local copy; "My shares" list with delete. Done when a headless test
-shares, opens in a fresh profile, deletes, and then gets 404.
+loads a local copy; "My shares" list with delete. Done when sharing, opening in a
+fresh profile, deleting, and then getting 404 all work — checked by hand; the
+crypto and list logic have `node --test` tests.
 
 ### v1-acceptance — The spec's "done means"
 needs: ui-editor, ui-charts, ui-pareto, ui-controls, share-ui            cost: 2   benefit: 5
-End-to-end headless run of spec §12 against a release binary; performance
+A walk through spec §12 against a release binary, by hand; performance
 budget check (10 000 samples < 1 s, first exact result < 100 ms on the reference
 tree); docs page for the course with the reference fault tree and one attack
 tree as example files.

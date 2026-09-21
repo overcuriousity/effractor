@@ -478,7 +478,7 @@ exists, no cycles. The implementation plan for v1 is delivered as the initial
 `ROADMAP.md`, not as a separate plan document.
 
 **Branches and releases.** Work lands on `master` by PR. PR CI: fmt, clippy,
-native tests, wasm build, native-vs-wasm determinism test, headless UI tests,
+native tests, wasm build, native-vs-wasm determinism test, script tests,
 token contrast script, roadmap check. **Every commit to `master` is a release**:
 the release workflow builds the wasm bundle, embeds it, compiles static
 `effractor` binaries (linux x86_64 + aarch64, musl), and publishes a GitHub Release
@@ -529,8 +529,9 @@ localhost: self-hosted and local-first with no other moving parts.
 - **Server**: storage trait contract tests (run against the filesystem impl,
   reusable for later impls); TTL sweep; delete-token check; size and rate
   limits.
-- **UI**: renderer-interface contract tests; keyboard editing flows in a
-  headless browser against the real wasm; the token contrast script.
+- **UI**: pure logic under `node --test` (renderer-interface contract, editing
+  operations, panel sizing, crypto); the token contrast script. Appearance and
+  interaction are checked by eye — no headless-browser harness, by decision.
 
 ## 12. v1 done means
 
