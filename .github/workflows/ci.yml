@@ -37,7 +37,7 @@ jobs:
       - name: wasm build
         run: >
           cargo build --locked --target wasm32-unknown-unknown
-          -p effractor-core -p effractor-mal -p effractor-format
+          -p effractor-core -p effractor-mal -p effractor-format -p effractor-components
           -p effractor-solver -p effractor-wasm
 
   wasm-determinism:
