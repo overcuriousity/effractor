@@ -271,6 +271,18 @@ impl Cx<'_> {
                     "a router has no user privilege; an account on a router is granted `admin`",
                 ),
                 (
+                    Relation::Hosts {
+                        privilege: Privilege::User,
+                        ..
+                    },
+                    Some(EntityKind::Router),
+                    _,
+                ) => self.error(
+                    Code::AssociationType,
+                    format!("{at}.privilege"),
+                    "a router has no user privilege; what it runs, it runs as `admin`",
+                ),
+                (
                     Relation::Stores {
                         privilege: Privilege::Admin,
                         ..

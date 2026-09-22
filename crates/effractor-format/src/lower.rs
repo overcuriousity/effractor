@@ -334,7 +334,9 @@ impl Cx {
         }
     }
 
-    /// A map keyed by id, in the order it was written.
+    /// A map keyed by id, in the order it was written. Every key is an id:
+    /// there are no `x-` extensions at this level, in either profile, so
+    /// that an id can never be mistaken for one.
     pub fn id_map<K, V>(
         &mut self,
         entry: Option<&Entry>,

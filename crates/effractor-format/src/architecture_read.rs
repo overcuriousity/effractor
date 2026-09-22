@@ -134,10 +134,18 @@ fn library(cx: &mut Cx, entry: &Entry) -> Option<LibraryPin> {
     let id = cx
         .required(&f, "id")
         .and_then(|e| cx.string(&e.value, &f.path("id")));
-    let version = cx
-        .required(&f, "version")
-        .and_then(|e| cx.integer(&e.value, &f.path("version")));
-    let version = version.map(|v| u32::try_from(v).unwrap_or(u32::MAX));
+    let version = cx.required(&f, "version").and_then(|e| {
+        let path = f.path("version");
+        let v = cx.integer(&e.value, &path)?;
+        match u32::try_from(v) {
+            Ok(v) => Some(v),
+            Err(_) => {
+                let message = format!("expected a library version, found {v}");
+                cx.error(Code::WrongType, path, e.value.pos, message);
+                None
+            }
+        }
+    });
     Some(LibraryPin {
         id: id?,
         version: version?,
