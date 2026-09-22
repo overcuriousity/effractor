@@ -11,6 +11,7 @@ repository.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+effractor-components = { path = "../effractor-components" }
 effractor-core = { path = "../effractor-core" }
 effractor-format = { path = "../effractor-format" }
 effractor-mal = { path = "../effractor-mal" }
