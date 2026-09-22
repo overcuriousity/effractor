@@ -14,6 +14,41 @@ impl fmt::Display for IdError {
     }
 }
 
+/// An id that is all digits, where the newer id types refuse one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DigitsOnly(pub String);
+
+impl fmt::Display for DigitsOnly {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{:?} is not a valid id here: it needs at least one letter or '-', \
+             so that no reader can take it for a number",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for DigitsOnly {}
+
+/// Why an architecture id was refused: the old grammar, or the newer rule.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ArchitectureIdError {
+    Grammar(IdError),
+    Digits(DigitsOnly),
+}
+
+impl fmt::Display for ArchitectureIdError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Grammar(e) => e.fmt(f),
+            Self::Digits(e) => e.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for ArchitectureIdError {}
+
 impl std::error::Error for IdError {}
 
 /// `[a-z0-9][a-z0-9-]*` — safe as a YAML key without quoting, as a URL
@@ -59,3 +94,43 @@ macro_rules! id_type {
 id_type!(NodeId);
 id_type!(AssetId);
 id_type!(ControlId);
+
+/// The architecture's id types keep the grammar and add one rule: at least one
+/// non-digit. JavaScript reorders integer-like keys of an object ahead of the
+/// others, and the order of these maps is the author's.
+macro_rules! architecture_id_type {
+    ($name:ident) => {
+        #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        pub struct $name(String);
+
+        impl $name {
+            pub fn as_str(&self) -> &str {
+                &self.0
+            }
+        }
+
+        impl FromStr for $name {
+            type Err = ArchitectureIdError;
+            fn from_str(s: &str) -> Result<Self, ArchitectureIdError> {
+                if !is_valid(s) {
+                    Err(ArchitectureIdError::Grammar(IdError(s.to_owned())))
+                } else if s.bytes().all(|b| b.is_ascii_digit()) {
+                    Err(ArchitectureIdError::Digits(DigitsOnly(s.to_owned())))
+                } else {
+                    Ok(Self(s.to_owned()))
+                }
+            }
+        }
+
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str(&self.0)
+            }
+        }
+    };
+}
+
+architecture_id_type!(EntityId);
+architecture_id_type!(AssociationId);
+architecture_id_type!(FlowId);
+architecture_id_type!(ScenarioId);

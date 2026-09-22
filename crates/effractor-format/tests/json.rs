@@ -16,7 +16,7 @@ fn doc(text: &str) -> Value {
 #[test]
 fn the_image_has_the_documents_shape_and_types() {
     let d = doc(WEBSERVER);
-    assert_eq!(d["effractor"], json!(1));
+    assert_eq!(d["effractor"], json!(2));
     assert_eq!(d["horizon"], json!(8760));
     assert_eq!(d["nodes"]["server-outage"]["rate"], json!(2.5e-6));
     assert_eq!(

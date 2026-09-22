@@ -3,6 +3,7 @@
 // in   {id, type: "validate" | "parse", text}    out  {id, type: "result", result}
 //      {id, type: "serialize", document}              {id, type: "result", result}
 //      {id, type: "sketch", expression, horizon}      {id, type: "result", result}
+//      {id, type: "catalog"}                          {id, type: "result", result}
 //      {id, type: "solve", text}                      {id, type: "exact", result}
 //                                                     {id, type: "progress", done, total}…
 //                                                     {id, type: "result", result}
@@ -74,6 +75,8 @@
         next(m.id);
       } else if (m.type === "sketch") {
         env.post({ id: m.id, type: "result", result: JSON.parse(api.ttc_sketch(m.expression, m.horizon)) });
+      } else if (m.type === "catalog") {
+        env.post({ id: m.id, type: "result", result: JSON.parse(api.component_catalog()) });
       } else if (m.type === "crash") {
         api.crash();
       } else {

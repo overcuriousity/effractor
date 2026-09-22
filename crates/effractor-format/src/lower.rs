@@ -9,11 +9,12 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use effractor_core::{
-    Analysis, Asset, Code, Consequence, Control, Diagnostic, Dim, Distribution, Effect, Gate, Leaf,
-    LeafKind, Loss, Model, Node as ModelNode, NodeKind, Pos, Profile, TimeUnit, Ttc,
+    Analysis, Asset, Code, Consequence, Control, Diagnostic, Dim, Distribution, Document, Effect,
+    Gate, Leaf, LeafKind, Loss, Model, Node as ModelNode, NodeKind, Pos, Profile, TimeUnit, Ttc,
 };
 use indexmap::IndexMap;
 
+use crate::architecture_read;
 use crate::tree::{Entry, Node, Value};
 
 /// The `x-` entries of every map, by the path of the map they were found in
@@ -25,6 +26,8 @@ pub const PROFILES: [(&str, Profile); 2] = [
     ("fault-tree", Profile::FaultTree),
     ("attack-tree", Profile::AttackTree),
 ];
+/// The profile that is not a tree: it selects the other reader entirely.
+pub const ARCHITECTURE: &str = "architecture";
 pub const TIME_UNITS: [(&str, TimeUnit); 3] = [
     ("h", TimeUnit::Hours),
     ("d", TimeUnit::Days),
@@ -46,23 +49,23 @@ const LEAF_ONLY: [&str; 5] = ["p", "rate", "ttc", "cost", "detection"];
 const GATE_ONLY: [&str; 2] = ["k", "children"];
 
 pub struct Lowered {
-    pub model: Model,
+    pub document: Document,
     pub extras: Extras,
 }
 
 pub fn lower(root: &Node) -> Result<Lowered, Vec<Diagnostic>> {
     let mut cx = Cx::default();
-    let model = cx.document(root);
-    match model {
-        Some(model) if cx.out.is_empty() => Ok(Lowered {
-            model,
+    let document = cx.document(root);
+    match document {
+        Some(document) if cx.out.is_empty() => Ok(Lowered {
+            document,
             extras: cx.extras,
         }),
         _ => Err(cx.out),
     }
 }
 
-fn join(path: &str, key: &str) -> String {
+pub fn join(path: &str, key: &str) -> String {
     if path.is_empty() {
         key.to_owned()
     } else {
@@ -71,45 +74,58 @@ fn join(path: &str, key: &str) -> String {
 }
 
 /// The entries of one map, checked against the keys it may have.
-struct Fields<'a> {
-    entries: Vec<&'a Entry>,
-    path: String,
+pub struct Fields<'a> {
+    pub entries: Vec<&'a Entry>,
+    pub path: String,
     /// Where to say that a key is missing: the map has no position of its own
     /// worth pointing at, its key in the parent does.
-    at: Pos,
+    pub at: Pos,
 }
 
 impl<'a> Fields<'a> {
-    fn get(&self, key: &str) -> Option<&'a Entry> {
+    pub fn get(&self, key: &str) -> Option<&'a Entry> {
         self.entries.iter().find(|e| e.key == key).copied()
     }
 
-    fn path(&self, key: &str) -> String {
+    pub fn path(&self, key: &str) -> String {
         join(&self.path, key)
     }
 }
 
+/// The reading context both profiles share: diagnostics, `x-` keys, and the
+/// primitives — a string, a number, a word, an id, a map keyed by id.
 #[derive(Default)]
-struct Cx {
-    out: Vec<Diagnostic>,
-    extras: Extras,
+pub struct Cx {
+    pub out: Vec<Diagnostic>,
+    pub extras: Extras,
 }
 
 impl Cx {
-    fn error(&mut self, code: Code, path: impl Into<String>, pos: Pos, message: impl Into<String>) {
+    pub fn error(
+        &mut self,
+        code: Code,
+        path: impl Into<String>,
+        pos: Pos,
+        message: impl Into<String>,
+    ) {
         self.out.push(Diagnostic {
             pos: Some(pos),
             ..Diagnostic::error(code, path, message)
         });
     }
 
-    fn wrong_type(&mut self, node: &Node, path: &str, want: &str) {
+    pub fn wrong_type(&mut self, node: &Node, path: &str, want: &str) {
         let message = format!("expected {want}, found {}", node.kind());
         self.error(Code::WrongType, path, node.pos, message);
     }
 
     /// A map's entries with duplicates reported and dropped.
-    fn entries<'a>(&mut self, node: &'a Node, path: &str, want: &str) -> Option<Vec<&'a Entry>> {
+    pub fn entries<'a>(
+        &mut self,
+        node: &'a Node,
+        path: &str,
+        want: &str,
+    ) -> Option<Vec<&'a Entry>> {
         let Value::Map(entries) = &node.value else {
             self.wrong_type(node, path, want);
             return None;
@@ -131,7 +147,7 @@ impl Cx {
         Some(seen)
     }
 
-    fn fields<'a>(
+    pub fn fields<'a>(
         &mut self,
         node: &'a Node,
         path: &str,
@@ -189,7 +205,7 @@ impl Cx {
         }
     }
 
-    fn required<'a>(&mut self, f: &Fields<'a>, key: &str) -> Option<&'a Entry> {
+    pub fn required<'a>(&mut self, f: &Fields<'a>, key: &str) -> Option<&'a Entry> {
         let entry = f.get(key);
         if entry.is_none() {
             self.error(
@@ -202,7 +218,7 @@ impl Cx {
         entry
     }
 
-    fn string(&mut self, node: &Node, path: &str) -> Option<String> {
+    pub fn string(&mut self, node: &Node, path: &str) -> Option<String> {
         match &node.value {
             Value::Scalar { text, .. } if !node.is_null() => Some(text.clone()),
             _ => {
@@ -213,14 +229,14 @@ impl Cx {
     }
 
     /// `Some(None)` is "not written", `None` is "written wrongly".
-    fn optional_string(&mut self, f: &Fields, key: &str) -> Option<Option<String>> {
+    pub fn optional_string(&mut self, f: &Fields, key: &str) -> Option<Option<String>> {
         match f.get(key) {
             Some(e) => self.string(&e.value, &f.path(key)).map(Some),
             None => Some(None),
         }
     }
 
-    fn number(&mut self, node: &Node, path: &str) -> Option<f64> {
+    pub fn number(&mut self, node: &Node, path: &str) -> Option<f64> {
         if let Value::Scalar { text, plain: true } = &node.value
             && let Some(v) = parse_number(text)
         {
@@ -232,7 +248,7 @@ impl Cx {
 
     /// Quoted digits count too: that is how a whole number above 2^53 comes
     /// back from JavaScript, which cannot hold it as a number.
-    fn integer(&mut self, node: &Node, path: &str) -> Option<u64> {
+    pub fn integer(&mut self, node: &Node, path: &str) -> Option<u64> {
         if let Value::Scalar { text, .. } = &node.value
             && !text.is_empty()
             && text.bytes().all(|b| b.is_ascii_digit())
@@ -244,7 +260,7 @@ impl Cx {
         None
     }
 
-    fn boolean(&mut self, node: &Node, path: &str) -> Option<bool> {
+    pub fn boolean(&mut self, node: &Node, path: &str) -> Option<bool> {
         if let Value::Scalar { text, plain: true } = &node.value {
             match text.as_str() {
                 "true" => return Some(true),
@@ -256,7 +272,7 @@ impl Cx {
         None
     }
 
-    fn word<T: Copy>(&mut self, node: &Node, path: &str, words: &[(&str, T)]) -> Option<T> {
+    pub fn word<T: Copy>(&mut self, node: &Node, path: &str, words: &[(&str, T)]) -> Option<T> {
         if let Value::Scalar { text, .. } = &node.value
             && let Some((_, v)) = words.iter().find(|(w, _)| w == text)
         {
@@ -267,7 +283,7 @@ impl Cx {
         None
     }
 
-    fn id<T: FromStr>(&mut self, text: &str, path: &str, pos: Pos) -> Option<T>
+    pub fn id<T: FromStr>(&mut self, text: &str, path: &str, pos: Pos) -> Option<T>
     where
         T::Err: std::fmt::Display,
     {
@@ -280,7 +296,7 @@ impl Cx {
         }
     }
 
-    fn id_value<T: FromStr>(&mut self, node: &Node, path: &str) -> Option<T>
+    pub fn id_value<T: FromStr>(&mut self, node: &Node, path: &str) -> Option<T>
     where
         T::Err: std::fmt::Display,
     {
@@ -298,7 +314,7 @@ impl Cx {
         self.expression(node, path)
     }
 
-    fn expression(&mut self, node: &Node, path: &str) -> Option<Distribution> {
+    pub fn expression(&mut self, node: &Node, path: &str) -> Option<Distribution> {
         let Value::Scalar { text, plain } = &node.value else {
             self.wrong_type(node, path, "a distribution expression");
             return None;
@@ -319,7 +335,7 @@ impl Cx {
     }
 
     /// A map keyed by id, in the order it was written.
-    fn id_map<K, V>(
+    pub fn id_map<K, V>(
         &mut self,
         entry: Option<&Entry>,
         path: &str,
@@ -346,7 +362,7 @@ impl Cx {
         ok.then_some(map)
     }
 
-    fn list<'a>(&mut self, node: &'a Node, path: &str) -> Option<&'a [Node]> {
+    pub fn list<'a>(&mut self, node: &'a Node, path: &str) -> Option<&'a [Node]> {
         match &node.value {
             Value::Seq(items) => Some(items),
             _ => {
@@ -356,7 +372,20 @@ impl Cx {
         }
     }
 
-    fn document(&mut self, root: &Node) -> Option<Model> {
+    fn document(&mut self, root: &Node) -> Option<Document> {
+        // `profile` decides which keys the rest of the document may have, so
+        // it is read before any of them. A tree is the default only for
+        // the diagnostics: a missing profile is still reported as missing.
+        if let Value::Map(entries) = &root.value
+            && let Some(profile) = entries.iter().find(|e| e.key == "profile")
+            && matches!(&profile.value.value, Value::Scalar { text, .. } if text == ARCHITECTURE)
+        {
+            return architecture_read::document(self, root).map(Document::Architecture);
+        }
+        self.tree(root).map(Document::Tree)
+    }
+
+    fn tree(&mut self, root: &Node) -> Option<Model> {
         let f = self.fields(
             root,
             "",
@@ -375,9 +404,16 @@ impl Cx {
                 "analysis",
             ],
         )?;
-        let profile = self
-            .required(&f, "profile")
-            .and_then(|e| self.word(&e.value, "profile", &PROFILES));
+        let profile = self.required(&f, "profile").and_then(|e| {
+            let words: Vec<(&str, Option<Profile>)> = PROFILES
+                .iter()
+                .map(|(w, p)| (*w, Some(*p)))
+                .chain([(ARCHITECTURE, None)])
+                .collect();
+            // `architecture` was dispatched above; here it can only be the
+            // value of a second, duplicate `profile` key.
+            self.word(&e.value, "profile", &words).flatten()
+        });
         let name = self
             .required(&f, "name")
             .and_then(|e| self.string(&e.value, "name"));
@@ -419,7 +455,7 @@ impl Cx {
         Some(model)
     }
 
-    fn analysis(&mut self, entry: &Entry) -> Option<Analysis> {
+    pub fn analysis(&mut self, entry: &Entry) -> Option<Analysis> {
         let f = self.fields(
             &entry.value,
             "analysis",

@@ -34,6 +34,16 @@ pub enum Code {
     OverlappingEffects,
     Unreachable,
     ProfileAttribute,
+    // What an architecture can get wrong; `validate_architecture` reports these.
+    Incomplete,
+    UnknownReference,
+    AssociationType,
+    Cardinality,
+    InvalidRoute,
+    UnknownState,
+    UnknownLibrary,
+    ConflictingChange,
+    Limit,
 }
 
 impl Code {
@@ -66,6 +76,15 @@ impl Code {
             Self::OverlappingEffects => "overlapping-effects",
             Self::Unreachable => "unreachable",
             Self::ProfileAttribute => "profile-attribute",
+            Self::Incomplete => "incomplete",
+            Self::UnknownReference => "unknown-reference",
+            Self::AssociationType => "association-type",
+            Self::Cardinality => "cardinality",
+            Self::InvalidRoute => "invalid-route",
+            Self::UnknownState => "unknown-state",
+            Self::UnknownLibrary => "unknown-library",
+            Self::ConflictingChange => "conflicting-change",
+            Self::Limit => "limit",
         }
     }
 }

@@ -6,6 +6,14 @@
 //! so there is one canonical form. `x-` keys are not part of the model; they
 //! are carried beside it from the reader to the writer.
 
+//!
+//! Two profiles, one pipeline: a tree lowers to a [`Model`], an architecture
+//! to an [`effractor_core::Architecture`], and [`Document`] is whichever the
+//! text said. The tree-only functions (`load`, `diagnose`, `save`) stay for the
+//! callers that only know trees; handed an architecture, they say so.
+
+mod architecture_read;
+mod architecture_write;
 #[cfg(test)]
 mod extension_tests;
 mod json;
@@ -14,7 +22,9 @@ mod migrate;
 mod tree;
 mod write;
 
-use effractor_core::{Diagnostic, Model, Severity, validate};
+use effractor_core::{
+    Code, Diagnostic, Document, Model, Severity, validate, validate_architecture,
+};
 
 use lower::{Extras, Lowered};
 pub use migrate::CURRENT_VERSION;
@@ -50,7 +60,10 @@ fn read_tree(root: tree::Node, positioned: bool) -> (Option<Read>, Vec<Diagnosti
         Err(diagnostics) => return (None, nowhere(diagnostics)),
     };
     // The model knows paths; only the text knows where they are.
-    let mut diagnostics = validate(&lowered.model);
+    let mut diagnostics = match &lowered.document {
+        Document::Tree(model) => validate(model),
+        Document::Architecture(architecture) => validate_architecture(architecture),
+    };
     for d in diagnostics.iter_mut().filter(|_| positioned) {
         d.pos = Some(tree::locate(&root, &d.path));
     }
@@ -59,10 +72,53 @@ fn read_tree(root: tree::Node, positioned: bool) -> (Option<Read>, Vec<Diagnosti
 }
 
 /// Everything there is to say about a text, each with its line and column, and
-/// the model if nothing said was an error.
-pub fn diagnose(text: &str) -> (Option<Model>, Vec<Diagnostic>) {
+/// the document if nothing said was an error.
+pub fn diagnose_document(text: &str) -> (Option<Document>, Vec<Diagnostic>) {
     let (read, diagnostics) = read(text);
-    (read.map(|r| r.lowered.model), diagnostics)
+    (read.map(|r| r.lowered.document), diagnostics)
+}
+
+/// The document a text describes. Warnings do not stop a load —
+/// [`diagnose_document`] returns them; on failure this returns errors and
+/// warnings alike.
+pub fn load_document(text: &str) -> Result<Document, Vec<Diagnostic>> {
+    match diagnose_document(text) {
+        (Some(document), _) => Ok(document),
+        (None, diagnostics) => Err(diagnostics),
+    }
+}
+
+/// The canonical text of a document.
+pub fn save_document(document: &Document) -> String {
+    write::write_document(document, &Extras::new())
+}
+
+/// What a tree-only caller is told when the text is an architecture: it is
+/// not wrong, it is the other kind of document.
+fn not_a_tree(text: &str) -> Diagnostic {
+    let mut d = Diagnostic::error(
+        Code::Unsupported,
+        "profile",
+        "this is an architecture; this analysis reads a fault tree or an attack tree",
+    );
+    if let Ok(root) = tree::parse(text) {
+        d.pos = Some(tree::locate(&root, "profile"));
+    }
+    d
+}
+
+/// Everything there is to say about a text, each with its line and column, and
+/// the model if nothing said was an error. Trees only: an architecture is
+/// reported as one, not read.
+pub fn diagnose(text: &str) -> (Option<Model>, Vec<Diagnostic>) {
+    match diagnose_document(text) {
+        (Some(Document::Tree(model)), diagnostics) => (Some(model), diagnostics),
+        (Some(Document::Architecture(_)), mut diagnostics) => {
+            diagnostics.insert(0, not_a_tree(text));
+            (None, diagnostics)
+        }
+        (None, diagnostics) => (None, diagnostics),
+    }
 }
 
 /// The model a text describes. Warnings do not stop a load — [`diagnose`]
@@ -84,7 +140,10 @@ pub fn save(model: &Model) -> String {
 /// survive. Idempotent.
 pub fn canonicalize(text: &str) -> Result<String, Vec<Diagnostic>> {
     match read(text) {
-        (Some(r), _) => Ok(write::write(&r.lowered.model, &r.lowered.extras)),
+        (Some(r), _) => Ok(write::write_document(
+            &r.lowered.document,
+            &r.lowered.extras,
+        )),
         (None, diagnostics) => Err(diagnostics),
     }
 }
@@ -107,7 +166,10 @@ pub fn document(text: &str) -> (Option<serde_json::Value>, Vec<Diagnostic>) {
 pub fn from_document(document: &serde_json::Value) -> Result<String, Vec<Diagnostic>> {
     let root = json::tree(document).map_err(|d| vec![d])?;
     match read_tree(root, false) {
-        (Some(r), _) => Ok(write::write(&r.lowered.model, &r.lowered.extras)),
+        (Some(r), _) => Ok(write::write_document(
+            &r.lowered.document,
+            &r.lowered.extras,
+        )),
         (None, diagnostics) => Err(diagnostics),
     }
 }

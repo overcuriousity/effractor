@@ -6,6 +6,8 @@ use serde_json::{Value, json};
 
 const WEBSERVER: &str =
     include_str!("../../effractor-format/tests/fixtures/canonical/webserver.yaml");
+const ARCHITECTURE: &str =
+    include_str!("../../effractor-format/tests/fixtures/canonical/lecture-architecture.yaml");
 
 fn call(out: String) -> Value {
     serde_json::from_str(&out).unwrap()
@@ -147,4 +149,43 @@ fn a_ttc_is_sketched_or_refused() {
     assert!(call(api::ttc_sketch("Exponential(-1)", 1.0))["error"].is_string());
     assert!(call(api::ttc_sketch("Pert(1, 2, 3)", 1.0))["error"].is_string());
     assert!(call(api::ttc_sketch("Zero", 0.0))["error"].is_string());
+}
+
+#[test]
+fn an_architecture_validates_parses_and_serializes_but_does_not_solve_as_a_tree() {
+    assert_eq!(
+        call(api::validate(ARCHITECTURE)),
+        json!({"ok": true, "diagnostics": []})
+    );
+    let parsed = call(api::parse(ARCHITECTURE));
+    assert_eq!(parsed["ok"]["profile"], "architecture");
+    assert_eq!(parsed["ok"]["entities"]["sshd"]["kind"], "service");
+    assert_eq!(parsed["ok"]["attacker"]["target"]["state"], "admin");
+    let text = call(api::serialize(&parsed["ok"].to_string()));
+    assert_eq!(text["ok"], json!(ARCHITECTURE));
+
+    // An edit that breaks a typed reference comes back as a diagnostic with a path.
+    let mut edited = parsed["ok"].clone();
+    edited["associations"]["allow-ssh"]["to"] = json!("telnet");
+    let out = call(api::serialize(&edited.to_string()));
+    assert_eq!(out["diagnostics"][0]["code"], "unknown-reference");
+    assert_eq!(out["diagnostics"][0]["path"], "associations.allow-ssh.to");
+
+    // The tree solver is not for an architecture, and says which it got.
+    let mut session = api::Session::default();
+    let begun = call(session.begin(ARCHITECTURE));
+    assert!(begun.get("ok").is_none());
+    assert_eq!(begun["diagnostics"][0]["code"], "unsupported");
+    assert_eq!(begun["diagnostics"][0]["path"], "profile");
+    assert_eq!(begun["diagnostics"][0]["line"], json!(2));
+    assert_eq!(call(session.step())["error"], "no solve in progress");
+}
+
+#[test]
+fn the_component_catalog_is_an_ok_answer() {
+    let out = call(api::component_catalog());
+    assert_eq!(out["diagnostics"], json!([]));
+    assert_eq!(out["ok"]["library"]["version"], 1);
+    assert_eq!(out["ok"]["rules"].as_array().unwrap().len(), 15);
+    assert_eq!(out["ok"]["entities"][5]["kind"], "service");
 }

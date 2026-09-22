@@ -378,6 +378,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "effractor-components"
+version = "0.1.0"
+dependencies = [
+ "effractor-core",
+ "effractor-format",
+ "effractor-mal",
+ "serde_json",
+]
+
+[[package]]
 name = "effractor-core"
 version = "0.1.0"
 dependencies = [
@@ -445,6 +455,7 @@ dependencies = [
 name = "effractor-wasm"
 version = "0.1.0"
 dependencies = [
+ "effractor-components",
  "effractor-core",
  "effractor-format",
  "effractor-mal",

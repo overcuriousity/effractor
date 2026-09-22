@@ -40,10 +40,17 @@ fn value(v: &impl serde::Serialize) -> Value {
     serde_json::to_value(v).expect("results hold only finite numbers, strings and lists")
 }
 
-/// Is this text a model? `ok` is `true` or absent.
+/// Is this text a document — a tree or an architecture? `ok` is `true` or
+/// absent.
 pub fn validate(text: &str) -> String {
-    let (model, diagnostics) = effractor_format::diagnose(text);
-    answer(model.map(|_| Value::Bool(true)), &diagnostics)
+    let (document, diagnostics) = effractor_format::diagnose_document(text);
+    answer(document.map(|_| Value::Bool(true)), &diagnostics)
+}
+
+/// The bundled component library's catalog: what an architecture can be
+/// built from, and what each generated step will rest on.
+pub fn component_catalog() -> String {
+    answer(Some(effractor_components::catalog()), &[])
 }
 
 /// The document as JSON, for an editor to change and hand to [`serialize`].
@@ -96,7 +103,8 @@ pub struct Session {
 
 impl Session {
     /// Everything exact is in the answer: it is computed before any sampling
-    /// and is there to be shown while the sampling runs.
+    /// and is there to be shown while the sampling runs. Trees only: an
+    /// architecture is answered with the diagnostic that says so.
     pub fn begin(&mut self, text: &str) -> String {
         self.solve = None;
         let (model, diagnostics) = effractor_format::diagnose(text);

@@ -5,6 +5,56 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — architecture documents (2026-09-22)
+
+The owner reviewed the lecture implementation plan on 2026-09-22 and chose
+native, in-session execution: one feature branch per task, no worktree, a
+pause at each task boundary. "securiCAD parity" in the owner's words means
+the lecture-workflow milestone, not the later `mal-securicad-compatibility`
+import item. Task 1 (`architecture-document`) is on branch
+`feature/architecture-document`.
+
+What Task 1 adds, all test-first: `effractor_core::architecture` (the typed
+`Architecture`, `Document::{Tree, Architecture}`, the closed vocabulary with
+`states()`, `slots()` and `defense()` per kind) and `validate_architecture`;
+the format's `profile: architecture` reader/writer, schema version 2 with a
+v1→v2 step that changes only the version and refuses an architecture that
+claims version 1; `diagnose_document`/`load_document`/`save_document`, with
+`load`/`diagnose` staying tree-only and answering an architecture with an
+`unsupported` diagnostic at `profile`; the new `effractor-components` crate
+whose `catalog()` describes `core-components@1` (eight kinds, nine
+associations, five states, eight slots, fifteen rules, limits) and holds no
+numeric duration; wasm `component_catalog()` and profile dispatch for
+validate/parse/serialize; a worker `catalog` request; and a narrow app guard
+that keeps the current document and says `Architecture editor unavailable`
+when an architecture arrives from Open, the source view or persistence
+(the architecture-editor task replaces it).
+
+Decisions worth knowing that the plan left open: canonical form materializes
+every slot a kind carries, so every account writes `admin-login` (not only
+those with a management grant); a `note` is allowed on an `unknown` slot; a
+scenario naming a permission that was deleted is an `unknown-reference`
+error, so a permission is removed together with the scenarios that name it;
+`effractor-solver` does not yet depend on the components crate, since nothing
+in Task 1 uses it there — Task 2 adds that dependency with the generator.
+`effractor-components` lists `effractor-mal` and dev-depends on
+`effractor-format` for Task 2's provenance and fixtures; the catalog test
+uses `effractor-mal` to prove no catalog string parses as a TTC.
+
+Fixtures: `crates/effractor-format/tests/fixtures/canonical/lecture-architecture.yaml`
+is the spec §11 scenario with its illustrative inputs, canonical and complete
+(no diagnostics); `empty-architecture.yaml` is the spec §3 empty document;
+`migrations/v2/` holds their flow-style sources plus a copied tree. Canonical
+tree fixtures, templates and the JS fixture changed only their version line;
+every solver fingerprint and result snapshot is unchanged. Examples and course
+files stay version 1 and migrate on load.
+
+Local `scripts/build-wasm.sh`, `npm test` (152), `cargo test --workspace`,
+`cargo fmt --all --check`, Clippy with `-D warnings` and the roadmap check
+passed on the candidate tree. No UI changed beyond the guard, so there is no
+walkthrough for this task; the exact-SHA CI and fast-forward release process
+applies.
+
 ## Continuation — self-contained links (2026-09-22)
 
 The owner approved optional self-contained sharing. Branch

@@ -33,6 +33,15 @@ test("requests resolve by id, in whatever order the answers come", async () => {
   assert.deepEqual(await b, { ok: "B" });
 });
 
+test("the catalog is a plain request with no text", async () => {
+  const h = harness();
+  const catalog = h.solver.catalog();
+  const m = h.last().sent[0];
+  assert.deepEqual(m, { id: m.id, type: "catalog" });
+  h.reply({ id: m.id, type: "result", result: { ok: { rules: [] } } });
+  assert.deepEqual(await catalog, { ok: { rules: [] } });
+});
+
 test("a solve reports exact results and progress, then resolves", async () => {
   const h = harness();
   const seen = [];

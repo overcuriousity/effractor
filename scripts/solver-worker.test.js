@@ -12,6 +12,7 @@ function fake(total, chunkMs) {
     validate: (text) => JSON.stringify({ ok: true, diagnostics: [], echo: text }),
     parse: (text) => JSON.stringify({ ok: { name: text }, diagnostics: [] }),
     serialize: (json) => JSON.stringify({ ok: "text of " + json, diagnostics: [] }),
+    component_catalog: () => JSON.stringify({ ok: { library: { id: "core-components", version: 1 } }, diagnostics: [] }),
     solve_begin(text) {
       calls.push("begin");
       if (text === "bad") return JSON.stringify({ diagnostics: [{ code: "syntax" }] });
@@ -56,6 +57,8 @@ test("a request is answered with the parsed result under its id", () => {
   assert.deepEqual(w.posted, [{ id: 7, type: "result", result: { ok: { name: "T" }, diagnostics: [] } }]);
   w.handle({ id: 8, type: "serialize", document: { a: 1 } });
   assert.equal(w.posted[1].result.ok, 'text of {"a":1}');
+  w.handle({ id: 9, type: "catalog" });
+  assert.deepEqual(w.posted[2], { id: 9, type: "result", result: { ok: { library: { id: "core-components", version: 1 } }, diagnostics: [] } });
 });
 
 test("a solve posts exact results first, then progress, then the results", () => {

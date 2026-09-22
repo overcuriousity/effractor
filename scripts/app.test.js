@@ -60,6 +60,73 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
   });
 }
 
+// Until the architecture editor exists (roadmap: architecture-editor), an
+// architecture must not become the page's document: every renderer path reads
+// `doc.nodes`. The old document stays, and the page says why.
+function pageWith(kept) {
+  const writes = [], nodes = new Map();
+  const doc = text => text === 'arch'
+    ? { name: 'A', profile: 'architecture', entities: {}, analysis: { seed: 42, samples: 10000 } }
+    : { name: text, profile: 'fault-tree', nodes: {}, analysis: { seed: 42, samples: 10000 } };
+  const solver = {
+    async parse(text) { return { ok: doc(text) }; },
+    async serialize(value) { return { ok: value.profile === 'architecture' ? 'arch' : value.name }; },
+  };
+  const document = {
+    currentScript: { src: 'https://example.test/assets/js/app.js' },
+    getElementById(id) { if (!nodes.has(id)) nodes.set(id, element('div')); return nodes.get(id); },
+    createElement: element, querySelectorAll: () => [], addEventListener() {},
+  };
+  const window = {
+    effractorStore: { createStore: () => ({ load: async () => kept, save: text => writes.push(text) }) },
+    createSolver: () => solver,
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
+    effractorLayout: { createLayout: () => async () => ({}) },
+    effractorGraph: { describe: () => ({}) },
+    effractorEdit: require('../assets/js/edit.js'),
+    effractorResults: require('../assets/js/results-view.js'),
+  };
+  const fetched = [];
+  vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
+    window, document, URL, location: new URL('https://example.test/'), console,
+    setTimeout: () => 0, clearTimeout() {},
+    fetch: async url => { fetched.push(url); return { ok: true, text: async () => 'template' }; },
+  });
+  return { app: window.effractor, writes, nodes, fetched };
+}
+
+test("opening an architecture keeps the current document and says the editor is unavailable", async () => {
+  const { app, writes, nodes } = pageWith('original');
+  await app.ready;
+  assert.equal(await app.replaceDocument('arch', 'opened arch.yaml'), false);
+  assert.equal(app.state.text, 'original');
+  assert.deepEqual(writes, []);
+  assert.equal(app.canUndo(), false);
+  assert.match(nodes.get('note').textContent, /Architecture editor unavailable/);
+  // A tree still opens through the same path.
+  assert.equal(await app.replaceDocument('tree', 'opened tree.yaml'), true);
+  assert.equal(app.state.text, 'tree');
+});
+
+test("typing an architecture into the source view is reported, not adopted", async () => {
+  const { app, writes } = pageWith('original');
+  await app.ready;
+  const problems = await app.adoptSource('arch');
+  assert.equal(problems.length, 1);
+  assert.equal(problems[0].severity, 'error');
+  assert.match(problems[0].message, /Architecture editor unavailable/);
+  assert.equal(app.state.text, 'original');
+  assert.deepEqual(writes, []);
+  assert.equal(app.canUndo(), false);
+});
+
+test("a kept architecture cannot lock the page: it opens on the template instead", async () => {
+  const { app, fetched } = pageWith('arch');
+  await app.ready;
+  assert.equal(app.state.text, 'template');
+  assert.equal(fetched.length, 1);
+});
+
 test("whole numbers are grouped in threes with a no-break space", () => {
   assert.equal(grouped(42), "42");
   assert.equal(grouped(10000), "10 000");

@@ -65,18 +65,8 @@ the underlying rules and calibrated inputs.
 
 ## Lecture implementation
 
-### architecture-document — Typed architecture documents and library contract
-needs: —            cost: 3   benefit: 5
-Add the separate architecture document, schema 2 migration and strict typed
-entities, associations, flows, footholds, target, assumptions and scenario
-overlays. Preserve the tree model and result semantics. Expose the bundled
-core-components@1 catalog and dispatch format/wasm document APIs by profile.
-Done when empty and populated architectures round-trip with extensions,
-invalid references/types/routes/versions have positioned diagnostics, unknown
-inputs remain explicit, and migrated tree fixtures keep their frozen results.
-
 ### component-generation — Transparent component rules and generated graphs
-needs: architecture-document            cost: 3   benefit: 5
+needs: —            cost: 3   benefit: 5
 Generate stable state/action identities and explicit prerequisites from the
 small component library, with rule, entity, relationship and parameter
 provenance. Retain blocked alternatives; distinguish connectivity, permission,
@@ -97,7 +87,7 @@ new frozen fingerprints pass native and wasmtime; browser wasm agrees with
 native generation/results; and existing tree fingerprints remain unchanged.
 
 ### architecture-editor — Empty architecture creation and component editing
-needs: architecture-document            cost: 3   benefit: 4
+needs: —            cost: 3   benefit: 4
 Add New Architecture and quiet component/type/parameter editing through the
 existing workspace, source, persistence and undo paths. New users still open an
 empty document, and newly created attack parameters remain unknown. Isolate

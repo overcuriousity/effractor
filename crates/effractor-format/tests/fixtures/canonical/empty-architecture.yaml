@@ -1,0 +1,22 @@
+effractor: 2
+profile: architecture
+name: Untitled
+time_unit: d
+horizon: 100
+library: {id: core-components, version: 1}
+
+entities: {}
+
+associations: {}
+
+flows: {}
+
+attacker:
+  footholds: []
+
+scenarios: {}
+
+analysis:
+  seed: 42
+  samples: 10000
+  confidence: 0.95
