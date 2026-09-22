@@ -5,6 +5,12 @@
   // diff (spec 7.3): <0.01 · <0.05 · <0.2 · <0.5 · ≥0.5.
   var THRESHOLDS = [0.01, 0.05, 0.2, 0.5];
 
+  // Tooltips for the terms that need one.
+  var HINTS = {
+    "Fussell-Vesely": "Share of the top-event probability through this leaf — what to fix first",
+    Birnbaum: "Change in P(top) per change in this leaf's probability — how critical its place is, however likely it is",
+  };
+
   function bin(v) {
     if (typeof v !== "number" || v !== v) return null;
     var b = 1;
@@ -138,7 +144,7 @@
     });
   }
 
-  var api = { bin: bin, number: number, leafStyles: leafStyles, rankCutSets: rankCutSets, reasons: reasons, nodeFacts: nodeFacts, rowsContaining: rowsContaining, controlRows: controlRows };
+  var api = { HINTS: HINTS, bin: bin, number: number, leafStyles: leafStyles, rankCutSets: rankCutSets, reasons: reasons, nodeFacts: nodeFacts, rowsContaining: rowsContaining, controlRows: controlRows };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorResults = api;
 })();

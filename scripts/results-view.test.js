@@ -103,3 +103,11 @@ test("controls are listed best buy first, then the enabled ones; too close to ca
   assert.deepEqual(rows.map((r) => r.close), [false, true, false]);
   assert.deepEqual(view.controlRows({}, results), []);
 });
+
+test("both importance measures explain themselves", () => {
+  const leafTerms = nodeFacts(snapshot, "server").map((f) => f[0]);
+  for (const term of ["Fussell-Vesely", "Birnbaum"]) {
+    assert.ok(leafTerms.includes(term));
+    assert.match(view.HINTS[term], /\S/);
+  }
+});

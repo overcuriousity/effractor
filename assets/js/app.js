@@ -82,6 +82,7 @@
     var dt = document.createElement("dt");
     var dd = document.createElement("dd");
     dt.textContent = term;
+    if (view.HINTS[term]) dt.title = view.HINTS[term];
     dd.textContent = value;
     list.appendChild(dt);
     list.appendChild(dd);
@@ -625,7 +626,9 @@
   var MEASURES = [["fussell_vesely", "Fussell-Vesely"], ["birnbaum", "Birnbaum"]];
   function setMeasure(measure) {
     state.measure = measure;
-    $("measure").textContent = measure === "birnbaum" ? "Birnbaum" : "Fussell-Vesely";
+    var name = measure === "birnbaum" ? "Birnbaum" : "Fussell-Vesely";
+    $("measure").textContent = name;
+    $("measure").title = view.HINTS[name] + " · click to switch";
     paint();
   }
   // A click switches; a right-click offers both by name.
