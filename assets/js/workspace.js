@@ -3,7 +3,9 @@
 // permits where it forbids style attributes.
 (function () {
   var LIMITS = { min: 160, max: 520 };
-  var KEY = "effractor.panels";
+  // A new key: the old one was written on every load, so every returning
+  // visitor had the open-open first layout saved as if they had chosen it.
+  var KEY = "effractor.panels.2";
 
   function clampWidth(px) {
     if (!(px >= LIMITS.min)) return LIMITS.min; // also catches NaN
@@ -48,6 +50,12 @@
       var toggle = document.querySelector('[data-toggle="' + side + '"]');
       if (toggle) toggle.setAttribute("aria-pressed", String(open));
     });
+  }
+
+  // Saved only when the visitor changed something: a layout nobody chose is
+  // not a preference.
+  function change() {
+    apply();
     try {
       localStorage.setItem(KEY, JSON.stringify(state));
     } catch (e) {}
@@ -57,7 +65,7 @@
     button.addEventListener("click", function () {
       var side = button.getAttribute("data-toggle");
       state[side + "Open"] = !state[side + "Open"];
-      apply();
+      change();
     });
   });
 
@@ -66,7 +74,7 @@
     open: function (side) {
       if (state[side + "Open"]) return;
       state[side + "Open"] = true;
-      apply();
+      apply(); // opened by the page, not chosen: not saved
     },
   };
 
@@ -79,7 +87,7 @@
       grip.setAttribute("data-dragging", "");
       function move(e) {
         state[side] = nextWidth(side, start, e.clientX - down.clientX);
-        apply();
+        change();
       }
       function up() {
         grip.removeAttribute("data-dragging");
@@ -93,14 +101,14 @@
     });
     grip.addEventListener("dblclick", function () {
       state[side + "Open"] = !state[side + "Open"];
-      apply();
+      change();
     });
     grip.addEventListener("keydown", function (e) {
       var dx = e.key === "ArrowRight" ? 16 : e.key === "ArrowLeft" ? -16 : 0;
       if (!dx) return;
       e.preventDefault();
       state[side] = nextWidth(side, state[side], dx);
-      apply();
+      change();
     });
   });
 
