@@ -22,6 +22,10 @@
       sketch: function (expression, horizon) {
         return request({ type: "sketch", expression: expression, horizon: horizon });
       },
+      // The component library's catalog: what an architecture is built from.
+      catalog: function () {
+        return request({ type: "catalog" });
+      },
       // Resolves to {result} or {cancelled: true}. `result` is what the solver
       // said: {ok, diagnostics} or {diagnostics}.
       solve: function (text, on) {

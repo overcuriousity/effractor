@@ -1,0 +1,209 @@
+effractor: 2
+profile: architecture
+name: SSH server behind a router
+time_unit: d
+horizon: 100
+library: {id: core-components, version: 1}
+
+entities:
+  client-net:
+    kind: network
+    label: Client network
+  server-net:
+    kind: network
+    label: Server network
+  admin-net:
+    kind: network
+    label: Administration network
+  bridge:
+    kind: router
+    label: Router
+  bridge-fw:
+    kind: firewall
+    label: Firewall
+  workstation:
+    kind: host
+    label: Workstation
+  server:
+    kind: host
+    label: Server
+  ssh-client:
+    kind: application
+    label: SSH client
+  sshd:
+    kind: service
+    label: SSH server
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(0.1)"
+        note: Exercise assumption; not calibrated to the lecture
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Infinity"
+        note: "Exercise assumption: a patched service has no exploit to find"
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(0.5)"
+        note: Exercise assumption; includes any bypass of protection on the server
+      login:
+        status: illustrative
+        ttc: "Exponential(1)"
+        note: Exercise assumption; not calibrated to the lecture
+    defenses: {patched: false}
+  server-account:
+    kind: account
+    label: Server user account
+    parameters:
+      admin-login:
+        status: unknown
+  server-credential:
+    kind: credential
+    label: Server user password
+    description: Where the workstation keeps the password; the secret itself is not modelled
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(0.2)"
+        note: Exercise assumption; not calibrated to the lecture
+      extract-protected:
+        status: illustrative
+        ttc: "Infinity"
+        note: "Exercise assumption: a protected store gives nothing up"
+    defenses: {protected: false}
+  admin-account:
+    kind: account
+    label: Server administrator
+    parameters:
+      admin-login:
+        status: illustrative
+        ttc: "Exponential(1)"
+        note: Exercise assumption; not calibrated to the lecture
+  admin-credential:
+    kind: credential
+    label: Administrator password
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(0.2)"
+        note: Exercise assumption; not calibrated to the lecture
+      extract-protected:
+        status: illustrative
+        ttc: "Infinity"
+        note: "Exercise assumption: a protected store gives nothing up"
+    defenses: {protected: false}
+
+associations:
+  workstation-client-net:
+    kind: attached
+    from: workstation
+    to: client-net
+  server-server-net:
+    kind: attached
+    from: server
+    to: server-net
+  bridge-client-net:
+    kind: attached
+    from: bridge
+    to: client-net
+  bridge-server-net:
+    kind: attached
+    from: bridge
+    to: server-net
+  bridge-filters:
+    kind: filters
+    from: bridge
+    to: bridge-fw
+  workstation-runs-client:
+    kind: hosts
+    from: workstation
+    to: ssh-client
+    privilege: user
+  server-runs-sshd:
+    kind: hosts
+    from: server
+    to: sshd
+    privilege: admin
+  workstation-stores-password:
+    kind: stores
+    from: workstation
+    to: server-credential
+    privilege: user
+  password-authenticates:
+    kind: authenticates
+    from: server-credential
+    to: server-account
+  account-authorized:
+    kind: authorizes
+    from: server-account
+    to: sshd
+  account-on-server:
+    kind: grants
+    from: server-account
+    to: server
+    privilege: user
+  workstation-stores-admin-password:
+    kind: stores
+    from: workstation
+    to: admin-credential
+    privilege: admin
+  admin-password-authenticates:
+    kind: authenticates
+    from: admin-credential
+    to: admin-account
+  admin-on-server:
+    kind: grants
+    from: admin-account
+    to: server
+    privilege: admin
+  admin-net-manages-server:
+    kind: administration
+    from: admin-net
+    to: server
+  allow-ssh:
+    kind: permits
+    from: bridge-fw
+    to: ssh
+    allowed: true
+
+flows:
+  ssh:
+    label: SSH from the workstation
+    source: ssh-client
+    target: sshd
+    route: [client-net, bridge, server-net]
+    protocol: tcp/22
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(2)"
+        note: Exercise assumption; not calibrated to the lecture
+
+attacker:
+  footholds:
+    - {entity: workstation, state: admin}
+  target: {entity: server, state: admin}
+
+scenarios:
+  patch-server:
+    label: Patch the SSH server
+    changes:
+      - {entity: sshd, defense: patched, value: true}
+  protect-password:
+    label: Protect the stored password
+    changes:
+      - {entity: server-credential, defense: protected, value: true}
+  patch-and-protect:
+    label: Patch and protect
+    changes:
+      - {entity: sshd, defense: patched, value: true}
+      - {entity: server-credential, defense: protected, value: true}
+  deny-ssh:
+    label: Deny SSH at the router
+    changes:
+      - {association: allow-ssh, field: allowed, value: false}
+
+analysis:
+  seed: 42
+  samples: 10000
+  confidence: 0.95

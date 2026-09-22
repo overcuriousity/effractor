@@ -3,7 +3,7 @@
 const webserver = require("./webserver.doc.json");
 
 const attack = {
-  effractor: 1,
+  effractor: 2,
   profile: "attack-tree",
   name: "Office",
   top: "files",

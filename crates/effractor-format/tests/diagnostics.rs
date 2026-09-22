@@ -48,7 +48,7 @@ fn the_version_gate() {
     let body = "profile: fault-tree\nname: T\ntop: t\nnodes:\n  t: {label: T, leaf: basic}\n";
     assert_eq!(one(body), ("missing-key", "effractor".into(), 1, 1));
     assert_eq!(
-        one(&format!("effractor: 2\n{body}")),
+        one(&format!("effractor: 3\n{body}")),
         ("version", "effractor".into(), 1, 12)
     );
     assert_eq!(
@@ -61,7 +61,7 @@ fn the_version_gate() {
     );
     // A newer document is not read at all: its other keys may mean anything.
     assert_eq!(
-        report(&format!("effractor: 2\nfuture: true\n{body}")).len(),
+        report(&format!("effractor: 3\nfuture: true\n{body}")).len(),
         1
     );
 }

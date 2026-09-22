@@ -335,10 +335,20 @@
   // From the source view: the text as typed. Resolves to what the parser had
   // to say; with no error among it, the text is now the document — as typed,
   // not rewritten, or the caret would jump.
+  // Until the architecture editor exists, an architecture parses but cannot be
+  // shown: everything on this page reads `doc.nodes`. The current document
+  // stays, and the page says why. The architecture-editor roadmap item
+  // replaces this guard with the editor.
+  var UNAVAILABLE = "Architecture editor unavailable";
+  function unavailable(doc) {
+    return doc.profile === "architecture";
+  }
+
   function adoptSource(text) {
     if (text === state.text) return Promise.resolve([]);
     return solver.parse(text).then(function (parsed) {
       if (!parsed.ok) return parsed.diagnostics;
+      if (unavailable(parsed.ok)) return [{ severity: "error", code: "unsupported", path: "profile", message: UNAVAILABLE }];
       if (state.text !== null) undoStack.push(state.text);
       return adopt(text, state.selected, state.parent).then(function () {
         return parsed.diagnostics || [];
@@ -365,10 +375,10 @@
       .load()
       .then(function (kept) {
         if (kept === null || /[?&]new=/.test(location.search)) return template(TEMPLATE);
-        // Kept text that no longer parses (an older version's, say) must not
-        // lock the page out of itself.
+        // Kept text that no longer parses (an older version's, say), or that
+        // this page cannot show, must not lock the page out of itself.
         return solver.parse(kept).then(function (parsed) {
-          return parsed.ok ? kept : template(TEMPLATE);
+          return parsed.ok && !unavailable(parsed.ok) ? kept : template(TEMPLATE);
         });
       })
       .then(function (text) {
@@ -529,6 +539,10 @@
     return solver.parse(text).then(function (parsed) {
       if (isCurrent && !isCurrent()) return false;
       if (!parsed.ok) return say("not opened: " + describe(parsed.diagnostics[0]));
+      if (unavailable(parsed.ok)) {
+        say("not opened: " + UNAVAILABLE);
+        return false;
+      }
       // In canonical form, as every other text the page holds.
       return solver.serialize(parsed.ok).then(function (written) {
         if (isCurrent && !isCurrent()) return false;

@@ -45,6 +45,11 @@ pub fn serialize(document: &str) -> String {
 }
 
 #[wasm_bindgen]
+pub fn component_catalog() -> String {
+    api::component_catalog()
+}
+
+#[wasm_bindgen]
 pub fn ttc_sketch(expression: &str, horizon: f64) -> String {
     api::ttc_sketch(expression, horizon)
 }

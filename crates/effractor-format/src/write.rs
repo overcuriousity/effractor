@@ -6,18 +6,19 @@
 
 use std::fmt::Write;
 
-use effractor_core::{Distribution, Gate, Model, NodeKind};
+use effractor_core::{Distribution, Document, Gate, Model, NodeKind};
 use effractor_mal::{number, to_expr};
 use saphyr_parser::{Event, Parser, ScalarStyle};
 
 use crate::CURRENT_VERSION;
+use crate::architecture_write;
 use crate::lower::{DIMS, Extras, LEAVES, PROFILES, TIME_UNITS};
 use crate::tree::{Entry, Node, Value};
 
 /// A list of ids stays on one line up to here, then goes block.
-const WIDTH: usize = 80;
+pub const WIDTH: usize = 80;
 
-fn word<T: PartialEq>(words: &[(&'static str, T)], value: &T) -> &'static str {
+pub fn word<T: PartialEq>(words: &[(&'static str, T)], value: &T) -> &'static str {
     words
         .iter()
         .find(|(_, v)| v == value)
@@ -25,30 +26,45 @@ fn word<T: PartialEq>(words: &[(&'static str, T)], value: &T) -> &'static str {
 }
 
 pub fn write(m: &Model, extras: &Extras) -> String {
-    let mut w = Writer {
-        out: String::new(),
-        extras,
-    };
+    let mut w = Writer::new(extras);
     w.document(m);
     w.out
 }
 
-struct Writer<'a> {
-    out: String,
+pub fn write_document(d: &Document, extras: &Extras) -> String {
+    match d {
+        Document::Tree(m) => write(m, extras),
+        Document::Architecture(a) => architecture_write::write(a, extras),
+    }
+}
+
+/// The lines, and the `x-` keys to put back among them. Both profiles write
+/// through it, so both have the same idea of a line, a record and a string.
+pub struct Writer<'a> {
+    pub out: String,
     extras: &'a Extras,
 }
 
+impl<'a> Writer<'a> {
+    pub fn new(extras: &'a Extras) -> Self {
+        Self {
+            out: String::new(),
+            extras,
+        }
+    }
+}
+
 impl Writer<'_> {
-    fn line(&mut self, indent: usize, key: &str, value: &str) {
+    pub fn line(&mut self, indent: usize, key: &str, value: &str) {
         let _ = writeln!(self.out, "{:indent$}{key}: {value}", "");
     }
 
-    fn open(&mut self, indent: usize, key: &str) {
+    pub fn open(&mut self, indent: usize, key: &str) {
         let _ = writeln!(self.out, "{:indent$}{key}:", "");
     }
 
     /// The `x-` entries of the map at `path`, one line each.
-    fn extension_lines(&mut self, indent: usize, path: &str) {
+    pub fn extension_lines(&mut self, indent: usize, path: &str) {
         for e in self.extras.get(path).map_or(&[][..], Vec::as_slice) {
             let key = string(&e.key, Context::BlockKey);
             let value = flow(&e.value, Context::Block);
@@ -56,8 +72,12 @@ impl Writer<'_> {
         }
     }
 
+    pub fn has_extensions(&self, path: &str) -> bool {
+        self.extras.contains_key(path)
+    }
+
     /// The same, as the tail of a `{…}` record.
-    fn extension_fields(&self, path: &str, fields: &mut Vec<String>) {
+    pub fn extension_fields(&self, path: &str, fields: &mut Vec<String>) {
         for e in self.extras.get(path).map_or(&[][..], Vec::as_slice) {
             fields.push(flow_entry(e));
         }
@@ -195,7 +215,7 @@ impl Writer<'_> {
         self.line(2, "confidence", &number(m.analysis.confidence));
         self.extension_lines(2, "analysis");
 
-        if self.extras.contains_key("") {
+        if self.has_extensions("") {
             self.out.push('\n');
             self.extension_lines(0, "");
         }
@@ -213,7 +233,7 @@ fn magnitude_or_quoted(ttc: &effractor_core::Ttc) -> String {
 
 /// Always quoted — an expression has commas, and half the places it appears in
 /// are `{…}` records — except a constant, which is a number and looks like one.
-fn expression(d: &Distribution) -> String {
+pub fn expression(d: &Distribution) -> String {
     match d {
         Distribution::Const(v) => number(*v),
         _ => format!("\"{}\"", to_expr(d)),
@@ -221,7 +241,7 @@ fn expression(d: &Distribution) -> String {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum Context {
+pub enum Context {
     /// The value of `key: …` on a line of its own.
     Block,
     /// The key of such a line.
@@ -300,7 +320,7 @@ fn quoted(text: &str) -> String {
 }
 
 /// Text, bare where that is unambiguous and quoted where it is not.
-fn string(text: &str, context: Context) -> String {
+pub fn string(text: &str, context: Context) -> String {
     if !looks_typed(text) && !text.chars().any(needs_escape) && reads_back_plain(text, context) {
         text.to_owned()
     } else {
