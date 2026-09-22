@@ -102,3 +102,47 @@ test("the page opens on an empty document; ?new= picks its profile and nothing e
   assert.equal(templateName("?new=../../etc/passwd"), "new");
   assert.equal(templateName("?example=webserver"), "new");
 });
+
+// The selected node's form lives in an inspector on the canvas, shown exactly
+// while something is selected; the side panels are not touched by a selection.
+test("the inspector follows the selection", async () => {
+  const nodes = new Map(), attributes = [];
+  const doc = { name: 't', profile: 'fault-tree', nodes: { top: { label: 'Top', gate: 'or', children: ['a'] }, a: { label: 'A', leaf: 'basic' } }, analysis: { seed: 1, samples: 10 } };
+  const document = {
+    currentScript: { src: 'https://example.test/assets/js/app.js' },
+    getElementById(id) {
+      if (!nodes.has(id)) {
+        const el = element('div');
+        if (id === 'app') el.setAttribute = (k, v) => attributes.push(k + '=' + v);
+        nodes.set(id, el);
+      }
+      return nodes.get(id);
+    },
+    createElement: element, querySelectorAll: () => [], addEventListener() {},
+  };
+  const window = {
+    effractorStore: { createStore: () => ({ load: async () => 'text', save() {} }) },
+    createSolver: () => ({ async parse() { return { ok: doc }; }, async serialize() { return { ok: 'text' }; } }),
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
+    effractorLayout: { createLayout: () => async () => ({}) },
+    effractorGraph: { describe: () => ({}) },
+    effractorEdit: require('../assets/js/edit.js'),
+    effractorResults: require('../assets/js/results-view.js'),
+  };
+  vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
+    window, document, URL, location: new URL('https://example.test/'), console,
+    setTimeout: () => 0, clearTimeout() {},
+  });
+  const app = window.effractor; await app.ready;
+  // Hidden by its markup until the first selection; from then on, by select().
+  const inspector = document.getElementById('inspector');
+  app.select('a');
+  assert.equal(inspector.hidden, false);
+  assert.equal(nodes.get('inspector-name').textContent, 'A');
+  app.select(null);
+  assert.equal(inspector.hidden, true);
+  app.select('nowhere');
+  assert.equal(inspector.hidden, true);
+  // Selecting opens no panel: the workspace attributes stay whatever they were.
+  assert.deepEqual(attributes.filter(a => /^data-(left|right)/.test(a)), []);
+});

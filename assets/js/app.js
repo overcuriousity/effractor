@@ -64,7 +64,7 @@
 
   var renderer = window.effractorRenderer.createSvgRenderer(document);
   var layout = window.effractorLayout.createLayout();
-  renderer.mount($("canvas"));
+  renderer.mount($("stage"));
 
   function fact(list, term, value) {
     var dt = document.createElement("dt");
@@ -91,7 +91,10 @@
     var facts = $("selected-facts");
     facts.replaceChildren();
     facts.hidden = !state.selected;
-    $("selected-empty").hidden = !!state.selected;
+    // The inspector on the canvas is the selection made visible: there while
+    // something is selected, gone when nothing is. No panel opens for it.
+    $("inspector").hidden = !state.selected;
+    $("inspector-name").textContent = state.selected ? labelOf(state.selected) : "";
     notify();
     if (!state.selected) return;
     view.nodeFacts(state.results, state.selected).forEach(function (f) {

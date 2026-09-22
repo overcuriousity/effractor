@@ -42,16 +42,10 @@
     );
   }
 
-  // The fields live in the right panel; an action that goes there opens it.
-  function openPanel() {
-    var toggle = document.querySelector('[data-toggle="right"]');
-    if ($("app").getAttribute("data-right") === "closed" && toggle) toggle.click();
-  }
-
+  // The fields are in the inspector on the canvas, which the selection shows.
   function focusLabel() {
     var field = $("prop-label");
     if (!field) return;
-    openPanel();
     field.focus();
     field.select();
   }
@@ -82,7 +76,6 @@
     // tree buildable without a pointer. Esc comes back out.
     properties: function () {
       var first = $("prop-quantity") || $("prop-gate");
-      openPanel();
       if (first) first.focus();
     },
     cycleGate: function () {
@@ -197,7 +190,7 @@
     ["Enter in Pareto scatter", "Highlight an attack path"],
     ["↑ ↓ ← →", "Walk the tree: parent, child, siblings"],
     ["any letter", "Rename, starting with that letter"],
-    ["Esc", "Leave a field, close a menu"],
+    ["Esc", "Leave a field, close a menu, drop the selection"],
     ["Ctrl+Z", "Undo"],
     ["Ctrl+Shift+Z", "Redo"],
     ["Ctrl+Enter", "Solve, or cancel a running solve"],
@@ -232,9 +225,12 @@
       e.preventDefault();
       return app.redo();
     }
+    // Esc steps out one layer at a time: a menu, then a field, then the
+    // selection itself — which takes the inspector with it.
     if (e.key === "Escape") {
-      closeMenu();
-      if ($("properties").contains(document.activeElement)) document.activeElement.blur();
+      if (!$("context-menu").hidden) return closeMenu();
+      if ($("properties").contains(document.activeElement)) return document.activeElement.blur();
+      if (!typingElsewhere(e) && selected()) return app.select(null);
     }
     if (typingElsewhere(e) || mod || e.altKey) return;
     if (e.key === "?") {

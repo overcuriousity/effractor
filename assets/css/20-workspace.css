@@ -217,3 +217,18 @@
 .crumb-name { padding: 1px 4px; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; cursor: pointer; }
 .crumb-name:hover { background: var(--color-bg-hover); }
 .crumb-name span { color: var(--color-fg-muted); font-size: var(--text-xs); }
+
+/* ---- the inspector: the selected node's form, docked at the canvas edge ----
+   A column beside the graph, not over it: the stage shrinks and refits, and
+   the HUD stays at the stage's own corner. There while something is selected. */
+.canvas { display: flex; }
+.stage { position: relative; flex: 1; min-width: 0; }
+.inspector {
+  flex: none; width: 280px;
+  overflow: hidden auto;
+  background: var(--color-bg-surface);
+  border-left: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+}
+.inspector[hidden] { display: none; }
+.inspector .count { text-transform: none; letter-spacing: 0; font-weight: 400; }
