@@ -73,6 +73,33 @@ passed on the candidate tree. No UI changed beyond the guard, so there is no
 walkthrough for this task; the exact-SHA CI and fast-forward release process
 applies.
 
+## Continuation — architecture editor (2026-09-23)
+
+Task 4 (`architecture-editor`) is merged; the owner accepted it in the 8081
+preview. File → New architecture opens `assets/templates/new-architecture.yaml`
+(the empty spec §3 document; `?new=architecture` too). Components are added
+with the rail's +, the + beside "Model", **A**, or a right-click on the empty
+canvas (one type picker); the inspector edits label, note, the kind's defense
+switch and parameters. A parameter is a local draft until status, TTC and
+note are applied together; wasm refuses a half one and the draft stays. A
+component that is still named anywhere is refused deletion with a notice until
+`architecture-links` adds reference cleanup.
+
+Structure: pure `profiles.js` (qualified selection `entity/…`, capabilities,
+`treeActionAllowed`), `revisions.js` (tokens per channel), `architecture-edit.js`,
+`architecture-view.js` (components as `symbol: "component"` boxes with a kind
+strip; associations and flows as edges, flows dashed); DOM `architecture-ui.js`
+loads after `editor.js`, which returns early for an architecture. Tree-only
+chrome carries `.tree-only` and is hidden by `60-architecture.css` via
+`data-profile` on `#app`. `app.js` now tokens every parse, layout and solve:
+`markSourceDirty()` (called on source input) expires parses and solves but not
+the committed document's layout; undo is pushed only when an edit commits; a
+repeated Ctrl+Z while one is in flight is ignored; a dropped edit says so.
+`app.showSourcePath(path)` (source.js, `pathLine`) opens the source at a
+document path; `app.setMode` refuses `attack` until generation exists;
+`state.documents` counts document replacements. A fresh reviewer's nine
+findings (races, drafts, tab keys, stale titles) are fixed with tests.
+
 ## Continuation — self-contained links (2026-09-22)
 
 The owner approved optional self-contained sharing. Branch

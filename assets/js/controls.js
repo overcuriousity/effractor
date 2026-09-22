@@ -25,7 +25,8 @@
     tab.addEventListener("keydown", function (e) {
       if (["ArrowLeft", "ArrowRight", "Home", "End"].indexOf(e.key) < 0) return;
       e.preventDefault(); e.stopPropagation();
-      var tabs = Array.from(document.querySelectorAll("[data-tab]")).filter(function (t) { return !t.hidden; });
+      // Hidden by attribute or by the profile's stylesheet (offsetParent null).
+      var tabs = Array.from(document.querySelectorAll("[data-tab]")).filter(function (t) { return !t.hidden && t.offsetParent !== null; });
       var at = tabs.indexOf(tab);
       var next = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : (at + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
       showTab(tabs[next].getAttribute("data-tab")); tabs[next].focus();
@@ -330,10 +331,16 @@
   });
   $("control-new").addEventListener("blur", function () {
     $("control-new").hidden = true;
-    if (app.state.doc) render();
+    if (app.state.doc && window.effractorProfiles.capabilities(app.state.doc).controls) render();
   });
 
+  // An architecture has no controls; its defenses are its components' own.
   app.onChange(function () {
-    if (app.state.doc) render();
+    if (!app.state.doc) return;
+    if (!window.effractorProfiles.capabilities(app.state.doc).controls) {
+      if ($("tab-btn-controls").getAttribute("aria-selected") === "true") showTab("results");
+      return;
+    }
+    render();
   });
 })();

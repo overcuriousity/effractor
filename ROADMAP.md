@@ -86,17 +86,8 @@ oracles, analytic chain CDF, unknowns, no-op/combined scenarios and limits pass;
 new frozen fingerprints pass native and wasmtime; browser wasm agrees with
 native generation/results; and existing tree fingerprints remain unchanged.
 
-### architecture-editor — Empty architecture creation and component editing
-needs: —            cost: 3   benefit: 4
-Add New Architecture and quiet component/type/parameter editing through the
-existing workspace, source, persistence and undo paths. New users still open an
-empty document, and newly created attack parameters remain unknown. Isolate
-tree actions by profile. Done when pure editing and profile-dispatch tests pass
-and the owner accepts a short walkthrough of component creation, parameter
-editing, save/reopen, source diagnostics and undo in both themes.
-
 ### architecture-links — Relationships, flows and attacker configuration
-needs: architecture-editor            cost: 3   benefit: 5
+needs: —            cost: 3   benefit: 5
 Edit typed hosting, network, firewall, administration, credential and privilege
 relationships; directional routed flows; footholds and target states. Keep
 atomic reference-safe deletion undoable and do not infer permissive defaults.

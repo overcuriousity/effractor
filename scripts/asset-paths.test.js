@@ -21,6 +21,8 @@ for (const [page, assets] of [
         ELK: function (options) { elkWorker = String(options.workerUrl); },
         effractorStore: { createStore: () => ({}) },
         createSolver: makeWorker => { makeWorker(); return {}; },
+        effractorProfiles: require('../assets/js/profiles.js'),
+        effractorRevisions: require('../assets/js/revisions.js'),
         effractorRenderer: { createSvgRenderer: () => { throw stop; } },
       },
     });

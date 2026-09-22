@@ -16,15 +16,20 @@
 <link rel="stylesheet" href="{{ asset_prefix }}assets/css/30-graph.css">
 <link rel="stylesheet" href="{{ asset_prefix }}assets/css/40-results.css">
 <link rel="stylesheet" href="{{ asset_prefix }}assets/css/50-editor.css">
+<link rel="stylesheet" href="{{ asset_prefix }}assets/css/60-architecture.css">
 <script src="{{ asset_prefix }}assets/js/theme.js"></script>
 <script src="{{ asset_prefix }}assets/js/workspace.js" defer></script>
 <script src="{{ asset_prefix }}assets/vendor/elk/elk-api.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/graph.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/architecture-view.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/view.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/renderer-svg.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/layout.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/results-view.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/edit.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/architecture-edit.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/profiles.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/revisions.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/solver.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/store.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/charts.js" defer></script>
@@ -34,6 +39,7 @@
 <script src="{{ asset_prefix }}assets/js/horizon.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/ttc.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/editor.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/architecture-ui.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/source.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/controls.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/pareto.js" defer></script>
@@ -60,10 +66,10 @@
 
   <nav class="rail" aria-label="Tools">
     <button class="tool" type="button" data-action="addChild" disabled title="Add child (Tab)" aria-label="Add child"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
-    <button class="tool" type="button" data-action="addSibling" disabled title="Add sibling (Enter)" aria-label="Add sibling"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3v10M10 5v6M7 8h6"/></svg></button>
-    <button class="tool" type="button" data-action="link" disabled title="Link existing node… (L)" aria-label="Link existing node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8"/></svg></button>
-    <button class="tool" type="button" data-action="move" disabled title="Move under… (M)" aria-label="Move under another node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h7M7 5l3 3-3 3M13 3v10"/></svg></button>
-    <button class="tool" type="button" data-action="unlink" disabled title="Unlink from a parent… (Del)" aria-label="Unlink from a parent"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8M5.5 3v1.5M3 5.5h1.5M10.500 11.5V13M11.5 10.500H13"/></svg></button>
+    <button class="tool tree-only" type="button" data-action="addSibling" disabled title="Add sibling (Enter)" aria-label="Add sibling"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3v10M10 5v6M7 8h6"/></svg></button>
+    <button class="tool tree-only" type="button" data-action="link" disabled title="Link existing node… (L)" aria-label="Link existing node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8"/></svg></button>
+    <button class="tool tree-only" type="button" data-action="move" disabled title="Move under… (M)" aria-label="Move under another node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h7M7 5l3 3-3 3M13 3v10"/></svg></button>
+    <button class="tool tree-only" type="button" data-action="unlink" disabled title="Unlink from a parent… (Del)" aria-label="Unlink from a parent"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8M5.5 3v1.5M3 5.5h1.5M10.500 11.5V13M11.5 10.500H13"/></svg></button>
     <button class="tool" type="button" data-action="deleteNode" disabled title="Delete" aria-label="Delete"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.500h10M6.500 4.500V3h3v1.500M4.500 4.500l.6 8.500h5.800l.6-8.500M7 7v4M9 7v4"/></svg></button>
     <span class="rail-rule" aria-hidden="true"></span>
     <button class="tool" type="button" data-action="undo" disabled title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3L3 6l3 3M3 6h6a4 4 0 010 8H7"/></svg></button>
@@ -72,7 +78,7 @@
     <button class="tool" type="button" data-toggle="left" aria-pressed="false" title="Model panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM6 3v10"/></svg></button>
     <button class="tool" type="button" data-toggle="right" aria-pressed="false" title="Results panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM10 3v10"/></svg></button>
     <button class="tool" type="button" data-tool="source" disabled aria-pressed="false" title="YAML source"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4L2.5 8 6 12M10 4l3.5 4L10 12"/></svg></button>
-    <button class="tool" type="button" data-tool="controls" title="Controls"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/></svg></button>
+    <button class="tool tree-only" type="button" data-tool="controls" title="Controls"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/></svg></button>
     <span class="spacer"></span>
     <button class="tool tool-text" type="button" id="help" title="Keys and pointer actions (?)" aria-label="Keys and pointer actions">?</button>
   </nav>
@@ -80,11 +86,11 @@
   <aside class="panel panel-left" id="panel-left" aria-label="Model">
     <div id="view-model">
     <section class="panel-section">
-      <h2 class="label">Model</h2>
+      <h2 class="label">Model <button class="label-action architecture-only" id="component-add" type="button" title="Add a component (A)" aria-label="Add a component">+</button></h2>
       <p class="empty" id="outline-empty">No model yet.</p>
       <ul class="outline" id="outline" role="tree" aria-label="Model tree"></ul>
     </section>
-    <section class="panel-section">
+    <section class="panel-section tree-only">
       <h2 class="label">Assets <button class="label-action" id="asset-add" type="button" title="Add an asset" aria-label="Add an asset">+</button></h2>
       <p class="empty" id="assets-empty">No assets.</p>
       <input class="asset-new" id="asset-new" type="text" placeholder="Name of the asset, then Enter" aria-label="Name of the new asset" hidden autocomplete="off">
@@ -122,13 +128,14 @@
   <aside class="panel panel-right" id="panel-right" aria-label="Results">
     <div class="tabs" role="tablist" aria-label="Right panel">
       <button class="tab" type="button" role="tab" id="tab-btn-results" data-tab="results" aria-selected="true" aria-controls="tab-results">Results</button>
-      <button class="tab" type="button" role="tab" id="tab-btn-ttc" data-tab="ttc" aria-selected="false" aria-controls="tab-ttc">TTC</button>
-      <button class="tab" type="button" role="tab" id="tab-btn-loss" data-tab="loss" aria-selected="false" aria-controls="tab-loss">Loss</button>
-      <button class="tab" type="button" role="tab" id="tab-btn-pareto" data-tab="pareto" aria-selected="false" aria-controls="tab-pareto" hidden>Pareto</button>
-      <button class="tab" type="button" role="tab" id="tab-btn-controls" data-tab="controls" aria-selected="false" aria-controls="tab-controls">Controls <span class="count num" id="controls-count"></span></button>
+      <button class="tab tree-only" type="button" role="tab" id="tab-btn-ttc" data-tab="ttc" aria-selected="false" aria-controls="tab-ttc">TTC</button>
+      <button class="tab tree-only" type="button" role="tab" id="tab-btn-loss" data-tab="loss" aria-selected="false" aria-controls="tab-loss">Loss</button>
+      <button class="tab tree-only" type="button" role="tab" id="tab-btn-pareto" data-tab="pareto" aria-selected="false" aria-controls="tab-pareto" hidden>Pareto</button>
+      <button class="tab tree-only" type="button" role="tab" id="tab-btn-controls" data-tab="controls" aria-selected="false" aria-controls="tab-controls">Controls <span class="count num" id="controls-count"></span></button>
     </div>
     <div id="tab-results" role="tabpanel" aria-labelledby="tab-btn-results">
-    <section class="panel-section">
+    <section class="panel-section architecture-only"><p class="empty">No results.</p></section>
+    <section class="panel-section tree-only">
       <h2 class="label">Minimal cut sets <span class="count num" id="cutsets-count"></span></h2>
       <ul class="notices" id="notices" hidden></ul>
       <p class="empty" id="cutsets-empty">Solve to list them.</p>
@@ -155,15 +162,15 @@
   </aside>
 
   <footer class="legend" aria-label="Legend">
-    <span class="legend-group"><button class="btn btn-ghost legend-measure" id="measure" type="button" title="Share of the top-event probability through this leaf — what to fix first · click to switch">Fussell-Vesely</button>
+    <span class="legend-group tree-only"><button class="btn btn-ghost legend-measure" id="measure" type="button" title="Share of the top-event probability through this leaf — what to fix first · click to switch">Fussell-Vesely</button>
       <span class="swatch swatch-1"></span><span class="num">&lt;0.01</span>
       <span class="swatch swatch-2"></span><span class="num">&lt;0.05</span>
       <span class="swatch swatch-3"></span><span class="num">&lt;0.2</span>
       <span class="swatch swatch-4"></span><span class="num">&lt;0.5</span>
       <span class="swatch swatch-5"></span><span class="num">&ge;0.5</span>
     </span>
-    <span class="legend-group"><span class="swatch swatch-none"></span>not solved</span>
-    <span class="legend-group"><span class="legend-tag">SPOF</span>single point of failure</span>
+    <span class="legend-group tree-only"><span class="swatch swatch-none"></span>not solved</span>
+    <span class="legend-group tree-only"><span class="legend-tag">SPOF</span>single point of failure</span>
     <span class="spacer"></span>
     {% if !sharing %}
     <a class="legend-group" href="https://github.com/overcuriousity/effractor#install" target="_blank" rel="noopener noreferrer" title="Run your own server for encrypted share links with expiry and deletion">Install for encrypted sharing</a>
@@ -203,6 +210,7 @@
 <div class="menu" id="file-menu" role="menu" hidden>
   <button type="button" role="menuitem" data-file="new">New fault tree</button>
   <button type="button" role="menuitem" data-file="new-attack">New attack tree</button>
+  <button type="button" role="menuitem" data-file="new-architecture">New architecture</button>
   <button type="button" role="menuitem" data-file="open">Open a .yaml file…<kbd>Ctrl+O</kbd></button>
   <button type="button" role="menuitem" data-file="save">Save as .yaml<kbd>Ctrl+S</kbd></button>
 </div>

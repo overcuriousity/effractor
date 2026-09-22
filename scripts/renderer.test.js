@@ -214,3 +214,25 @@ test("a style may carry a tag, drawn as words: colour is never the only channel"
   r.render(layout(), {});
   assert.ok(!dom.text(node("phish")).includes("SPOF"));
 });
+
+test("an architecture's component is a box with its kind, no fault symbol, and its badge", () => {
+  const arch = require("../assets/js/architecture-view.js").describe({
+    profile: "architecture",
+    entities: { ws: { kind: "host", label: "Workstation" }, sshd: { kind: "service", label: "SSH server", parameters: { login: { status: "unknown" } } } },
+    associations: {},
+    flows: {},
+    attacker: { footholds: [{ entity: "ws", state: "admin" }] },
+  });
+  const { r, host, node } = mounted();
+  r.render({ width: 400, height: 100, nodes: arch.nodes.map((n, i) => ({ id: n.id, x: 160 * i, y: 0, width: 148, height: 62, node: n })), edges: [] }, {});
+  const ws = node("entity/ws");
+  assert.ok(ws.classList.contains("node-component"));
+  assert.ok(ws.classList.contains("component-host"));
+  assert.equal(dom.byClass(ws, "symbol").length, 0);
+  assert.equal(dom.byClass(ws, "stem").length, 0);
+  assert.deepEqual(dom.text(ws), ["Workstation", "host", "foothold · admin"]);
+  const sshd = node("entity/sshd");
+  assert.ok(sshd.classList.contains("is-unquantified"));
+  assert.deepEqual(dom.text(sshd), ["SSH server", "service · 1 unknown"]);
+  assert.equal(dom.byClass(host, "stem").length, 0);
+});

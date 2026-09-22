@@ -39,6 +39,29 @@ pub async fn shell() -> Response {
 mod tests {
     use super::*;
 
+    /// Pure modules load before the page that uses them, the architecture
+    /// editor after the tree editor and the dropdowns it builds on.
+    fn assert_script_order(html: &str, prefix: &str) {
+        let at = |name: &str| {
+            html.find(&format!("src=\"{prefix}assets/js/{name}\""))
+                .unwrap_or_else(|| panic!("{name} is not loaded"))
+        };
+        for pure in [
+            "profiles.js",
+            "revisions.js",
+            "architecture-edit.js",
+            "architecture-view.js",
+        ] {
+            assert!(at(pure) < at("app.js"), "{pure} loads before app.js");
+        }
+        assert!(at("graph.js") < at("architecture-view.js"));
+        assert!(at("edit.js") < at("architecture-edit.js"));
+        assert!(at("menu.js") < at("architecture-ui.js"));
+        assert!(at("editor.js") < at("architecture-ui.js"));
+        assert!(html.contains(&format!("href=\"{prefix}assets/css/60-architecture.css\"")));
+        assert!(html.contains("data-file=\"new-architecture\""));
+    }
+
     #[test]
     fn static_shell_offers_self_contained_sharing_without_server_controls() {
         let html = render(false).unwrap();
@@ -52,6 +75,7 @@ mod tests {
         assert!(!html.contains("id=\"my-shares\""));
         assert!(html.contains("http-equiv=\"Content-Security-Policy\""));
         assert!(!html.contains("frame-ancestors"));
+        assert_script_order(&html, "./");
     }
 
     #[test]
@@ -62,5 +86,6 @@ mod tests {
         assert!(html.contains("id=\"share-dialog\""));
         assert!(html.contains("data-server-sharing=\"true\""));
         assert!(html.contains("id=\"share-expiry\""));
+        assert_script_order(&html, "/");
     }
 }

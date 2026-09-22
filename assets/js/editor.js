@@ -6,6 +6,7 @@
   if (typeof document === "undefined") return;
   var app = window.effractor;
   var E = window.effractorEdit;
+  var P = window.effractorProfiles;
   var NS = "http://www.w3.org/2000/svg";
   var $ = function (id) {
     return document.getElementById(id);
@@ -15,6 +16,11 @@
 
   function doc() {
     return app.state.doc;
+  }
+  // An architecture is edited by architecture-ui.js; nothing here reads its
+  // selection as a node or acts on it.
+  function arch() {
+    return P.isArchitecture(doc());
   }
   function selected() {
     return app.state.selected;
@@ -185,27 +191,32 @@
 
   // Everything the page does by key or pointer that is not in MENU: the help
   // dialog lists both, so a key that exists is a key that is shown.
-  var OTHER_KEYS = [
+  var TREE_KEYS = [
     ["← → in a chart", "Inspect plotted values"],
     ["Enter in Pareto scatter", "Highlight an attack path"],
     ["↑ ↓ ← →", "Walk the tree: parent, child, siblings"],
     ["any letter", "Rename, starting with that letter"],
+    ["Ctrl+Enter", "Solve, or cancel a running solve"],
+  ];
+  // What both profiles share; architecture-ui.js adds its own above it.
+  var COMMON_KEYS = [
     ["Esc", "Leave a field, close a menu, drop the selection"],
     ["Ctrl+Z", "Undo"],
     ["Ctrl+Shift+Z", "Redo"],
-    ["Ctrl+Enter", "Solve, or cancel a running solve"],
     ["Ctrl+S", "Save as a .yaml file"],
     ["Ctrl+O", "Open a .yaml file"],
     ["F", "Fit to view"],
     ["+  −", "Zoom in, zoom out"],
     ["?", "This list"],
+    ["double-click a divider", "Close or open that panel"],
+    ["drag the background", "Pan"],
+    ["wheel", "Zoom at the pointer"],
+  ];
+  var TREE_POINTER = [
     ["click", "Select a node"],
     ["double-click", "Rename it"],
     ["right-click", "Menu of the node's actions — also on an asset, a control, the theme and the measure"],
-    ["double-click a divider", "Close or open that panel"],
     ["click a line", "Select the child along that edge: Del unlinks exactly it"],
-    ["drag the background", "Pan"],
-    ["wheel", "Zoom at the pointer"],
     ["drag a node onto another", "Move it under that node"],
     ["Ctrl + drag onto another", "Link it under that node as well"],
   ];
@@ -239,7 +250,7 @@
       e.preventDefault();
       return openHelp();
     }
-    if (!selected()) return;
+    if (arch() || !selected()) return;
 
     if (e.key.indexOf("Arrow") === 0) {
       var to = E.walk(doc(), selected(), app.state.parent, e.key);
@@ -264,6 +275,7 @@
   // ---- pointer: drop reparents, Ctrl-drop links ----
 
   app.renderer.on("drop", function (e) {
+    if (arch()) return;
     if (e.ctrl) return apply(E.link(doc(), e.target, e.id));
     var edit = E.reparent(doc(), e.id, E.parentsOf(doc(), e.id)[0] || null, e.target);
     if (edit) edit.parent = e.target;
@@ -326,10 +338,11 @@
   }
 
   app.renderer.on("context", function (e) {
-    openMenu(e.id, e.parent, e.x, e.y);
+    if (!arch()) openMenu(e.id, e.parent, e.x, e.y);
   });
   // A double-click is the click's action, done twice over: into the name.
   app.renderer.on("activate", function (e) {
+    if (arch()) return;
     if (e.id !== selected()) app.select(e.id);
     focusLabel();
   });
@@ -771,7 +784,8 @@
   railButtons.forEach(function (button) {
     button.addEventListener("click", function () {
       button.blur(); // the keys stay with the canvas
-      actions[button.getAttribute("data-action")]();
+      var action = button.getAttribute("data-action");
+      if (P.treeActionAllowed(doc(), action)) actions[action]();
     });
   });
 
@@ -795,10 +809,11 @@
   function openHelp() {
     var list = $("help-keys");
     list.replaceChildren();
-    MENU.map(function (item) {
+    var own = arch() && window.effractorArchitectureUi ? window.effractorArchitectureUi.keys() : MENU.map(function (item) {
       return [item[2], item[1]];
-    })
-      .concat(OTHER_KEYS)
+    }).concat(TREE_KEYS, TREE_POINTER);
+    own
+      .concat(COMMON_KEYS)
       .forEach(function (row) {
         var dt = document.createElement("dt");
         var k = document.createElement("kbd");
@@ -943,7 +958,7 @@
   });
 
   app.onChange(function () {
-    if (!doc()) return;
+    if (!doc() || arch()) return;
     renderActions();
     renderProperties();
     renderOutline();

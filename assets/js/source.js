@@ -18,7 +18,43 @@
     return (where ? where + "  " : "") + d.message;
   }
 
-  if (typeof module !== "undefined") module.exports = { lineRange: lineRange, problemText: problemText };
+  // The 1-based line of a document path such as `entities.web.parameters.login`
+  // in block YAML, as the canonical writer lays it out; where the path goes
+  // on inside a flow map (`{patched: false}`) or nowhere, the deepest line
+  // found. Null if not even its first key is there.
+  function pathLine(text, path) {
+    if (!path) return null;
+    var keys = String(path).split(".");
+    var lines = text.split("\n");
+    var blank = function (line) {
+      return /^\s*(#.*)?$/.test(line);
+    };
+    var indentOf = function (line) {
+      return /^\s*/.exec(line)[0].length;
+    };
+    var from = 0;
+    var end = lines.length;
+    var found = null;
+    for (var k = 0; k < keys.length; k++) {
+      var hit = -1;
+      var level = null;
+      for (var i = from; i < end && hit < 0; i++) {
+        var m = /^(\s*)("?)([^":\s]+)\2:(\s|$)/.exec(lines[i]);
+        if (!m) continue;
+        if (level === null) level = m[1].length;
+        if (m[1].length === level && m[3] === keys[k]) hit = i;
+      }
+      if (hit < 0) return found;
+      found = hit + 1;
+      from = hit + 1;
+      for (end = from; end < lines.length; end++) {
+        if (!blank(lines[end]) && indentOf(lines[end]) <= level) break;
+      }
+    }
+    return found;
+  }
+
+  if (typeof module !== "undefined") module.exports = { lineRange: lineRange, problemText: problemText, pathLine: pathLine };
   if (typeof document === "undefined") return;
 
   var app = window.effractor;
@@ -40,6 +76,12 @@
       area.value = app.state.text || "";
       problems([]);
       area.focus();
+    } else if (!app.state.sourceValid && app.state.text !== null) {
+      // Closed on text that did not parse: the document is what stays.
+      clearTimeout(timer);
+      timer = null;
+      app.adoptSource(app.state.text);
+      $("canvas").classList.remove("is-stale");
     }
   }
 
@@ -78,12 +120,27 @@
   });
 
   area.addEventListener("input", function () {
+    // At once, not after the pause: nothing about the old text is shown now.
+    app.markSourceDirty();
     clearTimeout(timer);
     timer = setTimeout(function () {
       timer = null;
-      app.adoptSource(area.value).then(problems);
+      app.adoptSource(area.value).then(function (list) {
+        if (list) problems(list); // null: more typing overtook this text
+      });
     }, PAUSE_MS);
   });
+
+  // Straight to where a path of the document is written: opens the source
+  // view and selects that line.
+  app.showSourcePath = function (path) {
+    if ($("view-source").hidden) show(true);
+    var line = pathLine(area.value, path);
+    if (line === null) return app.say("not found in the source");
+    var range = lineRange(area.value, line);
+    area.focus();
+    area.setSelectionRange(range[0], range[1]);
+  };
   // Tab belongs to the text here, as two spaces: YAML is made of indentation.
   area.addEventListener("keydown", function (e) {
     if (e.key !== "Tab" || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;

@@ -35,6 +35,9 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
       effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
       effractorLayout: { createLayout: () => async () => ({}) },
       effractorGraph: { describe: () => ({}) },
+    effractorProfiles: require('../assets/js/profiles.js'),
+    effractorRevisions: require('../assets/js/revisions.js'),
+    effractorArchitectureView: require('../assets/js/architecture-view.js'),
       effractorEdit: require('../assets/js/edit.js'),
       effractorResults: require('../assets/js/results-view.js'),
       effractorAutoSolve: require('../assets/js/autosolve.js'),
@@ -61,17 +64,22 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
   });
 }
 
-// Until the architecture editor exists (roadmap: architecture-editor), an
-// architecture must not become the page's document: every renderer path reads
-// `doc.nodes`. The old document stays, and the page says why.
-function pageWith(kept) {
-  const writes = [], nodes = new Map();
-  const doc = text => text === 'arch'
-    ? { name: 'A', profile: 'architecture', entities: {}, analysis: { seed: 42, samples: 10000 } }
-    : { name: text, profile: 'fault-tree', nodes: {}, analysis: { seed: 42, samples: 10000 } };
+// A page whose worker and layout answer when a test says so: texts listed in
+// `slow` are parsed only on release, and so are layouts while `holdLayout`.
+// Everything else answers at once. Nothing here is a browser.
+function racePage(kept = 'original') {
+  const nodes = new Map(), writes = [], held = [], renders = [], runs = [], timers = [];
+  const slow = new Set();
+  let holdLayout = false;
+  const docOf = text => text.startsWith('arch')
+    ? { name: text, profile: 'architecture', entities: { web: { kind: 'service', label: 'Web' } }, associations: {}, flows: {}, attacker: { footholds: [] }, scenarios: {}, analysis: { seed: 1, samples: 10 } }
+    : { name: text, profile: 'fault-tree', nodes: { top: { label: 'Top', leaf: 'basic' } }, analysis: { seed: 1, samples: 10 } };
+  const later = (what, value) => new Promise(resolve => held.push({ what, release: () => resolve(value) }));
   const solver = {
-    async parse(text) { return { ok: doc(text) }; },
-    async serialize(value) { return { ok: value.profile === 'architecture' ? 'arch' : value.name }; },
+    parse(text) { const answer = { ok: docOf(text), diagnostics: [] }; return slow.has(text) ? later('parse ' + text, answer) : Promise.resolve(answer); },
+    async serialize(value) { return { ok: value.name }; },
+    solve(text, on) { return new Promise(resolve => runs.push({ text, on, resolve })); },
+    cancel() {},
   };
   const document = {
     currentScript: { src: 'https://example.test/assets/js/app.js' },
@@ -81,52 +89,140 @@ function pageWith(kept) {
   const window = {
     effractorStore: { createStore: () => ({ load: async () => kept, save: text => writes.push(text) }) },
     createSolver: () => solver,
-    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
-    effractorLayout: { createLayout: () => async () => ({}) },
-    effractorGraph: { describe: () => ({}) },
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render(laid) { renders.push(laid.name); }, highlight() {}, on() {}, fit() {} }) },
+    effractorLayout: { createLayout: () => described => holdLayout ? later('layout ' + described.name, described) : Promise.resolve(described) },
+    effractorGraph: { describe: doc => ({ name: doc.name }) },
+    effractorProfiles: require('../assets/js/profiles.js'),
+    effractorRevisions: require('../assets/js/revisions.js'),
+    effractorArchitectureView: { describe: doc => ({ name: doc.name }) },
     effractorEdit: require('../assets/js/edit.js'),
     effractorResults: require('../assets/js/results-view.js'),
     effractorAutoSolve: require('../assets/js/autosolve.js'),
+    effractorCharts: require('../assets/js/charts.js'),
   };
-  const fetched = [];
   vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
     window, document, URL, location: new URL('https://example.test/'), console,
-    setTimeout: () => 0, clearTimeout() {},
-    fetch: async url => { fetched.push(url); return { ok: true, text: async () => 'template' }; },
+    performance: { now: () => 0 },
+    setTimeout: function (f) { timers.push(f); return timers.length; },
+    clearTimeout: function (id) { timers[id - 1] = null; },
+    fetch: async () => ({ ok: true, text: async () => 'arch-template' }),
   });
-  return { app: window.effractor, writes, nodes, fetched };
+  const settle = () => new Promise(setImmediate);
+  return {
+    app: window.effractor, writes, renders, runs, slow, nodes, settle, docOf,
+    holdLayout(on) { holdLayout = on; },
+    async release(what) { const i = held.findIndex(h => h.what === what); assert.ok(i >= 0, 'nothing held: ' + what); held.splice(i, 1)[0].release(); await settle(); await settle(); },
+    async tick() { const due = timers.splice(0).filter(Boolean); due.forEach(f => f()); await settle(); },
+    attr: name => document.getElementById('app').getAttribute(name),
+  };
 }
 
-test("opening an architecture keeps the current document and says the editor is unavailable", async () => {
-  const { app, writes, nodes } = pageWith('original');
-  await app.ready;
-  assert.equal(await app.replaceDocument('arch', 'opened arch.yaml'), false);
-  assert.equal(app.state.text, 'original');
-  assert.deepEqual(writes, []);
-  assert.equal(app.canUndo(), false);
-  assert.match(nodes.get('note').textContent, /Architecture editor unavailable/);
-  // A tree still opens through the same path.
-  assert.equal(await app.replaceDocument('tree', 'opened tree.yaml'), true);
-  assert.equal(app.state.text, 'tree');
+test('an architecture opens as the document: no solve, a profile on the page, qualified selection', async () => {
+  const h = racePage();
+  await h.app.ready; await h.tick();
+  assert.equal(h.runs.length, 1, 'the tree is solved');
+  h.runs[0].resolve({ cancelled: true }); await h.settle();
+  h.app.select('top');
+  assert.equal(await h.app.replaceDocument('arch', 'opened arch.yaml'), true);
+  assert.equal(h.app.state.doc.profile, 'architecture');
+  assert.equal(h.attr('data-profile'), 'architecture');
+  assert.equal(h.nodes.get('solve').disabled, true);
+  assert.equal(h.app.state.selected, null, 'a tree selection does not carry over');
+  assert.deepEqual(h.writes, ['arch']);
+  await h.tick();
+  assert.equal(h.runs.length, 1, 'nothing is solved for an architecture');
+  h.app.solve();
+  assert.match(h.nodes.get('note').textContent, /not solved/);
+  h.app.select('entity/web');
+  assert.equal(h.app.state.selected, 'entity/web');
+  assert.equal(h.nodes.get('inspector-name').textContent, 'Web');
+  assert.equal(h.nodes.get('inspector').hidden, false);
+  h.app.select('web');
+  assert.equal(h.app.state.selected, null);
+  // Undo brings the tree back, and it is solved again.
+  h.app.undo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'original');
+  assert.equal(h.attr('data-profile'), 'fault-tree');
+  assert.equal(h.nodes.get('solve').disabled, false);
 });
 
-test("typing an architecture into the source view is reported, not adopted", async () => {
-  const { app, writes } = pageWith('original');
-  await app.ready;
-  const problems = await app.adoptSource('arch');
-  assert.equal(problems.length, 1);
-  assert.equal(problems[0].severity, 'error');
-  assert.match(problems[0].message, /Architecture editor unavailable/);
-  assert.equal(app.state.text, 'original');
-  assert.deepEqual(writes, []);
-  assert.equal(app.canUndo(), false);
+test('a kept architecture opens as it was left', async () => {
+  const h = racePage('arch-kept');
+  await h.app.ready;
+  assert.equal(h.app.state.text, 'arch-kept');
+  assert.equal(h.attr('data-profile'), 'architecture');
 });
 
-test("a kept architecture cannot lock the page: it opens on the template instead", async () => {
-  const { app, fetched } = pageWith('arch');
-  await app.ready;
-  assert.equal(app.state.text, 'template');
-  assert.equal(fetched.length, 1);
+test('an edit overtaken on its way through the worker is dropped, and leaves no undo step', async () => {
+  const h = racePage();
+  await h.app.ready;
+  h.slow.add('first');
+  const first = h.app.applyEdit({ doc: h.docOf('first') });
+  await h.settle();
+  assert.equal(await h.app.applyEdit({ doc: h.docOf('second') }), true);
+  await h.release('parse first');
+  assert.equal(await first, false);
+  assert.equal(h.app.state.text, 'second');
+  assert.deepEqual(h.writes, ['second']);
+  h.app.undo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'original');
+  assert.equal(h.app.canUndo(), false);
+});
+
+test('a layout that arrives after the next edit is not drawn over it', async () => {
+  const h = racePage();
+  await h.app.ready;
+  h.holdLayout(true);
+  const first = h.app.applyEdit({ doc: h.docOf('first') });
+  await h.settle(); await h.settle();
+  h.holdLayout(false);
+  await h.app.applyEdit({ doc: h.docOf('second') });
+  await h.release('layout first');
+  assert.equal(await first, true, 'the edit itself stands; only its drawing is late');
+  assert.equal(h.renders[h.renders.length - 1], 'second');
+  assert.equal(h.renders.indexOf('first'), -1);
+});
+
+test('source text that is being typed stops older answers and solving until it parses', async () => {
+  const h = racePage();
+  await h.app.ready; await h.tick();
+  const run = h.runs[0];
+  h.app.markSourceDirty();
+  assert.equal(h.app.state.sourceValid, false);
+  assert.equal(h.nodes.get('solve').disabled, true);
+  run.on.onExact({ exact: { available: { p_top: 0.5 } }, cut_sets: { available: { sets: [], total: 0 } }, leaves: [] });
+  assert.equal(h.app.state.exactResults, undefined, 'an answer about the text before the typing is dropped');
+  run.resolve({ cancelled: true }); await h.settle();
+  h.app.solve();
+  assert.match(h.nodes.get('note').textContent, /source is not valid/);
+  // A parse of what was typed, overtaken by more typing, is not adopted.
+  h.slow.add('typed');
+  const typed = h.app.adoptSource('typed');
+  await h.settle();
+  h.app.markSourceDirty();
+  await h.release('parse typed');
+  assert.equal(await typed, null, 'its problems are not the ones to show');
+  assert.equal(h.app.state.text, 'original');
+  assert.deepEqual(h.writes, []);
+  assert.equal(h.app.canUndo(), false);
+  // Typed back to what the document is: valid again, and solved again.
+  assert.deepEqual(await h.app.adoptSource('original'), []);
+  assert.equal(h.app.state.sourceValid, true);
+  assert.equal(h.nodes.get('solve').disabled, false);
+  await h.tick();
+  assert.equal(h.runs.length, 2);
+});
+
+test('a result solved for a text that was undone is not shown', async () => {
+  const h = racePage();
+  await h.app.ready;
+  await h.app.applyEdit({ doc: h.docOf('edited') });
+  await h.tick();
+  const run = h.runs[h.runs.length - 1];
+  assert.equal(run.text, 'edited');
+  h.app.undo(); await h.settle(); await h.settle();
+  run.on.onExact({ exact: { available: { p_top: 0.9 } }, cut_sets: { available: { sets: [], total: 0 } }, leaves: [] });
+  assert.ok(!h.app.state.exactResults, 'the answer about the undone text is dropped');
 });
 
 test("whole numbers are grouped in threes with a no-break space", () => {
@@ -168,6 +264,7 @@ test("the page opens on an empty document; ?new= picks its profile and nothing e
   assert.equal(templateName(""), "new");
   assert.equal(templateName("?new=attack-tree"), "new-attack");
   assert.equal(templateName("?samples=5&new=attack-tree"), "new-attack");
+  assert.equal(templateName("?new=architecture"), "new-architecture");
   assert.equal(templateName("?new=../../etc/passwd"), "new");
   assert.equal(templateName("?example=webserver"), "new");
 });
@@ -195,6 +292,9 @@ test("the inspector follows the selection", async () => {
     effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => async () => ({}) },
     effractorGraph: { describe: () => ({}) },
+    effractorProfiles: require('../assets/js/profiles.js'),
+    effractorRevisions: require('../assets/js/revisions.js'),
+    effractorArchitectureView: require('../assets/js/architecture-view.js'),
     effractorEdit: require('../assets/js/edit.js'),
     effractorResults: require('../assets/js/results-view.js'),
     effractorAutoSolve: require('../assets/js/autosolve.js'),
@@ -232,6 +332,9 @@ test("the HUD is hidden while nothing is solved", async () => {
     effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => async () => ({}) },
     effractorGraph: { describe: () => ({}) },
+    effractorProfiles: require('../assets/js/profiles.js'),
+    effractorRevisions: require('../assets/js/revisions.js'),
+    effractorArchitectureView: require('../assets/js/architecture-view.js'),
     effractorEdit: require('../assets/js/edit.js'),
     effractorResults: require('../assets/js/results-view.js'),
     effractorAutoSolve: require('../assets/js/autosolve.js'),
@@ -269,6 +372,9 @@ function autoHarness() {
     effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => async () => ({}) },
     effractorGraph: { describe: () => ({}) },
+    effractorProfiles: require('../assets/js/profiles.js'),
+    effractorRevisions: require('../assets/js/revisions.js'),
+    effractorArchitectureView: require('../assets/js/architecture-view.js'),
     effractorEdit: require('../assets/js/edit.js'),
     effractorResults: require('../assets/js/results-view.js'),
     effractorAutoSolve: require('../assets/js/autosolve.js'),
@@ -363,4 +469,74 @@ test('another document starts with nothing on screen', async () => {
   assert.equal(h.app.state.results, null);
   await h.tick();
   assert.equal(h.runs[1].text, 'other');
+});
+
+// Review findings on the revision gate, each once seen to fail.
+test('typing in the source does not drop the layout of the document already committed', async () => {
+  const h = racePage();
+  await h.app.ready;
+  h.holdLayout(true);
+  const edit = h.app.applyEdit({ doc: h.docOf('first') });
+  await h.settle(); await h.settle();
+  h.holdLayout(false);
+  h.app.markSourceDirty();
+  await h.release('layout first');
+  assert.equal(await edit, true);
+  assert.equal(h.renders[h.renders.length - 1], 'first');
+});
+
+test('closing the source view on its own text expires a parse still in flight', async () => {
+  const h = racePage();
+  await h.app.ready;
+  h.slow.add('typed');
+  h.app.markSourceDirty();
+  const late = h.app.adoptSource('typed');
+  await h.settle();
+  assert.deepEqual(await h.app.adoptSource('original'), []);
+  await h.release('parse typed');
+  assert.equal(await late, null);
+  assert.equal(h.app.state.text, 'original');
+  assert.equal(h.app.state.sourceValid, true);
+});
+
+test('a dropped edit says so', async () => {
+  const h = racePage();
+  await h.app.ready;
+  h.slow.add('first');
+  const first = h.app.applyEdit({ doc: h.docOf('first') });
+  await h.settle();
+  await h.app.applyEdit({ doc: h.docOf('second') });
+  await h.release('parse first');
+  assert.equal(await first, false);
+  assert.match(h.nodes.get('note').textContent, /overtaken/);
+});
+
+test('undo pressed again while one is on its way is not lost from the history', async () => {
+  const h = racePage();
+  await h.app.ready;
+  await h.app.applyEdit({ doc: h.docOf('a') });
+  await h.app.applyEdit({ doc: h.docOf('b') });
+  h.slow.add('a');
+  h.app.undo(); await h.settle();
+  h.app.undo(); await h.settle();
+  await h.release('parse a');
+  assert.equal(h.app.state.text, 'a');
+  assert.equal(h.app.canUndo(), true);
+  h.slow.delete('a');
+  h.app.redo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'b');
+  h.app.undo(); await h.settle(); await h.settle();
+  h.app.undo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'original');
+});
+
+test('a tree selection is gone the moment an architecture is committed, before its layout', async () => {
+  const h = racePage();
+  await h.app.ready;
+  h.app.select('top');
+  h.holdLayout(true);
+  h.app.replaceDocument('arch', 'opened');
+  await h.settle(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.doc.profile, 'architecture');
+  assert.equal(h.app.state.selected, null);
 });

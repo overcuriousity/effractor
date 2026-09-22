@@ -165,6 +165,7 @@
     function drawNode(item, style) {
       var n = item.node;
       var classes = ["node", "node-" + n.symbol];
+      if (n.component) classes.push("component-" + n.component);
       if (n.top) classes.push("is-top");
       if (n.parents > 1) classes.push("is-shared");
       if (n.unreachable) classes.push("is-unreachable");
@@ -188,6 +189,16 @@
         el("rect", { x: 0, y: below, width: w, height: geometry.strip }, ["shape", "strip"], g);
         text(g, w / 2, below + geometry.strip / 2 + 3.5, n.attributes, "attributes");
         below += geometry.strip;
+      }
+      // An architecture's component: the box is all of it, with a badge on
+      // its top edge when the attacker starts or ends there.
+      if (n.symbol === "component") {
+        if (n.badge) {
+          var bw = String(n.badge).length * 5.6 + 12;
+          el("rect", { x: w - bw - 6, y: -8, width: bw, height: 16, rx: 3 }, ["tag", "badge"], g);
+          text(g, w - 6 - bw / 2, 3, n.badge, "tag-text");
+        }
+        return g;
       }
       el("line", { x1: w / 2, y1: below, x2: w / 2, y2: below + geometry.stem }, ["stem"], g);
       symbol(g, n, below + geometry.stem);

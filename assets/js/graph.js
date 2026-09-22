@@ -109,7 +109,9 @@
     return { profile: doc.profile, nodes: nodes, edges: edges };
   }
 
+  // An architecture's component is its box and kind strip: no stem, no symbol.
   function height(node) {
+    if (node.symbol === "component") return SIZE.box + (node.attributes ? SIZE.strip : 0);
     return SIZE.gate + (node.attributes ? SIZE.strip : 0);
   }
 

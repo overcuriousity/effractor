@@ -33,10 +33,12 @@
   }
 
   // The page opens on an empty document: a fault tree, or with
-  // ?new=attack-tree an attack tree. No example ships.
+  // ?new=attack-tree an attack tree, ?new=architecture an architecture. No
+  // example ships.
   function templateName(search) {
     var m = /[?&]new=([a-z-]+)(&|$)/.exec(search);
-    return m && m[1] === "attack-tree" ? "new-attack" : "new";
+    if (m && m[1] === "attack-tree") return "new-attack";
+    return m && m[1] === "architecture" ? "new-architecture" : "new";
   }
 
   if (typeof module !== "undefined") {
@@ -58,7 +60,14 @@
   window.effractor = { solver: solver };
   var listeners = []; // told after every load and every selection
 
-  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastSampledMs: null };
+  var P = window.effractorProfiles;
+  // Every asynchronous answer (parse, layout, solve) carries a token of the
+  // revision it was asked about; one that arrives after an edit, an undo,
+  // another file or new source text is dropped (revisions.js).
+  var gate = window.effractorRevisions.create();
+  // `mode` is the architecture's view: "architecture" until an attack graph
+  // can be generated. `sourceValid`: the source view's text is the document's.
+  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastSampledMs: null, revision: gate.current(), sourceValid: true, mode: "architecture", generated: null, diagnostics: [], documents: 0 };
   var view = window.effractorResults;
   var MAX_ROWS = 200; // a table is for reading; ten thousand rows are not read
 
@@ -91,9 +100,12 @@
 
   // `parent` is the edge the selection came along, which is what Enter, Del
   // and the arrows act on; without one it is the node's first parent.
+  // An architecture's selection is qualified (`entity/web`); it has no edge
+  // it was reached along and no solved facts yet.
   function select(id, parent) {
-    state.selected = id && Object.prototype.hasOwnProperty.call(state.doc.nodes, id) ? id : null;
-    var parents = state.selected ? window.effractorEdit.parentsOf(state.doc, state.selected) : [];
+    var arch = P.isArchitecture(state.doc);
+    state.selected = P.selectionExists(state.doc, id, state.generated) ? id : null;
+    var parents = state.selected && !arch ? window.effractorEdit.parentsOf(state.doc, state.selected) : [];
     // `parentChosen`: the edge was named (a tree row, an arrow key), not guessed.
     state.parentChosen = parents.indexOf(parent) >= 0;
     state.parent = state.parentChosen ? parent : parents[0] || null;
@@ -103,13 +115,13 @@
     renderer.highlight(state.selected && state.parentChosen && parents.length > 1 ? [state.selected, state.parent] : [], "via");
     var facts = $("selected-facts");
     facts.replaceChildren();
-    facts.hidden = !state.selected;
+    facts.hidden = !state.selected || arch;
     // The inspector on the canvas is the selection made visible: there while
     // something is selected, gone when nothing is. No panel opens for it.
     $("inspector").hidden = !state.selected;
     $("inspector-name").textContent = state.selected ? labelOf(state.selected) : "";
     notify();
-    if (!state.selected) return;
+    if (!state.selected || arch) return;
     view.nodeFacts(state.results, state.selected).forEach(function (f) {
       fact(facts, f[0], f[1]).classList.add("num");
     });
@@ -131,6 +143,11 @@
   }
 
   function labelOf(id) {
+    if (P.isArchitecture(state.doc)) {
+      var q = P.qualified(id);
+      var record = !q ? null : q.kind === "entity" ? state.doc.entities[q.id] : q.kind === "flow" ? state.doc.flows[q.id] : null;
+      return record && record.label ? record.label : q ? q.id : id;
+    }
     var node = state.doc.nodes[id];
     return node && node.label ? node.label : id;
   }
@@ -200,6 +217,7 @@
   // which is there before its sampling is.
   function paint() {
     if (!state.laid) return;
+    if (P.isArchitecture(state.doc)) return renderer.render(state.laid, {});
     var known = state.exactResults || state.results;
     renderer.render(state.laid, known ? view.leafStyles(known, state.measure) : {});
   }
@@ -222,11 +240,19 @@
     markRows();
   });
 
+  // A layout of a document that has since changed is not drawn; a fit it
+  // was to make is left to the next one.
+  var fitOwed = false;
   function draw(fit) {
-    return layout(window.effractorGraph.describe(state.doc)).then(function (laid) {
+    var token = gate.issue("layout");
+    fitOwed = fitOwed || !!fit;
+    var described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc) : window.effractorGraph.describe(state.doc);
+    return layout(described).then(function (laid) {
+      if (!gate.accept(token)) return;
       state.laid = laid;
       paint();
-      if (fit) renderer.fit();
+      if (fitOwed) renderer.fit();
+      fitOwed = false;
     });
   }
 
@@ -257,13 +283,30 @@
 
   // `fit` on a fresh document; an edit leaves the view where the author put it.
   function loaded(text, doc, fit) {
+    // A selection means nothing in another profile, even before select() runs.
+    if (state.doc && state.doc.profile !== doc.profile) {
+      state.selected = null;
+      state.parent = null;
+    }
     state.text = text;
     state.doc = doc;
+    state.sourceValid = true;
+    state.generated = null;
+    $("app").setAttribute("data-profile", doc.profile);
     $("model-name").textContent = doc.name;
     $("profile-chip").textContent = doc.profile;
-    chip(analysisLabel(doc.analysis));
-    $("solve").disabled = false;
+    chip(P.capabilities(doc).solve ? analysisLabel(doc.analysis) : "not solved");
+    solvable();
     return draw(fit);
+  }
+
+  function solvable() {
+    $("solve").disabled = !state.doc || !P.capabilities(state.doc).solve || !state.sourceValid;
+  }
+
+  function invalidate() {
+    gate.invalidate();
+    state.revision = gate.current();
   }
 
   // What was solved is no longer what is on the canvas.
@@ -291,12 +334,21 @@
 
   // A text becomes the document: the one way in, for an edit, an undo, a redo.
   function adopt(text, selectId, parent, fit, beforeCommit) {
+    var token = gate.issue("document");
     return solver.parse(text).then(function (parsed) {
       if (!parsed.ok) throw new Error(describe(parsed.diagnostics[0]));
+      // A newer text was sent for adoption meanwhile, or the source changed.
+      if (!gate.accept(token)) return false;
       if (beforeCommit && !beforeCommit()) return false;
+      invalidate();
+      state.diagnostics = parsed.diagnostics || [];
+      // Another profile is another document, and is fitted as one.
+      if (state.doc && state.doc.profile !== parsed.ok.profile) fit = true;
       // Another document starts from nothing; an edit keeps what was said
       // about the last text, faded, until the next solve replaces it.
       if (fit) {
+        // Another document: counted, so drafts about the last one can go.
+        state.documents++;
         clearResults();
         state.lastSampledMs = null;
       } else if (state.exactResults || state.results) {
@@ -326,41 +378,74 @@
         say("that changes nothing");
         return false;
       }
-      undoStack.push(before);
-      return adopt(written.ok, edit.select, edit.parent).then(function () {
+      // Into the history only if it is committed: a text overtaken by a
+      // newer one on its way through the worker leaves no trace.
+      return adopt(written.ok, edit.select, edit.parent, false, function () {
+        undoStack.push(state.text);
         return true;
+      }).then(function (applied) {
+        if (!applied) say("an edit was overtaken by a newer one");
+        return applied;
       });
     });
   }
 
-  // From the source view: the text as typed. Resolves to what the parser had
-  // to say; with no error among it, the text is now the document — as typed,
-  // not rewritten, or the caret would jump.
-  // Until the architecture editor exists, an architecture parses but cannot be
-  // shown: everything on this page reads `doc.nodes`. The current document
-  // stays, and the page says why. The architecture-editor roadmap item
-  // replaces this guard with the editor.
-  var UNAVAILABLE = "Architecture editor unavailable";
-  function unavailable(doc) {
-    return doc.profile === "architecture";
+  // The source view's text changed and is not parsed yet: from now on no
+  // answer about the document as it was is shown, and nothing is solved,
+  // until a text that parses is adopted (or the typing comes back to it).
+  // The document itself has not changed, so its layout still stands; what
+  // is expired is any text on its way in and any solve of the old text.
+  function markSourceDirty() {
+    gate.issue("source");
+    gate.issue("document");
+    gate.issue("solve");
+    state.sourceValid = false;
+    solvable();
   }
 
+  // From the source view: the text as typed. Resolves to what the parser had
+  // to say; with no error among it, the text is now the document — as typed,
+  // not rewritten, or the caret would jump. Resolves to null when more typing
+  // overtook this text: its problems are no longer the ones to show.
   function adoptSource(text) {
-    if (text === state.text) return Promise.resolve([]);
+    var token = gate.issue("source");
+    if (text === state.text) {
+      if (!state.sourceValid) {
+        state.sourceValid = true;
+        solvable();
+        autosolve.changed();
+      }
+      return Promise.resolve([]);
+    }
     return solver.parse(text).then(function (parsed) {
+      if (!gate.accept(token)) return null;
       if (!parsed.ok) return parsed.diagnostics;
-      if (unavailable(parsed.ok)) return [{ severity: "error", code: "unsupported", path: "profile", message: UNAVAILABLE }];
-      if (state.text !== null) undoStack.push(state.text);
-      return adopt(text, state.selected, state.parent).then(function () {
-        return parsed.diagnostics || [];
+      return adopt(text, state.selected, state.parent, false, function () {
+        if (state.text !== null) undoStack.push(state.text);
+        return true;
+      }).then(function (applied) {
+        return applied ? parsed.diagnostics || [] : null;
       });
     });
   }
 
   var undoStack = window.effractorEdit.createHistory();
+  // One step at a time: a Ctrl+Z repeated while the last is still on its
+  // way is ignored, and a step that is overtaken goes back into the history.
+  var travelling = false;
   function timeTravel(direction) {
+    if (travelling) return;
     var text = undoStack[direction](state.text);
-    if (text !== null) adopt(text, state.selected, state.parent);
+    if (text === null) return;
+    travelling = true;
+    adopt(text, state.selected, state.parent).then(function (applied) {
+      travelling = false;
+      // The opposite step with the text that did not arrive restores both lists.
+      if (!applied) undoStack[direction === "undo" ? "redo" : "undo"](text);
+    }, function (e) {
+      travelling = false;
+      console.error(e);
+    });
   }
 
   function template(url) {
@@ -379,12 +464,13 @@
         // Kept text that no longer parses (an older version's, say), or that
         // this page cannot show, must not lock the page out of itself.
         return solver.parse(kept).then(function (parsed) {
-          return parsed.ok && !unavailable(parsed.ok) ? kept : template(TEMPLATE);
+          return parsed.ok ? kept : template(TEMPLATE);
         });
       })
       .then(function (text) {
         return solver.parse(text).then(function (parsed) {
           if (!parsed.ok) throw new Error(describe(parsed.diagnostics[0]));
+          state.diagnostics = parsed.diagnostics || [];
           var samples = samplesOverride(location.search);
           if (samples === null) return loaded(text, parsed.ok, true);
           // The edit goes the way every edit will: through the document and
@@ -456,10 +542,11 @@
   // one always does, and is the one that opens the results.
   function run(explicit) {
     var text = state.text;
-    if (!text) return Promise.resolve();
+    if (!text || !P.capabilities(state.doc).solve || !state.sourceValid) return Promise.resolve();
     var full = explicit || auto.samplesAutomatically(state.lastSampledMs);
+    var token = gate.issue("solve");
     var current = function () {
-      return state.text === text;
+      return gate.accept(token);
     };
     var exactShown = false;
     state.running = true;
@@ -486,8 +573,12 @@
       })
       .then(function (outcome) {
         finished();
-        // A newer text is on its way to being solved: it will say.
-        if (!current()) return;
+        // A newer text is on its way to being solved: it will say. Typing in
+        // the source has no solve of its own until it parses.
+        if (!current()) {
+          if (!state.sourceValid) chip("not solved · source not valid");
+          return;
+        }
         if (outcome.cancelled) {
           if (state.stopped) return chip("cancelled · " + analysisLabel(state.doc.analysis));
           if (!full && exactShown) return chip("exact only · Ctrl+Enter samples");
@@ -512,7 +603,10 @@
       state.stopped = true;
       return autosolve.stop();
     }
-    if (state.text) autosolve.now();
+    if (!state.text) return;
+    if (!P.capabilities(state.doc).solve) return say("an architecture is not solved yet");
+    if (!state.sourceValid) return say("the source is not valid");
+    autosolve.now();
   }
 
   window.effractor.state = state;
@@ -540,10 +634,6 @@
     return solver.parse(text).then(function (parsed) {
       if (isCurrent && !isCurrent()) return false;
       if (!parsed.ok) return say("not opened: " + describe(parsed.diagnostics[0]));
-      if (unavailable(parsed.ok)) {
-        say("not opened: " + UNAVAILABLE);
-        return false;
-      }
       // In canonical form, as every other text the page holds.
       return solver.serialize(parsed.ok).then(function (written) {
         if (isCurrent && !isCurrent()) return false;
@@ -590,6 +680,11 @@
     "new-attack": function () {
       template(new URL("templates/new-attack.yaml", assets).href).then(function (text) {
         replaceDocument(text, "new attack tree");
+      });
+    },
+    "new-architecture": function () {
+      template(new URL("templates/new-architecture.yaml", assets).href).then(function (text) {
+        replaceDocument(text, "new architecture");
       });
     },
     open: function () {
@@ -682,6 +777,18 @@
   });
 
   window.effractor.replaceDocument = replaceDocument;
+  window.effractor.markSourceDirty = markSourceDirty;
+  window.effractor.revisions = gate;
+  // Architecture or attack graph; only the first exists until generation does.
+  window.effractor.setMode = function (mode) {
+    if (mode !== "architecture" && !(mode === "attack" && P.capabilities(state.doc).generate)) {
+      say("no attack graph yet");
+      return false;
+    }
+    state.mode = mode;
+    notify();
+    return true;
+  };
   window.effractor.ready = load().then(function () {
     notify();
     autosolve.changed();
