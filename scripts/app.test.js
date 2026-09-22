@@ -86,6 +86,7 @@ function pageWith(kept) {
     effractorGraph: { describe: () => ({}) },
     effractorEdit: require('../assets/js/edit.js'),
     effractorResults: require('../assets/js/results-view.js'),
+    effractorAutoSolve: require('../assets/js/autosolve.js'),
   };
   const fetched = [];
   vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
