@@ -37,6 +37,7 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
       effractorGraph: { describe: () => ({}) },
       effractorEdit: require('../assets/js/edit.js'),
       effractorResults: require('../assets/js/results-view.js'),
+      effractorAutoSolve: require('../assets/js/autosolve.js'),
     };
     vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
       window, document, URL, location: new URL('https://example.test/'), console,
@@ -128,6 +129,7 @@ test("the inspector follows the selection", async () => {
     effractorGraph: { describe: () => ({}) },
     effractorEdit: require('../assets/js/edit.js'),
     effractorResults: require('../assets/js/results-view.js'),
+    effractorAutoSolve: require('../assets/js/autosolve.js'),
   };
   vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
     window, document, URL, location: new URL('https://example.test/'), console,
@@ -164,6 +166,7 @@ test("the HUD is hidden while nothing is solved", async () => {
     effractorGraph: { describe: () => ({}) },
     effractorEdit: require('../assets/js/edit.js'),
     effractorResults: require('../assets/js/results-view.js'),
+    effractorAutoSolve: require('../assets/js/autosolve.js'),
   };
   vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
     window, document, URL, location: new URL('https://example.test/'), console,
@@ -172,4 +175,124 @@ test("the HUD is hidden while nothing is solved", async () => {
   const app = window.effractor; await app.ready;
   assert.equal(await app.replaceDocument('text', 'opened'), true);
   assert.equal(document.getElementById('hud-stats').hidden, true);
+});
+
+// Solving by itself: the page solves what it loads and every edit, after a
+// pause; what was said about an older text stays, marked, until replaced.
+function autoHarness() {
+  const nodes = new Map(), timers = [], runs = [];
+  let cancels = 0, clock = 0;
+  const doc = name => ({ name, profile: 'fault-tree', nodes: { top: { label: 'Top', gate: 'or', children: [] } }, analysis: { seed: 1, samples: 10 } });
+  const document = {
+    currentScript: { src: 'https://example.test/assets/js/app.js' },
+    getElementById(id) { if (!nodes.has(id)) nodes.set(id, element('div')); return nodes.get(id); },
+    createElement: element, querySelectorAll: () => [], addEventListener() {},
+  };
+  const window = {
+    effractorStore: { createStore: () => ({ load: async () => 'original', save() {} }) },
+    createSolver: () => ({
+      async parse(text) { return { ok: doc(text) }; },
+      async serialize(value) { return { ok: value.name }; },
+      solve(text, on) {
+        return new Promise(resolve => runs.push({ text, on, resolve }));
+      },
+      cancel() { cancels++; },
+    }),
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
+    effractorLayout: { createLayout: () => async () => ({}) },
+    effractorGraph: { describe: () => ({}) },
+    effractorEdit: require('../assets/js/edit.js'),
+    effractorResults: require('../assets/js/results-view.js'),
+    effractorAutoSolve: require('../assets/js/autosolve.js'),
+    effractorCharts: require('../assets/js/charts.js'),
+  };
+  vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
+    window, document, URL, location: new URL('https://example.test/'), console,
+    performance: { now: () => clock },
+    // Like a browser's: called as some other object's method, they throw.
+    setTimeout: function (f) { 'use strict'; if (this) throw new TypeError('Illegal invocation'); timers.push(f); return timers.length; },
+    clearTimeout: function (id) { 'use strict'; if (this) throw new TypeError('Illegal invocation'); timers[id - 1] = null; },
+  });
+  const begun = p => ({ exact: { available: { p_top: p } }, cut_sets: { available: { sets: [], total: 0 } }, leaves: [] });
+  const solved = p => Object.assign(begun(p), { sampled: { available: { p_top: p, p_top_ci: { lo: p, hi: p }, confidence: 0.95, loss: null } } });
+  return {
+    app: window.effractor, runs, doc, begun, solved,
+    text: id => nodes.get(id) ? nodes.get(id).textContent : undefined,
+    level: () => document.getElementById('app').getAttribute('data-results'),
+    cancels: () => cancels,
+    advance(ms) { clock += ms; },
+    async tick() { const due = timers.splice(0).filter(Boolean); due.forEach(f => f()); await new Promise(setImmediate); },
+    settle: () => new Promise(setImmediate),
+  };
+}
+
+test('a loaded document is solved by itself, and an edit keeps the old numbers until new ones arrive', async () => {
+  const h = autoHarness();
+  await h.app.ready;
+  assert.equal(h.runs.length, 0, 'solving waits for a pause');
+  await h.tick();
+  assert.deepEqual(h.runs.map(r => r.text), ['original']);
+  h.runs[0].on.onExact(h.begun(0.25));
+  assert.equal(h.level(), 'exact');
+  assert.equal(h.text('hud-p'), '0.250');
+  h.runs[0].resolve({ result: { ok: h.solved(0.25) } }); await h.settle();
+  assert.equal(h.level(), 'current');
+
+  // An edit fades what is there; it does not blank it.
+  assert.equal(await h.app.applyEdit({ doc: h.doc('edited') }), true);
+  assert.equal(h.level(), 'updating');
+  assert.equal(h.text('hud-p'), '0.250');
+  assert.ok(h.app.state.results);
+  await h.tick();
+  assert.equal(h.runs[1].text, 'edited');
+
+  // Another edit while that runs: it is cancelled, and what it still says is
+  // about a text that is gone.
+  assert.equal(await h.app.applyEdit({ doc: h.doc('again') }), true);
+  assert.equal(h.cancels(), 1);
+  h.runs[1].on.onExact(h.begun(0.5));
+  assert.equal(h.text('hud-p'), '0.250');
+  h.runs[1].resolve({ cancelled: true }); await h.settle();
+  await h.tick();
+  assert.equal(h.runs[2].text, 'again');
+  h.runs[2].on.onExact(h.begun(0.75));
+  h.runs[2].resolve({ result: { ok: h.solved(0.75) } }); await h.settle();
+  assert.equal(h.text('hud-p'), '0.750');
+  assert.equal(h.level(), 'current');
+});
+
+test('after a slow sampled run, edits refresh only the exact part', async () => {
+  const h = autoHarness();
+  await h.app.ready; await h.tick();
+  h.runs[0].on.onExact(h.begun(0.25));
+  h.advance(2500);
+  h.runs[0].resolve({ result: { ok: h.solved(0.25) } }); await h.settle();
+
+  await h.app.applyEdit({ doc: h.doc('edited') }); await h.tick();
+  h.runs[1].on.onExact(h.begun(0.5));
+  assert.equal(h.cancels(), 1, 'sampling is cancelled once the exact part is in');
+  h.runs[1].resolve({ cancelled: true }); await h.settle();
+  assert.equal(h.text('hud-p'), '0.500');
+  assert.equal(h.level(), 'exact', 'the sampled parts stay marked as older');
+  assert.equal(h.text('analysis-chip'), 'exact only · Ctrl+Enter samples');
+
+  // Solve asks for everything, whatever the last run cost.
+  h.app.solve(); await h.settle();
+  assert.equal(h.runs[2].text, 'edited');
+  h.runs[2].on.onExact(h.begun(0.5));
+  assert.equal(h.cancels(), 1);
+  h.runs[2].resolve({ result: { ok: h.solved(0.5) } }); await h.settle();
+  assert.equal(h.level(), 'current');
+});
+
+test('another document starts with nothing on screen', async () => {
+  const h = autoHarness();
+  await h.app.ready; await h.tick();
+  h.runs[0].on.onExact(h.begun(0.25));
+  h.runs[0].resolve({ result: { ok: h.solved(0.25) } }); await h.settle();
+  assert.equal(await h.app.replaceDocument('other', 'opened'), true);
+  assert.equal(h.level(), 'none');
+  assert.equal(h.app.state.results, null);
+  await h.tick();
+  assert.equal(h.runs[1].text, 'other');
 });

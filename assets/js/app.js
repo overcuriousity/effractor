@@ -58,13 +58,25 @@
   window.effractor = { solver: solver };
   var listeners = []; // told after every load and every selection
 
-  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastExactMs: null };
+  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastSampledMs: null };
   var view = window.effractorResults;
   var MAX_ROWS = 200; // a table is for reading; ten thousand rows are not read
 
   var renderer = window.effractorRenderer.createSvgRenderer(document);
   var layout = window.effractorLayout.createLayout();
   renderer.mount($("stage"));
+  var auto = window.effractorAutoSolve;
+  var autosolve = auto.createAutoSolve({
+    start: run,
+    cancel: solver.cancel,
+    // Wrapped: a browser's timers refuse to be called as another object's methods.
+    setTimeout: function (f, ms) {
+      return setTimeout(f, ms);
+    },
+    clearTimeout: function (id) {
+      clearTimeout(id);
+    },
+  });
 
   function fact(list, term, value) {
     var dt = document.createElement("dt");
@@ -124,6 +136,8 @@
 
   function showCutSets(results) {
     var body = $("cutsets-body");
+    // A lit row stays lit across a new solve, if the set is still there.
+    var lit = state.activeRow === null ? null : state.ranked[state.activeRow].leaves.join("\u0000");
     body.replaceChildren();
     state.activeRow = null;
     renderer.highlight([], "cutset");
@@ -165,6 +179,9 @@
     $("cutsets-more").hidden = more <= 0;
     $("cutsets-more").textContent = more > 0 ? "and " + grouped(more) + " less likely ones" : "";
     markRows();
+    for (var i = 0; lit !== null && i < Math.min(state.ranked.length, MAX_ROWS); i++) {
+      if (state.ranked[i].leaves.join("\u0000") === lit) activateRow(i);
+    }
   }
 
   function showNotices(results) {
@@ -178,11 +195,19 @@
     list.hidden = list.children.length === 0;
   }
 
-  // Colour the leaves from what is known: `results` is a finished solve, or
-  // the exact part of one that is still sampling.
+  // Colour the leaves from what is known: the exact part of the latest solve,
+  // which is there before its sampling is.
   function paint() {
     if (!state.laid) return;
-    renderer.render(state.laid, state.results ? view.leafStyles(state.results, state.measure) : {});
+    var known = state.exactResults || state.results;
+    renderer.render(state.laid, known ? view.leafStyles(known, state.measure) : {});
+  }
+
+  // How far the results on screen describe the document on the canvas:
+  // "none", "updating" (an older text's), "exact" (sampled parts are an older
+  // text's) or "current". What is out of date is shown faded, not removed.
+  function mark(level) {
+    $("app").setAttribute("data-results", level);
   }
 
   function notify() {
@@ -243,6 +268,7 @@
   // What was solved is no longer what is on the canvas.
   function clearResults() {
     state.results = null;
+    state.exactResults = null;
     state.chartResults = null;
     state.ranked = [];
     hud("hud-p", "—");
@@ -257,7 +283,9 @@
     $("cutsets-count").textContent = "";
     $("cutsets-more").hidden = true;
     $("notices").hidden = true;
+    state.activeRow = null;
     renderer.highlight([], "cutset");
+    mark("none");
   }
 
   // A text becomes the document: the one way in, for an edit, an undo, a redo.
@@ -265,11 +293,18 @@
     return solver.parse(text).then(function (parsed) {
       if (!parsed.ok) throw new Error(describe(parsed.diagnostics[0]));
       if (beforeCommit && !beforeCommit()) return false;
-      clearResults();
+      // Another document starts from nothing; an edit keeps what was said
+      // about the last text, faded, until the next solve replaces it.
+      if (fit) {
+        clearResults();
+        state.lastSampledMs = null;
+      } else if (state.exactResults || state.results) {
+        mark("updating");
+      }
       store.save(text);
       return loaded(text, parsed.ok, !!fit).then(function () {
         select(selectId, parent);
-        documentChanged();
+        autosolve.changed();
         return true;
       });
     });
@@ -280,10 +315,6 @@
   // refuses changes nothing and says why. Resolves to whether it was applied.
   function applyEdit(edit) {
     if (!edit) return Promise.resolve(false);
-    if (state.running) {
-      say("solving — cancel it or wait before editing");
-      return Promise.resolve(false);
-    }
     var before = state.text;
     return solver.serialize(edit.doc).then(function (written) {
       if (!written.ok) {
@@ -308,7 +339,6 @@
     if (text === state.text) return Promise.resolve([]);
     return solver.parse(text).then(function (parsed) {
       if (!parsed.ok) return parsed.diagnostics;
-      if (state.running) solver.cancel();
       if (state.text !== null) undoStack.push(state.text);
       return adopt(text, state.selected, state.parent).then(function () {
         return parsed.diagnostics || [];
@@ -358,11 +388,19 @@
   }
 
   function showExact(begun) {
+    state.exactResults = begun;
+    // The sampled curves of the last solve stay, faded, until new ones come.
+    var before = state.chartResults;
     state.chartResults = window.effractorCharts.exactSnapshot(begun, state.doc);
+    if (before && before.sampled) state.chartResults.sampled = before.sampled;
     notify();
+    $("hud-stats").hidden = false;
     var exact = begun.exact.available;
     hud("hud-p", exact ? probability(exact.p_top) : "—");
     hud("hud-p-ci", exact ? "exact" : begun.exact.unavailable.reason);
+    showCutSets(begun);
+    paint();
+    mark("exact");
   }
 
   function showResults(results) {
@@ -389,45 +427,63 @@
     state.results = results;
     state.chartResults = results;
     showResults(results);
-    showCutSets(results);
     showNotices(results);
     paint();
     select(state.selected);
     markRows();
+    mark("current");
   }
 
   function finished() {
     state.running = false;
+    state.explicit = false;
     $("solve").textContent = "Solve";
   }
 
-  function solve() {
-    if (state.running) return solver.cancel();
-    if (!state.text) return;
+  // One solve of the text as it is now; the scheduler (autosolve.js) decides
+  // when. Automatic runs sample only while that has been quick; an explicit
+  // one always does, and is the one that opens the results.
+  function run(explicit) {
+    var text = state.text;
+    if (!text) return Promise.resolve();
+    var full = explicit || auto.samplesAutomatically(state.lastSampledMs);
+    var current = function () {
+      return state.text === text;
+    };
+    var exactShown = false;
     state.running = true;
-    $("solve").textContent = "Cancel";
+    state.explicit = explicit;
+    state.stopped = false;
     chip("solving…");
-    // The answer goes to the results panel: a solve is the ask that opens it.
-    if (window.effractorWorkspace) window.effractorWorkspace.open("right");
-    if (window.effractorTabs) window.effractorTabs.show("results");
-    $("hud-stats").hidden = false;
+    if (explicit) {
+      $("solve").textContent = "Cancel";
+      if (window.effractorWorkspace) window.effractorWorkspace.open("right");
+      if (window.effractorTabs) window.effractorTabs.show("results");
+    }
     var started = performance.now();
-    solver
-      .solve(state.text, {
+    return solver
+      .solve(text, {
         onExact: function (begun) {
-          state.lastExactMs = performance.now() - started;
+          if (!full) solver.cancel();
+          if (!current()) return;
+          exactShown = true;
           showExact(begun);
-          // The cut sets are exact too: list them while the sampling runs.
-          showCutSets(begun);
         },
         onProgress: function (done, total) {
-          chip("sampling " + grouped(done) + " / " + grouped(total) + " chunks");
+          if (current()) chip("sampling " + grouped(done) + " / " + grouped(total) + " chunks");
         },
       })
       .then(function (outcome) {
         finished();
-        if (outcome.cancelled) return chip("cancelled · " + analysisLabel(state.doc.analysis));
+        // A newer text is on its way to being solved: it will say.
+        if (!current()) return;
+        if (outcome.cancelled) {
+          if (state.stopped) return chip("cancelled · " + analysisLabel(state.doc.analysis));
+          if (!full && exactShown) return chip("exact only · Ctrl+Enter samples");
+          return;
+        }
         if (!outcome.result.ok) return chip(describe(outcome.result.diagnostics[0]));
+        state.lastSampledMs = performance.now() - started;
         showAll(outcome.result.ok);
         chip(analysisLabel(state.doc.analysis));
       })
@@ -438,19 +494,16 @@
       });
   }
 
-  // After an edit: refresh what is exact, if the last time showed that to be
-  // cheap. Sampled numbers wait for an explicit Solve. (Nothing edits yet; the
-  // editor calls this.)
-  function documentChanged() {
-    if (state.running || !view.shouldAutoSolve(state.lastExactMs)) return;
-    var started = performance.now();
-    solver.exact(state.text).then(function (answer) {
-      if (!answer.ok) return;
-      state.lastExactMs = performance.now() - started;
-      showExact(answer.ok);
-      showCutSets(answer.ok);
-    }, console.error);
+  // Solve / Ctrl+Enter: sample now, or stop the explicit solve that is running.
+  // An automatic run is not the author's to cancel: the next edit replaces it.
+  function solve() {
+    if (state.running && state.explicit) {
+      state.stopped = true;
+      return autosolve.stop();
+    }
+    if (state.text) autosolve.now();
   }
+
   window.effractor.state = state;
   window.effractor.renderer = renderer;
   window.effractor.select = select;
@@ -473,7 +526,6 @@
   // it replaces is a Ctrl+Z away, so nothing is asked and nothing is lost.
 
   function replaceDocument(text, said, isCurrent) {
-    if (state.running) return say("solving — cancel it or wait");
     return solver.parse(text).then(function (parsed) {
       if (isCurrent && !isCurrent()) return false;
       if (!parsed.ok) return say("not opened: " + describe(parsed.diagnostics[0]));
@@ -613,7 +665,10 @@
   });
 
   window.effractor.replaceDocument = replaceDocument;
-  window.effractor.ready = load().then(notify).catch(function (e) {
+  window.effractor.ready = load().then(function () {
+    notify();
+    autosolve.changed();
+  }).catch(function (e) {
     chip("no document: " + e.message);
     console.error(e);
   });

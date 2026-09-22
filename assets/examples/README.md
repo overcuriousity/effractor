@@ -1,7 +1,7 @@
 # Sample trees
 
 Twelve realistic, fictional models and one date-night bonus. Download a YAML
-file and use **Open** (`Ctrl+O`) in Effractor, then **Solve** (`Ctrl+Enter`).
+file and use **Open** (`Ctrl+O`) in Effractor; it is solved as it opens.
 The files are bundled with the server and static edition under
 `assets/examples/`; for example, a local server serves the first at
 `http://127.0.0.1:8080/assets/examples/01-cold-room-fault.yaml`.

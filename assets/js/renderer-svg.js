@@ -166,7 +166,7 @@
       var n = item.node;
       var classes = ["node", "node-" + n.symbol];
       if (n.top) classes.push("is-top");
-      if (n.badge) classes.push("is-shared");
+      if (n.parents > 1) classes.push("is-shared");
       if (n.unreachable) classes.push("is-unreachable");
       if (n.unquantified) classes.push("is-unquantified");
       (style.classes || []).forEach(function (c) {
@@ -176,18 +176,12 @@
       el("title", {}, [], g).textContent = n.label;
 
       var w = geometry.width;
-      var boxHeight = geometry.box + (n.badge ? geometry.badge : 0);
+      var boxHeight = geometry.box;
       el("rect", { x: 0, y: 0, width: w, height: boxHeight, rx: 2 }, ["shape", "box"], g);
       var first = geometry.box / 2 + 4 - (n.lines.length - 1) * 7;
       n.lines.forEach(function (line, i) {
         text(g, w / 2, first + i * 14, line, "label-line");
       });
-      if (n.badge) {
-        // Inside the box: the space between nodes belongs to the neighbours.
-        var bw = n.badge.length * 5.4 + 12;
-        el("rect", { x: (w - bw) / 2, y: geometry.box - 3, width: bw, height: 14, rx: 7 }, ["badge"], g);
-        text(g, w / 2, geometry.box + 7, n.badge, "badge-text");
-      }
 
       var below = boxHeight;
       if (n.attributes) {
@@ -205,7 +199,7 @@
       }
 
       if (style.tag) {
-        // Left of the symbol; the badge, if any, is on its right.
+        // Left of the symbol.
         g.classList.add("has-tag");
         var tw = String(style.tag).length * 5.6 + 12;
         var ty = below + geometry.stem + geometry.symbol / 2;

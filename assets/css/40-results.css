@@ -24,11 +24,6 @@
   font-family: var(--font-mono); font-size: 9px; font-weight: 600; letter-spacing: 0.04em; line-height: 14px;
 }
 .legend-tag { margin: 0 5px 0 0; }
-.legend-badge {
-  display: inline-block; margin-right: 5px; padding: 0 6px;
-  border: 1px solid var(--viz-outline); border-radius: 8px;
-  font-family: var(--font-mono); font-size: 9px; line-height: 13px;
-}
 .legend-measure { padding: 1px 6px; font-size: var(--text-xs); }
 
 /* The right panel's tabs, and the controls under the second one. */
@@ -100,3 +95,11 @@
 .pareto-point.is-active, .pareto-point.has-selected { stroke: var(--color-fg-primary); stroke-width: 3; }
 .node.hl-pareto { filter: drop-shadow(0 0 3px var(--color-accent)); }
 .edge.hl-pareto { stroke: var(--color-accent); stroke-width: 2.5; }
+
+/* Results that describe an older text stay on screen, faded, until the next
+   solve replaces them (app.js sets data-results). "updating": all of them;
+   "exact": the sampled parts — the exact part is already current. */
+#hud-stats .stat, #hud-stats .hud-sub, #tab-results .panel-section,
+#tab-ttc, #tab-loss, #tab-pareto, .control-worth, .controls-baseline, #selected-facts { transition: opacity 150ms ease; }
+.workspace[data-results="updating"] :is(#hud-stats .stat, #hud-stats .hud-sub, #tab-results .panel-section),
+.workspace:is([data-results="updating"], [data-results="exact"]) :is(#hud-eal, #hud-p95, #tab-ttc, #tab-loss, #tab-pareto, .control-worth, .controls-baseline, #selected-facts) { opacity: .45; }

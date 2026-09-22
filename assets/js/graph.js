@@ -3,9 +3,9 @@
 (function () {
   // One geometry for both profiles (spec 7.1). A node is a description box, a
   // stem, and its symbol under it; an attack-tree leaf adds a strip for cost
-  // and detection between box and stem, and a shared node a row in its box for
-  // the badge — inside the node, because the space between nodes is not its own.
-  var SIZE = { width: 148, box: 44, stem: 10, symbol: 40, strip: 18, badge: 16 };
+  // and detection between box and stem. A shared node is drawn once; its
+  // incoming edges are what say it is shared.
+  var SIZE = { width: 148, box: 44, stem: 10, symbol: 40, strip: 18 };
   SIZE.gate = SIZE.box + SIZE.stem + SIZE.symbol;
   SIZE.leaf = SIZE.gate;
 
@@ -100,7 +100,6 @@
         inscription: gate ? inscription(node, attack) : null,
         attributes: !gate && attack ? "cost " + shown(node.cost) + " · det " + shown(node.detection) : null,
         parents: n,
-        badge: n > 1 ? "shared · " + n + " parents" : null,
         // No p, rate or ttc: the tree is still good for cut sets, not for numbers.
         unquantified: !gate && node.p === undefined && node.rate === undefined && node.ttc === undefined,
         top: id === doc.top,
@@ -111,7 +110,7 @@
   }
 
   function height(node) {
-    return SIZE.gate + (node.attributes ? SIZE.strip : 0) + (node.badge ? SIZE.badge : 0);
+    return SIZE.gate + (node.attributes ? SIZE.strip : 0);
   }
 
   // `arrivals` maps a shared node to its parents, left to right: each then

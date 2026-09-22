@@ -1,7 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 const view = require("../assets/js/results-view.js");
-const { bin, leafStyles, rankCutSets, reasons, nodeFacts, rowsContaining, shouldAutoSolve } = view;
+const { bin, leafStyles, rankCutSets, reasons, nodeFacts, rowsContaining } = view;
 const snapshot = require("../crates/effractor-solver/tests/snapshots/webserver.json");
 
 test("importance bins are the fixed thresholds of the spec", () => {
@@ -84,14 +84,6 @@ test("selecting a node finds the cut sets it is in", () => {
   assert.deepEqual(rowsContaining(ranked, "b"), [0, 1]);
   assert.deepEqual(rowsContaining(ranked, "constructor"), []);
   assert.deepEqual(rowsContaining(ranked, null), []);
-});
-
-test("exact results refresh by themselves only when that is cheap", () => {
-  assert.equal(shouldAutoSolve(12), true);
-  assert.equal(shouldAutoSolve(99.9), true);
-  assert.equal(shouldAutoSolve(100), false);
-  // Never solved: nothing is known about the cost, so do not presume.
-  assert.equal(shouldAutoSolve(null), false);
 });
 
 test("controls are listed best buy first, then the enabled ones; too close to call is said", () => {

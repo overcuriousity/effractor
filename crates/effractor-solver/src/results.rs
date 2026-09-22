@@ -477,6 +477,11 @@ impl Solve {
         &self.base.exact
     }
 
+    /// Leaf probabilities and importance, available before any sampling.
+    pub fn leaves(&self) -> &[LeafResult] {
+        &self.base.leaves
+    }
+
     pub fn progress(&self) -> Progress {
         Progress {
             done: self.done,

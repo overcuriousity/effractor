@@ -51,8 +51,6 @@
 .node.is-unreachable { opacity: 0.45; }
 .node.is-unreachable .shape { stroke-dasharray: 4 3; }
 
-.badge { fill: var(--color-bg-surface); stroke: var(--viz-outline); stroke-width: 1; }
-.node .badge-text { font-family: var(--font-mono); font-size: 9px; fill: var(--color-fg-secondary); }
 
 /* Importance: fixed bins, one hue, ink paired with each step. Leaves only. */
 .node.imp-1 .shape { fill: var(--viz-imp-1); }

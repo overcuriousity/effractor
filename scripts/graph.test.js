@@ -12,8 +12,8 @@ test("a repeated node is described once, with its parents counted", () => {
   assert.equal(g.nodes.filter((n) => n.id === "server-outage").length, 1);
   const n = byId(g.nodes);
   assert.equal(n["server-outage"].parents, 2);
-  assert.equal(n["server-outage"].badge, "shared · 2 parents");
-  assert.equal(n.hardware.badge, null);
+  // The incoming edges say it; no badge repeats it.
+  assert.equal(n["server-outage"].badge, undefined);
   assert.equal(n["loss-of-availability"].top, true);
   // One edge per parent-child pair, in the order the children are written.
   assert.equal(g.edges.length, 9);
@@ -47,7 +47,6 @@ test("attack trees say AND and OR, and leaves show cost and detection", () => {
   assert.equal(n.phish.attributes, "cost 200 · det 0.3");
   assert.equal(n.mfa.attributes, "cost 50 · det —");
   assert.equal(n.key.attributes, "cost — · det —");
-  assert.equal(n.phish.badge, "shared · 2 parents");
 });
 
 test("nodes the top cannot reach are drawn too, and said to be unreachable", () => {
@@ -90,11 +89,10 @@ test("the ELK graph pins edges to the bottom and top centres, in written order",
     sources: ["loss-of-availability:out"],
     targets: ["no-access:in"],
   });
-  // The attribute strip makes an attack-tree leaf taller.
-  // … and the badge row makes a shared node taller again.
+  // The attribute strip makes an attack-tree leaf taller; being shared does not.
   const a = toElk(describe(attack));
   assert.equal(a.children.find((c) => c.id === "mfa").height, SIZE.leaf + SIZE.strip);
-  assert.equal(a.children.find((c) => c.id === "phish").height, SIZE.leaf + SIZE.strip + SIZE.badge);
+  assert.equal(a.children.find((c) => c.id === "phish").height, SIZE.leaf + SIZE.strip);
 });
 
 test("ELK lays the reference tree out top-down without overlaps", async () => {
@@ -137,9 +135,7 @@ test("an id may be any word, including the ones JavaScript objects are born with
   const g = describe(doc);
   const n = byId(g.nodes);
   assert.equal(n.constructor.parents, 0);
-  assert.equal(n.constructor.badge, null);
   assert.equal(n.tostring.parents, 2);
-  assert.equal(n.tostring.badge, "shared · 2 parents");
   assert.equal(n.valueof.unreachable, false);
   // `__proto__` is no node here, so it is no edge.
   assert.equal(g.edges.length, 4);

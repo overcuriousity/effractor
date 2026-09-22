@@ -212,16 +212,13 @@
     return form;
   }
 
+  // The new state is solved by itself, like every edit.
   function toggle(id) {
-    var solvedBefore = !!app.state.results;
     var edit = E.toggleControl(app.state.doc, id);
     if (!edit) return;
     edit.select = app.state.selected;
     edit.parent = app.state.parent;
-    app.applyEdit(edit).then(function (applied) {
-      // What was on screen described the other state: say the new one.
-      if (applied && solvedBefore) app.solve();
-    });
+    app.applyEdit(edit);
   }
 
   function render() {

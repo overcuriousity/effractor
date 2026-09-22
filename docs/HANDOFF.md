@@ -5,6 +5,20 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — automatic solving (2026-09-22)
+
+The owner asked for trees to be solved without pressing Solve and accepted the
+result in the 8081 preview. `assets/js/autosolve.js` decides when: 300 ms after
+a load, open, share link or accepted edit; a newer change cancels a run still
+busy with the older text; runs never overlap. Sampling is automatic until a
+sampled run took more than 2 s, then only the exact part refreshes and Solve
+samples on request. Results of an older text stay, faded (`data-results` on
+`#app`), until replaced; the wasm `solve_begin` answer now carries `leaves` so
+the canvas is coloured before sampling ends. Spec §7.2 is updated. Lesson: a
+browser's `setTimeout` throws when called as another object's method, Node's
+does not; the app test's fake timers now throw the same way. Folded in: the
+`shared · n parents` badge is gone — the incoming edges say it.
+
 ## Continuation — self-contained links (2026-09-22)
 
 The owner approved optional self-contained sharing. Branch

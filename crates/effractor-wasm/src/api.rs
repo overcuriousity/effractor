@@ -108,6 +108,7 @@ impl Session {
                 let ok = json!({
                     "cut_sets": value(solve.cut_sets()),
                     "exact": value(solve.exact()),
+                    "leaves": value(&solve.leaves()),
                     "progress": value(&solve.progress()),
                 });
                 self.solve = Some(solve);

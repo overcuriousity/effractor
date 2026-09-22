@@ -64,6 +64,10 @@ fn a_solve_is_begun_stepped_and_finished() {
     let exact = &begun["ok"]["exact"]["available"];
     assert!(exact["p_top"].as_f64().unwrap() > 0.0, "{begun}");
     assert!(begun["ok"]["cut_sets"]["available"].is_object());
+    // Importance is exact too: the canvas can be coloured before sampling.
+    let leaves = begun["ok"]["leaves"].as_array().unwrap();
+    assert!(!leaves.is_empty(), "{begun}");
+    assert!(leaves[0]["fussell_vesely"].as_f64().is_some(), "{begun}");
     let total = begun["ok"]["progress"]["total"].as_u64().unwrap();
     assert_eq!(begun["ok"]["progress"]["done"], json!(0));
     // Three chunks of 4096 for the baseline and again for the one control.
@@ -87,6 +91,8 @@ fn a_solve_is_begun_stepped_and_finished() {
         serde_json::to_string(&whole).unwrap()
     );
     assert_eq!(finished, want);
+    // The early leaves are the final ones.
+    assert_eq!(begun["ok"]["leaves"], call(finished)["ok"]["leaves"]);
 }
 
 #[test]

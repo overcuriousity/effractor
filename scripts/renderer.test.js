@@ -55,7 +55,7 @@ test("a node says what it is in classes and in text", () => {
   const phish = node("phish");
   assert.ok(phish.classList.contains("node-basic"));
   assert.ok(phish.classList.contains("is-shared"));
-  assert.ok(dom.text(phish).includes("shared · 2 parents"));
+  assert.ok(!dom.text(phish).some((t) => t.includes("shared")));
   assert.ok(dom.text(phish).includes("cost 200 · det 0.3"));
   assert.ok(node("key").classList.contains("node-undeveloped"));
   assert.ok(node("files").classList.contains("is-top"));

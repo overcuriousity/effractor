@@ -28,6 +28,7 @@
 <script src="{{ asset_prefix }}assets/js/solver.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/store.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/charts.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/autosolve.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/app.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/menu.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/horizon.js" defer></script>
@@ -163,7 +164,6 @@
     </span>
     <span class="legend-group"><span class="swatch swatch-none"></span>not solved</span>
     <span class="legend-group"><span class="legend-tag">SPOF</span>single point of failure</span>
-    <span class="legend-group"><span class="legend-badge">shared · n</span>one node, several parents</span>
     <span class="spacer"></span>
     {% if !sharing %}
     <a class="legend-group" href="https://github.com/overcuriousity/effractor#install" target="_blank" rel="noopener noreferrer" title="Run your own server for encrypted share links with expiry and deletion">Install for encrypted sharing</a>

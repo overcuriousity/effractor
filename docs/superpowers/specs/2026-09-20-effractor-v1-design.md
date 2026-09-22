@@ -326,8 +326,8 @@ layout. DIN 25424 fidelity in the fault-tree profile: gate boxes inscribed `&`,
 `≥1`, `≥k`; basic event circle; undeveloped event diamond; event description
 box above each gate. The attack-tree profile uses the same geometry with
 Schneier-style labelling (AND/OR text, leaf boxes showing cost · detection). A
-repeated node is drawn **once** with several incoming edges and a
-`shared · n parents` badge.
+repeated node is drawn **once** with several incoming edges; the edges say it
+is shared, so no badge repeats it (owner decision, 2026-09-22).
 
 The renderer sits behind an interface so v2 can swap in canvas/WebGL:
 
@@ -372,8 +372,14 @@ edits rewrite the text canonically. Every edit path goes through
 `parse → Model → serialize` in wasm; JS never interprets the model itself.
 
 Working state persists in the browser (IndexedDB), with import/export of
-`.yaml` files. Solve is explicit (button / `Ctrl+Enter`); exact results also
-refresh automatically after an edit when the last exact solve took < 100 ms.
+`.yaml` files. Solving is automatic (owner decision, 2026-09-22): a loaded,
+opened or shared document and every accepted edit are solved 300 ms after the
+last change, and a newer change cancels a run still busy with the older text.
+Sampling is part of the automatic run until a sampled run took more than 2 s;
+after that only the exact part refreshes by itself, and Solve
+(button / `Ctrl+Enter`) samples on request and opens the results. Results of an
+older text stay on screen, faded, until the new ones replace them in place;
+another document starts empty. Solving runs in the visitor's browser only.
 
 ### 7.3 Theme and the importance ramp
 

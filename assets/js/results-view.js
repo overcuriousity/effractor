@@ -4,7 +4,6 @@
   // Fixed, so a colour means the same in every model and on both sides of a
   // diff (spec 7.3): <0.01 · <0.05 · <0.2 · <0.5 · ≥0.5.
   var THRESHOLDS = [0.01, 0.05, 0.2, 0.5];
-  var AUTO_SOLVE_MS = 100;
 
   function bin(v) {
     if (typeof v !== "number" || v !== v) return null;
@@ -104,10 +103,6 @@
     return rows;
   }
 
-  function shouldAutoSolve(lastExactMs) {
-    return typeof lastExactMs === "number" && lastExactMs < AUTO_SOLVE_MS;
-  }
-
   // The controls of the document, with what the last solve said each is worth.
   // Ranked ones first, best buy on top; then the enabled ones; without results,
   // the document's order. `close`: the interval of its value reaches another
@@ -143,7 +138,7 @@
     });
   }
 
-  var api = { bin: bin, number: number, leafStyles: leafStyles, rankCutSets: rankCutSets, reasons: reasons, nodeFacts: nodeFacts, rowsContaining: rowsContaining, shouldAutoSolve: shouldAutoSolve, controlRows: controlRows };
+  var api = { bin: bin, number: number, leafStyles: leafStyles, rankCutSets: rankCutSets, reasons: reasons, nodeFacts: nodeFacts, rowsContaining: rowsContaining, controlRows: controlRows };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorResults = api;
 })();
