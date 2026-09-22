@@ -24,7 +24,8 @@ pub enum Document {
 pub const LIBRARY_ID: &str = "core-components";
 pub const LIBRARY_VERSION: u32 = 1;
 
-/// Hard limits, counted before anything is allocated for them.
+/// Hard limits. The reader lowers what the text says and the validator counts
+/// it; what bounds the reading itself is the YAML tree's own limits.
 pub const MAX_ENTITIES: usize = 500;
 /// Associations and flows together.
 pub const MAX_RELATIONSHIPS: usize = 2_000;

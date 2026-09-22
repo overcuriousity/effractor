@@ -49,6 +49,11 @@ fn version_one_trees_migrate_by_version_alone_and_cannot_hold_an_architecture() 
     assert_eq!(errors[0].code, effractor_core::Code::Unsupported);
     assert_eq!(errors[0].path, "profile");
     assert_eq!(errors[0].pos.map(|p| p.line), Some(2));
+    // Even when the architecture has errors of its own, that comes first.
+    let broken = EMPTY.replacen("version: 1", "version: 9", 1);
+    let errors = effractor_format::load(&broken).unwrap_err();
+    assert_eq!(errors[0].code, effractor_core::Code::Unsupported);
+    assert_eq!(errors[1].code, effractor_core::Code::UnknownLibrary);
 
     // A version this build does not know is refused, whatever the profile.
     let future = EMPTY.replacen("effractor: 2", "effractor: 3", 1);
@@ -310,6 +315,13 @@ fn extra_fields_privileges_and_duplicates() {
         &errors_of(&image),
         "association-type",
         "associations.router-user.privilege"
+    ));
+    let mut image = self::image(LECTURE);
+    image["associations"]["router-runs-user"] = serde_json::json!({"kind": "hosts", "from": "bridge", "to": "ssh-client", "privilege": "user"});
+    assert!(has(
+        &errors_of(&image),
+        "association-type",
+        "associations.router-runs-user.privilege"
     ));
     let mut image = self::image(LECTURE);
     image["associations"]["client-stores"] = serde_json::json!({"kind": "stores", "from": "ssh-client", "to": "server-credential", "privilege": "admin"});
@@ -606,6 +618,10 @@ fn library_pins_and_caps() {
     assert!(has(&errors_of(&image), "unknown-library", "library"));
     image["library"] = serde_json::json!({"id": "core-components"});
     assert!(has(&errors_of(&image), "missing-key", "library.version"));
+    image["library"] = serde_json::json!({"id": "core-components", "version": "99999999999"});
+    let errors = errors_of(&image);
+    assert!(has(&errors, "wrong-type", "library.version"), "{errors:?}");
+    assert!(!has(&errors, "unknown-library", "library"), "{errors:?}");
 
     let mut image = self::image(EMPTY);
     image["analysis"]["seed"] = serde_json::json!("18446744073709551615");
@@ -736,4 +752,57 @@ fn diagnostics_have_positions_in_the_text() {
         text.lines().nth(d.pos.unwrap().line - 1).unwrap().trim(),
         "to: telnet"
     );
+}
+
+#[test]
+fn a_long_route_goes_block_and_stays_there() {
+    let mut image = image(LECTURE);
+    let zones: Vec<String> = (0..4)
+        .map(|i| format!("ein-ziemlich-langes-netz-{i}"))
+        .collect();
+    let routers: Vec<String> = (0..3)
+        .map(|i| format!("ein-ziemlich-langer-router-{i}"))
+        .collect();
+    let mut n = 0;
+    for z in &zones {
+        image["entities"][z] = serde_json::json!({"kind": "network", "label": "Z"});
+    }
+    for (i, r) in routers.iter().enumerate() {
+        image["entities"][r] = serde_json::json!({"kind": "router", "label": "R"});
+        image["entities"][format!("{r}-fw")] =
+            serde_json::json!({"kind": "firewall", "label": "F"});
+        image["associations"][format!("f-{i}")] =
+            serde_json::json!({"kind": "filters", "from": r, "to": format!("{r}-fw")});
+        image["associations"][format!("p-{i}")] = serde_json::json!({"kind": "permits", "from": format!("{r}-fw"), "to": "ssh", "allowed": true});
+        for side in [&zones[i], &zones[i + 1]] {
+            image["associations"][format!("a-{n}")] =
+                serde_json::json!({"kind": "attached", "from": r, "to": side});
+            n += 1;
+        }
+    }
+    image["associations"]["ws-far"] =
+        serde_json::json!({"kind": "attached", "from": "workstation", "to": zones[0]});
+    image["associations"]["server-far"] =
+        serde_json::json!({"kind": "attached", "from": "server", "to": zones[3]});
+    let mut route = Vec::new();
+    for i in 0..3 {
+        route.push(zones[i].clone());
+        route.push(routers[i].clone());
+    }
+    route.push(zones[3].clone());
+    image["flows"]["ssh"]["route"] = serde_json::json!(route);
+    let text = from_document(&image).unwrap_or_else(|d| panic!("{d:?}"));
+    assert!(
+        text.contains("    route:\n      - ein-ziemlich-langes-netz-0\n"),
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "      - ein-ziemlich-langer-router-2\n      - ein-ziemlich-langes-netz-3\n    protocol"
+        ),
+        "{text}"
+    );
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    let (_, diagnostics) = effractor_format::diagnose_document(&text);
+    assert_eq!(diagnostics, vec![]);
 }

@@ -42,7 +42,11 @@ numeric duration; wasm `component_catalog()` and profile dispatch for
 validate/parse/serialize; a worker `catalog` request; and a narrow app guard
 that keeps the current document and says `Architecture editor unavailable`
 when an architecture arrives from Open, the source view or persistence
-(the architecture-editor task replaces it).
+(the architecture-editor task replaces it). A fresh reviewer checked the
+branch; its two important findings (a router hosting at `user` privilege was
+accepted, and an oversized library version was reported as a clamped number)
+are fixed with tests, along with the tree-only diagnostic on an invalid
+architecture and a block-form route test.
 
 Decisions worth knowing that the plan left open: canonical form materializes
 every slot a kind carries, so every account writes `admin-login` (not only

@@ -117,8 +117,27 @@ pub fn diagnose(text: &str) -> (Option<Model>, Vec<Diagnostic>) {
             diagnostics.insert(0, not_a_tree(text));
             (None, diagnostics)
         }
-        (None, diagnostics) => (None, diagnostics),
+        // Valid or not, an architecture is first of all not a tree.
+        (None, mut diagnostics) => {
+            if says_architecture(text) {
+                diagnostics.insert(0, not_a_tree(text));
+            }
+            (None, diagnostics)
+        }
     }
+}
+
+fn says_architecture(text: &str) -> bool {
+    let Ok(root) = tree::parse(text) else {
+        return false;
+    };
+    let tree::Value::Map(entries) = &root.value else {
+        return false;
+    };
+    entries.iter().any(|e| {
+        e.key == "profile"
+            && matches!(&e.value.value, tree::Value::Scalar { text, .. } if text == lower::ARCHITECTURE)
+    })
 }
 
 /// The model a text describes. Warnings do not stop a load — [`diagnose`]
