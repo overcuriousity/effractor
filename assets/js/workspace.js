@@ -15,15 +15,24 @@
     return clampWidth(side === "left" ? width + dx : width - dx);
   }
 
-  if (typeof module !== "undefined") module.exports = { clampWidth: clampWidth, nextWidth: nextWidth, LIMITS: LIMITS };
+  // Nothing is shown unless asked for: a first visit has both panels closed.
+  // What the visitor last set on this origin wins after that; junk does not.
+  function initialState(saved) {
+    var state = { left: 220, right: 264, leftOpen: false, rightOpen: false };
+    for (var k in state) if (saved && typeof saved[k] === typeof state[k]) state[k] = saved[k];
+    return state;
+  }
+
+  if (typeof module !== "undefined") module.exports = { clampWidth: clampWidth, nextWidth: nextWidth, initialState: initialState, LIMITS: LIMITS };
   if (typeof document === "undefined") return;
 
   var root = document.getElementById("app");
-  var state = { left: 220, right: 264, leftOpen: true, rightOpen: true };
+  var state;
   try {
-    var saved = JSON.parse(localStorage.getItem(KEY) || "{}");
-    for (var k in state) if (typeof saved[k] === typeof state[k]) state[k] = saved[k];
-  } catch (e) {}
+    state = initialState(JSON.parse(localStorage.getItem(KEY) || "{}"));
+  } catch (e) {
+    state = initialState({});
+  }
 
   function apply() {
     root.style.setProperty("--left-w", clampWidth(state.left) + "px");
@@ -51,6 +60,15 @@
       apply();
     });
   });
+
+  // For the actions that need a panel: a solve, the controls tool, the source.
+  window.effractorWorkspace = {
+    open: function (side) {
+      if (state[side + "Open"]) return;
+      state[side + "Open"] = true;
+      apply();
+    },
+  };
 
   document.querySelectorAll("[data-resize]").forEach(function (grip) {
     var side = grip.getAttribute("data-resize");
@@ -94,6 +112,18 @@
   themeButton.addEventListener("click", function () {
     window.effractorTheme.cycle();
     labelTheme();
+  });
+  // A click cycles; a right-click offers the three by name.
+  themeButton.addEventListener("contextmenu", function (e) {
+    if (!window.effractor || !window.effractor.showMenu) return;
+    e.preventDefault();
+    var current = window.effractorTheme.get();
+    window.effractor.showMenu(Object.keys(NAMES).map(function (key) {
+      return [NAMES[key], key === current ? "✓" : "", function () {
+        window.effractorTheme.set(key);
+        labelTheme();
+      }];
+    }), e.clientX, e.clientY);
   });
   labelTheme();
 

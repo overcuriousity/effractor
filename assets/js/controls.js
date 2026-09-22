@@ -35,11 +35,11 @@
       showTab(tab.getAttribute("data-tab"));
     });
   });
+  window.effractorTabs = { show: showTab };
   // The rail's shield: straight to the controls, opening the panel if need be.
   document.querySelector('[data-tool="controls"]').addEventListener("click", function (e) {
     e.currentTarget.blur();
-    var toggle = document.querySelector('[data-toggle="right"]');
-    if ($("app").getAttribute("data-right") === "closed" && toggle) toggle.click();
+    window.effractorWorkspace.open("right");
     showTab("controls");
   });
 
@@ -267,6 +267,20 @@
       });
       head.appendChild(box);
       head.appendChild(name);
+      // Right-click: the row's actions by name, as a node's on the canvas.
+      item.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        app.showMenu([
+          [row.enabled ? "Disable" : "Enable", "", function () { toggle(row.id); }],
+          [openControl === row.id ? "Close" : "Edit", "", function () { openControl = openControl === row.id ? null : row.id; render(); }],
+          ["Remove", "", function () {
+            openControl = null;
+            edit(E.removeControl(app.state.doc, row.id)).then(function (applied) {
+              if (applied) app.say("removed the control “" + row.label + "” · Ctrl+Z undoes");
+            });
+          }],
+        ], e.clientX, e.clientY);
+      });
       if (row.rank !== null) {
         var rank = document.createElement("span");
         rank.className = "control-rank num";

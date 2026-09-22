@@ -35,8 +35,7 @@
     $("view-model").hidden = on;
     $("view-source").hidden = !on;
     button.setAttribute("aria-pressed", String(on));
-    var toggle = document.querySelector('[data-toggle="left"]');
-    if (on && $("app").getAttribute("data-left") === "closed" && toggle) toggle.click();
+    if (on) window.effractorWorkspace.open("left");
     if (on) {
       area.value = app.state.text || "";
       problems([]);

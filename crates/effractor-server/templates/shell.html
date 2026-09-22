@@ -68,8 +68,8 @@
     <button class="tool" type="button" data-action="undo" disabled title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3L3 6l3 3M3 6h6a4 4 0 010 8H7"/></svg></button>
     <button class="tool" type="button" data-action="redo" disabled title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3l3 3-3 3M13 6H7a4 4 0 000 8h2"/></svg></button>
     <span class="rail-rule" aria-hidden="true"></span>
-    <button class="tool" type="button" data-toggle="left" aria-pressed="true" title="Model panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM6 3v10"/></svg></button>
-    <button class="tool" type="button" data-toggle="right" aria-pressed="true" title="Results panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM10 3v10"/></svg></button>
+    <button class="tool" type="button" data-toggle="left" aria-pressed="false" title="Model panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM6 3v10"/></svg></button>
+    <button class="tool" type="button" data-toggle="right" aria-pressed="false" title="Results panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3h11v10h-11zM10 3v10"/></svg></button>
     <button class="tool" type="button" data-tool="source" disabled aria-pressed="false" title="YAML source"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4L2.5 8 6 12M10 4l3.5 4L10 12"/></svg></button>
     <button class="tool" type="button" data-tool="controls" title="Controls"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/></svg></button>
     <span class="spacer"></span>
@@ -103,7 +103,7 @@
       <div class="canvas-grid" aria-hidden="true"></div>
       <div class="hud hud-bottom-left"><button class="btn btn-ghost" id="fit" type="button" title="Fit to view (F)">Fit</button><button class="btn btn-ghost" id="zoom-out" type="button" title="Zoom out (−)" aria-label="Zoom out">−</button><button class="btn btn-ghost" id="zoom-in" type="button" title="Zoom in (+)" aria-label="Zoom in">+</button></div>
       <p class="hud hud-note" id="note" role="status" hidden></p>
-      <div class="hud hud-top-right">
+      <div class="hud hud-top-right" id="hud-stats" hidden>
         <div class="hud-card"><span class="label">P(top)</span><span class="stat num" id="hud-p">—</span><span class="hud-sub num" id="hud-p-ci">&nbsp;</span></div>
         <div class="hud-card"><span class="label">Expected loss</span><span class="stat num" id="hud-eal">—</span><span class="hud-sub num" id="hud-p95">&nbsp;</span></div>
       </div>

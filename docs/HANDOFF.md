@@ -150,6 +150,18 @@ today, all of it after seeing the alternative:
   The catalog is `assets/examples/README.md`. This supersedes the earlier
   no-examples decision. `/` opens the working text from IndexedDB, else an empty
   document. Shipped examples, fixtures and the spec's example are English.
+- **Nothing is shown unless asked for** (owner, 2026-09-22). A first visit is
+  the canvas alone: both panels closed, the HUD cards hidden until a solve. A
+  solve opens the results panel; the controls tool and the source view open
+  theirs; the selection shows the inspector on the canvas and nothing else.
+  A panel the visitor opened stays open on that origin.
+- **Left click acts, right click offers options** (owner, 2026-09-22). One
+  context menu (`app.showMenu`) serves nodes, assets, controls, the theme and
+  the measure button; a click on the last two cycles. Double-click renames.
+  The file crumb's labelled dropdown is the one left-click menu.
+- **The selected node's form is an inspector on the canvas**, docked at the
+  stage's edge, there while something is selected. Not in either panel: the
+  left is the model, the right is the analysis.
 - **No walls of buttons.** Actions are icons in the rail with the key in the
   tooltip; the context menu (canvas *and* model tree) and the `?` list spell
   them out. Every interaction has a button and every key is listed.

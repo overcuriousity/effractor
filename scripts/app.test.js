@@ -146,3 +146,30 @@ test("the inspector follows the selection", async () => {
   // Selecting opens no panel: the workspace attributes stay whatever they were.
   assert.deepEqual(attributes.filter(a => /^data-(left|right)/.test(a)), []);
 });
+
+// The HUD's two cards say nothing until there is a solve to say it with.
+test("the HUD is hidden while nothing is solved", async () => {
+  const nodes = new Map();
+  const doc = { name: 't', profile: 'fault-tree', nodes: { top: { label: 'Top', gate: 'or', children: [] } }, analysis: { seed: 1, samples: 10 } };
+  const document = {
+    currentScript: { src: 'https://example.test/assets/js/app.js' },
+    getElementById(id) { if (!nodes.has(id)) nodes.set(id, element('div')); return nodes.get(id); },
+    createElement: element, querySelectorAll: () => [], addEventListener() {},
+  };
+  const window = {
+    effractorStore: { createStore: () => ({ load: async () => 'text', save() {} }) },
+    createSolver: () => ({ async parse() { return { ok: doc }; }, async serialize() { return { ok: 'text' }; } }),
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
+    effractorLayout: { createLayout: () => async () => ({}) },
+    effractorGraph: { describe: () => ({}) },
+    effractorEdit: require('../assets/js/edit.js'),
+    effractorResults: require('../assets/js/results-view.js'),
+  };
+  vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
+    window, document, URL, location: new URL('https://example.test/'), console,
+    setTimeout: () => 0, clearTimeout() {},
+  });
+  const app = window.effractor; await app.ready;
+  assert.equal(await app.replaceDocument('text', 'opened'), true);
+  assert.equal(document.getElementById('hud-stats').hidden, true);
+});

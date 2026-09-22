@@ -200,7 +200,9 @@
     ["+  −", "Zoom in, zoom out"],
     ["?", "This list"],
     ["click", "Select a node"],
-    ["right-click", "Menu of the node's actions"],
+    ["double-click", "Rename it"],
+    ["right-click", "Menu of the node's actions — also on an asset, a control, the theme and the measure"],
+    ["double-click a divider", "Close or open that panel"],
     ["click a line", "Select the child along that edge: Del unlinks exactly it"],
     ["drag the background", "Pan"],
     ["wheel", "Zoom at the pointer"],
@@ -307,6 +309,10 @@
     menu.children[0].focus(); // Tab and Enter work from here; Esc closes
   }
 
+  // The one menu for every right-click on the page: the controls list, the
+  // theme and measure buttons use it too.
+  app.showMenu = showMenu;
+
   function openMenu(id, parent, x, y) {
     closeMenu();
     if (!id) return;
@@ -321,6 +327,11 @@
 
   app.renderer.on("context", function (e) {
     openMenu(e.id, e.parent, e.x, e.y);
+  });
+  // A double-click is the click's action, done twice over: into the name.
+  app.renderer.on("activate", function (e) {
+    if (e.id !== selected()) app.select(e.id);
+    focusLabel();
   });
   document.addEventListener("pointerdown", function (e) {
     if (!$("context-menu").contains(e.target)) closeMenu();
@@ -841,6 +852,22 @@
         renderAssets();
       });
       block.appendChild(head);
+      var uses = E.usesOfAsset(doc(), id);
+      function removeAsset() {
+        var name = asset.label || id;
+        openAsset = null;
+        applyAsset(E.removeAsset(doc(), id), function () {
+          app.say("removed the asset “" + name + "” · Ctrl+Z undoes");
+        });
+      }
+      // Right-click: the row's actions by name, as a node's on the canvas.
+      block.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        showMenu([
+          [openAsset === id ? "Close" : "Edit", "", function () { openAsset = openAsset === id ? null : id; renderAssets(); }],
+          [uses ? "Remove, with its " + uses + " consequence" + (uses > 1 ? "s" : "") : "Remove", "", removeAsset],
+        ], e.clientX, e.clientY);
+      });
 
       if (openAsset !== id) {
         var summary = document.createElement("dl");
@@ -873,18 +900,11 @@
           });
         });
         hint(form, "Loss in " + (doc().currency || "money") + ": a number or a distribution.");
-        var uses = E.usesOfAsset(doc(), id);
         var remove = document.createElement("button");
         remove.type = "button";
         remove.className = "btn btn-ghost btn-small asset-remove";
         remove.textContent = uses ? "Remove, with its " + uses + " consequence" + (uses > 1 ? "s" : "") : "Remove";
-        remove.addEventListener("click", function () {
-          var name = asset.label || id;
-          openAsset = null;
-          applyAsset(E.removeAsset(doc(), id), function () {
-            app.say("removed the asset “" + name + "” · Ctrl+Z undoes");
-          });
-        });
+        remove.addEventListener("click", removeAsset);
         form.appendChild(remove);
         block.appendChild(form);
       }

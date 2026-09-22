@@ -249,6 +249,7 @@
     hud("hud-p-ci", "");
     hud("hud-eal", "—");
     hud("hud-p95", "");
+    $("hud-stats").hidden = true;
     $("cutsets-body").replaceChildren();
     $("cutsets").hidden = true;
     $("cutsets-empty").hidden = false;
@@ -406,6 +407,10 @@
     state.running = true;
     $("solve").textContent = "Cancel";
     chip("solving…");
+    // The answer goes to the results panel: a solve is the ask that opens it.
+    if (window.effractorWorkspace) window.effractorWorkspace.open("right");
+    if (window.effractorTabs) window.effractorTabs.show("results");
+    $("hud-stats").hidden = false;
     var started = performance.now();
     solver
       .solve(state.text, {
@@ -565,10 +570,22 @@
     listeners.push(f);
   };
 
-  $("measure").addEventListener("click", function () {
-    state.measure = state.measure === "fussell_vesely" ? "birnbaum" : "fussell_vesely";
-    $("measure").textContent = state.measure === "birnbaum" ? "Birnbaum" : "Fussell-Vesely";
+  var MEASURES = [["fussell_vesely", "Fussell-Vesely"], ["birnbaum", "Birnbaum"]];
+  function setMeasure(measure) {
+    state.measure = measure;
+    $("measure").textContent = measure === "birnbaum" ? "Birnbaum" : "Fussell-Vesely";
     paint();
+  }
+  // A click switches; a right-click offers both by name.
+  $("measure").addEventListener("contextmenu", function (e) {
+    if (!window.effractor.showMenu) return;
+    e.preventDefault();
+    window.effractor.showMenu(MEASURES.map(function (m) {
+      return [m[1], m[0] === state.measure ? "✓" : "", function () { setMeasure(m[0]); }];
+    }), e.clientX, e.clientY);
+  });
+  $("measure").addEventListener("click", function () {
+    setMeasure(state.measure === "fussell_vesely" ? "birnbaum" : "fussell_vesely");
   });
 
   $("solve").addEventListener("click", solve);

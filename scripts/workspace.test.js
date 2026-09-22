@@ -16,3 +16,12 @@ test("arrow keys resize in the direction they point", () => {
   assert.equal(nextWidth("left", 220, 16), 236);
   assert.equal(nextWidth("right", 264, -16), 280);
 });
+
+// Nothing is shown unless asked for: a first visit has both panels closed,
+// and what a visitor last set on this origin wins after that.
+test("a first visit opens no panel; a saved layout is kept, junk is not", () => {
+  const { initialState } = require("../assets/js/workspace.js");
+  assert.deepEqual(initialState({}), { left: 220, right: 264, leftOpen: false, rightOpen: false });
+  assert.deepEqual(initialState({ leftOpen: true, right: 300 }), { left: 220, right: 300, leftOpen: true, rightOpen: false });
+  assert.deepEqual(initialState({ leftOpen: "yes", left: "wide" }), { left: 220, right: 264, leftOpen: false, rightOpen: false });
+});
