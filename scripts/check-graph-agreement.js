@@ -23,6 +23,14 @@ const CASES = [
   { name: 'patch', text: lecture, scenario: 'patch' },
   { name: 'deny', text: lecture, scenario: 'deny' },
   { name: 'unknown', text: unknown, scenario: '' },
+  {
+    // Finite, slower defences and a short horizon: a paired interval with width.
+    name: 'slower both',
+    text: lecture
+      .replace('horizon: 100', 'horizon: 10')
+      .replace(/ttc: "Infinity"\n(\s+note: "Exercise assumption: perfect blocking)/g, 'ttc: "Exponential(0.005)"\n$1'),
+    scenario: 'both',
+  },
   { name: 'large seed', text: lecture.replace('seed: 42', 'seed: ' + LARGE_SEED), scenario: 'both' },
 ];
 

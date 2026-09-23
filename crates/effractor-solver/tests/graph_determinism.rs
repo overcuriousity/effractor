@@ -10,8 +10,27 @@ use serde_json::json;
 
 const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
 
+/// The lecture with finite, slower defences and a horizon the attack does not
+/// always reach by: a comparison whose paired interval has width.
+fn slower_text() -> String {
+    LECTURE
+        .replace("horizon: 100", "horizon: 10")
+        .replace(
+            "        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a patched",
+            "        ttc: \"Exponential(0.005)\"\n        note: \"Exercise assumption: perfect blocking, a patched",
+        )
+        .replace(
+            "        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a protected",
+            "        ttc: \"Exponential(0.005)\"\n        note: \"Exercise assumption: perfect blocking, a protected",
+        )
+}
+
 fn lecture() -> Architecture {
-    match effractor_format::load_document(LECTURE) {
+    architecture(LECTURE)
+}
+
+fn architecture(text: &str) -> Architecture {
+    match effractor_format::load_document(text) {
         Ok(Document::Architecture(model)) => model,
         other => panic!("not an architecture: {other:?}"),
     }
@@ -31,10 +50,30 @@ fn lecture_graph_results_are_stable_and_identical_under_wasm() {
             .unwrap()
             .finish()
     };
+    let slower = architecture(&slower_text());
+    let slower_graph = generate(&slower).unwrap();
+    let slower_both = GraphSolve::begin(
+        &slower,
+        &slower_graph,
+        Some(&"both".parse().unwrap()),
+        &GraphConfig {
+            samples: 8192,
+            ..GraphConfig::from_model(&slower)
+        },
+    )
+    .unwrap()
+    .finish();
+    let delta = serde_json::to_value(&slower_both.delta).unwrap();
+    let ci = &delta["available"]["ci"];
+    assert!(
+        ci["lo"].as_f64().unwrap() < ci["hi"].as_f64().unwrap(),
+        "{delta}"
+    );
     let got = serde_json::to_string_pretty(&json!({
         "graph": graph_image(&graph, &resolve(&model, &graph, None).unwrap()),
         "patch": solve(Some("patch")),
         "deny": solve(Some("deny")),
+        "slower-both": slower_both,
     }))
     .unwrap()
         + "\n";

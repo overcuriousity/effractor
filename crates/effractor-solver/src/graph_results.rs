@@ -127,7 +127,12 @@ pub struct NodeStats {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Assumption {
+    /// The value itself: a parameter slot, a permission or the scenario
+    /// change that set it.
     pub path: String,
+    /// Every source field that decided it, the switch that chose a
+    /// replacement slot included.
+    pub paths: Vec<String>,
     /// The parameter's evidence, `policy`, or `unknown`.
     pub status: &'static str,
     /// Canonical TTC text, `allowed`/`denied` for a policy, `None` if unknown.
@@ -464,55 +469,75 @@ impl GraphSolve {
         }
     }
 
-    /// Every parameter and policy the target's support reads, once per path,
-    /// including the policies that make a fact in it happen at once.
+    /// What the target's result rests on, once per path: every parameter and
+    /// policy its support reads, the policies that make a fact in it happen
+    /// at once, and the known blockers — denials, never-TTCs — behind which
+    /// the rest of its routes stop. A structural zero rests on those.
     fn assumptions(&self, side: &SideSetup) -> Vec<Assumption> {
         let r = &side.resolved;
-        let zero = &side.support.zero;
-        let mut seen = vec![false; self.graph.nodes.len()];
-        let mut stack = side.support.target_support.clone();
-        for &i in &stack {
-            seen[i] = true;
-        }
-        while let Some(i) = stack.pop() {
-            if !zero[i] {
-                continue;
-            }
-            let inputs: &[usize] = match &self.graph.nodes[i].kind {
+        let support = &side.support;
+        let n = self.graph.nodes.len();
+        let inputs = |i: usize| -> &[usize] {
+            match &self.graph.nodes[i].kind {
                 GeneratedKind::Input => &[],
                 GeneratedKind::Any { inputs } | GeneratedKind::All { inputs } => inputs,
-            };
-            for &j in inputs {
-                if zero[j] && !seen[j] {
-                    seen[j] = true;
+            }
+        };
+        let mut listed = vec![false; n];
+        let mut stack = support.target_support.clone();
+        for &i in &stack {
+            listed[i] = true;
+        }
+        while let Some(i) = stack.pop() {
+            if !support.zero[i] {
+                continue;
+            }
+            for &j in inputs(i) {
+                if support.zero[j] && !listed[j] {
+                    listed[j] = true;
                     stack.push(j);
                 }
             }
         }
-        let mut out: Vec<Assumption> = (0..seen.len())
-            .filter(|&i| seen[i])
+        // Everything the target could be derived from, possible or not, short
+        // of what happens at once anyway: its blockers are listed.
+        let mut region = vec![false; n];
+        let mut stack = vec![self.graph.target];
+        region[self.graph.target] = true;
+        while let Some(i) = stack.pop() {
+            if support.status[i] == Status::Blocked {
+                listed[i] = true;
+            }
+            if support.zero[i] {
+                continue;
+            }
+            for &j in inputs(i) {
+                if !region[j] {
+                    region[j] = true;
+                    stack.push(j);
+                }
+            }
+        }
+        let mut out: Vec<Assumption> = (0..n)
+            .filter(|&i| listed[i])
             .filter_map(|i| {
                 let path = r.paths[i].first()?.clone();
+                let note = r.evidence[i].first().and_then(|p| p.note.clone());
                 let (status, expression) = match (&self.graph.nodes[i].duration, &r.ttc[i]) {
                     (Binding::Permission(_), ResolvedTtc::Known(d)) => (
                         "policy",
                         Some(if matches!(d, Distribution::Infinity) {
-                            "denied"
+                            "denied".to_owned()
                         } else {
-                            "allowed"
+                            "allowed".to_owned()
                         }),
                     ),
-                    (Binding::Parameter { .. }, ResolvedTtc::Known(d)) => {
-                        let status = r.evidence[i]
+                    (Binding::Parameter { .. }, ResolvedTtc::Known(d)) => (
+                        r.evidence[i]
                             .first()
-                            .map_or("unknown", |p| p.status.as_str());
-                        return Some(Assumption {
-                            path,
-                            status,
-                            expression: Some(effractor_mal::to_expr(d)),
-                            note: r.evidence[i].first().and_then(|p| p.note.clone()),
-                        });
-                    }
+                            .map_or("unknown", |p| p.status.as_str()),
+                        Some(effractor_mal::to_expr(d)),
+                    ),
                     (
                         Binding::Permission(_) | Binding::Parameter { .. },
                         ResolvedTtc::Unknown(_),
@@ -521,9 +546,10 @@ impl GraphSolve {
                 };
                 Some(Assumption {
                     path,
+                    paths: r.paths[i].clone(),
                     status,
-                    expression: expression.map(str::to_owned),
-                    note: r.evidence[i].first().and_then(|p| p.note.clone()),
+                    expression,
+                    note,
                 })
             })
             .collect();

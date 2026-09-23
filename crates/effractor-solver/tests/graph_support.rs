@@ -270,3 +270,44 @@ fn impossible_durations_are_recognised_by_meaning_not_spelling() {
         assert!(!never(&d), "{d:?}");
     }
 }
+
+#[test]
+fn an_unknown_on_a_route_a_known_step_blocks_costs_the_target_nothing() {
+    // Discovery unknown, deployment known never: the exploit route is closed
+    // after the unknown, and the login route is fully known.
+    let text = UNKNOWN.replace(
+        "        ttc: \"Exponential(0.5)\"\n        note: Exercise assumption; includes",
+        "        ttc: \"Infinity\"\n        note: Exercise assumption; includes",
+    );
+    let a = Analyzed::of(&text, None);
+    assert_eq!(
+        a.status("action/service-find-exploit/sshd"),
+        Status::Possible
+    );
+    assert_eq!(a.missing("action/service-find-exploit/sshd"), [FIND]);
+    assert_eq!(
+        a.status("action/service-deploy-exploit/sshd"),
+        Status::Blocked
+    );
+    assert_eq!(a.status(TARGET), Status::Possible);
+    assert!(a.missing(TARGET).is_empty());
+    assert!(!a.in_support("action/service-find-exploit/sshd"));
+
+    // Deployment unknown behind a known-never discovery: the same.
+    let text = LECTURE
+        .replace(
+            "      find-exploit:\n        status: illustrative\n        ttc: \"Exponential(0.1)\"",
+            "      find-exploit:\n        status: illustrative\n        ttc: \"Infinity\"",
+        )
+        .replace(
+            "      deploy-exploit:\n        status: illustrative\n        ttc: \"Exponential(0.5)\"\n        note: Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately\n",
+            "      deploy-exploit:\n        status: unknown\n",
+        );
+    let b = Analyzed::of(&text, None);
+    assert_eq!(
+        b.status("action/service-deploy-exploit/sshd"),
+        Status::Unreachable
+    );
+    assert!(b.missing("action/service-deploy-exploit/sshd").is_empty());
+    assert!(b.missing(TARGET).is_empty());
+}

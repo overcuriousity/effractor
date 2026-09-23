@@ -486,3 +486,45 @@ fn one_paired_sample_has_a_difference_and_no_interval() {
     let r = solve(LECTURE, Some("deny"), 2);
     assert!(delta(&r)["ci"].is_object());
 }
+
+fn assumption<'a>(report: &'a Value, path: &str) -> Option<&'a Value> {
+    report["assumptions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["path"] == path)
+}
+
+#[test]
+fn a_blocked_result_lists_the_inputs_that_block_it() {
+    // Denied: the target's zero rests on the denial, and says so.
+    let r = solve(LECTURE, Some("deny"), 4096);
+    let denial = assumption(&r["scenario"], "scenarios.deny.changes[0]")
+        .unwrap_or_else(|| panic!("{}", r["scenario"]["assumptions"]));
+    assert_eq!(denial["status"], "policy");
+    assert_eq!(denial["expression"], "denied");
+
+    // Patched: the perfect-blocking replacement, and the switch that chose it.
+    let r = solve(LECTURE, Some("patch"), 4096);
+    let patched = assumption(
+        &r["scenario"],
+        "entities.sshd.parameters.find-exploit-patched",
+    )
+    .unwrap_or_else(|| panic!("{}", r["scenario"]["assumptions"]));
+    assert_eq!(patched["status"], "illustrative");
+    assert_eq!(patched["expression"], "Infinity");
+    assert!(
+        patched["paths"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("scenarios.patch.changes[0]"))
+    );
+    // The baseline's exploit rests on the switch as written.
+    let found = assumption(&r["baseline"], "entities.sshd.parameters.find-exploit").unwrap();
+    assert!(
+        found["paths"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("entities.sshd.defenses.patched"))
+    );
+}

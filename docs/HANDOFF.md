@@ -196,6 +196,18 @@ false for an architecture, until Task 6 wires it. What exists:
   The lecture at 10,000 samples took about 37 ms in node-hosted wasm, parse and
   generation included.
 - `wasmtime` 48.0.2 is installed with `cargo install` (49 needs rustc 1.96).
+- A fresh reviewer found no correctness bug. Fixed from its report: the
+  assumption list now also names the known blockers (denials, never-TTCs) in
+  the target's region, so a structural zero shows its premise, and each entry
+  carries every source `paths` entry (the switch that chose a replacement
+  slot included); a test for an unknown behind a known-blocked step; a frozen
+  and agreement-checked `slower both` case with a real paired interval.
+  Deferred for Task 6: `graph_support::analyze` walks each tainted node's
+  support separately — about 0.2 s native at 5,000 nodes / 20,000
+  dependencies with one early unknown; propagate bitsets over support edges
+  before generation calls it every time. The worker treats a `solve` with a
+  `scenario` or `revision` as a graph solve; a tree sent with a revision gets
+  `unsupported`.
 
 ## Continuation — architecture links (2026-09-23)
 
