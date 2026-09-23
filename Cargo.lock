@@ -443,7 +443,10 @@ dependencies = [
 name = "effractor-solver"
 version = "0.1.0"
 dependencies = [
+ "effractor-components",
  "effractor-core",
+ "effractor-format",
+ "effractor-mal",
  "libm",
  "proptest",
  "rand_chacha 0.10.0",
