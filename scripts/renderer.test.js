@@ -188,9 +188,9 @@ test("dragging the background pans, the wheel zooms, fit undoes both", () => {
   assert.equal(viewport.getAttribute("transform"), fitted);
 });
 
-test("the events are the four of the interface, and no others", () => {
+test("the events are the five of the interface, and no others", () => {
   const { r } = mounted();
-  assert.deepEqual(EVENTS, ["select", "activate", "context", "drop"]);
+  assert.deepEqual(EVENTS, ["select", "activate", "context", "drop", "move"]);
   assert.throws(() => r.on("hover", () => {}), /hover/);
 });
 
@@ -235,4 +235,49 @@ test("an architecture's component is a box with its kind, no fault symbol, and i
   assert.ok(sshd.classList.contains("is-unquantified"));
   assert.deepEqual(dom.text(sshd), ["SSH server", "service · 1 unknown"]);
   assert.equal(dom.byClass(host, "stem").length, 0);
+});
+
+// An architecture is laid out free: components where the author dragged them,
+// edges as curves between their boxes (positions.js).
+const Pos = require("../assets/js/positions.js");
+function freeLayout() {
+  const box = (id, x, y) => ({ id, x, y, width: 148, height: 62, node: { id, label: id, lines: [id], symbol: "component", component: "host", attributes: "host", parents: 0 } });
+  return Pos.place({
+    nodes: [box("entity/a", 0, 0), box("entity/b", 300, 0)],
+    edges: [{ id: "association/ab", from: "entity/a", to: "entity/b", label: "attached" }],
+  }, {});
+}
+
+test("in a free layout a dragged node moves, its lines follow, and the move is reported", () => {
+  const { r, host, node } = mounted();
+  r.render(freeLayout(), {});
+  const moves = [], drops = [], selects = [];
+  r.on("move", (e) => moves.push(e));
+  r.on("drop", (e) => drops.push(e));
+  r.on("select", (e) => selects.push(e.id));
+  const line = dom.byClass(host, "edge")[0];
+  const before = line.getAttribute("d");
+  assert.match(before, /^M[-\d. ]+Q[-\d. ]+$/);
+  assert.equal(line.getAttribute("marker-end"), "url(#edge-arrow)");
+  assert.deepEqual(dom.text(host).filter((t) => t === "attached"), ["attached"]);
+
+  node("entity/b").dispatch("pointerdown", { clientX: 10, clientY: 10, button: 0, pointerId: 1 });
+  node("entity/b").dispatch("pointermove", { clientX: 30, clientY: 110, pointerId: 1 });
+  assert.equal(node("entity/b").getAttribute("transform"), "translate(320 100)");
+  assert.notEqual(line.getAttribute("d"), before, "the line follows while dragging");
+  node("entity/a").dispatch("pointerup", { clientX: 30, clientY: 110, pointerId: 1 });
+  assert.deepEqual(moves, [{ id: "entity/b", x: 320, y: 100 }]);
+  assert.deepEqual(drops, [], "a free layout has no drops");
+  assert.deepEqual(selects, []);
+});
+
+test("a free layout that starts left of or above zero is fitted whole", () => {
+  const { r, host } = mounted();
+  const l = freeLayout();
+  const moved = Pos.place({ nodes: l.nodes, edges: [] }, { "entity/a": { x: -200, y: -100 } });
+  r.render(moved, {});
+  r.fit();
+  const viewport = dom.byClass(host, "viewport")[0];
+  // 648 x 162 drawn from (-200, -100) in an 800 x 600 view: centred, unscaled.
+  assert.equal(viewport.getAttribute("transform"), "translate(276 319) scale(1)");
 });

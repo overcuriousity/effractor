@@ -120,6 +120,13 @@
       return [word(kind), "", function () { create(kind); }];
     }), x, y);
   }
+  // The background's menu: add a component, or put every one back where the
+  // automatic layout wants it.
+  function backgroundMenu(x, y) {
+    app.showMenu(A.KINDS.map(function (kind) {
+      return ["Add " + kind, "", function () { create(kind); }];
+    }).concat([["Arrange automatically", "", app.arrange]]), x, y);
+  }
   function pickKindAt(anchor) {
     var box = (anchor || $("canvas")).getBoundingClientRect();
     if (anchor) pickKind(box.right + 4, box.top);
@@ -181,7 +188,8 @@
     ["↑ ↓", "Previous, next component"],
     ["click", "Select a component"],
     ["double-click", "Rename it"],
-    ["right-click", "Its actions; on the background, add a component"],
+    ["drag a component", "Move it (kept in this browser)"],
+    ["right-click", "Its actions; on the background, add or arrange"],
   ];
 
   document.addEventListener("keydown", function (e) {
@@ -221,7 +229,7 @@
     if (e.edge && P.selectionExists(doc(), e.edge, app.state.generated)) return edgeMenu(e.edge, e.x, e.y);
     var q = P.qualified(e.id);
     if (q && q.kind === "entity") return menuFor(q.id, e.x, e.y);
-    pickKind(e.x, e.y);
+    backgroundMenu(e.x, e.y);
   });
   app.renderer.on("activate", function (e) {
     if (!arch()) return;

@@ -91,7 +91,7 @@
   }
 
   function pickEnd(id, choice, where) {
-    app.showMenu(choice.candidates.map(function (other) {
+    var ends = choice.candidates.map(function (other) {
       return [name(other), kindOf(other), function () {
         var from = choice.direction === "out" ? id : other;
         var to = choice.direction === "out" ? other : id;
@@ -101,7 +101,8 @@
           return [p, "", function () { link(id, choice.kind, from, to, p); }];
         }), where.x, where.y);
       }];
-    }), where.x, where.y);
+    });
+    app.showMenu(ends, where.x, where.y);
   }
 
   // The selection stays on the component: the next link starts from it too.
@@ -370,6 +371,19 @@
     U.parameters(form, { flow: id }, f);
     U.problems(form, "flows." + id);
   }
+
+  // ---- the rail's Link ----
+
+  var railLink = document.querySelector('[data-action="linkComponent"]');
+  railLink.addEventListener("click", function () {
+    railLink.blur();
+    if (selectedEntity()) startLink(selectedEntity(), railLink);
+  });
+  app.onChange(function () {
+    if (!doc() || !P.isArchitecture(doc())) return;
+    railLink.disabled = !selectedEntity();
+    railLink.title = selectedEntity() ? "Link “" + name(selectedEntity()) + "” (L)" : "Link (L)";
+  });
 
   U.sections.entity = entitySection;
   U.sections.association = associationSection;

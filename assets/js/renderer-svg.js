@@ -2,13 +2,18 @@
 //
 //   mount(el) · render(layout, styles) · highlight(ids, kind) · fit() · zoomBy(factor) · on(event, handler)
 //
+// A layout is ELK's, with routed edges, or `free` (positions.js): nodes where
+// the author put them and edges as curves between them. In a free layout a
+// dragged node moves and is reported with `move`; in the other a node
+// dragged onto another is a `drop`.
+//
 // It is told node ids, class names and positions, and tells back node ids.
 // Nothing above it sees SVG, so a canvas or WebGL renderer can take its place.
 // All appearance is in 30-graph.css: the CSP forbids style attributes, and the
 // classes are the interface anyway.
 (function () {
   var NS = "http://www.w3.org/2000/svg";
-  var EVENTS = ["select", "activate", "context", "drop"];
+  var EVENTS = ["select", "activate", "context", "drop", "move"];
   var DRAG_PX = 4; // movement below this is a click
   var PADDING = 32;
 
@@ -28,6 +33,8 @@
     var handlers = {};
     var gesture = null; // {id | null, x, y, moved}
     var fitted = false; // the view is as fit() left it: a resize may fit again
+    var free = null; // the free layout on screen, if it is one
+    var routes = (typeof module !== "undefined" ? require("./positions.js") : window.effractorPositions);
 
     function el(tag, attrs, classes, parent) {
       var e = doc.createElementNS(NS, tag);
@@ -71,6 +78,10 @@
       // Focusable: a press on the canvas takes the keyboard back from whatever
       // button or field had it, so the editor's keys go where the eye is.
       svg = el("svg", { role: "group", "aria-label": "Graph", tabindex: "0" }, ["graph"], host);
+      // The arrowhead of a free layout's edges.
+      var defs = el("defs", {}, [], svg);
+      var marker = el("marker", { id: "edge-arrow", viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" }, [], defs);
+      el("path", { d: "M0 0L10 5L0 10z" }, ["arrow-head"], marker);
       viewport = el("g", {}, ["viewport"], svg);
       edgeLayer = el("g", {}, ["edges"], viewport);
       nodeLayer = el("g", {}, ["nodes"], viewport);
@@ -99,7 +110,14 @@
         // to the svg, not to the node under it.
         if (!gesture.moved) svg.setPointerCapture(e.pointerId);
         gesture.moved = true;
-        svg.classList.add(gesture.id ? "is-dragging" : "is-panning");
+        svg.classList.add(gesture.id ? (free ? "is-moving" : "is-dragging") : "is-panning");
+        if (gesture.id && free) {
+          // A free layout's node goes where the pointer takes it, lines and all.
+          moveBy(gesture.id, dx / view.k, dy / view.k);
+          gesture.x = e.clientX;
+          gesture.y = e.clientY;
+          return;
+        }
         if (gesture.id) return; // a node in hand: nothing moves until it is dropped
         fitted = false;
         view = viewMath.pan(view, dx, dy);
@@ -111,17 +129,22 @@
         if (!gesture) return;
         var g = gesture;
         gesture = null;
-        svg.classList.remove("is-dragging", "is-panning");
+        svg.classList.remove("is-dragging", "is-moving", "is-panning");
         // A press and release in place is the selection: of the node the press
         // landed on, whatever the browser makes the target of its click.
         if (!g.moved) return emit("select", g.edge ? { id: g.edge.to, parent: g.edge.from, edge: g.edge.id } : { id: g.id, parent: undefined });
         svg.releasePointerCapture(e.pointerId);
+        if (free && g.id) {
+          var p = free.at[g.id];
+          if (p) emit("move", { id: g.id, x: p.x, y: p.y });
+          return;
+        }
         var target = idAt(dropTarget(e));
         if (g.id && target && target !== g.id) emit("drop", { id: g.id, target: target, ctrl: !!(e.ctrlKey || e.metaKey) });
       });
       svg.addEventListener("pointercancel", function () {
         gesture = null;
-        svg.classList.remove("is-dragging", "is-panning");
+        svg.classList.remove("is-dragging", "is-moving", "is-panning");
       });
       // A panel opening or the window changing size: a view nobody has moved
       // since it was fitted is fitted again; one the author placed stays put.
@@ -222,6 +245,43 @@
       return g;
     }
 
+    // A free layout's edge: a curve from box to box, a wide unseen copy to
+    // take the pointer, its label halfway.
+    function curve(r) {
+      return "M" + r.start.x + " " + r.start.y + "Q" + r.control.x + " " + r.control.y + " " + r.end.x + " " + r.end.y;
+    }
+    function drawCurve(r) {
+      var line = el("path", { d: curve(r), "data-id": r.id, "data-from": r.from, "data-to": r.to, "marker-end": "url(#edge-arrow)" }, ["edge"], edgeLayer);
+      var hit = el("path", { d: curve(r), "data-id": r.id, "data-from": r.from, "data-to": r.to }, ["edge-hit"], edgeLayer);
+      var label = null;
+      if (r.label) {
+        label = el("text", { x: r.mid.x, y: r.mid.y - 4, "data-id": r.id }, ["edge-label"], edgeLayer);
+        label.textContent = r.label;
+      }
+      return { line: line, hit: hit, label: label };
+    }
+    function redrawCurve(item, r) {
+      item.line.setAttribute("d", curve(r));
+      item.hit.setAttribute("d", curve(r));
+      if (item.label) {
+        item.label.setAttribute("x", r.mid.x);
+        item.label.setAttribute("y", r.mid.y - 4);
+      }
+    }
+
+    function moveBy(id, dx, dy) {
+      var p = free.at[id];
+      if (!p) return;
+      p.x += dx;
+      p.y += dy;
+      drawn.nodes[id].setAttribute("transform", "translate(" + p.x + " " + p.y + ")");
+      drawn.edges.forEach(function (e) {
+        if (e.from !== id && e.to !== id) return;
+        var r = routes.route(free.at, e.route);
+        if (r) redrawCurve(e.parts, r);
+      });
+    }
+
     function drawEdge(edge) {
       var d = edge.points
         .map(function (p, i) {
@@ -235,11 +295,6 @@
       if (last.length === 2) {
         var into = "M" + last[0].x + " " + last[0].y + "L" + last[1].x + " " + last[1].y;
         el("path", { d: into, "data-id": edge.id, "data-from": edge.from, "data-to": edge.to }, ["edge-hit"], edgeLayer);
-        // A label, where the layout gave one, halfway along that stretch.
-        if (edge.label) {
-          var t = el("text", { x: (last[0].x + last[1].x) / 2 + 4, y: (last[0].y + last[1].y) / 2, "data-id": edge.id }, ["edge-label"], edgeLayer);
-          t.textContent = edge.label;
-        }
       }
       return line;
     }
@@ -262,10 +317,22 @@
       edgeLayer.replaceChildren();
       nodeLayer.replaceChildren();
       drawn = { nodes: Object.create(null), edges: [] };
-      size = { width: layout.width, height: layout.height };
-      layout.edges.forEach(function (e) {
-        drawn.edges.push({ el: drawEdge(e), id: e.id, from: e.from, to: e.to });
-      });
+      size = { width: layout.width, height: layout.height, x0: layout.x0 || 0, y0: layout.y0 || 0 };
+      free = null;
+      if (layout.free) {
+        free = { at: Object.create(null) };
+        layout.nodes.forEach(function (n) {
+          free.at[n.id] = { id: n.id, x: n.x, y: n.y, width: n.width, height: n.height };
+        });
+        layout.edges.forEach(function (e) {
+          var parts = drawCurve(e);
+          drawn.edges.push({ el: parts.line, parts: parts, route: e, id: e.id, from: e.from, to: e.to });
+        });
+      } else {
+        layout.edges.forEach(function (e) {
+          drawn.edges.push({ el: drawEdge(e), id: e.id, from: e.from, to: e.to });
+        });
+      }
       layout.nodes.forEach(function (item) {
         var style = Object.prototype.hasOwnProperty.call(styles, item.id) ? styles[item.id] : {};
         drawn.nodes[item.id] = drawNode(item, style);
@@ -285,6 +352,9 @@
     function fit() {
       var box = svg.getBoundingClientRect();
       view = viewMath.fit(size, { width: box.width, height: box.height }, PADDING);
+      // A drawing need not start at the origin: a free one goes where it was dragged.
+      view.x -= size.x0 * view.k;
+      view.y -= size.y0 * view.k;
       fitted = true;
       applyView();
     }

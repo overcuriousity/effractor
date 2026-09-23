@@ -226,9 +226,28 @@
 
   // Colour the leaves from what is known: the exact part of the latest solve,
   // which is there before its sampling is.
+  // An architecture's components stay where the author dragged them, in this
+  // browser, per document name; the rest is placed automatically.
+  var positions = window.effractorPositions.createStore(browserStorage());
+  function browserStorage() {
+    try {
+      return window.localStorage || null;
+    } catch (e) {
+      return null;
+    }
+  }
+  renderer.on("move", function (e) {
+    if (P.isArchitecture(state.doc)) positions.move(state.doc.name, e.id, e.x, e.y);
+  });
+  function arrange() {
+    positions.clear(state.doc.name);
+    paint();
+    renderer.fit();
+  }
+
   function paint() {
     if (!state.laid) return;
-    if (P.isArchitecture(state.doc)) return renderer.render(state.laid, {});
+    if (P.isArchitecture(state.doc)) return renderer.render(window.effractorPositions.place(state.laid, positions.load(state.doc.name)), {});
     var known = state.exactResults || state.results;
     renderer.render(state.laid, known ? view.leafStyles(known, state.measure) : {});
   }
@@ -626,6 +645,7 @@
   window.effractor.renderer = renderer;
   window.effractor.select = select;
   window.effractor.labelOf = labelOf;
+  window.effractor.arrange = arrange;
   window.effractor.applyEdit = applyEdit;
   window.effractor.say = say;
   window.effractor.format = { money: money, probability: probability };

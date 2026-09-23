@@ -23,6 +23,7 @@
 <script src="{{ asset_prefix }}assets/js/graph.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/architecture-view.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/view.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/positions.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/renderer-svg.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/layout.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/results-view.js" defer></script>
@@ -68,6 +69,7 @@
 
   <nav class="rail" aria-label="Tools">
     <button class="tool" type="button" data-action="addChild" disabled title="Add child (Tab)" aria-label="Add child"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
+    <button class="tool architecture-only" type="button" data-action="linkComponent" disabled title="Link (L)" aria-label="Link"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8"/></svg></button>
     <button class="tool tree-only" type="button" data-action="addSibling" disabled title="Add sibling (Enter)" aria-label="Add sibling"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3v10M10 5v6M7 8h6"/></svg></button>
     <button class="tool tree-only" type="button" data-action="link" disabled title="Link existing node… (L)" aria-label="Link existing node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8"/></svg></button>
     <button class="tool tree-only" type="button" data-action="move" disabled title="Move under… (M)" aria-label="Move under another node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h7M7 5l3 3-3 3M13 3v10"/></svg></button>

@@ -56,6 +56,7 @@ mod tests {
             assert!(at(pure) < at("app.js"), "{pure} loads before app.js");
         }
         assert!(at("graph.js") < at("architecture-view.js"));
+        assert!(at("positions.js") < at("renderer-svg.js"));
         assert!(at("edit.js") < at("architecture-edit.js"));
         assert!(at("edit.js") < at("architecture-links.js"));
         assert!(at("menu.js") < at("architecture-ui.js"));
