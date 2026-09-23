@@ -5,6 +5,34 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — plain vocabulary (2026-09-23)
+
+Released in `07cbb71` (PRs #73, #74). The page no longer shows library ids:
+
+- The component catalog carries the words: `states[].word` ("admin control",
+  "held"), `parameters[].name` ("Find an exploit (patched)"), `rules[].title`
+  ("Use the exploit") and `entities[].meaning` (one line per kind; a service
+  *accepts* connections, an application *makes* them). `vocabulary.js`
+  (`window.effractorWords`) maps ids to them and falls back to the id.
+  Generated step labels use the same words (`generate.rs`).
+- The `?` dialog's Components legend shows each kind's meaning; the bottom
+  bar's family swatches open it. The Add menus carry it as a tooltip.
+- Solve → *Calculate*, Generate → *Build*, Evidence/Basis → *Confidence*/*Reason*,
+  TTC → *Time*, Missing → *Unknown inputs*, Sample route → *Simulated path*.
+  *Route* is only a flow's hops; an attack has a *path*.
+- `profiles.words(doc)`: an attack tree says *goal*, P(goal), *Step*; a fault
+  tree keeps *top event*, P(top), *Basic event*. The tree's second-parent action
+  is *Reuse an existing node…* (L) and *Remove from under …* (Del); *Link* is
+  only the architecture's.
+- #73 was merged with GitHub's merge button while CI ran; its merge commit had
+  no CI run and the release gate refused it. #74 was rebased onto it and master
+  fast-forwarded to #74's tested tip, which released both. In this tooling the
+  agent's push to master is refused ("CI bypass"): the owner runs the push.
+
+Next: the approved [readable time notation](superpowers/specs/2026-09-23-readable-time-notation-design.md)
+(`30%`, `50% * Exponential(mean 12.5)`, `Never`, `Immediate` instead of MAL's
+`Bernoulli`, rates and preset names) — implementation plan to be written.
+
 ## Continuation — automatic solving (2026-09-22)
 
 The owner asked for trees to be solved without pressing Solve and accepted the
