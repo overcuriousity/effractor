@@ -189,8 +189,10 @@ parameters:
 ```
 
 `status` is `unknown`, `illustrative`, `assumed` or `calibrated`. `unknown`
-has no `ttc`. Every other status requires a valid TTC expression and a nonempty
-`note` giving the assumption or calibration source. `calibrated` is the author's
+has no `ttc`. Every other status requires a valid TTC expression. A `note`
+gives the assumption or calibration source; `calibrated` requires a nonempty one,
+while `illustrative` and `assumed` may omit it and are then shown with "no reason
+given" (owner decision, 2026-09-23). `calibrated` is the author's
 evidence claim, not a certificate from the app. Omitting a slot is equivalent
 to unknown; canonical saves materialize required unknown slots. No library TTC
 has an invented quantitative default. The existing TTC expression grammar is

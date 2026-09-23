@@ -78,7 +78,7 @@ fn validation_names_the_field_that_is_wrong() {
     sshd.parameters.insert(
         Slot::Login,
         Parameter {
-            status: Evidence::Assumed,
+            status: Evidence::Calibrated,
             ttc: Some(Distribution::Exponential(1.0)),
             note: None,
         },
@@ -190,4 +190,31 @@ fn a_router_runs_on_one_host_and_only_on_a_host() {
         errors(&m),
         [(Code::Cardinality, "associations.twice".to_owned())]
     );
+}
+
+/// A calibrated value names its source; an assumed or illustrative one may
+/// say why, and need not.
+#[test]
+fn only_a_calibrated_value_must_say_what_it_rests_on() {
+    for (status, refused) in [
+        (Evidence::Calibrated, true),
+        (Evidence::Assumed, false),
+        (Evidence::Illustrative, false),
+    ] {
+        let mut m = Architecture::new("T");
+        let mut sshd = Entity::new(EntityKind::Service, "SSH");
+        sshd.parameters.insert(
+            Slot::Login,
+            Parameter {
+                status,
+                ttc: Some(Distribution::Exponential(1.0)),
+                note: Some("  ".into()),
+            },
+        );
+        m.entities.insert(id("sshd"), sshd);
+        let missing = validate_architecture(&m)
+            .iter()
+            .any(|d| d.path == "entities.sshd.parameters.login.note");
+        assert_eq!(missing, refused, "{status:?}");
+    }
 }

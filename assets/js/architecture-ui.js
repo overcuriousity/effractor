@@ -444,7 +444,7 @@
       ttc.addEventListener("input", function () { draft.ttc = ttc.value; keep(); });
       ttc.addEventListener("change", function () { draft.ttc = ttc.value; keep(); });
       var note = field(form, "param-note", "Basis", input("textarea", draft.note));
-      note.placeholder = "source or assumption";
+      note.placeholder = "source · required if calibrated";
       note.addEventListener("input", function () { draft.note = note.value; keep(); });
     }
     var actions = document.createElement("div");
@@ -500,7 +500,9 @@
       head.type = "button";
       head.className = "parameter-head";
       head.setAttribute("aria-expanded", String(openSlot === key));
-      head.title = slotHint(slot) + (p.note ? "\n" + p.note : "");
+      // A reason is only required of a calibrated value; its absence shows.
+      var reason = p.note ? p.note : p.status === "unknown" ? "" : "no reason given";
+      head.title = slotHint(slot) + (reason ? "\n" + reason : "");
       var name = document.createElement("span");
       name.className = "slot";
       name.textContent = slot;

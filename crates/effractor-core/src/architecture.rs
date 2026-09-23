@@ -316,7 +316,7 @@ impl Slot {
 }
 
 /// A duration and where it comes from. `Unknown` has no `ttc`; every other
-/// status has one and a nonempty `note` saying why.
+/// status has one. A `note` says why; `Calibrated` must name its source.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
     pub status: Evidence,

@@ -575,8 +575,13 @@ fn parameters_say_where_their_numbers_come_from() {
     image["flows"]["ssh"]["parameters"]["connect"] =
         serde_json::json!({"status": "calibrated", "ttc": "Pert(1, 2, 3)", "note": "measured"});
     let errors = errors_of(&image);
+    // An illustrative value may go without saying why; a calibrated one may not.
+    assert!(!has(
+        &errors,
+        "missing-key",
+        "entities.sshd.parameters.find-exploit.note"
+    ));
     for want in [
-        ("missing-key", "entities.sshd.parameters.find-exploit.note"),
         ("param-domain", "entities.sshd.parameters.login.ttc"),
         ("missing-key", "entities.sshd.parameters.deploy-exploit.ttc"),
         ("distribution-role", "flows.ssh.parameters.connect.ttc"),
@@ -601,6 +606,7 @@ fn parameters_say_where_their_numbers_come_from() {
     }
     // A blank note is no note.
     let mut image = self::image(LECTURE);
+    image["entities"]["sshd"]["parameters"]["login"]["status"] = serde_json::json!("calibrated");
     image["entities"]["sshd"]["parameters"]["login"]["note"] = serde_json::json!("  ");
     assert!(has(
         &errors_of(&image),

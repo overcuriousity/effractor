@@ -205,6 +205,11 @@ false for an architecture, until Task 6 wires it. What exists:
   of the host at that privilege is router admin, with no reverse rule. The
   addition stays in `core-components@1`: nothing an existing document says
   changes meaning, and graph ids are unchanged.
+- Owner decision (2026-09-23): only a `calibrated` parameter must carry a
+  nonempty `note`; an `illustrative` or `assumed` one may omit it, and the
+  inspector's tooltip then says "no reason given" (spec §5 updated).
+- Menus open beside what opened them at their measured size
+  (`effractorView.menuAt`); a submenu sits flush against its list.
 - A fresh reviewer found no correctness bug. Fixed from its report: the
   assumption list now also names the known blockers (denials, never-TTCs) in
   the target's region, so a structural zero shows its premise, and each entry

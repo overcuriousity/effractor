@@ -179,14 +179,14 @@ impl Cx<'_> {
                 }
             }
         }
-        if p.status != Evidence::Unknown && p.note.as_deref().is_none_or(|n| n.trim().is_empty()) {
+        // A calibration claim names its source; an assumed or illustrative
+        // value may say why, and a missing reason shows as one.
+        if p.status == Evidence::Calibrated && p.note.as_deref().is_none_or(|n| n.trim().is_empty())
+        {
             self.error(
                 Code::MissingKey,
                 format!("{path}.note"),
-                format!(
-                    "`{}` needs a nonempty `note` saying what the value rests on",
-                    p.status.as_str()
-                ),
+                "`calibrated` needs a nonempty `note` naming its source",
             );
         }
     }
