@@ -54,7 +54,19 @@
     return !isArchitecture(doc) || NEUTRAL.indexOf(action) >= 0;
   }
 
-  var api = { isArchitecture: isArchitecture, qualified: qualified, selectionExists: selectionExists, capabilities: capabilities, treeActionAllowed: treeActionAllowed };
+  // What the page calls the tree's root, its probability and its leaves: an
+  // attack tree is about the attacker's goal, a fault tree about its top event.
+  function words(doc) {
+    var attack = !!doc && doc.profile === "attack-tree";
+    return {
+      top: attack ? "goal" : "top event",
+      p: isArchitecture(doc) ? "P(target)" : attack ? "P(goal)" : "P(top)",
+      basic: attack ? "Step" : "Basic event",
+      undeveloped: attack ? "Undeveloped step" : "Undeveloped event",
+    };
+  }
+
+  var api = { words: words, isArchitecture: isArchitecture, qualified: qualified, selectionExists: selectionExists, capabilities: capabilities, treeActionAllowed: treeActionAllowed };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorProfiles = api;
 })();

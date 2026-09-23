@@ -78,9 +78,9 @@
     <button class="tool" type="button" data-action="addChild" disabled title="Add child (Tab)" aria-label="Add child"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>
     <button class="tool architecture-only" type="button" data-action="linkComponent" disabled title="Link (L)" aria-label="Link"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8"/></svg></button>
     <button class="tool tree-only" type="button" data-action="addSibling" disabled title="Add sibling (Enter)" aria-label="Add sibling"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3v10M10 5v6M7 8h6"/></svg></button>
-    <button class="tool tree-only" type="button" data-action="link" disabled title="Link existing node… (L)" aria-label="Link existing node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8"/></svg></button>
+    <button class="tool tree-only" type="button" data-action="link" disabled title="Reuse an existing node… (L)" aria-label="Reuse an existing node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8"/></svg></button>
     <button class="tool tree-only" type="button" data-action="move" disabled title="Move under… (M)" aria-label="Move under another node"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h7M7 5l3 3-3 3M13 3v10"/></svg></button>
-    <button class="tool tree-only" type="button" data-action="unlink" disabled title="Unlink from a parent… (Del)" aria-label="Unlink from a parent"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8M5.5 3v1.5M3 5.5h1.5M10.500 11.5V13M11.5 10.500H13"/></svg></button>
+    <button class="tool tree-only" type="button" data-action="unlink" disabled title="Remove from under one parent… (Del)" aria-label="Remove from under one parent"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 8L3.5 9.5a2.1 2.1 0 003 3L8 11M8 5l1.5-1.5a2.1 2.1 0 013 3L11 8M5.5 3v1.5M3 5.5h1.5M10.500 11.5V13M11.5 10.500H13"/></svg></button>
     <button class="tool" type="button" data-action="deleteNode" disabled title="Delete" aria-label="Delete"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.500h10M6.500 4.500V3h3v1.500M4.500 4.500l.6 8.500h5.800l.6-8.500M7 7v4M9 7v4"/></svg></button>
     <span class="rail-rule" aria-hidden="true"></span>
     <button class="tool" type="button" data-action="undo" disabled title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3L3 6l3 3M3 6h6a4 4 0 010 8H7"/></svg></button>
@@ -157,7 +157,7 @@
       <p class="empty" id="cutsets-more" hidden></p>
     </section>
     </div>
-    <div id="tab-ttc" role="tabpanel" aria-labelledby="tab-btn-ttc" hidden><section class="panel-section"><h2 class="label" id="ttc-title">Time to top event</h2><div id="ttc-chart"><p class="empty">Calculate to plot</p></div></section></div>
+    <div id="tab-ttc" role="tabpanel" aria-labelledby="tab-btn-ttc" hidden><section class="panel-section"><h2 class="label" id="ttc-title">Time</h2><div id="ttc-chart"><p class="empty">Calculate to plot</p></div></section></div>
     <div id="tab-loss" role="tabpanel" aria-labelledby="tab-btn-loss" hidden><section class="panel-section"><h2 class="label">Loss exceedance</h2><div id="loss-chart"><p class="empty">Calculate to plot</p></div></section></div>
     <div id="tab-pareto" role="tabpanel" aria-labelledby="tab-btn-pareto" hidden><section class="panel-section"><h2 class="label">Attack paths</h2><div id="pareto-view"><p class="empty">Calculate to compare paths</p></div></section></div>
     <div id="tab-controls" role="tabpanel" aria-labelledby="tab-btn-controls" hidden>
@@ -173,7 +173,7 @@
   </aside>
 
   <footer class="legend" aria-label="Legend">
-    <span class="legend-group tree-only"><button class="btn btn-ghost legend-measure" id="measure" type="button" title="Share of the top-event probability through this leaf — what to fix first · click to switch">Fussell-Vesely</button>
+    <span class="legend-group tree-only"><button class="btn btn-ghost legend-measure" id="measure" type="button" title="Share of the root's probability through this leaf — what to fix first · click to switch">Fussell-Vesely</button>
       <span class="swatch swatch-1"></span><span class="num">&lt;0.01</span>
       <span class="swatch swatch-2"></span><span class="num">&lt;0.05</span>
       <span class="swatch swatch-3"></span><span class="num">&lt;0.2</span>
@@ -215,8 +215,8 @@
   {% if sharing %}<div id="share-server-list"><h3 class="label">My shares</h3><p class="hint" id="shares-empty">No shares</p><ul id="my-shares"></ul></div>{% endif %}
   <button class="btn btn-ghost" id="share-close" type="button">Close</button>
 </dialog>
-<dialog class="link-dialog" id="link-dialog" aria-label="Link an existing node">
-  <input class="link-search" id="link-search" type="search" placeholder="Link an existing node…" aria-controls="link-results">
+<dialog class="link-dialog" id="link-dialog" aria-label="Reuse an existing node">
+  <input class="link-search" id="link-search" type="search" placeholder="Reuse which node under this one…" aria-controls="link-results">
   <ul class="link-results" id="link-results" role="listbox"></ul>
 </dialog>
 <dialog class="help-dialog" id="help-dialog" aria-labelledby="help-title">

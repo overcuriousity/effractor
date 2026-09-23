@@ -273,7 +273,7 @@
     });
     $("cutsets").hidden = state.ranked.length === 0;
     $("cutsets-empty").hidden = state.ranked.length > 0;
-    $("cutsets-empty").textContent = cuts ? "No cut sets: the top event cannot occur." : "Not available.";
+    $("cutsets-empty").textContent = cuts ? "No cut sets: the " + P.words(state.doc).top + " cannot occur." : "Not available.";
     $("cutsets-count").textContent = cuts ? cuts.total : "";
     var more = state.ranked.length - MAX_ROWS;
     $("cutsets-more").hidden = more <= 0;
@@ -456,7 +456,7 @@
     $("app").setAttribute("data-profile", doc.profile);
     $("model-name").textContent = doc.name;
     $("profile-chip").textContent = doc.profile;
-    $("hud-p-label").textContent = P.isArchitecture(doc) ? "P(target)" : "P(top)";
+    $("hud-p-label").textContent = P.words(doc).p;
     chip(P.capabilities(doc).solve ? analysisLabel(doc.analysis) : "not calculated");
     solvable();
     if (state.mode !== "attack") return showView() && draw(fit);

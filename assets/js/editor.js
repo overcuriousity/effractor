@@ -99,7 +99,7 @@
     // What a drop does, for those who do not drag.
     move: function () {
       if (!selected()) return;
-      if (!app.state.parent) return app.say("the top event cannot be moved");
+      if (!app.state.parent) return app.say("the " + P.words(doc()).top + " cannot be moved");
       openLinkDialog("move");
     },
     // The rail's two halves of Del, for those who want to say which.
@@ -125,7 +125,7 @@
     remove: function () {
       var ways = removals();
       if (!selected()) return;
-      if (!ways.length) return app.say("the top event cannot be removed");
+      if (!ways.length) return app.say("the " + P.words(doc()).top + " cannot be removed");
       if (ways.length === 1) return ways[0][2]();
       var chosen = ways.filter(function (w) { return w[1]; })[0];
       if (chosen) return chosen[2]();
@@ -163,11 +163,17 @@
     if (!r.shared) return [["Delete " + name + andBelow(r.below), "Del", del]];
     var ways = r.parents.map(function (parent) {
       var from = quoted(parent);
-      return ["Unlink from " + from, app.state.parentChosen && parent === app.state.parent ? "Del" : "", function () {
-        removeWith(E.removeEdge(doc(), parent, id), "unlinked " + name + " from " + from);
+      return ["Remove from under " + from, app.state.parentChosen && parent === app.state.parent ? "Del" : "", function () {
+        removeWith(E.removeEdge(doc(), parent, id), "removed " + name + " from under " + from);
       }];
     });
     return ways.concat([["Delete everywhere" + andBelow(r.below), "", del]]);
+  }
+
+  // A menu label is a word, or a function of the document for words the
+  // profile decides (a fault tree's event is an attack tree's step).
+  function said(item) {
+    return typeof item[1] === "function" ? item[1]() : item[1];
   }
 
   var MENU = [
@@ -176,11 +182,11 @@
     ["rename", "Rename", "F2", function () { return true; }],
     ["properties", "Edit properties", "P", function () { return true; }],
     ["cycleGate", "Cycle gate", "G", function (n) { return !!n.gate; }],
-    ["basic", "Basic event", "B", function (n) { return n.leaf === "undeveloped"; }],
-    ["undeveloped", "Undeveloped event", "U", function (n) { return n.leaf === "basic"; }],
-    ["link", "Link existing…", "L", function () { return true; }],
+    ["basic", function () { return P.words(doc()).basic; }, "B", function (n) { return n.leaf === "undeveloped"; }],
+    ["undeveloped", function () { return P.words(doc()).undeveloped; }, "U", function (n) { return n.leaf === "basic"; }],
+    ["link", "Reuse an existing node…", "L", function () { return true; }],
     ["move", "Move under…", "M", function () { return !!app.state.parent; }],
-    ["remove", "Delete, or unlink a shared node", "Del", function () { return !!app.state.parent; }],
+    ["remove", "Delete, or remove a reused node from under one parent", "Del", function () { return !!app.state.parent; }],
   ];
 
   // ---- keyboard ----
@@ -216,9 +222,9 @@
     ["click", "Select a node"],
     ["double-click", "Rename it"],
     ["right-click", "Menu of the node's actions — also on an asset, a control, the theme and the measure"],
-    ["click a line", "Select the child along that edge: Del unlinks exactly it"],
+    ["click a line", "Select the child along that edge: Del removes exactly it"],
     ["drag a node onto another", "Move it under that node"],
-    ["Ctrl + drag onto another", "Link it under that node as well"],
+    ["Ctrl + drag onto another", "Reuse it under that node as well"],
   ];
 
   var KEYS = { m: "move", p: "properties", Tab: "addChild", Enter: "addSibling", F2: "rename", g: "cycleGate", b: "basic", u: "undeveloped", l: "link", Delete: "remove", Backspace: "remove" };
@@ -487,7 +493,7 @@
     var items = MENU.filter(function (item) {
       return item[0] !== "remove" && item[3](node());
     }).map(function (item) {
-      return [item[1], item[2], actions[item[0]]];
+      return [said(item), item[2], actions[item[0]]];
     });
     showMenu(items.concat(removals()), x, y);
   }
@@ -573,7 +579,7 @@
     if (!selected()) return;
     linkMode = mode;
     $("link-search").value = "";
-    $("link-search").placeholder = mode === "move" ? "Move under which node…" : "Link an existing node…";
+    $("link-search").placeholder = mode === "move" ? "Move under which node…" : "Reuse which node under this one…";
     linkChoice = 0;
     renderLinkResults();
     $("link-dialog").showModal();
@@ -878,7 +884,7 @@
       });
       if (n.gate === "vote") numeric(field(form, "prop-k", "k of " + n.children.length, input("number", n.k)), "k");
     } else {
-      var kind = field(form, "prop-leaf", "Event", choice([["basic", "basic"], ["undeveloped", "undeveloped"]], n.leaf));
+      var kind = field(form, "prop-leaf", doc().profile === "attack-tree" ? "Step" : "Event", choice([["basic", "basic"], ["undeveloped", "undeveloped"]], n.leaf));
       kind.addEventListener("change", function () {
         apply(E.setLeafKind(doc(), id, kind.value));
       });
@@ -968,7 +974,7 @@
       var action = button.getAttribute("data-action");
       button.disabled = !allowed[action];
       if (action === "deleteNode") button.title = ways.length ? ways[ways.length - 1][0] + (ways.length === 1 ? " (Del)" : "") : "Delete";
-      if (action === "unlink") button.title = ways.length > 1 ? "Unlink from a parent… (Del)" : "Unlink — for a node with several parents";
+      if (action === "unlink") button.title = ways.length > 1 ? "Remove from under one parent… (Del)" : "Remove from a parent — for a node reused under several";
     });
   }
 
@@ -976,7 +982,7 @@
     var list = $("help-keys");
     list.replaceChildren();
     var own = arch() && window.effractorArchitectureUi ? window.effractorArchitectureUi.keys() : MENU.map(function (item) {
-      return [item[2], item[1]];
+      return [item[2], said(item)];
     }).concat(TREE_KEYS, TREE_POINTER);
     own
       .concat(COMMON_KEYS)

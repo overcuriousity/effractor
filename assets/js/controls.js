@@ -236,7 +236,7 @@
     $("controls-note").hidden = !(rows.length && solved);
     var baseline = $("controls-baseline");
     baseline.hidden = !(rows.length && solved);
-    if (solved) baseline.textContent = (solved.measure === "expected_loss" ? "Expected loss as written: " : "P(top) as written: ") + amount(solved.measure, solved.baseline, results.currency);
+    if (solved) baseline.textContent = (solved.measure === "expected_loss" ? "Expected loss as written: " : window.effractorProfiles.words(app.state.doc).p + " as written: ") + amount(solved.measure, solved.baseline, results.currency);
     var unavailable = results && results.controls && results.controls.unavailable;
 
     rows.forEach(function (row) {

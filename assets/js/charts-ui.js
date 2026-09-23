@@ -31,7 +31,7 @@
     // A generated graph's target: one sampled curve, its rows as the solver
     // gave them — [t, P, lower, upper] — and never an exact part.
     var graph = cdf && graphs.isGraphResults(result);
-    if (cdf) document.getElementById('ttc-title').textContent = graph || (app.state.doc && app.state.doc.profile === 'architecture') ? graphs.TITLE : 'Time to top event';
+    if (cdf) document.getElementById('ttc-title').textContent = graph || (app.state.doc && app.state.doc.profile === 'architecture') ? graphs.TITLE : 'Time to ' + window.effractorProfiles.words(app.state.doc).top;
     var model = graph ? graphs.cdf(result.baseline.outcome) : cdf ? data.cdf(result) : data.loss(result);
     // Known by structure it is a solid line with no band; sampled, dashed in its band.
     var structural = graph && model.method === 'structural';
@@ -43,7 +43,7 @@
     }
     var max = cdf ? result.horizon : rows[rows.length - 1][0];
     var unit = cdf ? result.time_unit : result.currency;
-    var title = graph ? 'P(target by time)' : cdf ? 'P(top ≤ time)' : 'P(loss ≥ amount)';
+    var title = graph ? 'P(target by time)' : cdf ? window.effractorProfiles.words(app.state.doc).p.replace(')', ' ≤ time)') : 'P(loss ≥ amount)';
     var plot = svg('svg', { viewBox: '0 0 360 244', class: 'analysis-chart', role: 'img', tabindex: '0', 'aria-label': title + ' · Left/Right: values' });
     plot.appendChild(svg('title', {}, title));
     [0, .25, .5, .75, 1].forEach(function (v) {

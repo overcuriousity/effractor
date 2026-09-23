@@ -7,8 +7,8 @@
 
   // Tooltips for the terms that need one.
   var HINTS = {
-    "Fussell-Vesely": "Share of the top-event probability through this leaf — what to fix first",
-    Birnbaum: "Change in P(top) per change in this leaf's probability — how critical its place is, however likely it is",
+    "Fussell-Vesely": "Share of the root's probability through this leaf — what to fix first",
+    Birnbaum: "Change in the root's probability per change in this leaf's probability — how critical its place is, however likely it is",
   };
 
   function bin(v) {

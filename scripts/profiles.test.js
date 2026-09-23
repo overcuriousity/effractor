@@ -48,3 +48,10 @@ test('tree actions are refused on an architecture; undo and redo are not tree ac
   assert.equal(P.treeActionAllowed(arch, 'undo'), true);
   assert.equal(P.treeActionAllowed(arch, 'redo'), true);
 });
+
+test('an attack tree says goal and step; a fault tree keeps top event', () => {
+  assert.deepEqual(P.words(attack), { top: 'goal', p: 'P(goal)', basic: 'Step', undeveloped: 'Undeveloped step' });
+  assert.deepEqual(P.words(tree), { top: 'top event', p: 'P(top)', basic: 'Basic event', undeveloped: 'Undeveloped event' });
+  assert.equal(P.words({ profile: 'architecture' }).p, 'P(target)');
+  assert.equal(P.words(null).top, 'top event');
+});
