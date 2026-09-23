@@ -60,6 +60,12 @@ test('each source field leads to the place in the architecture that sets it', ()
   assert.deepEqual(at('entities.server-key.parameters.extract'), { select: 'entity/server-key', slot: 'extract', path: 'entities.server-key.parameters.extract' });
   // A flow's connect.
   assert.deepEqual(at('flows.ssh.parameters.connect'), { select: 'flow/ssh', slot: 'connect', path: 'flows.ssh.parameters.connect' });
+  // An unfinished route: the flow, at its next hop; a component or flow as a whole.
+  assert.deepEqual(at('flows.ssh.route'), { select: 'flow/ssh', field: 'route', path: 'flows.ssh.route' });
+  assert.deepEqual(at('flows.ssh.route[1]'), { select: 'flow/ssh', field: 'route', path: 'flows.ssh.route[1]' });
+  assert.deepEqual(at('flows.ssh.source'), { select: 'flow/ssh', path: 'flows.ssh.source' });
+  assert.deepEqual(at('entities.sshd'), { select: 'entity/sshd', path: 'entities.sshd' });
+  assert.deepEqual(at('entities.gone'), { source: 'entities.gone', path: 'entities.gone' });
   // A permission: the firewall's relationship to the flow.
   assert.deepEqual(at('associations.allow-ssh.allowed'), { select: 'association/allow-ssh', field: 'allowed', path: 'associations.allow-ssh.allowed' });
   // The foothold is set on its component.

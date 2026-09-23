@@ -5,6 +5,35 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — unfinished flows and plain problems (2026-09-24)
+
+The owner could not get an attack graph from a model that used the removed
+time names and had three half-drawn routes, and asked for clearer messages
+and for unknowns not to block. One PR, `feature/unfinished-flows`:
+
+- **`unfinished` (new code) no longer blocks generation.** A route that is
+  empty, ends at a router, has not reached the target's network, or crosses a
+  router with no firewall or permission for the flow is `unfinished`, not
+  `incomplete`. The flow's connect step binds `Binding::Unfinished {flow,
+  missing}`; `resolve` makes it Unknown with those route paths (plus the
+  connect slot if that is unknown too). It keeps the permissions of routers
+  already on the route. Complete models generate exactly as before; no
+  fingerprint moved. `incomplete` (hosting, filters, target, foothold) and
+  errors still block. Spec §4 of the lecture design says so.
+- **`problems.js` (pure):** `blocks`, `named` (quoted ids → canvas labels),
+  `hint` (next hops via `architecture-links.nearHops`, where a permission or
+  firewall goes, where a target/foothold/host is set), `items`, `headline`.
+  `attack-view.sourceTarget` now also leads a route path to its flow's
+  route + (`focusField("route")`) and a bare `entities.x` / `flows.x` to it.
+- **The page:** a refused graph stores `state.blockers`; the note and the
+  chip say "no attack graph · n things to finish"; *Attack graph* (or G) and
+  the chip then open a menu of them, each with its hint, choosing one goes
+  where it is set. The inspector's problems use labels, show the hint, and
+  mark what blocks (■). The source list marks blocking warnings. A file that
+  does not read now opens in the source view with every problem listed
+  (`app.showSourceText`), the canvas keeping its document; before, only the
+  first problem was said and the file was dropped.
+
 ## Continuation — readable time notation (2026-09-24)
 
 Spec: [readable time notation](superpowers/specs/2026-09-23-readable-time-notation-design.md);

@@ -52,6 +52,7 @@ mod tests {
             "vocabulary.js",
             "architecture-edit.js",
             "architecture-links.js",
+            "problems.js",
             "architecture-view.js",
             "attack-view.js",
             "graph-results.js",
@@ -63,6 +64,7 @@ mod tests {
         assert!(at("architecture-icons.js") < at("renderer-svg.js"));
         assert!(at("edit.js") < at("architecture-edit.js"));
         assert!(at("edit.js") < at("architecture-links.js"));
+        assert!(at("architecture-links.js") < at("problems.js"));
         assert!(at("menu.js") < at("architecture-ui.js"));
         assert!(at("editor.js") < at("architecture-ui.js"));
         assert!(at("architecture-ui.js") < at("architecture-links-ui.js"));

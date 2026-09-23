@@ -89,6 +89,15 @@
     if ((m = /^flows\.([^.[\]]+)\.parameters\.([^.[\]]+)$/.exec(path))) {
       return has(doc.flows, m[1]) ? { select: "flow/" + m[1], slot: m[2], path: path } : source;
     }
+    // A route still being drawn: the flow, at its next hop.
+    if ((m = /^flows\.([^.[\]]+)\.route(?:\[\d+\])?$/.exec(path))) {
+      return has(doc.flows, m[1]) ? { select: "flow/" + m[1], field: "route", path: path } : source;
+    }
+    // A component or flow as a whole, or one of its ends.
+    if ((m = /^(entities|flows)\.([^.[\]]+)(?:\.(?:source|target))?$/.exec(path))) {
+      var kind = m[1] === "entities" ? "entity" : "flow";
+      return has(doc[m[1]], m[2]) ? { select: kind + "/" + m[2], path: path } : source;
+    }
     if ((m = /^associations\.([^.[\]]+)(?:\.([^.[\]]+))?$/.exec(path))) {
       if (!has(doc.associations, m[1])) return source;
       return m[2] ? { select: "association/" + m[1], field: m[2], path: path } : { select: "association/" + m[1], path: path };

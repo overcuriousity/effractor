@@ -84,6 +84,9 @@
 .parameter-form .actions { grid-column: 1 / -1; display: flex; gap: 6px; }
 .diagnostics { grid-column: 1 / -1; margin: 0; padding: 0; list-style: none; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .diagnostics li::before { content: "· "; }
+.diagnostics li.is-blocking { color: var(--color-fg); }
+.diagnostics li.is-blocking::before { content: "■ "; color: var(--color-warning, #b26a00); }
+.diagnostic-hint { display: block; padding-left: 1ch; color: var(--color-accent); }
 
 /* Relationship lines carry a few words: the relation, a flow's name — and an
    arrowhead; a component is moved by dragging it. */
@@ -175,3 +178,6 @@
 }
 body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .node-component.hl-pin-drop .halo { stroke: var(--color-accent); stroke-width: 3; stroke-dasharray: none; }
+/* No attack graph yet: the button and the chip open what to finish. */
+.view-switch #view-attack.is-blocked { text-decoration: underline dotted var(--color-warning); text-underline-offset: 3px; }
+.topbar > .chip.is-blocked { color: var(--color-warning); border-color: var(--color-warning); cursor: pointer; }

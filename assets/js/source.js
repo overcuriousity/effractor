@@ -86,6 +86,7 @@
   if (typeof document === "undefined") return;
 
   var app = window.effractor;
+  var blocksGraph = window.effractorProblems.blocks;
   var PAUSE_MS = 400;
   var $ = function (id) {
     return document.getElementById(id);
@@ -120,6 +121,11 @@
       var li = document.createElement("li");
       li.textContent = problemText(d);
       li.className = "problem-" + d.severity;
+      // A warning that still keeps the attack graph from being built.
+      if (d.severity !== "error" && blocksGraph(d)) {
+        li.classList.add("problem-blocking");
+        li.title = "blocks the attack graph";
+      }
       if (d.line) {
         li.tabIndex = 0;
         var go = function () {
@@ -158,6 +164,24 @@
       });
     }, PAUSE_MS);
   });
+
+  // A text that did not open, to be put right here: in the source view with
+  // its problems, the canvas on the document it had until the text parses.
+  app.showSourceText = function (text, list) {
+    if ($("view-source").hidden) show(true);
+    clearTimeout(timer);
+    timer = null;
+    area.value = text;
+    app.markSourceDirty();
+    problems(list);
+    var first = list.filter(function (d) {
+      return d.line;
+    })[0];
+    if (!first) return;
+    var range = lineRange(text, first.line);
+    area.focus();
+    area.setSelectionRange(range[0], range[1]);
+  };
 
   // Straight to where a path of the document is written: opens the source
   // view and selects that line.

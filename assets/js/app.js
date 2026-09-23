@@ -68,10 +68,11 @@
   // `mode` is the architecture's view: "architecture" or "attack", its
   // generated graph. `generated`: {graph, support, revision} of the text on
   // the page, or null. `sourceValid`: the source view's text is the document's.
-  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastSampledMs: null, revision: gate.current(), sourceValid: true, mode: "architecture", generated: null, diagnostics: [], documents: 0 };
+  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastSampledMs: null, revision: gate.current(), sourceValid: true, mode: "architecture", generated: null, blockers: null, diagnostics: [], documents: 0 };
   var view = window.effractorResults;
   var AV = window.effractorAttackView;
   var GR = window.effractorGraphResults;
+  var PR = window.effractorProblems;
   var MAX_ROWS = 200; // a table is for reading; ten thousand rows are not read
 
   var renderer = window.effractorRenderer.createSvgRenderer(document);
@@ -510,10 +511,12 @@
     return solver.generate(text, revision).then(function (answer) {
       if (!gate.accept(token) || state.text !== text) return { stale: true };
       if (!answer.ok) {
-        say("no attack graph · " + describe(answer.diagnostics[0]));
+        refused(answer.diagnostics);
+        say(PR.headline(answer.diagnostics) || "no attack graph · " + describe(answer.diagnostics[0]));
         return { ok: false };
       }
       if (answer.ok.revision !== revision || answer.ok.source !== text) return { stale: true };
+      state.blockers = null;
       state.generated = { graph: answer.ok.graph, support: answer.ok.support, revision: revision };
       return { ok: true };
     }, function (e) {
@@ -521,6 +524,12 @@
       say("the calculation crashed and was restarted");
       return { ok: false };
     });
+  }
+
+  // What stops the attack graph of the text on the page, as the module said
+  // it: attack-ui.js lists it where the graph was asked for.
+  function refused(diagnostics) {
+    state.blockers = (diagnostics || []).filter(PR.blocks);
   }
 
   // Architecture or attack graph. The attack graph is generated if the page
@@ -872,10 +881,17 @@
           if (!full && arch) return chip("not sampled · Ctrl+Enter samples");
           return;
         }
-        if (!outcome.result.ok) return chip((arch ? "not calculated · " : "") + describe(outcome.result.diagnostics[0]));
+        if (!outcome.result.ok) {
+          var problems = outcome.result.diagnostics;
+          if (!arch) return chip(describe(problems[0]));
+          refused(problems);
+          notify();
+          return chip(PR.headline(problems) || "not calculated · " + describe(problems[0]));
+        }
         // An architecture's answer names the text and revision it is about.
         var answer = outcome.result.ok;
         if (arch && (answer.revision !== revision || answer.source !== text)) return;
+        if (arch) state.blockers = null;
         state.lastSampledMs = performance.now() - started;
         if (arch) showGraph(answer.result);
         else showAll(answer);
@@ -934,7 +950,7 @@
   function replaceDocument(text, said, isCurrent) {
     return solver.parse(text).then(function (parsed) {
       if (isCurrent && !isCurrent()) return false;
-      if (!parsed.ok) return say("not opened: " + describe(parsed.diagnostics[0]));
+      if (!parsed.ok) return notOpened(text, parsed.diagnostics);
       // In canonical form, as every other text the page holds.
       return solver.serialize(parsed.ok).then(function (written) {
         if (isCurrent && !isCurrent()) return false;
@@ -956,6 +972,19 @@
       console.error(e);
       say("not opened: " + e.message);
     });
+  }
+
+  // A text that does not read as a document still opens — in the source
+  // view, with every problem listed there, so it can be put right; the
+  // canvas keeps the document it had.
+  function notOpened(text, diagnostics) {
+    var errors = diagnostics.filter(function (d) {
+      return d.severity === "error";
+    }).length;
+    if (!window.effractor.showSourceText) return say("not opened: " + describe(diagnostics[0]));
+    window.effractor.showSourceText(text, diagnostics);
+    say("not opened · " + errors + (errors === 1 ? " problem" : " problems") + " · listed under the source");
+    return false;
   }
 
   function saveFile() {

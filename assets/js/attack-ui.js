@@ -53,14 +53,37 @@
   // ---- the two views ----
 
   function toggle() {
-    return app.setMode(attack() ? "architecture" : "attack");
+    return attack() ? app.setMode("architecture") : showAttack();
+  }
+  // The attack graph, or — when the architecture cannot have one yet — the
+  // list of what to finish first, under the button that asked.
+  function showAttack() {
+    return app.setMode("attack").then(function (shown) {
+      if (!shown) offerBlockers($("view-attack"));
+      return shown;
+    });
   }
   $("view-architecture").addEventListener("click", function () {
     app.setMode("architecture");
   });
-  $("view-attack").addEventListener("click", function () {
-    app.setMode("attack");
+  $("view-attack").addEventListener("click", showAttack);
+  $("analysis-chip").addEventListener("click", function () {
+    offerBlockers($("analysis-chip"));
   });
+
+  // Each thing that stops the attack graph, in plain words, with what to do
+  // next where that is known; choosing one goes to where it is set.
+  function offerBlockers(anchor) {
+    var blockers = app.state.blockers;
+    if (!arch() || generated() || !blockers || !blockers.length) return;
+    var items = window.effractorProblems.items(doc(), blockers).map(function (p) {
+      return [p.text, null, function () {
+        follow(p.path);
+      }, p.hint ? { hint: p.hint } : undefined];
+    });
+    items.unshift([window.effractorProblems.headline(blockers), null, null]);
+    app.showMenu(items, 0, 0, anchor.getBoundingClientRect());
+  }
 
   // A step, selected in the attack view.
   function showStep(id) {
@@ -439,7 +462,11 @@
     var on = attack();
     $("view-architecture").setAttribute("aria-pressed", String(!on));
     $("view-attack").setAttribute("aria-pressed", String(on));
-    $("view-attack").title = generated() ? "Attack graph (G)" : "Build the attack graph (G)";
+    var blocked = arch() && !generated() && app.state.blockers && app.state.blockers.length;
+    $("view-attack").title = generated() ? "Attack graph (G)" : blocked ? window.effractorProblems.headline(app.state.blockers) + " (G)" : "Build the attack graph (G)";
+    $("view-attack").classList.toggle("is-blocked", !!blocked);
+    $("analysis-chip").classList.toggle("is-blocked", !!blocked);
+    $("analysis-chip").title = blocked ? "what to finish" : "";
     var count = app.state.stepCount;
     $("attack-count").textContent = !count ? "" : count.shown === count.total ? count.total + " steps" : count.shown + " of " + count.total + " steps shown";
     if (!arch()) {

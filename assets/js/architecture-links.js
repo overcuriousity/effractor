@@ -485,6 +485,16 @@
   // and after every router, a router after every network; those attached to
   // where the route stands come first. Nothing is added by itself.
   function nextHops(doc, flow) {
+    var hops = hopChoices(doc, flow);
+    return hops.near.concat(hops.far);
+  }
+
+  // Only the hops attached to where the route stands: what fits next.
+  function nearHops(doc, flow) {
+    return hopChoices(doc, flow).near;
+  }
+
+  function hopChoices(doc, flow) {
     var route = flow.route || [];
     var want = route.length % 2 === 0 ? "network" : "router";
     var last = route[route.length - 1];
@@ -496,9 +506,12 @@
     var open = Object.keys(doc.entities).filter(function (id) {
       return kindOf(doc, id) === want && route.indexOf(id) < 0;
     });
-    return open.filter(near).concat(open.filter(function (id) {
-      return !near(id);
-    }));
+    return {
+      near: open.filter(near),
+      far: open.filter(function (id) {
+        return !near(id);
+      }),
+    };
   }
 
   // For each router on the flow's route: its firewall and that firewall's
@@ -598,7 +611,7 @@
     return want === "router" ? "no router yet · add one with A, then connect it to both networks" : "no network yet · add one with A";
   }
 
-  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, renameId: renameId, remove: remove };
+  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, renameId: renameId, remove: remove };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
 })();

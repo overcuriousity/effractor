@@ -79,7 +79,13 @@ function racePage(kept = 'original') {
     : { name: text, profile: 'fault-tree', nodes: { top: { label: 'Top', leaf: 'basic' } }, analysis: { seed: 1, samples: 10 } };
   const later = (what, value) => new Promise(resolve => held.push({ what, release: () => resolve(value) }));
   const solver = {
-    parse(text) { const answer = { ok: docOf(text), diagnostics: [] }; return slow.has(text) ? later('parse ' + text, answer) : Promise.resolve(answer); },
+    parse(text) {
+      // "old": a file whose times use removed names — two errors, no document.
+      const answer = text.startsWith('old')
+        ? { diagnostics: [{ severity: 'error', code: 'expression', message: 'write Never instead of Infinity', path: 'a', line: 3 }, { severity: 'error', code: 'expression', message: 'write Immediate instead of Zero', path: 'b', line: 9 }] }
+        : { ok: docOf(text), diagnostics: [] };
+      return slow.has(text) ? later('parse ' + text, answer) : Promise.resolve(answer);
+    },
     async serialize(value) { return { ok: value.name }; },
     solve(text, on, options) { return new Promise(resolve => runs.push({ text, on, options, resolve })); },
     cancel() {},
@@ -92,7 +98,7 @@ function racePage(kept = 'original') {
       for (let i = 0; text.includes('big') && i < 600; i++) nodes.push({ id: 'state/x/n' + i + '/s', label: 'Step ' + i, kind: 'any', inputs: [i ? 'state/x/n' + (i - 1) + '/s' : 'input/foothold/web/user'], origins: [{ rule: 'r', version: 1, entities: ['e' + i], associations: [], flows: [], paths: [], assumptions: [] }], timing: { status: 'logical', expression: null, note: null, paths: [], missing: [] } });
       if (!text.includes('gone')) nodes.push({ id: 'state/service/web/control', label: 'Web · control', kind: 'any', inputs: ['input/foothold/web/user'], origins: [{ rule: 'r', version: 1, entities: ['web'], associations: [], flows: [], paths: [], assumptions: [] }], timing: { status: 'logical', expression: null, note: null, paths: [], missing: [] } });
       const answer = text.includes('broken')
-        ? { diagnostics: [{ message: 'no target', path: 'attacker' }] }
+        ? { diagnostics: [{ severity: 'warning', code: 'incomplete', message: 'no target yet', path: 'attacker.target' }] }
         : { ok: { revision, source: text, graph: { target: nodes[nodes.length - 1].id, nodes }, support: { nodes: nodes.map(n => ({ id: n.id, status: 'possible', missing: [] })), target_support: [] } }, diagnostics: [] };
       return holdGenerate ? later('generate ' + text, answer) : Promise.resolve(answer);
     },
@@ -113,6 +119,7 @@ function racePage(kept = 'original') {
     effractorArchitectureView: { describe: doc => ({ name: doc.name }), route: () => [] },
     effractorAttackView: require('../assets/js/attack-view.js'),
     effractorGraphResults: require('../assets/js/graph-results.js'),
+    effractorProblems: require('../assets/js/problems.js'),
     // Positions pass the layout through: these tests follow which layout is drawn.
     effractorPositions: { createStore: () => ({ load: () => ({}), move() {}, clear() {} }), place: laid => laid },
     effractorEdit: require('../assets/js/edit.js'),
@@ -234,8 +241,20 @@ test('the attack graph is generated on request, follows every edit, and a step t
   // A text with no attack graph: the view stays the architecture, and says why.
   await h.app.applyEdit({ doc: h.docOf('arch-broken') });
   assert.equal(await h.app.setMode('attack'), false);
-  assert.match(h.nodes.get('note').textContent, /no attack graph · no target/);
+  assert.equal(h.nodes.get('note').textContent, 'no attack graph · 1 thing to finish');
+  assert.deepEqual(h.app.state.blockers.map(d => d.path), ['attacker.target']);
   assert.equal(h.attr('data-view'), 'architecture');
+});
+
+test('a file that does not read opens in the source view with every problem, the document kept', async () => {
+  const h = racePage('arch');
+  await h.app.ready;
+  const shown = [];
+  h.app.showSourceText = (text, list) => shown.push({ text, lines: list.map(d => d.line) });
+  assert.equal(await h.app.replaceDocument('old.yaml', 'opened old.yaml'), false);
+  assert.deepEqual(shown, [{ text: 'old.yaml', lines: [3, 9] }]);
+  assert.equal(h.nodes.get('note').textContent, 'not opened · 2 problems · listed under the source');
+  assert.equal(h.app.state.text, 'arch');
 });
 
 test('a generation that arrives after an edit or undo is not the graph on the page', async () => {

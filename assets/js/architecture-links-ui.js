@@ -401,6 +401,7 @@
         }];
       }), where.x, where.y, where.box);
     }, "btn btn-ghost btn-small link-add");
+    add.id = "prop-route-add";
     route.appendChild(add);
     if ((f.route || []).length) {
       route.appendChild(button("−", "Remove the last hop", function () {

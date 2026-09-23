@@ -552,9 +552,19 @@
     if (!here.length) return;
     var list = document.createElement("ul");
     list.className = "diagnostics";
-    here.forEach(function (d) {
+    window.effractorProblems.items(doc(), here).forEach(function (p) {
       var item = document.createElement("li");
-      item.textContent = d.message;
+      item.textContent = p.text;
+      if (p.blocks) {
+        item.className = "is-blocking";
+        item.title = "blocks the attack graph";
+      }
+      if (p.hint) {
+        var hint = document.createElement("span");
+        hint.className = "diagnostic-hint";
+        hint.textContent = p.hint;
+        item.appendChild(hint);
+      }
       list.appendChild(item);
     });
     form.appendChild(list);
@@ -689,7 +699,7 @@
     },
     // A control of the selected item's form, by what it sets.
     focusField: function (field) {
-      var control = $({ defense: "prop-defense", foothold: "prop-foothold", target: "prop-target", allowed: "prop-allowed", privilege: "prop-privilege" }[field] || "");
+      var control = $({ defense: "prop-defense", foothold: "prop-foothold", target: "prop-target", allowed: "prop-allowed", privilege: "prop-privilege", route: "prop-route-add" }[field] || "");
       if (control) control.focus();
     },
     // For architecture-links-ui.js: the same edit queue, form parts and hooks.
