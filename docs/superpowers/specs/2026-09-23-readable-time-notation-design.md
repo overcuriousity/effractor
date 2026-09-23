@@ -13,8 +13,8 @@ every example, in the course files and in the YAML source panel, so the app
 cannot hide it by translating it on screen alone.
 
 This change gives effractor's files their own spelling of exactly those two
-things. Everything else stays: the other distributions, their parameters, the
-solver and every result.
+things. Everything else stays: the other distributions, their parameters and
+the solver's arithmetic.
 
 ## 2. The notation
 
@@ -43,16 +43,20 @@ solver and every result.
 
 ## 3. Where it lives
 
-* **Internal model unchanged.** `effractor_core::Distribution` keeps
-  `Bernoulli(p)`, `Exponential(rate)` and `Product`. `mean m` is read as
-  `rate = 1/m`. For the values in use (1, 10, 100, 12.5 …) this is the same
-  f64 as today's written rate. The solver, its sampling and every frozen
-  fingerprint are untouched. CI proves it, because the fingerprints build their
-  distributions directly and must not move.
-* **Round trip.** The canonical writer prints the shortest decimal `m` for
-  which `1/m` gives back the stored rate exactly, and the shortest `c` for
-  which `c/100` gives back the stored probability. So `mean 12.5` saves as
-  `mean 12.5` and never as `12.499999999999998`.
+* **One new model form.** `effractor_core::Distribution` gains
+  `ExponentialMean(m)`: the average time exactly as written. It is what an
+  effractor file produces. `Exponential(rate)` stays for a fault-tree leaf's
+  `rate:`, the MAL import and the solver's internal draws. The solver samples
+  `ExponentialMean(m)` with the rate `1/m`, the same bits as
+  `Exponential(1/m)`: wherever `1/m` is the rate written today, results are
+  identical. The frozen fingerprints construct `Exponential(rate)` directly and
+  do not move (amended 2026-09-23, owner's choice: a rate-only model cannot
+  write about 14% of rates back exactly, e.g. `3e-5`).
+* **Round trip.** `mean m` is stored as written and written back with the
+  document's number format, so it always reads back identically. A chance is
+  read by moving the decimal point of its text two places (`33.3%` is the
+  number `0.333`) and written as the probability's shortest decimal with the
+  point moved back, which is also exact for every value.
 * **Own parser.** The effractor spelling gets a small hand-written parser and
   writer in `effractor-format`: pure, no recursion on input, and diagnostics at
   the character as today. `effractor-mal` keeps MAL's spelling for the future
@@ -60,7 +64,9 @@ solver and every result.
   document reader, the canonical writer and the wasm `ttc_sketch` use the
   format's parser.
 * `Distribution::Named` is no longer produced by the format. It remains
-  available to the MAL import, and the writer writes its expansion.
+  available to the MAL import, and the writer writes its expansion. An
+  `Exponential(rate)` reaching the writer (only from the import) is written as
+  `mean` 1/rate, the import's translation.
 
 ## 4. The page
 
@@ -70,15 +76,20 @@ solver and every result.
   picker. The presets become choices that fill both fields. The field under
   them shows the written expression, which is now readable itself.
 * A fault-tree leaf's `p`/`rate` are shown as `30%` / `Exponential(mean 10)`
-  wherever the page shows them as an expression today. The fields `p:` and
+  (the mean rounded to 3 significant digits for display) wherever the page
+  shows them as an expression today. The fields `p:` and
   `rate:` themselves are unchanged: reliability engineers use failure rates.
 * Wherever a TTC is displayed (step inspector, assumptions table, tree
   properties, tooltips), it is the expression as written.
 
 ## 5. Content
 
-A one-off script rewrites the 16 examples, the templates and the course files
-through the old parser and the new writer. No example's results change.
+A one-off script rewrites the 16 examples, the templates, the course files and
+the test fixtures through the old parser and the new writer. A rate whose
+average time has no short decimal (`0.03` → 33.333…) is rounded to a tidy one
+(`33.3`); only the examples containing such rates get slightly different
+results, and they have no frozen results. Every other value keeps its results
+bit for bit.
 The previous notation is removed from the v1 specification's distribution
 section, the lecture specification, README and HANDOFF.
 
@@ -87,11 +98,12 @@ section, the lecture specification, README and HANDOFF.
 * Parser/writer: every form in §2 round-trips; each MAL spelling is refused
   with the replacement named; errors carry the right column; `mean`, `%` and
   domain errors (101%, -5%, `mean 0`) are diagnosed; 0% and 100% are valid.
-* The shortest-decimal writer, on a spread of rates and probabilities,
-  including ones with no short decimal (1/3).
-* All examples: parsed with the old grammar before the rewrite and with the new
-  one after, they give identical `Distribution` values. The solver snapshots do
-  not change.
+* The chance writer, on a spread of probabilities including ones with no short
+  decimal (1/3), and `mean` on values such as 1/3 and 1e-12.
+* The rewrite: each old expression and its replacement sample identically
+  (the same draws from the same seed), except the tidied averages, which the
+  script lists. Frozen fingerprints do not move; result JSON changes only in
+  the expression text it quotes.
 * JS: the timing form's two fields ↔ expression, as pure functions under
   `node --test`; the page itself by the owner's look.
 
