@@ -343,7 +343,7 @@ test('each way to link reads as a few words from the selected component', () => 
   assert.equal(said('grants', 'out', 'user'), 'grants it user');
   assert.equal(said('attached', 'out'), 'connected to');
   assert.equal(said('attached', 'in'), 'connected here');
-  assert.equal(said('administration', 'in'), 'manages this');
+  assert.equal(said('administration', 'in'), 'managed from there');
   assert.equal(said('administration', 'out'), 'managed from here');
   assert.equal(said('stores', 'out', 'user'), 'kept here, user-readable');
   assert.equal(said('stores', 'out', 'admin'), 'kept here, admin-only');

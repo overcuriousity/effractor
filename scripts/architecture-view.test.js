@@ -67,6 +67,14 @@ test('associations between components and flows are the edges; permits and dangl
   assert.equal(g.nodes.find(n => n.id === 'entity/sshd').parents, 2);
 });
 
+test('an administration link is drawn from the managed machine to where it is managed from', () => {
+  const doc = lecture();
+  doc.entities.mgmt = { kind: 'network', label: 'Mgmt' };
+  doc.associations.m1 = { kind: 'administration', from: 'mgmt', to: 'srv' };
+  const edge = V.describe(doc).edges.find(e => e.id === 'association/m1');
+  assert.deepEqual(edge, { id: 'association/m1', from: 'entity/srv', to: 'entity/mgmt', kind: 'administration', label: 'managed from' });
+});
+
 test('ids that are object keys elsewhere are just ids', () => {
   const doc = { profile: 'architecture', entities: Object.create(null), associations: {}, flows: {}, attacker: { footholds: [] } };
   doc.entities.constructor = { kind: 'host', label: 'C' };

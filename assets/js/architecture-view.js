@@ -39,7 +39,11 @@
     }
     Object.keys(doc.associations || {}).forEach(function (id) {
       var a = doc.associations[id];
-      if (a.kind !== "permits") edge("association/" + id, a.from, a.to, a.kind, a.privilege ? a.kind + " · " + a.privilege : a.kind);
+      if (a.kind === "permits") return;
+      // The file names the network first; the line runs from the machine to
+      // the network it is managed from, so it cannot read "network manages".
+      if (a.kind === "administration") return edge("association/" + id, a.to, a.from, a.kind, "managed from");
+      edge("association/" + id, a.from, a.to, a.kind, a.privilege ? a.kind + " · " + a.privilege : a.kind);
     });
     Object.keys(doc.flows || {}).forEach(function (id) {
       var f = doc.flows[id];

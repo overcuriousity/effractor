@@ -341,7 +341,7 @@
     authenticates: { out: "unlocks", in: "unlocks this" },
     authorizes: { out: "accepts this account", in: "may log in" },
     grants: { out: "grants it", in: "has rights here" },
-    administration: { out: "managed from here", in: "manages this" },
+    administration: { out: "managed from here", in: "managed from there" },
     flow: { out: "flow to it", in: "flow from it" },
   };
   function phrase(relation, direction, privilege) {
