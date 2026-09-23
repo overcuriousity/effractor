@@ -85,7 +85,7 @@ identity, role assumption, people (phishing) and AI agents (injection), data
 with holding, account access and encryption. Next: an implementation plan and
 the spec's five branch-sized parts. Done when every addition is generated,
 solved and inspectable, its rules and assumptions are in the catalog, the
-`cloud-agent` course example runs natively and in wasm alike, and the owner
+cloud support agent example runs natively and in wasm alike, and the owner
 accepts it in the browser.
 
 ### defense-comparison — Inspect defense changes and remaining alternatives

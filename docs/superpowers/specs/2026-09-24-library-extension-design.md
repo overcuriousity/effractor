@@ -50,7 +50,8 @@ hypervisor process or a rootless container is `user`, a privileged container
   is now that timed step.
 
 The `escape` slot exists on every host and router and is materialised by
-canonical saves; it matters only where a hosting association exists.
+canonical saves; it matters only where a hosting association exists. The
+inspector shows it only on a hosted host or router.
 No switch: hardening an escape is an edit of its duration.
 
 ### 2.2 Products
@@ -97,16 +98,19 @@ An account gets these facts:
 
 Accounts gain the switch `defenses.mfa: true|false|unknown` and the slot
 `mfa-bypass` (push fatigue, adversary-in-the-middle proxies, SIM swap — the
-note says which). Credentials gain `second-factor: true|false` (a hardware
-key, an authenticator seed, a stolen session cookie); canonical saves write it,
-absent reads as `false`. A second-factor credential authenticates its account
-only as a second factor: it does not produce `material`.
+note says which). `authenticates` gains `factor: first|second`: how this
+credential proves this account (a password is `first`; a hardware key, an
+authenticator seed or a stolen session cookie `second`). Absent reads as
+`first` and canonical saves omit it; only `factor: second` is written. It sits
+on the association, not the credential, because one secret can be a first
+factor for one account and a second for another. A second factor does not
+produce `material`.
 
 * `mfa-policy` (logical): input `input/policy/<account>/mfa`, satisfied when
   `mfa` is `false`, unsatisfied when `true`, an unknown branch when `unknown` →
   `mfa-satisfied`.
-* `mfa-second-factor` (logical): possession of any second-factor credential
-  that authenticates the account → `mfa-satisfied`.
+* `mfa-second-factor` (logical): possession of a credential that
+  authenticates the account with `factor: second` → `mfa-satisfied`.
 * `mfa-bypass` (timed, one per account): `material` → `mfa-satisfied`. Slot
   `mfa-bypass` on the account.
 * `account-authenticated` (logical): `material` and `mfa-satisfied` →
@@ -117,7 +121,8 @@ This replaces §4's "multi-factor authentication is outside this library".
 ### 3.3 Workload identity
 
 New association `runs-as: host | application | service | agent → account`,
-with `privilege: user|admin` required when the source is a host. A workload
+with a required `privilege: user|admin`: for a host, the privilege needed to
+use the identity; software uses it as `user` (as `stores` does). A workload
 may run as several accounts.
 
 * `workload-identity` (logical): the source's control (`control`, or the host's
@@ -197,8 +202,9 @@ the scenario's target.
 
 ### 4.2 Holding
 
-New association `holds: host | application | service | agent → data`, with
-`privilege: user|admin` required from a host and `decrypts: true|false`
+New association `holds: host | application | service | agent → data`, with a
+required `privilege: user|admin` (software holds as `user`, as `stores` does)
+and `decrypts: true|false`
 required always (does this holder see plaintext? a database service does, the
 disk beneath it does not). A missing `decrypts` is `incomplete`, never a
 permissive default.
@@ -254,9 +260,11 @@ switch are errors, as today.
   with its word, meaning, title and assumptions (`states[].word`,
   `entities[].meaning`, `rules[].title`, `parameters[].name`), so the page
   shows no library id.
-* The Add menu is hierarchical, grouped: Networks (network, router, firewall),
-  Machines (host), Software (application, service, agent, product), Identity
-  (account, credential, person), Data (data).
+* The Add menu is hierarchical, grouped by the families the canvas colours:
+  Network (network, router, firewall), Compute (host, application, service,
+  agent, product), Identity (account, credential, person), Data (data, a new
+  fourth family colour). A person gets the person icon; an account becomes an
+  ID badge.
 * New associations are drawn with the existing link interaction and named in
   plain language ("runs as", "may become", "knows", "uses", "reaches",
   "reads", "holds", "may access", "encrypted with", "is an instance of").
@@ -269,7 +277,8 @@ switch are errors, as today.
   fixture gain a product for `sshd`; the `patch` scenario names it. Their
   generated graphs change only by the product steps; the lecture results stay
   explainable by the same routes.
-* A new course example, `docs/course/cloud-agent.yaml`, exercises every
+* A new shipped example, `assets/examples/17-cloud-support-agent-architecture.yaml`
+  (listed in the examples README and the course README), exercises every
   addition in one plausible estate: a support agent that reads a public ticket
   queue (`delivers: internet`), runs as a role that may assume a data-reader
   role; a customer bucket encrypted with a key held by a key service; an
@@ -291,7 +300,7 @@ the owner in the browser before the next:
 3. **identity** — §3.1–3.4: account states, MFA, workload identity, role
    assumption.
 4. **operators** — §3.5: person, agent, phishing, injection.
-5. **data** — §4, and the `cloud-agent` example.
+5. **data** — §4, and the cloud support agent example.
 
 ## 9. Outside this extension
 
