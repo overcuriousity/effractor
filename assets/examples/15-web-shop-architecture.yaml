@@ -1,0 +1,238 @@
+effractor: 2
+profile: architecture
+name: Web shop with a separate database
+time_unit: d
+horizon: 30
+library: {id: core-components, version: 1}
+
+entities:
+  internet:
+    kind: network
+    label: Internet
+  dmz:
+    kind: network
+    label: DMZ
+  backend:
+    kind: network
+    label: Backend network
+  edge:
+    kind: router
+    label: Edge router
+  edge-rules:
+    kind: firewall
+    label: Edge rules
+  inner:
+    kind: router
+    label: Inner router
+  inner-rules:
+    kind: firewall
+    label: Inner rules
+  attacker-box:
+    kind: host
+    label: Attacker machine
+  browser:
+    kind: application
+    label: Browser
+  web:
+    kind: host
+    label: Web server
+  shop:
+    kind: service
+    label: Shop application
+    description: Runs as an unprivileged user on the web server
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(0.1)"
+        note: "Teaching input: a custom shop with a few flaws"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Exponential(0.01)"
+        note: "Teaching input: an update leaves harder flaws"
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(1)"
+        note: Teaching input
+      login:
+        status: unknown
+    defenses: {patched: false}
+  db-client:
+    kind: application
+    label: Database driver
+  db-host:
+    kind: host
+    label: Database server
+  db:
+    kind: service
+    label: Database
+    parameters:
+      find-exploit:
+        status: assumed
+        ttc: "Exponential(0.02)"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Infinity"
+        note: "Teaching input: patching is taken as perfect"
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(0.5)"
+        note: Teaching input
+      login:
+        status: illustrative
+        ttc: "Exponential(5)"
+        note: "Teaching input: the password is in hand"
+    defenses: {patched: false}
+  shop-db:
+    kind: account
+    label: Shop database account
+    parameters:
+      admin-login:
+        status: unknown
+  db-password:
+    kind: credential
+    label: Database password in the shop's configuration
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(2)"
+        note: "Teaching input: a readable configuration file"
+      extract-protected:
+        status: illustrative
+        ttc: "Infinity"
+        note: "Teaching input: moved to a vault the shop user cannot read"
+    defenses: {protected: false}
+
+associations:
+  attacker-internet:
+    kind: attached
+    from: attacker-box
+    to: internet
+  edge-internet:
+    kind: attached
+    from: edge
+    to: internet
+  edge-dmz:
+    kind: attached
+    from: edge
+    to: dmz
+  web-dmz:
+    kind: attached
+    from: web
+    to: dmz
+  inner-dmz:
+    kind: attached
+    from: inner
+    to: dmz
+  inner-backend:
+    kind: attached
+    from: inner
+    to: backend
+  db-backend:
+    kind: attached
+    from: db-host
+    to: backend
+  edge-filter:
+    kind: filters
+    from: edge
+    to: edge-rules
+  inner-filter:
+    kind: filters
+    from: inner
+    to: inner-rules
+  attacker-browser:
+    kind: hosts
+    from: attacker-box
+    to: browser
+    privilege: user
+  web-shop:
+    kind: hosts
+    from: web
+    to: shop
+    privilege: user
+  web-db-client:
+    kind: hosts
+    from: web
+    to: db-client
+    privilege: user
+  db-hosting:
+    kind: hosts
+    from: db-host
+    to: db
+    privilege: admin
+  password-store:
+    kind: stores
+    from: web
+    to: db-password
+    privilege: user
+  password-auth:
+    kind: authenticates
+    from: db-password
+    to: shop-db
+  shop-db-login:
+    kind: authorizes
+    from: shop-db
+    to: db
+  shop-db-grant:
+    kind: grants
+    from: shop-db
+    to: db-host
+    privilege: user
+  allow-https:
+    kind: permits
+    from: edge-rules
+    to: https
+    allowed: true
+  allow-sql:
+    kind: permits
+    from: inner-rules
+    to: sql
+    allowed: true
+
+flows:
+  https:
+    label: HTTPS to the shop
+    source: browser
+    target: shop
+    route: [internet, edge, dmz]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(10)"
+        note: "Teaching input: the shop is public"
+  sql:
+    label: Shop to database
+    source: db-client
+    target: db
+    route: [dmz, inner, backend]
+    protocol: tcp/5432
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(10)"
+        note: Teaching input
+
+attacker:
+  footholds:
+    - {entity: attacker-box, state: admin}
+  target: {entity: db-host, state: user}
+
+scenarios:
+  update-shop:
+    label: Update the shop
+    changes:
+      - {entity: shop, defense: patched, value: true}
+  vault-password:
+    label: Move the password to a vault
+    changes:
+      - {entity: db-password, defense: protected, value: true}
+  both:
+    label: Update and vault
+    changes:
+      - {entity: shop, defense: patched, value: true}
+      - {entity: db-password, defense: protected, value: true}
+
+analysis:
+  seed: 15
+  samples: 10000
+  confidence: 0.95

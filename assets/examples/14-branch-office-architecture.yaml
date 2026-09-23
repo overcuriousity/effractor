@@ -1,0 +1,257 @@
+effractor: 2
+profile: architecture
+name: Branch office behind a firewall appliance
+time_unit: d
+horizon: 60
+library: {id: core-components, version: 1}
+
+entities:
+  office-net:
+    kind: network
+    label: Office network
+  server-net:
+    kind: network
+    label: Server network
+  appliance:
+    kind: host
+    label: Firewall appliance
+    description: The box the gateway runs on; its management SSH listens on the office network
+  gateway:
+    kind: router
+    label: Gateway
+  gateway-rules:
+    kind: firewall
+    label: Gateway rules
+  laptop:
+    kind: host
+    label: Staff laptop
+  smb-client:
+    kind: application
+    label: File share client
+  ssh-client:
+    kind: application
+    label: SSH client
+  files:
+    kind: host
+    label: File server
+  smb:
+    kind: service
+    label: File share
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(0.05)"
+        note: "Teaching input: an unpatched file share, found in weeks"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Infinity"
+        note: "Teaching input: patching is taken as perfect"
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(0.5)"
+        note: Teaching input
+      login:
+        status: illustrative
+        ttc: "Exponential(2)"
+        note: "Teaching input: a password is quickly tried"
+    defenses: {patched: false}
+  appliance-ssh:
+    kind: service
+    label: Appliance management SSH
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(0.02)"
+        note: "Teaching input: an old appliance image"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Infinity"
+        note: "Teaching input: patching is taken as perfect"
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(0.5)"
+        note: Teaching input
+      login:
+        status: illustrative
+        ttc: "Exponential(2)"
+        note: Teaching input
+    defenses: {patched: false}
+  staff:
+    kind: account
+    label: Staff account
+    parameters:
+      admin-login:
+        status: unknown
+  appliance-root:
+    kind: account
+    label: Appliance root
+    parameters:
+      admin-login:
+        status: unknown
+  staff-password:
+    kind: credential
+    label: Saved staff password
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(1)"
+        note: "Teaching input: saved in the laptop's keychain"
+      extract-protected:
+        status: illustrative
+        ttc: "Exponential(0.05)"
+        note: "Teaching input: a hardware-backed store slows extraction, not stops it"
+    defenses: {protected: false}
+  root-key:
+    kind: credential
+    label: Appliance root key
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(1)"
+        note: Teaching input
+      extract-protected:
+        status: illustrative
+        ttc: "Infinity"
+        note: "Teaching input: kept on a token"
+    defenses: {protected: false}
+
+associations:
+  laptop-office:
+    kind: attached
+    from: laptop
+    to: office-net
+  appliance-office:
+    kind: attached
+    from: appliance
+    to: office-net
+  gateway-office:
+    kind: attached
+    from: gateway
+    to: office-net
+  gateway-server:
+    kind: attached
+    from: gateway
+    to: server-net
+  files-server:
+    kind: attached
+    from: files
+    to: server-net
+  gateway-on-appliance:
+    kind: hosts
+    from: appliance
+    to: gateway
+    privilege: admin
+  gateway-filter:
+    kind: filters
+    from: gateway
+    to: gateway-rules
+  laptop-smb-client:
+    kind: hosts
+    from: laptop
+    to: smb-client
+    privilege: user
+  laptop-ssh-client:
+    kind: hosts
+    from: laptop
+    to: ssh-client
+    privilege: user
+  files-smb:
+    kind: hosts
+    from: files
+    to: smb
+    privilege: admin
+  appliance-ssh-hosting:
+    kind: hosts
+    from: appliance
+    to: appliance-ssh
+    privilege: admin
+  staff-password-store:
+    kind: stores
+    from: laptop
+    to: staff-password
+    privilege: user
+  root-key-store:
+    kind: stores
+    from: laptop
+    to: root-key
+    privilege: admin
+  staff-auth:
+    kind: authenticates
+    from: staff-password
+    to: staff
+  root-auth:
+    kind: authenticates
+    from: root-key
+    to: appliance-root
+  staff-smb:
+    kind: authorizes
+    from: staff
+    to: smb
+  root-ssh:
+    kind: authorizes
+    from: appliance-root
+    to: appliance-ssh
+  staff-files:
+    kind: grants
+    from: staff
+    to: files
+    privilege: user
+  root-appliance:
+    kind: grants
+    from: appliance-root
+    to: appliance
+    privilege: admin
+  allow-smb:
+    kind: permits
+    from: gateway-rules
+    to: file-share
+    allowed: true
+
+flows:
+  file-share:
+    label: File share from the laptop
+    source: smb-client
+    target: smb
+    route: [office-net, gateway, server-net]
+    protocol: tcp/445
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(5)"
+        note: "Teaching input: connecting is quick"
+  appliance-admin:
+    label: SSH to the appliance
+    source: ssh-client
+    target: appliance-ssh
+    route: [office-net]
+    protocol: tcp/22
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(5)"
+        note: Teaching input
+
+attacker:
+  footholds:
+    - {entity: laptop, state: user}
+  target: {entity: files, state: admin}
+
+scenarios:
+  patch-files:
+    label: Patch the file server
+    changes:
+      - {entity: smb, defense: patched, value: true}
+  deny-smb:
+    label: Deny the file share at the gateway
+    changes:
+      - {association: allow-smb, field: allowed, value: false}
+  deny-and-patch-appliance:
+    label: Deny the file share and patch the appliance
+    changes:
+      - {association: allow-smb, field: allowed, value: false}
+      - {entity: appliance-ssh, defense: patched, value: true}
+
+analysis:
+  seed: 14
+  samples: 10000
+  confidence: 0.95

@@ -1,0 +1,156 @@
+effractor: 2
+profile: architecture
+name: Clinic records, vendor input missing
+time_unit: d
+horizon: 5
+library: {id: core-components, version: 1}
+
+entities:
+  lab-net:
+    kind: network
+    label: Lab network
+  records-net:
+    kind: network
+    label: Records network
+  core:
+    kind: router
+    label: Core router
+  core-rules:
+    kind: firewall
+    label: Core rules
+  workstation:
+    kind: host
+    label: Lab workstation
+  viewer:
+    kind: application
+    label: Records viewer
+  records-host:
+    kind: host
+    label: Records server
+  records:
+    kind: service
+    label: Records service
+    description: The vendor has not said how exposed it is; exploit discovery stays unknown
+    parameters:
+      find-exploit:
+        status: unknown
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Infinity"
+        note: "Teaching input: the vendor patch is taken as perfect"
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(0.5)"
+        note: Teaching input
+      login:
+        status: illustrative
+        ttc: "Exponential(3)"
+        note: "Teaching input: a stolen session token is replayed"
+    defenses: {patched: false}
+  clinician:
+    kind: account
+    label: Clinician account
+    parameters:
+      admin-login:
+        status: unknown
+  session-token:
+    kind: credential
+    label: Cached session token
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(0.5)"
+        note: "Teaching input: cached by the viewer"
+      extract-protected:
+        status: illustrative
+        ttc: "Exponential(0.02)"
+        note: "Teaching input: short-lived tokens"
+    defenses: {protected: false}
+
+associations:
+  workstation-lab:
+    kind: attached
+    from: workstation
+    to: lab-net
+  core-lab:
+    kind: attached
+    from: core
+    to: lab-net
+  core-records:
+    kind: attached
+    from: core
+    to: records-net
+  records-net-link:
+    kind: attached
+    from: records-host
+    to: records-net
+  core-filter:
+    kind: filters
+    from: core
+    to: core-rules
+  workstation-viewer:
+    kind: hosts
+    from: workstation
+    to: viewer
+    privilege: user
+  records-hosting:
+    kind: hosts
+    from: records-host
+    to: records
+    privilege: admin
+  token-store:
+    kind: stores
+    from: viewer
+    to: session-token
+    privilege: user
+  token-auth:
+    kind: authenticates
+    from: session-token
+    to: clinician
+  clinician-records:
+    kind: authorizes
+    from: clinician
+    to: records
+  clinician-grant:
+    kind: grants
+    from: clinician
+    to: records-host
+    privilege: user
+  allow-records:
+    kind: permits
+    from: core-rules
+    to: records-access
+    allowed: true
+
+flows:
+  records-access:
+    label: Viewer to records
+    source: viewer
+    target: records
+    route: [lab-net, core, records-net]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(10)"
+        note: Teaching input
+
+attacker:
+  footholds:
+    - {entity: workstation, state: user}
+  target: {entity: records-host, state: user}
+
+scenarios:
+  vendor-patch:
+    label: Apply the vendor patch
+    changes:
+      - {entity: records, defense: patched, value: true}
+  short-tokens:
+    label: Short-lived tokens
+    changes:
+      - {entity: session-token, defense: protected, value: true}
+
+analysis:
+  seed: 16
+  samples: 10000
+  confidence: 0.95

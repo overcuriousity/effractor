@@ -1,6 +1,7 @@
-# Sample trees
+# Sample models
 
-Twelve realistic, fictional models and one date-night bonus. Download a YAML
+Twelve realistic, fictional trees, one date-night bonus and three
+architectures. Download a YAML
 file and use **Open** (`Ctrl+O`) in Effractor; it is solved as it opens.
 The files are bundled with the server and static edition under
 `assets/examples/`; for example, a local server serves the first at
@@ -21,6 +22,9 @@ The files are bundled with the server and static edition under
 | [11 · Software supply chain](11-software-supply-chain-attack.yaml) | Attack | Detailed | Shared publishing authority, Zero precondition, Infinity route-blocking control |
 | [12 · Wind farm](12-wind-farm-attack.yaml) | Attack | Detailed, incomplete | An intentionally unknown likelihood, qualitative analysis, shared router SPOF |
 | [13 · Grumpy girlfriend](13-grumpy-girlfriend-fault.yaml) | Fault | Bonus | Date-night mishaps, a repeated booking event, a voting gate, zero-cost mitigations |
+| [14 · Branch office](14-branch-office-architecture.yaml) | Architecture | Introductory | A gateway running on its appliance box; denying a flow leaves the route through the appliance |
+| [15 · Web shop](15-web-shop-architecture.yaml) | Architecture | Medium | Two routers, exploit or stolen password to the database, one assumed value without a reason |
+| [16 · Clinic records](16-clinic-records-architecture.yaml) | Architecture | Incomplete | An intentionally unknown exploit time: no number until the vendor patch closes that route |
 
 ## Reading the assumptions
 
@@ -63,3 +67,26 @@ disabled control and compare the results. Use 03 for voting and loss fractions,
 path** in 11 to block that route. All files use
 fixed seeds and 10,000 samples; sampling intervals describe simulation error,
 not confidence in the invented assumptions.
+
+## Reading the architectures
+
+Examples 14–16 are architectures: components and how they are linked, from
+which the bundled component library generates the attack steps. The app opens
+and edits them; generating and simulating their routes in the browser follows
+in a later release. The numbers are teaching inputs, marked `illustrative`
+(or `assumed`), never calibrated.
+
+- An action starts once all it needs has happened and adds its own time;
+  unlike a tree's AND gate, times accumulate along a route.
+- 14: the gateway `hosts`-runs on the appliance. Denying the file share at the
+  gateway (`deny-smb`) still leaves exploiting the appliance's management SSH,
+  whose control is control of the gateway and so of its rules. Patching the
+  appliance as well leaves nothing.
+- 15: updating the shop leaves the stolen password route, vaulting the
+  password leaves the shop exploit; together they leave little. The
+  database's discovery time is `assumed` with no note: allowed, and shown as
+  having no reason given.
+- 16: the records service's exploit discovery is `unknown`. Because that route
+  stays possible, the target gets no number at all, not a number that ignores
+  it. The vendor patch blocks the route and the remaining login route is
+  solved; shorter-lived tokens alone leave the unknown in place.
