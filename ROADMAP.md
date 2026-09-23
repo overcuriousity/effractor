@@ -11,9 +11,11 @@ was reviewed by the owner on 2026-09-22, who chose native in-session execution:
 one feature branch per task, a pause for the owner at each task boundary. The
 items below are its delivery decomposition. Plan tasks 1
 (`architecture-document`), 2 (`component-generation`), 3
-(`sequential-simulation`), 4 (`architecture-editor`) and 5
-(`architecture-links`) are done; the rest map as attack-graph-inspection = 6,
-defense-comparison = 7, lecture-workflow = 8.
+(`sequential-simulation`), 4 (`architecture-editor`), 5
+(`architecture-links`) and 6 (`attack-graph-inspection`) are done; the rest map
+as defense-comparison = 7, lecture-workflow = 8. `library-extension` was added
+by the owner on 2026-09-23 and comes before defense-comparison, so comparisons
+cover its defenses from the start.
 "securiCAD parity" in the owner's words means `lecture-workflow`, not the later
 `mal-securicad-compatibility`.
 
@@ -72,18 +74,33 @@ the underlying rules and calibrated inputs.
 
 ## Lecture implementation
 
-### attack-graph-inspection — Linked architecture, routes and simulation views
-needs: —            cost: 3   benefit: 5
-Add Generate, linked component/step selection, rule and assumption inspection,
-blocked and unknown route states, graph focus and the full step table. Show
-sampled compromise probability/CDF with table and bands, and capability-gate
-tree-only analyses. Reject stale worker responses after edits and navigation.
-Done when selection/provenance/results tests pass, the fixture's exploit and
-login routes are inspectable, and the owner accepts generation, source links,
-solving, unknown inputs, cancellation and graph navigation in the browser.
+### library-extension — Virtualisation, shared vulnerabilities, people, MFA, data
+needs: —            cost: 4   benefit: 5
+Extend the component library in place (owner, 2026-09-23: no versioning, no
+legacy to keep), oriented on securiCAD's coreLang and on modern architectures.
+Principle: a defense switch never changes the graph's structure; it switches
+an input or selects a replacement duration, so step ids pair across scenarios.
+Design approved by the owner so far (section 1):
+- `hosts: host → host` for VMs and containers, `privilege` = what the guest
+  runs as on the host; host control at it gives guest admin (logical); an
+  `escape` action (guest slot `escape`, unknown until set) gives the host back;
+  routers on hosts get the same escape. Nested hosting allowed, cycles errors.
+- `product` kind (one software version) with `find-exploit`,
+  `find-exploit-patched` and `patched`; `instance-of: service → product`. Any
+  reachable instance starts one shared discovery; each instance keeps its own
+  deploy. A partly patched fleet is two products. Services only.
+Still to design with the owner before a spec (sections 2–3): people and
+phishing (securiCAD's User: phishing to credentials or code on their
+workstation, with a training defense), multi-factor login (an MFA-satisfied
+fact from a policy input, a second-factor credential or a timed bypass), and
+data as a target (read/modified, held by hosts/software, encryption as an
+input plus key possession). Then a written spec amending
+`2026-09-21-lecture-workflow-design.md` §4–6, a plan, and branch-sized delivery.
+Done when every addition is generated, solved and inspectable, its rules and
+assumptions are in the catalog, and the owner accepts it in the browser.
 
 ### defense-comparison — Inspect defense changes and remaining alternatives
-needs: attack-graph-inspection            cost: 3   benefit: 5
+needs: library-extension            cost: 3   benefit: 5
 Add named defense overlay editing, baseline/scenario CDFs, paired probability
 deltas and visible changed/remaining/blocked routes. Surface illustrative
 inputs and missing replacement assumptions; clear comparisons on structural

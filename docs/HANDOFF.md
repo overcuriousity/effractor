@@ -228,6 +228,61 @@ false for an architecture, until Task 6 wires it. What exists:
   `scenario` or `revision` as a graph solve; a tree sent with a revision gets
   `unsupported`.
 
+## Continuation — attack graph inspection (2026-09-23)
+
+Task 6 (`attack-graph-inspection`) is on `feature/attack-graph-inspection`.
+What exists:
+
+- **Generation answers carry support.** wasm `generate` returns
+  `{revision, source, graph, support}`; `support.nodes` is aligned with
+  `graph.nodes` (`{id, status, missing}`), plus `target_support` ids.
+  `graph_support::analyze` now unions missing inputs over the support graph's
+  condensation (iterative Tarjan, bitsets); the old per-node walk is the test
+  oracle (the Task 3 deferred minor).
+- **Pure modules.** `attack-view.js`: `stepsFor`/`stepsForEntity`,
+  `sourcesForStep`, `originOf` (the component a step falls back to),
+  `sourceTarget` (a source path → the form field that sets it, or its source
+  line), `inspect`, `search`, `describe` (a window of at most 500 steps round
+  the focus or the target, "+n not shown" on its edge), `refuse`, `ownsKey`.
+  `graph-results.js`: headline P(target) with interval and qualifiers, the CDF
+  rows as the solver gave them, `nodeFacts`, `assumptions`, `witness` (the
+  Sample route, never ranked), `timeTo` ("not reached by …"), `cdfKey`.
+- **Fixtures are exported, not written.** `scripts/graph-fixtures.js --write`
+  (after `build-wasm.sh`) writes `scripts/fixtures/graph/*.json` from the real
+  module; `check-graph-agreement.js` fails when one is stale.
+- **The page.** Top bar *Architecture | Attack graph* (G; `data-view` on
+  `#app`, `.attack-only` / `.architecture-view-only`). The attack graph is the
+  tree's layered layout run upwards: target on top, lines from prerequisite
+  into the dependent's ALL/ANY symbol with arrowheads, states as words and
+  stroke patterns. A step's inspector (`sections.step`) shows rule, state,
+  TTC and evidence, components and Source links (`openParameter`,
+  `focusField`, `showSourcePath`, which now finds list items). A component
+  lists its attack steps. Results: headline, missing, assumptions, Sample
+  route, searchable step table; the TTC tab plots the target compromise
+  probability. Edit keys and rail are refused in the attack view.
+- **Solving.** Architectures solve like trees, automatically while quick,
+  with `{scenario: "", revision}`; generation and graph solves are accepted
+  only for the text and revision still on the page. In the attack view every
+  edit regenerates; a vanished step falls back to its component; a failed
+  generation returns to the architecture and says why; the latest view choice
+  wins over a generation on its way.
+- **Owner report folded in:** a new flow could not be created (validator made
+  an unfinished route an error). Empty, router-ended and not-yet-arrived
+  routes are now `incomplete`; a sweep of all 669 edits the editor offers on
+  the examples found one more (a second firewall offered) and none remain.
+- A fresh reviewer's four important findings and all eight minors are fixed
+  with tests.
+- **`node_modules` had been committed as a symlink** (in `b5bd15a`, and again
+  in `e549439`): `.gitignore` said `node_modules/`, which matches directories
+  only, so a worktree's `ln -s` was staged with the next commit and every
+  checkout brought the self-loop back (ELOOP in tests). It is untracked and
+  the ignore rule is now `node_modules`. Stage files by name, never `-A`.
+
+Next: `library-extension` (roadmap), whose section 1 the owner approved;
+sections 2–3 still need the owner's design look before a spec.
+Modelling answer given to the owner: a router VM on a hypervisor is `hosts:
+host → router` today; a host on a host arrives with `library-extension`.
+
 ## Continuation — architecture links (2026-09-23)
 
 Task 5 (`architecture-links`) is merged after the owner's look in the 8081
