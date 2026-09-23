@@ -114,6 +114,42 @@
     });
   }
 
+  // Tab: what can be added linked to the selected component — a kind, and
+  // where there is more than one way to link it, the way. The new component
+  // is linked, selected and named in one step, as Tab adds a child in a tree.
+  function optionWord(o) {
+    return (o.direction === "out" ? o.relation + " →" : "← " + o.relation) + (o.privilege ? " · " + o.privilege : "");
+  }
+  function addLinked(id, kind, option) {
+    apply(function () {
+      return L.addLinked(doc(), A, id, kind, freeLabel(kind), kindSpec(kind), option);
+    }, focusLabel);
+  }
+  function addLinkedMenu(id, x, y) {
+    loadCatalog().then(function (c) {
+      var items = L.addChoices(doc(), c, id).map(function (choice) {
+        if (choice.options.length === 1) {
+          var only = choice.options[0];
+          return [word(choice.kind), optionWord(only), function () { addLinked(id, choice.kind, only); }];
+        }
+        return [word(choice.kind), "", choice.options.map(function (o) {
+          return [optionWord(o), "", function () { addLinked(id, choice.kind, o); }];
+        })];
+      });
+      if (!items.length) return app.say("nothing can be linked to “" + doc().entities[id].label + "”");
+      app.showMenu(items, x, y);
+    }, function () {
+      app.say("the component library could not be read");
+    });
+  }
+  // Beside the selected component on the canvas, or beside a control.
+  function addLinkedAt(id, anchor) {
+    var at = anchor || document.querySelector("#canvas .node.hl-selected") || $("canvas");
+    var box = at.getBoundingClientRect();
+    if (anchor) addLinkedMenu(id, box.right + 4, box.top);
+    else addLinkedMenu(id, box.left + box.width / 2, box.top + box.height / 2);
+  }
+
   // The type picker: one menu of the eight kinds.
   function pickKind(x, y) {
     app.showMenu(A.KINDS.map(function (kind) {
@@ -154,7 +190,7 @@
 
   function menuFor(id, x, y) {
     app.select("entity/" + id);
-    var items = [["Rename", "F2", focusLabel]];
+    var items = [["Add linked…", "Tab", function () { addLinkedMenu(id, x, y); }], ["Rename", "F2", focusLabel]];
     if (Object.keys(doc().entities[id].parameters || {}).length) items.push(["Edit parameters", "P", firstParameter]);
     extraItems.forEach(function (more) {
       items = items.concat(more(id));
@@ -183,6 +219,7 @@
 
   var KEYS = [
     ["A", "Add a component"],
+    ["Tab", "Add a component linked to the selected one"],
     ["F2", "Rename"],
     ["P", "Edit parameters"],
     ["Del", "Delete, with its links"],
@@ -199,6 +236,10 @@
     if (key === "a") {
       e.preventDefault();
       return pickKindAt(null);
+    }
+    if (key === "Tab" && !e.shiftKey && entityId()) {
+      e.preventDefault();
+      return addLinkedAt(entityId(), null);
     }
     if (key === "ArrowDown" || key === "ArrowUp") {
       e.preventDefault();
@@ -246,8 +287,11 @@
   };
   // Only the + changes its title here; the bin's is set by editor.js per selection.
   var treeTitles = { addChild: rail.addChild.title };
+  // With a component selected the + adds one linked to it, as Tab does.
   rail.addChild.addEventListener("click", function () {
-    if (arch()) pickKindAt(rail.addChild);
+    if (!arch()) return;
+    if (entityId()) addLinkedAt(entityId(), rail.addChild);
+    else pickKindAt(rail.addChild);
   });
   rail.deleteNode.addEventListener("click", function () {
     if (arch()) remove();
@@ -259,8 +303,8 @@
 
   function renderRail() {
     rail.addChild.disabled = false;
-    rail.addChild.title = "Add a component (A)";
-    rail.addChild.setAttribute("aria-label", "Add a component");
+    rail.addChild.title = entityId() ? "Add linked to “" + entity().label + "” (Tab)" : "Add a component (A)";
+    rail.addChild.setAttribute("aria-label", entityId() ? "Add linked component" : "Add a component");
     rail.deleteNode.disabled = !selection();
     rail.deleteNode.title = selection() ? "Delete “" + app.labelOf(app.state.selected) + "” (Del)" : "Delete";
     document.querySelectorAll('[data-action="undo"], [data-action="redo"]').forEach(function (b) {

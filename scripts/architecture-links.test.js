@@ -301,3 +301,36 @@ test('a component lists its links and flows, outgoing and incoming', () => {
   assert.deepEqual(L.flowsOf(doc, 'sshd'), [{ id: 'ssh', direction: 'in', other: 'ssh-client' }]);
   assert.deepEqual(L.flowsOf(doc, 'ssh-client'), [{ id: 'ssh', direction: 'out', other: 'sshd' }]);
 });
+
+test('Tab offers the kinds that can be linked to the selection, with each way to link them', () => {
+  const doc = lecture();
+  const choices = L.addChoices(doc, CATALOG, 'server');
+  const flat = choices.map((c) => c.kind + ': ' + c.options.map((o) => (o.direction === 'out' ? o.relation + ' →' : '← ' + o.relation) + (o.privilege ? ' · ' + o.privilege : '')).join(', '));
+  assert.deepEqual(flat, [
+    'network: attached →, ← administration',
+    'application: hosts → · user, hosts → · admin',
+    'service: hosts → · user, hosts → · admin',
+    'account: ← grants · user, ← grants · admin',
+    'credential: stores → · user, stores → · admin',
+  ]);
+  // A router hosts and is granted only as admin; it has its firewall already.
+  const router = L.addChoices(doc, CATALOG, 'bridge').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
+  assert.deepEqual(router, ['network: attached, administration', 'application: hosts·admin', 'service: hosts·admin', 'account: grants·admin']);
+  // A hosted executable offers no second host; an application stores as user.
+  const client = L.addChoices(doc, CATALOG, 'ssh-client').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
+  assert.deepEqual(client, ['credential: stores·user']);
+  assert.deepEqual(L.addChoices(doc, CATALOG, 'absent'), []);
+});
+
+test('adding a linked component is one edit: the component, its link, the selection on it', () => {
+  const doc = lecture();
+  const option = { relation: 'hosts', direction: 'out', privilege: 'admin' };
+  const edit = L.addLinked(doc, E, 'server', 'service', 'Service', CATALOG.entities.find((e) => e.kind === 'service'), option);
+  assert.equal(edit.select, 'entity/service');
+  assert.equal(edit.doc.entities.service.kind, 'service');
+  assert.deepEqual(edit.doc.entities.service.defenses, { patched: 'unknown' });
+  assert.deepEqual(edit.doc.associations['server-hosts-service'], { kind: 'hosts', from: 'server', to: 'service', privilege: 'admin' });
+  const back = L.addLinked(doc, E, 'server', 'account', 'Account', CATALOG.entities.find((e) => e.kind === 'account'), { relation: 'grants', direction: 'in', privilege: 'user' });
+  assert.deepEqual(back.doc.associations['account-grants-server'], { kind: 'grants', from: 'account', to: 'server', privilege: 'user' });
+  assert.equal(L.addLinked(doc, E, 'absent', 'host', 'Host', {}, option), null);
+});

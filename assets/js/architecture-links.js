@@ -321,11 +321,69 @@
 
   // What privilege a link of this kind can carry here, or null for none.
   function privileges(doc, kind, from, to) {
+    return privilegesOf(kind, kindOf(doc, from), kindOf(doc, to));
+  }
+  function privilegesOf(kind, fromKind, toKind) {
     if (PRIVILEGED.indexOf(kind) < 0) return null;
-    if (kind === "hosts" && kindOf(doc, from) === "router") return ["admin"];
-    if (kind === "grants" && kindOf(doc, to) === "router") return ["admin"];
-    if (kind === "stores" && kindOf(doc, from) === "application") return ["user"];
+    if (kind === "hosts" && fromKind === "router") return ["admin"];
+    if (kind === "grants" && toKind === "router") return ["admin"];
+    if (kind === "stores" && fromKind === "application") return ["user"];
     return ["user", "admin"];
+  }
+
+  var ENTITY_KINDS = ["network", "router", "firewall", "host", "application", "service", "account", "credential"];
+
+  function hasFilters(doc, end, id) {
+    return Object.keys(doc.associations || {}).some(function (k) {
+      var a = doc.associations[k];
+      return a.kind === "filters" && a[end] === id;
+    });
+  }
+
+  // What Tab can add next to `id`: each kind that can be linked to it, with
+  // every way to link it — relation, direction, privilege — in the catalog's
+  // order. A hosted executable gets no second host, a router with a firewall
+  // no second one; permissions belong to a flow.
+  function addChoices(doc, catalog, id) {
+    var kind = kindOf(doc, id);
+    if (!kind) return [];
+    var byKind = Object.create(null);
+    function offer(newKind, relation, direction) {
+      var from = direction === "out" ? kind : newKind;
+      var to = direction === "out" ? newKind : kind;
+      var list = (byKind[newKind] = byKind[newKind] || []);
+      (privilegesOf(relation, from, to) || [null]).forEach(function (p) {
+        list.push({ relation: relation, direction: direction, privilege: p });
+      });
+    }
+    (catalog.associations || []).forEach(function (spec) {
+      if (spec.kind === "permits") return;
+      if (spec.from.indexOf(kind) >= 0 && !(spec.kind === "filters" && hasFilters(doc, "from", id))) {
+        spec.to.forEach(function (k) { offer(k, spec.kind, "out"); });
+      }
+      if (spec.to.indexOf(kind) >= 0) {
+        if (spec.kind === "hosts" && hostOf(doc, id)) return;
+        if (spec.kind === "filters" && hasFilters(doc, "to", id)) return;
+        spec.from.forEach(function (k) { offer(k, spec.kind, "in"); });
+      }
+    });
+    return ENTITY_KINDS.filter(function (k) { return byKind[k]; }).map(function (k) {
+      return { kind: k, options: byKind[k] };
+    });
+  }
+
+  // A new component of `kind`, linked to `id` as `option` says: one edit,
+  // one undo, the selection on the new component. `E` is architecture-edit.js,
+  // `spec` the kind's catalog entry.
+  function addLinked(doc, E, id, kind, label, spec, option) {
+    if (!has(doc.entities, id)) return null;
+    var added = E.addEntity(doc, kind, label, spec);
+    if (!added) return null;
+    var from = option.direction === "out" ? id : added.entity;
+    var to = option.direction === "out" ? added.entity : id;
+    var linked = putAssociation(added.doc, null, { kind: option.relation, from: from, to: to, privilege: option.privilege });
+    if (!linked) return null;
+    return { doc: linked.doc, select: "entity/" + added.entity, entity: added.entity };
   }
 
   function attachedTo(doc, machine, network) {
@@ -396,7 +454,7 @@
     return out;
   }
 
-  var api = { KINDS: KINDS, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, renameId: renameId, remove: remove };
+  var api = { KINDS: KINDS, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, renameId: renameId, remove: remove };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
 })();
