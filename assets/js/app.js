@@ -157,10 +157,18 @@
     renderer.highlight(lit.map(function (s) {
       return "step/" + s;
     }), "steps");
-    // A step outside the window on the canvas brings the window to it.
-    if (attackShown() && state.selected && state.shownSteps && !state.shownSteps[state.selected] && (stepOf(state.selected) || lit.length)) {
-      state.focus = state.selected;
-      draw(false);
+    // A step outside the window on the canvas, or a component none of whose
+    // steps are in it, brings the window there, and the step into view.
+    var outside = attackShown() && state.selected && state.shownSteps && (stepOf(state.selected)
+      ? !state.shownSteps[state.selected]
+      : lit.length > 0 && !lit.some(function (s) {
+          return state.shownSteps["step/" + s];
+        }));
+    if (outside) {
+      var wanted = state.focus = state.selected;
+      draw(false).then(function () {
+        if (state.selected === wanted) renderer.reveal(wanted, $("inspector").getBoundingClientRect().width + 8);
+      });
     }
     // The edge a shared node was reached along, when that was said: it is what
     // Del and Unlink act on.
@@ -176,7 +184,10 @@
     if (state.selected) renderer.reveal(state.selected, $("inspector").getBoundingClientRect().width + 8);
     $("inspector-name").textContent = state.selected ? labelOf(state.selected) : "";
     notify();
-    var said = !state.selected ? [] : !arch ? view.nodeFacts(state.results, state.selected) : step && GR.isGraphResults(state.results) ? GR.nodeFacts(state.results, step) : [];
+    // A step's state is the inspector's own line; its numbers are listed here.
+    var said = !state.selected ? [] : !arch ? view.nodeFacts(state.results, state.selected) : step && GR.isGraphResults(state.results) ? GR.nodeFacts(state.results, step).filter(function (f) {
+      return f[0] !== "State";
+    }) : [];
     said.forEach(function (f) {
       fact(facts, f[0], f[1]).classList.add("num");
     });
@@ -449,11 +460,18 @@
     chip(P.capabilities(doc).solve ? analysisLabel(doc.analysis) : "not solved");
     solvable();
     if (state.mode !== "attack") return showView() && draw(fit);
-    // The attack graph on screen follows the text: generated again, or given
-    // up for the architecture if this text has none.
+    return followGraph(fit);
+  }
+
+  // The attack graph on screen follows the text: generated again, or given
+  // up for the architecture if this text has none. Overtaken by a newer text,
+  // it leaves the drawing to that one; overtaken by typing in the source,
+  // which brings no text of its own, the canvas shows the architecture until
+  // the source is valid again.
+  function followGraph(fit) {
     return generate().then(function (answer) {
-      if (answer.stale) return;
-      if (!answer.ok) state.mode = "architecture";
+      if (answer.stale && state.sourceValid) return;
+      if (!answer.ok && !answer.stale) state.mode = "architecture";
       showView();
       return draw(fit);
     });
@@ -508,6 +526,8 @@
   // has none for this text; a step selected there falls back to its
   // component in the architecture. Resolves to whether the view changed to it.
   function setView(mode) {
+    // The latest choice wins over a generation still on its way.
+    var intent = gate.issue("view");
     // Already there: nothing is drawn again and nothing moves.
     if (mode === state.mode && (mode !== "attack" || attackShown())) return Promise.resolve(true);
     if (mode !== "attack") {
@@ -523,7 +543,7 @@
     }
     var ready = state.generated ? Promise.resolve({ ok: true }) : generate();
     return ready.then(function (answer) {
-      if (!answer.ok) return false;
+      if (!answer.ok || !gate.accept(intent)) return false;
       state.mode = "attack";
       state.focus = state.selected;
       showView();
@@ -649,6 +669,8 @@
         state.sourceValid = true;
         solvable();
         autosolve.changed();
+        // The attack graph it gave up while the source was not valid.
+        if (state.mode === "attack" && !state.generated) followGraph(false).then(notify);
       }
       return Promise.resolve([]);
     }

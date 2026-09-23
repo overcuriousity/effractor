@@ -69,7 +69,7 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
 // `slow` are parsed only on release, and so are layouts while `holdLayout`.
 // Everything else answers at once. Nothing here is a browser.
 function racePage(kept = 'original') {
-  const nodes = new Map(), writes = [], held = [], renders = [], runs = [], timers = [];
+  const nodes = new Map(), writes = [], held = [], renders = [], runs = [], timers = [], reveals = [], layouts = [];
   const slow = new Set();
   const generated = [];
   let holdLayout = false;
@@ -88,6 +88,8 @@ function racePage(kept = 'original') {
     generate(text, revision) {
       generated.push({ text, revision });
       const nodes = [{ id: 'input/foothold/web/user', label: 'Foothold', kind: 'input', inputs: [], origins: [{ rule: 'foothold', version: 1, entities: ['web'], associations: [], flows: [], paths: ['attacker.footholds[0]'], assumptions: [] }], timing: { status: 'foothold', expression: null, note: null, paths: [], missing: [] } }];
+      // "big": a chain of 600 steps after the foothold, larger than the canvas shows.
+      for (let i = 0; text.includes('big') && i < 600; i++) nodes.push({ id: 'state/x/n' + i + '/s', label: 'Step ' + i, kind: 'any', inputs: [i ? 'state/x/n' + (i - 1) + '/s' : 'input/foothold/web/user'], origins: [{ rule: 'r', version: 1, entities: ['e' + i], associations: [], flows: [], paths: [], assumptions: [] }], timing: { status: 'logical', expression: null, note: null, paths: [], missing: [] } });
       if (!text.includes('gone')) nodes.push({ id: 'state/service/web/control', label: 'Web · control', kind: 'any', inputs: ['input/foothold/web/user'], origins: [{ rule: 'r', version: 1, entities: ['web'], associations: [], flows: [], paths: [], assumptions: [] }], timing: { status: 'logical', expression: null, note: null, paths: [], missing: [] } });
       const answer = text.includes('broken')
         ? { diagnostics: [{ message: 'no target', path: 'attacker' }] }
@@ -103,8 +105,8 @@ function racePage(kept = 'original') {
   const window = {
     effractorStore: { createStore: () => ({ load: async () => kept, save: text => writes.push(text) }) },
     createSolver: () => solver,
-    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render(laid) { renders.push(laid.name); }, highlight() {}, reveal() {}, on() {}, fit() {} }) },
-    effractorLayout: { createLayout: () => described => holdLayout ? later('layout ' + described.name, described) : Promise.resolve(described) },
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render(laid) { renders.push(laid.name); }, highlight() {}, reveal(id) { reveals.push(id); }, on() {}, fit() {} }) },
+    effractorLayout: { createLayout: () => described => (layouts.push(described), holdLayout ? later('layout ' + described.name, described) : Promise.resolve(described)) },
     effractorGraph: { describe: doc => ({ name: doc.name }) },
     effractorProfiles: require('../assets/js/profiles.js'),
     effractorRevisions: require('../assets/js/revisions.js'),
@@ -127,7 +129,7 @@ function racePage(kept = 'original') {
   });
   const settle = () => new Promise(setImmediate);
   return {
-    app: window.effractor, writes, renders, runs, slow, nodes, settle, docOf, generated,
+    app: window.effractor, writes, renders, runs, slow, nodes, settle, docOf, generated, reveals, layouts,
     holdLayout(on) { holdLayout = on; },
     holdGenerate(on) { holdGenerate = on; },
     async release(what) { const i = held.findIndex(h => h.what === what); assert.ok(i >= 0, 'nothing held: ' + what); held.splice(i, 1)[0].release(); await settle(); await settle(); },
@@ -265,6 +267,76 @@ test('a generation that arrives after an edit or undo is not the graph on the pa
   assert.equal(h.app.state.mode, 'architecture');
   assert.equal(h.app.state.generated, null);
   assert.equal(await h.app.setMode('attack'), false, 'a tree has no attack graph');
+});
+
+test('choosing the architecture while the attack graph is on its way keeps the architecture', async () => {
+  const h = racePage('arch');
+  await h.app.ready;
+  h.holdGenerate(true);
+  const attack = h.app.setMode('attack');
+  await h.settle();
+  assert.equal(await h.app.setMode('architecture'), true);
+  await h.release('generate arch');
+  assert.equal(await attack, false, 'the later choice wins');
+  assert.equal(h.app.state.mode, 'architecture');
+  assert.equal(h.attr('data-view'), 'architecture');
+});
+
+test('typing in the source while the attack graph regenerates leaves no older graph on the canvas', async () => {
+  const h = racePage('arch');
+  await h.app.ready;
+  assert.equal(await h.app.setMode('attack'), true);
+  h.holdGenerate(true);
+  const edit = h.app.applyEdit({ doc: h.docOf('arch-2') });
+  await h.settle(); await h.settle();
+  h.app.markSourceDirty();
+  await h.release('generate arch-2');
+  await edit; await h.settle();
+  assert.equal(h.app.state.generated, null);
+  assert.equal(h.app.state.laidView, 'document', 'the drawing is not the graph of the text before');
+  assert.equal(h.attr('data-view'), 'architecture');
+  // Typed back to the document: the attack graph comes back with it.
+  h.holdGenerate(false);
+  assert.deepEqual(await h.app.adoptSource('arch-2'), []);
+  await h.settle(); await h.settle();
+  assert.equal(h.app.state.laidView, 'attack');
+  assert.equal(h.app.state.generated.revision, h.app.state.revision);
+});
+
+test('selecting in the attack view lays out again only to bring a step into view, and then shows it', async () => {
+  const h = racePage('arch');
+  await h.app.ready;
+  assert.equal(await h.app.setMode('attack'), true);
+  const before = h.layouts.length;
+  h.app.select('entity/web');
+  h.app.select('entity/web');
+  h.app.select('step/state/service/web/control');
+  await h.settle();
+  assert.equal(h.layouts.length, before, 'everything is on the canvas already');
+  // A graph larger than the canvas: a step outside the window is brought in and revealed.
+  await h.app.applyEdit({ doc: h.docOf('arch-big'), select: null });
+  await h.settle();
+  h.app.select('step/state/x/n599/s');
+  assert.equal(h.layouts.length, before + 2, 'one layout for the edit, one to bring the step in');
+  h.reveals.length = 0;
+  await h.settle(); await h.settle();
+  assert.ok(h.reveals.includes('step/state/x/n599/s'), 'revealed once it is drawn');
+});
+
+test('a step shows its state once, in the inspector, not again among the facts', async () => {
+  const h = racePage('arch');
+  await h.app.ready;
+  assert.equal(await h.app.setMode('attack'), true);
+  await h.tick();
+  const run = h.runs[h.runs.length - 1];
+  run.resolve({ result: { ok: { revision: run.options.revision, source: 'arch', result: {
+    'effractor-graph-results': 1, target: 'state/service/web/control', time_unit: 'h', horizon: 10, confidence: 0.95, seed: '1', samples: 10,
+    baseline: { id: null, outcome: { available: { method: 'sampled', samples: 10, confidence: 0.95, p_target: 0.5, ci: { lo: 0.1, hi: 0.9 }, ttc_cdf: [] } }, nodes: [{ id: 'state/service/web/control', status: 'possible', outcome: { available: { p: 0.5, ci: { lo: 0.1, hi: 0.9 } } } }], assumptions: [], witness: null },
+    scenario: null, delta: { unavailable: { reason: 'no scenario to compare', missing: [] } } } } } });
+  await h.settle();
+  h.app.select('step/state/service/web/control');
+  const terms = h.nodes.get('selected-facts').children.filter(c => c.tag === 'dt').map(c => c.textContent);
+  assert.deepEqual(terms, ['P(step)', '95% CI']);
 });
 
 test('a kept architecture opens as it was left', async () => {

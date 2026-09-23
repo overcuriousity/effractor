@@ -21,8 +21,9 @@
   function arch() {
     return P.isArchitecture(doc());
   }
+  // The attack graph is on the canvas: chosen, and generated for this text.
   function attack() {
-    return arch() && app.state.mode === "attack";
+    return arch() && app.state.mode === "attack" && !!app.state.generated;
   }
   function generated() {
     return app.state.generated;
