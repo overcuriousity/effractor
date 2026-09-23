@@ -110,6 +110,10 @@
     state.parentChosen = parents.indexOf(parent) >= 0;
     state.parent = state.parentChosen ? parent : parents[0] || null;
     renderer.highlight(state.selected ? [state.selected] : [], "selected");
+    // A selected flow shows where it goes: the networks and routers on its
+    // route, which its line from end to end does not.
+    var flow = arch && state.selected && state.selected.indexOf("flow/") === 0 ? state.selected.slice(5) : null;
+    renderer.highlight(flow ? window.effractorArchitectureView.route(state.doc, flow) : [], "route");
     // The edge a shared node was reached along, when that was said: it is what
     // Del and Unlink act on.
     renderer.highlight(state.selected && state.parentChosen && parents.length > 1 ? [state.selected, state.parent] : [], "via");

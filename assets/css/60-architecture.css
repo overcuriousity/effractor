@@ -22,6 +22,8 @@
 .node-component:hover .halo { stroke: var(--viz-outline); }
 .node-component.is-unquantified .halo { stroke: var(--viz-outline); stroke-dasharray: 3 2.5; }
 .node-component.hl-selected .halo { stroke: var(--color-accent); stroke-width: 2.5; stroke-dasharray: none; }
+/* A selected flow's route: the networks and routers it passes through. */
+.node-component.hl-route .halo { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 2 2.5; }
 /* The name reads over lines that pass under it. */
 .node-component .label-line { paint-order: stroke; stroke: var(--viz-canvas); stroke-width: 3px; stroke-linejoin: round; }
 .node-component .count { fill: var(--viz-canvas); stroke: var(--viz-outline); stroke-width: 1; stroke-dasharray: 3 2; }

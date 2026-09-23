@@ -333,6 +333,7 @@
       edges: graph.edges.map(function (e) {
         var out = { id: e.id, from: e.from, to: e.to, points: [] };
         if (e.label) out.label = e.label;
+        if (e.title) out.title = e.title;
         return out;
       }),
       permits: (graph.permits || []).slice(),

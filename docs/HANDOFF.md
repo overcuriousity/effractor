@@ -443,7 +443,12 @@ today, all of it after seeing the alternative:
   what is missing and how to add it.
 - **Relationships are said in plain words** from the selected component
   (*runs here as admin*, *is admin here*, *may log in*); the file's relation
-  name is the tooltip. Canvas lines keep the technical `hosts · admin`.
+  name is the tooltip. Canvas lines keep the technical `hosts · admin`,
+  except where the term reads backwards along the arrow (owner, 2026-09-23):
+  *may log in to* (authorizes), *admin on* (grants), *filtered by*
+  (filters), *managed from* (administration), the term in the tooltip.
+  Arrows point as the file writes the relation (said in the legend). A
+  selected flow lights the networks and routers of its route.
 - **No walls of buttons.** Actions are icons in the rail with the key in the
   tooltip; the context menu (canvas *and* model tree) and the `?` list spell
   them out. Every interaction has a button and every key is listed.

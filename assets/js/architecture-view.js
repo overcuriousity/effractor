@@ -25,18 +25,44 @@
     return out;
   }
 
+  // Relations whose file term reads backwards along the arrow ("account
+  // authorizes service"), said the way the arrow runs instead.
+  var ALONG = {
+    authorizes: function () {
+      return "may log in to";
+    },
+    grants: function (a) {
+      return (a.privilege || "") + " on";
+    },
+    filters: function () {
+      return "filtered by";
+    },
+  };
+
+  // The networks and routers a flow passes through, as drawn ids.
+  function route(doc, flowId) {
+    var f = has(doc.flows, flowId) ? doc.flows[flowId] : null;
+    return f
+      ? (f.route || []).filter(function (hop) {
+          return has(doc.entities, hop);
+        }).map(function (hop) {
+          return "entity/" + hop;
+        })
+      : [];
+  }
+
   function describe(doc) {
     var entities = doc.entities || {};
     var edges = [];
     var permits = [];
     var incoming = Object.create(null);
-    // `label`: a few words on the line — the relation, and its privilege;
-    // a flow's name and its direction.
-    function edge(id, from, to, kind, label) {
+    // `label`: a few words on the line, read along its arrow — the relation,
+    // and its privilege; a flow's name. `title` is the file's own term.
+    function edge(id, from, to, kind, label, title) {
       // A dangling end is a diagnostic elsewhere; here it is just no edge.
       if (!has(entities, from) || !has(entities, to)) return;
       incoming[to] = (incoming[to] || 0) + 1;
-      edges.push({ id: id, from: "entity/" + from, to: "entity/" + to, kind: kind, label: label });
+      edges.push({ id: id, from: "entity/" + from, to: "entity/" + to, kind: kind, label: label, title: title || label });
     }
     Object.keys(doc.associations || {}).forEach(function (id) {
       var a = doc.associations[id];
@@ -50,12 +76,13 @@
       }
       // The file names the network first; the line runs from the machine to
       // the network it is managed from, so it cannot read "network manages".
-      if (a.kind === "administration") return edge("association/" + id, a.to, a.from, a.kind, "managed from");
-      edge("association/" + id, a.from, a.to, a.kind, a.privilege ? a.kind + " · " + a.privilege : a.kind);
+      if (a.kind === "administration") return edge("association/" + id, a.to, a.from, a.kind, "managed from", "administration");
+      var term = a.privilege ? a.kind + " · " + a.privilege : a.kind;
+      edge("association/" + id, a.from, a.to, a.kind, ALONG[a.kind] ? ALONG[a.kind](a) : term, term);
     });
     Object.keys(doc.flows || {}).forEach(function (id) {
       var f = doc.flows[id];
-      edge("flow/" + id, f.source, f.target, "flow", String(f.label == null ? id : f.label) + " →");
+      edge("flow/" + id, f.source, f.target, "flow", String(f.label == null ? id : f.label), "flow");
     });
 
     var badge = badges(doc);
@@ -83,7 +110,7 @@
     return { profile: "architecture", nodes: nodes, edges: edges, permits: permits };
   }
 
-  var api = { describe: describe };
+  var api = { describe: describe, route: route };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureView = api;
 })();

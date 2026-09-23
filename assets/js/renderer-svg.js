@@ -286,6 +286,8 @@
     function drawCurve(r) {
       var line = el("path", { d: curve(r), "data-id": r.id, "data-from": r.from, "data-to": r.to, "marker-end": "url(#edge-arrow)" }, ["edge"], edgeLayer);
       var hit = el("path", { d: curve(r), "data-id": r.id, "data-from": r.from, "data-to": r.to }, ["edge-hit"], edgeLayer);
+      // The file's own term, where the line says it in other words.
+      if (r.title) el("title", {}, [], hit).textContent = r.title;
       var label = null;
       if (r.label) {
         label = el("text", { x: r.mid.x, y: r.mid.y - 4, "data-id": r.id }, ["edge-label"], edgeLayer);

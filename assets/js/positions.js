@@ -117,14 +117,14 @@
     var edges = (laid.edges || []).map(function (e) {
       var key = e.from < e.to ? e.from + "\u0000" + e.to : e.to + "\u0000" + e.from;
       (groups[key] = groups[key] || []).push(e.id);
-      return { id: e.id, from: e.from, to: e.to, label: e.label, key: key };
+      return { id: e.id, from: e.from, to: e.to, label: e.label, title: e.title, key: key };
     });
     var at = byId(nodes);
     edges = edges
       .map(function (e) {
         var group = groups[e.key];
         var bend = group.length === 1 ? SINGLE : (group.indexOf(e.id) - (group.length - 1) / 2) * SPREAD;
-        return route(at, { id: e.id, from: e.from, to: e.to, label: e.label, bend: bend });
+        return route(at, { id: e.id, from: e.from, to: e.to, label: e.label, title: e.title, bend: bend });
       })
       .filter(Boolean);
     var routed = Object.create(null);
