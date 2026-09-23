@@ -213,7 +213,9 @@
           });
           points.push(s.endPoint);
         });
-        return { id: e.id, from: ends[e.id].from, to: ends[e.id].to, points: points };
+        var out = { id: e.id, from: ends[e.id].from, to: ends[e.id].to, points: points };
+        if (ends[e.id].label) out.label = ends[e.id].label;
+        return out;
       }),
     };
   }

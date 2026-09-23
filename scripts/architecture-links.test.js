@@ -231,3 +231,71 @@ test('a taken, numeric or malformed id is refused before any edit', () => {
   assert.equal(Object.hasOwn(L.remove(proto.doc, 'entities', 'constructor').doc.entities, 'constructor'), false);
   assert.equal(L.remove(lecture(), 'entities', 'toString'), null);
 });
+
+const CATALOG = require('./fixtures/catalog.json');
+
+test('the link menu offers the kinds a component can stand in, with eligible ends', () => {
+  const doc = lecture();
+  const choices = L.linkChoices(doc, CATALOG, 'server');
+  const kinds = choices.map((c) => c.kind + ':' + c.direction);
+  assert.deepEqual(kinds, ['attached:out', 'hosts:out', 'stores:out', 'grants:in', 'administration:in']);
+  const attached = choices.find((c) => c.kind === 'attached');
+  // server is already attached to server-net; the others are offered.
+  assert.deepEqual(attached.candidates, ['client-net', 'admin-net']);
+  const hosts = choices.find((c) => c.kind === 'hosts');
+  assert.deepEqual(hosts.candidates, [], 'both executables have their host, and hosting is one per executable');
+  const grants = choices.find((c) => c.kind === 'grants');
+  assert.deepEqual(grants.candidates, ['admin-account']);
+  assert.equal(choices.some((c) => c.kind === 'permits'), false, 'permissions belong to a flow');
+  // A firewall's router is picked from routers; an account links both ways.
+  assert.deepEqual(L.linkChoices(doc, CATALOG, 'filter').map((c) => c.kind + ':' + c.direction), ['filters:in']);
+  assert.deepEqual(L.linkChoices(doc, CATALOG, 'server-account').map((c) => c.kind + ':' + c.direction), ['authenticates:in', 'authorizes:out', 'grants:out']);
+  assert.deepEqual(L.linkChoices(doc, CATALOG, 'absent'), []);
+});
+
+test('hosting already given is not offered twice', () => {
+  const doc = lecture();
+  const hosts = L.linkChoices(doc, CATALOG, 'workstation').find((c) => c.kind === 'hosts');
+  assert.deepEqual(hosts.candidates, [], 'both executables have their host');
+});
+
+test('privileges offered follow what a router or an application can hold', () => {
+  const doc = lecture();
+  assert.deepEqual(L.privileges(doc, 'hosts', 'server', 'sshd'), ['user', 'admin']);
+  assert.deepEqual(L.privileges(doc, 'hosts', 'bridge', 'sshd'), ['admin']);
+  assert.deepEqual(L.privileges(doc, 'grants', 'admin-account', 'bridge'), ['admin']);
+  assert.deepEqual(L.privileges(doc, 'stores', 'ssh-client', 'server-key'), ['user']);
+  assert.deepEqual(L.privileges(doc, 'attached', 'server', 'server-net'), null);
+});
+
+test('a route grows network, router, network — attached ones first, none twice', () => {
+  const doc = lecture();
+  doc.entities.edge = { kind: 'router', label: 'Edge' };
+  const flow = { source: 'ssh-client', target: 'sshd', route: [] };
+  // The source's host is on client-net: it comes first.
+  assert.deepEqual(L.nextHops(doc, flow), ['client-net', 'server-net', 'admin-net']);
+  flow.route = ['client-net'];
+  assert.deepEqual(L.nextHops(doc, flow), ['bridge', 'edge']);
+  flow.route = ['client-net', 'bridge'];
+  assert.deepEqual(L.nextHops(doc, flow), ['server-net', 'admin-net']);
+});
+
+test('a flow lists the permission each router on its route needs, given or not', () => {
+  const doc = lecture();
+  assert.deepEqual(L.flowPermissions(doc, 'ssh'), [{ router: 'bridge', firewall: 'filter', association: 'allow-ssh', allowed: true }]);
+  delete doc.associations['allow-ssh'];
+  assert.deepEqual(L.flowPermissions(doc, 'ssh'), [{ router: 'bridge', firewall: 'filter', association: null, allowed: null }]);
+  delete doc.associations['bridge-filter'];
+  assert.deepEqual(L.flowPermissions(doc, 'ssh'), [{ router: 'bridge', firewall: null, association: null, allowed: null }]);
+  assert.deepEqual(L.flowPermissions(doc, 'absent'), []);
+});
+
+test('a component lists its links and flows, outgoing and incoming', () => {
+  const doc = lecture();
+  assert.deepEqual(L.linksOf(doc, 'sshd').map((l) => [l.id, l.direction, l.other]), [
+    ['service-hosting', 'in', 'server'],
+    ['ssh-authorizes', 'in', 'server-account'],
+  ]);
+  assert.deepEqual(L.flowsOf(doc, 'sshd'), [{ id: 'ssh', direction: 'in', other: 'ssh-client' }]);
+  assert.deepEqual(L.flowsOf(doc, 'ssh-client'), [{ id: 'ssh', direction: 'out', other: 'sshd' }]);
+});

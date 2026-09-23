@@ -97,3 +97,13 @@ fn no_string_in_the_catalog_is_a_distribution() {
         );
     }
 }
+
+/// The page's JavaScript is tested against this file; this keeps it the
+/// catalog the wasm module really hands out.
+#[test]
+fn the_javascript_catalog_fixture_is_the_real_catalog() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let fixture = std::fs::read_to_string(root.join("scripts/fixtures/catalog.json")).unwrap();
+    let fixture: serde_json::Value = serde_json::from_str(&fixture).unwrap();
+    assert_eq!(effractor_components::catalog(), fixture);
+}

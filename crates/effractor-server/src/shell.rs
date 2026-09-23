@@ -60,6 +60,7 @@ mod tests {
         assert!(at("edit.js") < at("architecture-links.js"));
         assert!(at("menu.js") < at("architecture-ui.js"));
         assert!(at("editor.js") < at("architecture-ui.js"));
+        assert!(at("architecture-ui.js") < at("architecture-links-ui.js"));
         assert!(html.contains(&format!("href=\"{prefix}assets/css/60-architecture.css\"")));
         assert!(html.contains("data-file=\"new-architecture\""));
     }

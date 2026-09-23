@@ -265,7 +265,132 @@
     return { doc: next, select: null, notice: notice + " · Ctrl+Z undoes" };
   }
 
-  var api = { KINDS: KINDS, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, renameId: renameId, remove: remove };
+  // ---- what the relationship controls offer: pure, from the catalog ----
+
+  function kindOf(doc, id) {
+    return has(doc.entities, id) ? doc.entities[id].kind : null;
+  }
+
+  function linked(doc, kind, from, to) {
+    return Object.keys(doc.associations || {}).some(function (k) {
+      var a = doc.associations[k];
+      return a.kind === kind && a.from === from && a.to === to;
+    });
+  }
+
+  // The association kinds `id` can stand in, each with its direction and the
+  // components that could be at the other end: of the right kind, not
+  // already linked that way, and — for hosting — not already hosted. A
+  // permission belongs to a flow and is set there.
+  function linkChoices(doc, catalog, id) {
+    var kind = kindOf(doc, id);
+    if (!kind) return [];
+    var ids = Object.keys(doc.entities);
+    var out = [];
+    (catalog.associations || []).forEach(function (spec) {
+      if (spec.kind === "permits") return;
+      if (spec.from.indexOf(kind) >= 0) {
+        out.push({
+          kind: spec.kind,
+          direction: "out",
+          candidates: ids.filter(function (other) {
+            if (other === id || spec.to.indexOf(kindOf(doc, other)) < 0) return false;
+            if (spec.kind === "hosts" && hostOf(doc, other)) return false;
+            return !linked(doc, spec.kind, id, other);
+          }),
+        });
+      }
+      if (spec.to.indexOf(kind) >= 0) {
+        out.push({
+          kind: spec.kind,
+          direction: "in",
+          candidates: spec.kind === "hosts" && hostOf(doc, id) ? [] : ids.filter(function (other) {
+            return other !== id && spec.from.indexOf(kindOf(doc, other)) >= 0 && !linked(doc, spec.kind, other, id);
+          }),
+        });
+      }
+    });
+    return out;
+  }
+
+  // What privilege a link of this kind can carry here, or null for none.
+  function privileges(doc, kind, from, to) {
+    if (PRIVILEGED.indexOf(kind) < 0) return null;
+    if (kind === "hosts" && kindOf(doc, from) === "router") return ["admin"];
+    if (kind === "grants" && kindOf(doc, to) === "router") return ["admin"];
+    if (kind === "stores" && kindOf(doc, from) === "application") return ["user"];
+    return ["user", "admin"];
+  }
+
+  function attachedTo(doc, machine, network) {
+    return linked(doc, "attached", machine, network);
+  }
+
+  // The components that could come next on a flow's route: a network first
+  // and after every router, a router after every network; those attached to
+  // where the route stands come first. Nothing is added by itself.
+  function nextHops(doc, flow) {
+    var route = flow.route || [];
+    var want = route.length % 2 === 0 ? "network" : "router";
+    var last = route[route.length - 1];
+    var start = hostOf(doc, flow.source);
+    var near = function (id) {
+      if (!route.length) return !!start && attachedTo(doc, start, id);
+      return want === "router" ? attachedTo(doc, id, last) : attachedTo(doc, last, id);
+    };
+    var open = Object.keys(doc.entities).filter(function (id) {
+      return kindOf(doc, id) === want && route.indexOf(id) < 0;
+    });
+    return open.filter(near).concat(open.filter(function (id) {
+      return !near(id);
+    }));
+  }
+
+  // For each router on the flow's route: its firewall and that firewall's
+  // permission for the flow — or null where there is none yet.
+  function flowPermissions(doc, flowId) {
+    if (!has(doc.flows, flowId)) return [];
+    var route = doc.flows[flowId].route || [];
+    var out = [];
+    for (var i = 1; i < route.length; i += 2) {
+      var router = route[i];
+      var filters = Object.keys(doc.associations || {}).filter(function (k) {
+        var a = doc.associations[k];
+        return a.kind === "filters" && a.from === router;
+      })[0];
+      var firewall = filters ? doc.associations[filters].to : null;
+      var permit = firewall ? Object.keys(doc.associations).filter(function (k) {
+        var a = doc.associations[k];
+        return a.kind === "permits" && a.from === firewall && a.to === flowId;
+      })[0] : null;
+      out.push({ router: router, firewall: firewall, association: permit || null, allowed: permit ? doc.associations[permit].allowed : null });
+    }
+    return out;
+  }
+
+  // The associations at `id`, in document order, from its side.
+  function linksOf(doc, id) {
+    var out = [];
+    Object.keys(doc.associations || {}).forEach(function (k) {
+      var a = doc.associations[k];
+      if (a.kind === "permits") return;
+      if (a.from === id) out.push({ id: k, kind: a.kind, direction: "out", other: a.to });
+      else if (a.to === id) out.push({ id: k, kind: a.kind, direction: "in", other: a.from });
+    });
+    return out;
+  }
+
+  function flowsOf(doc, id) {
+    var out = [];
+    Object.keys(doc.flows || {}).forEach(function (k) {
+      var f = doc.flows[k];
+      if (f.source === id) out.push({ id: k, direction: "out", other: f.target });
+      else if (f.target === id) out.push({ id: k, direction: "in", other: f.source });
+    });
+    return out;
+  }
+
+  var api = { KINDS: KINDS, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, renameId: renameId, remove: remove };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
 })();

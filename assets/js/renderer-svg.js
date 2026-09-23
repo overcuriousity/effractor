@@ -60,7 +60,7 @@
     // child *along that line*, which for a shared node is the whole point.
     function edgeAt(target) {
       var hit = target && target.closest ? target.closest(".edge-hit") : null;
-      return hit ? { from: hit.getAttribute("data-from"), to: hit.getAttribute("data-to") } : null;
+      return hit ? { id: hit.getAttribute("data-id"), from: hit.getAttribute("data-from"), to: hit.getAttribute("data-to") } : null;
     }
 
     function applyView() {
@@ -82,7 +82,7 @@
       svg.addEventListener("contextmenu", function (e) {
         e.preventDefault();
         var edge = edgeAt(e.target);
-        emit("context", { id: edge ? edge.to : idAt(e.target), parent: edge ? edge.from : undefined, x: e.clientX, y: e.clientY });
+        emit("context", { id: edge ? edge.to : idAt(e.target), parent: edge ? edge.from : undefined, edge: edge ? edge.id : undefined, x: e.clientX, y: e.clientY });
       });
 
       svg.addEventListener("pointerdown", function (e) {
@@ -114,7 +114,7 @@
         svg.classList.remove("is-dragging", "is-panning");
         // A press and release in place is the selection: of the node the press
         // landed on, whatever the browser makes the target of its click.
-        if (!g.moved) return emit("select", g.edge ? { id: g.edge.to, parent: g.edge.from } : { id: g.id, parent: undefined });
+        if (!g.moved) return emit("select", g.edge ? { id: g.edge.to, parent: g.edge.from, edge: g.edge.id } : { id: g.id, parent: undefined });
         svg.releasePointerCapture(e.pointerId);
         var target = idAt(dropTarget(e));
         if (g.id && target && target !== g.id) emit("drop", { id: g.id, target: target, ctrl: !!(e.ctrlKey || e.metaKey) });
@@ -234,7 +234,12 @@
       var last = edge.points.slice(-2);
       if (last.length === 2) {
         var into = "M" + last[0].x + " " + last[0].y + "L" + last[1].x + " " + last[1].y;
-        el("path", { d: into, "data-from": edge.from, "data-to": edge.to }, ["edge-hit"], edgeLayer);
+        el("path", { d: into, "data-id": edge.id, "data-from": edge.from, "data-to": edge.to }, ["edge-hit"], edgeLayer);
+        // A label, where the layout gave one, halfway along that stretch.
+        if (edge.label) {
+          var t = el("text", { x: (last[0].x + last[1].x) / 2 + 4, y: (last[0].y + last[1].y) / 2, "data-id": edge.id }, ["edge-label"], edgeLayer);
+          t.textContent = edge.label;
+        }
       }
       return line;
     }
@@ -247,7 +252,7 @@
           drawn.nodes[id].classList.toggle(cls, !!ids[id]);
         });
         drawn.edges.forEach(function (e) {
-          e.el.classList.toggle(cls, !!(ids[e.from] && ids[e.to]));
+          e.el.classList.toggle(cls, !!((ids[e.from] && ids[e.to]) || (e.id && ids[e.id])));
         });
       });
     }
@@ -259,7 +264,7 @@
       drawn = { nodes: Object.create(null), edges: [] };
       size = { width: layout.width, height: layout.height };
       layout.edges.forEach(function (e) {
-        drawn.edges.push({ el: drawEdge(e), from: e.from, to: e.to });
+        drawn.edges.push({ el: drawEdge(e), id: e.id, from: e.from, to: e.to });
       });
       layout.nodes.forEach(function (item) {
         var style = Object.prototype.hasOwnProperty.call(styles, item.id) ? styles[item.id] : {};

@@ -22,6 +22,11 @@
     var q = P.qualified(app.state.selected);
     return q && q.kind === "entity" ? q.id : null;
   }
+  // The selection as {kind, id} — entity, association or flow — or null.
+  function selection() {
+    return P.qualified(app.state.selected);
+  }
+  var COLLECTION = { entity: "entities", association: "associations", flow: "flows" };
   function entity() {
     var id = entityId();
     return id ? doc().entities[id] : null;
@@ -123,10 +128,10 @@
 
   // With everything that named it; the notice counts what went along.
   function remove() {
-    var id = entityId();
-    if (!id) return;
+    var q = selection();
+    if (!q || !COLLECTION[q.kind]) return;
     apply(function () {
-      return L.remove(doc(), "entities", id);
+      return L.remove(doc(), COLLECTION[q.kind], q.id);
     }, null, true);
   }
 
@@ -143,10 +148,24 @@
     app.select("entity/" + id);
     var items = [["Rename", "F2", focusLabel]];
     if (Object.keys(doc().entities[id].parameters || {}).length) items.push(["Edit parameters", "P", firstParameter]);
+    extraItems.forEach(function (more) {
+      items = items.concat(more(id));
+    });
     items.push(["Show in source", "", function () { app.showSourcePath("entities." + id); }]);
     items.push(["Delete", "Del", remove]);
     app.showMenu(items, x, y);
   }
+
+  // A relationship's or a flow's menu, from its line on the canvas.
+  function edgeMenu(qualified, x, y) {
+    var q = P.qualified(qualified);
+    app.select(qualified);
+    app.showMenu([
+      ["Show in source", "", function () { app.showSourcePath(COLLECTION[q.kind] + "." + q.id); }],
+      ["Delete", "Del", remove],
+    ], x, y);
+  }
+  var extraItems = [];
 
   // ---- keys ----
 
@@ -176,6 +195,10 @@
       e.preventDefault();
       return walk(key === "ArrowDown" ? 1 : -1);
     }
+    if ((key === "Delete" || key === "Backspace") && selection()) {
+      e.preventDefault();
+      return remove();
+    }
     if (!entityId()) return;
     if (key === "F2") {
       e.preventDefault();
@@ -195,6 +218,7 @@
 
   app.renderer.on("context", function (e) {
     if (!arch()) return;
+    if (e.edge && P.selectionExists(doc(), e.edge, app.state.generated)) return edgeMenu(e.edge, e.x, e.y);
     var q = P.qualified(e.id);
     if (q && q.kind === "entity") return menuFor(q.id, e.x, e.y);
     pickKind(e.x, e.y);
@@ -228,8 +252,8 @@
     rail.addChild.disabled = false;
     rail.addChild.title = "Add a component (A)";
     rail.addChild.setAttribute("aria-label", "Add a component");
-    rail.deleteNode.disabled = !entityId();
-    rail.deleteNode.title = entityId() ? "Delete “" + entity().label + "” (Del)" : "Delete";
+    rail.deleteNode.disabled = !selection();
+    rail.deleteNode.title = selection() ? "Delete “" + app.labelOf(app.state.selected) + "” (Del)" : "Delete";
     document.querySelectorAll('[data-action="undo"], [data-action="redo"]').forEach(function (b) {
       b.disabled = b.getAttribute("data-action") === "undo" ? !app.canUndo() : !app.canRedo();
     });
@@ -295,15 +319,24 @@
   // One parameter open at a time; what is typed into it is a draft, kept
   // here until status, TTC and note are applied together. The document never
   // holds half a parameter.
-  var openSlot = null; // "entity-id\u0000slot"
+  var openSlot = null; // ownerKey + "\u0000" + slot
   // Made by the first change in the form, with the parameter it started from:
   // if that parameter changes underneath (undo, the source, another file),
   // the draft is dropped rather than written over it.
   var drafts = Object.create(null);
   var documents = -1;
 
-  function slotKey(id, slot) {
-    return id + "\u0000" + slot;
+  // An owner is {entity: id} or {flow: id}.
+  function ownerKey(owner) {
+    return owner.flow != null ? "flow/" + owner.flow : "entity/" + owner.entity;
+  }
+  function slotKey(owner, slot) {
+    return ownerKey(owner) + "\u0000" + slot;
+  }
+  function ownerRecord(key) {
+    var q = P.qualified(key);
+    var map = q && q.kind === "flow" ? doc().flows : q && q.kind === "entity" ? doc().entities : null;
+    return map && Object.prototype.hasOwnProperty.call(map, q.id) ? map[q.id] : null;
   }
 
   function given(p) {
@@ -316,14 +349,14 @@
     var slots = e ? Object.keys(e.parameters || {}) : [];
     if (!slots.length) return app.say("no parameters for a " + (e ? e.kind : "selection"));
     var unknown = slots.filter(function (s) { return e.parameters[s].status === "unknown"; })[0];
-    openSlot = slotKey(entityId(), unknown || slots[0]);
+    openSlot = slotKey({ entity: entityId() }, unknown || slots[0]);
     renderProperties();
     var first = $("param-status") || $("param-ttc");
     if (first) first.focus();
   }
 
-  function parameterForm(id, slot, current) {
-    var key = slotKey(id, slot);
+  function parameterForm(owner, slot, current) {
+    var key = slotKey(owner, slot);
     var draft = drafts[key] || { status: current.status, ttc: current.ttc || "", note: current.note || "", base: JSON.stringify(current) };
     function keep() {
       drafts[key] = draft;
@@ -362,7 +395,7 @@
     applyButton.textContent = "Apply";
     applyButton.addEventListener("click", function () {
       apply(function () {
-        return A.setParameter(doc(), { entity: id }, slot, draft);
+        return A.setParameter(doc(), owner, slot, draft);
       }, function () {
         delete drafts[key];
         openSlot = null;
@@ -394,14 +427,14 @@
     return form;
   }
 
-  function parameters(form, id, e) {
+  function parameters(form, owner, e) {
     var slots = Object.keys(e.parameters || {});
     if (!slots.length) return;
     var list = document.createElement("ul");
     list.className = "parameters";
     slots.forEach(function (slot) {
       var p = e.parameters[slot];
-      var key = slotKey(id, slot);
+      var key = slotKey(owner, slot);
       var item = document.createElement("li");
       var head = document.createElement("button");
       head.type = "button";
@@ -421,15 +454,16 @@
         renderProperties();
       });
       item.appendChild(head);
-      if (openSlot === key) item.appendChild(parameterForm(id, slot, p));
+      if (openSlot === key) item.appendChild(parameterForm(owner, slot, p));
       list.appendChild(item);
     });
     form.appendChild(list);
   }
 
-  function problems(form, id) {
+  // The diagnostics at `prefix` (a document path) or under it.
+  function problems(form, prefix) {
     var here = (app.state.diagnostics || []).filter(function (d) {
-      return d.path === "entities." + id || d.path.indexOf("entities." + id + ".") === 0;
+      return d.path === prefix || d.path.indexOf(prefix + ".") === 0 || d.path.indexOf(prefix + "[") === 0;
     });
     if (!here.length) return;
     var list = document.createElement("ul");
@@ -446,11 +480,20 @@
     var form = $("properties");
     var keepFocus = document.activeElement && form.contains(document.activeElement) ? document.activeElement.id : null;
     form.replaceChildren();
+    var q = selection();
     var e = entity();
+    if (q && !e && sections[q.kind]) {
+      // A relationship or a flow: its form is architecture-links-ui.js's.
+      form.hidden = false;
+      if (openSlot && openSlot.indexOf(q.kind + "/" + q.id + "\u0000") !== 0) openSlot = null;
+      sections[q.kind](form, q.id);
+      if (keepFocus && $(keepFocus)) $(keepFocus).focus();
+      return;
+    }
     form.hidden = !e;
     if (!e) return;
     var id = entityId();
-    if (openSlot && openSlot.indexOf(id + "\u0000") !== 0) openSlot = null;
+    if (openSlot && openSlot.indexOf("entity/" + id + "\u0000") !== 0) openSlot = null;
 
     var label = field(form, "prop-label", "Label", input("text", e.label));
     label.addEventListener("change", function () {
@@ -480,7 +523,8 @@
         }, null, true);
       });
     }
-    parameters(form, id, e);
+    parameters(form, { entity: id }, e);
+    if (sections.entity) sections.entity(form, id);
 
     var note = field(form, "prop-description", "Note", input("textarea", e.description));
     note.addEventListener("change", function () {
@@ -488,9 +532,12 @@
         return A.setDescription(doc(), id, note.value);
       }, null, true);
     });
-    problems(form, id);
+    problems(form, "entities." + id);
     if (keepFocus && $(keepFocus)) $(keepFocus).focus();
   }
+  // Filled in by architecture-links-ui.js: entity(form, id) adds to a
+  // component's form, association/flow(form, id) are theirs whole.
+  var sections = {};
 
   // ---- when the document or selection changes ----
 
@@ -523,7 +570,7 @@
     }
     Object.keys(drafts).forEach(function (key) {
       var at = key.split("\u0000");
-      var e = Object.prototype.hasOwnProperty.call(doc().entities, at[0]) ? doc().entities[at[0]] : null;
+      var e = ownerRecord(at[0]);
       var p = e && Object.prototype.hasOwnProperty.call(e.parameters || {}, at[1]) ? e.parameters[at[1]] : null;
       if (!p || JSON.stringify(p) !== drafts[key].base) delete drafts[key];
     });
@@ -536,5 +583,18 @@
     keys: function () {
       return KEYS;
     },
+    // For architecture-links-ui.js: the same edit queue, form parts and hooks.
+    apply: apply,
+    field: field,
+    input: input,
+    parameters: parameters,
+    problems: problems,
+    render: renderProperties,
+    sections: sections,
+    menuItems: extraItems,
+    keyList: KEYS,
+    loadCatalog: loadCatalog,
+    word: word,
+    SWITCH: SWITCH,
   };
 })();

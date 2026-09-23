@@ -29,19 +29,21 @@
     var entities = doc.entities || {};
     var edges = [];
     var incoming = Object.create(null);
-    function edge(id, from, to, kind) {
+    // `label`: a few words on the line — the relation, and its privilege;
+    // a flow's name and its direction.
+    function edge(id, from, to, kind, label) {
       // A dangling end is a diagnostic elsewhere; here it is just no edge.
       if (!has(entities, from) || !has(entities, to)) return;
       incoming[to] = (incoming[to] || 0) + 1;
-      edges.push({ id: id, from: "entity/" + from, to: "entity/" + to, kind: kind });
+      edges.push({ id: id, from: "entity/" + from, to: "entity/" + to, kind: kind, label: label });
     }
     Object.keys(doc.associations || {}).forEach(function (id) {
       var a = doc.associations[id];
-      if (a.kind !== "permits") edge("association/" + id, a.from, a.to, a.kind);
+      if (a.kind !== "permits") edge("association/" + id, a.from, a.to, a.kind, a.privilege ? a.kind + " · " + a.privilege : a.kind);
     });
     Object.keys(doc.flows || {}).forEach(function (id) {
       var f = doc.flows[id];
-      edge("flow/" + id, f.source, f.target, "flow");
+      edge("flow/" + id, f.source, f.target, "flow", String(f.label == null ? id : f.label) + " →");
     });
 
     var badge = badges(doc);

@@ -32,3 +32,22 @@
 .parameter-form .actions { grid-column: 1 / -1; display: flex; gap: 6px; }
 .diagnostics { grid-column: 1 / -1; margin: 0; padding: 0; list-style: none; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .diagnostics li::before { content: "· "; }
+
+/* Relationship lines carry a few words: the relation, a flow's name. */
+.edge-label { fill: var(--color-fg-muted); font-size: 10px; pointer-events: none; }
+
+/* A component's links and flows: one line each, a + to add. */
+.link-block { grid-column: 1 / -1; border-top: 1px solid var(--color-border); padding-top: 4px; }
+.link-head { display: flex; align-items: center; justify-content: space-between; color: var(--color-fg-muted); font-size: var(--text-xs); }
+.link-list { margin: 0; padding: 0; list-style: none; }
+.link-list .empty { color: var(--color-fg-muted); font-size: var(--text-xs); }
+.link-row { display: flex; gap: 6px; align-items: baseline; width: 100%; padding: 2px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.link-row:hover { color: var(--color-fg-primary); background: var(--color-bg-hover); }
+.link-row .kind-word { flex: none; width: 7.5em; color: var(--color-fg-muted); font-size: var(--text-xs); }
+.link-row .arrow, .route .arrow { color: var(--color-fg-muted); }
+.link-row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-row .privilege { color: var(--color-fg-secondary); font-family: var(--font-mono); font-size: var(--text-xs); }
+.link-row.end { width: auto; padding: 0; text-decoration: underline dotted; }
+.link-add { min-width: 1.6em; padding: 0 4px; }
+.route { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; }
+.route .empty, .properties .empty { color: var(--color-fg-muted); }

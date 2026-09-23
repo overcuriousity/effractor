@@ -1,0 +1,535 @@
+{
+  "library": {
+    "id": "core-components",
+    "version": 1
+  },
+  "entities": [
+    {
+      "kind": "network",
+      "description": "A network or security zone. `access` means an attacker can originate traffic there, not that every member is compromised.",
+      "states": [
+        "access"
+      ],
+      "parameters": [],
+      "defense": null
+    },
+    {
+      "kind": "router",
+      "description": "A forwarding and management device. `admin` means administrative control.",
+      "states": [
+        "admin"
+      ],
+      "parameters": [],
+      "defense": null
+    },
+    {
+      "kind": "firewall",
+      "description": "The filter managed by one router. Its permissions apply to named flows.",
+      "states": [],
+      "parameters": [],
+      "defense": null
+    },
+    {
+      "kind": "host",
+      "description": "A workstation or server. `user` and `admin` control are distinct.",
+      "states": [
+        "user",
+        "admin"
+      ],
+      "parameters": [],
+      "defense": null
+    },
+    {
+      "kind": "application",
+      "description": "Client-side software running on a host or router.",
+      "states": [
+        "control"
+      ],
+      "parameters": [],
+      "defense": null
+    },
+    {
+      "kind": "service",
+      "description": "A reachable service running on a host or router, with exploit and login routes.",
+      "states": [
+        "control"
+      ],
+      "parameters": [
+        "find-exploit",
+        "find-exploit-patched",
+        "deploy-exploit",
+        "login"
+      ],
+      "defense": "patched"
+    },
+    {
+      "kind": "account",
+      "description": "An identity with explicit authentication and grants; no implicit global privileges.",
+      "states": [],
+      "parameters": [
+        "admin-login"
+      ],
+      "defense": null
+    },
+    {
+      "kind": "credential",
+      "description": "A description of authentication material; `possessed` is the attacker holding it. Never the secret itself.",
+      "states": [
+        "possessed"
+      ],
+      "parameters": [
+        "extract",
+        "extract-protected"
+      ],
+      "defense": "protected"
+    }
+  ],
+  "associations": [
+    {
+      "kind": "attached",
+      "from": [
+        "host",
+        "router"
+      ],
+      "to": [
+        "network"
+      ],
+      "field": null,
+      "description": "Membership of a network; a machine can be attached to several. Implies no flow permission."
+    },
+    {
+      "kind": "hosts",
+      "from": [
+        "host",
+        "router"
+      ],
+      "to": [
+        "application",
+        "service"
+      ],
+      "field": "privilege",
+      "description": "The machine an executable runs on, at `privilege: user | admin`. Each executable has one host."
+    },
+    {
+      "kind": "filters",
+      "from": [
+        "router"
+      ],
+      "to": [
+        "firewall"
+      ],
+      "field": null,
+      "description": "The firewall a router manages: one each way."
+    },
+    {
+      "kind": "stores",
+      "from": [
+        "host",
+        "application"
+      ],
+      "to": [
+        "credential"
+      ],
+      "field": "privilege",
+      "description": "Where a credential is kept: a host at `privilege: user | admin`, an application as `user`. Possession still takes an extraction."
+    },
+    {
+      "kind": "authenticates",
+      "from": [
+        "credential"
+      ],
+      "to": [
+        "account"
+      ],
+      "field": null,
+      "description": "A credential that authenticates an account; any one suffices."
+    },
+    {
+      "kind": "authorizes",
+      "from": [
+        "account"
+      ],
+      "to": [
+        "service"
+      ],
+      "field": null,
+      "description": "A service that accepts this account for login."
+    },
+    {
+      "kind": "grants",
+      "from": [
+        "account"
+      ],
+      "to": [
+        "host",
+        "router"
+      ],
+      "field": "privilege",
+      "description": "What an account gets on a host (`user | admin`) or router (`admin` only)."
+    },
+    {
+      "kind": "administration",
+      "from": [
+        "network"
+      ],
+      "to": [
+        "host",
+        "router"
+      ],
+      "field": null,
+      "description": "Management access to a machine from a network, independent of ordinary forwarding."
+    },
+    {
+      "kind": "permits",
+      "from": [
+        "firewall"
+      ],
+      "to": [
+        "flow"
+      ],
+      "field": "allowed",
+      "description": "A firewall's named permission for a flow: `allowed: true | false | unknown`."
+    }
+  ],
+  "states": [
+    {
+      "id": "access",
+      "description": "Traffic can be originated in this network."
+    },
+    {
+      "id": "user",
+      "description": "User-level control of this machine."
+    },
+    {
+      "id": "admin",
+      "description": "Administrative control of this machine."
+    },
+    {
+      "id": "control",
+      "description": "This software does what the attacker says."
+    },
+    {
+      "id": "possessed",
+      "description": "The attacker holds this credential."
+    }
+  ],
+  "parameters": [
+    {
+      "slot": "connect",
+      "owner": "flow",
+      "description": "Time to establish the flow once its source is controlled and its route permitted."
+    },
+    {
+      "slot": "find-exploit",
+      "owner": "service",
+      "description": "Time to find a usable exploit for a reachable service."
+    },
+    {
+      "slot": "find-exploit-patched",
+      "owner": "service",
+      "description": "The same, once the service is patched; selected by `defenses.patched`."
+    },
+    {
+      "slot": "deploy-exploit",
+      "owner": "service",
+      "description": "Time to turn a found exploit into control of the service."
+    },
+    {
+      "slot": "login",
+      "owner": "service",
+      "description": "Time to log in with an account's material, once the service is reachable."
+    },
+    {
+      "slot": "extract",
+      "owner": "credential",
+      "description": "Time to extract the credential from a store the attacker controls."
+    },
+    {
+      "slot": "extract-protected",
+      "owner": "credential",
+      "description": "The same, once the store is protected; selected by `defenses.protected`."
+    },
+    {
+      "slot": "admin-login",
+      "owner": "account",
+      "description": "Time to authenticate to a machine's management from an administering network."
+    }
+  ],
+  "rules": [
+    {
+      "id": "foothold",
+      "version": 1,
+      "bindings": [
+        "entity",
+        "state"
+      ],
+      "prerequisites": "a declared foothold",
+      "output": "the named state, attained at time zero",
+      "duration": {
+        "kind": "zero"
+      },
+      "scope": "one per declared foothold",
+      "assumptions": [
+        "A foothold is an attacker input, never an estimate of an initial compromise."
+      ]
+    },
+    {
+      "id": "admin-implies-user",
+      "version": 1,
+      "bindings": [
+        "host"
+      ],
+      "prerequisites": "host.admin",
+      "output": "host.user",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per host",
+      "assumptions": [
+        "Administrative control of a host includes everything a user can do on it."
+      ]
+    },
+    {
+      "id": "host-execution",
+      "version": 1,
+      "bindings": [
+        "hosts"
+      ],
+      "prerequisites": "the hosting machine at the executable's declared privilege (admin also satisfies user)",
+      "output": "executable.control",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per hosts association",
+      "assumptions": [
+        "Controlling a machine at the privilege software runs with is controlling that software.",
+        "Router-hosted executables run as admin: this library has no router user state."
+      ]
+    },
+    {
+      "id": "execution-privilege",
+      "version": 1,
+      "bindings": [
+        "hosts"
+      ],
+      "prerequisites": "executable.control",
+      "output": "the hosting machine at the executable's declared privilege",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per hosts association",
+      "assumptions": [
+        "Controlling software yields the privilege it runs with and no more: user software never alone grants admin."
+      ]
+    },
+    {
+      "id": "zone-access",
+      "version": 1,
+      "bindings": [
+        "attached"
+      ],
+      "prerequisites": "host.user or router.admin, for a machine attached to the network",
+      "output": "network.access",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per attached association",
+      "assumptions": [
+        "Access to a network is the capability to originate traffic in it, not control of its members."
+      ]
+    },
+    {
+      "id": "flow-permission",
+      "version": 1,
+      "bindings": [
+        "permits"
+      ],
+      "prerequisites": "the permission's policy allows the flow, or the managing router is under admin control",
+      "output": "the flow's permission at that firewall, satisfied",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per permits association",
+      "assumptions": [
+        "A router's admin can bypass its firewall for an explicitly modelled flow.",
+        "An unknown policy is an unknown branch, not a denial."
+      ]
+    },
+    {
+      "id": "flow-connect",
+      "version": 1,
+      "bindings": [
+        "flow"
+      ],
+      "prerequisites": "source.control and every permission along the route",
+      "output": "flow.connected",
+      "duration": {
+        "kind": "slot",
+        "slot": "connect",
+        "replaced_by": null
+      },
+      "scope": "one per flow",
+      "assumptions": [
+        "The route is checked statically; there is no discovery of IP routes, NAT or transitive trust."
+      ]
+    },
+    {
+      "id": "service-reachable",
+      "version": 1,
+      "bindings": [
+        "service"
+      ],
+      "prerequisites": "any inbound flow.connected",
+      "output": "service.reachable",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per service",
+      "assumptions": [
+        "Reaching a service is not controlling it."
+      ]
+    },
+    {
+      "id": "service-find-exploit",
+      "version": 1,
+      "bindings": [
+        "service"
+      ],
+      "prerequisites": "service.reachable",
+      "output": "service.exploit-ready",
+      "duration": {
+        "kind": "slot",
+        "slot": "find-exploit",
+        "replaced_by": {
+          "defense": "patched",
+          "slot": "find-exploit-patched"
+        }
+      },
+      "scope": "one per service",
+      "assumptions": [
+        "Patching selects the authored replacement distribution; it does not by itself eliminate every exploit.",
+        "Exploit research is not reused across services."
+      ]
+    },
+    {
+      "id": "service-deploy-exploit",
+      "version": 1,
+      "bindings": [
+        "service"
+      ],
+      "prerequisites": "service.exploit-ready",
+      "output": "service.control",
+      "duration": {
+        "kind": "slot",
+        "slot": "deploy-exploit",
+        "replaced_by": null
+      },
+      "scope": "one per service",
+      "assumptions": [
+        "Deployment includes whatever bypass of detection or protection the author assumed in its note; there is no unreported extra success factor."
+      ]
+    },
+    {
+      "id": "credential-extract",
+      "version": 1,
+      "bindings": [
+        "stores"
+      ],
+      "prerequisites": "the storing host at the store's privilege, or the storing application under control",
+      "output": "credential.possessed",
+      "duration": {
+        "kind": "slot",
+        "slot": "extract",
+        "replaced_by": {
+          "defense": "protected",
+          "slot": "extract-protected"
+        }
+      },
+      "scope": "one per stores association",
+      "assumptions": [
+        "Protection selects the authored replacement distribution, not a guarantee.",
+        "Possession requires an extraction action even from a controlled store."
+      ]
+    },
+    {
+      "id": "account-material",
+      "version": 1,
+      "bindings": [
+        "authenticates"
+      ],
+      "prerequisites": "credential.possessed",
+      "output": "account.material",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per authenticates association",
+      "assumptions": [
+        "Any one authenticating credential suffices; multi-factor authentication is outside this library.",
+        "Material alone grants no access."
+      ]
+    },
+    {
+      "id": "service-login",
+      "version": 1,
+      "bindings": [
+        "authorizes"
+      ],
+      "prerequisites": "service.reachable and account.material, for an account the service authorizes",
+      "output": "account.session at that service",
+      "duration": {
+        "kind": "slot",
+        "slot": "login",
+        "replaced_by": null
+      },
+      "scope": "one per account and service",
+      "assumptions": [
+        "Retries and account lockout are outside this library."
+      ]
+    },
+    {
+      "id": "session-grant",
+      "version": 1,
+      "bindings": [
+        "authorizes",
+        "grants"
+      ],
+      "prerequisites": "account.session at a service, and a grant on the machine that hosts that service",
+      "output": "the hosting machine at the granted privilege",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per matching session and grant",
+      "assumptions": [
+        "A grant is used only on the machine the service actually runs on; a login on one machine is never control of another."
+      ]
+    },
+    {
+      "id": "administration-login",
+      "version": 1,
+      "bindings": [
+        "administration",
+        "grants"
+      ],
+      "prerequisites": "access to the administering network and account.material, for an account granted on the managed machine",
+      "output": "the managed machine at the granted privilege",
+      "duration": {
+        "kind": "slot",
+        "slot": "admin-login",
+        "replaced_by": null
+      },
+      "scope": "one per administration and grant pair",
+      "assumptions": [
+        "An administration association is explicit permission to attempt management authentication, not a successful login.",
+        "An isolated administration zone is not reached just because it administers something."
+      ]
+    }
+  ],
+  "limits": {
+    "entities": 500,
+    "relationships": 2000,
+    "generated_nodes": 5000,
+    "generated_dependencies": 20000,
+    "samples": 100000,
+    "scenarios": 16
+  }
+}

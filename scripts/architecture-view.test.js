@@ -59,10 +59,10 @@ test('foothold and target are badges', () => {
 test('associations between components and flows are the edges; permits and dangling ones are not', () => {
   const g = V.describe(lecture());
   assert.deepEqual(g.edges, [
-    { id: 'association/a1', from: 'entity/ws', to: 'entity/lan', kind: 'attached' },
-    { id: 'association/h1', from: 'entity/ws', to: 'entity/cli', kind: 'hosts' },
-    { id: 'association/h2', from: 'entity/srv', to: 'entity/sshd', kind: 'hosts' },
-    { id: 'flow/ssh', from: 'entity/cli', to: 'entity/sshd', kind: 'flow' },
+    { id: 'association/a1', from: 'entity/ws', to: 'entity/lan', kind: 'attached', label: 'attached' },
+    { id: 'association/h1', from: 'entity/ws', to: 'entity/cli', kind: 'hosts', label: 'hosts · user' },
+    { id: 'association/h2', from: 'entity/srv', to: 'entity/sshd', kind: 'hosts', label: 'hosts · admin' },
+    { id: 'flow/ssh', from: 'entity/cli', to: 'entity/sshd', kind: 'flow', label: 'SSH →' },
   ]);
   assert.equal(g.nodes.find(n => n.id === 'entity/sshd').parents, 2);
 });

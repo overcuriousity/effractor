@@ -145,7 +145,18 @@
   function labelOf(id) {
     if (P.isArchitecture(state.doc)) {
       var q = P.qualified(id);
-      var record = !q ? null : q.kind === "entity" ? state.doc.entities[q.id] : q.kind === "flow" ? state.doc.flows[q.id] : null;
+      var own = function (map, key) {
+        return map && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null;
+      };
+      var name = function (entity) {
+        var e = own(state.doc.entities, entity);
+        return e && e.label ? e.label : entity;
+      };
+      if (q && q.kind === "association") {
+        var a = own(state.doc.associations, q.id);
+        if (a) return a.kind + " · " + name(a.from) + " → " + (a.kind === "permits" ? labelOf("flow/" + a.to) : name(a.to));
+      }
+      var record = !q ? null : q.kind === "entity" ? own(state.doc.entities, q.id) : q.kind === "flow" ? own(state.doc.flows, q.id) : null;
       return record && record.label ? record.label : q ? q.id : id;
     }
     var node = state.doc.nodes[id];
@@ -236,6 +247,8 @@
   }
 
   renderer.on("select", function (e) {
+    // An architecture's edge is a relationship or a flow of its own.
+    if (e.edge && P.isArchitecture(state.doc) && P.selectionExists(state.doc, e.edge, state.generated)) return select(e.edge);
     select(e.id, e.parent);
     markRows();
   });
@@ -612,6 +625,7 @@
   window.effractor.state = state;
   window.effractor.renderer = renderer;
   window.effractor.select = select;
+  window.effractor.labelOf = labelOf;
   window.effractor.applyEdit = applyEdit;
   window.effractor.say = say;
   window.effractor.format = { money: money, probability: probability };
