@@ -22,6 +22,11 @@
       sketch: function (expression, horizon) {
         return request({ type: "sketch", expression: expression, horizon: horizon });
       },
+      // An architecture's generated attack graph. `revision` is the caller's
+      // token and comes back in the answer, so a late one can be told apart.
+      generate: function (text, revision) {
+        return request({ type: "generate", text: text, revision: revision });
+      },
       // The component library's catalog: what an architecture is built from.
       catalog: function () {
         return request({ type: "catalog" });

@@ -12,6 +12,10 @@ function fake(total, chunkMs) {
     validate: (text) => JSON.stringify({ ok: true, diagnostics: [], echo: text }),
     parse: (text) => JSON.stringify({ ok: { name: text }, diagnostics: [] }),
     serialize: (json) => JSON.stringify({ ok: "text of " + json, diagnostics: [] }),
+    generate: (text, revision) => {
+      calls.push("generate");
+      return JSON.stringify({ ok: { revision, source: text, graph: { nodes: [] } }, diagnostics: [] });
+    },
     component_catalog: () => JSON.stringify({ ok: { library: { id: "core-components", version: 1 } }, diagnostics: [] }),
     solve_begin(text) {
       calls.push("begin");
@@ -59,6 +63,28 @@ test("a request is answered with the parsed result under its id", () => {
   assert.equal(w.posted[1].result.ok, 'text of {"a":1}');
   w.handle({ id: 9, type: "catalog" });
   assert.deepEqual(w.posted[2], { id: 9, type: "result", result: { ok: { library: { id: "core-components", version: 1 } }, diagnostics: [] } });
+});
+
+test("generate passes text and revision to the module and never begins a solve", () => {
+  const w = fake(3, 1);
+  w.handle({ id: 4, type: "generate", text: "arch", revision: "r1" });
+  assert.deepEqual(w.posted, [
+    { id: 4, type: "result", result: { ok: { revision: "r1", source: "arch", graph: { nodes: [] } }, diagnostics: [] } },
+  ]);
+  assert.deepEqual(w.calls, ["generate"]);
+});
+
+test("generate without text or revision is answered, not a crash", () => {
+  const w = fake(3, 1);
+  w.handle({ id: 5, type: "generate", text: "arch" });
+  w.handle({ id: 6, type: "generate", revision: "r" });
+  assert.deepEqual(w.posted.map((m) => [m.id, m.type, typeof m.result.error]), [
+    [5, "result", "string"],
+    [6, "result", "string"],
+  ]);
+  assert.deepEqual(w.calls, []);
+  w.handle({ id: 7, type: "catalog" });
+  assert.equal(w.posted[2].type, "result");
 });
 
 test("a solve posts exact results first, then progress, then the results", () => {

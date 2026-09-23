@@ -9,6 +9,8 @@ use effractor_core::{Diagnostic, Severity};
 use effractor_solver::{Config, Solve, SolveError};
 use serde_json::{Value, json};
 
+pub use crate::graph_api::generate;
+
 fn diagnostic(d: &Diagnostic) -> Value {
     json!({
         "severity": match d.severity {
@@ -23,7 +25,7 @@ fn diagnostic(d: &Diagnostic) -> Value {
     })
 }
 
-fn answer(ok: Option<Value>, diagnostics: &[Diagnostic]) -> String {
+pub(crate) fn answer(ok: Option<Value>, diagnostics: &[Diagnostic]) -> String {
     let diagnostics: Vec<Value> = diagnostics.iter().map(diagnostic).collect();
     match ok {
         Some(ok) => json!({"ok": ok, "diagnostics": diagnostics}),

@@ -10,9 +10,10 @@ The [implementation plan](docs/superpowers/plans/2026-09-21-lecture-workflow.md)
 was reviewed by the owner on 2026-09-22, who chose native in-session execution:
 one feature branch per task, a pause for the owner at each task boundary. The
 items below are its delivery decomposition. Plan tasks 1
-(`architecture-document`) and 4 (`architecture-editor`) are done; the rest map
-as component-generation = 2, sequential-simulation = 3, architecture-links = 5,
-attack-graph-inspection = 6, defense-comparison = 7, lecture-workflow = 8.
+(`architecture-document`), 2 (`component-generation`) and 4
+(`architecture-editor`) are done; the rest map as sequential-simulation = 3,
+architecture-links = 5, attack-graph-inspection = 6, defense-comparison = 7,
+lecture-workflow = 8.
 "securiCAD parity" in the owner's words means `lecture-workflow`, not the later
 `mal-securicad-compatibility`.
 
@@ -71,18 +72,8 @@ the underlying rules and calibrated inputs.
 
 ## Lecture implementation
 
-### component-generation — Transparent component rules and generated graphs
-needs: —            cost: 3   benefit: 5
-Generate stable state/action identities and explicit prerequisites from the
-small component library, with rule, entity, relationship and parameter
-provenance. Retain blocked alternatives; distinguish connectivity, permission,
-credentials and privilege. Add the lecture and unknown-input fixtures and a
-wasm generation API. Done when every rule has meaningful generation tests,
-reordering/renaming preserves identities, isolation and privilege boundaries
-hold, cycles remain finite, and generation limits fail with diagnostics.
-
 ### sequential-simulation — Prerequisite-dependent timing and paired scenarios
-needs: component-generation            cost: 4   benefit: 5
+needs: —            cost: 4   benefit: 5
 Implement iterative event evaluation for generated graphs, accumulated action
 durations, justified cycle entry, explicit unknown-result states, sampled
 probability/CDF and route witnesses. Compare typed defense overlays with common

@@ -5,6 +5,7 @@
 //! thread-local session the whole of its state.
 
 pub mod api;
+mod graph_api;
 
 use std::cell::RefCell;
 
@@ -47,6 +48,11 @@ pub fn serialize(document: &str) -> String {
 #[wasm_bindgen]
 pub fn component_catalog() -> String {
     api::component_catalog()
+}
+
+#[wasm_bindgen]
+pub fn generate(text: &str, revision: &str) -> String {
+    api::generate(text, revision)
 }
 
 #[wasm_bindgen]

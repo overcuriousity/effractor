@@ -42,6 +42,15 @@ test("the catalog is a plain request with no text", async () => {
   assert.deepEqual(await catalog, { ok: { rules: [] } });
 });
 
+test("generate sends the text and the caller's revision, nothing else", async () => {
+  const h = harness();
+  const generated = h.solver.generate("doc", "rev-3");
+  const m = h.last().sent[0];
+  assert.deepEqual(m, { id: m.id, type: "generate", text: "doc", revision: "rev-3" });
+  h.reply({ id: m.id, type: "result", result: { ok: { revision: "rev-3" } } });
+  assert.deepEqual(await generated, { ok: { revision: "rev-3" } });
+});
+
 test("a solve reports exact results and progress, then resolves", async () => {
   const h = harness();
   const seen = [];

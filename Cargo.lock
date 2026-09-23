@@ -384,6 +384,7 @@ dependencies = [
  "effractor-core",
  "effractor-format",
  "effractor-mal",
+ "indexmap",
  "serde_json",
 ]
 

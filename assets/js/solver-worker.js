@@ -4,6 +4,7 @@
 //      {id, type: "serialize", document}              {id, type: "result", result}
 //      {id, type: "sketch", expression, horizon}      {id, type: "result", result}
 //      {id, type: "catalog"}                          {id, type: "result", result}
+//      {id, type: "generate", text, revision}         {id, type: "result", result}
 //      {id, type: "solve", text}                      {id, type: "exact", result}
 //                                                     {id, type: "progress", done, total}…
 //                                                     {id, type: "result", result}
@@ -75,6 +76,12 @@
         next(m.id);
       } else if (m.type === "sketch") {
         env.post({ id: m.id, type: "result", result: JSON.parse(api.ttc_sketch(m.expression, m.horizon)) });
+      } else if (m.type === "generate") {
+        // A missing argument is the caller's mistake, not a dead module.
+        if (typeof m.text !== "string" || typeof m.revision !== "string") {
+          return env.post({ id: m.id, type: "result", result: { error: "generate needs text and revision" } });
+        }
+        env.post({ id: m.id, type: "result", result: JSON.parse(api.generate(m.text, m.revision)) });
       } else if (m.type === "catalog") {
         env.post({ id: m.id, type: "result", result: JSON.parse(api.component_catalog()) });
       } else if (m.type === "crash") {

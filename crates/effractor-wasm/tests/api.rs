@@ -195,3 +195,96 @@ fn the_component_catalog_is_an_ok_answer() {
     assert_eq!(out["ok"]["rules"].as_array().unwrap().len(), 15);
     assert_eq!(out["ok"]["entities"][5]["kind"], "service");
 }
+
+const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
+
+#[test]
+fn an_architecture_generates_its_graph_with_the_source_it_describes() {
+    let out = call(api::generate(LECTURE, "rev-7"));
+    assert_eq!(out["diagnostics"], json!([]));
+    let ok = &out["ok"];
+    assert_eq!(ok["revision"], "rev-7");
+    assert_eq!(ok["source"], json!(LECTURE));
+    let graph = &ok["graph"];
+    assert_eq!(graph["effractor-graph"], 1);
+    assert_eq!(graph["semantics"], "sequential-1");
+    assert_eq!(
+        graph["library"],
+        json!({"id": "core-components", "version": 1})
+    );
+    assert_eq!(graph["target"], "state/host/server/admin");
+    let nodes = graph["nodes"].as_array().unwrap();
+    let node = |g: &Value, id: &str| {
+        g["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|n| n["id"] == id)
+            .cloned()
+            .unwrap()
+    };
+    let login = node(graph, "action/service-login/server-account/sshd");
+    assert_eq!(login["timing"]["expression"], "Exponential(1)");
+    assert_eq!(
+        login["timing"]["paths"],
+        json!(["entities.sshd.parameters.login"])
+    );
+
+    // Edit through the document image, serialize, regenerate: the same steps,
+    // the new value and its source.
+    let mut image = call(api::parse(LECTURE))["ok"].clone();
+    image["entities"]["sshd"]["parameters"]["login"]["ttc"] = json!("Exponential(3)");
+    image["entities"]["sshd"]["label"] = json!("OpenSSH");
+    let text = call(api::serialize(&image.to_string()))["ok"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let again = call(api::generate(&text, "rev-8"));
+    assert_eq!(again["ok"]["revision"], "rev-8");
+    assert_eq!(again["ok"]["source"], json!(text));
+    let regenerated = &again["ok"]["graph"];
+    let ids = |g: &Value| -> Vec<Value> {
+        g["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["id"].clone())
+            .collect()
+    };
+    assert_eq!(ids(regenerated), ids(graph));
+    assert_eq!(regenerated["nodes"].as_array().unwrap().len(), nodes.len());
+    let login = node(regenerated, "action/service-login/server-account/sshd");
+    assert_eq!(login["timing"]["expression"], "Exponential(3)");
+    assert!(login["label"].as_str().unwrap().contains("OpenSSH"));
+}
+
+#[test]
+fn generation_refuses_what_is_not_a_complete_architecture() {
+    // A tree is not generated from.
+    let out = call(api::generate(WEBSERVER, "r"));
+    assert!(out.get("ok").is_none());
+    assert_eq!(out["diagnostics"][0]["code"], "unsupported");
+    assert_eq!(out["diagnostics"][0]["path"], "profile");
+
+    // An incomplete architecture says what is missing.
+    let mut image = call(api::parse(LECTURE))["ok"].clone();
+    image["associations"]
+        .as_object_mut()
+        .unwrap()
+        .remove("allow-ssh");
+    // The scenario that names the permission goes with it.
+    image["scenarios"].as_object_mut().unwrap().remove("deny");
+    let text = call(api::serialize(&image.to_string()))["ok"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let out = call(api::generate(&text, "r"));
+    assert!(out.get("ok").is_none());
+    assert_eq!(out["diagnostics"][0]["code"], "incomplete");
+    assert_eq!(out["diagnostics"][0]["path"], "flows.ssh.route[1]");
+
+    // Text that does not parse is answered with its diagnostics.
+    let out = call(api::generate("effractor: 2\nprofile: [", "r"));
+    assert!(out.get("ok").is_none());
+    assert!(!out["diagnostics"].as_array().unwrap().is_empty());
+}

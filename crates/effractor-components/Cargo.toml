@@ -17,3 +17,4 @@ workspace = true
 
 [dev-dependencies]
 effractor-format = { path = "../effractor-format" }
+indexmap = "2"

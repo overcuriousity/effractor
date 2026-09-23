@@ -100,6 +100,63 @@ document path; `app.setMode` refuses `attack` until generation exists;
 `state.documents` counts document replacements. A fresh reviewer's nine
 findings (races, drafts, tab keys, stale titles) are fixed with tests.
 
+## Continuation — component generation (2026-09-23)
+
+Task 2 (`component-generation`) is on branch `feature/component-generation`.
+`effractor-components` now has `generate` (architecture → `GeneratedGraph`),
+`resolve` (durations under the baseline or one scenario) and `graph_image`
+(the `effractor-graph: 1` JSON); wasm `generate(text, revision)` returns
+`{ok: {revision, source, graph}}`, and `solver.generate(text, revision)` /
+the worker's `generate` message carry it. No UI uses it yet (Task 6 does).
+
+Decisions the plan left open:
+
+- **Generation refuses an incomplete model**, not only an invalid one: any
+  error or `incomplete` warning comes back instead of a graph. Nothing missing
+  becomes a permissive default; relax per case if the owner wants to generate
+  half-built models.
+- **Ids.** Facts are `state/<kind>/<entity>/<state>` (generated states:
+  `reachable`, `exploit-ready`, `material`), plus `state/flow/<flow>/connected`,
+  `state/permission/<firewall>/<flow>`, `state/session/<account>/<service>`.
+  Actions are `action/<rule>/<entity ids…>` (extraction by store holder and
+  credential, admin login by network/account/machine); inputs are
+  `input/foothold/<entity>/<state>` and `input/flow-permission/<firewall>/<flow>`.
+  Ids are built from entity/flow ids, never association ids, so renaming an
+  association keeps them.
+- Every declared state of every entity is a fact, reached or not; a fact
+  nothing produces (the isolated `admin-net` access) has no origin and no
+  inputs. Logical rules are edges into Any facts, which list every producing
+  rule as an origin; timed rules are All actions.
+- `resolve` puts an active switch's path (or the scenario change that set it)
+  next to the slot path; an unknown switch resolves to `Unknown` with no
+  evidence; a policy is `Zero`/`Infinity`/`Unknown`.
+- The dependency limit cannot be reached within the document's own limits;
+  it is tested through a private `generate_within` with small limits. The
+  node limit is tested for real with a 20×20×20 management mesh.
+
+A fresh reviewer found no correctness bug; fixed from its report: the worker
+answers a `generate` without text/revision instead of crashing the module,
+origins are sorted canonically so exports ignore authoring order, the
+filters association is indexed, `graph_image` refuses a mismatched
+resolution. Left as is: a `permits` for a flow whose route does not cross
+that firewall's router still yields unused permission nodes (the validator
+does not flag it yet), and an unknown switch reports only the switch path.
+
+Fixtures: `docs/course/lecture-architecture.yaml` follows the plan's
+inventory exactly (router `bridge`, firewall `filter`, keys, admin account
+granted on the router, isolated `admin-net`; scenarios `patch`, `protect`,
+`both`, `deny`). It differs from the format crate's
+`lecture-architecture.yaml` of Task 1 (whose login only grants `server.user`);
+both stay, for their own tests. `tests/fixtures/lecture-unknown.yaml` leaves
+discovery unknown. Test-first caveat: Cycle 1 went red then green, but the
+generator was written whole in that cycle, so Cycles 2–3 were green on first
+run; a deliberate mutation (grants used on any machine) was checked to fail
+them.
+
+Local `scripts/build-wasm.sh`, `npm test` (201), `cargo test --workspace`,
+fmt, Clippy `-D warnings` and the roadmap check passed; the built wasm module
+generated the lecture graph (28 nodes) under node.
+
 ## Continuation — self-contained links (2026-09-22)
 
 The owner approved optional self-contained sharing. Branch
