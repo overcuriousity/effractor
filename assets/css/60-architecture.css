@@ -116,9 +116,13 @@
 .node:not(.node-component) .badge { fill: none; stroke: var(--color-fg-primary); stroke-width: 1; }
 .node:not(.node-component) .badge + .tag-text { fill: var(--color-fg-primary); }
 /* A component's steps, lit from the architecture's selection; a step's own
-   component and support, lit from the step's. */
-.node.hl-steps .shape, .node.hl-steps .stem { stroke: var(--color-accent); stroke-width: 2; }
-.edge.hl-steps { stroke: var(--color-accent); stroke-width: 2; }
+   component and support, lit from the step's. Lit is a tinted plate and a
+   heavy stroke; while anything is lit, the rest recedes. */
+.node.hl-steps .shape, .node.hl-steps .stem { stroke: var(--color-accent); stroke-width: 2.5; }
+.node.hl-steps .shape { fill: color-mix(in srgb, var(--color-accent) 16%, var(--color-bg-elevated)); }
+.edge.hl-steps { stroke: var(--color-accent); stroke-width: 2.5; }
+.graph.has-hl-steps .node:not(.hl-steps):not(.hl-selected),
+.graph.has-hl-steps .edge:not(.hl-steps) { opacity: 0.3; }
 .node-component.hl-steps .halo { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 2 2.5; }
 .line-blocked { border-top: 1.5px dotted var(--viz-outline); }
 .line-unknown { border-top: 1.5px dashed var(--viz-outline); }

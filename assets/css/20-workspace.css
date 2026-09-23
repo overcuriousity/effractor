@@ -42,7 +42,14 @@
 }
 .brand { display: flex; align-items: center; gap: 7px; font-weight: 600; }
 .brand-mark { width: 9px; height: 9px; border-radius: var(--radius-sm); background: var(--color-accent); }
-.crumb { color: var(--color-fg-muted); font-size: var(--text-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Narrow, the chips give way before the file menu: they shorten to an
+   ellipsis, the crumb keeps its ▾ and a few letters of the name. */
+.crumb { display: flex; align-items: baseline; flex: 0 1 auto; min-width: 9em; color: var(--color-fg-muted); font-size: var(--text-sm); white-space: nowrap; }
+.crumb-name { display: inline-flex; align-items: baseline; min-width: 0; }
+.crumb-name b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.crumb-name span { flex: none; }
+.topbar > .chip { flex: 0 100 auto; min-width: 3em; overflow: hidden; text-overflow: ellipsis; }
+.topbar > .brand, .topbar > .view-switch, .topbar > .btn { flex: none; }
 .crumb b { color: var(--color-fg-primary); font-weight: 500; }
 
 .chip {
@@ -120,6 +127,7 @@
 .panel {
   min-width: 0;
   overflow: hidden auto;
+  scrollbar-gutter: stable;
   background: var(--color-bg-surface);
   font-size: var(--text-xs);
 }
@@ -223,7 +231,9 @@
    nothing under the pointer moves (a node it would cover is panned into view
    by the renderer). Its width is fixed; its height is what it holds, up to
    the canvas's, and eases from one selection's to the next (app.js sets it).
-   The HUD steps aside while it is open. There while something is selected. */
+   The HUD steps aside while it is open. There while something is selected.
+   Its scrollbar's room is always kept: a bar that came and went would change
+   the width, the wrapping, the height, and bring the bar back — a flicker. */
 .canvas { position: relative; display: flex; }
 .stage { position: relative; flex: 1; min-width: 0; }
 .inspector {
@@ -231,6 +241,7 @@
   width: 280px; max-height: calc(100% - 16px);
   transition: height 160ms ease-out;
   overflow: hidden auto;
+  scrollbar-gutter: stable;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);

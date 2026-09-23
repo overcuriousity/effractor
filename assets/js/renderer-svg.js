@@ -385,6 +385,8 @@
       Object.keys(highlights).forEach(function (kind) {
         var ids = highlights[kind];
         var cls = "hl-" + kind;
+        // The drawing knows whether anything is lit, so the rest can recede.
+        svg.classList.toggle("has-" + cls, Object.keys(ids).length > 0);
         Object.keys(drawn.nodes).forEach(function (id) {
           drawn.nodes[id].classList.toggle(cls, !!ids[id]);
         });

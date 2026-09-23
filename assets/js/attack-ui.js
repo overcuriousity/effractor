@@ -154,6 +154,12 @@
       }, "link-row");
       b.appendChild(el("span", inspected.label, "name"));
       if (inspected.status && inspected.status !== "possible") b.appendChild(el("span", inspected.status, "privilege"));
+      b.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        app.showMenu([["Show in attack graph", "", function () {
+          showStep(id);
+        }]].concat(sourceItems(inspected)), e.clientX, e.clientY);
+      });
       item.appendChild(b);
       list.appendChild(item);
     });
@@ -386,6 +392,15 @@
 
   // ---- the attack view's pointer ----
 
+  // What a step's menu says about where it comes from, wherever it opens.
+  function sourceItems(s) {
+    return [s.paths.length ? ["Source", "", s.paths.map(function (path) {
+      return [path, "", function () {
+        follow(path);
+      }];
+    })] : ["no source field: logical", "", null], ["generated · read-only", "", null]];
+  }
+
   app.renderer.on("context", function (e) {
     if (!attack()) return;
     var step = stepOf(e.id);
@@ -400,16 +415,9 @@
     app.select(e.id);
     var g = generated();
     var s = V.inspect(g.graph, g.support, step);
-    var items = [["Show component", "Enter", function () {
+    app.showMenu([["Show component", "Enter", function () {
       app.setMode("architecture");
-    }]];
-    items.push(s.paths.length ? ["Source", "", s.paths.map(function (path) {
-      return [path, "", function () {
-        follow(path);
-      }];
-    })] : ["no source field: logical", "", null]);
-    items.push(["generated · read-only", "", null]);
-    app.showMenu(items, e.x, e.y);
+    }]].concat(sourceItems(s)), e.x, e.y);
   });
   app.renderer.on("activate", function (e) {
     if (attack() && stepOf(e.id)) app.setMode("architecture");
