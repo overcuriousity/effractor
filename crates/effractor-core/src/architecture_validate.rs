@@ -282,6 +282,15 @@ impl Cx<'_> {
                     format!("{at}.privilege"),
                     "a router has no user privilege; what it runs, it runs as `admin`",
                 ),
+                (Relation::Hosts { .. }, Some(from), Some(EntityKind::Router))
+                    if from != EntityKind::Host =>
+                {
+                    self.error(
+                        Code::AssociationType,
+                        format!("{at}.from"),
+                        "a router runs on a host, not on another router",
+                    )
+                }
                 (
                     Relation::Stores {
                         privilege: Privilege::Admin,
@@ -323,7 +332,7 @@ impl Cx<'_> {
         }
 
         for (what, by, one) in [
-            ("an executable has one host", hosts_of, "hosts"),
+            ("an executable or router has one host", hosts_of, "hosts"),
             ("a router manages one firewall", filters_from, "filters"),
             ("a firewall is managed by one router", filters_to, "filters"),
         ] {

@@ -346,12 +346,18 @@ impl<'a> Builder<'a> {
                 continue;
             };
             let machine = self.machine_id(from, *privilege);
-            let control = self.state_id(to, State::Control.as_str());
             let bound = |rule| Origin {
                 entities: vec![from.clone(), to.clone()],
                 associations: vec![aid.clone()],
                 ..origin(rule)
             };
+            // A router on a host: the box controls it, and nothing more.
+            if self.kind(to) == EntityKind::Router {
+                let admin = self.state_id(to, State::Admin.as_str());
+                self.produce(&machine, &admin, bound("hosted-router"));
+                continue;
+            }
+            let control = self.state_id(to, State::Control.as_str());
             self.produce(&machine, &control, bound("host-execution"));
             self.produce(&control, &machine, bound("execution-privilege"));
         }

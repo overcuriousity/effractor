@@ -3,11 +3,12 @@
 use effractor_components::{RULES, catalog};
 use serde_json::Value;
 
-const RULE_IDS: [&str; 15] = [
+const RULE_IDS: [&str; 16] = [
     "foothold",
     "admin-implies-user",
     "host-execution",
     "execution-privilege",
+    "hosted-router",
     "zone-access",
     "flow-permission",
     "flow-connect",
@@ -62,7 +63,7 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
     assert_eq!(c["limits"]["entities"], 500);
     assert_eq!(c["limits"]["generated_nodes"], 5000);
     // A service's exploit rule is the one patching replaces.
-    let find = &c["rules"][8];
+    let find = &c["rules"][9];
     assert_eq!(find["duration"]["slot"], "find-exploit");
     assert_eq!(find["duration"]["replaced_by"]["defense"], "patched");
     assert_eq!(

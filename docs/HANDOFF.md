@@ -37,7 +37,7 @@ claims version 1; `diagnose_document`/`load_document`/`save_document`, with
 `load`/`diagnose` staying tree-only and answering an architecture with an
 `unsupported` diagnostic at `profile`; the new `effractor-components` crate
 whose `catalog()` describes `core-components@1` (eight kinds, nine
-associations, five states, eight slots, fifteen rules, limits) and holds no
+associations, five states, eight slots, fifteen rules — sixteen since `hosted-router`, see the sequential-simulation continuation — limits) and holds no
 numeric duration; wasm `component_catalog()` and profile dispatch for
 validate/parse/serialize; a worker `catalog` request; and a narrow app guard
 that keeps the current document and says `Architecture editor unavailable`
@@ -196,6 +196,15 @@ false for an architecture, until Task 6 wires it. What exists:
   The lecture at 10,000 samples took about 37 ms in node-hosted wasm, parse and
   generation included.
 - `wasmtime` 48.0.2 is installed with `cargo install` (49 needs rustc 1.96).
+- Owner requests folded into this branch (2026-09-23), both checked by eye:
+  an `administration` link is drawn from the managed machine to the network
+  it is managed from, labelled `managed from`, and a component's form says
+  "managed from there" (the file keeps `from: network, to: machine`); and a
+  router may run on a host (`hosts: host → router`, `user|admin`, one host
+  per router, never router → router), with the rule `hosted-router`: control
+  of the host at that privilege is router admin, with no reverse rule. The
+  addition stays in `core-components@1`: nothing an existing document says
+  changes meaning, and graph ids are unchanged.
 - A fresh reviewer found no correctness bug. Fixed from its report: the
   assumption list now also names the known blockers (denials, never-TTCs) in
   the target's region, so a structural zero shows its premise, and each entry

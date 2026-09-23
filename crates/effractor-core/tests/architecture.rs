@@ -5,7 +5,9 @@ use effractor_core::architecture::{
     Architecture, Association, Attacker, Change, Defense, Entity, EntityKind, Evidence, LibraryPin,
     Parameter, Privilege, Relation, Scenario, Slot, State, StateRef, Switch,
 };
-use effractor_core::{Code, Distribution, EntityId, Severity, validate_architecture};
+use effractor_core::{
+    AssociationId, Code, Distribution, EntityId, Severity, validate_architecture,
+};
 
 fn id(s: &str) -> EntityId {
     s.parse().unwrap()
@@ -138,5 +140,54 @@ fn validation_names_the_field_that_is_wrong() {
             (Code::UnknownState, "attacker.footholds[0].state"),
             (Code::ConflictingChange, "scenarios.s.changes[1]"),
         ]
+    );
+}
+
+/// A router can run on a host — a firewall appliance's box, a VM on a
+/// hypervisor — but not on another router, and on one host at a time.
+#[test]
+fn a_router_runs_on_one_host_and_only_on_a_host() {
+    let hosts = |from: &str, to: &str| Association {
+        relation: Relation::Hosts {
+            from: id(from),
+            to: id(to),
+            privilege: Privilege::Admin,
+        },
+        description: None,
+    };
+    let errors = |m: &Architecture| -> Vec<(Code, String)> {
+        validate_architecture(m)
+            .into_iter()
+            .filter(|d| d.severity == Severity::Error)
+            .map(|d| (d.code, d.path))
+            .collect()
+    };
+    let mut m = Architecture::new("T");
+    m.entities
+        .insert(id("hypervisor"), Entity::new(EntityKind::Host, "Box"));
+    m.entities
+        .insert(id("spare"), Entity::new(EntityKind::Host, "Spare"));
+    m.entities
+        .insert(id("edge"), Entity::new(EntityKind::Router, "Edge"));
+    m.entities
+        .insert(id("core"), Entity::new(EntityKind::Router, "Core"));
+    m.associations
+        .insert("vm".parse().unwrap(), hosts("hypervisor", "edge"));
+    assert_eq!(errors(&m), []);
+
+    m.associations
+        .insert("nested".parse().unwrap(), hosts("edge", "core"));
+    assert_eq!(
+        errors(&m),
+        [(Code::AssociationType, "associations.nested.from".to_owned())]
+    );
+    m.associations
+        .shift_remove(&"nested".parse::<AssociationId>().unwrap());
+
+    m.associations
+        .insert("twice".parse().unwrap(), hosts("spare", "edge"));
+    assert_eq!(
+        errors(&m),
+        [(Code::Cardinality, "associations.twice".to_owned())]
     );
 }

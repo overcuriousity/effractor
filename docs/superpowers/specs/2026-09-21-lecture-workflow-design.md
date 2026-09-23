@@ -130,7 +130,7 @@ Associations are maps keyed by ID. Each has `kind`, `from`, `to`, optional
 | Kind | From → to | Additional field and meaning |
 |---|---|---|
 | `attached` | host/router → network | Membership/interface; can have several. Does not imply flow permission. |
-| `hosts` | host/router → application/service | Required `privilege: user\|admin`. Each executable has one host. |
+| `hosts` | host/router → application/service; host → router | Required `privilege: user\|admin`. Each executable, and each router, has one host; a router runs only on a host (an appliance's box, a VM). Owner request 2026-09-23. |
 | `filters` | router → firewall | Exactly one firewall per complete router, one router per firewall. |
 | `stores` | host/application → credential | Required `privilege: user\|admin` for a host; applications use `user`. Possession still requires an extraction action. |
 | `authenticates` | credential → account | Any one associated credential suffices; multi-factor authentication is outside this library. |
@@ -242,6 +242,7 @@ point from prerequisite to dependent. Nothing is encoded through layout order.
 | `admin-implies-user` | host.admin → host.user | Logical. |
 | `host-execution` | Hosting host's required privilege → executable.control | Logical; admin also satisfies user execution. |
 | `execution-privilege` | executable.control → hosting host's declared privilege | Logical; controlling user software never alone grants admin. |
+| `hosted-router` | Hosting host's required privilege → router.admin | Logical; no reverse rule: leaving a VM or appliance for its host is its own step. |
 | `zone-access` | host.user or router.admin + attachment → network.access | Logical traffic-origin capability only. |
 | `flow-permission` | permitted policy OR managing router.admin → permission satisfied | Logical; a router admin can bypass its firewall for an explicitly modelled flow. An unknown policy is an unknown branch, not denial. |
 | `flow-connect` | source.control + every route permission → flow.connected | Flow's `connect`; route validity is checked statically. |

@@ -105,10 +105,11 @@
       ],
       "to": [
         "application",
-        "service"
+        "service",
+        "router"
       ],
       "field": "privilege",
-      "description": "The machine an executable runs on, at `privilege: user | admin`. Each executable has one host."
+      "description": "The machine an executable or a router runs on, at `privilege: user | admin`. Each has one host; a router runs only on a host."
     },
     {
       "kind": "filters",
@@ -320,6 +321,23 @@
       "scope": "one per hosts association",
       "assumptions": [
         "Controlling software yields the privilege it runs with and no more: user software never alone grants admin."
+      ]
+    },
+    {
+      "id": "hosted-router",
+      "version": 1,
+      "bindings": [
+        "hosts"
+      ],
+      "prerequisites": "the hosting host at the router's declared privilege (admin also satisfies user)",
+      "output": "router.admin",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per hosts association naming a router",
+      "assumptions": [
+        "Whoever controls the machine a router runs on, at the privilege it runs with, controls the router.",
+        "The reverse is not assumed: administering a router on a host does not reach the host, since leaving a VM or appliance is its own step."
       ]
     },
     {

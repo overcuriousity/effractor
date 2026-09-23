@@ -507,7 +507,8 @@ impl RelationKind {
         use EntityKind as K;
         match self {
             Self::Attached => &[K::Network],
-            Self::Hosts => &[K::Application, K::Service],
+            // A router runs on a host too: an appliance's box, a VM.
+            Self::Hosts => &[K::Application, K::Service, K::Router],
             Self::Filters => &[K::Firewall],
             Self::Stores => &[K::Credential],
             Self::Authenticates => &[K::Account],

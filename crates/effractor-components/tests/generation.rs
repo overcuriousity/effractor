@@ -302,7 +302,12 @@ fn every_rule_is_used_by_the_lecture_and_names_what_it_bound() {
         .iter()
         .flat_map(|n| n.origins.iter().map(|o| o.rule.as_str()))
         .collect();
-    let all: BTreeSet<&str> = RULES.iter().map(|r| r.id).collect();
+    // The lecture's router is its own box; a router on a host has its own test.
+    let all: BTreeSet<&str> = RULES
+        .iter()
+        .map(|r| r.id)
+        .filter(|r| *r != "hosted-router")
+        .collect();
     assert_eq!(used, all);
 
     let rules = |id: &str| -> BTreeSet<String> {
@@ -485,6 +490,73 @@ fn user_software_never_grants_admin_and_root_software_does() {
             "action/service-deploy-exploit/sshd",
             "state/host/server/user"
         ]
+    );
+}
+
+#[test]
+fn a_router_on_a_host_is_controlled_from_it_and_not_the_reverse() {
+    let mut m = lecture();
+    add(&mut m, "hypervisor", EntityKind::Host);
+    relate(
+        &mut m,
+        "hypervisor-net",
+        Relation::Attached {
+            from: id("hypervisor"),
+            to: id("admin-net"),
+        },
+    );
+    relate(
+        &mut m,
+        "router-vm",
+        Relation::Hosts {
+            from: id("hypervisor"),
+            to: id("bridge"),
+            privilege: Privilege::Admin,
+        },
+    );
+    let graph = generate(&m).unwrap();
+    assert_eq!(
+        inputs(&graph, "state/router/bridge/admin"),
+        [
+            "action/administration-login/admin-net/admin-account/bridge",
+            "state/host/hypervisor/admin"
+        ]
+    );
+    let origin = node(&graph, "state/router/bridge/admin")
+        .origins
+        .iter()
+        .find(|o| o.rule == "hosted-router")
+        .unwrap();
+    let names: Vec<&str> = origin.associations.iter().map(|a| a.as_str()).collect();
+    assert_eq!(names, ["router-vm"]);
+    // The router's admin is not the hypervisor's: a way out of the VM would
+    // be its own step.
+    assert!(
+        !inputs(&graph, "state/host/hypervisor/admin")
+            .contains(&"state/router/bridge/admin".to_owned())
+    );
+    assert!(
+        !graph
+            .nodes
+            .iter()
+            .any(|n| n.id == "state/router/bridge/control")
+    );
+
+    // Run as a user on the box, a user on the box is enough.
+    unrelate(&mut m, "router-vm");
+    relate(
+        &mut m,
+        "router-vm",
+        Relation::Hosts {
+            from: id("hypervisor"),
+            to: id("bridge"),
+            privilege: Privilege::User,
+        },
+    );
+    let graph = generate(&m).unwrap();
+    assert!(
+        inputs(&graph, "state/router/bridge/admin")
+            .contains(&"state/host/hypervisor/user".to_owned())
     );
 }
 

@@ -284,6 +284,12 @@
     });
   }
 
+  // What the catalog's kind lists cannot say: a router runs on a host, not
+  // on another router. The file's validator says the same.
+  function endsAllowed(relation, fromKind, toKind) {
+    return !(relation === "hosts" && toKind === "router" && fromKind !== "host");
+  }
+
   // The association kinds `id` can stand in, each with its direction and the
   // components that could be at the other end: of the right kind, not
   // already linked that way, and — for hosting — not already hosted. A
@@ -301,6 +307,7 @@
           direction: "out",
           candidates: ids.filter(function (other) {
             if (other === id || spec.to.indexOf(kindOf(doc, other)) < 0) return false;
+            if (!endsAllowed(spec.kind, kind, kindOf(doc, other))) return false;
             if (spec.kind === "hosts" && hostOf(doc, other)) return false;
             return !linked(doc, spec.kind, id, other);
           }),
@@ -311,7 +318,12 @@
           kind: spec.kind,
           direction: "in",
           candidates: spec.kind === "hosts" && hostOf(doc, id) ? [] : ids.filter(function (other) {
-            return other !== id && spec.from.indexOf(kindOf(doc, other)) >= 0 && !linked(doc, spec.kind, other, id);
+            return (
+              other !== id &&
+              spec.from.indexOf(kindOf(doc, other)) >= 0 &&
+              endsAllowed(spec.kind, kindOf(doc, other), kind) &&
+              !linked(doc, spec.kind, other, id)
+            );
           }),
         });
       }
@@ -373,6 +385,7 @@
     function offer(newKind, relation, direction) {
       var from = direction === "out" ? kind : newKind;
       var to = direction === "out" ? newKind : kind;
+      if (!endsAllowed(relation, from, to)) return;
       var list = (byKind[newKind] = byKind[newKind] || []);
       (privilegesOf(relation, from, to) || [null]).forEach(function (p) {
         list.push({ relation: relation, direction: direction, privilege: p });

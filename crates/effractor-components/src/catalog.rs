@@ -47,7 +47,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 15] = [
+pub const RULES: [Rule; 16] = [
     Rule {
         id: "foothold",
         version: 1,
@@ -93,6 +93,19 @@ pub const RULES: [Rule; 15] = [
         scope: "one per hosts association",
         assumptions: &[
             "Controlling software yields the privilege it runs with and no more: user software never alone grants admin.",
+        ],
+    },
+    Rule {
+        id: "hosted-router",
+        version: 1,
+        bindings: &["hosts"],
+        prerequisites: "the hosting host at the router's declared privilege (admin also satisfies user)",
+        output: "router.admin",
+        duration: D::Logical,
+        scope: "one per hosts association naming a router",
+        assumptions: &[
+            "Whoever controls the machine a router runs on, at the privilege it runs with, controls the router.",
+            "The reverse is not assumed: administering a router on a host does not reach the host, since leaving a VM or appliance is its own step.",
         ],
     },
     Rule {
@@ -279,7 +292,7 @@ fn relation_description(kind: RelationKind) -> &'static str {
             "Membership of a network; a machine can be attached to several. Implies no flow permission."
         }
         RelationKind::Hosts => {
-            "The machine an executable runs on, at `privilege: user | admin`. Each executable has one host."
+            "The machine an executable or a router runs on, at `privilege: user | admin`. Each has one host; a router runs only on a host."
         }
         RelationKind::Filters => "The firewall a router manages: one each way.",
         RelationKind::Stores => {
