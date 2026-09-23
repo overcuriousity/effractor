@@ -1,0 +1,1240 @@
+{
+ "graph": {
+  "effractor-graph": 1,
+  "library": {
+   "id": "core-components",
+   "version": 1
+  },
+  "semantics": "sequential-1",
+  "target": "state/host/server/admin",
+  "nodes": [
+   {
+    "id": "action/administration-login/admin-net/admin-account/bridge",
+    "label": "Admin login · Router administrator · Router from Administration network",
+    "kind": "all",
+    "inputs": [
+     "state/account/admin-account/material",
+     "state/network/admin-net/access"
+    ],
+    "origins": [
+     {
+      "rule": "administration-login",
+      "version": 1,
+      "entities": [
+       "admin-net",
+       "admin-account",
+       "bridge"
+      ],
+      "associations": [
+       "manage-bridge",
+       "router-grant"
+      ],
+      "flows": [],
+      "paths": [
+       "entities.admin-account.parameters.admin-login"
+      ],
+      "assumptions": [
+       "An administration association is explicit permission to attempt management authentication, not a successful login.",
+       "An isolated administration zone is not reached just because it administers something."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "illustrative",
+     "expression": "Exponential(1)",
+     "note": "Exercise assumption; not calibrated to the lecture",
+     "paths": [
+      "entities.admin-account.parameters.admin-login"
+     ],
+     "missing": []
+    }
+   },
+   {
+    "id": "action/credential-extract/workstation/admin-key",
+    "label": "Extract · Router administrator key · Workstation",
+    "kind": "all",
+    "inputs": [
+     "state/host/workstation/admin"
+    ],
+    "origins": [
+     {
+      "rule": "credential-extract",
+      "version": 1,
+      "entities": [
+       "workstation",
+       "admin-key"
+      ],
+      "associations": [
+       "admin-key-store"
+      ],
+      "flows": [],
+      "paths": [
+       "entities.admin-key.parameters.extract",
+       "entities.admin-key.parameters.extract-protected",
+       "entities.admin-key.defenses.protected"
+      ],
+      "assumptions": [
+       "Protection selects the authored replacement distribution, not a guarantee.",
+       "Possession requires an extraction action even from a controlled store."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "illustrative",
+     "expression": "Exponential(0.2)",
+     "note": "Exercise assumption; not calibrated to the lecture",
+     "paths": [
+      "entities.admin-key.parameters.extract",
+      "entities.admin-key.defenses.protected"
+     ],
+     "missing": []
+    }
+   },
+   {
+    "id": "action/credential-extract/workstation/server-key",
+    "label": "Extract · Server account key · Workstation",
+    "kind": "all",
+    "inputs": [
+     "state/host/workstation/user"
+    ],
+    "origins": [
+     {
+      "rule": "credential-extract",
+      "version": 1,
+      "entities": [
+       "workstation",
+       "server-key"
+      ],
+      "associations": [
+       "server-key-store"
+      ],
+      "flows": [],
+      "paths": [
+       "entities.server-key.parameters.extract",
+       "entities.server-key.parameters.extract-protected",
+       "entities.server-key.defenses.protected"
+      ],
+      "assumptions": [
+       "Protection selects the authored replacement distribution, not a guarantee.",
+       "Possession requires an extraction action even from a controlled store."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "illustrative",
+     "expression": "Exponential(0.2)",
+     "note": "Exercise assumption; not calibrated to the lecture",
+     "paths": [
+      "entities.server-key.parameters.extract",
+      "entities.server-key.defenses.protected"
+     ],
+     "missing": []
+    }
+   },
+   {
+    "id": "action/flow-connect/ssh",
+    "label": "Connect · SSH from the workstation",
+    "kind": "all",
+    "inputs": [
+     "state/application/ssh-client/control",
+     "state/permission/filter/ssh"
+    ],
+    "origins": [
+     {
+      "rule": "flow-connect",
+      "version": 1,
+      "entities": [
+       "ssh-client",
+       "sshd",
+       "bridge",
+       "filter"
+      ],
+      "associations": [
+       "allow-ssh"
+      ],
+      "flows": [
+       "ssh"
+      ],
+      "paths": [
+       "flows.ssh.parameters.connect"
+      ],
+      "assumptions": [
+       "The route is checked statically; there is no discovery of IP routes, NAT or transitive trust."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "illustrative",
+     "expression": "Exponential(2)",
+     "note": "Exercise assumption; not calibrated to the lecture",
+     "paths": [
+      "flows.ssh.parameters.connect"
+     ],
+     "missing": []
+    }
+   },
+   {
+    "id": "action/service-deploy-exploit/sshd",
+    "label": "Deploy exploit · SSH server",
+    "kind": "all",
+    "inputs": [
+     "state/service/sshd/exploit-ready"
+    ],
+    "origins": [
+     {
+      "rule": "service-deploy-exploit",
+      "version": 1,
+      "entities": [
+       "sshd"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [
+       "entities.sshd.parameters.deploy-exploit"
+      ],
+      "assumptions": [
+       "Deployment includes whatever bypass of detection or protection the author assumed in its note; there is no unreported extra success factor."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "illustrative",
+     "expression": "Exponential(0.5)",
+     "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately",
+     "paths": [
+      "entities.sshd.parameters.deploy-exploit"
+     ],
+     "missing": []
+    }
+   },
+   {
+    "id": "action/service-find-exploit/sshd",
+    "label": "Find exploit · SSH server",
+    "kind": "all",
+    "inputs": [
+     "state/service/sshd/reachable"
+    ],
+    "origins": [
+     {
+      "rule": "service-find-exploit",
+      "version": 1,
+      "entities": [
+       "sshd"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [
+       "entities.sshd.parameters.find-exploit",
+       "entities.sshd.parameters.find-exploit-patched",
+       "entities.sshd.defenses.patched"
+      ],
+      "assumptions": [
+       "Patching selects the authored replacement distribution; it does not by itself eliminate every exploit.",
+       "Exploit research is not reused across services."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "illustrative",
+     "expression": "Exponential(0.1)",
+     "note": "Exercise assumption; not calibrated to the lecture",
+     "paths": [
+      "entities.sshd.parameters.find-exploit",
+      "entities.sshd.defenses.patched"
+     ],
+     "missing": []
+    }
+   },
+   {
+    "id": "action/service-login/server-account/sshd",
+    "label": "Log in · Server account · SSH server",
+    "kind": "all",
+    "inputs": [
+     "state/account/server-account/material",
+     "state/service/sshd/reachable"
+    ],
+    "origins": [
+     {
+      "rule": "service-login",
+      "version": 1,
+      "entities": [
+       "server-account",
+       "sshd"
+      ],
+      "associations": [
+       "ssh-authorizes"
+      ],
+      "flows": [],
+      "paths": [
+       "entities.sshd.parameters.login"
+      ],
+      "assumptions": [
+       "Retries and account lockout are outside this library."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "illustrative",
+     "expression": "Exponential(1)",
+     "note": "Exercise assumption; not calibrated to the lecture",
+     "paths": [
+      "entities.sshd.parameters.login"
+     ],
+     "missing": []
+    }
+   },
+   {
+    "id": "input/flow-permission/filter/ssh",
+    "label": "Policy · Firewall · SSH from the workstation",
+    "kind": "input",
+    "inputs": [],
+    "origins": [
+     {
+      "rule": "flow-permission",
+      "version": 1,
+      "entities": [
+       "filter"
+      ],
+      "associations": [
+       "allow-ssh"
+      ],
+      "flows": [
+       "ssh"
+      ],
+      "paths": [
+       "associations.allow-ssh.allowed"
+      ],
+      "assumptions": [
+       "A router's admin can bypass its firewall for an explicitly modelled flow.",
+       "An unknown policy is an unknown branch, not a denial."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "policy",
+     "expression": "allowed",
+     "note": null,
+     "paths": [
+      "associations.allow-ssh.allowed"
+     ],
+     "missing": []
+    }
+   },
+   {
+    "id": "input/foothold/workstation/admin",
+    "label": "Foothold · Workstation · admin",
+    "kind": "input",
+    "inputs": [],
+    "origins": [
+     {
+      "rule": "foothold",
+      "version": 1,
+      "entities": [
+       "workstation"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [
+       "attacker.footholds[0]"
+      ],
+      "assumptions": [
+       "A foothold is an attacker input, never an estimate of an initial compromise."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "foothold",
+     "expression": null,
+     "note": null,
+     "paths": [
+      "attacker.footholds[0]"
+     ],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/account/admin-account/material",
+    "label": "Router administrator · material",
+    "kind": "any",
+    "inputs": [
+     "state/credential/admin-key/possessed"
+    ],
+    "origins": [
+     {
+      "rule": "account-material",
+      "version": 1,
+      "entities": [
+       "admin-key",
+       "admin-account"
+      ],
+      "associations": [
+       "admin-auth"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Any one authenticating credential suffices; multi-factor authentication is outside this library.",
+       "Material alone grants no access."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/account/server-account/material",
+    "label": "Server account · material",
+    "kind": "any",
+    "inputs": [
+     "state/credential/server-key/possessed"
+    ],
+    "origins": [
+     {
+      "rule": "account-material",
+      "version": 1,
+      "entities": [
+       "server-key",
+       "server-account"
+      ],
+      "associations": [
+       "server-auth"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Any one authenticating credential suffices; multi-factor authentication is outside this library.",
+       "Material alone grants no access."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/application/ssh-client/control",
+    "label": "SSH client · control",
+    "kind": "any",
+    "inputs": [
+     "state/host/workstation/user"
+    ],
+    "origins": [
+     {
+      "rule": "host-execution",
+      "version": 1,
+      "entities": [
+       "workstation",
+       "ssh-client"
+      ],
+      "associations": [
+       "client-hosting"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Controlling a machine at the privilege software runs with is controlling that software.",
+       "Router-hosted executables run as admin: this library has no router user state."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/credential/admin-key/possessed",
+    "label": "Router administrator key · possessed",
+    "kind": "any",
+    "inputs": [
+     "action/credential-extract/workstation/admin-key"
+    ],
+    "origins": [
+     {
+      "rule": "credential-extract",
+      "version": 1,
+      "entities": [
+       "workstation",
+       "admin-key"
+      ],
+      "associations": [
+       "admin-key-store"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Protection selects the authored replacement distribution, not a guarantee.",
+       "Possession requires an extraction action even from a controlled store."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/credential/server-key/possessed",
+    "label": "Server account key · possessed",
+    "kind": "any",
+    "inputs": [
+     "action/credential-extract/workstation/server-key"
+    ],
+    "origins": [
+     {
+      "rule": "credential-extract",
+      "version": 1,
+      "entities": [
+       "workstation",
+       "server-key"
+      ],
+      "associations": [
+       "server-key-store"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Protection selects the authored replacement distribution, not a guarantee.",
+       "Possession requires an extraction action even from a controlled store."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/flow/ssh/connected",
+    "label": "SSH from the workstation · connected",
+    "kind": "any",
+    "inputs": [
+     "action/flow-connect/ssh"
+    ],
+    "origins": [
+     {
+      "rule": "flow-connect",
+      "version": 1,
+      "entities": [
+       "ssh-client",
+       "sshd",
+       "bridge",
+       "filter"
+      ],
+      "associations": [
+       "allow-ssh"
+      ],
+      "flows": [
+       "ssh"
+      ],
+      "paths": [],
+      "assumptions": [
+       "The route is checked statically; there is no discovery of IP routes, NAT or transitive trust."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/host/server/admin",
+    "label": "Server · admin",
+    "kind": "any",
+    "inputs": [
+     "state/service/sshd/control",
+     "state/session/server-account/sshd"
+    ],
+    "origins": [
+     {
+      "rule": "execution-privilege",
+      "version": 1,
+      "entities": [
+       "server",
+       "sshd"
+      ],
+      "associations": [
+       "service-hosting"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Controlling software yields the privilege it runs with and no more: user software never alone grants admin."
+      ]
+     },
+     {
+      "rule": "session-grant",
+      "version": 1,
+      "entities": [
+       "server-account",
+       "sshd",
+       "server"
+      ],
+      "associations": [
+       "ssh-authorizes",
+       "server-grant",
+       "service-hosting"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "A grant is used only on the machine the service actually runs on; a login on one machine is never control of another."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/host/server/user",
+    "label": "Server · user",
+    "kind": "any",
+    "inputs": [
+     "state/host/server/admin"
+    ],
+    "origins": [
+     {
+      "rule": "admin-implies-user",
+      "version": 1,
+      "entities": [
+       "server"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Administrative control of a host includes everything a user can do on it."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/host/workstation/admin",
+    "label": "Workstation · admin",
+    "kind": "any",
+    "inputs": [
+     "input/foothold/workstation/admin"
+    ],
+    "origins": [
+     {
+      "rule": "foothold",
+      "version": 1,
+      "entities": [
+       "workstation"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [
+       "attacker.footholds[0]"
+      ],
+      "assumptions": [
+       "A foothold is an attacker input, never an estimate of an initial compromise."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/host/workstation/user",
+    "label": "Workstation · user",
+    "kind": "any",
+    "inputs": [
+     "state/application/ssh-client/control",
+     "state/host/workstation/admin"
+    ],
+    "origins": [
+     {
+      "rule": "admin-implies-user",
+      "version": 1,
+      "entities": [
+       "workstation"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Administrative control of a host includes everything a user can do on it."
+      ]
+     },
+     {
+      "rule": "execution-privilege",
+      "version": 1,
+      "entities": [
+       "workstation",
+       "ssh-client"
+      ],
+      "associations": [
+       "client-hosting"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Controlling software yields the privilege it runs with and no more: user software never alone grants admin."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/network/admin-net/access",
+    "label": "Administration network · access",
+    "kind": "any",
+    "inputs": [],
+    "origins": [],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/network/client-net/access",
+    "label": "Client network · access",
+    "kind": "any",
+    "inputs": [
+     "state/host/workstation/user",
+     "state/router/bridge/admin"
+    ],
+    "origins": [
+     {
+      "rule": "zone-access",
+      "version": 1,
+      "entities": [
+       "bridge",
+       "client-net"
+      ],
+      "associations": [
+       "bridge-client"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Access to a network is the capability to originate traffic in it, not control of its members."
+      ]
+     },
+     {
+      "rule": "zone-access",
+      "version": 1,
+      "entities": [
+       "workstation",
+       "client-net"
+      ],
+      "associations": [
+       "workstation-net"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Access to a network is the capability to originate traffic in it, not control of its members."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/network/server-net/access",
+    "label": "Server network · access",
+    "kind": "any",
+    "inputs": [
+     "state/host/server/user",
+     "state/router/bridge/admin"
+    ],
+    "origins": [
+     {
+      "rule": "zone-access",
+      "version": 1,
+      "entities": [
+       "bridge",
+       "server-net"
+      ],
+      "associations": [
+       "bridge-server"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Access to a network is the capability to originate traffic in it, not control of its members."
+      ]
+     },
+     {
+      "rule": "zone-access",
+      "version": 1,
+      "entities": [
+       "server",
+       "server-net"
+      ],
+      "associations": [
+       "server-net-link"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Access to a network is the capability to originate traffic in it, not control of its members."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/permission/filter/ssh",
+    "label": "Permitted · Firewall · SSH from the workstation",
+    "kind": "any",
+    "inputs": [
+     "input/flow-permission/filter/ssh",
+     "state/router/bridge/admin"
+    ],
+    "origins": [
+     {
+      "rule": "flow-permission",
+      "version": 1,
+      "entities": [
+       "bridge",
+       "filter"
+      ],
+      "associations": [
+       "bridge-filter",
+       "allow-ssh"
+      ],
+      "flows": [
+       "ssh"
+      ],
+      "paths": [],
+      "assumptions": [
+       "A router's admin can bypass its firewall for an explicitly modelled flow.",
+       "An unknown policy is an unknown branch, not a denial."
+      ]
+     },
+     {
+      "rule": "flow-permission",
+      "version": 1,
+      "entities": [
+       "filter"
+      ],
+      "associations": [
+       "allow-ssh"
+      ],
+      "flows": [
+       "ssh"
+      ],
+      "paths": [
+       "associations.allow-ssh.allowed"
+      ],
+      "assumptions": [
+       "A router's admin can bypass its firewall for an explicitly modelled flow.",
+       "An unknown policy is an unknown branch, not a denial."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/router/bridge/admin",
+    "label": "Router · admin",
+    "kind": "any",
+    "inputs": [
+     "action/administration-login/admin-net/admin-account/bridge"
+    ],
+    "origins": [
+     {
+      "rule": "administration-login",
+      "version": 1,
+      "entities": [
+       "admin-net",
+       "admin-account",
+       "bridge"
+      ],
+      "associations": [
+       "manage-bridge",
+       "router-grant"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "An administration association is explicit permission to attempt management authentication, not a successful login.",
+       "An isolated administration zone is not reached just because it administers something."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/service/sshd/control",
+    "label": "SSH server · control",
+    "kind": "any",
+    "inputs": [
+     "action/service-deploy-exploit/sshd",
+     "state/host/server/admin"
+    ],
+    "origins": [
+     {
+      "rule": "host-execution",
+      "version": 1,
+      "entities": [
+       "server",
+       "sshd"
+      ],
+      "associations": [
+       "service-hosting"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Controlling a machine at the privilege software runs with is controlling that software.",
+       "Router-hosted executables run as admin: this library has no router user state."
+      ]
+     },
+     {
+      "rule": "service-deploy-exploit",
+      "version": 1,
+      "entities": [
+       "sshd"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Deployment includes whatever bypass of detection or protection the author assumed in its note; there is no unreported extra success factor."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/service/sshd/exploit-ready",
+    "label": "SSH server · exploit-ready",
+    "kind": "any",
+    "inputs": [
+     "action/service-find-exploit/sshd"
+    ],
+    "origins": [
+     {
+      "rule": "service-find-exploit",
+      "version": 1,
+      "entities": [
+       "sshd"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Patching selects the authored replacement distribution; it does not by itself eliminate every exploit.",
+       "Exploit research is not reused across services."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/service/sshd/reachable",
+    "label": "SSH server · reachable",
+    "kind": "any",
+    "inputs": [
+     "state/flow/ssh/connected"
+    ],
+    "origins": [
+     {
+      "rule": "service-reachable",
+      "version": 1,
+      "entities": [
+       "sshd"
+      ],
+      "associations": [],
+      "flows": [
+       "ssh"
+      ],
+      "paths": [],
+      "assumptions": [
+       "Reaching a service is not controlling it."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/session/server-account/sshd",
+    "label": "Session · Server account · SSH server",
+    "kind": "any",
+    "inputs": [
+     "action/service-login/server-account/sshd"
+    ],
+    "origins": [
+     {
+      "rule": "service-login",
+      "version": 1,
+      "entities": [
+       "server-account",
+       "sshd"
+      ],
+      "associations": [
+       "ssh-authorizes"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Retries and account lockout are outside this library."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   }
+  ]
+ },
+ "support": {
+  "nodes": [
+   {
+    "id": "action/administration-login/admin-net/admin-account/bridge",
+    "status": "unreachable",
+    "missing": []
+   },
+   {
+    "id": "action/credential-extract/workstation/admin-key",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "action/credential-extract/workstation/server-key",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "action/flow-connect/ssh",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "action/service-deploy-exploit/sshd",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "action/service-find-exploit/sshd",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "action/service-login/server-account/sshd",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "input/flow-permission/filter/ssh",
+    "status": "seeded",
+    "missing": []
+   },
+   {
+    "id": "input/foothold/workstation/admin",
+    "status": "seeded",
+    "missing": []
+   },
+   {
+    "id": "state/account/admin-account/material",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/account/server-account/material",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/application/ssh-client/control",
+    "status": "seeded",
+    "missing": []
+   },
+   {
+    "id": "state/credential/admin-key/possessed",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/credential/server-key/possessed",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/flow/ssh/connected",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/host/server/admin",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/host/server/user",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/host/workstation/admin",
+    "status": "seeded",
+    "missing": []
+   },
+   {
+    "id": "state/host/workstation/user",
+    "status": "seeded",
+    "missing": []
+   },
+   {
+    "id": "state/network/admin-net/access",
+    "status": "unreachable",
+    "missing": []
+   },
+   {
+    "id": "state/network/client-net/access",
+    "status": "seeded",
+    "missing": []
+   },
+   {
+    "id": "state/network/server-net/access",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/permission/filter/ssh",
+    "status": "seeded",
+    "missing": []
+   },
+   {
+    "id": "state/router/bridge/admin",
+    "status": "unreachable",
+    "missing": []
+   },
+   {
+    "id": "state/service/sshd/control",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/service/sshd/exploit-ready",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/service/sshd/reachable",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/session/server-account/sshd",
+    "status": "possible",
+    "missing": []
+   }
+  ],
+  "target_support": [
+   "action/credential-extract/workstation/server-key",
+   "action/flow-connect/ssh",
+   "action/service-deploy-exploit/sshd",
+   "action/service-find-exploit/sshd",
+   "action/service-login/server-account/sshd",
+   "state/account/server-account/material",
+   "state/application/ssh-client/control",
+   "state/credential/server-key/possessed",
+   "state/flow/ssh/connected",
+   "state/host/server/admin",
+   "state/host/workstation/user",
+   "state/permission/filter/ssh",
+   "state/service/sshd/control",
+   "state/service/sshd/exploit-ready",
+   "state/service/sshd/reachable",
+   "state/session/server-account/sshd"
+  ]
+ }
+}

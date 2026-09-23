@@ -18,18 +18,23 @@
 
   var MAPS = { entity: "entities", flow: "flows", association: "associations" };
 
-  // `graph`: the generated attack graph, once there is one.
+  // `graph`: the generated attack graph, once there is one, its nodes in an
+  // array as the module hands them over.
   function selectionExists(doc, id, graph) {
     if (!doc || !id) return false;
     if (!isArchitecture(doc)) return has(doc.nodes, id);
     var q = qualified(id);
     if (!q) return false;
-    if (q.kind === "step") return !!graph && has(graph.nodes, q.id);
+    if (q.kind === "step") {
+      return !!graph && Array.isArray(graph.nodes) && graph.nodes.some(function (n) {
+        return n.id === q.id;
+      });
+    }
     return has(MAPS, q.kind) && has(doc[MAPS[q.kind]], q.id);
   }
 
-  // Unfinished architecture analyses stay off here until their UI exists,
-  // whatever the wasm module could already do.
+  // An architecture generates its attack graph and samples it; the tree's
+  // exact, cut-set, loss, Pareto and control analyses do not apply to one.
   function capabilities(doc) {
     var arch = isArchitecture(doc);
     return {

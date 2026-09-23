@@ -1,0 +1,806 @@
+{
+ "effractor-graph-results": 1,
+ "semantics": "sequential-1",
+ "library": {
+  "id": "core-components",
+  "version": 1
+ },
+ "target": "state/host/server/admin",
+ "time_unit": "d",
+ "horizon": 100,
+ "seed": "42",
+ "samples": 10000,
+ "confidence": 0.95,
+ "baseline": {
+  "id": null,
+  "outcome": {
+   "available": {
+    "method": "structural",
+    "samples": 0,
+    "confidence": 0.95,
+    "p_target": 0,
+    "ci": {
+     "lo": 0,
+     "hi": 0
+    },
+    "ttc_cdf": [
+     [
+      0,
+      0,
+      0,
+      0
+     ],
+     [
+      1.5625,
+      0,
+      0,
+      0
+     ],
+     [
+      3.125,
+      0,
+      0,
+      0
+     ],
+     [
+      4.6875,
+      0,
+      0,
+      0
+     ],
+     [
+      6.25,
+      0,
+      0,
+      0
+     ],
+     [
+      7.8125,
+      0,
+      0,
+      0
+     ],
+     [
+      9.375,
+      0,
+      0,
+      0
+     ],
+     [
+      10.9375,
+      0,
+      0,
+      0
+     ],
+     [
+      12.5,
+      0,
+      0,
+      0
+     ],
+     [
+      14.0625,
+      0,
+      0,
+      0
+     ],
+     [
+      15.625,
+      0,
+      0,
+      0
+     ],
+     [
+      17.1875,
+      0,
+      0,
+      0
+     ],
+     [
+      18.75,
+      0,
+      0,
+      0
+     ],
+     [
+      20.3125,
+      0,
+      0,
+      0
+     ],
+     [
+      21.875,
+      0,
+      0,
+      0
+     ],
+     [
+      23.4375,
+      0,
+      0,
+      0
+     ],
+     [
+      25,
+      0,
+      0,
+      0
+     ],
+     [
+      26.5625,
+      0,
+      0,
+      0
+     ],
+     [
+      28.125,
+      0,
+      0,
+      0
+     ],
+     [
+      29.6875,
+      0,
+      0,
+      0
+     ],
+     [
+      31.25,
+      0,
+      0,
+      0
+     ],
+     [
+      32.8125,
+      0,
+      0,
+      0
+     ],
+     [
+      34.375,
+      0,
+      0,
+      0
+     ],
+     [
+      35.9375,
+      0,
+      0,
+      0
+     ],
+     [
+      37.5,
+      0,
+      0,
+      0
+     ],
+     [
+      39.0625,
+      0,
+      0,
+      0
+     ],
+     [
+      40.625,
+      0,
+      0,
+      0
+     ],
+     [
+      42.1875,
+      0,
+      0,
+      0
+     ],
+     [
+      43.75,
+      0,
+      0,
+      0
+     ],
+     [
+      45.3125,
+      0,
+      0,
+      0
+     ],
+     [
+      46.875,
+      0,
+      0,
+      0
+     ],
+     [
+      48.4375,
+      0,
+      0,
+      0
+     ],
+     [
+      50,
+      0,
+      0,
+      0
+     ],
+     [
+      51.5625,
+      0,
+      0,
+      0
+     ],
+     [
+      53.125,
+      0,
+      0,
+      0
+     ],
+     [
+      54.6875,
+      0,
+      0,
+      0
+     ],
+     [
+      56.25,
+      0,
+      0,
+      0
+     ],
+     [
+      57.8125,
+      0,
+      0,
+      0
+     ],
+     [
+      59.375,
+      0,
+      0,
+      0
+     ],
+     [
+      60.9375,
+      0,
+      0,
+      0
+     ],
+     [
+      62.5,
+      0,
+      0,
+      0
+     ],
+     [
+      64.0625,
+      0,
+      0,
+      0
+     ],
+     [
+      65.625,
+      0,
+      0,
+      0
+     ],
+     [
+      67.1875,
+      0,
+      0,
+      0
+     ],
+     [
+      68.75,
+      0,
+      0,
+      0
+     ],
+     [
+      70.3125,
+      0,
+      0,
+      0
+     ],
+     [
+      71.875,
+      0,
+      0,
+      0
+     ],
+     [
+      73.4375,
+      0,
+      0,
+      0
+     ],
+     [
+      75,
+      0,
+      0,
+      0
+     ],
+     [
+      76.5625,
+      0,
+      0,
+      0
+     ],
+     [
+      78.125,
+      0,
+      0,
+      0
+     ],
+     [
+      79.6875,
+      0,
+      0,
+      0
+     ],
+     [
+      81.25,
+      0,
+      0,
+      0
+     ],
+     [
+      82.8125,
+      0,
+      0,
+      0
+     ],
+     [
+      84.375,
+      0,
+      0,
+      0
+     ],
+     [
+      85.9375,
+      0,
+      0,
+      0
+     ],
+     [
+      87.5,
+      0,
+      0,
+      0
+     ],
+     [
+      89.0625,
+      0,
+      0,
+      0
+     ],
+     [
+      90.625,
+      0,
+      0,
+      0
+     ],
+     [
+      92.1875,
+      0,
+      0,
+      0
+     ],
+     [
+      93.75,
+      0,
+      0,
+      0
+     ],
+     [
+      95.3125,
+      0,
+      0,
+      0
+     ],
+     [
+      96.875,
+      0,
+      0,
+      0
+     ],
+     [
+      98.4375,
+      0,
+      0,
+      0
+     ],
+     [
+      100,
+      0,
+      0,
+      0
+     ]
+    ]
+   }
+  },
+  "nodes": [
+   {
+    "id": "action/administration-login/admin-net/admin-account/bridge",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "action/credential-extract/workstation/admin-key",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "action/credential-extract/workstation/server-key",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "action/flow-connect/ssh",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "action/service-deploy-exploit/sshd",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "action/service-find-exploit/sshd",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "action/service-login/server-account/sshd",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "input/flow-permission/filter/ssh",
+    "status": "blocked",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "input/foothold/workstation/admin",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/admin-account/material",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/server-account/material",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/application/ssh-client/control",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/credential/admin-key/possessed",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/credential/server-key/possessed",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/flow/ssh/connected",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/host/server/admin",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/host/server/user",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/host/workstation/admin",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/host/workstation/user",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/network/admin-net/access",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/network/client-net/access",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/network/server-net/access",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/permission/filter/ssh",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/router/bridge/admin",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/service/sshd/control",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/service/sshd/exploit-ready",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/service/sshd/reachable",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/session/server-account/sshd",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   }
+  ],
+  "assumptions": [
+   {
+    "path": "associations.allow-ssh.allowed",
+    "paths": [
+     "associations.allow-ssh.allowed"
+    ],
+    "status": "policy",
+    "expression": "denied",
+    "note": null
+   }
+  ],
+  "witness": null
+ },
+ "scenario": null,
+ "delta": {
+  "unavailable": {
+   "reason": "no scenario to compare",
+   "missing": []
+  }
+ }
+}

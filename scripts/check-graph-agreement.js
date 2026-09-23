@@ -95,6 +95,11 @@ if (require.main === module) {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+    // The page's tests read graphs and results exported from this module.
+    require('./graph-fixtures.js').stale(api).forEach(function (name) {
+      console.log('STALE   fixture ' + name + ': node scripts/graph-fixtures.js --write');
+      failed = true;
+    });
     if (failed) process.exitCode = 1;
   } catch (error) {
     console.error(error.message);

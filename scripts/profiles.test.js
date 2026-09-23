@@ -22,13 +22,20 @@ test('selection ids: bare for a tree, qualified for an architecture', () => {
   assert.equal(P.selectionExists(arch, 'association/a'), true);
   assert.equal(P.selectionExists(arch, 'entity/constructor'), false);
   assert.equal(P.selectionExists(arch, 'step/x'), false);
-  assert.equal(P.selectionExists(arch, 'step/x', { nodes: { x: {} } }), true);
+  // The generated graph as the module hands it over: nodes in an array.
+  const generated = { nodes: [{ id: 'state/host/server/admin' }, { id: 'constructor' }] };
+  assert.equal(P.selectionExists(arch, 'step/state/host/server/admin', generated), true);
+  assert.equal(P.selectionExists(arch, 'step/state/host/server', generated), false);
+  assert.equal(P.selectionExists(arch, 'step/constructor', generated), true);
+  assert.equal(P.selectionExists(arch, 'step/toString', generated), false);
   assert.deepEqual(P.qualified('entity/a/b'), { kind: 'entity', id: 'a/b' });
   assert.equal(P.qualified('plain'), null);
 });
 
 test('capabilities are explicit, and an architecture has no tree analysis', () => {
   assert.deepEqual(P.capabilities(tree), { architecture: false, generate: false, solve: true, exact: true, cutSets: true, loss: true, pareto: false, controls: true });
+  // An architecture generates and samples its attack graph; the tree
+  // analyses stay off, whatever a generated graph would let one try.
   assert.equal(P.capabilities(attack).pareto, true);
   assert.deepEqual(P.capabilities(arch), { architecture: true, generate: false, solve: false, exact: false, cutSets: false, loss: false, pareto: false, controls: false });
 });
