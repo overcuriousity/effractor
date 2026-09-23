@@ -23,7 +23,7 @@
   function cdf(outcome) {
     var a = outcome && outcome.available;
     if (a) return { rows: a.ttc_cdf, reason: null, missing: [], confidence: a.confidence, method: a.method };
-    var u = (outcome && outcome.unavailable) || { reason: "Solve to plot", missing: [] };
+    var u = (outcome && outcome.unavailable) || { reason: "Calculate to plot", missing: [] };
     return { rows: [], reason: u.reason, missing: u.missing || [], confidence: null, method: null };
   }
 
@@ -95,7 +95,7 @@
     var a = n.outcome.available;
     if (!a) {
       facts.push(["P(step)", "unknown"]);
-      if (n.outcome.unavailable.missing.length) facts.push(["Missing", n.outcome.unavailable.missing.join(", ")]);
+      if (n.outcome.unavailable.missing.length) facts.push(["Unknown inputs", n.outcome.unavailable.missing.join(", ")]);
       return facts;
     }
     facts.push(["P(step)", number(a.p)]);
@@ -123,7 +123,7 @@
       (inputs[e.dependent] = inputs[e.dependent] || []).push(e.prerequisite);
     });
     return {
-      title: "Sample route",
+      title: "Simulated path",
       sample: w.sample,
       time: w.target_time,
       steps: w.nodes.map(function (n) {

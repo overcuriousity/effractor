@@ -51,7 +51,7 @@
   }
 
   function worth(row, solved, currency) {
-    if (row.value === null) return solved ? "not valued" : "not solved";
+    if (row.value === null) return solved ? "not valued" : "not calculated";
     var m = solved.measure;
     var text = row.enabled ? "adds " + amount(m, row.value, currency) + " if removed" : "saves " + amount(m, row.value, currency);
     if (row.ci) text += " (" + amount(m, row.ci.lo, currency) + " – " + amount(m, row.ci.hi, currency) + ")";

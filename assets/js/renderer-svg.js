@@ -216,7 +216,7 @@
       }
       // Pins stack beside the plate; each can be picked up (attacker-pins.js).
       (n.pins || []).forEach(function (p, i) {
-        var words = p.role + " · " + p.state;
+        var words = p.role + " · " + (p.word || p.state);
         var pw = words.length * 5.6 + 12;
         var y = r - 8 + (i - ((n.pins.length - 1) / 2)) * 20;
         var pin = el("g", { "data-pin-role": p.role, "data-pin-state": p.state }, ["pin", "pin-" + p.role], g);

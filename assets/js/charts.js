@@ -10,12 +10,12 @@
       row.splice(2, 3, p[1], p[2], p[3]); grid.set(p[0], row);
     });
     return { rows: Array.from(grid.values()).sort(function (a, b) { return a[0] - b[0]; }), confidence: sampled ? sampled.confidence : null,
-      reason: result && result.exact && result.exact.unavailable ? result.exact.unavailable.reason : 'Solve to plot' };
+      reason: result && result.exact && result.exact.unavailable ? result.exact.unavailable.reason : 'Calculate to plot' };
   }
   function loss(result) {
     var sampled = available(result, 'sampled'), value = sampled && sampled.loss;
     return { rows: value ? value.exceedance : [], percentiles: value ? ['p50', 'p90', 'p95', 'p99'].map(function (key) { return [key, value[key]]; }) : [],
-      reason: sampled ? 'No assets' : (result && result.sampled && result.sampled.unavailable ? result.sampled.unavailable.reason : 'Solve to plot') };
+      reason: sampled ? 'No assets' : (result && result.sampled && result.sampled.unavailable ? result.sampled.unavailable.reason : 'Calculate to plot') };
   }
   function x(value, max) { return 48 + (max > 0 ? value / max : 0) * 296; }
   function y(value) { return 204 - value * 172; }

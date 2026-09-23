@@ -175,7 +175,7 @@
    },
    {
     "id": "action/service-deploy-exploit/sshd",
-    "label": "Deploy exploit · SSH server",
+    "label": "Use the exploit · SSH server",
     "kind": "all",
     "inputs": [
      "state/service/sshd/exploit-ready"
@@ -209,7 +209,7 @@
    },
    {
     "id": "action/service-find-exploit/sshd",
-    "label": "Find exploit · SSH server",
+    "label": "Find an exploit · SSH server",
     "kind": "all",
     "inputs": [
      "state/service/sshd/reachable"
@@ -285,7 +285,7 @@
    },
    {
     "id": "input/flow-permission/filter/ssh",
-    "label": "Policy · Firewall · SSH from the workstation",
+    "label": "Firewall rule · Firewall · SSH from the workstation",
     "kind": "input",
     "inputs": [],
     "origins": [
@@ -322,7 +322,7 @@
    },
    {
     "id": "input/foothold/workstation/admin",
-    "label": "Foothold · Workstation · admin",
+    "label": "Foothold · Workstation · admin control",
     "kind": "input",
     "inputs": [],
     "origins": [
@@ -354,7 +354,7 @@
    },
    {
     "id": "state/account/admin-account/material",
-    "label": "Router administrator · material",
+    "label": "Router administrator · credential held",
     "kind": "any",
     "inputs": [
      "state/credential/admin-key/possessed"
@@ -388,7 +388,7 @@
    },
    {
     "id": "state/account/server-account/material",
-    "label": "Server account · material",
+    "label": "Server account · credential held",
     "kind": "any",
     "inputs": [
      "state/credential/server-key/possessed"
@@ -422,7 +422,7 @@
    },
    {
     "id": "state/application/ssh-client/control",
-    "label": "SSH client · control",
+    "label": "SSH client · controlled",
     "kind": "any",
     "inputs": [
      "state/host/workstation/user"
@@ -456,7 +456,7 @@
    },
    {
     "id": "state/credential/admin-key/possessed",
-    "label": "Router administrator key · possessed",
+    "label": "Router administrator key · held",
     "kind": "any",
     "inputs": [
      "action/credential-extract/workstation/admin-key"
@@ -490,7 +490,7 @@
    },
    {
     "id": "state/credential/server-key/possessed",
-    "label": "Server account key · possessed",
+    "label": "Server account key · held",
     "kind": "any",
     "inputs": [
      "action/credential-extract/workstation/server-key"
@@ -561,7 +561,7 @@
    },
    {
     "id": "state/host/server/admin",
-    "label": "Server · admin",
+    "label": "Server · admin control",
     "kind": "any",
     "inputs": [
      "state/service/sshd/control",
@@ -614,7 +614,7 @@
    },
    {
     "id": "state/host/server/user",
-    "label": "Server · user",
+    "label": "Server · user control",
     "kind": "any",
     "inputs": [
      "state/host/server/admin"
@@ -644,7 +644,7 @@
    },
    {
     "id": "state/host/workstation/admin",
-    "label": "Workstation · admin",
+    "label": "Workstation · admin control",
     "kind": "any",
     "inputs": [
      "input/foothold/workstation/admin"
@@ -676,7 +676,7 @@
    },
    {
     "id": "state/host/workstation/user",
-    "label": "Workstation · user",
+    "label": "Workstation · user control",
     "kind": "any",
     "inputs": [
      "state/application/ssh-client/control",
@@ -837,7 +837,7 @@
    },
    {
     "id": "state/permission/filter/ssh",
-    "label": "Permitted · Firewall · SSH from the workstation",
+    "label": "Let through · Firewall · SSH from the workstation",
     "kind": "any",
     "inputs": [
      "input/flow-permission/filter/ssh",
@@ -895,7 +895,7 @@
    },
    {
     "id": "state/router/bridge/admin",
-    "label": "Router · admin",
+    "label": "Router · admin control",
     "kind": "any",
     "inputs": [
      "action/administration-login/admin-net/admin-account/bridge"
@@ -931,7 +931,7 @@
    },
    {
     "id": "state/service/sshd/control",
-    "label": "SSH server · control",
+    "label": "SSH server · controlled",
     "kind": "any",
     "inputs": [
      "action/service-deploy-exploit/sshd",
@@ -979,7 +979,7 @@
    },
    {
     "id": "state/service/sshd/exploit-ready",
-    "label": "SSH server · exploit-ready",
+    "label": "SSH server · exploit ready",
     "kind": "any",
     "inputs": [
      "action/service-find-exploit/sshd"
@@ -1042,7 +1042,7 @@
    },
    {
     "id": "state/session/server-account/sshd",
-    "label": "Session · Server account · SSH server",
+    "label": "Logged in · Server account · SSH server",
     "kind": "any",
     "inputs": [
      "action/service-login/server-account/sshd"

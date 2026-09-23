@@ -108,3 +108,47 @@ fn the_javascript_catalog_fixture_is_the_real_catalog() {
     let fixture: serde_json::Value = serde_json::from_str(&fixture).unwrap();
     assert_eq!(effractor_components::catalog(), fixture);
 }
+
+/// What the page shows instead of an id: a few plain words, never markup.
+fn plain(v: &Value, what: &str) -> String {
+    let s = v.as_str().unwrap_or_else(|| panic!("{what} has no words"));
+    assert!(!s.is_empty() && !s.contains('`'), "{what}: {s:?}");
+    s.to_owned()
+}
+
+#[test]
+fn every_kind_state_parameter_and_rule_has_plain_words() {
+    let c = catalog();
+    for e in c["entities"].as_array().unwrap() {
+        plain(&e["meaning"], e["kind"].as_str().unwrap());
+    }
+    for s in c["states"].as_array().unwrap() {
+        plain(&s["word"], s["id"].as_str().unwrap());
+    }
+    for p in c["parameters"].as_array().unwrap() {
+        plain(&p["name"], p["slot"].as_str().unwrap());
+    }
+    for r in c["rules"].as_array().unwrap() {
+        plain(&r["title"], r["id"].as_str().unwrap());
+    }
+    let meaning = |kind: &str| {
+        let e = c["entities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["kind"] == kind);
+        plain(&e.unwrap()["meaning"], kind)
+    };
+    assert!(meaning("application").contains("makes connections"));
+    assert!(meaning("service").contains("accepts connections"));
+    let word = |id: &str| {
+        let s = c["states"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["id"] == id);
+        plain(&s.unwrap()["word"], id)
+    };
+    assert_eq!(word("admin"), "admin control");
+    assert_eq!(word("possessed"), "held");
+}

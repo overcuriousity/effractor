@@ -400,7 +400,7 @@
     } else {
       state.shownSteps = null;
       state.stepCount = null;
-      described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc) : window.effractorGraph.describe(state.doc);
+      described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc, stateWord) : window.effractorGraph.describe(state.doc);
     }
     return layout(described).then(function (laid) {
       if (!gate.accept(token)) return;
@@ -457,7 +457,7 @@
     $("model-name").textContent = doc.name;
     $("profile-chip").textContent = doc.profile;
     $("hud-p-label").textContent = P.isArchitecture(doc) ? "P(target)" : "P(top)";
-    chip(P.capabilities(doc).solve ? analysisLabel(doc.analysis) : "not solved");
+    chip(P.capabilities(doc).solve ? analysisLabel(doc.analysis) : "not calculated");
     solvable();
     if (state.mode !== "attack") return showView() && draw(fit);
     return followGraph(fit);
@@ -518,7 +518,7 @@
       return { ok: true };
     }, function (e) {
       console.error(e);
-      say("the solver crashed and was restarted");
+      say("the calculation crashed and was restarted");
       return { ok: false };
     });
   }
@@ -578,7 +578,7 @@
     $("cutsets-body").replaceChildren();
     $("cutsets").hidden = true;
     $("cutsets-empty").hidden = false;
-    $("cutsets-empty").textContent = "Solve to list them.";
+    $("cutsets-empty").textContent = "Calculate to list them.";
     $("cutsets-count").textContent = "";
     $("cutsets-more").hidden = true;
     $("notices").hidden = true;
@@ -806,10 +806,16 @@
     mark("current");
   }
 
+  // A state as the pins say it: the catalog's word once it has arrived.
+  function stateWord(s) {
+    var U = window.effractorArchitectureUi;
+    return window.effractorWords && U ? window.effractorWords.state(U.catalog(), s) : s;
+  }
+
   function finished() {
     state.running = false;
     state.explicit = false;
-    $("solve").textContent = "Solve";
+    $("solve").textContent = "Calculate";
   }
 
   // One solve of the text as it is now; the scheduler (autosolve.js) decides
@@ -829,7 +835,7 @@
     state.running = true;
     state.explicit = explicit;
     state.stopped = false;
-    chip("solving…");
+    chip("calculating…");
     if (explicit) {
       $("solve").textContent = "Cancel";
       if (window.effractorWorkspace) window.effractorWorkspace.open("right");
@@ -857,7 +863,7 @@
         // A newer text is on its way to being solved: it will say. Typing in
         // the source has no solve of its own until it parses.
         if (!current()) {
-          if (!state.sourceValid) chip("not solved · source not valid");
+          if (!state.sourceValid) chip("not calculated · source not valid");
           return;
         }
         if (outcome.cancelled) {
@@ -866,7 +872,7 @@
           if (!full && arch) return chip("not sampled · Ctrl+Enter samples");
           return;
         }
-        if (!outcome.result.ok) return chip((arch ? "not solved · " : "") + describe(outcome.result.diagnostics[0]));
+        if (!outcome.result.ok) return chip((arch ? "not calculated · " : "") + describe(outcome.result.diagnostics[0]));
         // An architecture's answer names the text and revision it is about.
         var answer = outcome.result.ok;
         if (arch && (answer.revision !== revision || answer.source !== text)) return;
@@ -877,7 +883,7 @@
       })
       .catch(function (e) {
         finished();
-        chip("the solver crashed and was restarted");
+        chip("the calculation crashed and was restarted");
         console.error(e);
       });
   }
@@ -903,6 +909,10 @@
     return showPermits;
   };
   window.effractor.setPermits = setPermits;
+  // The architecture drawn again as it is: its pins' words have arrived.
+  window.effractor.redraw = function () {
+    return attackShown() ? Promise.resolve() : draw(false);
+  };
   window.effractor.applyEdit = applyEdit;
   window.effractor.say = say;
   window.effractor.format = { money: money, probability: probability };
@@ -910,7 +920,7 @@
   // A crash with nothing waiting on the worker would otherwise pass unseen.
   solver.onCrash = function (message) {
     console.error("solver crashed:", message);
-    say("the solver crashed and was restarted");
+    say("the calculation crashed and was restarted");
   };
   window.effractor.undo = function () {
     timeTravel("undo");

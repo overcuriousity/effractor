@@ -80,7 +80,7 @@
   function render() {
     root.replaceChildren();
     var result = app.state.results, a = result && result.attacker && result.attacker.available;
-    if (!a) { root.appendChild(el('p', result && result.attacker && result.attacker.unavailable ? result.attacker.unavailable.reason : 'Solve to compare paths', 'empty')); return; }
+    if (!a) { root.appendChild(el('p', result && result.attacker && result.attacker.unavailable ? result.attacker.unavailable.reason : 'Calculate to compare paths', 'empty')); return; }
     var rows = data.rows(result, sort, descending, label);
     if (!rows.length) { root.appendChild(el('p', 'No attack paths', 'empty')); return; }
     var scroll = el('div', null, 'analysis-scroll'), table = el('table', null, 'analysis-table pareto-table'), head = el('thead'), header = el('tr');

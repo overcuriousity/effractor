@@ -36,7 +36,7 @@ test('a renamed label changes what a step says, not what is selected', () => {
   renamed.nodes.forEach(n => { n.label = n.label.replace('SSH server', 'OpenSSH'); });
   assert.deepEqual(V.stepsForEntity(renamed, 'sshd'), V.stepsForEntity(graph, 'sshd'));
   const drawn = V.describe(renamed, support, null).graph.nodes.find(n => n.id === 'step/action/service-deploy-exploit/sshd');
-  assert.equal(drawn.label, 'Deploy exploit · OpenSSH');
+  assert.equal(drawn.label, 'Use the exploit · OpenSSH');
   assert.equal(V.originOf(renamed, 'action/service-deploy-exploit/sshd'), 'entity/sshd');
   // A step's own component: the state's owner, the action's object.
   assert.equal(V.originOf(graph, 'state/host/server/admin'), 'entity/server');

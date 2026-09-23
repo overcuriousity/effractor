@@ -47,7 +47,7 @@
       if (!states.length) return app.say("a " + e.kind + " takes no pin: what an attacker gets there follows from its links");
       if (states.length === 1) return place(role, entity, states[0], from);
       app.showMenu([[role + " on " + e.label, "", null]].concat(states.map(function (s) {
-        return [s, "", function () {
+        return [window.effractorWords.state(catalog, s), "", function () {
           place(role, entity, s, from);
         }];
       })), x, y);
@@ -97,7 +97,7 @@
       drag.moved = true;
       drag.ghost = document.createElement("div");
       drag.ghost.className = "pin-ghost pin-" + drag.role;
-      drag.ghost.textContent = drag.role + (drag.from ? " · " + drag.from.state : "");
+      drag.ghost.textContent = drag.role + (drag.from ? " · " + window.effractorWords.state(U.catalog(), drag.from.state) : "");
       document.body.appendChild(drag.ghost);
       document.body.classList.add("is-pinning");
     }

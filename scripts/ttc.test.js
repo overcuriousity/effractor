@@ -4,14 +4,15 @@ const ttc = require('../assets/js/ttc.js');
 
 test('presets explain eventual success separately from waiting time, in model units', () => {
   assert.match(ttc.describe('HardAndCertain', 'd'), /10 days/);
-  assert.match(ttc.describe('HardAndCertain', 'd'), /eventual success/);
+  assert.match(ttc.describe('HardAndCertain', 'd'), /eventual success/i);
   assert.match(ttc.describe('HardAndCertain', 'd'), /horizon/);
+  assert.doesNotMatch(ttc.describe('HardAndCertain', 'd'), /HardAndCertain/);
   assert.match(ttc.describe('HardAndUncertain', 'h'), /50%/);
   assert.match(ttc.describe('HardAndUncertain', 'h'), /10 hours/);
   assert.match(ttc.describe('EasyAndUncertain', 'y'), /immediate/);
   assert.doesNotMatch(ttc.describe('EasyAndUncertain', 'y'), /mean/);
   assert.match(ttc.describe('Infinity', 'd'), /blocked/);
-  assert.match(ttc.describe('Zero', 'd'), /immediate/);
+  assert.match(ttc.describe('Zero', 'd'), /immediate/i);
 });
 
 test('picker labels explain presets while values preserve the file format', () => {

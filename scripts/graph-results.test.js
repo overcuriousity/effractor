@@ -68,7 +68,7 @@ test('a target resting on an unknown input has no number and says which', () => 
   assert.deepEqual(R.nodeFacts(unknown, 'action/service-find-exploit/sshd'), [
     ['State', 'possible'],
     ['P(step)', 'unknown'],
-    ['Missing', 'entities.sshd.parameters.find-exploit'],
+    ['Unknown inputs', 'entities.sshd.parameters.find-exploit'],
   ]);
   const extract = R.nodeFacts(unknown, 'action/credential-extract/workstation/server-key');
   assert.equal(extract[1][0], 'P(step)');
@@ -104,7 +104,7 @@ test('assumptions are listed with their evidence status, expression and note', (
 
 test('the sample route is one real sample, whole: every prerequisite of every action on it', () => {
   const w = R.witness(available.baseline, graph);
-  assert.equal(w.title, 'Sample route');
+  assert.equal(w.title, 'Simulated path');
   assert.equal(w.sample, available.baseline.witness.sample);
   assert.equal(w.time, available.baseline.witness.target_time);
   const byId = Object.fromEntries(graph.nodes.map(n => [n.id, n]));

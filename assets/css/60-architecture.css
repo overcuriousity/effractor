@@ -44,6 +44,7 @@
 .kind-icon.is-plate.family-identity { background: var(--viz-family-identity); }
 .help-legend { margin-top: 12px; }
 .help-legend dt { display: flex; align-items: center; }
+.help-legend .legend-meaning { display: block; max-width: 46ch; margin: 0 0 4px; }
 
 /* A flow is directional traffic, not structure: dashed. */
 .edge[data-id^="flow/"] { stroke-dasharray: 5 3; }
@@ -63,7 +64,8 @@
 .line-sample { display: inline-block; width: 18px; height: 0; margin-right: 5px; border-top: 1.5px solid var(--viz-edge); vertical-align: middle; }
 .line-flow { border-top-style: dashed; }
 .line-permit { border-top: 2px dotted var(--viz-family-network); }
-.legend-toggle { padding: 1px 6px; font-size: var(--text-xs); }
+.legend-toggle, .legend-kinds { padding: 1px 6px; font-size: var(--text-xs); }
+.legend-kinds { display: inline-flex; align-items: center; gap: 5px; }
 .legend-toggle[aria-pressed="false"] { color: var(--color-fg-muted); text-decoration: line-through; }
 .legend-toggle[aria-pressed="false"] .line-sample { opacity: 0.4; }
 
