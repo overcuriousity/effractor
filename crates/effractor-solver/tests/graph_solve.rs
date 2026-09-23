@@ -51,6 +51,8 @@ fn stats(outcome: &Value) -> &Value {
         .unwrap_or_else(|| panic!("unavailable: {outcome}"))
 }
 
+// The loop reads as the sampling convention does: slot by slot.
+#[allow(clippy::needless_range_loop)]
 #[test]
 fn a_chain_is_a_sum_of_draws_not_a_product_of_cdfs() {
     let plan = EventPlan::new(vec![Input, All(vec![0]), All(vec![1])]).unwrap();
@@ -314,4 +316,173 @@ fn a_solve_refuses_what_it_cannot_sample() {
     let missing: ScenarioId = "nope".parse().unwrap();
     let config = GraphConfig::from_model(&model);
     assert!(GraphSolve::begin(&model, &graph, Some(&missing), &config).is_err());
+}
+
+fn with_scenario(text: &str, scenario: &str) -> String {
+    text.replacen("\nanalysis:\n", &format!("{scenario}\nanalysis:\n"), 1)
+}
+
+fn delta(r: &Value) -> &Value {
+    stats(&r["delta"])
+}
+
+fn p_target(report: &Value) -> f64 {
+    stats(&report["outcome"])["p_target"].as_f64().unwrap()
+}
+
+#[test]
+fn a_scenario_that_changes_nothing_differs_by_exactly_nothing() {
+    let text = with_scenario(
+        LECTURE,
+        "  noop:\n    label: Nothing\n    changes:\n      - {entity: sshd, defense: patched, value: false}",
+    );
+    let r = solve(&text, Some("noop"), 10_000);
+    assert_eq!(r["scenario"]["id"], "noop");
+    assert_eq!(r["scenario"]["outcome"], r["baseline"]["outcome"]);
+    assert_eq!(r["scenario"]["nodes"], r["baseline"]["nodes"]);
+    let d = delta(&r);
+    assert_eq!(d["mean"], 0.0);
+    assert_eq!(d["ci"]["lo"], 0.0);
+    assert_eq!(d["ci"]["hi"], 0.0);
+}
+
+#[test]
+fn each_defence_leaves_the_other_route_and_both_leave_none() {
+    let patch = solve(LECTURE, Some("patch"), 10_000);
+    let s = &patch["scenario"];
+    assert_eq!(
+        node(s, "action/service-find-exploit/sshd")["status"],
+        "blocked"
+    );
+    assert_eq!(
+        node(s, "state/session/server-account/sshd")["status"],
+        "possible"
+    );
+    assert!(p_target(s) > 0.5);
+    // Steps the defence does not touch draw the same times on both sides.
+    for id in [
+        "action/service-login/server-account/sshd",
+        "action/flow-connect/ssh",
+    ] {
+        assert_eq!(
+            node(s, id)["outcome"],
+            node(&patch["baseline"], id)["outcome"]
+        );
+    }
+
+    let protect = solve(LECTURE, Some("protect"), 10_000);
+    let s = &protect["scenario"];
+    assert_eq!(
+        node(s, "action/credential-extract/workstation/server-key")["status"],
+        "blocked"
+    );
+    assert_eq!(node(s, "state/service/sshd/control")["status"], "possible");
+    assert!(p_target(s) > 0.5);
+
+    for scenario in ["both", "deny"] {
+        let r = solve(LECTURE, Some(scenario), 10_000);
+        assert_eq!(
+            node(&r["scenario"], "state/host/server/admin")["status"],
+            "unreachable"
+        );
+        assert_eq!(p_target(&r["scenario"]), 0.0);
+        // Every baseline success is one the scenario takes away.
+        assert_eq!(
+            delta(&r)["mean"].as_f64().unwrap(),
+            p_target(&r["baseline"])
+        );
+    }
+}
+
+#[test]
+fn router_administration_defeats_a_denied_permission() {
+    let text = LECTURE.replace(
+        "    - {entity: workstation, state: admin}\n",
+        "    - {entity: workstation, state: admin}\n    - {entity: admin-net, state: access}\n",
+    );
+    let r = solve(&text, Some("deny"), 10_000);
+    let s = &r["scenario"];
+    assert_eq!(node(s, "state/router/bridge/admin")["status"], "possible");
+    assert_eq!(node(s, "state/permission/filter/ssh")["status"], "possible");
+    assert!(p_target(s) > 0.5);
+    let route: Vec<&str> = s["witness"]["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n["id"].as_str().unwrap())
+        .collect();
+    assert!(route.contains(&"action/administration-login/admin-net/admin-account/bridge"));
+    assert!(!route.contains(&"input/flow-permission/filter/ssh"));
+}
+
+#[test]
+fn slower_finite_defences_move_the_curve_without_deleting_the_route() {
+    let text = LECTURE
+        .replace(
+            "        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a patched",
+            "        ttc: \"Exponential(0.005)\"\n        note: \"Exercise assumption: perfect blocking, a patched",
+        )
+        .replace(
+            "        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a protected",
+            "        ttc: \"Exponential(0.005)\"\n        note: \"Exercise assumption: perfect blocking, a protected",
+        );
+    let r = solve(&text, Some("both"), 10_000);
+    let s = &r["scenario"];
+    assert_eq!(node(s, "state/host/server/admin")["status"], "possible");
+    let (base, scenario) = (p_target(&r["baseline"]), p_target(s));
+    assert!(scenario > 0.0 && scenario < base, "{scenario} vs {base}");
+    let d = delta(&r);
+    assert!((d["mean"].as_f64().unwrap() - (base - scenario)).abs() < 1e-12);
+    assert!(d["ci"]["lo"].as_f64().unwrap() > 0.0);
+    assert_ne!(
+        stats(&s["outcome"])["ttc_cdf"],
+        stats(&r["baseline"]["outcome"])["ttc_cdf"]
+    );
+}
+
+#[test]
+fn a_defence_that_makes_things_worse_reports_a_negative_benefit() {
+    // A baseline that finds no exploit, a "patch" that opens one, and a slow
+    // login route beside it.
+    let text = LECTURE
+        .replace(
+            "      find-exploit:\n        status: illustrative\n        ttc: \"Exponential(0.1)\"",
+            "      find-exploit:\n        status: illustrative\n        ttc: \"Infinity\"",
+        )
+        .replace(
+            "        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a patched",
+            "        ttc: \"Exponential(0.5)\"\n        note: \"Exercise assumption: perfect blocking, a patched",
+        )
+        .replace(
+            "      extract:\n        status: illustrative\n        ttc: \"Exponential(0.2)\"\n        note: Exercise assumption; not calibrated to the lecture\n      extract-protected:\n        status: illustrative\n        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a protected store gives nothing up\"\n    defenses: {protected: false}\n  admin-key:",
+            "      extract:\n        status: illustrative\n        ttc: \"Exponential(0.01)\"\n        note: Exercise assumption; not calibrated to the lecture\n      extract-protected:\n        status: illustrative\n        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a protected store gives nothing up\"\n    defenses: {protected: false}\n  admin-key:",
+        );
+    let r = solve(&text, Some("patch"), 10_000);
+    assert!(p_target(&r["scenario"]) > p_target(&r["baseline"]));
+    let d = delta(&r);
+    assert!(d["mean"].as_f64().unwrap() < 0.0);
+    assert!(d["ci"]["hi"].as_f64().unwrap() < 0.0);
+}
+
+#[test]
+fn an_unknown_replacement_costs_the_comparison_not_the_baseline() {
+    let text = LECTURE.replace(
+        "      find-exploit-patched:\n        status: illustrative\n        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a patched service has no exploit to find\"\n",
+        "      find-exploit-patched:\n        status: unknown\n",
+    );
+    let r = solve(&text, Some("patch"), 4096);
+    assert!(p_target(&r["baseline"]) > 0.5);
+    let missing = serde_json::json!(["entities.sshd.parameters.find-exploit-patched"]);
+    assert_eq!(r["scenario"]["outcome"]["unavailable"]["missing"], missing);
+    assert_eq!(r["delta"]["unavailable"]["missing"], missing);
+}
+
+#[test]
+fn one_paired_sample_has_a_difference_and_no_interval() {
+    let r = solve(LECTURE, Some("deny"), 1);
+    let d = delta(&r);
+    assert!(d["ci"].is_null());
+    assert!(!d["ci_reason"].as_str().unwrap().is_empty());
+    let r = solve(LECTURE, Some("deny"), 2);
+    assert!(delta(&r)["ci"].is_object());
 }
