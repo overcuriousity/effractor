@@ -79,6 +79,9 @@ pub enum Binding {
         base: Slot,
         replacement: Option<(Defense, Slot)>,
     },
+    /// Unknown under every scenario: a flow whose route is still being drawn.
+    /// `missing` holds the route paths the validator marked `unfinished`.
+    Unfinished { flow: FlowId, missing: Vec<String> },
 }
 
 /// One rule application that produced a node.

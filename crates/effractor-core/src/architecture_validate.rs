@@ -45,6 +45,12 @@ impl Cx<'_> {
         self.warning(Code::Incomplete, path, message);
     }
 
+    /// A flow's route still being drawn: the graph is generated regardless,
+    /// with the flow's connection unknown.
+    fn unfinished(&mut self, path: impl Into<String>, message: impl Into<String>) {
+        self.warning(Code::Unfinished, path, message);
+    }
+
     fn kind_of(&self, id: &EntityId) -> Option<EntityKind> {
         self.m.entities.get(id).map(|e| e.kind)
     }
@@ -455,7 +461,7 @@ impl Cx<'_> {
         // A route is built hop by hop: one that has not arrived yet is
         // unfinished, not wrong. Only a hop that cannot be right is an error.
         if route.is_empty() {
-            self.incomplete(
+            self.unfinished(
                 &path,
                 "no route yet: name the networks and routers it crosses, starting where its source runs",
             );
@@ -463,7 +469,7 @@ impl Cx<'_> {
         }
         let arrived = !route.len().is_multiple_of(2);
         if !arrived {
-            self.incomplete(
+            self.unfinished(
                 &path,
                 "the route ends at a router: the network after it is still to come",
             );
@@ -546,7 +552,7 @@ impl Cx<'_> {
                         "\"{host}\", which runs \"{entity}\", is not attached to \"{network}\""
                     ),
                 ),
-                Some(host) if !self.is_attached(host, network) => self.incomplete(
+                Some(host) if !self.is_attached(host, network) => self.unfinished(
                     format!("{path}[{index}]"),
                     format!(
                         "the route has not reached \"{host}\", which runs \"{entity}\", yet: it ends at \"{network}\""
@@ -574,11 +580,11 @@ impl Cx<'_> {
                 }
             }
             match self.firewall_of(router) {
-                None => self.incomplete(
+                None => self.unfinished(
                     format!("{path}[{i}]"),
                     format!("\"{router}\" has no firewall yet, so this flow has no permission to pass it"),
                 ),
-                Some(firewall) if !self.permits(firewall, id) => self.incomplete(
+                Some(firewall) if !self.permits(firewall, id) => self.unfinished(
                     format!("{path}[{i}]"),
                     format!(
                         "\"{firewall}\" has no `permits` association for this flow; it is neither allowed nor denied"

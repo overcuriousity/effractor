@@ -160,11 +160,15 @@ routes are represented by distinct flow IDs. There is no implicit discovery of
 IP routes, transitive zone trust, wildcard ACL, NAT or packet-level simulation.
 
 An empty/partially constructed architecture is saveable. Missing hosting,
-filters, routing permissions or target, and a route still being built (empty,
-ending at a router, or not yet at the target's network), produce an
-`incomplete` diagnostic and
-disable generation/solving where required; they never become permissive
-defaults. Dangling/wrong-type references are errors. UI deletion removes or
+filters or target produce an `incomplete` diagnostic and disable
+generation/solving; they never become permissive defaults. A flow still being
+drawn — a route that is empty, ends at a router, has not reached the target's
+network, or crosses a router with no firewall or no permission for it — is
+`unfinished` instead (owner, 2026-09-24): the graph is generated, and the
+flow's connection is an unknown input whose missing fields are those route
+paths. Its step keeps the permissions of the routers already on the route and
+adds none for the rest, so everything resting on the connection shows no
+number rather than a guessed one. Dangling/wrong-type references are errors. UI deletion removes or
 edits the affected references atomically and remains undoable.
 
 ## 5. Library contract, parameters and defenses

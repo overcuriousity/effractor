@@ -36,6 +36,8 @@ pub enum Code {
     ProfileAttribute,
     // What an architecture can get wrong; `validate_architecture` reports these.
     Incomplete,
+    /// A flow still being drawn: generated, with an unknown connection.
+    Unfinished,
     UnknownReference,
     AssociationType,
     Cardinality,
@@ -77,6 +79,7 @@ impl Code {
             Self::Unreachable => "unreachable",
             Self::ProfileAttribute => "profile-attribute",
             Self::Incomplete => "incomplete",
+            Self::Unfinished => "unfinished",
             Self::UnknownReference => "unknown-reference",
             Self::AssociationType => "association-type",
             Self::Cardinality => "cardinality",

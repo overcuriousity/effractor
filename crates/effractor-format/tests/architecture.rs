@@ -407,7 +407,7 @@ fn routes_alternate_networks_and_routers_the_ends_are_in() {
         "association-type",
         "flows.ssh.target"
     ));
-    // No permission yet is incomplete, not denied — once nothing names it.
+    // No permission yet is unfinished, not denied — once nothing names it.
     let mut image = self::image(LECTURE);
     image["associations"]
         .as_object_mut()
@@ -427,12 +427,12 @@ fn routes_alternate_networks_and_routers_the_ends_are_in() {
     assert_eq!(diagnostics.len(), 1);
     assert_eq!(
         (diagnostics[0].code, diagnostics[0].path.as_str()),
-        (effractor_core::Code::Incomplete, "flows.ssh.route[1]")
+        (effractor_core::Code::Unfinished, "flows.ssh.route[1]")
     );
 }
 
 /// The route of `image`'s flow `ssh` set to `hops`: its errors, and the paths
-/// of its `incomplete` warnings.
+/// of its `unfinished` warnings.
 fn route_state(
     image: &serde_json::Value,
     hops: &[&str],
@@ -454,7 +454,7 @@ fn route_state(
                 Vec::new(),
                 diagnostics
                     .iter()
-                    .filter(|d| d.code == effractor_core::Code::Incomplete)
+                    .filter(|d| d.code == effractor_core::Code::Unfinished)
                     .map(|d| d.path.clone())
                     .collect(),
             )
@@ -463,21 +463,21 @@ fn route_state(
 }
 
 #[test]
-fn a_route_built_or_shortened_hop_by_hop_is_incomplete_never_invalid() {
+fn a_route_built_or_shortened_hop_by_hop_is_unfinished_never_invalid() {
     let image = image(LECTURE);
     // A new flow has no route; each hop added in turn leaves a route that
     // has not arrived yet. None of these is wrong, only unfinished.
     for hops in [&[][..], &["client-net"], &["client-net", "bridge"]] {
-        let (errors, incomplete) = route_state(&image, hops);
+        let (errors, unfinished) = route_state(&image, hops);
         assert_eq!(errors, vec![], "{hops:?}");
         assert!(
-            incomplete.iter().any(|p| p.starts_with("flows.ssh.route")),
-            "{hops:?}: {incomplete:?}"
+            unfinished.iter().any(|p| p.starts_with("flows.ssh.route")),
+            "{hops:?}: {unfinished:?}"
         );
     }
-    let (errors, incomplete) = route_state(&image, &["client-net", "bridge", "server-net"]);
+    let (errors, unfinished) = route_state(&image, &["client-net", "bridge", "server-net"]);
     assert_eq!(errors, vec![]);
-    assert!(!incomplete.iter().any(|p| p.starts_with("flows.ssh.route")));
+    assert!(unfinished.is_empty(), "{unfinished:?}");
     // Still wrong at once: a first network the source is not in, a hop of
     // the wrong kind, a router off the network before it.
     assert!(has(

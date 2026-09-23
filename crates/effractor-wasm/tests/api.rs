@@ -324,21 +324,42 @@ fn generation_refuses_what_is_not_a_complete_architecture() {
     assert_eq!(out["diagnostics"][0]["path"], "profile");
 
     // An incomplete architecture says what is missing.
-    let mut image = call(api::parse(LECTURE))["ok"].clone();
+    let text = |image: &Value| {
+        call(api::serialize(&image.to_string()))["ok"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    let lecture = call(api::parse(LECTURE))["ok"].clone();
+    let mut image = lecture.clone();
+    image["attacker"].as_object_mut().unwrap().remove("target");
+    let out = call(api::generate(&text(&image), "r"));
+    assert!(out.get("ok").is_none());
+    assert_eq!(out["diagnostics"][0]["code"], "incomplete");
+    assert_eq!(out["diagnostics"][0]["path"], "attacker.target");
+
+    // A flow still being drawn is generated, its connection unknown.
+    let mut image = lecture;
     image["associations"]
         .as_object_mut()
         .unwrap()
         .remove("allow-ssh");
     // The scenario that names the permission goes with it.
     image["scenarios"].as_object_mut().unwrap().remove("deny");
-    let text = call(api::serialize(&image.to_string()))["ok"]
-        .as_str()
-        .unwrap()
-        .to_owned();
-    let out = call(api::generate(&text, "r"));
-    assert!(out.get("ok").is_none());
-    assert_eq!(out["diagnostics"][0]["code"], "incomplete");
+    let out = call(api::generate(&text(&image), "r"));
+    assert_eq!(out["diagnostics"][0]["code"], "unfinished");
     assert_eq!(out["diagnostics"][0]["path"], "flows.ssh.route[1]");
+    let ok = &out["ok"];
+    let at = ok["graph"]["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|n| n["id"] == "action/flow-connect/ssh")
+        .unwrap();
+    assert_eq!(
+        ok["support"]["nodes"][at]["missing"],
+        json!(["flows.ssh.route[1]"])
+    );
 
     // Text that does not parse is answered with its diagnostics.
     let out = call(api::generate("effractor: 2\nprofile: [", "r"));

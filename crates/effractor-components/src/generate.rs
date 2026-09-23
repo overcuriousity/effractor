@@ -26,7 +26,8 @@ use crate::graph::{
 
 /// The potential attack graph of a valid, complete architecture. Errors and
 /// `incomplete` diagnostics are returned instead: what is not said is never
-/// generated as a permissive default.
+/// generated as a permissive default. An `unfinished` flow — a route still
+/// being drawn — is generated with its connection unknown.
 pub fn generate(model: &Architecture) -> Result<GeneratedGraph, Vec<Diagnostic>> {
     generate_within(model, MAX_GENERATED_NODES, MAX_GENERATED_DEPENDENCIES)
 }
@@ -36,17 +37,33 @@ fn generate_within(
     max_nodes: usize,
     max_dependencies: usize,
 ) -> Result<GeneratedGraph, Vec<Diagnostic>> {
-    let blocking: Vec<Diagnostic> = validate_architecture(model)
-        .into_iter()
+    let diagnostics = validate_architecture(model);
+    let blocking: Vec<Diagnostic> = diagnostics
+        .iter()
         .filter(|d| d.severity == Severity::Error || d.code == Code::Incomplete)
+        .cloned()
         .collect();
     if !blocking.is_empty() {
         return Err(blocking);
+    }
+    // flow → the route paths still to be drawn
+    let mut unfinished: HashMap<&FlowId, Vec<String>> = HashMap::new();
+    for d in diagnostics.iter().filter(|d| d.code == Code::Unfinished) {
+        let flow = d
+            .path
+            .strip_prefix("flows.")
+            .and_then(|rest| rest.split_once(".route"))
+            .and_then(|(fid, _)| model.flows.keys().find(|k| k.as_str() == fid));
+        let Some(flow) = flow else {
+            unreachable!("only a flow's route is unfinished: {}", d.path);
+        };
+        unfinished.entry(flow).or_default().push(d.path.clone());
     }
     let Some(target) = &model.attacker.target else {
         unreachable!("validation reports a missing target as incomplete");
     };
     let mut b = Builder::new(model, max_nodes, max_dependencies);
+    b.unfinished = unfinished;
     b.states();
     b.footholds();
     b.admin_implies_user();
@@ -97,6 +114,8 @@ struct Builder<'a> {
     grant: HashMap<(&'a EntityId, &'a EntityId), (Privilege, &'a AssociationId)>,
     /// machine → [(account, privilege, grants association)], in document order
     grants_on: HashMap<&'a EntityId, Vec<(&'a EntityId, Privilege, &'a AssociationId)>>,
+    /// flow → the route paths the validator marked `unfinished`
+    unfinished: HashMap<&'a FlowId, Vec<String>>,
 }
 
 impl<'a> Builder<'a> {
@@ -114,6 +133,7 @@ impl<'a> Builder<'a> {
             permit: HashMap::new(),
             grant: HashMap::new(),
             grants_on: HashMap::new(),
+            unfinished: HashMap::new(),
         };
         for (id, a) in &m.associations {
             match &a.relation {
@@ -431,13 +451,31 @@ impl<'a> Builder<'a> {
             let mut prerequisites = vec![self.state_id(&flow.source, State::Control.as_str())];
             let mut entities = vec![flow.source.clone(), flow.target.clone()];
             let mut associations = Vec::new();
+            // An unfinished route may cross a router with no firewall or no
+            // permission yet: that hop is part of what is unknown.
             for router in flow.route.iter().skip(1).step_by(2) {
-                let firewall = self.firewall_of[router];
+                let Some(&firewall) = self.firewall_of.get(router) else {
+                    continue;
+                };
+                let Some(&permit) = self.permit.get(&(firewall, fid)) else {
+                    continue;
+                };
                 prerequisites.push(Self::permission_id(firewall, fid));
                 entities.extend([router.clone(), firewall.clone()]);
-                associations.push(self.permit[&(firewall, fid)].clone());
+                associations.push(permit.clone());
             }
             let owner = Owner::Flow(fid.clone());
+            let duration = match self.unfinished.get(fid) {
+                Some(missing) => Binding::Unfinished {
+                    flow: fid.clone(),
+                    missing: missing.clone(),
+                },
+                None => Binding::Parameter {
+                    owner: owner.clone(),
+                    base: Slot::Connect,
+                    replacement: None,
+                },
+            };
             let o = Origin {
                 entities,
                 associations,
@@ -450,11 +488,7 @@ impl<'a> Builder<'a> {
             self.action(
                 format!("action/flow-connect/{fid}"),
                 format!("Connect · {}", flow.label),
-                Binding::Parameter {
-                    owner,
-                    base: Slot::Connect,
-                    replacement: None,
-                },
+                duration,
                 &prerequisites,
                 &connected,
                 o,

@@ -5,11 +5,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 
-use effractor_components::{Binding, GeneratedGraph, GeneratedKind, RULES, generate, resolve};
+use effractor_components::{
+    Binding, GeneratedGraph, GeneratedKind, RULES, ResolvedTtc, generate, resolve,
+};
 use effractor_core::architecture::{
     Architecture, Association, Entity, EntityKind, Privilege, Relation,
 };
-use effractor_core::{AssociationId, Code, Document, FlowId};
+use effractor_core::{AssociationId, Code, Document, FlowId, ScenarioId};
 
 const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
 
@@ -438,15 +440,98 @@ fn one_relationship_removed_removes_its_route() {
     );
     assert_eq!(routes(&m), (true, true, false));
 
-    // Without the permission the flow is neither allowed nor denied: the
-    // model is incomplete and nothing is generated.
+    // Without the permission the flow is neither allowed nor denied: it is
+    // unfinished, so the graph is generated with its connection unknown.
     let mut m = lecture();
     unrelate(&mut m, "allow-ssh");
+    m.scenarios.shift_remove(&id::<ScenarioId>("deny"));
+    let graph = generate(&m).unwrap();
+    assert_eq!(
+        inputs(&graph, "action/flow-connect/ssh"),
+        ["state/application/ssh-client/control"]
+    );
+    assert_eq!(
+        connect_ttc(&m, &graph),
+        ResolvedTtc::Unknown(vec!["flows.ssh.route[1]".to_owned()])
+    );
+}
+
+fn connect_ttc(model: &Architecture, graph: &GeneratedGraph) -> ResolvedTtc {
+    let at = graph
+        .nodes
+        .iter()
+        .position(|n| n.id == "action/flow-connect/ssh")
+        .unwrap();
+    resolve(model, graph, None).unwrap().ttc[at].clone()
+}
+
+fn route(model: &mut Architecture, hops: &[&str]) {
+    model.flows.get_mut(&id::<FlowId>("ssh")).unwrap().route = hops.iter().map(|h| id(h)).collect();
+}
+
+/// A flow still being drawn does not stop the graph: its connection is an
+/// unknown whose missing fields are where the route stops, it keeps the
+/// permissions of the routers already on it, and a finished route restores
+/// exactly the complete graph.
+#[test]
+fn an_unfinished_route_generates_with_an_unknown_connection() {
+    let complete = generate(&lecture()).unwrap();
+    for (hops, missing, permission) in [
+        (&[][..], "flows.ssh.route", false),
+        (&["client-net"][..], "flows.ssh.route[0]", false),
+        (&["client-net", "bridge"][..], "flows.ssh.route", true),
+    ] {
+        let mut m = lecture();
+        route(&mut m, hops);
+        let graph = generate(&m).unwrap_or_else(|e| panic!("{hops:?}: {e:?}"));
+        assert_eq!(
+            graph.nodes.iter().map(|n| &n.id).collect::<Vec<_>>(),
+            complete.nodes.iter().map(|n| &n.id).collect::<Vec<_>>(),
+            "{hops:?}"
+        );
+        let mut expected = vec!["state/application/ssh-client/control".to_owned()];
+        if permission {
+            expected.push("state/permission/filter/ssh".to_owned());
+        }
+        assert_eq!(
+            inputs(&graph, "action/flow-connect/ssh"),
+            expected,
+            "{hops:?}"
+        );
+        match connect_ttc(&m, &graph) {
+            ResolvedTtc::Unknown(paths) => {
+                assert!(paths.contains(&missing.to_owned()), "{hops:?}: {paths:?}")
+            }
+            known => panic!("{hops:?}: {known:?}"),
+        }
+    }
+    let mut m = lecture();
+    route(&mut m, &["client-net", "bridge", "server-net"]);
+    assert_eq!(generate(&m).unwrap(), complete);
+}
+
+/// What the rest of the model leaves out still stops generation: a flow from
+/// software that runs nowhere, a router with no firewall.
+#[test]
+fn missing_hosting_still_blocks_generation() {
+    let mut m = lecture();
+    let hosting = m
+        .associations
+        .iter()
+        .find(|(_, a)| matches!(&a.relation, Relation::Hosts { to, .. } if to.as_str() == "ssh-client"))
+        .map(|(k, _)| k.to_string())
+        .unwrap();
+    unrelate(&mut m, &hosting);
     let errors = generate(&m).unwrap_err();
     assert!(
         errors
             .iter()
-            .any(|d| d.code == Code::Incomplete && d.path == "flows.ssh.route[1]")
+            .any(|d| d.code == Code::Incomplete && d.path == "entities.ssh-client"),
+        "{errors:?}"
+    );
+    assert!(
+        errors.iter().all(|d| d.code != Code::Unfinished),
+        "{errors:?}"
     );
 }
 

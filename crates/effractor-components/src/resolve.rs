@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use effractor_core::architecture::{
-    Architecture, Change, Defense, Evidence, Parameter, Relation, Switch,
+    Architecture, Change, Defense, Evidence, Parameter, Relation, Slot, Switch,
 };
 use effractor_core::{AssociationId, Code, Diagnostic, Distribution, EntityId, ScenarioId};
 
@@ -88,6 +88,14 @@ pub fn resolve(
                 };
                 (ttc, Vec::new(), vec![path])
             }
+            Binding::Unfinished { flow, missing } => {
+                let mut paths = missing.clone();
+                let connect = parameter(model, &Owner::Flow(flow.clone()), Slot::Connect);
+                if connect.status == Evidence::Unknown || connect.ttc.is_none() {
+                    paths.push(Owner::Flow(flow.clone()).slot_path(Slot::Connect));
+                }
+                (ResolvedTtc::Unknown(paths.clone()), Vec::new(), paths)
+            }
             Binding::Parameter {
                 owner,
                 base,
@@ -145,11 +153,7 @@ fn allowed(model: &Architecture, aid: &AssociationId) -> Switch {
     }
 }
 
-fn parameter(
-    model: &Architecture,
-    owner: &Owner,
-    slot: effractor_core::architecture::Slot,
-) -> Parameter {
+fn parameter(model: &Architecture, owner: &Owner, slot: Slot) -> Parameter {
     let p = match owner {
         Owner::Entity(eid) => model
             .entities
