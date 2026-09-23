@@ -37,7 +37,7 @@ test('capabilities are explicit, and an architecture has no tree analysis', () =
   // An architecture generates and samples its attack graph; the tree
   // analyses stay off, whatever a generated graph would let one try.
   assert.equal(P.capabilities(attack).pareto, true);
-  assert.deepEqual(P.capabilities(arch), { architecture: true, generate: false, solve: false, exact: false, cutSets: false, loss: false, pareto: false, controls: false });
+  assert.deepEqual(P.capabilities(arch), { architecture: true, generate: true, solve: true, exact: false, cutSets: false, loss: false, pareto: false, controls: false });
 });
 
 test('tree actions are refused on an architecture; undo and redo are not tree actions', () => {

@@ -49,3 +49,31 @@ test("a document path finds its line in block YAML, or the nearest line that hol
   assert.equal(pathLine(ARCH, "kind"), null, "not a top-level key");
   assert.equal(pathLine(ARCH, ""), null);
 });
+
+test("a path into a list finds the item's line: a scenario's change, a foothold", () => {
+  const text = [
+    "attacker:",
+    "  footholds:",
+    "    - {entity: ws, state: admin}",
+    "    - {entity: laptop, state: user}",
+    "  target: {entity: server, state: admin}",
+    "flows:",
+    "  ssh:",
+    "    route: [client-net, bridge, server-net]",
+    "scenarios:",
+    "  patch:",
+    "    label: Patch",
+    "    changes:",
+    "      - {entity: sshd, defense: patched, value: true}",
+    "      - entity: key",
+    "        defense: protected",
+    "        value: true",
+  ].join("\n");
+  assert.equal(pathLine(text, "attacker.footholds[0]"), 3);
+  assert.equal(pathLine(text, "attacker.footholds[1]"), 4);
+  assert.equal(pathLine(text, "scenarios.patch.changes[0]"), 13);
+  assert.equal(pathLine(text, "scenarios.patch.changes[1]"), 14);
+  assert.equal(pathLine(text, "scenarios.patch.changes[1].value"), 16, "a key inside a block item");
+  assert.equal(pathLine(text, "scenarios.patch.changes[5]"), 12, "no such item: the list's line");
+  assert.equal(pathLine(text, "flows.ssh.route[1]"), 8, "a flow sequence: its line");
+});

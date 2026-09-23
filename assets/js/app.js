@@ -65,10 +65,13 @@
   // revision it was asked about; one that arrives after an edit, an undo,
   // another file or new source text is dropped (revisions.js).
   var gate = window.effractorRevisions.create();
-  // `mode` is the architecture's view: "architecture" until an attack graph
-  // can be generated. `sourceValid`: the source view's text is the document's.
+  // `mode` is the architecture's view: "architecture" or "attack", its
+  // generated graph. `generated`: {graph, support, revision} of the text on
+  // the page, or null. `sourceValid`: the source view's text is the document's.
   var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastSampledMs: null, revision: gate.current(), sourceValid: true, mode: "architecture", generated: null, diagnostics: [], documents: 0 };
   var view = window.effractorResults;
+  var AV = window.effractorAttackView;
+  var GR = window.effractorGraphResults;
   var MAX_ROWS = 200; // a table is for reading; ten thousand rows are not read
 
   var renderer = window.effractorRenderer.createSvgRenderer(document);
@@ -127,9 +130,19 @@
   }
   if (typeof ResizeObserver !== "undefined") new ResizeObserver(fitInspector).observe($("inspector").firstElementChild);
 
+  function graphOf() {
+    return state.generated ? state.generated.graph : null;
+  }
+  function attackShown() {
+    return state.mode === "attack" && !!state.generated && P.isArchitecture(state.doc);
+  }
+  function stepOf(id) {
+    return typeof id === "string" && id.indexOf("step/") === 0 ? id.slice(5) : null;
+  }
+
   function select(id, parent) {
     var arch = P.isArchitecture(state.doc);
-    state.selected = P.selectionExists(state.doc, id, state.generated) ? id : null;
+    state.selected = P.selectionExists(state.doc, id, graphOf()) ? id : null;
     var parents = state.selected && !arch ? window.effractorEdit.parentsOf(state.doc, state.selected) : [];
     // `parentChosen`: the edge was named (a tree row, an arrow key), not guessed.
     state.parentChosen = parents.indexOf(parent) >= 0;
@@ -138,13 +151,23 @@
     // A selected flow shows where it goes: the networks and routers on its
     // route, which its line from end to end does not.
     var flow = arch && state.selected && state.selected.indexOf("flow/") === 0 ? state.selected.slice(5) : null;
-    renderer.highlight(flow ? window.effractorArchitectureView.route(state.doc, flow) : [], "route");
+    renderer.highlight(flow && !attackShown() ? window.effractorArchitectureView.route(state.doc, flow) : [], "route");
+    // In the attack graph a component lights the steps its rules produced.
+    var lit = attackShown() && state.selected && !stepOf(state.selected) ? AV.stepsFor(graphOf(), state.selected) : [];
+    renderer.highlight(lit.map(function (s) {
+      return "step/" + s;
+    }), "steps");
+    // A step outside the window on the canvas brings the window to it.
+    if (attackShown() && state.selected && state.shownSteps && !state.shownSteps[state.selected] && (stepOf(state.selected) || lit.length)) {
+      state.focus = state.selected;
+      draw(false);
+    }
     // The edge a shared node was reached along, when that was said: it is what
     // Del and Unlink act on.
     renderer.highlight(state.selected && state.parentChosen && parents.length > 1 ? [state.selected, state.parent] : [], "via");
     var facts = $("selected-facts");
     facts.replaceChildren();
-    facts.hidden = !state.selected || arch;
+    var step = arch ? stepOf(state.selected) : null;
     // The inspector on the canvas is the selection made visible: there while
     // something is selected, gone when nothing is. No panel opens for it.
     $("inspector").hidden = !state.selected;
@@ -153,10 +176,11 @@
     if (state.selected) renderer.reveal(state.selected, $("inspector").getBoundingClientRect().width + 8);
     $("inspector-name").textContent = state.selected ? labelOf(state.selected) : "";
     notify();
-    if (!state.selected || arch) return;
-    view.nodeFacts(state.results, state.selected).forEach(function (f) {
+    var said = !state.selected ? [] : !arch ? view.nodeFacts(state.results, state.selected) : step && GR.isGraphResults(state.results) ? GR.nodeFacts(state.results, step) : [];
+    said.forEach(function (f) {
       fact(facts, f[0], f[1]).classList.add("num");
     });
+    facts.hidden = said.length === 0 && (arch || !state.selected);
   }
 
   // Canvas → table: the rows holding the selected node.
@@ -184,6 +208,10 @@
         var e = own(state.doc.entities, entity);
         return e && e.label ? e.label : entity;
       };
+      if (q && q.kind === "step") {
+        var inspected = AV.inspect(graphOf(), null, q.id);
+        return inspected ? inspected.label : q.id;
+      }
       if (q && q.kind === "association") {
         var a = own(state.doc.associations, q.id);
         if (a) return a.kind + " · " + name(a.from) + " → " + (a.kind === "permits" ? labelOf("flow/" + a.to) : name(a.to));
@@ -315,6 +343,7 @@
 
   function paint() {
     if (!state.laid) return;
+    if (state.laidView === "attack") return renderer.render(state.laid, {});
     if (P.isArchitecture(state.doc)) return renderer.render(window.effractorPositions.place(state.laid, positions.load(state.doc.name), { permits: showPermits }), {});
     var known = state.exactResults || state.results;
     renderer.render(state.laid, known ? view.leafStyles(known, state.measure) : {});
@@ -335,7 +364,7 @@
 
   renderer.on("select", function (e) {
     // An architecture's edge is a relationship or a flow of its own.
-    if (e.edge && P.isArchitecture(state.doc) && P.selectionExists(state.doc, e.edge, state.generated)) return select(e.edge);
+    if (e.edge && P.isArchitecture(state.doc) && P.selectionExists(state.doc, e.edge, graphOf())) return select(e.edge);
     select(e.id, e.parent);
     markRows();
   });
@@ -346,10 +375,26 @@
   function draw(fit) {
     var token = gate.issue("layout");
     fitOwed = fitOwed || !!fit;
-    var described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc) : window.effractorGraph.describe(state.doc);
+    var shown = attackShown();
+    var described;
+    if (shown) {
+      // At most a window of the generated graph, round what is in focus.
+      var windowed = AV.describe(state.generated.graph, state.generated.support, { id: state.focus });
+      described = windowed.graph;
+      state.shownSteps = Object.create(null);
+      described.nodes.forEach(function (n) {
+        state.shownSteps[n.id] = true;
+      });
+      state.stepCount = { shown: windowed.shown, total: windowed.total };
+    } else {
+      state.shownSteps = null;
+      state.stepCount = null;
+      described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc) : window.effractorGraph.describe(state.doc);
+    }
     return layout(described).then(function (laid) {
       if (!gate.accept(token)) return;
       state.laid = laid;
+      state.laidView = shown ? "attack" : "document";
       paint();
       if (fitOwed) renderer.fit();
       fitOwed = false;
@@ -391,13 +436,100 @@
     state.text = text;
     state.doc = doc;
     state.sourceValid = true;
+    // The graph of the text before: what a vanished step's selection falls
+    // back from. The graph itself is stale the moment the text changes.
+    state.lastGraph = graphOf() || state.lastGraph || null;
     state.generated = null;
+    state.focus = null;
+    if (!P.isArchitecture(doc)) state.mode = "architecture";
     $("app").setAttribute("data-profile", doc.profile);
     $("model-name").textContent = doc.name;
     $("profile-chip").textContent = doc.profile;
+    $("hud-p-label").textContent = P.isArchitecture(doc) ? "P(target)" : "P(top)";
     chip(P.capabilities(doc).solve ? analysisLabel(doc.analysis) : "not solved");
     solvable();
-    return draw(fit);
+    if (state.mode !== "attack") return showView() && draw(fit);
+    // The attack graph on screen follows the text: generated again, or given
+    // up for the architecture if this text has none.
+    return generate().then(function (answer) {
+      if (answer.stale) return;
+      if (!answer.ok) state.mode = "architecture";
+      showView();
+      return draw(fit);
+    });
+  }
+
+  function showView() {
+    $("app").setAttribute("data-view", attackShown() ? "attack" : "architecture");
+    return true;
+  }
+
+  // A selection carried over to the text now on the page: a generated step
+  // that is gone falls back to the component it was about.
+  function carried(id) {
+    var step = stepOf(id);
+    if (!step || P.selectionExists(state.doc, id, graphOf())) return id;
+    var origin = state.lastGraph ? AV.originOf(state.lastGraph, step) : null;
+    return origin && P.selectionExists(state.doc, origin, null) ? origin : null;
+  }
+
+  // The attack graph of the text on the page, asked of the module with the
+  // revision it is about. Resolves to {ok}, or {stale} when the text moved on
+  // while it was on its way — the newer text will be generated in its turn.
+  function generate() {
+    if (!P.capabilities(state.doc).generate) {
+      say("an attack graph is generated from an architecture");
+      return Promise.resolve({ ok: false });
+    }
+    if (!state.sourceValid) {
+      say("the source is not valid");
+      return Promise.resolve({ ok: false });
+    }
+    var token = gate.issue("generate");
+    var text = state.text;
+    var revision = state.revision;
+    return solver.generate(text, revision).then(function (answer) {
+      if (!gate.accept(token) || state.text !== text) return { stale: true };
+      if (!answer.ok) {
+        say("no attack graph · " + describe(answer.diagnostics[0]));
+        return { ok: false };
+      }
+      if (answer.ok.revision !== revision || answer.ok.source !== text) return { stale: true };
+      state.generated = { graph: answer.ok.graph, support: answer.ok.support, revision: revision };
+      return { ok: true };
+    }, function (e) {
+      console.error(e);
+      say("the solver crashed and was restarted");
+      return { ok: false };
+    });
+  }
+
+  // Architecture or attack graph. The attack graph is generated if the page
+  // has none for this text; a step selected there falls back to its
+  // component in the architecture. Resolves to whether the view changed to it.
+  function setView(mode) {
+    if (mode !== "attack") {
+      var step = stepOf(state.selected);
+      if (step && graphOf()) state.selected = AV.originOf(graphOf(), step);
+      state.mode = "architecture";
+      state.focus = null;
+      showView();
+      return draw(true).then(function () {
+        select(state.selected);
+        return true;
+      });
+    }
+    var ready = state.generated ? Promise.resolve({ ok: true }) : generate();
+    return ready.then(function (answer) {
+      if (!answer.ok) return false;
+      state.mode = "attack";
+      state.focus = state.selected;
+      showView();
+      return draw(true).then(function () {
+        select(state.selected);
+        return true;
+      });
+    });
   }
 
   function solvable() {
@@ -456,7 +588,7 @@
       }
       store.save(text);
       return loaded(text, parsed.ok, !!fit).then(function () {
-        select(selectId, parent);
+        select(carried(selectId), parent);
         autosolve.changed();
         return true;
       });
@@ -499,6 +631,7 @@
     gate.issue("source");
     gate.issue("document");
     gate.issue("solve");
+    gate.issue("generate");
     state.sourceValid = false;
     solvable();
   }
@@ -631,6 +764,20 @@
     mark("current");
   }
 
+  // A generated graph's results: the target's probability on the canvas, the
+  // rest in the panels, which read state.results.
+  function showGraph(results) {
+    state.results = results;
+    state.chartResults = results;
+    $("hud-stats").hidden = false;
+    var h = GR.headline(results);
+    hud("hud-p", h.p === null ? "—" : probability(h.p));
+    hud("hud-p-ci", h.qualifier);
+    paint();
+    select(state.selected);
+    mark("current");
+  }
+
   function finished() {
     state.running = false;
     state.explicit = false;
@@ -643,6 +790,8 @@
   function run(explicit) {
     var text = state.text;
     if (!text || !P.capabilities(state.doc).solve || !state.sourceValid) return Promise.resolve();
+    var arch = P.isArchitecture(state.doc);
+    var revision = state.revision;
     var full = explicit || auto.samplesAutomatically(state.lastSampledMs);
     var token = gate.issue("solve");
     var current = function () {
@@ -667,10 +816,14 @@
           exactShown = true;
           showExact(begun);
         },
+        // A generated graph has no exact part: it begins, then samples.
+        onBegin: function () {
+          if (!full) solver.cancel();
+        },
         onProgress: function (done, total) {
           if (current()) chip("sampling " + grouped(done) + " / " + grouped(total) + " chunks");
         },
-      })
+      }, arch ? { scenario: "", revision: revision } : undefined)
       .then(function (outcome) {
         finished();
         // A newer text is on its way to being solved: it will say. Typing in
@@ -682,11 +835,16 @@
         if (outcome.cancelled) {
           if (state.stopped) return chip("cancelled · " + analysisLabel(state.doc.analysis));
           if (!full && exactShown) return chip("exact only · Ctrl+Enter samples");
+          if (!full && arch) return chip("not sampled · Ctrl+Enter samples");
           return;
         }
-        if (!outcome.result.ok) return chip(describe(outcome.result.diagnostics[0]));
+        if (!outcome.result.ok) return chip((arch ? "not solved · " : "") + describe(outcome.result.diagnostics[0]));
+        // An architecture's answer names the text and revision it is about.
+        var answer = outcome.result.ok;
+        if (arch && (answer.revision !== revision || answer.source !== text)) return;
         state.lastSampledMs = performance.now() - started;
-        showAll(outcome.result.ok);
+        if (arch) showGraph(answer.result);
+        else showAll(answer);
         chip(analysisLabel(state.doc.analysis));
       })
       .catch(function (e) {
@@ -704,7 +862,6 @@
       return autosolve.stop();
     }
     if (!state.text) return;
-    if (!P.capabilities(state.doc).solve) return say("an architecture is not solved yet");
     if (!state.sourceValid) return say("the source is not valid");
     autosolve.now();
   }
@@ -885,16 +1042,15 @@
   window.effractor.replaceDocument = replaceDocument;
   window.effractor.markSourceDirty = markSourceDirty;
   window.effractor.revisions = gate;
-  // Architecture or attack graph; only the first exists until generation does.
+  // Architecture or attack graph (setView); `generate` asks for the graph
+  // of the text on the page without changing the view.
   window.effractor.setMode = function (mode) {
-    if (mode !== "architecture" && !(mode === "attack" && P.capabilities(state.doc).generate)) {
-      say("no attack graph yet");
-      return false;
-    }
-    state.mode = mode;
-    notify();
-    return true;
+    return setView(mode).then(function (changed) {
+      notify();
+      return changed;
+    });
   };
+  window.effractor.generate = generate;
   window.effractor.ready = load().then(function () {
     notify();
     autosolve.changed();

@@ -71,7 +71,9 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
 function racePage(kept = 'original') {
   const nodes = new Map(), writes = [], held = [], renders = [], runs = [], timers = [];
   const slow = new Set();
+  const generated = [];
   let holdLayout = false;
+  let holdGenerate = false;
   const docOf = text => text.startsWith('arch')
     ? { name: text, profile: 'architecture', entities: { web: { kind: 'service', label: 'Web' } }, associations: {}, flows: {}, attacker: { footholds: [] }, scenarios: {}, analysis: { seed: 1, samples: 10 } }
     : { name: text, profile: 'fault-tree', nodes: { top: { label: 'Top', leaf: 'basic' } }, analysis: { seed: 1, samples: 10 } };
@@ -79,8 +81,19 @@ function racePage(kept = 'original') {
   const solver = {
     parse(text) { const answer = { ok: docOf(text), diagnostics: [] }; return slow.has(text) ? later('parse ' + text, answer) : Promise.resolve(answer); },
     async serialize(value) { return { ok: value.name }; },
-    solve(text, on) { return new Promise(resolve => runs.push({ text, on, resolve })); },
+    solve(text, on, options) { return new Promise(resolve => runs.push({ text, on, options, resolve })); },
     cancel() {},
+    // Held until released: `generate <text>`. A text holding "gone" has no
+    // step for its web service.
+    generate(text, revision) {
+      generated.push({ text, revision });
+      const nodes = [{ id: 'input/foothold/web/user', label: 'Foothold', kind: 'input', inputs: [], origins: [{ rule: 'foothold', version: 1, entities: ['web'], associations: [], flows: [], paths: ['attacker.footholds[0]'], assumptions: [] }], timing: { status: 'foothold', expression: null, note: null, paths: [], missing: [] } }];
+      if (!text.includes('gone')) nodes.push({ id: 'state/service/web/control', label: 'Web · control', kind: 'any', inputs: ['input/foothold/web/user'], origins: [{ rule: 'r', version: 1, entities: ['web'], associations: [], flows: [], paths: [], assumptions: [] }], timing: { status: 'logical', expression: null, note: null, paths: [], missing: [] } });
+      const answer = text.includes('broken')
+        ? { diagnostics: [{ message: 'no target', path: 'attacker' }] }
+        : { ok: { revision, source: text, graph: { target: nodes[nodes.length - 1].id, nodes }, support: { nodes: nodes.map(n => ({ id: n.id, status: 'possible', missing: [] })), target_support: [] } }, diagnostics: [] };
+      return holdGenerate ? later('generate ' + text, answer) : Promise.resolve(answer);
+    },
   };
   const document = {
     currentScript: { src: 'https://example.test/assets/js/app.js' },
@@ -95,7 +108,9 @@ function racePage(kept = 'original') {
     effractorGraph: { describe: doc => ({ name: doc.name }) },
     effractorProfiles: require('../assets/js/profiles.js'),
     effractorRevisions: require('../assets/js/revisions.js'),
-    effractorArchitectureView: { describe: doc => ({ name: doc.name }) },
+    effractorArchitectureView: { describe: doc => ({ name: doc.name }), route: () => [] },
+    effractorAttackView: require('../assets/js/attack-view.js'),
+    effractorGraphResults: require('../assets/js/graph-results.js'),
     // Positions pass the layout through: these tests follow which layout is drawn.
     effractorPositions: { createStore: () => ({ load: () => ({}), move() {}, clear() {} }), place: laid => laid },
     effractorEdit: require('../assets/js/edit.js'),
@@ -112,15 +127,16 @@ function racePage(kept = 'original') {
   });
   const settle = () => new Promise(setImmediate);
   return {
-    app: window.effractor, writes, renders, runs, slow, nodes, settle, docOf,
+    app: window.effractor, writes, renders, runs, slow, nodes, settle, docOf, generated,
     holdLayout(on) { holdLayout = on; },
+    holdGenerate(on) { holdGenerate = on; },
     async release(what) { const i = held.findIndex(h => h.what === what); assert.ok(i >= 0, 'nothing held: ' + what); held.splice(i, 1)[0].release(); await settle(); await settle(); },
     async tick() { const due = timers.splice(0).filter(Boolean); due.forEach(f => f()); await settle(); },
     attr: name => document.getElementById('app').getAttribute(name),
   };
 }
 
-test('an architecture opens as the document: no solve, a profile on the page, qualified selection', async () => {
+test('an architecture opens as the document: a profile on the page, solved as a generated graph, qualified selection', async () => {
   const h = racePage();
   await h.app.ready; await h.tick();
   assert.equal(h.runs.length, 1, 'the tree is solved');
@@ -129,13 +145,14 @@ test('an architecture opens as the document: no solve, a profile on the page, qu
   assert.equal(await h.app.replaceDocument('arch', 'opened arch.yaml'), true);
   assert.equal(h.app.state.doc.profile, 'architecture');
   assert.equal(h.attr('data-profile'), 'architecture');
-  assert.equal(h.nodes.get('solve').disabled, true);
+  assert.equal(h.attr('data-view'), 'architecture');
+  assert.equal(h.nodes.get('solve').disabled, false);
+  assert.equal(h.nodes.get('hud-p-label').textContent, 'P(target)');
   assert.equal(h.app.state.selected, null, 'a tree selection does not carry over');
   assert.deepEqual(h.writes, ['arch']);
   await h.tick();
-  assert.equal(h.runs.length, 1, 'nothing is solved for an architecture');
-  h.app.solve();
-  assert.match(h.nodes.get('note').textContent, /not solved/);
+  assert.equal(h.runs.length, 2, 'an architecture is solved too');
+  assert.deepEqual(h.runs[1].options, { scenario: '', revision: h.app.state.revision }, 'as a generated graph, with its revision');
   h.app.select('entity/web');
   assert.equal(h.app.state.selected, 'entity/web');
   assert.equal(h.nodes.get('inspector-name').textContent, 'Web');
@@ -146,7 +163,108 @@ test('an architecture opens as the document: no solve, a profile on the page, qu
   h.app.undo(); await h.settle(); await h.settle();
   assert.equal(h.app.state.text, 'original');
   assert.equal(h.attr('data-profile'), 'fault-tree');
+  assert.equal(h.nodes.get('hud-p-label').textContent, 'P(top)');
   assert.equal(h.nodes.get('solve').disabled, false);
+});
+
+const graphResult = (text, revision, p) => ({ result: { ok: { revision, source: text, result: {
+  'effractor-graph-results': 1, target: 'state/service/web/control', time_unit: 'h', horizon: 10, confidence: 0.95, seed: '1', samples: 10,
+  baseline: { id: null, outcome: { available: { method: 'sampled', samples: 10, confidence: 0.95, p_target: p, ci: { lo: 0.1, hi: 0.9 }, ttc_cdf: [] } }, nodes: [], assumptions: [], witness: null },
+  scenario: null, delta: { unavailable: { reason: 'no scenario to compare', missing: [] } } } } } });
+
+test('a generated graph result arriving after a tree was opened is not shown, nor a tree result after an architecture', async () => {
+  const h = racePage('arch');
+  await h.app.ready; await h.tick();
+  const graphRun = h.runs[h.runs.length - 1];
+  assert.equal(graphRun.text, 'arch');
+  assert.equal(await h.app.replaceDocument('tree', 'opened tree.yaml'), true);
+  graphRun.resolve(graphResult('arch', graphRun.options.revision, 0.5)); await h.settle();
+  assert.equal(h.app.state.results, null, 'the architecture\'s answer is dropped');
+  assert.equal(h.nodes.get('hud-p').textContent, '—');
+  await h.tick();
+  const treeRun = h.runs[h.runs.length - 1];
+  assert.equal(treeRun.text, 'tree');
+  assert.equal(treeRun.options, undefined, 'a tree is solved as a tree');
+  assert.equal(await h.app.replaceDocument('arch-again', 'opened arch'), true);
+  treeRun.on.onExact({ exact: { available: { p_top: 0.9 } }, cut_sets: { available: { sets: [], total: 0 } }, leaves: [] });
+  treeRun.resolve({ result: { ok: { exact: { available: { p_top: 0.9 } }, sampled: { unavailable: { reason: 'x' } }, cut_sets: { available: { sets: [], total: 0 } } } } }); await h.settle();
+  assert.ok(!h.app.state.exactResults, 'the tree\'s exact answer is dropped');
+  assert.equal(h.app.state.results, null, 'and so is its result');
+  // The architecture's own answer is shown.
+  await h.tick();
+  const own = h.runs[h.runs.length - 1];
+  assert.equal(own.text, 'arch-again');
+  own.resolve(graphResult('arch-again', own.options.revision, 0.25)); await h.settle();
+  assert.equal(h.app.state.results.baseline.outcome.available.p_target, 0.25);
+  assert.equal(h.nodes.get('hud-p').textContent, '0.250');
+});
+
+test('a graph result for another revision of the same text is not shown', async () => {
+  const h = racePage('arch');
+  await h.app.ready; await h.tick();
+  const run = h.runs[h.runs.length - 1];
+  run.resolve(graphResult('arch', 'not-this-one', 0.5)); await h.settle();
+  assert.equal(h.app.state.results, null);
+});
+
+test('the attack graph is generated on request, follows every edit, and a step that is gone falls back to its component', async () => {
+  const h = racePage('arch');
+  await h.app.ready;
+  assert.equal(await h.app.setMode('attack'), true);
+  assert.equal(h.attr('data-view'), 'attack');
+  assert.equal(h.generated.length, 1);
+  assert.equal(h.generated[0].revision, h.app.state.revision);
+  h.app.select('step/state/service/web/control');
+  assert.equal(h.app.state.selected, 'step/state/service/web/control');
+  // An edit regenerates; the step is still there, and still selected.
+  await h.app.applyEdit({ doc: h.docOf('arch-2'), select: h.app.state.selected });
+  assert.equal(h.generated.length, 2);
+  assert.equal(h.app.state.selected, 'step/state/service/web/control');
+  // The next text has no such step: the selection falls back to its component.
+  await h.app.applyEdit({ doc: h.docOf('arch-gone'), select: h.app.state.selected });
+  assert.equal(h.app.state.mode, 'attack');
+  assert.equal(h.app.state.selected, 'entity/web');
+  // Back in the architecture, a step becomes its component.
+  h.app.select('step/input/foothold/web/user');
+  assert.equal(await h.app.setMode('architecture'), true);
+  assert.equal(h.attr('data-view'), 'architecture');
+  assert.equal(h.app.state.selected, 'entity/web');
+  // A text with no attack graph: the view stays the architecture, and says why.
+  await h.app.applyEdit({ doc: h.docOf('arch-broken') });
+  assert.equal(await h.app.setMode('attack'), false);
+  assert.match(h.nodes.get('note').textContent, /no attack graph · no target/);
+  assert.equal(h.attr('data-view'), 'architecture');
+});
+
+test('a generation that arrives after an edit or undo is not the graph on the page', async () => {
+  const h = racePage('arch');
+  await h.app.ready;
+  h.holdGenerate(true);
+  const asked = h.app.setMode('attack');
+  await h.settle();
+  h.holdGenerate(false);
+  await h.app.applyEdit({ doc: h.docOf('arch-2') });
+  await h.release('generate arch');
+  assert.equal(await asked, false, 'the answer about the old text changes nothing');
+  assert.equal(h.app.state.generated, null);
+  assert.equal(h.app.state.mode, 'architecture');
+  // Undo while a regeneration in the attack view is on its way.
+  assert.equal(await h.app.setMode('attack'), true);
+  h.holdGenerate(true);
+  const edit = h.app.applyEdit({ doc: h.docOf('arch-3') });
+  await h.settle(); await h.settle();
+  h.holdGenerate(false);
+  h.app.undo(); await h.settle(); await h.settle(); await h.settle();
+  await h.release('generate arch-3');
+  await edit;
+  assert.equal(h.app.state.text, 'arch-2');
+  assert.equal(h.app.state.generated.revision, h.app.state.revision);
+  assert.ok(h.app.state.generated.graph.nodes.length > 0);
+  // Opening a tree leaves the attack view.
+  assert.equal(await h.app.replaceDocument('tree', 'opened tree'), true);
+  assert.equal(h.app.state.mode, 'architecture');
+  assert.equal(h.app.state.generated, null);
+  assert.equal(await h.app.setMode('attack'), false, 'a tree has no attack graph');
 });
 
 test('a kept architecture opens as it was left', async () => {

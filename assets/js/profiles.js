@@ -39,8 +39,8 @@
     var arch = isArchitecture(doc);
     return {
       architecture: arch,
-      generate: false,
-      solve: !arch,
+      generate: arch,
+      solve: !!doc,
       exact: !arch,
       cutSets: !arch,
       loss: !arch,

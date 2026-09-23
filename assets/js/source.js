@@ -36,19 +36,44 @@
     var end = lines.length;
     var found = null;
     for (var k = 0; k < keys.length; k++) {
+      // `changes[1]`: the key, then the second item of the list under it.
+      var parts = /^([^[\]]*)((?:\[\d+\])*)$/.exec(keys[k]);
+      if (!parts) return found;
       var hit = -1;
       var level = null;
       for (var i = from; i < end && hit < 0; i++) {
         var m = /^(\s*)("?)([^":\s]+)\2:(\s|$)/.exec(lines[i]);
         if (!m) continue;
         if (level === null) level = m[1].length;
-        if (m[1].length === level && m[3] === keys[k]) hit = i;
+        if (m[1].length === level && m[3] === parts[1]) hit = i;
       }
       if (hit < 0) return found;
       found = hit + 1;
       from = hit + 1;
       for (end = from; end < lines.length; end++) {
         if (!blank(lines[end]) && indentOf(lines[end]) <= level) break;
+      }
+      var indices = parts[2] ? parts[2].slice(1, -1).split("][").map(Number) : [];
+      for (var x = 0; x < indices.length; x++) {
+        var item = -1;
+        var dash = null;
+        var seen = 0;
+        for (var j = from; j < end && item < 0; j++) {
+          var d = /^(\s*)-(\s|$)/.exec(lines[j]);
+          if (!d) continue;
+          if (dash === null) dash = d[1].length;
+          if (d[1].length === dash && seen++ === indices[x]) item = j;
+        }
+        // No such item, or a list written on one line: the list's line.
+        if (item < 0) return found;
+        found = item + 1;
+        from = item;
+        for (end = item + 1; end < lines.length; end++) {
+          if (!blank(lines[end]) && indentOf(lines[end]) <= dash) break;
+        }
+        // The item's first key sits on its dash line: read it as indented.
+        lines[item] = lines[item].replace(/^(\s*)-/, "$1 ");
+        level = null;
       }
     }
     return found;
