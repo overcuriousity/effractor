@@ -67,19 +67,18 @@ which every analysis below relies on.
 Every leaf carries a **TTC** (time-to-compromise / time-to-failure): a random
 variable on `[0, ∞]`. Leaves are mutually independent.
 
-Distributions are MAL's set: `Bernoulli(p)`, `Exponential(λ)`, `Gamma(k, θ)`,
-`LogNormal(μ, σ)`, `Pareto(xm, α)`, `TruncatedNormal(μ, σ)` (truncated at 0),
-plus `Zero`, `Infinity`, the product form `Bernoulli(p) * <dist>`, and MAL's
-named shorthands (`EasyAndCertain` = `Exponential(1)`, `EasyAndUncertain` =
-`Bernoulli(0.5)`, `HardAndCertain` = `Exponential(0.1)`, `HardAndUncertain` =
-`Bernoulli(0.5) * Exponential(0.1)`, `VeryHardAndCertain` = `Exponential(0.01)`,
-`VeryHardAndUncertain` = `Bernoulli(0.5) * Exponential(0.01)`; `Enabled` = `Infinity`, a defence that is
-on and blocks the step; `Disabled` = `Zero`).
+Distributions are MAL's set in effractor's spelling (amended 2026-09-23 by
+the [readable time notation](2026-09-23-readable-time-notation-design.md)):
+a chance `c%`, `Exponential(mean m)`, `Gamma(k, θ)`, `LogNormal(μ, σ)`,
+`Pareto(xm, α)`, `TruncatedNormal(μ, σ)` (truncated at 0), `Never`,
+`Immediate`, and the product form `c% * <dist>`. MAL's `Bernoulli(p)`, rates
+and named shorthands are refused with their replacement; the MAL import
+translates them.
 
-`Bernoulli(p)` alone means: time 0 with probability `p`, else ∞.
-`Bernoulli(p) * D` means: ∞ with probability `1 − p`, else a draw from `D`.
-A static fault-tree probability is therefore just the Bernoulli case, and a
-failure rate is `Exponential(λ)` — no second code path.
+`c%` alone means: time 0 with probability `c/100`, else ∞.
+`c% * D` means: ∞ with probability `1 − c/100`, else a draw from `D`.
+A static fault-tree probability is therefore just the chance case, and a
+failure rate is an exponential — no second code path.
 
 Node completion time: leaf = its TTC; `or` = min of children; `and` = max;
 `vote(k)` = k-th smallest. All leaves start at t = 0 (parallel attacker / parallel
@@ -104,7 +103,7 @@ toggle is a one-line diff.
 
 A control has `cost` (defender cost per horizon), `enabled` (the as-is state),
 and `effects`: a list of `{node, ttc}` replacing a leaf's TTC while the control
-is enabled (`ttc: Infinity` blocks the step). If two enabled controls affect the
+is enabled (`ttc: Never` blocks the step). If two enabled controls affect the
 same leaf, the effect with the lowest `pᵢ(T)` applies (ties: control id order);
 validation warns about the overlap.
 
@@ -225,7 +224,7 @@ controls:
     cost: 1800
     enabled: false
     effects:
-      - {node: hardware, ttc: "Exponential(4e-7)"}
+      - {node: hardware, ttc: "Exponential(mean 2500000)"}
 
 analysis:
   seed: 42
@@ -241,7 +240,7 @@ Rules:
 - `nodes`, `assets`, `controls` are **maps keyed by id** (`[a-z0-9][a-z0-9-]*`):
   ids are unique by construction and adding a node is a pure insertion in a diff.
 - A node has exactly one of `gate` / `leaf`. `vote` gates add `k`. A leaf has at
-  most one of `p` (= `Bernoulli(p)`), `rate` (= `Exponential(rate)`), `ttc`
+  most one of `p` (a probability, = `p·100%`), `rate` (a failure rate, = `Exponential(mean 1/rate)`), `ttc`
   (expression string, grammar of 3.2). Attack-tree leaves may add `cost`,
   `detection`. Every node may have `label`, `description`, `consequences`.
 - **Canonical form** (every save and export from the UI): fixed key order

@@ -51,16 +51,16 @@ unit. A horizon edit is undoable; results for the old window are cleared.
 
 The TTC picker explains its presets and retains custom expressions:
 
-| Preset | Meaning |
-|---|---|
-| EasyAndCertain | Exponential waiting time, mean 1 model time unit |
-| HardAndCertain | Exponential waiting time, mean 10 units |
-| VeryHardAndCertain | Exponential waiting time, mean 100 units |
-| EasyAndUncertain | 50% immediate success; otherwise never |
-| HardAndUncertain | 50% eventual success; mean 10 units if successful |
-| VeryHardAndUncertain | 50% eventual success; mean 100 units if successful |
-| Infinity | Never occurs; blocks a step |
-| Zero | Immediate occurrence |
+| Preset | Written | Meaning |
+|---|---|---|
+| Easy | `Exponential(mean 1)` | Exponential waiting time, mean 1 model time unit |
+| Hard | `Exponential(mean 10)` | Exponential waiting time, mean 10 units |
+| Very hard | `Exponential(mean 100)` | Exponential waiting time, mean 100 units |
+| Easy · 50% chance | `50%` | 50% immediate success; otherwise never |
+| Hard · 50% chance | `50% * Exponential(mean 10)` | 50% eventual success; mean 10 units if successful |
+| Very hard · 50% chance | `50% * Exponential(mean 100)` | 50% eventual success; mean 100 units if successful |
+| Never | `Never` | Never occurs; blocks a step |
+| Immediate | `Immediate` | Immediate occurrence |
 
 “Certain” means eventual success, not success within every finite horizon.
 Control effects replace a leaf's TTC while the control is enabled; the same

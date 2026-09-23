@@ -184,7 +184,7 @@ Attack duration fields are explicit parameter objects:
 parameters:
   find-exploit:
     status: illustrative
-    ttc: "Exponential(0.1)"
+    ttc: "Exponential(mean 10)"
     note: "Exercise assumption; not calibrated to the lecture"
   find-exploit-patched:
     status: unknown
@@ -199,7 +199,7 @@ evidence claim, not a certificate from the app. Omitting a slot is equivalent
 to unknown; canonical saves materialize required unknown slots. No library TTC
 has an invented quantitative default. The existing TTC expression grammar is
 reused unchanged; tests of fixed sequential durations may call the graph
-evaluator directly with duration vectors. `Bernoulli(p)` is still zero or
+evaluator directly with duration vectors. A chance `c%` alone is still zero or
 infinity, now relative to the action's prerequisite completion.
 
 Required slots by owner:
@@ -214,7 +214,7 @@ Required slots by owner:
 Patching selects `find-exploit-patched` in place of `find-exploit`; protection
 selects `extract-protected` in place of `extract`. These are authored replacement
 distributions, not multipliers or absolute guarantees. The author may choose
-`Infinity` as an explicit blocking assumption; patching does not intrinsically
+`Never` as an explicit blocking assumption; patching does not intrinsically
 eliminate all exploits. A permission's false value blocks that permission
 unless the managing router has been compromised (§6). Unknown active switches
 or unknown relevant active duration slots make quantitative results unavailable.
@@ -479,10 +479,10 @@ The workstation foothold is documented as full compromise, while its SSH client
 still executes as user. Administration is initially isolated.
 
 Use horizon 100 days and seed 42. The fixture's explicit, **illustrative** inputs
-are: connect `Exponential(2)`, exploit discovery `Exponential(0.1)`, patched
-discovery `Infinity`, deployment `Exponential(0.5)`, extraction
-`Exponential(0.2)`, protected extraction `Infinity`, login `Exponential(1)`
-and admin login `Exponential(1)`. Each object carries its own evidence note;
+are: connect `Exponential(mean 0.5)`, exploit discovery `Exponential(mean 10)`,
+patched discovery `Never`, deployment `Exponential(mean 2)`, extraction
+`Exponential(mean 5)`, protected extraction `Never`, login `Exponential(mean 1)`
+and admin login `Exponential(mean 1)`. Each object carries its own evidence note;
 the prose says that perfect blocking is an exercise assumption. The library
 does not install these values. Add an unknown-parameter fixture and a partial
 defense fixture using slower, finite replacements to demonstrate that the
@@ -499,7 +499,7 @@ Automated acceptance must cover:
 3. Exact duration-vector tests: chain 2+3=5; ALL prerequisites 2/7 plus 3=10;
    competing routes, shared actions, infinity, initial footholds, cycles with
    and without an entry, zero cycles and deep input without recursion.
-4. Analytic distribution oracle: two sequential independent Exponential(1)
+4. Analytic distribution oracle: two sequential independent Exponential(mean 1)
    durations have CDF `1 - exp(-t) * (1 + t)`; sampled estimates meet a stated
    statistical tolerance, while a corresponding tree AND retains its old CDF.
 5. All-node/time and complete-result fingerprints frozen natively and asserted

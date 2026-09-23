@@ -5,6 +5,31 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — readable time notation (2026-09-24)
+
+Spec: [readable time notation](superpowers/specs/2026-09-23-readable-time-notation-design.md);
+plan: [its implementation](superpowers/plans/2026-09-23-readable-time-notation.md).
+
+- effractor files write `30%`, `50% * Exponential(mean 12.5)`, `Never`,
+  `Immediate`. MAL's `Bernoulli`, rates, presets, `Infinity`/`Zero`/
+  `Enabled`/`Disabled` are errors that name their replacement.
+- The grammar is `effractor_format::expr` (`parse`, `write`, `chance`); the
+  reader, the canonical writer, result JSON and wasm `ttc_sketch` use it.
+  `effractor-mal` keeps MAL's spelling, only for the future import.
+- `Distribution::ExponentialMean(m)` is what files produce: stored as written,
+  so every save reads back exactly. It samples with rate `1/m`, the same bits
+  as `Exponential(1/m)`; no frozen fingerprint moved. `Exponential(rate)`
+  remains for fault-tree `rate:`, the import and internal draws.
+- A chance is read by moving the decimal point in its text (`33.3%` is
+  exactly `0.333`) and written the same way back: exact for every value.
+- `crates/effractor-format/examples/rewrite_ttc.rs` rewrote every file,
+  asserting equivalence. Tidied averages (only illustrative examples' results
+  changed): 0.000012 → mean 83300, 6e-7 → 1670000, 0.035 → 28.6, 0.03 → 33.3,
+  0.015 → 66.7, 3 → 0.333 (examples 03, 07, 08, 10, 11, 16).
+- `ttc.js` presets write the new spelling (Easy/Hard/Very hard, each certain or
+  50%, Never, Immediate); `split`/`join` turn an expression into Chance and
+  Average time for the timing form (PR B).
+
 ## Continuation — plain vocabulary (2026-09-23)
 
 Released in `07cbb71` (PRs #73, #74). The page no longer shows library ids:
@@ -29,9 +54,6 @@ Released in `07cbb71` (PRs #73, #74). The page no longer shows library ids:
   fast-forwarded to #74's tested tip, which released both. In this tooling the
   agent's push to master is refused ("CI bypass"): the owner runs the push.
 
-Next: the approved [readable time notation](superpowers/specs/2026-09-23-readable-time-notation-design.md)
-(`30%`, `50% * Exponential(mean 12.5)`, `Never`, `Immediate` instead of MAL's
-`Bernoulli`, rates and preset names) — implementation plan to be written.
 
 ## Continuation — automatic solving (2026-09-22)
 

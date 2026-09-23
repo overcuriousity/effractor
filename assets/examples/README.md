@@ -19,7 +19,7 @@ The files are bundled with the server and static edition under
 | [08 · Museum theft](08-museum-theft-attack.yaml) | Attack | Medium | Physical security, a shared exit barrier, cost/time/detection trade-offs |
 | [09 · Payroll fraud](09-payroll-fraud-attack.yaml) | Attack | Medium | Two-of-three approval quorum and an alternative payment route |
 | [10 · Research data](10-research-data-attack.yaml) | Attack | Detailed | Shared identity gate, shared export barrier, diverse TTC distributions, Pareto front |
-| [11 · Software supply chain](11-software-supply-chain-attack.yaml) | Attack | Detailed | Shared publishing authority, Zero precondition, Infinity route-blocking control |
+| [11 · Software supply chain](11-software-supply-chain-attack.yaml) | Attack | Detailed | Shared publishing authority, Immediate precondition, Never route-blocking control |
 | [12 · Wind farm](12-wind-farm-attack.yaml) | Attack | Detailed, incomplete | An intentionally unknown likelihood, qualitative analysis, shared router SPOF |
 | [13 · Grumpy girlfriend](13-grumpy-girlfriend-fault.yaml) | Fault | Bonus | Date-night mishaps, a repeated booking event, a voting gate, zero-cost mitigations |
 | [14 · Branch office](14-branch-office-architecture.yaml) | Architecture | Introductory | A gateway running on its appliance box; denying a flow leaves the route through the appliance |
@@ -35,7 +35,7 @@ for a real decision. Node and control descriptions travel with the YAML when
 opened and saved.
 
 - `p` is a static probability for the stated mission or demand. It is a
-  Bernoulli event at time zero, so its CDF is flat; changing the horizon does
+  chance at time zero, so its CDF is flat; changing the horizon does
   not rescale it. `rate` is a time-to-first-failure rate per `time_unit`, with
   no repair. `ttc` supplies a time distribution in that same unit.
 - Every leaf clock starts at zero. OR takes the earliest completion, AND the
@@ -54,7 +54,7 @@ opened and saved.
   Loss can occur on a lower branch, even without the top event. The model counts
   at most one loss per asset/dimension per horizon, not recurring incidents.
 - Controls replace leaf TTCs. Compare their individual marginal benefits in
-  the Controls panel; benefits are not additive. `Infinity` in example 11
+  the Controls panel; benefits are not additive. `Never` in example 11
   represents removal of one legacy path, not perfect security for the system.
   Free controls in example 13 have no meaningful benefit-per-cost ratio.
 - Example 12 intentionally omits the vendor gateway's TTC. It should open with
