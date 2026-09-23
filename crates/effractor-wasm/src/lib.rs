@@ -65,6 +65,13 @@ pub fn solve_begin(text: &str) -> String {
     SESSION.with_borrow_mut(|s| s.begin(text))
 }
 
+/// An architecture's baseline graph solve, beside `scenario` unless it is
+/// empty. `revision` comes back in the answers.
+#[wasm_bindgen]
+pub fn solve_graph_begin(text: &str, scenario: &str, revision: &str) -> String {
+    SESSION.with_borrow_mut(|s| s.begin_graph(text, scenario, revision))
+}
+
 #[wasm_bindgen]
 pub fn solve_step() -> String {
     SESSION.with_borrow_mut(api::Session::step)

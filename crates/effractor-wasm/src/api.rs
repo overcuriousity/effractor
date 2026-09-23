@@ -5,9 +5,11 @@
 //! `{"diagnostics": […]}` when the document has errors. `{"error": "…"}` is for
 //! a caller's mistake, such as stepping a solve that was never begun.
 
-use effractor_core::{Diagnostic, Severity};
+use effractor_core::{Diagnostic, Document, Severity};
 use effractor_solver::{Config, Solve, SolveError};
 use serde_json::{Value, json};
+
+use crate::graph_api::GraphRun;
 
 pub use crate::graph_api::generate;
 
@@ -100,46 +102,90 @@ pub fn ttc_sketch(expression: &str, horizon: f64) -> String {
 /// show progress and stop between chunks, finished.
 #[derive(Default)]
 pub struct Session {
-    solve: Option<Solve>,
+    solve: Option<Running>,
+}
+
+enum Running {
+    Tree(Box<Solve>),
+    Graph(Box<GraphRun>),
 }
 
 impl Session {
-    /// Everything exact is in the answer: it is computed before any sampling
-    /// and is there to be shown while the sampling runs. Trees only: an
-    /// architecture is answered with the diagnostic that says so.
+    /// A tree's exact results are in the answer: they are computed before any
+    /// sampling and are there to be shown while the sampling runs. An
+    /// architecture begins its baseline graph solve, as [`Session::begin_graph`]
+    /// with no scenario and no revision.
     pub fn begin(&mut self, text: &str) -> String {
         self.solve = None;
-        let (model, diagnostics) = effractor_format::diagnose(text);
-        let Some(model) = model else {
-            return answer(None, &diagnostics);
-        };
-        match Solve::begin(&model, &Config::from_model(&model)) {
-            Ok(solve) => {
-                let ok = json!({
-                    "cut_sets": value(solve.cut_sets()),
-                    "exact": value(solve.exact()),
-                    "leaves": value(&solve.leaves()),
-                    "progress": value(&solve.progress()),
-                });
-                self.solve = Some(solve);
-                answer(Some(ok), &diagnostics)
+        let (document, diagnostics) = effractor_format::diagnose_document(text);
+        match document {
+            Some(Document::Tree(model)) => {
+                match Solve::begin(&model, &Config::from_model(&model)) {
+                    Ok(solve) => {
+                        let ok = json!({
+                            "cut_sets": value(solve.cut_sets()),
+                            "exact": value(solve.exact()),
+                            "leaves": value(&solve.leaves()),
+                            "progress": value(&solve.progress()),
+                        });
+                        self.solve = Some(Running::Tree(Box::new(solve)));
+                        answer(Some(ok), &diagnostics)
+                    }
+                    Err(SolveError::Invalid(diagnostics)) => answer(None, &diagnostics),
+                }
             }
-            Err(SolveError::Invalid(diagnostics)) => answer(None, &diagnostics),
+            Some(Document::Architecture(_)) => self.begin_graph(text, "", ""),
+            None => answer(None, &diagnostics),
+        }
+    }
+
+    /// `{ok: {revision, source, progress}}`: an architecture's baseline, and
+    /// `scenario` beside it on the same draws unless it is empty. There is no
+    /// exact part; nothing is known before sampling.
+    pub fn begin_graph(&mut self, text: &str, scenario: &str, revision: &str) -> String {
+        self.solve = None;
+        match crate::graph_api::begin(text, scenario, revision) {
+            Ok((run, warnings)) => {
+                let ok = json!({
+                    "revision": run.revision,
+                    "source": run.source,
+                    "progress": value(&run.solve.progress()),
+                });
+                self.solve = Some(Running::Graph(Box::new(run)));
+                answer(Some(ok), &warnings)
+            }
+            Err(diagnostics) => answer(None, &diagnostics),
         }
     }
 
     /// One chunk of samples.
     pub fn step(&mut self) -> String {
-        match &mut self.solve {
-            Some(solve) => answer(Some(value(&solve.step())), &[]),
-            None => error("no solve in progress"),
-        }
+        let progress = match &mut self.solve {
+            Some(Running::Tree(solve)) => solve.step(),
+            Some(Running::Graph(run)) => run.solve.step(),
+            None => return error("no solve in progress"),
+        };
+        answer(Some(value(&progress)), &[])
     }
 
-    /// The results, after whatever sampling is still to do.
+    /// The results, after whatever sampling is still to do. A graph's come as
+    /// `{revision, source, result}`.
     pub fn finish(&mut self) -> String {
         match self.solve.take() {
-            Some(solve) => answer(Some(value(&solve.finish())), &[]),
+            Some(Running::Tree(solve)) => answer(Some(value(&solve.finish())), &[]),
+            Some(Running::Graph(run)) => {
+                let GraphRun {
+                    solve,
+                    revision,
+                    source,
+                } = *run;
+                let ok = json!({
+                    "revision": revision,
+                    "source": source,
+                    "result": value(&solve.finish()),
+                });
+                answer(Some(ok), &[])
+            }
             None => error("no solve in progress"),
         }
     }

@@ -3,7 +3,7 @@
 (function () {
   function createSolver(makeWorker) {
     var worker = null;
-    var pending = {}; // id -> {resolve, reject, on}; `on` marks a solve: {onExact, onProgress}
+    var pending = {}; // id -> {resolve, reject, on}; `on` marks a solve: {onExact, onBegin, onProgress}
     var nextId = 1;
     var solving = null;
 
@@ -32,10 +32,16 @@
         return request({ type: "catalog" });
       },
       // Resolves to {result} or {cancelled: true}. `result` is what the solver
-      // said: {ok, diagnostics} or {diagnostics}.
-      solve: function (text, on) {
+      // said: {ok, diagnostics} or {diagnostics}. A tree reports its exact part
+      // to `on.onExact`; an architecture reports its start to `on.onBegin`.
+      // `options` {scenario, revision} are for an architecture: the scenario
+      // solved beside the baseline, and the caller's token handed back.
+      solve: function (text, on, options) {
+        var message = { type: "solve", text: text };
+        if (options && options.scenario !== undefined) message.scenario = options.scenario;
+        if (options && options.revision !== undefined) message.revision = options.revision;
         solving = nextId;
-        return request({ type: "solve", text: text }, on || {});
+        return request(message, on || {});
       },
       cancel: function () {
         if (solving !== null && worker) worker.postMessage({ id: solving, type: "cancel" });
@@ -79,6 +85,7 @@
       var p = pending[m.id];
       if (!p) return;
       if (m.type === "exact") p.on.onExact && p.on.onExact(m.result);
+      else if (m.type === "begun") p.on.onBegin && p.on.onBegin(m.result);
       else if (m.type === "progress") p.on.onProgress && p.on.onProgress(m.done, m.total);
       else if (m.type === "cancelled") settle(m.id).resolve({ cancelled: true });
       else if (m.type === "result") settle(m.id).resolve(p.on ? { result: m.result } : m.result);

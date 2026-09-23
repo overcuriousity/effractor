@@ -5,7 +5,8 @@
 //      {id, type: "sketch", expression, horizon}      {id, type: "result", result}
 //      {id, type: "catalog"}                          {id, type: "result", result}
 //      {id, type: "generate", text, revision}         {id, type: "result", result}
-//      {id, type: "solve", text}                      {id, type: "exact", result}
+//      {id, type: "solve", text,                      {id, type: "exact", result}   a tree
+//       scenario?, revision?}                         {id, type: "begun", result}   an architecture
 //                                                     {id, type: "progress", done, total}…
 //                                                     {id, type: "result", result}
 //      {id, type: "cancel"}                           {id, type: "cancelled"}
@@ -67,11 +68,17 @@
         if (m.id === solving) stop();
       } else if (m.type === "solve") {
         stop();
-        var begun = JSON.parse(api.solve_begin(m.text));
+        // A scenario or revision can only mean a generated graph; without
+        // them the module tells a tree from an architecture itself.
+        var graph = typeof m.scenario === "string" || typeof m.revision === "string";
+        var begun = JSON.parse(
+          graph ? api.solve_graph_begin(m.text, m.scenario || "", m.revision || "") : api.solve_begin(m.text)
+        );
         if (!begun.ok) return env.post({ id: m.id, type: "result", result: begun });
         solving = m.id;
-        env.post({ id: m.id, type: "exact", result: begun.ok });
-        // Sampling starts in a later turn: the exact results are on their way
+        // A graph has no exact part, and nothing about it is sent as one.
+        env.post({ id: m.id, type: "exact" in begun.ok ? "exact" : "begun", result: begun.ok });
+        // Sampling starts in a later turn: what is known already is on its way
         // to the page before the first sample is drawn.
         next(m.id);
       } else if (m.type === "sketch") {

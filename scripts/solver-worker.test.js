@@ -21,7 +21,14 @@ function fake(total, chunkMs) {
       calls.push("begin");
       if (text === "bad") return JSON.stringify({ diagnostics: [{ code: "syntax" }] });
       done = 0;
+      // An architecture begins its baseline graph: no exact part.
+      if (text === "architecture") return JSON.stringify({ ok: { revision: "", source: text, progress: { done: 0, total } }, diagnostics: [] });
       return JSON.stringify({ ok: { exact: { p: 0.5 }, progress: { done: 0, total } }, diagnostics: [] });
+    },
+    solve_graph_begin(text, scenario, revision) {
+      calls.push(["graph", text, scenario, revision]);
+      done = 0;
+      return JSON.stringify({ ok: { revision, source: text, progress: { done: 0, total } }, diagnostics: [] });
     },
     solve_step() {
       calls.push("step");
@@ -156,4 +163,25 @@ test("a panic is reported with the hook's message, once, and nothing runs after 
   w.handle({ id: 2, type: "validate", text: "x" });
   assert.equal(w.posted.filter((m) => m.type === "crashed").length, 1);
   assert.equal(w.posted[w.posted.length - 1].type, "crashed");
+});
+
+test("an architecture's solve begins with begun, never with exact", () => {
+  const w = fake(2, 1);
+  w.handle({ id: 1, type: "solve", text: "architecture" });
+  assert.deepEqual(w.posted.map((m) => m.type), ["begun"]);
+  assert.equal(w.posted[0].result.revision, "");
+  w.runAll();
+  assert.deepEqual(w.posted.map((m) => m.type), ["begun", "progress", "result"]);
+});
+
+test("a scenario or revision begins a graph solve with them", () => {
+  const w = fake(1, 1);
+  w.handle({ id: 1, type: "solve", text: "doc", scenario: "patch", revision: "rev-9" });
+  assert.deepEqual(w.calls[0], ["graph", "doc", "patch", "rev-9"]);
+  assert.deepEqual(w.posted[0], { id: 1, type: "begun", result: { revision: "rev-9", source: "doc", progress: { done: 0, total: 1 } } });
+  w.handle({ id: 2, type: "solve", text: "doc", revision: "rev-10" });
+  // No scenario is the baseline: an empty string, not a made-up name.
+  assert.deepEqual(w.calls[w.calls.length - 1], ["graph", "doc", "", "rev-10"]);
+  w.runAll();
+  assert.equal(w.posted[w.posted.length - 1].type, "result");
 });

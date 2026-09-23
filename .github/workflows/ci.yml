@@ -32,6 +32,9 @@ jobs:
         run: scripts/build-wasm.sh --fetch-cli
       - run: cargo clippy --workspace --all-targets --locked
       - run: cargo test --workspace --locked
+      # The browser module and the native build answer generated graphs alike.
+      - name: graph agreement, native and browser wasm
+        run: node scripts/check-graph-agreement.js
       - name: static site export
         run: scripts/build-site.sh
       - name: wasm build

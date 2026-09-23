@@ -158,7 +158,7 @@ fn a_ttc_is_sketched_or_refused() {
 }
 
 #[test]
-fn an_architecture_validates_parses_and_serializes_but_does_not_solve_as_a_tree() {
+fn an_architecture_validates_parses_and_serializes() {
     assert_eq!(
         call(api::validate(ARCHITECTURE)),
         json!({"ok": true, "diagnostics": []})
@@ -176,15 +176,6 @@ fn an_architecture_validates_parses_and_serializes_but_does_not_solve_as_a_tree(
     let out = call(api::serialize(&edited.to_string()));
     assert_eq!(out["diagnostics"][0]["code"], "unknown-reference");
     assert_eq!(out["diagnostics"][0]["path"], "associations.allow-ssh.to");
-
-    // The tree solver is not for an architecture, and says which it got.
-    let mut session = api::Session::default();
-    let begun = call(session.begin(ARCHITECTURE));
-    assert!(begun.get("ok").is_none());
-    assert_eq!(begun["diagnostics"][0]["code"], "unsupported");
-    assert_eq!(begun["diagnostics"][0]["path"], "profile");
-    assert_eq!(begun["diagnostics"][0]["line"], json!(2));
-    assert_eq!(call(session.step())["error"], "no solve in progress");
 }
 
 #[test]
@@ -287,4 +278,91 @@ fn generation_refuses_what_is_not_a_complete_architecture() {
     let out = call(api::generate("effractor: 2\nprofile: [", "r"));
     assert!(out.get("ok").is_none());
     assert!(!out["diagnostics"].as_array().unwrap().is_empty());
+}
+
+/// The one-shot graph results for `text`, as the text the session must send.
+fn graph_results(text: &str, scenario: Option<&str>) -> String {
+    let model = match effractor_format::load_document(text).unwrap() {
+        effractor_core::Document::Architecture(model) => model,
+        effractor_core::Document::Tree(_) => panic!("a tree"),
+    };
+    let graph = effractor_components::generate(&model).unwrap();
+    let scenario: Option<effractor_core::ScenarioId> = scenario.map(|s| s.parse().unwrap());
+    let config = effractor_solver::graph_results::GraphConfig::from_model(&model);
+    let solve = effractor_solver::graph_results::GraphSolve::begin(
+        &model,
+        &graph,
+        scenario.as_ref(),
+        &config,
+    )
+    .unwrap();
+    serde_json::to_string(&solve.finish()).unwrap()
+}
+
+#[test]
+fn an_architecture_solves_its_baseline_graph_in_steps() {
+    let mut session = api::Session::default();
+    let begun = call(session.begin(LECTURE));
+    assert_eq!(begun["ok"]["revision"], "");
+    assert_eq!(begun["ok"]["source"], LECTURE);
+    // No exact part: nothing about a graph is a tree's exact result.
+    assert!(begun["ok"].get("exact").is_none());
+    assert_eq!(begun["ok"]["progress"], json!({"done": 0, "total": 3}));
+    for done in 1..=3 {
+        assert_eq!(
+            call(session.step())["ok"],
+            json!({"done": done, "total": 3})
+        );
+    }
+    let finished = session.finish();
+    let want = format!(
+        r#"{{"ok":{{"revision":"","source":{},"result":{}}},"diagnostics":[]}}"#,
+        json!(LECTURE),
+        graph_results(LECTURE, None)
+    );
+    assert_eq!(finished, want);
+    assert_eq!(call(session.step())["error"], "no solve in progress");
+}
+
+#[test]
+fn a_scenario_is_solved_beside_the_baseline_with_the_callers_revision() {
+    let mut session = api::Session::default();
+    let begun = call(session.begin_graph(LECTURE, "patch", "rev-3"));
+    assert_eq!(begun["ok"]["revision"], "rev-3");
+    let finished = session.finish();
+    let want = format!(
+        r#"{{"ok":{{"revision":"rev-3","source":{},"result":{}}},"diagnostics":[]}}"#,
+        json!(LECTURE),
+        graph_results(LECTURE, Some("patch"))
+    );
+    assert_eq!(finished, want);
+    let result = &call(finished)["ok"]["result"];
+    assert_eq!(result["scenario"]["id"], "patch");
+    assert!(result["delta"]["available"].is_object());
+
+    // An empty scenario is the baseline, not a scenario called "".
+    call(session.begin_graph(LECTURE, "", "r"));
+    assert!(call(session.finish())["ok"]["result"]["scenario"].is_null());
+}
+
+#[test]
+fn a_graph_solve_refuses_what_it_cannot_begin() {
+    let mut session = api::Session::default();
+    let out = call(session.begin_graph(LECTURE, "nope", "r"));
+    assert!(out.get("ok").is_none());
+    assert_eq!(out["diagnostics"][0]["code"], "unknown-reference");
+    assert_eq!(call(session.step())["error"], "no solve in progress");
+
+    let out = call(session.begin_graph(WEBSERVER, "", "r"));
+    assert_eq!(out["diagnostics"][0]["code"], "unsupported");
+    assert_eq!(out["diagnostics"][0]["path"], "profile");
+
+    let out = call(session.begin_graph("effractor: 2\nprofile: [", "", "r"));
+    assert!(out.get("ok").is_none());
+
+    // Cancelled between chunks, it is gone.
+    call(session.begin_graph(LECTURE, "deny", "r"));
+    call(session.step());
+    session.cancel();
+    assert_eq!(call(session.finish())["error"], "no solve in progress");
 }

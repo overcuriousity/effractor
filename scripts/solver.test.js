@@ -101,3 +101,27 @@ test("a worker that fails to load is a crash too", async () => {
   await assert.rejects(pending, /script error/);
   assert.ok(h.workers[0].terminated);
 });
+
+test("a graph solve sends its scenario and revision and reports begun", async () => {
+  const h = harness();
+  const seen = [];
+  const solved = h.solver.solve(
+    "doc",
+    { onBegin: (b) => seen.push(["begun", b]), onExact: () => seen.push("exact"), onProgress: (d, t) => seen.push([d, t]) },
+    { scenario: "patch", revision: "rev-2" }
+  );
+  const m = h.last().sent[0];
+  assert.deepEqual(m, { id: m.id, type: "solve", text: "doc", scenario: "patch", revision: "rev-2" });
+  h.reply({ id: m.id, type: "begun", result: { revision: "rev-2" } });
+  h.reply({ id: m.id, type: "progress", done: 1, total: 1 });
+  h.reply({ id: m.id, type: "result", result: { ok: { revision: "rev-2" } } });
+  assert.deepEqual(await solved, { result: { ok: { revision: "rev-2" } } });
+  assert.deepEqual(seen, [["begun", { revision: "rev-2" }], [1, 1]]);
+});
+
+test("a tree solve sends nothing but its text", () => {
+  const h = harness();
+  h.solver.solve("doc", {});
+  const m = h.last().sent[0];
+  assert.deepEqual(m, { id: m.id, type: "solve", text: "doc" });
+});
