@@ -14,7 +14,7 @@ nodes:
       Compare source, build and artifact-distribution routes for one quarter.
       Shared publisher identity and deployment approval events remain single
       variables. Gates express sufficient combinations, not an ordered attack
-      graph. Infinity blocks only the explicitly retired legacy upload route.
+      graph. Never blocks only the explicitly retired legacy upload route.
     gate: or
     children: [source-route, build-route, registry-route, legacy-route]
     consequences:

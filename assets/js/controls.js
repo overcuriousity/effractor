@@ -195,7 +195,7 @@
 
     var hint = document.createElement("p");
     hint.className = "hint";
-    hint.textContent = "Infinity blocks the step. Overlapping controls: the stronger applies.";
+    hint.textContent = "Never blocks the step. Overlapping controls: the stronger applies.";
     form.appendChild(hint);
 
     var removeControl = document.createElement("button");

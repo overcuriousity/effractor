@@ -145,7 +145,7 @@ impl Distribution {
                     | Self::Named(_)
                     | Self::Const(_)
                     | Self::Pert { .. } => Err(
-                        "the right side of `Bernoulli(p) * …` must be a time distribution".into(),
+                        "after a chance `…% *` comes a time distribution, e.g. Exponential(mean 10)".into(),
                     ),
                     _ => inner.check_params(),
                 }

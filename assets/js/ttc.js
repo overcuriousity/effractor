@@ -23,7 +23,7 @@
   function join(parts) {
     var c = parts.chance, mean = parts.mean;
     var time = mean == null || mean === '' ? '' : 'Exponential(mean ' + mean + ')';
-    if (c == null || c === '' || Number(c) === 100) return time;
+    if (c == null || c === '' || Number(c) === 100) return time || (c == null || c === '' ? '' : '100%');
     return time ? c + '% * ' + time : c + '%';
   }
   function unitName(unit, count) {
@@ -40,15 +40,21 @@
     var time = p.mean == null ? 'at once' : 'about ' + p.mean + ' ' + unitName(unit, p.mean) + ' on average';
     return (chance ? chance + ', then ' : 'Succeeds, ') + time + (p.chance == null || p.chance === 100 ? '' : '; otherwise never') + '.';
   }
+  // Never an exponent: the file's grammar has none in a chance.
   function showChance(p) {
-    return String(Number((p * 100).toPrecision(12))) + '%';
+    var x = Number((p * 100).toPrecision(12));
+    var s = String(x);
+    var m = /^(\d)(?:\.(\d+))?e-(\d+)$/.exec(s); // "2.5e-10": move the point
+    if (m) s = '0.' + new Array(Number(m[3])).join('0') + m[1] + (m[2] || '');
+    return s + '%';
   }
   function showRate(rate) {
     return 'Exponential(mean ' + Number((1 / rate).toPrecision(3)) + ')';
   }
   function options(unit) {
-    var u = unitName(unit, 2);
-    return [['', 'Choose timing…']].concat(PRESETS.map(function (p) { return [p[1], p[0].replace('{u}', u)]; }), [['custom', 'Custom…']]);
+    return [['', 'Choose timing…']].concat(PRESETS.map(function (p) {
+      return [p[1], p[0].replace(/(\d+) \{u\}/, function (m, n) { return n + ' ' + unitName(unit, n); })];
+    }), [['custom', 'Custom…']]);
   }
   // The original input stays the value/change interface for the editor. The
   // preset picker and the Chance / Average time fields are two ways of
@@ -87,10 +93,18 @@
       }
       hint.textContent = describe(text, unit);
     }
+    // While a field writes the text, the text's own listener must leave that
+    // field alone too, or "0.0" would be read back as "0" mid-number.
+    var typing = null;
     function fromParts(e) {
       input.value = join({ chance: chance.field.value === '' ? null : chance.field.value, mean: mean.field.value === '' ? null : mean.field.value });
-      explain(e.target);
-      input.dispatchEvent(new Event('input', { bubbles: true }));
+      typing = e.target;
+      try {
+        explain(typing);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      } finally {
+        typing = null;
+      }
     }
     [chance.field, mean.field].forEach(function (f) {
       f.addEventListener('input', fromParts);
@@ -101,7 +115,7 @@
       input.value = picker.value; explain();
       input.dispatchEvent(new Event('change', { bubbles: true }));
     });
-    input.addEventListener('input', function () { explain(); });
+    input.addEventListener('input', function () { explain(typing); });
     input.addEventListener('change', function () { explain(); });
     wrap.append(picker, parts, input, hint); explain(); return wrap;
   }

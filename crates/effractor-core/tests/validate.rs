@@ -395,3 +395,20 @@ fn a_mean_must_be_positive_and_is_a_time_or_a_magnitude() {
             .is_ok()
     );
 }
+
+#[test]
+fn a_chance_times_a_non_time_is_explained_in_the_files_spelling() {
+    use effractor_core::Distribution as D;
+    let message = D::Product(
+        0.5,
+        Box::new(D::Pert {
+            min: 1.0,
+            mode: 2.0,
+            max: 5.0,
+        }),
+    )
+    .check_params()
+    .unwrap_err();
+    assert!(!message.contains("Bernoulli"), "{message}");
+    assert!(message.contains("time"), "{message}");
+}
