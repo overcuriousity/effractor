@@ -186,8 +186,9 @@ fn ids_are_checked_where_they_are_written() {
 
 #[test]
 fn a_bad_expression_points_into_the_expression() {
-    let text =
-        doc("  t:\n    label: T\n    leaf: basic\n    ttc: \"Exponential(0.1) * Gamma(1, 2)\"\n");
+    let text = doc(
+        "  t:\n    label: T\n    leaf: basic\n    ttc: \"Exponential(mean 10) * Gamma(1, 2)\"\n",
+    );
     let (code, path, line, col) = one(&text);
     assert_eq!(
         (code, path.as_str(), line),

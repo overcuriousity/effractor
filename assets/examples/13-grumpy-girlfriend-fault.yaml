@@ -81,25 +81,25 @@ controls:
     cost: 8
     enabled: false
     effects:
-      - {node: hungry, ttc: "Bernoulli(0.15)"}
+      - {node: hungry, ttc: "15%"}
   confirm-plans:
     label: Actually confirm the booking and the ticket date
     cost: 2
     enabled: false
     effects:
-      - {node: booking-forgotten, ttc: "Bernoulli(0.02)"}
-      - {node: tickets-wrong-day, ttc: "Bernoulli(0.01)"}
+      - {node: booking-forgotten, ttc: "2%"}
+      - {node: tickets-wrong-day, ttc: "1%"}
   listen-first:
     label: Put the phone away and ask whether she wants advice
     cost: 0
     enabled: false
     effects:
-      - {node: unsolicited-solutions, ttc: "Bernoulli(0.08)"}
+      - {node: unsolicited-solutions, ttc: "8%"}
   do-my-chores:
     label: Do my share before getting ready
     cost: 0
     enabled: true
     effects:
-      - {node: chores-abandoned, ttc: "Bernoulli(0.03)"}
+      - {node: chores-abandoned, ttc: "3%"}
 
 analysis: {seed: 113, samples: 10000, confidence: 0.95}

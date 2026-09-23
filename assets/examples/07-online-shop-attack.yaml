@@ -26,19 +26,19 @@ nodes:
   staff-password:
     label: Obtain an export user's password
     leaf: basic
-    ttc: "Bernoulli(0.5) * Exponential(0.08)"
+    ttc: "50% * Exponential(mean 12.5)"
     cost: 300
     detection: 0.15
   second-factor:
     label: Defeat the account's second factor
     leaf: basic
-    ttc: "Bernoulli(0.25) * Gamma(2, 4)"
+    ttc: "25% * Gamma(2, 4)"
     cost: 800
     detection: 0.6
   integration-token:
     label: Obtain a still-valid export integration token
     leaf: undeveloped
-    ttc: "Bernoulli(0.3) * Exponential(0.035)"
+    ttc: "30% * Exponential(mean 28.6)"
     cost: 1800
     detection: 0.05
 
@@ -53,12 +53,12 @@ controls:
     cost: 240
     enabled: false
     effects:
-      - {node: second-factor, ttc: "Bernoulli(0.03) * Gamma(2, 12)"}
+      - {node: second-factor, ttc: "3% * Gamma(2, 12)"}
   token-hygiene:
     label: Short-lived and narrowly scoped export tokens
     cost: 180
     enabled: true
     effects:
-      - {node: integration-token, ttc: "Bernoulli(0.06) * Exponential(0.02)"}
+      - {node: integration-token, ttc: "6% * Exponential(mean 50)"}
 
 analysis: {seed: 107, samples: 10000, confidence: 0.95}

@@ -90,18 +90,18 @@ controls:
     cost: 4500
     enabled: false
     effects:
-      - {node: plant-room-flood, ttc: "Bernoulli(0.001)"}
+      - {node: plant-room-flood, ttc: "0.1%"}
   compressor-overhaul:
     label: Overhaul the older third compressor
     cost: 1800
     enabled: false
     effects:
-      - {node: compressor-c, ttc: "Exponential(0.000012)"}
+      - {node: compressor-c, ttc: "Exponential(mean 83300)"}
   header-inspection:
     label: Header inspection and renewal
     cost: 950
     enabled: true
     effects:
-      - {node: header-rupture, ttc: "Exponential(0.0000006)"}
+      - {node: header-rupture, ttc: "Exponential(mean 1670000)"}
 
 analysis: {seed: 103, samples: 10000, confidence: 0.95}

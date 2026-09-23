@@ -67,13 +67,13 @@ controls:
     cost: 850
     enabled: false
     effects:
-      - {node: shared-feeder, ttc: "Exponential(0.000002)"}
+      - {node: shared-feeder, ttc: "Exponential(mean 500000)"}
   motor-monitoring:
     label: Condition monitoring of both motors
     cost: 320
     enabled: false
     effects:
-      - {node: motor-a, ttc: "Exponential(0.00002)"}
-      - {node: motor-b, ttc: "Exponential(0.000016)"}
+      - {node: motor-a, ttc: "Exponential(mean 50000)"}
+      - {node: motor-b, ttc: "Exponential(mean 62500)"}
 
 analysis: {seed: 102, samples: 10000, confidence: 0.95}

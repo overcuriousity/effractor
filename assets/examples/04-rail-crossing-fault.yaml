@@ -71,19 +71,19 @@ controls:
     cost: 0.5
     enabled: true
     effects:
-      - {node: battery-unavailable, ttc: "Bernoulli(0.008)"}
+      - {node: battery-unavailable, ttc: "0.8%"}
   barrier-maintenance:
     label: Barrier drive and obstruction maintenance
     cost: 1.2
     enabled: false
     effects:
-      - {node: motor-unavailable, ttc: "Bernoulli(0.0008)"}
-      - {node: obstruction, ttc: "Bernoulli(0.001)"}
+      - {node: motor-unavailable, ttc: "0.08%"}
+      - {node: obstruction, ttc: "0.1%"}
   controller-renewal:
     label: Renew the common controller
     cost: 2.5
     enabled: false
     effects:
-      - {node: controller-failed, ttc: "Bernoulli(0.0002)"}
+      - {node: controller-failed, ttc: "0.02%"}
 
 analysis: {seed: 104, samples: 10000, confidence: 0.95}

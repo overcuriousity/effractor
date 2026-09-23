@@ -36,15 +36,15 @@ entities:
         status: unknown
       find-exploit-patched:
         status: illustrative
-        ttc: "Infinity"
+        ttc: "Never"
         note: "Teaching input: the vendor patch is taken as perfect"
       deploy-exploit:
         status: illustrative
-        ttc: "Exponential(0.5)"
+        ttc: "Exponential(mean 2)"
         note: Teaching input
       login:
         status: illustrative
-        ttc: "Exponential(3)"
+        ttc: "Exponential(mean 0.333)"
         note: "Teaching input: a stolen session token is replayed"
     defenses: {patched: false}
   clinician:
@@ -59,11 +59,11 @@ entities:
     parameters:
       extract:
         status: illustrative
-        ttc: "Exponential(0.5)"
+        ttc: "Exponential(mean 2)"
         note: "Teaching input: cached by the viewer"
       extract-protected:
         status: illustrative
-        ttc: "Exponential(0.02)"
+        ttc: "Exponential(mean 50)"
         note: "Teaching input: short-lived tokens"
     defenses: {protected: false}
 
@@ -132,7 +132,7 @@ flows:
     parameters:
       connect:
         status: illustrative
-        ttc: "Exponential(10)"
+        ttc: "Exponential(mean 0.1)"
         note: Teaching input
 
 attacker:

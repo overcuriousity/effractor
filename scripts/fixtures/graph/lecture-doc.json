@@ -48,22 +48,22 @@
    "parameters": {
     "find-exploit": {
      "status": "illustrative",
-     "ttc": "Exponential(0.1)",
+     "ttc": "Exponential(mean 10)",
      "note": "Exercise assumption; not calibrated to the lecture"
     },
     "find-exploit-patched": {
      "status": "illustrative",
-     "ttc": "Infinity",
+     "ttc": "Never",
      "note": "Exercise assumption: perfect blocking, a patched service has no exploit to find"
     },
     "deploy-exploit": {
      "status": "illustrative",
-     "ttc": "Exponential(0.5)",
+     "ttc": "Exponential(mean 2)",
      "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
     },
     "login": {
      "status": "illustrative",
-     "ttc": "Exponential(1)",
+     "ttc": "Exponential(mean 1)",
      "note": "Exercise assumption; not calibrated to the lecture"
     }
    },
@@ -86,7 +86,7 @@
    "parameters": {
     "admin-login": {
      "status": "illustrative",
-     "ttc": "Exponential(1)",
+     "ttc": "Exponential(mean 1)",
      "note": "Exercise assumption; not calibrated to the lecture"
     }
    }
@@ -98,12 +98,12 @@
    "parameters": {
     "extract": {
      "status": "illustrative",
-     "ttc": "Exponential(0.2)",
+     "ttc": "Exponential(mean 5)",
      "note": "Exercise assumption; not calibrated to the lecture"
     },
     "extract-protected": {
      "status": "illustrative",
-     "ttc": "Infinity",
+     "ttc": "Never",
      "note": "Exercise assumption: perfect blocking, a protected store gives nothing up"
     }
    },
@@ -117,12 +117,12 @@
    "parameters": {
     "extract": {
      "status": "illustrative",
-     "ttc": "Exponential(0.2)",
+     "ttc": "Exponential(mean 5)",
      "note": "Exercise assumption; not calibrated to the lecture"
     },
     "extract-protected": {
      "status": "illustrative",
-     "ttc": "Infinity",
+     "ttc": "Never",
      "note": "Exercise assumption: perfect blocking, a protected store gives nothing up"
     }
    },
@@ -234,7 +234,7 @@
    "parameters": {
     "connect": {
      "status": "illustrative",
-     "ttc": "Exponential(2)",
+     "ttc": "Exponential(mean 0.5)",
      "note": "Exercise assumption; not calibrated to the lecture"
     }
    }

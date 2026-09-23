@@ -76,14 +76,14 @@ test('renaming says nothing new is refused; the id stays whatever the label beco
 
 test('a supplied parameter is status, TTC and note together; clearing makes it unknown again', () => {
   const doc = E.addEntity(E.empty(), 'service', 'SSH', SERVICE).doc;
-  const set = E.setParameter(doc, { entity: 'ssh' }, 'login', { status: 'illustrative', ttc: ' Exponential(1) ', note: ' Exercise ' });
-  assert.deepEqual(set.doc.entities.ssh.parameters.login, { status: 'illustrative', ttc: 'Exponential(1)', note: 'Exercise' });
+  const set = E.setParameter(doc, { entity: 'ssh' }, 'login', { status: 'illustrative', ttc: ' Exponential(mean 1) ', note: ' Exercise ' });
+  assert.deepEqual(set.doc.entities.ssh.parameters.login, { status: 'illustrative', ttc: 'Exponential(mean 1)', note: 'Exercise' });
   assert.deepEqual(doc.entities.ssh.parameters.login, { status: 'unknown' }, 'the original is untouched');
   assert.equal(set.select, 'entity/ssh');
   // Half a parameter goes to wasm as it is and is refused there, not completed here.
-  const half = E.setParameter(doc, { entity: 'ssh' }, 'login', { status: 'assumed', ttc: 'Exponential(1)', note: '' });
-  assert.deepEqual(half.doc.entities.ssh.parameters.login, { status: 'assumed', ttc: 'Exponential(1)' });
-  const cleared = E.setParameter(set.doc, { entity: 'ssh' }, 'login', { status: 'unknown', ttc: 'Exponential(1)', note: 'x' });
+  const half = E.setParameter(doc, { entity: 'ssh' }, 'login', { status: 'assumed', ttc: 'Exponential(mean 1)', note: '' });
+  assert.deepEqual(half.doc.entities.ssh.parameters.login, { status: 'assumed', ttc: 'Exponential(mean 1)' });
+  const cleared = E.setParameter(set.doc, { entity: 'ssh' }, 'login', { status: 'unknown', ttc: 'Exponential(mean 1)', note: 'x' });
   assert.deepEqual(cleared.doc.entities.ssh.parameters.login, { status: 'unknown' });
   assert.equal(E.setParameter(doc, { entity: 'ssh' }, 'extract', { status: 'unknown' }), null, 'not a slot of a service');
   assert.equal(E.setParameter(doc, { entity: 'nowhere' }, 'login', { status: 'unknown' }), null);
@@ -93,8 +93,8 @@ test('a supplied parameter is status, TTC and note together; clearing makes it u
 test('a flow owns its connect parameter', () => {
   const doc = E.empty();
   doc.flows.ssh = { label: 'SSH', source: 'a', target: 'b', route: ['n'], parameters: { connect: { status: 'unknown' } } };
-  const set = E.setParameter(doc, { flow: 'ssh' }, 'connect', { status: 'calibrated', ttc: 'Exponential(2)', note: 'Measured' });
-  assert.deepEqual(set.doc.flows.ssh.parameters.connect, { status: 'calibrated', ttc: 'Exponential(2)', note: 'Measured' });
+  const set = E.setParameter(doc, { flow: 'ssh' }, 'connect', { status: 'calibrated', ttc: 'Exponential(mean 0.5)', note: 'Measured' });
+  assert.deepEqual(set.doc.flows.ssh.parameters.connect, { status: 'calibrated', ttc: 'Exponential(mean 0.5)', note: 'Measured' });
   assert.equal(set.select, 'flow/ssh');
   assert.equal(E.setParameter(doc, { flow: 'ssh' }, 'login', { status: 'unknown' }), null);
 });
@@ -103,7 +103,7 @@ test('edits keep x- extensions at the entity and parameter level', () => {
   const doc = E.addEntity(E.empty(), 'service', 'SSH', SERVICE).doc;
   doc.entities.ssh['x-owner'] = 'ops';
   doc.entities.ssh.parameters.login['x-ticket'] = 7;
-  const set = E.setParameter(doc, { entity: 'ssh' }, 'login', { status: 'assumed', ttc: 'Zero', note: 'n' });
+  const set = E.setParameter(doc, { entity: 'ssh' }, 'login', { status: 'assumed', ttc: 'Immediate', note: 'n' });
   assert.equal(set.doc.entities.ssh['x-owner'], 'ops');
   assert.equal(set.doc.entities.ssh.parameters.login['x-ticket'], 7);
   const renamed = E.renameEntity(set.doc, 'ssh', 'Secure shell');

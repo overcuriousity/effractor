@@ -51,12 +51,12 @@ controls:
     cost: 90
     enabled: false
     effects:
-      - {node: alarm-response-failed, ttc: "Bernoulli(0.025)"}
+      - {node: alarm-response-failed, ttc: "2.5%"}
   door-closer:
     label: Self-closing loading door
     cost: 35
     enabled: true
     effects:
-      - {node: door-left-open, ttc: "Bernoulli(0.001)"}
+      - {node: door-left-open, ttc: "0.1%"}
 
 analysis: {seed: 101, samples: 10000, confidence: 0.95}

@@ -89,7 +89,7 @@
       "effects": [
         {
           "node": "hardware",
-          "ttc": "Exponential(4e-7)"
+          "ttc": "Exponential(mean 2500000)"
         }
       ]
     }

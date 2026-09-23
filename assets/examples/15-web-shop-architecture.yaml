@@ -43,15 +43,15 @@ entities:
     parameters:
       find-exploit:
         status: illustrative
-        ttc: "Exponential(0.1)"
+        ttc: "Exponential(mean 10)"
         note: "Teaching input: a custom shop with a few flaws"
       find-exploit-patched:
         status: illustrative
-        ttc: "Exponential(0.01)"
+        ttc: "Exponential(mean 100)"
         note: "Teaching input: an update leaves harder flaws"
       deploy-exploit:
         status: illustrative
-        ttc: "Exponential(1)"
+        ttc: "Exponential(mean 1)"
         note: Teaching input
       login:
         status: unknown
@@ -68,18 +68,18 @@ entities:
     parameters:
       find-exploit:
         status: assumed
-        ttc: "Exponential(0.02)"
+        ttc: "Exponential(mean 50)"
       find-exploit-patched:
         status: illustrative
-        ttc: "Infinity"
+        ttc: "Never"
         note: "Teaching input: patching is taken as perfect"
       deploy-exploit:
         status: illustrative
-        ttc: "Exponential(0.5)"
+        ttc: "Exponential(mean 2)"
         note: Teaching input
       login:
         status: illustrative
-        ttc: "Exponential(5)"
+        ttc: "Exponential(mean 0.2)"
         note: "Teaching input: the password is in hand"
     defenses: {patched: false}
   shop-db:
@@ -94,11 +94,11 @@ entities:
     parameters:
       extract:
         status: illustrative
-        ttc: "Exponential(2)"
+        ttc: "Exponential(mean 0.5)"
         note: "Teaching input: a readable configuration file"
       extract-protected:
         status: illustrative
-        ttc: "Infinity"
+        ttc: "Never"
         note: "Teaching input: moved to a vault the shop user cannot read"
     defenses: {protected: false}
 
@@ -198,7 +198,7 @@ flows:
     parameters:
       connect:
         status: illustrative
-        ttc: "Exponential(10)"
+        ttc: "Exponential(mean 0.1)"
         note: "Teaching input: the shop is public"
   sql:
     label: Shop to database
@@ -209,7 +209,7 @@ flows:
     parameters:
       connect:
         status: illustrative
-        ttc: "Exponential(10)"
+        ttc: "Exponential(mean 0.1)"
         note: Teaching input
 
 attacker:

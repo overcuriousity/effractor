@@ -16,12 +16,12 @@ fn slower_text() -> String {
     LECTURE
         .replace("horizon: 100", "horizon: 10")
         .replace(
-            "        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a patched",
-            "        ttc: \"Exponential(0.005)\"\n        note: \"Exercise assumption: perfect blocking, a patched",
+            "        ttc: \"Never\"\n        note: \"Exercise assumption: perfect blocking, a patched",
+            "        ttc: \"Exponential(mean 200)\"\n        note: \"Exercise assumption: perfect blocking, a patched",
         )
         .replace(
-            "        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a protected",
-            "        ttc: \"Exponential(0.005)\"\n        note: \"Exercise assumption: perfect blocking, a protected",
+            "        ttc: \"Never\"\n        note: \"Exercise assumption: perfect blocking, a protected",
+            "        ttc: \"Exponential(mean 200)\"\n        note: \"Exercise assumption: perfect blocking, a protected",
         )
 }
 

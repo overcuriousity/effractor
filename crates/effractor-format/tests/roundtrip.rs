@@ -2,7 +2,7 @@
 //! changes nothing.
 
 use effractor_core::{
-    AssetId, ControlId, Distribution as D, Gate, LeafKind, NodeId, NodeKind, Shorthand, Ttc,
+    AssetId, ControlId, Distribution as D, Gate, LeafKind, NodeId, NodeKind, Ttc,
 };
 use effractor_format::{canonicalize, load, save};
 
@@ -81,7 +81,7 @@ fn the_reference_tree_loads_as_written() {
     );
     let psu = &m.controls[&"redundant-psu".parse::<ControlId>().unwrap()];
     assert_eq!((psu.cost, psu.enabled), (1800.0, false));
-    assert_eq!(psu.effects[0].ttc, D::Exponential(4e-7));
+    assert_eq!(psu.effects[0].ttc, D::ExponentialMean(2500000.0));
     assert_eq!(
         (m.analysis.seed, m.analysis.samples, m.analysis.confidence),
         (42, 10000, 0.95)
@@ -100,7 +100,10 @@ fn the_attack_tree_loads_as_written() {
     };
     assert_eq!(
         phishing.ttc,
-        Some(Ttc::Expr(D::Named(Shorthand::HardAndUncertain)))
+        Some(Ttc::Expr(D::Product(
+            0.5,
+            Box::new(D::ExponentialMean(10.0))
+        )))
     );
     assert_eq!(
         (phishing.cost, phishing.detection),

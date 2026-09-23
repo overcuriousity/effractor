@@ -31,19 +31,19 @@ nodes:
   maintainer-account:
     label: Control a repository maintainer account
     leaf: basic
-    ttc: "Bernoulli(0.35) * LogNormal(3, 0.7)"
+    ttc: "35% * LogNormal(3, 0.7)"
     cost: 5000
     detection: 0.25
   source-automation-token:
     label: Obtain a source-write automation token
     leaf: basic
-    ttc: "Bernoulli(0.2) * Gamma(2, 15)"
+    ttc: "20% * Gamma(2, 15)"
     cost: 8000
     detection: 0.1
   review-bypass:
     label: Defeat independent source review
     leaf: basic
-    ttc: "Bernoulli(0.25) * Exponential(0.02)"
+    ttc: "25% * Exponential(mean 50)"
     cost: 4000
     detection: 0.4
   build-route:
@@ -57,13 +57,13 @@ nodes:
   runner-control:
     label: Control a release build runner
     leaf: basic
-    ttc: "Bernoulli(0.3) * Gamma(3, 12)"
+    ttc: "30% * Gamma(3, 12)"
     cost: 12000
     detection: 0.35
   dependency-substitution:
     label: Substitute an unverified build dependency
     leaf: undeveloped
-    ttc: "Bernoulli(0.2) * Pareto(10, 2.2)"
+    ttc: "20% * Pareto(10, 2.2)"
     cost: 6000
     detection: 0.15
   publisher-identity:
@@ -73,19 +73,19 @@ nodes:
   publisher-session:
     label: Obtain a release publisher session
     leaf: basic
-    ttc: "Bernoulli(0.2) * LogNormal(3.5, 0.6)"
+    ttc: "20% * LogNormal(3.5, 0.6)"
     cost: 9000
     detection: 0.2
   signing-service-identity:
     label: Obtain use of the release signing identity
     leaf: basic
-    ttc: "Bernoulli(0.12) * Gamma(3, 20)"
+    ttc: "12% * Gamma(3, 20)"
     cost: 16000
     detection: 0.08
   deployment-approval:
     label: Defeat independent production release approval
     leaf: basic
-    ttc: "Bernoulli(0.4) * Exponential(0.025)"
+    ttc: "40% * Exponential(mean 40)"
     cost: 3000
     detection: 0.45
   registry-route:
@@ -95,13 +95,13 @@ nodes:
   registry-write:
     label: Gain write access to the artifact registry
     leaf: basic
-    ttc: "Bernoulli(0.25) * Gamma(2, 18)"
+    ttc: "25% * Gamma(2, 18)"
     cost: 6500
     detection: 0.2
   provenance-check-bypass:
     label: Defeat deployment provenance checks
     leaf: basic
-    ttc: "Bernoulli(0.3) * LogNormal(3.2, 0.8)"
+    ttc: "30% * LogNormal(3.2, 0.8)"
     cost: 7000
     detection: 0.3
   legacy-route:
@@ -111,14 +111,14 @@ nodes:
   legacy-upload-access:
     label: Obtain a legacy upload credential
     leaf: basic
-    ttc: "Bernoulli(0.35) * Exponential(0.035)"
+    ttc: "35% * Exponential(mean 28.6)"
     cost: 3500
     detection: 0.12
   legacy-path-available:
     label: Legacy direct-upload path remains enabled
     description: Zero means this architectural precondition is already true.
     leaf: basic
-    ttc: "Zero"
+    ttc: "Immediate"
     cost: 0
     detection: 0
 
@@ -137,26 +137,26 @@ controls:
     cost: 8000
     enabled: false
     effects:
-      - {node: legacy-path-available, ttc: "Infinity"}
+      - {node: legacy-path-available, ttc: "Never"}
   isolated-builds:
     label: Ephemeral isolated builds with pinned dependencies
     cost: 18000
     enabled: false
     effects:
-      - {node: runner-control, ttc: "Bernoulli(0.06) * Gamma(3, 25)"}
-      - {node: dependency-substitution, ttc: "Bernoulli(0.025) * Pareto(30, 2.2)"}
+      - {node: runner-control, ttc: "6% * Gamma(3, 25)"}
+      - {node: dependency-substitution, ttc: "2.5% * Pareto(30, 2.2)"}
   protected-publishing:
     label: Hardware-bound release publishing identities
     cost: 12000
     enabled: true
     effects:
-      - {node: publisher-session, ttc: "Bernoulli(0.04) * LogNormal(4, 0.6)"}
-      - {node: signing-service-identity, ttc: "Bernoulli(0.025) * Gamma(3, 30)"}
+      - {node: publisher-session, ttc: "4% * LogNormal(4, 0.6)"}
+      - {node: signing-service-identity, ttc: "2.5% * Gamma(3, 30)"}
   provenance-enforcement:
     label: Enforce independent artifact provenance verification
     cost: 9500
     enabled: false
     effects:
-      - {node: provenance-check-bypass, ttc: "Bernoulli(0.04) * LogNormal(4, 0.8)"}
+      - {node: provenance-check-bypass, ttc: "4% * LogNormal(4, 0.8)"}
 
 analysis: {seed: 111, samples: 10000, confidence: 0.95}

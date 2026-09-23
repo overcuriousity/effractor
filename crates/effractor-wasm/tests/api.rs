@@ -146,15 +146,15 @@ fn numbers_survive_the_trip_through_json_to_the_bit() {
 
 #[test]
 fn a_ttc_is_sketched_or_refused() {
-    let out = call(api::ttc_sketch("Exponential(2.5e-6)", 8760.0));
+    let out = call(api::ttc_sketch("Exponential(mean 400000)", 8760.0));
     let cdf = out["ok"]["cdf"].as_array().unwrap();
     assert_eq!(cdf.len(), 33);
     assert_eq!(cdf[0], json!(0.0));
     assert!((out["ok"]["p_horizon"].as_f64().unwrap() - 0.021_661_936).abs() < 1e-9);
     assert!(call(api::ttc_sketch("Exponential(", 1.0))["error"].is_string());
-    assert!(call(api::ttc_sketch("Exponential(-1)", 1.0))["error"].is_string());
+    assert!(call(api::ttc_sketch("Exponential(mean -1)", 1.0))["error"].is_string());
     assert!(call(api::ttc_sketch("Pert(1, 2, 3)", 1.0))["error"].is_string());
-    assert!(call(api::ttc_sketch("Zero", 0.0))["error"].is_string());
+    assert!(call(api::ttc_sketch("Immediate", 0.0))["error"].is_string());
 }
 
 #[test]
@@ -215,7 +215,7 @@ fn an_architecture_generates_its_graph_with_the_source_it_describes() {
             .unwrap()
     };
     let login = node(graph, "action/service-login/server-account/sshd");
-    assert_eq!(login["timing"]["expression"], "Exponential(1)");
+    assert_eq!(login["timing"]["expression"], "Exponential(mean 1)");
     assert_eq!(
         login["timing"]["paths"],
         json!(["entities.sshd.parameters.login"])
@@ -224,7 +224,7 @@ fn an_architecture_generates_its_graph_with_the_source_it_describes() {
     // Edit through the document image, serialize, regenerate: the same steps,
     // the new value and its source.
     let mut image = call(api::parse(LECTURE))["ok"].clone();
-    image["entities"]["sshd"]["parameters"]["login"]["ttc"] = json!("Exponential(3)");
+    image["entities"]["sshd"]["parameters"]["login"]["ttc"] = json!("Exponential(mean 3)");
     image["entities"]["sshd"]["label"] = json!("OpenSSH");
     let text = call(api::serialize(&image.to_string()))["ok"]
         .as_str()
@@ -245,7 +245,7 @@ fn an_architecture_generates_its_graph_with_the_source_it_describes() {
     assert_eq!(ids(regenerated), ids(graph));
     assert_eq!(regenerated["nodes"].as_array().unwrap().len(), nodes.len());
     let login = node(regenerated, "action/service-login/server-account/sshd");
-    assert_eq!(login["timing"]["expression"], "Exponential(3)");
+    assert_eq!(login["timing"]["expression"], "Exponential(mean 3)");
     assert!(login["label"].as_str().unwrap().contains("OpenSSH"));
 }
 

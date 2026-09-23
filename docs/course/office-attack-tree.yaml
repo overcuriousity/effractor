@@ -28,13 +28,13 @@ nodes:
   phishing:
     label: Phishing
     leaf: basic
-    ttc: "HardAndUncertain"
+    ttc: "50% * Exponential(mean 10)"
     cost: 200
     detection: 0.3
   mfa-bypass:
     label: Bypass MFA (push fatigue)
     leaf: basic
-    ttc: "Bernoulli(0.2) * LogNormal(1.5, 0.8)"
+    ttc: "20% * LogNormal(1.5, 0.8)"
     cost: 50
     detection: 0.6
   key:
@@ -46,7 +46,7 @@ nodes:
   alarm-off:
     label: Alarm switched off
     leaf: undeveloped
-    ttc: "Exponential(0.2)"
+    ttc: "Exponential(mean 5)"
     cost: 100
     detection: 0.2
   insider:
@@ -68,8 +68,8 @@ controls:
     cost: 2500
     enabled: false
     effects:
-      - {node: phishing, ttc: "VeryHardAndUncertain"}
-      - {node: insider, ttc: "Infinity", x-why: [four-eyes principle]}
+      - {node: phishing, ttc: "50% * Exponential(mean 100)"}
+      - {node: insider, ttc: "Never", x-why: [four-eyes principle]}
 
 analysis:
   seed: 7

@@ -640,7 +640,7 @@
 
   function expressionOf(n) {
     var kind = quantityOf(n);
-    return kind === "p" ? "Bernoulli(" + n.p + ")" : kind === "rate" ? "Exponential(" + n.rate + ")" : kind === "ttc" ? String(n.ttc) : null;
+    return kind === "p" ? window.effractorTtc.showChance(n.p) : kind === "rate" ? window.effractorTtc.showRate(n.rate) : kind === "ttc" ? String(n.ttc) : null;
   }
 
   // The distribution at a glance: where in [0, T] the probability arrives.

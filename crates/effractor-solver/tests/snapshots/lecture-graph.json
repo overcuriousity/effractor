@@ -41,7 +41,7 @@
         ],
         "timing": {
           "status": "illustrative",
-          "expression": "Exponential(1)",
+          "expression": "Exponential(mean 1)",
           "note": "Exercise assumption; not calibrated to the lecture",
           "paths": [
             "entities.admin-account.parameters.admin-login"
@@ -81,7 +81,7 @@
         ],
         "timing": {
           "status": "illustrative",
-          "expression": "Exponential(0.2)",
+          "expression": "Exponential(mean 5)",
           "note": "Exercise assumption; not calibrated to the lecture",
           "paths": [
             "entities.admin-key.parameters.extract",
@@ -122,7 +122,7 @@
         ],
         "timing": {
           "status": "illustrative",
-          "expression": "Exponential(0.2)",
+          "expression": "Exponential(mean 5)",
           "note": "Exercise assumption; not calibrated to the lecture",
           "paths": [
             "entities.server-key.parameters.extract",
@@ -165,7 +165,7 @@
         ],
         "timing": {
           "status": "illustrative",
-          "expression": "Exponential(2)",
+          "expression": "Exponential(mean 0.5)",
           "note": "Exercise assumption; not calibrated to the lecture",
           "paths": [
             "flows.ssh.parameters.connect"
@@ -199,7 +199,7 @@
         ],
         "timing": {
           "status": "illustrative",
-          "expression": "Exponential(0.5)",
+          "expression": "Exponential(mean 2)",
           "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately",
           "paths": [
             "entities.sshd.parameters.deploy-exploit"
@@ -236,7 +236,7 @@
         ],
         "timing": {
           "status": "illustrative",
-          "expression": "Exponential(0.1)",
+          "expression": "Exponential(mean 10)",
           "note": "Exercise assumption; not calibrated to the lecture",
           "paths": [
             "entities.sshd.parameters.find-exploit",
@@ -275,7 +275,7 @@
         ],
         "timing": {
           "status": "illustrative",
-          "expression": "Exponential(1)",
+          "expression": "Exponential(mean 1)",
           "note": "Exercise assumption; not calibrated to the lecture",
           "paths": [
             "entities.sshd.parameters.login"
@@ -1877,7 +1877,7 @@
             "entities.server-key.defenses.protected"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.2)",
+          "expression": "Exponential(mean 5)",
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
@@ -1886,7 +1886,7 @@
             "entities.sshd.parameters.deploy-exploit"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.5)",
+          "expression": "Exponential(mean 2)",
           "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
         },
         {
@@ -1896,7 +1896,7 @@
             "entities.sshd.defenses.patched"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.1)",
+          "expression": "Exponential(mean 10)",
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
@@ -1905,7 +1905,7 @@
             "entities.sshd.parameters.login"
           ],
           "status": "illustrative",
-          "expression": "Exponential(1)",
+          "expression": "Exponential(mean 1)",
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
@@ -1914,7 +1914,7 @@
             "flows.ssh.parameters.connect"
           ],
           "status": "illustrative",
-          "expression": "Exponential(2)",
+          "expression": "Exponential(mean 0.5)",
           "note": "Exercise assumption; not calibrated to the lecture"
         }
       ],
@@ -2824,7 +2824,7 @@
             "entities.server-key.defenses.protected"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.2)",
+          "expression": "Exponential(mean 5)",
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
@@ -2834,7 +2834,7 @@
             "scenarios.patch.changes[0]"
           ],
           "status": "illustrative",
-          "expression": "Infinity",
+          "expression": "Never",
           "note": "Exercise assumption: perfect blocking, a patched service has no exploit to find"
         },
         {
@@ -2843,7 +2843,7 @@
             "entities.sshd.parameters.login"
           ],
           "status": "illustrative",
-          "expression": "Exponential(1)",
+          "expression": "Exponential(mean 1)",
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
@@ -2852,7 +2852,7 @@
             "flows.ssh.parameters.connect"
           ],
           "status": "illustrative",
-          "expression": "Exponential(2)",
+          "expression": "Exponential(mean 0.5)",
           "note": "Exercise assumption; not calibrated to the lecture"
         }
       ],
@@ -3798,7 +3798,7 @@
             "entities.server-key.defenses.protected"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.2)",
+          "expression": "Exponential(mean 5)",
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
@@ -3807,7 +3807,7 @@
             "entities.sshd.parameters.deploy-exploit"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.5)",
+          "expression": "Exponential(mean 2)",
           "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
         },
         {
@@ -3817,7 +3817,7 @@
             "entities.sshd.defenses.patched"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.1)",
+          "expression": "Exponential(mean 10)",
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
@@ -3826,7 +3826,7 @@
             "entities.sshd.parameters.login"
           ],
           "status": "illustrative",
-          "expression": "Exponential(1)",
+          "expression": "Exponential(mean 1)",
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
@@ -3835,7 +3835,7 @@
             "flows.ssh.parameters.connect"
           ],
           "status": "illustrative",
-          "expression": "Exponential(2)",
+          "expression": "Exponential(mean 0.5)",
           "note": "Exercise assumption; not calibrated to the lecture"
         }
       ],
@@ -5554,7 +5554,7 @@
             "entities.server-key.defenses.protected"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.2)",
+          "expression": "Exponential(mean 5)",
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
@@ -5563,7 +5563,7 @@
             "entities.sshd.parameters.deploy-exploit"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.5)",
+          "expression": "Exponential(mean 2)",
           "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
         },
         {
@@ -5573,7 +5573,7 @@
             "entities.sshd.defenses.patched"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.1)",
+          "expression": "Exponential(mean 10)",
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
@@ -5582,7 +5582,7 @@
             "entities.sshd.parameters.login"
           ],
           "status": "illustrative",
-          "expression": "Exponential(1)",
+          "expression": "Exponential(mean 1)",
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
@@ -5591,7 +5591,7 @@
             "flows.ssh.parameters.connect"
           ],
           "status": "illustrative",
-          "expression": "Exponential(2)",
+          "expression": "Exponential(mean 0.5)",
           "note": "Exercise assumption; not calibrated to the lecture"
         }
       ],
@@ -6501,7 +6501,7 @@
             "scenarios.both.changes[1]"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.005)",
+          "expression": "Exponential(mean 200)",
           "note": "Exercise assumption: perfect blocking, a protected store gives nothing up"
         },
         {
@@ -6510,7 +6510,7 @@
             "entities.sshd.parameters.deploy-exploit"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.5)",
+          "expression": "Exponential(mean 2)",
           "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
         },
         {
@@ -6520,7 +6520,7 @@
             "scenarios.both.changes[0]"
           ],
           "status": "illustrative",
-          "expression": "Exponential(0.005)",
+          "expression": "Exponential(mean 200)",
           "note": "Exercise assumption: perfect blocking, a patched service has no exploit to find"
         },
         {
@@ -6529,7 +6529,7 @@
             "entities.sshd.parameters.login"
           ],
           "status": "illustrative",
-          "expression": "Exponential(1)",
+          "expression": "Exponential(mean 1)",
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
@@ -6538,7 +6538,7 @@
             "flows.ssh.parameters.connect"
           ],
           "status": "illustrative",
-          "expression": "Exponential(2)",
+          "expression": "Exponential(mean 0.5)",
           "note": "Exercise assumption; not calibrated to the lecture"
         }
       ],

@@ -28,7 +28,7 @@ const CASES = [
     name: 'slower both',
     text: lecture
       .replace('horizon: 100', 'horizon: 10')
-      .replace(/ttc: "Infinity"\n(\s+note: "Exercise assumption: perfect blocking)/g, 'ttc: "Exponential(0.005)"\n$1'),
+      .replace(/ttc: "Never"\n(\s+note: "Exercise assumption: perfect blocking)/g, 'ttc: "Exponential(mean 200)"\n$1'),
     scenario: 'both',
   },
   { name: 'large seed', text: lecture.replace('seed: 42', 'seed: ' + LARGE_SEED), scenario: 'both' },

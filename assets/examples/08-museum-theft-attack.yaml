@@ -31,13 +31,13 @@ nodes:
   display-case-defeated:
     label: Defeat the display enclosure
     leaf: basic
-    ttc: "Bernoulli(0.4) * Gamma(2, 8)"
+    ttc: "40% * Gamma(2, 8)"
     cost: 2500
     detection: 0.65
   gallery-supervision-gap:
     label: Find a sufficient gallery supervision gap
     leaf: basic
-    ttc: "Exponential(0.025)"
+    ttc: "Exponential(mean 40)"
     cost: 800
     detection: 0.1
   staff-access:
@@ -47,13 +47,13 @@ nodes:
   handler-cooperation:
     label: Obtain cooperation from an authorized handler
     leaf: undeveloped
-    ttc: "Bernoulli(0.15) * LogNormal(3.2, 0.6)"
+    ttc: "15% * LogNormal(3.2, 0.6)"
     cost: 14000
     detection: 0.08
   inventory-check-defeated:
     label: Evade the independent inventory check
     leaf: basic
-    ttc: "Bernoulli(0.35) * Exponential(0.03)"
+    ttc: "35% * Exponential(mean 33.3)"
     cost: 1200
     detection: 0.2
   storage-access:
@@ -63,19 +63,19 @@ nodes:
   store-access-defeated:
     label: Defeat the storage access boundary
     leaf: basic
-    ttc: "Bernoulli(0.3) * Gamma(3, 10)"
+    ttc: "30% * Gamma(3, 10)"
     cost: 6000
     detection: 0.4
   store-monitoring-defeated:
     label: Evade storage monitoring
     leaf: basic
-    ttc: "Bernoulli(0.2) * Exponential(0.02)"
+    ttc: "20% * Exponential(mean 50)"
     cost: 3500
     detection: 0.3
   removal-undetected:
     label: Defeat collection-item exit checks
     leaf: basic
-    ttc: "Bernoulli(0.45) * Exponential(0.04)"
+    ttc: "45% * Exponential(mean 25)"
     cost: 2000
     detection: 0.25
 
@@ -94,18 +94,18 @@ controls:
     cost: 5500
     enabled: false
     effects:
-      - {node: display-case-defeated, ttc: "Bernoulli(0.12) * Gamma(2, 20)"}
+      - {node: display-case-defeated, ttc: "12% * Gamma(2, 20)"}
   independent-inventory:
     label: Independent collection movement reconciliation
     cost: 3200
     enabled: true
     effects:
-      - {node: inventory-check-defeated, ttc: "Bernoulli(0.08) * Exponential(0.015)"}
+      - {node: inventory-check-defeated, ttc: "8% * Exponential(mean 66.7)"}
   exit-checks:
     label: Strengthen all collection-item exit checks
     cost: 4800
     enabled: false
     effects:
-      - {node: removal-undetected, ttc: "Bernoulli(0.1) * Exponential(0.02)"}
+      - {node: removal-undetected, ttc: "10% * Exponential(mean 50)"}
 
 analysis: {seed: 108, samples: 10000, confidence: 0.95}

@@ -628,8 +628,9 @@ fn states_footholds_targets_and_scenarios_are_typed() {
 fn parameters_say_where_their_numbers_come_from() {
     let mut image = image(LECTURE);
     let sshd = &mut image["entities"]["sshd"]["parameters"];
-    sshd["find-exploit"] = serde_json::json!({"status": "illustrative", "ttc": "Exponential(0.1)"});
-    sshd["login"] = serde_json::json!({"status": "unknown", "ttc": "Exponential(1)"});
+    sshd["find-exploit"] =
+        serde_json::json!({"status": "illustrative", "ttc": "Exponential(mean 10)"});
+    sshd["login"] = serde_json::json!({"status": "unknown", "ttc": "Exponential(mean 1)"});
     sshd["deploy-exploit"] = serde_json::json!({"status": "assumed", "note": "no number"});
     image["flows"]["ssh"]["parameters"]["connect"] =
         serde_json::json!({"status": "calibrated", "ttc": "Pert(1, 2, 3)", "note": "measured"});

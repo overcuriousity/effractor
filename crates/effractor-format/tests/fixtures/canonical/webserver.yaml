@@ -57,7 +57,7 @@ controls:
     cost: 1800
     enabled: false
     effects:
-      - {node: hardware, ttc: "Exponential(4e-7)"}
+      - {node: hardware, ttc: "Exponential(mean 2500000)"}
 
 analysis:
   seed: 42

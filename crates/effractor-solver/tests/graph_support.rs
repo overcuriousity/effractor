@@ -180,7 +180,7 @@ fn an_unknown_service_elsewhere_does_not_cost_the_known_target() {
     target: db
     route: [client-net, bridge, server-net]
     parameters:
-      connect: {status: illustrative, ttc: \"Exponential(2)\", note: test}
+      connect: {status: illustrative, ttc: \"Exponential(mean 0.5)\", note: test}
 ",
     );
     let a = Analyzed::of(&text, None);
@@ -198,7 +198,7 @@ fn an_unknown_service_elsewhere_does_not_cost_the_known_target() {
     // With discovery known, the server target needs nothing from the database.
     let known = text.replace(
         "      find-exploit:\n        status: unknown\n",
-        "      find-exploit:\n        status: illustrative\n        ttc: \"Exponential(0.1)\"\n        note: test\n",
+        "      find-exploit:\n        status: illustrative\n        ttc: \"Exponential(mean 10)\"\n        note: test\n",
     );
     let b = Analyzed::of(&known, None);
     assert!(b.missing(TARGET).is_empty());
@@ -276,8 +276,8 @@ fn an_unknown_on_a_route_a_known_step_blocks_costs_the_target_nothing() {
     // Discovery unknown, deployment known never: the exploit route is closed
     // after the unknown, and the login route is fully known.
     let text = UNKNOWN.replace(
-        "        ttc: \"Exponential(0.5)\"\n        note: Exercise assumption; includes",
-        "        ttc: \"Infinity\"\n        note: Exercise assumption; includes",
+        "        ttc: \"Exponential(mean 2)\"\n        note: Exercise assumption; includes",
+        "        ttc: \"Never\"\n        note: Exercise assumption; includes",
     );
     let a = Analyzed::of(&text, None);
     assert_eq!(
@@ -296,11 +296,11 @@ fn an_unknown_on_a_route_a_known_step_blocks_costs_the_target_nothing() {
     // Deployment unknown behind a known-never discovery: the same.
     let text = LECTURE
         .replace(
-            "      find-exploit:\n        status: illustrative\n        ttc: \"Exponential(0.1)\"",
-            "      find-exploit:\n        status: illustrative\n        ttc: \"Infinity\"",
+            "      find-exploit:\n        status: illustrative\n        ttc: \"Exponential(mean 10)\"",
+            "      find-exploit:\n        status: illustrative\n        ttc: \"Never\"",
         )
         .replace(
-            "      deploy-exploit:\n        status: illustrative\n        ttc: \"Exponential(0.5)\"\n        note: Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately\n",
+            "      deploy-exploit:\n        status: illustrative\n        ttc: \"Exponential(mean 2)\"\n        note: Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately\n",
             "      deploy-exploit:\n        status: unknown\n",
         );
     let b = Analyzed::of(&text, None);

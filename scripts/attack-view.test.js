@@ -79,7 +79,7 @@ test('a step inspected says its rule, its time and its state, blocked ones inclu
   const find = V.inspect(graph, support, 'action/service-find-exploit/sshd');
   assert.equal(find.status, 'possible');
   assert.equal(find.kind, 'action');
-  assert.deepEqual(find.timing, { status: 'illustrative', expression: 'Exponential(0.1)', note: graph.nodes.find(n => n.id === 'action/service-find-exploit/sshd').timing.note });
+  assert.deepEqual(find.timing, { status: 'illustrative', expression: 'Exponential(mean 10)', note: graph.nodes.find(n => n.id === 'action/service-find-exploit/sshd').timing.note });
   assert.deepEqual(find.rules, ['service-find-exploit']);
   assert.ok(find.components.includes('sshd'));
 

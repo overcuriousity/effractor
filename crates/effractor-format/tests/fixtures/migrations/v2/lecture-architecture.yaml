@@ -17,10 +17,10 @@ entities:
     kind: service
     label: SSH server
     parameters:
-      find-exploit: {status: illustrative, ttc: "Exponential(0.1)", note: "Exercise assumption; not calibrated to the lecture"}
-      find-exploit-patched: {status: illustrative, ttc: Infinity, note: "Exercise assumption: a patched service has no exploit to find"}
-      deploy-exploit: {status: illustrative, ttc: "Exponential(0.5)", note: "Exercise assumption; includes any bypass of protection on the server"}
-      login: {status: illustrative, ttc: "Exponential(1)", note: "Exercise assumption; not calibrated to the lecture"}
+      find-exploit: {status: illustrative, ttc: "Exponential(mean 10)", note: "Exercise assumption; not calibrated to the lecture"}
+      find-exploit-patched: {status: illustrative, ttc: Never, note: "Exercise assumption: a patched service has no exploit to find"}
+      deploy-exploit: {status: illustrative, ttc: "Exponential(mean 2)", note: "Exercise assumption; includes any bypass of protection on the server"}
+      login: {status: illustrative, ttc: "Exponential(mean 1)", note: "Exercise assumption; not calibrated to the lecture"}
     defenses: {patched: false}
   server-account: {kind: account, label: Server user account}
   server-credential:
@@ -28,20 +28,20 @@ entities:
     label: Server user password
     description: Where the workstation keeps the password; the secret itself is not modelled
     parameters:
-      extract: {status: illustrative, ttc: "Exponential(0.2)", note: "Exercise assumption; not calibrated to the lecture"}
-      extract-protected: {status: illustrative, ttc: Infinity, note: "Exercise assumption: a protected store gives nothing up"}
+      extract: {status: illustrative, ttc: "Exponential(mean 5)", note: "Exercise assumption; not calibrated to the lecture"}
+      extract-protected: {status: illustrative, ttc: Never, note: "Exercise assumption: a protected store gives nothing up"}
     defenses: {protected: false}
   admin-account:
     kind: account
     label: Server administrator
     parameters:
-      admin-login: {status: illustrative, ttc: "Exponential(1)", note: "Exercise assumption; not calibrated to the lecture"}
+      admin-login: {status: illustrative, ttc: "Exponential(mean 1)", note: "Exercise assumption; not calibrated to the lecture"}
   admin-credential:
     kind: credential
     label: Administrator password
     parameters:
-      extract: {status: illustrative, ttc: "Exponential(0.2)", note: "Exercise assumption; not calibrated to the lecture"}
-      extract-protected: {status: illustrative, ttc: Infinity, note: "Exercise assumption: a protected store gives nothing up"}
+      extract: {status: illustrative, ttc: "Exponential(mean 5)", note: "Exercise assumption; not calibrated to the lecture"}
+      extract-protected: {status: illustrative, ttc: Never, note: "Exercise assumption: a protected store gives nothing up"}
     defenses: {protected: false}
 associations:
   workstation-client-net: {kind: attached, from: workstation, to: client-net}
@@ -68,7 +68,7 @@ flows:
     route: [client-net, bridge, server-net]
     protocol: tcp/22
     parameters:
-      connect: {status: illustrative, ttc: "Exponential(2)", note: "Exercise assumption; not calibrated to the lecture"}
+      connect: {status: illustrative, ttc: "Exponential(mean 0.5)", note: "Exercise assumption; not calibrated to the lecture"}
 attacker:
   footholds: [{entity: workstation, state: admin}]
   target: {entity: server, state: admin}

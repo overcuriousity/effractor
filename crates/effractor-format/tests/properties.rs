@@ -3,7 +3,7 @@
 
 use effractor_core::{
     Analysis, Asset, AssetId, Consequence, Control, ControlId, Dim, Distribution as D, Effect,
-    Gate, Leaf, LeafKind, Loss, Model, Node, NodeKind, Profile, Shorthand, TimeUnit, Ttc, validate,
+    Gate, Leaf, LeafKind, Loss, Model, Node, NodeKind, Profile, TimeUnit, Ttc, validate,
 };
 use effractor_format::{canonicalize, load, save};
 use proptest::prelude::*;
@@ -115,7 +115,6 @@ fn ttc_distribution() -> BoxedStrategy<D> {
         time(),
         probability().prop_map(D::Bernoulli),
         (probability(), time()).prop_map(|(p, d)| D::Product(p, Box::new(d))),
-        prop::sample::select(Shorthand::ALL.to_vec()).prop_map(D::Named),
     ]
     .boxed()
 }

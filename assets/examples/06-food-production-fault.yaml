@@ -147,26 +147,26 @@ controls:
     cost: 180
     enabled: false
     effects:
-      - {node: sanitation-failed, ttc: "Bernoulli(0.002)"}
+      - {node: sanitation-failed, ttc: "0.2%"}
   release-interlock:
     label: Enforce electronic batch-release checks
     cost: 120
     enabled: false
     effects:
-      - {node: release-system-bypassed, ttc: "Bernoulli(0.0005)"}
+      - {node: release-system-bypassed, ttc: "0.05%"}
   reject-proof-test:
     label: Proof-test detection and rejection before each batch
     cost: 75
     enabled: true
     effects:
-      - {node: detector-misses, ttc: "Bernoulli(0.03)"}
-      - {node: reject-mechanism-failed, ttc: "Bernoulli(0.004)"}
+      - {node: detector-misses, ttc: "3%"}
+      - {node: reject-mechanism-failed, ttc: "0.4%"}
   label-verification:
     label: Independent artwork and reel verification
     cost: 95
     enabled: false
     effects:
-      - {node: artwork-error, ttc: "Bernoulli(0.0006)"}
-      - {node: reel-mixup, ttc: "Bernoulli(0.002)"}
+      - {node: artwork-error, ttc: "0.06%"}
+      - {node: reel-mixup, ttc: "0.2%"}
 
 analysis: {seed: 106, samples: 10000, confidence: 0.95}

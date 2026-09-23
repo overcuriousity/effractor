@@ -30,13 +30,13 @@ nodes:
   payroll-clerk-account:
     label: Compromise a payroll clerk account
     leaf: basic
-    ttc: "Bernoulli(0.4) * LogNormal(2.2, 0.7)"
+    ttc: "40% * LogNormal(2.2, 0.7)"
     cost: 1800
     detection: 0.25
   hr-integration-token:
     label: Obtain a payee-write integration token
     leaf: basic
-    ttc: "Bernoulli(0.2) * Gamma(2, 8)"
+    ttc: "20% * Gamma(2, 8)"
     cost: 4500
     detection: 0.1
   approval-quorum:
@@ -48,19 +48,19 @@ nodes:
   approver-a:
     label: Obtain finance manager approval authority
     leaf: basic
-    ttc: "Bernoulli(0.3) * Gamma(2, 6)"
+    ttc: "30% * Gamma(2, 6)"
     cost: 4000
     detection: 0.3
   approver-b:
     label: Obtain HR manager approval authority
     leaf: basic
-    ttc: "Bernoulli(0.35) * Gamma(2, 5)"
+    ttc: "35% * Gamma(2, 5)"
     cost: 3000
     detection: 0.4
   approver-c:
     label: Obtain controller approval authority
     leaf: basic
-    ttc: "Bernoulli(0.18) * LogNormal(2.8, 0.5)"
+    ttc: "18% * LogNormal(2.8, 0.5)"
     cost: 6500
     detection: 0.15
   bank-upload-abuse:
@@ -70,19 +70,19 @@ nodes:
   treasury-workstation:
     label: Control the treasury upload workstation
     leaf: basic
-    ttc: "Bernoulli(0.25) * Exponential(0.04)"
+    ttc: "25% * Exponential(mean 25)"
     cost: 7000
     detection: 0.45
   bank-signing-key:
     label: Obtain use of the bank-file signing key
     leaf: basic
-    ttc: "Bernoulli(0.2) * Gamma(3, 5)"
+    ttc: "20% * Gamma(3, 5)"
     cost: 8500
     detection: 0.2
   reconciliation-gap:
     label: Evade reconciliation until the payment is final
     leaf: undeveloped
-    ttc: "Bernoulli(0.35) * Exponential(0.08)"
+    ttc: "35% * Exponential(mean 12.5)"
     cost: 1200
     detection: 0.1
 
@@ -101,27 +101,27 @@ controls:
     cost: 700
     enabled: false
     effects:
-      - {node: payroll-clerk-account, ttc: "Bernoulli(0.08) * LogNormal(2.8, 0.7)"}
-      - {node: hr-integration-token, ttc: "Bernoulli(0.04) * Gamma(2, 12)"}
+      - {node: payroll-clerk-account, ttc: "8% * LogNormal(2.8, 0.7)"}
+      - {node: hr-integration-token, ttc: "4% * Gamma(2, 12)"}
   approver-authentication:
     label: Hardware-bound authentication for all approvers
     cost: 450
     enabled: true
     effects:
-      - {node: approver-a, ttc: "Bernoulli(0.08) * Gamma(2, 12)"}
-      - {node: approver-b, ttc: "Bernoulli(0.1) * Gamma(2, 10)"}
-      - {node: approver-c, ttc: "Bernoulli(0.04) * LogNormal(3.3, 0.5)"}
+      - {node: approver-a, ttc: "8% * Gamma(2, 12)"}
+      - {node: approver-b, ttc: "10% * Gamma(2, 10)"}
+      - {node: approver-c, ttc: "4% * LogNormal(3.3, 0.5)"}
   bank-key-custody:
     label: Hardware custody of bank-file signing keys
     cost: 1100
     enabled: false
     effects:
-      - {node: bank-signing-key, ttc: "Bernoulli(0.03) * Gamma(3, 10)"}
+      - {node: bank-signing-key, ttc: "3% * Gamma(3, 10)"}
   daily-reconciliation:
     label: Independent payment reconciliation
     cost: 600
     enabled: false
     effects:
-      - {node: reconciliation-gap, ttc: "Bernoulli(0.05) * Exponential(0.04)"}
+      - {node: reconciliation-gap, ttc: "5% * Exponential(mean 25)"}
 
 analysis: {seed: 109, samples: 10000, confidence: 0.95}

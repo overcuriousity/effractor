@@ -160,7 +160,7 @@ fn the_lecture_baseline_is_sampled_with_its_curve_and_route() {
         .find(|a| a["path"] == "entities.sshd.parameters.find-exploit")
         .unwrap();
     assert_eq!(find["status"], "illustrative");
-    assert_eq!(find["expression"], "Exponential(0.1)");
+    assert_eq!(find["expression"], "Exponential(mean 10)");
     assert_eq!(
         find["note"],
         "Exercise assumption; not calibrated to the lecture"
@@ -180,8 +180,8 @@ fn the_lecture_baseline_is_sampled_with_its_curve_and_route() {
 #[test]
 fn a_failed_attempt_counts_and_the_curve_is_not_renormalized() {
     let text = LECTURE.replace(
-        "        ttc: \"Exponential(2)\"",
-        "        ttc: \"Bernoulli(0.3)\"",
+        "        ttc: \"Exponential(mean 0.5)\"",
+        "        ttc: \"30%\"",
     );
     let r = solve(&text, None, 20_000);
     let target = stats(&r["baseline"]["outcome"]);
@@ -419,12 +419,12 @@ fn router_administration_defeats_a_denied_permission() {
 fn slower_finite_defences_move_the_curve_without_deleting_the_route() {
     let text = LECTURE
         .replace(
-            "        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a patched",
-            "        ttc: \"Exponential(0.005)\"\n        note: \"Exercise assumption: perfect blocking, a patched",
+            "        ttc: \"Never\"\n        note: \"Exercise assumption: perfect blocking, a patched",
+            "        ttc: \"Exponential(mean 200)\"\n        note: \"Exercise assumption: perfect blocking, a patched",
         )
         .replace(
-            "        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a protected",
-            "        ttc: \"Exponential(0.005)\"\n        note: \"Exercise assumption: perfect blocking, a protected",
+            "        ttc: \"Never\"\n        note: \"Exercise assumption: perfect blocking, a protected",
+            "        ttc: \"Exponential(mean 200)\"\n        note: \"Exercise assumption: perfect blocking, a protected",
         );
     let r = solve(&text, Some("both"), 10_000);
     let s = &r["scenario"];
@@ -446,16 +446,16 @@ fn a_defence_that_makes_things_worse_reports_a_negative_benefit() {
     // login route beside it.
     let text = LECTURE
         .replace(
-            "      find-exploit:\n        status: illustrative\n        ttc: \"Exponential(0.1)\"",
-            "      find-exploit:\n        status: illustrative\n        ttc: \"Infinity\"",
+            "      find-exploit:\n        status: illustrative\n        ttc: \"Exponential(mean 10)\"",
+            "      find-exploit:\n        status: illustrative\n        ttc: \"Never\"",
         )
         .replace(
-            "        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a patched",
-            "        ttc: \"Exponential(0.5)\"\n        note: \"Exercise assumption: perfect blocking, a patched",
+            "        ttc: \"Never\"\n        note: \"Exercise assumption: perfect blocking, a patched",
+            "        ttc: \"Exponential(mean 2)\"\n        note: \"Exercise assumption: perfect blocking, a patched",
         )
         .replace(
-            "      extract:\n        status: illustrative\n        ttc: \"Exponential(0.2)\"\n        note: Exercise assumption; not calibrated to the lecture\n      extract-protected:\n        status: illustrative\n        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a protected store gives nothing up\"\n    defenses: {protected: false}\n  admin-key:",
-            "      extract:\n        status: illustrative\n        ttc: \"Exponential(0.01)\"\n        note: Exercise assumption; not calibrated to the lecture\n      extract-protected:\n        status: illustrative\n        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a protected store gives nothing up\"\n    defenses: {protected: false}\n  admin-key:",
+            "      extract:\n        status: illustrative\n        ttc: \"Exponential(mean 5)\"\n        note: Exercise assumption; not calibrated to the lecture\n      extract-protected:\n        status: illustrative\n        ttc: \"Never\"\n        note: \"Exercise assumption: perfect blocking, a protected store gives nothing up\"\n    defenses: {protected: false}\n  admin-key:",
+            "      extract:\n        status: illustrative\n        ttc: \"Exponential(mean 100)\"\n        note: Exercise assumption; not calibrated to the lecture\n      extract-protected:\n        status: illustrative\n        ttc: \"Never\"\n        note: \"Exercise assumption: perfect blocking, a protected store gives nothing up\"\n    defenses: {protected: false}\n  admin-key:",
         );
     let r = solve(&text, Some("patch"), 10_000);
     assert!(p_target(&r["scenario"]) > p_target(&r["baseline"]));
@@ -467,7 +467,7 @@ fn a_defence_that_makes_things_worse_reports_a_negative_benefit() {
 #[test]
 fn an_unknown_replacement_costs_the_comparison_not_the_baseline() {
     let text = LECTURE.replace(
-        "      find-exploit-patched:\n        status: illustrative\n        ttc: \"Infinity\"\n        note: \"Exercise assumption: perfect blocking, a patched service has no exploit to find\"\n",
+        "      find-exploit-patched:\n        status: illustrative\n        ttc: \"Never\"\n        note: \"Exercise assumption: perfect blocking, a patched service has no exploit to find\"\n",
         "      find-exploit-patched:\n        status: unknown\n",
     );
     let r = solve(&text, Some("patch"), 4096);
@@ -512,7 +512,7 @@ fn a_blocked_result_lists_the_inputs_that_block_it() {
     )
     .unwrap_or_else(|| panic!("{}", r["scenario"]["assumptions"]));
     assert_eq!(patched["status"], "illustrative");
-    assert_eq!(patched["expression"], "Infinity");
+    assert_eq!(patched["expression"], "Never");
     assert!(
         patched["paths"]
             .as_array()

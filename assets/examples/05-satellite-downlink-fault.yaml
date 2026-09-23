@@ -46,7 +46,7 @@ nodes:
   radiation-damage:
     label: Common radiation event disables both radios
     leaf: undeveloped
-    ttc: "Bernoulli(0.08) * Exponential(0.004)"
+    ttc: "8% * Exponential(mean 250)"
     consequences:
       - {asset: spacecraft, dim: a, fraction: 0.4}
   antenna-deployment:
@@ -94,7 +94,7 @@ nodes:
   shared-scheduling-service:
     label: Common scheduling service is withdrawn
     leaf: undeveloped
-    ttc: "Bernoulli(0.025) * Exponential(0.01)"
+    ttc: "2.5% * Exponential(mean 100)"
   pointing-lost:
     label: Spacecraft can no longer point the antenna
     gate: or
@@ -141,13 +141,13 @@ controls:
     cost: 65000
     enabled: false
     effects:
-      - {node: radiation-damage, ttc: "Bernoulli(0.015) * Exponential(0.004)"}
+      - {node: radiation-damage, ttc: "1.5% * Exponential(mean 250)"}
   independent-scheduling:
     label: Independent ground-station scheduling contracts
     cost: 18000
     enabled: false
     effects:
-      - {node: shared-scheduling-service, ttc: "Bernoulli(0.003) * Exponential(0.01)"}
+      - {node: shared-scheduling-service, ttc: "0.3% * Exponential(mean 100)"}
   battery-screening:
     label: Screen batteries before launch
     cost: 12000

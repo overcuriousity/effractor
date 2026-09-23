@@ -40,19 +40,19 @@ entities:
     parameters:
       find-exploit:
         status: illustrative
-        ttc: "Exponential(0.05)"
+        ttc: "Exponential(mean 20)"
         note: "Teaching input: an unpatched file share, found in weeks"
       find-exploit-patched:
         status: illustrative
-        ttc: "Infinity"
+        ttc: "Never"
         note: "Teaching input: patching is taken as perfect"
       deploy-exploit:
         status: illustrative
-        ttc: "Exponential(0.5)"
+        ttc: "Exponential(mean 2)"
         note: Teaching input
       login:
         status: illustrative
-        ttc: "Exponential(2)"
+        ttc: "Exponential(mean 0.5)"
         note: "Teaching input: a password is quickly tried"
     defenses: {patched: false}
   appliance-ssh:
@@ -61,19 +61,19 @@ entities:
     parameters:
       find-exploit:
         status: illustrative
-        ttc: "Exponential(0.02)"
+        ttc: "Exponential(mean 50)"
         note: "Teaching input: an old appliance image"
       find-exploit-patched:
         status: illustrative
-        ttc: "Infinity"
+        ttc: "Never"
         note: "Teaching input: patching is taken as perfect"
       deploy-exploit:
         status: illustrative
-        ttc: "Exponential(0.5)"
+        ttc: "Exponential(mean 2)"
         note: Teaching input
       login:
         status: illustrative
-        ttc: "Exponential(2)"
+        ttc: "Exponential(mean 0.5)"
         note: Teaching input
     defenses: {patched: false}
   staff:
@@ -94,11 +94,11 @@ entities:
     parameters:
       extract:
         status: illustrative
-        ttc: "Exponential(1)"
+        ttc: "Exponential(mean 1)"
         note: "Teaching input: saved in the laptop's keychain"
       extract-protected:
         status: illustrative
-        ttc: "Exponential(0.05)"
+        ttc: "Exponential(mean 20)"
         note: "Teaching input: a hardware-backed store slows extraction, not stops it"
     defenses: {protected: false}
   root-key:
@@ -107,11 +107,11 @@ entities:
     parameters:
       extract:
         status: illustrative
-        ttc: "Exponential(1)"
+        ttc: "Exponential(mean 1)"
         note: Teaching input
       extract-protected:
         status: illustrative
-        ttc: "Infinity"
+        ttc: "Never"
         note: "Teaching input: kept on a token"
     defenses: {protected: false}
 
@@ -217,7 +217,7 @@ flows:
     parameters:
       connect:
         status: illustrative
-        ttc: "Exponential(5)"
+        ttc: "Exponential(mean 0.2)"
         note: "Teaching input: connecting is quick"
   appliance-admin:
     label: SSH to the appliance
@@ -228,7 +228,7 @@ flows:
     parameters:
       connect:
         status: illustrative
-        ttc: "Exponential(5)"
+        ttc: "Exponential(mean 0.2)"
         note: Teaching input
 
 attacker:

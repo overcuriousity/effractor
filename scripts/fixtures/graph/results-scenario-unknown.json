@@ -800,7 +800,7 @@
      "entities.server-key.defenses.protected"
     ],
     "status": "illustrative",
-    "expression": "Exponential(0.2)",
+    "expression": "Exponential(mean 5)",
     "note": "Exercise assumption; not calibrated to the lecture"
    },
    {
@@ -809,7 +809,7 @@
      "entities.sshd.parameters.deploy-exploit"
     ],
     "status": "illustrative",
-    "expression": "Exponential(0.5)",
+    "expression": "Exponential(mean 2)",
     "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
    },
    {
@@ -819,7 +819,7 @@
      "entities.sshd.defenses.patched"
     ],
     "status": "illustrative",
-    "expression": "Exponential(0.1)",
+    "expression": "Exponential(mean 10)",
     "note": "Exercise assumption; not calibrated to the lecture"
    },
    {
@@ -828,7 +828,7 @@
      "entities.sshd.parameters.login"
     ],
     "status": "illustrative",
-    "expression": "Exponential(1)",
+    "expression": "Exponential(mean 1)",
     "note": "Exercise assumption; not calibrated to the lecture"
    },
    {
@@ -837,7 +837,7 @@
      "flows.ssh.parameters.connect"
     ],
     "status": "illustrative",
-    "expression": "Exponential(2)",
+    "expression": "Exponential(mean 0.5)",
     "note": "Exercise assumption; not calibrated to the lecture"
    }
   ],
@@ -1344,7 +1344,7 @@
      "entities.server-key.defenses.protected"
     ],
     "status": "illustrative",
-    "expression": "Exponential(0.2)",
+    "expression": "Exponential(mean 5)",
     "note": "Exercise assumption; not calibrated to the lecture"
    },
    {
@@ -1353,7 +1353,7 @@
      "entities.sshd.parameters.deploy-exploit"
     ],
     "status": "illustrative",
-    "expression": "Exponential(0.5)",
+    "expression": "Exponential(mean 2)",
     "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
    },
    {
@@ -1362,7 +1362,7 @@
      "entities.sshd.parameters.login"
     ],
     "status": "illustrative",
-    "expression": "Exponential(1)",
+    "expression": "Exponential(mean 1)",
     "note": "Exercise assumption; not calibrated to the lecture"
    },
    {
@@ -1371,7 +1371,7 @@
      "flows.ssh.parameters.connect"
     ],
     "status": "illustrative",
-    "expression": "Exponential(2)",
+    "expression": "Exponential(mean 0.5)",
     "note": "Exercise assumption; not calibrated to the lecture"
    },
    {

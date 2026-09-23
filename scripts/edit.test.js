@@ -31,7 +31,7 @@ test("Enter adds a sibling after the node; ids stay unique", () => {
 
 test("an id change follows every reference, in place", () => {
   const doc = JSON.parse(JSON.stringify(attack));
-  doc.controls = { c: { label: "C", cost: 1, enabled: true, effects: [{ node: "phish", ttc: "Infinity" }] } };
+  doc.controls = { c: { label: "C", cost: 1, enabled: true, effects: [{ node: "phish", ttc: "Never" }] } };
   const r = E.setId(doc, "phish", "Spear Phishing");
   assert.deepEqual(Object.keys(r.doc.nodes), ["files", "account", "physical", "spear-phishing", "mfa", "key", "alarm"]);
   assert.deepEqual(r.doc.nodes.account.children, ["spear-phishing", "mfa"]);
@@ -210,13 +210,13 @@ test("controls are made by name, given a cost and effects on leaves, and taken a
   assert.equal(E.setControl(d, "phishing-training", "label", ""), null);
 
   // An effect names a leaf and the likelihood it has while the control is on.
-  d = E.addEffect(d, "phishing-training", "phish", "VeryHardAndUncertain").doc;
-  assert.deepEqual(d.controls["phishing-training"].effects, [{ node: "phish", ttc: "VeryHardAndUncertain" }]);
-  assert.equal(E.addEffect(d, "phishing-training", "account", "Infinity"), null, "a gate has no likelihood to replace");
-  assert.equal(E.addEffect(d, "phishing-training", "phish", "Infinity"), null, "one effect per leaf");
+  d = E.addEffect(d, "phishing-training", "phish", "50% * Exponential(mean 100)").doc;
+  assert.deepEqual(d.controls["phishing-training"].effects, [{ node: "phish", ttc: "50% * Exponential(mean 100)" }]);
+  assert.equal(E.addEffect(d, "phishing-training", "account", "Never"), null, "a gate has no likelihood to replace");
+  assert.equal(E.addEffect(d, "phishing-training", "phish", "Never"), null, "one effect per leaf");
   assert.equal(E.addEffect(d, "phishing-training", "mfa", " "), null);
-  d = E.setEffect(d, "phishing-training", 0, "Infinity").doc;
-  assert.equal(d.controls["phishing-training"].effects[0].ttc, "Infinity");
+  d = E.setEffect(d, "phishing-training", 0, "Never").doc;
+  assert.equal(d.controls["phishing-training"].effects[0].ttc, "Never");
   assert.deepEqual(E.effectTargets(d, "phishing-training"), ["mfa", "key", "alarm"], "leaves it does not act on yet");
   d = E.removeEffect(d, "phishing-training", 0).doc;
   assert.deepEqual(d.controls["phishing-training"].effects, []);

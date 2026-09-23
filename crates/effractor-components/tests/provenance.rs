@@ -153,7 +153,7 @@ fn each_scenario_changes_only_what_it_names() {
 
     assert_eq!(
         base.ttc[find],
-        ResolvedTtc::Known(Distribution::Exponential(0.1))
+        ResolvedTtc::Known(Distribution::ExponentialMean(10.0))
     );
     assert_eq!(
         base.paths[find],
@@ -370,7 +370,7 @@ fn the_graph_image_carries_timing_and_provenance() {
         ])
     );
     assert_eq!(login["timing"]["status"], "illustrative");
-    assert_eq!(login["timing"]["expression"], "Exponential(1)");
+    assert_eq!(login["timing"]["expression"], "Exponential(mean 1)");
     assert_eq!(
         login["timing"]["note"],
         "Exercise assumption; not calibrated to the lecture"

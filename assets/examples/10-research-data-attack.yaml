@@ -34,25 +34,25 @@ nodes:
   researcher-session:
     label: Obtain a researcher's authenticated session
     leaf: basic
-    ttc: "Bernoulli(0.45) * LogNormal(3, 0.8)"
+    ttc: "45% * LogNormal(3, 0.8)"
     cost: 2500
     detection: 0.35
   collaborator-account:
     label: Obtain an external collaborator account
     leaf: undeveloped
-    ttc: "Bernoulli(0.3) * Pareto(12, 1.8)"
+    ttc: "30% * Pareto(12, 1.8)"
     cost: 7000
     detection: 0.08
   portal-permission:
     label: Gain a project-wide portal read grant
     leaf: basic
-    ttc: "Bernoulli(0.6) * Exponential(0.025)"
+    ttc: "60% * Exponential(mean 40)"
     cost: 1000
     detection: 0.12
   export-boundary:
     label: Move a usable dataset past export restrictions
     leaf: basic
-    ttc: "Bernoulli(0.7) * Gamma(2, 12)"
+    ttc: "70% * Gamma(2, 12)"
     cost: 3000
     detection: 0.5
   cluster-access:
@@ -62,13 +62,13 @@ nodes:
   compute-service-account:
     label: Obtain the cluster automation identity
     leaf: basic
-    ttc: "Bernoulli(0.2) * Gamma(3, 18)"
+    ttc: "20% * Gamma(3, 18)"
     cost: 11000
     detection: 0.15
   dataset-permission:
     label: Obtain permission to read the protected dataset
     leaf: basic
-    ttc: "Bernoulli(0.5) * LogNormal(3.4, 0.6)"
+    ttc: "50% * LogNormal(3.4, 0.6)"
     cost: 1800
     detection: 0.2
   archive-theft:
@@ -80,19 +80,19 @@ nodes:
   archive-media:
     label: Obtain a readable copy of archive media
     leaf: basic
-    ttc: "Bernoulli(0.25) * TruncatedNormal(70, 25)"
+    ttc: "25% * TruncatedNormal(70, 25)"
     cost: 18000
     detection: 0.06
   archive-key:
     label: Obtain the archive decryption material
     leaf: basic
-    ttc: "Bernoulli(0.15) * Gamma(3, 25)"
+    ttc: "15% * Gamma(3, 25)"
     cost: 14000
     detection: 0.05
   archive-catalog:
     label: Identify the relevant archive objects
     leaf: basic
-    ttc: "Exponential(0.03)"
+    ttc: "Exponential(mean 33.3)"
     cost: 2000
     detection: 0.02
 
@@ -110,24 +110,24 @@ controls:
     cost: 8500
     enabled: false
     effects:
-      - {node: researcher-session, ttc: "Bernoulli(0.12) * LogNormal(3.7, 0.8)"}
+      - {node: researcher-session, ttc: "12% * LogNormal(3.7, 0.8)"}
   collaborator-review:
     label: Review external collaborator access
     cost: 4200
     enabled: true
     effects:
-      - {node: collaborator-account, ttc: "Bernoulli(0.08) * Pareto(25, 1.8)"}
+      - {node: collaborator-account, ttc: "8% * Pareto(25, 1.8)"}
   export-approval:
     label: Enforce independent bulk-export approval
     cost: 12000
     enabled: false
     effects:
-      - {node: export-boundary, ttc: "Bernoulli(0.15) * Gamma(2, 25)"}
+      - {node: export-boundary, ttc: "15% * Gamma(2, 25)"}
   archive-key-separation:
     label: Separate archive media and key custodians
     cost: 6000
     enabled: false
     effects:
-      - {node: archive-key, ttc: "Bernoulli(0.025) * Gamma(3, 40)"}
+      - {node: archive-key, ttc: "2.5% * Gamma(3, 40)"}
 
 analysis: {seed: 110, samples: 10000, confidence: 0.95}

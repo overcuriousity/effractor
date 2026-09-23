@@ -37,13 +37,13 @@ nodes:
   operator-identity:
     label: Control an operator identity
     leaf: basic
-    ttc: "Bernoulli(0.3) * LogNormal(3, 0.7)"
+    ttc: "30% * LogNormal(3, 0.7)"
     cost: 6000
     detection: 0.3
   managed-device:
     label: Satisfy the managed-device access requirement
     leaf: basic
-    ttc: "Bernoulli(0.25) * Gamma(2, 18)"
+    ttc: "25% * Gamma(2, 18)"
     cost: 9000
     detection: 0.2
   vendor-gateway:
@@ -62,25 +62,25 @@ nodes:
   cabinet-access:
     label: Obtain access to a communications cabinet
     leaf: basic
-    ttc: "Bernoulli(0.4) * Exponential(0.025)"
+    ttc: "40% * Exponential(mean 40)"
     cost: 4000
     detection: 0.4
   local-network-boundary:
     label: Defeat site-to-control-network restrictions
     leaf: basic
-    ttc: "Bernoulli(0.2) * Gamma(3, 15)"
+    ttc: "20% * Gamma(3, 15)"
     cost: 12000
     detection: 0.25
   dispatch-authority:
     label: Obtain dispatch write authority
     leaf: basic
-    ttc: "Bernoulli(0.25) * Gamma(2, 20)"
+    ttc: "25% * Gamma(2, 20)"
     cost: 10000
     detection: 0.15
   command-check-defeated:
     label: Defeat independent command validation
     leaf: basic
-    ttc: "Bernoulli(0.3) * LogNormal(3.5, 0.6)"
+    ttc: "30% * LogNormal(3.5, 0.6)"
     cost: 7000
     detection: 0.35
   maintenance-abuse:
@@ -97,19 +97,19 @@ nodes:
   technician-account:
     label: Control an authorized technician account
     leaf: basic
-    ttc: "Bernoulli(0.3) * Exponential(0.02)"
+    ttc: "30% * Exponential(mean 50)"
     cost: 6500
     detection: 0.25
   maintenance-service-token:
     label: Obtain a maintenance automation token
     leaf: basic
-    ttc: "Bernoulli(0.2) * Gamma(3, 16)"
+    ttc: "20% * Gamma(3, 16)"
     cost: 11000
     detection: 0.08
   configuration-check-defeated:
     label: Defeat configuration approval and validation
     leaf: basic
-    ttc: "Bernoulli(0.2) * LogNormal(3.7, 0.7)"
+    ttc: "20% * LogNormal(3.7, 0.7)"
     cost: 8000
     detection: 0.4
   telemetry-denial:
@@ -129,20 +129,20 @@ nodes:
   primary-link-disruption:
     label: Sustain disruption of the primary link
     leaf: basic
-    ttc: "Bernoulli(0.35) * Exponential(0.04)"
+    ttc: "35% * Exponential(mean 25)"
     cost: 5000
     detection: 0.85
   backup-link-disruption:
     label: Sustain disruption of the independent backup link
     leaf: basic
-    ttc: "Bernoulli(0.2) * Gamma(2, 12)"
+    ttc: "20% * Gamma(2, 12)"
     cost: 9500
     detection: 0.9
   shared-router-control:
     label: Control the common telemetry router
     description: A single attack event defeats both nominally redundant links.
     leaf: basic
-    ttc: "Bernoulli(0.18) * Gamma(3, 20)"
+    ttc: "18% * Gamma(3, 20)"
     cost: 14000
     detection: 0.2
 
@@ -161,28 +161,28 @@ controls:
     cost: 14000
     enabled: false
     effects:
-      - {node: operator-identity, ttc: "Bernoulli(0.06) * LogNormal(3.8, 0.7)"}
-      - {node: technician-account, ttc: "Bernoulli(0.05) * Exponential(0.01)"}
+      - {node: operator-identity, ttc: "6% * LogNormal(3.8, 0.7)"}
+      - {node: technician-account, ttc: "5% * Exponential(mean 100)"}
   site-segmentation:
     label: Restrict turbine-site network access
     cost: 22000
     enabled: true
     effects:
-      - {node: local-network-boundary, ttc: "Bernoulli(0.035) * Gamma(3, 25)"}
+      - {node: local-network-boundary, ttc: "3.5% * Gamma(3, 25)"}
   independent-validation:
     label: Independently validate commands and configuration
     cost: 18000
     enabled: false
     effects:
-      - {node: command-check-defeated, ttc: "Bernoulli(0.05) * LogNormal(4, 0.6)"}
-      - {node: configuration-check-defeated, ttc: "Bernoulli(0.03) * LogNormal(4.2, 0.7)"}
+      - {node: command-check-defeated, ttc: "5% * LogNormal(4, 0.6)"}
+      - {node: configuration-check-defeated, ttc: "3% * LogNormal(4.2, 0.7)"}
   separate-telemetry-routers:
     label: Remove common administration of both telemetry paths
     description: Residual likelihood summarizes the stronger boundary, not perfect protection.
     cost: 16000
     enabled: false
     effects:
-      - {node: shared-router-control, ttc: "Bernoulli(0.03) * Gamma(3, 30)"}
+      - {node: shared-router-control, ttc: "3% * Gamma(3, 30)"}
 
 analysis: {seed: 112, samples: 10000, confidence: 0.95}
 x-workshop: {stage: initial assessment, missing-input: vendor-gateway}
