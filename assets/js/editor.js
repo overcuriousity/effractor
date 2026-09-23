@@ -284,8 +284,17 @@
 
   // ---- context menu ----
 
+  // A menu item's submenu opens beside it, in one second list.
+  var submenu = document.createElement("div");
+  submenu.className = "menu submenu";
+  submenu.setAttribute("role", "menu");
+  submenu.hidden = true;
+  document.body.appendChild(submenu);
+  var opener = null; // the item whose submenu is open
+
   function closeMenu() {
     $("context-menu").hidden = true;
+    submenu.hidden = true;
   }
 
   // The same menu wherever a node is shown: on the canvas, and in the model
@@ -296,10 +305,15 @@
     showMenu(items, box.left + box.width / 2, box.top + box.height / 2);
   }
 
-  // `items`: [label, key, run].
-  function showMenu(items, x, y) {
-    closeMenu();
-    var menu = $("context-menu");
+  function place(menu, x, y) {
+    menu.style.setProperty("--menu-x", Math.max(0, Math.min(x, window.innerWidth - 260)) + "px");
+    menu.style.setProperty("--menu-y", Math.max(0, Math.min(y, window.innerHeight - 30 * menu.children.length - 12)) + "px");
+    menu.hidden = false;
+  }
+
+  // `items`: [label, key, run], or [label, key, items] for a submenu, which
+  // opens beside its item on hover, click, → or Enter; ← or Esc goes back.
+  function fill(menu, items, nested) {
     menu.replaceChildren();
     items.forEach(function (item) {
       var button = document.createElement("button");
@@ -307,17 +321,59 @@
       button.setAttribute("role", "menuitem");
       button.appendChild(document.createTextNode(item[0]));
       var key = document.createElement("kbd");
-      key.textContent = item[1];
+      var children = Array.isArray(item[2]) ? item[2] : null;
+      key.textContent = children ? (item[1] ? item[1] + " ›" : "›") : item[1];
       button.appendChild(key);
-      button.addEventListener("click", function () {
-        closeMenu();
-        item[2]();
-      });
+      if (children) {
+        button.setAttribute("aria-haspopup", "menu");
+        var open = function (focus) {
+          var box = button.getBoundingClientRect();
+          fill(submenu, children, true);
+          opener = button;
+          var x = box.right + 2 + 260 > window.innerWidth ? box.left - 262 : box.right + 2;
+          place(submenu, x, box.top - 4);
+          if (focus) submenu.children[0].focus();
+        };
+        button.addEventListener("click", function () {
+          open(true);
+        });
+        button.addEventListener("mouseenter", function () {
+          open(false);
+        });
+        button.addEventListener("keydown", function (e) {
+          if (e.key !== "ArrowRight") return;
+          e.preventDefault();
+          open(true);
+        });
+      } else {
+        button.addEventListener("click", function () {
+          closeMenu();
+          item[2]();
+        });
+        // Pointing at a plain item of the first list closes an open submenu.
+        if (!nested) {
+          button.addEventListener("mouseenter", function () {
+            submenu.hidden = true;
+          });
+        }
+      }
       menu.appendChild(button);
     });
-    menu.style.setProperty("--menu-x", Math.max(0, Math.min(x, window.innerWidth - 260)) + "px");
-    menu.style.setProperty("--menu-y", Math.max(0, Math.min(y, window.innerHeight - 30 * menu.children.length - 12)) + "px");
-    menu.hidden = false;
+  }
+
+  submenu.addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowLeft" && e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();
+    submenu.hidden = true;
+    if (opener) opener.focus();
+  });
+
+  function showMenu(items, x, y) {
+    closeMenu();
+    var menu = $("context-menu");
+    fill(menu, items, false);
+    place(menu, x, y);
     menu.children[0].focus(); // Tab and Enter work from here; Esc closes
   }
 
@@ -347,7 +403,7 @@
     focusLabel();
   });
   document.addEventListener("pointerdown", function (e) {
-    if (!$("context-menu").contains(e.target)) closeMenu();
+    if (!$("context-menu").contains(e.target) && !submenu.contains(e.target)) closeMenu();
   });
 
   // ---- link existing: a search over the nodes ----

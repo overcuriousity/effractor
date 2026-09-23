@@ -123,9 +123,10 @@
   // The background's menu: add a component, or put every one back where the
   // automatic layout wants it.
   function backgroundMenu(x, y) {
-    app.showMenu(A.KINDS.map(function (kind) {
-      return ["Add " + kind, "", function () { create(kind); }];
-    }).concat([["Arrange automatically", "", app.arrange]]), x, y);
+    var add = A.KINDS.map(function (kind) {
+      return [word(kind), "", function () { create(kind); }];
+    });
+    app.showMenu([["Add", "A", add], ["Arrange automatically", "", app.arrange]], x, y);
   }
   function pickKindAt(anchor) {
     var box = (anchor || $("canvas")).getBoundingClientRect();
