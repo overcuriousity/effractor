@@ -50,11 +50,15 @@ test('components are icons of their kind, with qualified ids and no fault symbol
   assert.equal(lan.unquantified, false);
 });
 
-test('foothold and target are badges', () => {
+test('footholds and the target are pins on their components', () => {
   const g = V.describe(lecture());
-  assert.equal(g.nodes[1].badge, 'foothold · admin');
-  assert.equal(g.nodes[2].badge, 'target · admin');
-  assert.equal(g.nodes[0].badge, null);
+  assert.deepEqual(g.nodes[1].pins, [{ role: 'foothold', state: 'admin' }]);
+  assert.deepEqual(g.nodes[2].pins, [{ role: 'target', state: 'admin' }]);
+  assert.deepEqual(g.nodes[0].pins, []);
+  // One component may be both; each pin is its own.
+  const both = lecture();
+  both.attacker.target = { entity: both.attacker.footholds[0].entity, state: 'user' };
+  assert.deepEqual(V.describe(both).nodes[1].pins, [{ role: 'foothold', state: 'admin' }, { role: 'target', state: 'user' }]);
 });
 
 test('associations between components and flows are the edges; permits and dangling ones are not', () => {

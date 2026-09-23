@@ -238,6 +238,11 @@ test("an architecture's component is its kind's icon on a plate, its name, its c
   const tip = (g) => g.children.find((c) => c.tag === "title").textContent;
   assert.equal(tip(ws), "Workstation — host");
   assert.deepEqual(dom.text(ws), ["Workstation", "foothold · admin"]);
+  // A pin says which it is, so it can be picked up and dragged elsewhere.
+  const pin = dom.byClass(ws, "pin")[0];
+  assert.equal(pin.getAttribute("data-pin-role"), "foothold");
+  assert.equal(pin.getAttribute("data-pin-state"), "admin");
+  assert.ok(pin.classList.contains("pin-foothold"));
   const sshd = node("entity/sshd");
   assert.ok(sshd.classList.contains("is-unquantified"));
   assert.equal(tip(sshd), "SSH server — service · 1 unknown");

@@ -194,7 +194,7 @@
     // An architecture's component, as an investigation graph draws an
     // entity: its kind's icon on a plate in its family's colour, the name
     // under it. A count on the plate says how many values are still unknown;
-    // a badge beside it, that the attacker starts or ends here.
+    // a pin beside it, that the attacker starts or ends here.
     function drawComponent(g, n) {
       var cx = geometry.width / 2;
       var r = geometry.plate / 2;
@@ -214,11 +214,15 @@
         el("rect", { x: at - cw / 2, y: r * 0.3 - 16, width: cw, height: 16, rx: 8 }, ["count"], g);
         text(g, at, r * 0.3 - 4.5, n.unknown + "?", "count-text");
       }
-      if (n.badge) {
-        var bw = String(n.badge).length * 5.6 + 12;
-        el("rect", { x: cx + r + 6, y: r - 8, width: bw, height: 16, rx: 3 }, ["tag", "badge"], g);
-        text(g, cx + r + 6 + bw / 2, r + 3.5, n.badge, "tag-text");
-      }
+      // Pins stack beside the plate; each can be picked up (attacker-pins.js).
+      (n.pins || []).forEach(function (p, i) {
+        var words = p.role + " · " + p.state;
+        var pw = words.length * 5.6 + 12;
+        var y = r - 8 + (i - ((n.pins.length - 1) / 2)) * 20;
+        var pin = el("g", { "data-pin-role": p.role, "data-pin-state": p.state }, ["pin", "pin-" + p.role], g);
+        el("rect", { x: cx + r + 6, y: y, width: pw, height: 16, rx: 3 }, ["tag", "badge"], pin);
+        text(pin, cx + r + 6 + pw / 2, y + 11.5, words, "tag-text");
+      });
       return g;
     }
 

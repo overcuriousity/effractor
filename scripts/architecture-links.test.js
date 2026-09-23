@@ -28,6 +28,45 @@ test('footholds and the target are explicit states', () => {
   assert.equal(L.setTarget(doc, 'absent', 'admin'), null);
 });
 
+test('a pin dropped on a component places, moves or replaces the attacker there', () => {
+  let doc = E.empty();
+  doc = E.addEntity(doc, 'host', 'Workstation', { parameters: [] }).doc;
+  doc = E.addEntity(doc, 'host', 'Server', { parameters: [] }).doc;
+  // From the tray: a new foothold, a new target.
+  let edit = L.placePin(doc, 'foothold', 'workstation', 'admin', null);
+  assert.equal(edit.select, 'entity/workstation');
+  assert.equal(edit.notice, 'foothold: Workstation · admin');
+  doc = edit.doc;
+  doc = L.placePin(doc, 'target', 'server', 'admin', null).doc;
+  assert.deepEqual(doc.attacker, { footholds: [{ entity: 'workstation', state: 'admin' }], target: { entity: 'server', state: 'admin' } });
+  assert.equal(L.placePin(doc, 'foothold', 'workstation', 'admin', null), null, 'already there');
+  // A second foothold on the same component replaces its state: one per component.
+  doc = L.placePin(doc, 'foothold', 'workstation', 'user', null).doc;
+  assert.deepEqual(doc.attacker.footholds, [{ entity: 'workstation', state: 'user' }]);
+  // Moved: gone from where it was, there where it was dropped.
+  doc = L.placePin(doc, 'foothold', 'server', 'user', { entity: 'workstation', state: 'user' }).doc;
+  assert.deepEqual(doc.attacker.footholds, [{ entity: 'server', state: 'user' }]);
+  // The target is one: a new one takes its place.
+  doc = L.placePin(doc, 'target', 'workstation', 'user', null).doc;
+  assert.deepEqual(doc.attacker.target, { entity: 'workstation', state: 'user' });
+  assert.equal(L.placePin(doc, 'target', 'absent', 'user', null), null);
+  assert.equal(L.placePin(doc, 'other', 'server', 'user', null), null);
+});
+
+test('a pin dragged off the components is removed', () => {
+  let doc = E.empty();
+  doc = E.addEntity(doc, 'host', 'Workstation', { parameters: [] }).doc;
+  doc = L.placePin(doc, 'foothold', 'workstation', 'admin', null).doc;
+  doc = L.placePin(doc, 'target', 'workstation', 'user', null).doc;
+  let edit = L.removePin(doc, 'foothold', 'workstation', 'admin');
+  assert.equal(edit.notice, 'foothold removed from Workstation');
+  doc = edit.doc;
+  assert.deepEqual(doc.attacker.footholds, []);
+  doc = L.removePin(doc, 'target', 'workstation', 'user').doc;
+  assert.equal('target' in doc.attacker, false);
+  assert.equal(L.removePin(doc, 'target', 'workstation', 'user'), null);
+});
+
 // The lecture architecture, built only through the editor's functions,
 // comes out as the documentation fixture — which a Rust test holds to be
 // what the format reads from docs/course/lecture-architecture.yaml.

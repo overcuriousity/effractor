@@ -148,3 +148,28 @@
 .attack-results .analysis-table tr.is-selected { box-shadow: inset 2px 0 0 var(--color-accent); }
 .step-search { width: 100%; margin: 0 0 4px; }
 
+
+/* Attacker pins (attacker-pins.js): a foothold and a target in the canvas
+   corner, dragged onto a component; on a component, picked up to move or
+   dropped off it to take away. */
+.pin-tray { display: inline-flex; gap: 4px; margin-left: 6px; padding-left: 8px; border-left: 1px solid var(--color-border); }
+.pin-source {
+  display: inline-flex; align-items: center; gap: 4px; padding: 0 8px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  background: var(--color-bg-surface); color: var(--color-fg-secondary);
+  font: 600 0.6875rem/1 var(--font-sans); cursor: grab; user-select: none; touch-action: none;
+}
+.pin-source:hover { color: var(--color-fg-primary); background: var(--color-bg-hover); }
+.pin-source svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.node-component .pin { cursor: grab; }
+.node-component .pin:hover .tag { fill: var(--color-accent); }
+.pin-ghost {
+  position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none;
+  transform: translate(calc(var(--pin-x) + 10px), calc(var(--pin-y) + 6px));
+  padding: 3px 6px; border-radius: 3px;
+  background: var(--color-fg-primary); color: var(--color-bg-base);
+  font: 600 9px/1.2 var(--font-mono); letter-spacing: 0.04em;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+}
+body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
+.node-component.hl-pin-drop .halo { stroke: var(--color-accent); stroke-width: 3; stroke-dasharray: none; }

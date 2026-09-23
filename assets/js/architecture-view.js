@@ -15,13 +15,18 @@
     }).length;
   }
 
-  function badges(doc) {
+  // Where the attacker starts and what it is after, as pins on components:
+  // each its own, so one can be picked up and dragged elsewhere.
+  function pins(doc) {
     var out = Object.create(null);
     var attacker = doc.attacker || {};
+    function put(entity, role, state) {
+      (out[entity] = out[entity] || []).push({ role: role, state: state });
+    }
     (attacker.footholds || []).forEach(function (s) {
-      out[s.entity] = "foothold · " + s.state;
+      put(s.entity, "foothold", s.state);
     });
-    if (attacker.target) out[attacker.target.entity] = "target · " + attacker.target.state;
+    if (attacker.target) put(attacker.target.entity, "target", attacker.target.state);
     return out;
   }
 
@@ -85,7 +90,7 @@
       edge("flow/" + id, f.source, f.target, "flow", String(f.label == null ? id : f.label), "flow");
     });
 
-    var badge = badges(doc);
+    var pinned = pins(doc);
     var nodes = Object.keys(entities).map(function (id) {
       var e = entities[id];
       var label = String(e.label == null ? id : e.label);
@@ -100,7 +105,8 @@
         // The kind is the icon; what is still unknown is a count on it.
         attributes: null,
         unknown: open,
-        badge: badge[id] || null,
+        badge: null,
+        pins: pinned[id] || [],
         parents: incoming[id] || 0,
         unquantified: open > 0,
         top: false,

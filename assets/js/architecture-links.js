@@ -135,6 +135,46 @@
     return { doc: next, select: "entity/" + entity };
   }
 
+  function labelOf(doc, entity) {
+    var e = doc.entities[entity];
+    return e && e.label != null ? e.label : entity;
+  }
+
+  // A pin dropped on `entity` in `state`: from the tray (`from` null) or
+  // picked up from where it was (`from` {entity, state}). A component holds
+  // one foothold, and the document one target, so either replaces what was.
+  function placePin(doc, role, entity, state, from) {
+    if (!has(doc.entities, entity) || !state) return null;
+    var edit;
+    if (role === "target") {
+      edit = setTarget(doc, entity, state);
+    } else if (role === "foothold") {
+      var d = doc;
+      var footholds = (d.attacker && d.attacker.footholds) || [];
+      if (footholds.some(function (s) { return sameState(s, entity, state); })) return null;
+      footholds.forEach(function (s) {
+        var gone = (from && sameState(s, from.entity, from.state)) || s.entity === entity ? setFoothold(d, s.entity, s.state, false) : null;
+        if (gone) d = gone.doc;
+      });
+      edit = setFoothold(d, entity, state, true);
+    } else {
+      return null;
+    }
+    if (!edit) return null;
+    edit.notice = role + ": " + labelOf(doc, entity) + " · " + state;
+    return edit;
+  }
+
+  // A pin dragged off the components.
+  function removePin(doc, role, entity, state) {
+    var edit = role === "target"
+      ? (doc.attacker && doc.attacker.target && sameState(doc.attacker.target, entity, state) ? setTarget(doc, entity, null) : null)
+      : role === "foothold" ? setFoothold(doc, entity, state, false) : null;
+    if (!edit) return null;
+    edit.notice = role + " removed from " + labelOf(doc, entity);
+    return edit;
+  }
+
   var SELECT = { entities: "entity/", associations: "association/", flows: "flow/" };
 
   function renameId(doc, collection, old, id) {
@@ -558,7 +598,7 @@
     return want === "router" ? "no router yet · add one with A, then connect it to both networks" : "no network yet · add one with A";
   }
 
-  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, renameId: renameId, remove: remove };
+  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, renameId: renameId, remove: remove };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
 })();

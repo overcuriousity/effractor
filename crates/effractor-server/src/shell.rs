@@ -66,6 +66,7 @@ mod tests {
         assert!(at("editor.js") < at("architecture-ui.js"));
         assert!(at("architecture-ui.js") < at("architecture-links-ui.js"));
         assert!(at("architecture-links-ui.js") < at("attack-ui.js"));
+        assert!(at("architecture-ui.js") < at("attacker-pins.js"));
         assert!(at("graph.js") < at("attack-view.js"));
         assert!(at("results-view.js") < at("graph-results.js"));
         assert!(at("graph-results.js") < at("charts-ui.js"));
