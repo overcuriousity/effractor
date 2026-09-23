@@ -102,7 +102,7 @@ findings (races, drafts, tab keys, stale titles) are fixed with tests.
 
 ## Continuation — component generation (2026-09-23)
 
-Task 2 (`component-generation`) is on branch `feature/component-generation`.
+Task 2 (`component-generation`) is merged (fa48833) and released.
 `effractor-components` now has `generate` (architecture → `GeneratedGraph`),
 `resolve` (durations under the baseline or one scenario) and `graph_image`
 (the `effractor-graph: 1` JSON); wasm `generate(text, revision)` returns
@@ -156,6 +156,35 @@ them.
 Local `scripts/build-wasm.sh`, `npm test` (201), `cargo test --workspace`,
 fmt, Clippy `-D warnings` and the roadmap check passed; the built wasm module
 generated the lecture graph (28 nodes) under node.
+
+## Continuation — architecture links (2026-09-23)
+
+Task 5 (`architecture-links`) is merged after the owner's look in the 8081
+preview. What exists:
+
+- `architecture-links.js` (pure): `putAssociation`, `putFlow`, `setFoothold`,
+  `setTarget`, `renameId`, `remove` (reference-safe: a delete takes along the
+  associations, flows from/to/over it or needing a removed attachment, their
+  permissions, attacker states and scenario changes); catalog-driven
+  `linkChoices`, `addChoices`, `addLinked`, `privileges`, `nextHops`,
+  `flowPermissions`, `phrase`, and the explanations `notes`, `emptyLink`,
+  `emptyFlow`, `emptyHop`. Fixtures `scripts/fixtures/architecture.doc.json`
+  and `catalog.json` are pinned to the real format/catalog by Rust tests.
+- `architecture-links-ui.js`: the Link action (L, rail chain button, menu),
+  links/flows/foothold/target in a component's form, forms for a selected
+  association or flow (route hop by hop, per-router permission, connect).
+  **Tab** (or the rail's + with a selection) adds a component linked to the
+  selected one in one undoable edit, flows included.
+- **Dragging** (owner's choice: positions in *this browser only*, per
+  document name, `positions.js` over localStorage; never in the file). An
+  architecture is drawn "free": stored positions over ELK's, curved edges box
+  to box with arrow and label, parallel links fanned; "Arrange automatically"
+  on the background menu forgets the moves. Trees keep ELK routes and
+  drag-onto-to-move. The renderer interface gained `move` and `reveal`.
+- The v1 spec's "the canvas never stores a position" now holds for trees only.
+
+Known limits: positions are keyed by document name (two "Untitled" share);
+an automatically placed component may land on a dragged one after an edit.
 
 ## Continuation — self-contained links (2026-09-22)
 
@@ -310,9 +339,19 @@ today, all of it after seeing the alternative:
   context menu (`app.showMenu`) serves nodes, assets, controls, the theme and
   the measure button; a click on the last two cycles. Double-click renames.
   The file crumb's labelled dropdown is the one left-click menu.
-- **The selected node's form is an inspector on the canvas**, docked at the
-  stage's edge, there while something is selected. Not in either panel: the
-  left is the model, the right is the analysis.
+- **The selected node's form is an inspector on the canvas**, *floating* over
+  its right edge (owner, 2026-09-23: the docked column resized the canvas and
+  made the clicked node jump). One fixed size; the HUD steps aside; a node it
+  would cover is panned into view (`renderer.reveal`). Not in either panel:
+  the left is the model, the right is the analysis.
+- **Menus are hierarchical** (owner, 2026-09-23): an item may carry a submenu
+  (`[label, key, items]`), one item is active at a time, greyed notes
+  (`run` null) explain what is not offered. The right-hand column is only a key.
+- **Say why, never nothing** (owner, 2026-09-23): an empty menu or list states
+  what is missing and how to add it.
+- **Relationships are said in plain words** from the selected component
+  (*runs here as admin*, *is admin here*, *may log in*); the file's relation
+  name is the tooltip. Canvas lines keep the technical `hosts · admin`.
 - **No walls of buttons.** Actions are icons in the rail with the key in the
   tooltip; the context menu (canvas *and* model tree) and the `?` list spell
   them out. Every interaction has a button and every key is listed.

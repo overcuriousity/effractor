@@ -10,9 +10,9 @@ The [implementation plan](docs/superpowers/plans/2026-09-21-lecture-workflow.md)
 was reviewed by the owner on 2026-09-22, who chose native in-session execution:
 one feature branch per task, a pause for the owner at each task boundary. The
 items below are its delivery decomposition. Plan tasks 1
-(`architecture-document`), 2 (`component-generation`) and 4
-(`architecture-editor`) are done; the rest map as sequential-simulation = 3,
-architecture-links = 5, attack-graph-inspection = 6, defense-comparison = 7,
+(`architecture-document`), 2 (`component-generation`), 4
+(`architecture-editor`) and 5 (`architecture-links`) are done; the rest map as
+sequential-simulation = 3, attack-graph-inspection = 6, defense-comparison = 7,
 lecture-workflow = 8.
 "securiCAD parity" in the owner's words means `lecture-workflow`, not the later
 `mal-securicad-compatibility`.
@@ -85,19 +85,8 @@ native generation/results; and existing tree fingerprints remain unchanged. Prec
 on PATH on the owner's machine (checked 2026-09-23); install it before this item
 so the wasip1 fingerprints can be run locally, not only in CI.
 
-### architecture-links — Relationships, flows and attacker configuration
-needs: —            cost: 3   benefit: 5
-Edit typed hosting, network, firewall, administration, credential and privilege
-relationships; directional routed flows; footholds and target states. Keep
-atomic reference-safe deletion undoable and do not infer permissive defaults.
-Done when editing tests cover endpoint/cardinality errors, incomplete models,
-multi-network routes and reference cleanup, and the owner can build the
-lecture architecture and configure the compromised workstation/server target.
-Replaces the architecture editor's interim refusal to delete a component that
-is still referenced.
-
 ### attack-graph-inspection — Linked architecture, routes and simulation views
-needs: architecture-links, sequential-simulation            cost: 3   benefit: 5
+needs: sequential-simulation            cost: 3   benefit: 5
 Add Generate, linked component/step selection, rule and assumption inspection,
 blocked and unknown route states, graph focus and the full step table. Show
 sampled compromise probability/CDF with table and bands, and capability-gate
