@@ -9,12 +9,11 @@ repository.workspace = true
 
 [dependencies]
 effractor-core = { path = "../effractor-core" }
-effractor-mal = { path = "../effractor-mal" }
+effractor-format = { path = "../effractor-format" }
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
 
 [lints]
 workspace = true
 
 [dev-dependencies]
-effractor-format = { path = "../effractor-format" }
 indexmap = "2"

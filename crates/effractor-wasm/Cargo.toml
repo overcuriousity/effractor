@@ -14,7 +14,6 @@ crate-type = ["cdylib", "rlib"]
 effractor-components = { path = "../effractor-components" }
 effractor-core = { path = "../effractor-core" }
 effractor-format = { path = "../effractor-format" }
-effractor-mal = { path = "../effractor-mal" }
 effractor-solver = { path = "../effractor-solver" }
 serde = "1.0.229"
 # `float_roundtrip`: a document comes back from JavaScript as JSON, and without

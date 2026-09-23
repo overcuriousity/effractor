@@ -319,7 +319,7 @@ impl Cx {
             self.wrong_type(node, path, "a distribution expression");
             return None;
         };
-        match effractor_mal::parse_expr(text) {
+        match crate::expr::parse(text) {
             Ok(d) => Some(d),
             Err(e) => {
                 // Into the expression: past the opening quote if there is one.

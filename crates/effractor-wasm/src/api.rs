@@ -82,7 +82,7 @@ pub fn serialize(document: &str) -> String {
 /// the CDF at 33 points from 0 to the horizon. `{"error"}` if the expression
 /// does not parse or is not a TTC — the panel shows that next to the field.
 pub fn ttc_sketch(expression: &str, horizon: f64) -> String {
-    let d = match effractor_mal::parse_expr(expression) {
+    let d = match effractor_format::expr::parse(expression) {
         Ok(d) => d,
         Err(e) => return error(&e.message),
     };

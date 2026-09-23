@@ -536,7 +536,7 @@ impl GraphSolve {
                         r.evidence[i]
                             .first()
                             .map_or("unknown", |p| p.status.as_str()),
-                        Some(effractor_mal::to_expr(d)),
+                        Some(effractor_format::expr::write(d)),
                     ),
                     (
                         Binding::Permission(_) | Binding::Parameter { .. },

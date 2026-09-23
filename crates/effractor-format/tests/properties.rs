@@ -99,7 +99,7 @@ fn probability() -> BoxedStrategy<f64> {
 
 fn time() -> BoxedStrategy<D> {
     prop_oneof![
-        positive().prop_map(D::Exponential),
+        positive().prop_map(D::ExponentialMean),
         (positive(), positive()).prop_map(|(shape, scale)| D::Gamma { shape, scale }),
         (-50.0..50.0f64, positive()).prop_map(|(mu, sigma)| D::LogNormal { mu, sigma }),
         (positive(), positive()).prop_map(|(xm, alpha)| D::Pareto { xm, alpha }),

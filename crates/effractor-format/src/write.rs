@@ -7,7 +7,7 @@
 use std::fmt::Write;
 
 use effractor_core::{Distribution, Document, Gate, Model, NodeKind};
-use effractor_mal::{number, to_expr};
+use effractor_mal::number;
 use saphyr_parser::{Event, Parser, ScalarStyle};
 
 use crate::CURRENT_VERSION;
@@ -236,7 +236,7 @@ fn magnitude_or_quoted(ttc: &effractor_core::Ttc) -> String {
 pub fn expression(d: &Distribution) -> String {
     match d {
         Distribution::Const(v) => number(*v),
-        _ => format!("\"{}\"", to_expr(d)),
+        _ => format!("\"{}\"", crate::expr::write(d)),
     }
 }
 

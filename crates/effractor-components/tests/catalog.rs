@@ -93,7 +93,7 @@ fn no_string_in_the_catalog_is_a_distribution() {
     assert!(all.len() > 50);
     for s in all {
         assert!(
-            effractor_mal::parse_expr(&s).is_err(),
+            effractor_format::expr::parse(&s).is_err(),
             "{s:?} reads as a TTC; the library has no numeric defaults"
         );
     }

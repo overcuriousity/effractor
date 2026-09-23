@@ -78,7 +78,7 @@ fn timing(binding: &Binding, resolved: &ResolvedGraph, i: usize) -> Value {
             let p = resolved.evidence[i].first();
             (
                 p.map_or("unknown", |p| p.status.as_str()),
-                Some(effractor_mal::to_expr(d)),
+                Some(effractor_format::expr::write(d)),
                 p.and_then(|p| p.note.clone()),
             )
         }
