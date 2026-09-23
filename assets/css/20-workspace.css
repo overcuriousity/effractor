@@ -218,17 +218,27 @@
 .crumb-name:hover { background: var(--color-bg-hover); }
 .crumb-name span { color: var(--color-fg-muted); font-size: var(--text-xs); }
 
-/* ---- the inspector: the selected node's form, docked at the canvas edge ----
-   A column beside the graph, not over it: the stage shrinks and refits, and
-   the HUD stays at the stage's own corner. There while something is selected. */
-.canvas { display: flex; }
+/* ---- the inspector: the selected node's form, floating at the canvas edge ----
+   Over the graph, not beside it: selecting never resizes the canvas, so
+   nothing under the pointer moves (a node it would cover is panned into view
+   by the renderer). It keeps one size whatever it holds, and the HUD steps
+   aside while it is open. There while something is selected. */
+.canvas { position: relative; display: flex; }
 .stage { position: relative; flex: 1; min-width: 0; }
 .inspector {
-  flex: none; width: 280px;
+  position: absolute; top: 8px; right: 8px; bottom: 8px; z-index: 2;
+  width: 280px;
   overflow: hidden auto;
   background: var(--color-bg-surface);
-  border-left: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.14);
   font-size: var(--text-xs);
+  animation: inspector-in 120ms ease-out;
 }
 .inspector[hidden] { display: none; }
+@keyframes inspector-in { from { opacity: 0; transform: translateX(8px); } }
+@media (prefers-reduced-motion: reduce) { .inspector { animation: none; } .hud-top-right { transition: none; } }
+.hud-top-right { transition: right 120ms ease-out; }
+.canvas:has(.inspector:not([hidden])) .hud-top-right { right: 298px; }
 .inspector .count { text-transform: none; letter-spacing: 0; font-weight: 400; }

@@ -281,3 +281,19 @@ test("a free layout that starts left of or above zero is fitted whole", () => {
   // 648 x 162 drawn from (-200, -100) in an 800 x 600 view: centred, unscaled.
   assert.equal(viewport.getAttribute("transform"), "translate(276 319) scale(1)");
 });
+
+test("reveal pans a node out from under an inset, and leaves a visible one alone", () => {
+  const { r, host } = mounted();
+  r.render(freeLayout(), {});
+  const viewport = dom.byClass(host, "viewport")[0];
+  const before = viewport.getAttribute("transform");
+  // Without a transform yet the view is the identity: b spans 300..448 of 800.
+  r.reveal("entity/a", 296);
+  assert.equal(viewport.getAttribute("transform"), before, "a is far from the inset");
+  r.reveal("entity/b", 400);
+  // 800 - 400 - 16 = 384 is the free width; b ends at 448: 64 to the left.
+  assert.equal(viewport.getAttribute("transform"), "translate(-64 0) scale(1)");
+  r.reveal("entity/absent", 400);
+  r.reveal("association/ab", 400);
+  assert.equal(viewport.getAttribute("transform"), "translate(-64 0) scale(1)");
+});

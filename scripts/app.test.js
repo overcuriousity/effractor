@@ -32,7 +32,7 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
     const window = {
       effractorStore: { createStore: () => ({ load: async () => 'original', save: text => writes.push(text) }) },
       createSolver: () => solver,
-      effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
+      effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, reveal() {}, on() {}, fit() {} }) },
       effractorLayout: { createLayout: () => async () => ({}) },
       effractorGraph: { describe: () => ({}) },
     effractorProfiles: require('../assets/js/profiles.js'),
@@ -90,7 +90,7 @@ function racePage(kept = 'original') {
   const window = {
     effractorStore: { createStore: () => ({ load: async () => kept, save: text => writes.push(text) }) },
     createSolver: () => solver,
-    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render(laid) { renders.push(laid.name); }, highlight() {}, on() {}, fit() {} }) },
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render(laid) { renders.push(laid.name); }, highlight() {}, reveal() {}, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => described => holdLayout ? later('layout ' + described.name, described) : Promise.resolve(described) },
     effractorGraph: { describe: doc => ({ name: doc.name }) },
     effractorProfiles: require('../assets/js/profiles.js'),
@@ -292,7 +292,7 @@ test("the inspector follows the selection", async () => {
   const window = {
     effractorStore: { createStore: () => ({ load: async () => 'text', save() {} }) },
     createSolver: () => ({ async parse() { return { ok: doc }; }, async serialize() { return { ok: 'text' }; } }),
-    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, reveal() {}, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => async () => ({}) },
     effractorGraph: { describe: () => ({}) },
     effractorProfiles: require('../assets/js/profiles.js'),
@@ -333,7 +333,7 @@ test("the HUD is hidden while nothing is solved", async () => {
   const window = {
     effractorStore: { createStore: () => ({ load: async () => 'text', save() {} }) },
     createSolver: () => ({ async parse() { return { ok: doc }; }, async serialize() { return { ok: 'text' }; } }),
-    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, reveal() {}, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => async () => ({}) },
     effractorGraph: { describe: () => ({}) },
     effractorProfiles: require('../assets/js/profiles.js'),
@@ -374,7 +374,7 @@ function autoHarness() {
       },
       cancel() { cancels++; },
     }),
-    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, on() {}, fit() {} }) },
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, reveal() {}, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => async () => ({}) },
     effractorGraph: { describe: () => ({}) },
     effractorProfiles: require('../assets/js/profiles.js'),

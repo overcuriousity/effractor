@@ -1,6 +1,7 @@
 // The SVG renderer, behind the interface of spec 7.1:
 //
 //   mount(el) · render(layout, styles) · highlight(ids, kind) · fit() · zoomBy(factor) · on(event, handler)
+//   · reveal(id, inset) — pan a node out from under an overlay at the right edge
 //
 // A layout is ELK's, with routed edges, or `free` (positions.js): nodes where
 // the author put them and edges as curves between them. In a free layout a
@@ -34,6 +35,8 @@
     var gesture = null; // {id | null, x, y, moved}
     var fitted = false; // the view is as fit() left it: a resize may fit again
     var free = null; // the free layout on screen, if it is one
+    var boxes = Object.create(null); // node id -> its box in drawing coordinates
+    var panning = null; // an animation frame in flight
     var routes = (typeof module !== "undefined" ? require("./positions.js") : window.effractorPositions);
 
     function el(tag, attrs, classes, parent) {
@@ -97,6 +100,7 @@
       });
 
       svg.addEventListener("pointerdown", function (e) {
+        stopReveal(); // the author's hand wins over an animation
         if (e.button !== 0) return;
         gesture = { id: idAt(e.target), edge: edgeAt(e.target), x: e.clientX, y: e.clientY, moved: false };
         if (svg.focus) svg.focus();
@@ -155,6 +159,7 @@
       }
       svg.addEventListener("wheel", function (e) {
         e.preventDefault();
+        stopReveal();
         var box = svg.getBoundingClientRect();
         var point = { x: e.clientX - box.left, y: e.clientY - box.top };
         fitted = false;
@@ -319,6 +324,10 @@
       drawn = { nodes: Object.create(null), edges: [] };
       size = { width: layout.width, height: layout.height, x0: layout.x0 || 0, y0: layout.y0 || 0 };
       free = null;
+      boxes = Object.create(null);
+      layout.nodes.forEach(function (n) {
+        boxes[n.id] = { x: n.x, y: n.y, width: n.width, height: n.height };
+      });
       if (layout.free) {
         free = { at: Object.create(null) };
         layout.nodes.forEach(function (n) {
@@ -338,6 +347,44 @@
         drawn.nodes[item.id] = drawNode(item, style);
       });
       applyHighlights();
+    }
+
+    // If node `id` would sit under an overlay `inset` px wide at the right
+    // edge, pan left just enough to show it — smoothly where the browser can
+    // animate, and never past the left edge. A visible node does not move.
+    function reveal(id, inset) {
+      var b = free && free.at[id] ? free.at[id] : boxes[id];
+      if (!b || !svg) return;
+      var width = svg.getBoundingClientRect().width;
+      var margin = 16;
+      var right = (b.x + b.width) * view.k + view.x;
+      var left = b.x * view.k + view.x;
+      var shift = Math.min(right - (width - inset - margin), left - margin);
+      if (shift <= 0) return;
+      fitted = false;
+      var from = view.x;
+      var to = view.x - shift;
+      var raf = typeof window !== "undefined" && window.requestAnimationFrame;
+      stopReveal();
+      if (!raf) {
+        view = { k: view.k, x: to, y: view.y };
+        return applyView();
+      }
+      var start = null;
+      var step = function (t) {
+        if (start === null) start = t;
+        var u = Math.min(1, (t - start) / 180);
+        var eased = 1 - Math.pow(1 - u, 3);
+        view = { k: view.k, x: from + (to - from) * eased, y: view.y };
+        applyView();
+        panning = u < 1 ? window.requestAnimationFrame(step) : null;
+      };
+      panning = window.requestAnimationFrame(step);
+    }
+
+    function stopReveal() {
+      if (panning && typeof window !== "undefined" && window.cancelAnimationFrame) window.cancelAnimationFrame(panning);
+      panning = null;
     }
 
     function highlight(ids, kind) {
@@ -373,7 +420,7 @@
       (handlers[name] = handlers[name] || []).push(handler);
     }
 
-    return { mount: mount, render: render, highlight: highlight, fit: fit, zoomBy: zoomBy, on: on };
+    return { mount: mount, render: render, highlight: highlight, fit: fit, zoomBy: zoomBy, on: on, reveal: reveal };
   }
 
   var api = { createSvgRenderer: createSvgRenderer, EVENTS: EVENTS };

@@ -119,6 +119,9 @@
     // The inspector on the canvas is the selection made visible: there while
     // something is selected, gone when nothing is. No panel opens for it.
     $("inspector").hidden = !state.selected;
+    // The inspector floats over the canvas: what it would cover is panned
+    // into view, and nothing else moves.
+    if (state.selected) renderer.reveal(state.selected, $("inspector").getBoundingClientRect().width + 8);
     $("inspector-name").textContent = state.selected ? labelOf(state.selected) : "";
     notify();
     if (!state.selected || arch) return;
