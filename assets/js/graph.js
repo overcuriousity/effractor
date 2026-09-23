@@ -122,8 +122,14 @@
   // the incoming edges merge, and merge with whatever else passes — the drawing
   // would give a gate children it does not have. Without `arrivals` (the first
   // pass, before anyone knows where the parents are) everything arrives centre.
+  //
+  // An attack graph runs the other way: every line from a prerequisite to what
+  // depends on it, drawn upwards, so the target is on top as a tree's top event
+  // is. A line leaves the top of the prerequisite's box and arrives under the
+  // dependent's symbol.
   function toElk(graph, arrivals) {
     if (graph.profile === "architecture") return toStress(graph);
+    var up = graph.profile === "attack-graph";
     arrivals = arrivals || dict();
     function inPort(e) {
       var order = arrivals[e.to];
@@ -133,7 +139,7 @@
       id: "root",
       layoutOptions: {
         "elk.algorithm": "layered",
-        "elk.direction": "DOWN",
+        "elk.direction": up ? "UP" : "DOWN",
         "elk.edgeRouting": "ORTHOGONAL",
         // Children left to right in the order the document lists them.
         "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
@@ -144,18 +150,20 @@
       children: graph.nodes.map(function (n) {
         var h = height(n);
         var order = arrivals[n.id];
+        var inY = up ? h : 0;
         var ins = order
           ? order.map(function (_, i) {
-              return { id: n.id + ":in:" + i, x: (SIZE.width * (i + 1)) / (order.length + 1), y: 0, width: 0, height: 0 };
+              return { id: n.id + ":in:" + i, x: (SIZE.width * (i + 1)) / (order.length + 1), y: inY, width: 0, height: 0 };
             })
-          : [{ id: n.id + ":in", x: SIZE.width / 2, y: 0, width: 0, height: 0 }];
+          : [{ id: n.id + ":in", x: SIZE.width / 2, y: inY, width: 0, height: 0 }];
         return {
           id: n.id,
           width: SIZE.width,
           height: h,
-          // Edges leave under the symbol and arrive on top of the box.
+          // Edges leave under the symbol and arrive on top of the box; in an
+          // attack graph, the other way round.
           layoutOptions: { "elk.portConstraints": "FIXED_POS" },
-          ports: ins.concat([{ id: n.id + ":out", x: SIZE.width / 2, y: h, width: 0, height: 0 }]),
+          ports: ins.concat([{ id: n.id + ":out", x: SIZE.width / 2, y: up ? 0 : h, width: 0, height: 0 }]),
         };
       }),
       edges: graph.edges.map(function (e) {
@@ -290,6 +298,8 @@
     return {
       width: result.width || 0,
       height: result.height || 0,
+      // An attack graph's lines carry arrowheads: they say which way it runs.
+      arrows: graph.profile === "attack-graph",
       nodes: (result.children || []).map(function (c) {
         return { id: c.id, x: c.x, y: c.y, width: c.width, height: c.height, node: described[c.id] };
       }),

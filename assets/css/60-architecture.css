@@ -102,3 +102,17 @@
 .link-add { min-width: 1.6em; padding: 0 4px; }
 .route { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; }
 .route .empty, .properties .empty { color: var(--color-fg-muted); }
+
+/* The generated attack graph (spec 10). Steps are neutral: the junction is
+   the symbol's word (ALL, ANY), the state is a word beside it and a stroke
+   pattern — blocked dotted, unknown dashed, unreachable faded and dashed —
+   never a colour alone. Lines point from a prerequisite to what it enables. */
+.node.is-blocked .shape { stroke-dasharray: 1.5 3; }
+.node.is-unknown .shape { stroke-dasharray: 5 3; }
+.node:not(.node-component) .badge { fill: none; stroke: var(--color-fg-primary); stroke-width: 1; }
+.node:not(.node-component) .badge + .tag-text { fill: var(--color-fg-primary); }
+/* A component's steps, lit from the architecture's selection; a step's own
+   component and support, lit from the step's. */
+.node.hl-steps .shape, .node.hl-steps .stem { stroke: var(--color-accent); stroke-width: 2; }
+.edge.hl-steps { stroke: var(--color-accent); stroke-width: 2; }
+.node-component.hl-steps .halo { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 2 2.5; }

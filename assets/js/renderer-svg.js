@@ -230,7 +230,8 @@
       if (n.parents > 1) classes.push("is-shared");
       if (n.unreachable) classes.push("is-unreachable");
       if (n.unquantified) classes.push("is-unquantified");
-      (style.classes || []).forEach(function (c) {
+      // A node's own classes (an attack step's kind and state), then the style's.
+      (n.classes || []).concat(style.classes || []).forEach(function (c) {
         classes.push(c);
       });
       if (n.symbol === "component") classes.push("family-" + (icons.family(n.component) || "none"));
@@ -265,14 +266,22 @@
         text(g, w / 2, below + geometry.stem + geometry.symbol / 2 + 4.5, "?", "value");
       }
 
-      if (style.tag) {
+      var tag = style.tag || n.tag;
+      var ty = below + geometry.stem + geometry.symbol / 2;
+      if (tag) {
         // Left of the symbol.
         g.classList.add("has-tag");
-        var tw = String(style.tag).length * 5.6 + 12;
-        var ty = below + geometry.stem + geometry.symbol / 2;
+        var tw = String(tag).length * 5.6 + 12;
         var tx = w / 2 - geometry.symbol / 2 - 8 - tw;
         el("rect", { x: tx, y: ty - 8, width: tw, height: 16, rx: 3 }, ["tag"], g);
-        text(g, tx + tw / 2, ty + 3, style.tag, "tag-text");
+        text(g, tx + tw / 2, ty + 3, tag, "tag-text");
+      }
+      if (n.badge) {
+        // Right of the symbol: where the attacker starts or wants to be.
+        var bw = String(n.badge).length * 5.6 + 12;
+        var bx = w / 2 + geometry.symbol / 2 + 8;
+        el("rect", { x: bx, y: ty - 8, width: bw, height: 16, rx: 3 }, ["tag", "badge"], g);
+        text(g, bx + bw / 2, ty + 3, n.badge, "tag-text");
       }
 
       return g;
@@ -353,13 +362,15 @@
       });
     }
 
-    function drawEdge(edge) {
+    function drawEdge(edge, arrows) {
       var d = edge.points
         .map(function (p, i) {
           return (i ? "L" : "M") + p.x + " " + p.y;
         })
         .join(" ");
-      var line = el("path", { d: d, "data-id": edge.id, "data-from": edge.from, "data-to": edge.to }, ["edge"], edgeLayer);
+      var attrs = { d: d, "data-id": edge.id, "data-from": edge.from, "data-to": edge.to };
+      if (arrows) attrs["marker-end"] = "url(#edge-arrow)";
+      var line = el("path", attrs, ["edge"], edgeLayer);
       // A line is thin; what takes the pointer is a wide, unseen one over it —
       // over its last stretch only, into the child: siblings share the rest.
       var last = edge.points.slice(-2);
@@ -411,7 +422,7 @@
         });
       } else {
         layout.edges.forEach(function (e) {
-          drawn.edges.push({ el: drawEdge(e), id: e.id, from: e.from, to: e.to });
+          drawn.edges.push({ el: drawEdge(e, layout.arrows), id: e.id, from: e.from, to: e.to });
         });
       }
       layout.nodes.forEach(function (item) {

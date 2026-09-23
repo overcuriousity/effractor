@@ -101,3 +101,126 @@ test('a step inspected says its rule, its time and its state, blocked ones inclu
   assert.deepEqual(V.sourcesForStep(denied.graph, 'input/flow-permission/filter/ssh')[0].paths, ['associations.allow-ssh.allowed']);
   assert.equal(V.inspect(graph, support, 'state/nothing'), null);
 });
+
+// ---- Cycle 2: what the canvas draws ----
+
+// A generated-looking graph of `n` steps in a chain, the last the target.
+function chain(n) {
+  const nodes = [];
+  for (let i = 0; i < n; i++) {
+    nodes.push({ id: 'state/x/n' + i + '/s', label: 'Step ' + i, kind: i === 0 ? 'input' : i % 2 ? 'all' : 'any', inputs: i === 0 ? [] : ['state/x/n' + (i - 1) + '/s'], origins: [{ rule: 'r', version: 1, entities: ['e' + i], associations: [], flows: [], paths: [], assumptions: [] }], timing: { status: i % 2 ? 'illustrative' : 'logical', expression: null, note: null, paths: [], missing: [] } });
+  }
+  return { graph: { target: nodes[n - 1].id, nodes }, support: { nodes: nodes.map(x => ({ id: x.id, status: 'possible', missing: [] })), target_support: [] } };
+}
+
+test('every drawn edge runs from a prerequisite to what depends on it', () => {
+  const { graph: drawn } = V.describe(graph, support, null);
+  assert.equal(drawn.profile, 'attack-graph');
+  const byId = Object.fromEntries(graph.nodes.map(n => ['step/' + n.id, n]));
+  assert.equal(drawn.edges.length, graph.nodes.reduce((sum, n) => sum + n.inputs.length, 0));
+  drawn.edges.forEach(e => assert.ok(byId[e.to].inputs.includes(e.from.slice(5)), e.id));
+});
+
+test('junctions, badges and states are said in symbols and words, not colour alone', () => {
+  const drawn = V.describe(graph, support, null).graph.nodes;
+  const at = id => drawn.find(n => n.id === 'step/' + id);
+  assert.equal(at('action/service-login/server-account/sshd').inscription, 'ALL');
+  assert.equal(at('state/host/server/admin').inscription, 'ANY');
+  assert.equal(at('input/foothold/workstation/admin').symbol, 'basic');
+  assert.equal(at('state/host/server/admin').badge, 'target');
+  assert.equal(at('input/foothold/workstation/admin').badge, 'foothold');
+  // Unreachable: a word as well as a class.
+  const admin = at('state/network/admin-net/access');
+  assert.equal(admin.tag, 'unreachable');
+  assert.ok(admin.classes.includes('is-unreachable'));
+  // Neutral: no importance classes, no tree style.
+  drawn.forEach(n => assert.ok(!n.classes.some(c => /^imp-/.test(c)), n.id));
+
+  // A blocked step and an unknown one.
+  const variant = clone(fixture);
+  const i = variant.graph.nodes.findIndex(n => n.id === 'input/flow-permission/filter/ssh');
+  variant.support.nodes[i].status = 'blocked';
+  const j = variant.graph.nodes.findIndex(n => n.id === 'action/service-find-exploit/sshd');
+  variant.graph.nodes[j].timing = { status: 'unknown', expression: null, note: null, paths: ['entities.sshd.parameters.find-exploit'], missing: ['entities.sshd.parameters.find-exploit'] };
+  const again = V.describe(variant.graph, variant.support, null).graph.nodes;
+  const blocked = again.find(n => n.id === 'step/input/flow-permission/filter/ssh');
+  assert.equal(blocked.tag, 'blocked');
+  assert.ok(blocked.classes.includes('is-blocked'));
+  const unknown = again.find(n => n.id === 'step/action/service-find-exploit/sshd');
+  assert.equal(unknown.tag, 'unknown');
+  assert.equal(unknown.unquantified, true);
+  assert.ok(unknown.classes.includes('is-unknown'));
+});
+
+test('a cycle is drawn as edges, once each, and the walk ends', () => {
+  const g = clone(chain(4));
+  // n0 → n1 → n2 → n3, and n3 back into n1.
+  g.graph.nodes[1].inputs.push(g.graph.nodes[3].id);
+  const { graph: drawn, shown, total } = V.describe(g.graph, g.support, { id: 'step/' + g.graph.nodes[2].id, limit: 3 });
+  assert.equal(total, 4);
+  assert.equal(shown, 3);
+  assert.equal(new Set(drawn.nodes.map(n => n.id)).size, 3);
+  const all = V.describe(g.graph, g.support, null).graph;
+  assert.ok(all.edges.some(e => e.from === 'step/' + g.graph.nodes[3].id && e.to === 'step/' + g.graph.nodes[1].id));
+  assert.equal(all.edges.length, 4);
+});
+
+test('a graph larger than the canvas shows a window with an honest count; search still finds every step', () => {
+  const big = chain(501);
+  const first = V.describe(big.graph, big.support, null);
+  assert.equal(first.total, 501);
+  assert.equal(first.shown, 500);
+  assert.equal(first.graph.nodes.length, 500);
+  // Without a focus the window is round the target.
+  assert.ok(first.graph.nodes.some(n => n.id === 'step/' + big.graph.target));
+  assert.ok(!first.graph.nodes.some(n => n.id === 'step/state/x/n0/s'));
+  // The edge that leaves the window is said on the step it leaves.
+  assert.equal(first.graph.nodes.find(n => n.id === 'step/state/x/n1/s').attributes, '+1 not shown');
+  assert.equal(V.search(big.graph, '').length, 501);
+  assert.deepEqual(V.search(big.graph, 'step 0'), ['state/x/n0/s']);
+  // Focusing a step outside the window brings it in.
+  const focused = V.describe(big.graph, big.support, { id: 'step/state/x/n0/s' });
+  assert.ok(focused.graph.nodes.some(n => n.id === 'step/state/x/n0/s'));
+  assert.equal(focused.shown, 500);
+  // A component's steps can be the focus too.
+  assert.ok(V.describe(big.graph, big.support, { id: 'entity/e0' }).graph.nodes.some(n => n.id === 'step/state/x/n0/s'));
+  // The graph handed in is not changed.
+  assert.deepEqual(big, chain(501));
+  // A step with more prerequisites than the canvas holds: exactly the limit.
+  const star = chain(2);
+  for (let k = 0; k < 600; k++) {
+    star.graph.nodes.push({ id: 'input/s' + k, label: 'In ' + k, kind: 'input', inputs: [], origins: [], timing: { status: 'foothold', expression: null, note: null, paths: [], missing: [] } });
+    star.graph.nodes[1].inputs.push('input/s' + k);
+  }
+  const windowed = V.describe(star.graph, { nodes: [] }, null);
+  assert.equal(windowed.shown, 500);
+  assert.equal(windowed.total, 602);
+  assert.equal(windowed.graph.nodes.find(n => n.id === 'step/' + star.graph.target).attributes, '+102 not shown');
+});
+
+test('a generated step cannot be edited: every edit action on it is refused, and says so', () => {
+  ['deleteNode', 'reparent', 'rename', 'addChild', 'unlink'].forEach(action => {
+    assert.match(V.refuse(action), /generated.*read-only/);
+  });
+  ['select', 'source', 'focus'].forEach(action => assert.equal(V.refuse(action), null));
+});
+
+test('ELK lays out the attack graph, cycles included, with every line from a prerequisite up into its dependent', async () => {
+  const ELK = require('elkjs');
+  const { layoutWith } = require('../assets/js/graph.js');
+  const run = g => new ELK().layout(g);
+  for (const g of [fixture, (() => { const c = clone(chain(6)); c.graph.nodes[1].inputs.push(c.graph.nodes[5].id); return c; })()]) {
+    const { graph: drawn } = V.describe(g.graph, g.support, null);
+    const laid = await layoutWith(run, drawn);
+    assert.equal(laid.arrows, true);
+    assert.equal(laid.nodes.length, drawn.nodes.length);
+    const box = Object.fromEntries(laid.nodes.map(n => [n.id, n]));
+    assert.equal(laid.edges.length, drawn.edges.length);
+    laid.edges.forEach(e => {
+      const start = e.points[0], end = e.points[e.points.length - 1];
+      // Leaves the prerequisite's box at its top, arrives under the dependent's symbol.
+      assert.ok(Math.abs(start.y - box[e.from].y) < 1e-6, e.id + ' start');
+      assert.ok(Math.abs(end.y - (box[e.to].y + box[e.to].height)) < 1e-6, e.id + ' end');
+    });
+  }
+});

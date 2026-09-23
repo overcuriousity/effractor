@@ -333,3 +333,39 @@ test("a firewall's permission is a dotted line to its flow's middle that follows
   r.highlight(["association/p"], "selected");
   assert.ok(permit.classList.contains("hl-selected"));
 });
+
+test("an attack graph's step says its junction, badge and state in words, and its lines carry arrowheads", () => {
+  const V = require("../assets/js/attack-view.js");
+  const { graph, support } = require("./fixtures/graph/lecture-graph.json");
+  const blocked = JSON.parse(JSON.stringify(support));
+  blocked.nodes.find((n) => n.id === "input/flow-permission/filter/ssh").status = "blocked";
+  const drawn = V.describe(graph, blocked, null).graph;
+  const { r, host, node } = mounted();
+  r.render({
+    width: 900, height: 900, arrows: true,
+    nodes: drawn.nodes.map((n, i) => ({ id: n.id, x: 160 * (i % 5), y: 110 * Math.floor(i / 5), width: 148, height: 94, node: n })),
+    edges: drawn.edges.map((e) => ({ id: e.id, from: e.from, to: e.to, points: [{ x: 0, y: 0 }, { x: 0, y: 10 }] })),
+  }, {});
+  const login = node("step/action/service-login/server-account/sshd");
+  assert.ok(dom.text(login).includes("ALL"));
+  assert.ok(login.classList.contains("kind-action"));
+  const target = node("step/state/host/server/admin");
+  assert.ok(dom.text(target).includes("ANY"));
+  assert.ok(dom.text(target).includes("target"));
+  assert.ok(target.classList.contains("is-top"));
+  assert.ok(dom.text(node("step/input/foothold/workstation/admin")).includes("foothold"));
+  const policy = node("step/input/flow-permission/filter/ssh");
+  assert.ok(policy.classList.contains("is-blocked"));
+  assert.ok(dom.text(policy).includes("blocked"));
+  const admin = node("step/state/network/admin-net/access");
+  assert.ok(admin.classList.contains("is-unreachable"));
+  assert.ok(dom.text(admin).includes("unreachable"));
+  // No importance colour: the tree's classes are not borrowed.
+  dom.byClass(host, "node").forEach((g) => assert.ok(![...g.classList.set].some((c) => /^imp-/.test(c))));
+  const lines = dom.byClass(host, "edge");
+  assert.equal(lines.length, drawn.edges.length);
+  lines.forEach((l) => assert.equal(l.getAttribute("marker-end"), "url(#edge-arrow)"));
+  // A tree's lines stay as they were.
+  r.render(layout(), {});
+  dom.byClass(host, "edge").forEach((l) => assert.equal(l.getAttribute("marker-end"), null));
+});

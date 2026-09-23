@@ -279,8 +279,16 @@
     return { graph: { profile: "attack-graph", nodes: drawn, edges: edges }, shown: drawn.length, total: nodes.length };
   }
 
+  // A generated step is derived from the architecture and never edited:
+  // what would edit one is refused with this, and what only looks is not.
+  var LOOKS = ["select", "source", "focus"];
+  function refuse(action) {
+    return LOOKS.indexOf(action) >= 0 ? null : "generated steps are read-only · edit the architecture";
+  }
+
   var api = {
     LIMIT: LIMIT,
+    refuse: refuse,
     stepsFor: stepsFor,
     stepsForEntity: stepsForEntity,
     sourcesForStep: sourcesForStep,
