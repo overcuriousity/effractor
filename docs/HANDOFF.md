@@ -159,7 +159,7 @@ generated the lecture graph (28 nodes) under node.
 
 ## Continuation — sequential simulation (2026-09-23)
 
-Task 3 (`sequential-simulation`) is on `feature/sequential-simulation`. No UI
+Task 3 (`sequential-simulation`) is merged (`0a1665a`). No UI
 changed: the app still gates solving by `profiles.capabilities(doc).solve`,
 false for an architecture, until Task 6 wires it. What exists:
 
@@ -210,6 +210,11 @@ false for an architecture, until Task 6 wires it. What exists:
   inspector's tooltip then says "no reason given" (spec §5 updated).
 - Menus open beside what opened them at their measured size
   (`effractorView.menuAt`); a submenu sits flush against its list.
+- Examples 14–16 (`assets/examples/*-architecture.yaml`) are architectures:
+  a gateway on its appliance, a web shop behind two routers, clinic records
+  with an unknown input. `crates/effractor-solver/tests/graph_examples.rs`
+  holds them canonical and to what the examples README says they show.
+- Merged and pushed to master as `0a1665a` on the owner's word (2026-09-23).
 - A fresh reviewer found no correctness bug. Fixed from its report: the
   assumption list now also names the known blockers (denials, never-TTCs) in
   the target's region, so a structural zero shows its premise, and each entry
