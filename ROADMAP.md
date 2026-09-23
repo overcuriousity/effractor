@@ -74,16 +74,6 @@ the underlying rules and calibrated inputs.
 
 ## Lecture implementation
 
-### readable-time-notation — Chances and average times instead of Bernoulli and rates
-needs: —            cost: 2   benefit: 3
-Implement the approved
-[readable time notation](docs/superpowers/specs/2026-09-23-readable-time-notation-design.md):
-`30%`, `50% * Exponential(mean 12.5)`, `Never`, `Immediate` in effractor files,
-MAL spellings refused with their replacement, the internal model and every
-fingerprint unchanged, examples and course files rewritten, and a timing form
-with Chance and Average time. Done when the spec's tests pass and the owner
-accepts the timing form in the browser.
-
 ### library-extension — Virtualisation, shared vulnerabilities, people, MFA, data
 needs: —            cost: 4   benefit: 5
 Extend the component library in place (owner, 2026-09-23: no versioning, no
