@@ -252,6 +252,15 @@ preview. What exists:
   to box with arrow and label, parallel links fanned; "Arrange automatically"
   on the background menu forgets the moves. Trees keep ELK routes and
   drag-onto-to-move. The renderer interface gained `move` and `reveal`.
+- An architecture's automatic layout is ELK **stress** (`graph.toStress`), not
+  the tree's layered one, then `graph.separate` pushes overlapping components
+  apart (deterministic, tested against real ELK). A firewall is pulled to both
+  ends of each flow it `permits`, so it sits by its router among its traffic.
+  Each permission is drawn as a dotted line from the firewall to its flow's
+  middle (`positions.attach`), worded allows/blocks/?; the bottom bar's
+  architecture legend (families, line kinds) has a *permission* switch that
+  hides them, remembered per browser (`effractor.permits`), and the
+  background menu offers the same.
 - The v1 spec's "the canvas never stores a position" now holds for trees only.
 
 Known limits: positions are keyed by document name (two "Untitled" share);

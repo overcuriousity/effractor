@@ -242,6 +242,42 @@
   renderer.on("move", function (e) {
     if (P.isArchitecture(state.doc)) positions.move(state.doc.name, e.id, e.x, e.y);
   });
+  // A firewall's permissions on the canvas, shown or not; this browser
+  // remembers which.
+  var PERMITS = "effractor.permits";
+  var showPermits = (function () {
+    try {
+      var s = browserStorage();
+      return !s || s.getItem(PERMITS) !== "hidden";
+    } catch (e) {
+      return true;
+    }
+  })();
+  function setPermits(on) {
+    showPermits = !!on;
+    try {
+      var s = browserStorage();
+      if (s && showPermits) s.removeItem(PERMITS);
+      else if (s) s.setItem(PERMITS, "hidden");
+    } catch (e) {
+      /* kept for this page only */
+    }
+    markPermits();
+    paint();
+  }
+  function markPermits() {
+    var b = $("permits");
+    if (!b) return;
+    b.setAttribute("aria-pressed", String(showPermits));
+    b.title = "Firewall permissions on flows · click to " + (showPermits ? "hide" : "show");
+  }
+  if ($("permits")) {
+    markPermits();
+    $("permits").addEventListener("click", function () {
+      setPermits(!showPermits);
+    });
+  }
+
   function arrange() {
     positions.clear(state.doc.name);
     paint();
@@ -250,7 +286,7 @@
 
   function paint() {
     if (!state.laid) return;
-    if (P.isArchitecture(state.doc)) return renderer.render(window.effractorPositions.place(state.laid, positions.load(state.doc.name)), {});
+    if (P.isArchitecture(state.doc)) return renderer.render(window.effractorPositions.place(state.laid, positions.load(state.doc.name), { permits: showPermits }), {});
     var known = state.exactResults || state.results;
     renderer.render(state.laid, known ? view.leafStyles(known, state.measure) : {});
   }
@@ -649,6 +685,10 @@
   window.effractor.select = select;
   window.effractor.labelOf = labelOf;
   window.effractor.arrange = arrange;
+  window.effractor.permits = function () {
+    return showPermits;
+  };
+  window.effractor.setPermits = setPermits;
   window.effractor.applyEdit = applyEdit;
   window.effractor.say = say;
   window.effractor.format = { money: money, probability: probability };

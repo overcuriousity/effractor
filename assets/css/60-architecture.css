@@ -41,6 +41,23 @@
 
 /* A flow is directional traffic, not structure: dashed. */
 .edge[data-id^="flow/"] { stroke-dasharray: 5 3; }
+/* A firewall's permission on a flow: dotted, from the firewall to the flow's
+   middle, with no arrowhead; its word says allows, blocks or ?. */
+.edge.permit { stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.5; }
+.edge.permit.hl-selected { stroke-dasharray: 1.5 3.5; }
+.edge-label.permit-label { font-style: italic; }
+
+/* The bottom bar's legend for an architecture: the families, the lines — and
+   the permission, which is also the switch that hides them. */
+.swatch-network { background: var(--viz-family-network); border-color: transparent; }
+.swatch-compute { background: var(--viz-family-compute); border-color: transparent; }
+.swatch-identity { background: var(--viz-family-identity); border-color: transparent; }
+.line-sample { display: inline-block; width: 18px; height: 0; margin-right: 5px; border-top: 1.5px solid var(--viz-edge); vertical-align: middle; }
+.line-flow { border-top-style: dashed; }
+.line-permit { border-top: 2px dotted var(--viz-outline); }
+.legend-toggle { padding: 1px 6px; font-size: var(--text-xs); }
+.legend-toggle[aria-pressed="false"] { color: var(--color-fg-muted); text-decoration: line-through; }
+.legend-toggle[aria-pressed="false"] .line-sample { opacity: 0.4; }
 
 /* The outline: kind, then label. */
 .outline .kind-word { flex: none; width: 6.5em; color: var(--color-fg-muted); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

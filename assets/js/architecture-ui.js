@@ -175,13 +175,18 @@
       return [word(kind), "", function () { create(kind); }, { icon: icon(kind) }];
     }), x, y);
   }
-  // The background's menu: add a component, or put every one back where the
-  // automatic layout wants it.
+  // The background's menu: add a component, put every one back where the
+  // automatic layout wants it, show or hide the firewalls' permissions.
   function backgroundMenu(x, y) {
     var add = A.KINDS.map(function (kind) {
       return [word(kind), "", function () { create(kind); }, { icon: icon(kind) }];
     });
-    app.showMenu([["Add", "A", add], ["Arrange automatically", "", app.arrange]], x, y);
+    var shown = app.permits();
+    app.showMenu([
+      ["Add", "A", add],
+      ["Arrange automatically", "", app.arrange],
+      [shown ? "Hide firewall permissions" : "Show firewall permissions", "", function () { app.setPermits(!shown); }],
+    ], x, y);
   }
   function pickKindAt(anchor) {
     var box = (anchor || $("canvas")).getBoundingClientRect();

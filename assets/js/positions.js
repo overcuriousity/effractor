@@ -68,9 +68,33 @@
     return Object.assign({}, edge, { start: start, control: control, end: end, mid: mid });
   }
 
+  var WORD = { true: "allows", false: "blocks", null: "?" };
+
+  // A firewall's permission: a straight line from the firewall's ring to the
+  // middle of the flow it rules on, `flow` as that flow's curve now stands.
+  function attach(nodes, flow, permit) {
+    var at = Array.isArray(nodes) ? byId(nodes) : nodes;
+    var fw = at[permit.firewall];
+    if (!fw || !flow) return null;
+    var end = flow.mid;
+    var start = border(fw, end);
+    return {
+      id: permit.id,
+      firewall: permit.firewall,
+      flow: permit.flow,
+      allowed: permit.allowed,
+      label: WORD[permit.allowed],
+      start: start,
+      end: end,
+      mid: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+    };
+  }
+
   // The layout with the stored positions laid over it, its size and origin
-  // measured from what is on it, and every edge routed as a curve.
-  function place(laid, stored) {
+  // measured from what is on it, every edge routed as a curve, and — unless
+  // `options.permits` is false — every firewall's permissions drawn to the
+  // flows they rule on.
+  function place(laid, stored, options) {
     var nodes = (laid.nodes || []).map(function (n) {
       var p = has(stored, n.id) ? stored[n.id] : null;
       return p ? Object.assign({}, n, { x: p.x, y: p.y }) : n;
@@ -89,6 +113,16 @@
         return route(at, { id: e.id, from: e.from, to: e.to, label: e.label, bend: bend });
       })
       .filter(Boolean);
+    var routed = Object.create(null);
+    edges.forEach(function (e) {
+      routed[e.id] = e;
+    });
+    var permits = options && options.permits === false ? [] : laid.permits || [];
+    var attachments = permits
+      .map(function (p) {
+        return attach(at, routed[p.flow], p);
+      })
+      .filter(Boolean);
     var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     nodes.forEach(function (n) {
       x0 = Math.min(x0, n.x);
@@ -97,7 +131,7 @@
       y1 = Math.max(y1, n.y + n.height);
     });
     if (!nodes.length) x0 = y0 = x1 = y1 = 0;
-    return { free: true, x0: x0, y0: y0, width: x1 - x0, height: y1 - y0, nodes: nodes, edges: edges };
+    return { free: true, x0: x0, y0: y0, width: x1 - x0, height: y1 - y0, nodes: nodes, edges: edges, attachments: attachments };
   }
 
   // `storage`: localStorage or anything with its three methods, or null.
@@ -132,7 +166,7 @@
     return { load: load, move: move, clear: clear };
   }
 
-  var api = { place: place, route: route, createStore: createStore };
+  var api = { place: place, route: route, attach: attach, createStore: createStore };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorPositions = api;
 })();

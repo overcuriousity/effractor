@@ -5,7 +5,7 @@
   // stem, and its symbol under it; an attack-tree leaf adds a strip for cost
   // and detection between box and stem. A shared node is drawn once; its
   // incoming edges are what say it is shared.
-  var SIZE = { width: 148, box: 44, stem: 10, symbol: 40, strip: 18, plate: 48, halo: 4 };
+  var SIZE = { width: 148, box: 44, stem: 10, symbol: 40, strip: 18, plate: 48, halo: 4, reach: 190, clear: 20 };
   SIZE.gate = SIZE.box + SIZE.stem + SIZE.symbol;
   SIZE.leaf = SIZE.gate;
   // An architecture's component: its plate, and two lines of name under it.
@@ -123,6 +123,7 @@
   // would give a gate children it does not have. Without `arrivals` (the first
   // pass, before anyone knows where the parents are) everything arrives centre.
   function toElk(graph, arrivals) {
+    if (graph.profile === "architecture") return toStress(graph);
     arrivals = arrivals || dict();
     function inPort(e) {
       var order = arrivals[e.to];
@@ -163,9 +164,94 @@
     };
   }
 
+  // An architecture is a network, not a tree: ELK's stress layout puts linked
+  // components near each other and the rest apart, with no rows and no
+  // ports. A firewall is pulled towards both ends of every flow it rules on,
+  // so it settles beside its router, among the traffic it governs; the pulls
+  // shape the layout and are never drawn.
+  function toStress(graph) {
+    var flows = dict();
+    graph.edges.forEach(function (e) {
+      flows[e.id] = e;
+    });
+    var pulls = [];
+    (graph.permits || []).forEach(function (p) {
+      var f = flows[p.flow];
+      if (!f) return;
+      [f.from, f.to].forEach(function (end) {
+        if (end !== p.firewall) pulls.push({ id: "pull/" + pulls.length, sources: [p.firewall], targets: [end] });
+      });
+    });
+    return {
+      id: "root",
+      layoutOptions: {
+        "elk.algorithm": "stress",
+        "elk.stress.desiredEdgeLength": String(SIZE.reach),
+        "elk.padding": "[top=0,left=0,bottom=0,right=0]",
+      },
+      children: graph.nodes.map(function (n) {
+        return { id: n.id, width: SIZE.width, height: height(n) };
+      }),
+      edges: graph.edges
+        .map(function (e) {
+          return { id: e.id, sources: [e.from], targets: [e.to] };
+        })
+        .concat(pulls),
+    };
+  }
+
+  // Boxes that overlap, or come closer than `gap`, pushed apart along the
+  // axis where they overlap least, half each way, until none do; then the
+  // whole moved back to the origin. Deterministic: the order is the input's.
+  function separate(boxes, gap) {
+    var out = boxes.map(function (b) {
+      return Object.assign({}, b);
+    });
+    for (var round = 0; round < 200; round++) {
+      var moved = false;
+      for (var i = 0; i < out.length; i++) {
+        for (var j = i + 1; j < out.length; j++) {
+          var a = out[i];
+          var b = out[j];
+          var dx = b.x + b.width / 2 - (a.x + a.width / 2);
+          var dy = b.y + b.height / 2 - (a.y + a.height / 2);
+          var ox = (a.width + b.width) / 2 + gap - Math.abs(dx);
+          var oy = (a.height + b.height) / 2 + gap - Math.abs(dy);
+          if (ox <= 1e-9 || oy <= 1e-9) continue;
+          moved = true;
+          if (ox <= oy) {
+            var sx = dx < 0 ? -1 : 1;
+            a.x -= (sx * ox) / 2;
+            b.x += (sx * ox) / 2;
+          } else {
+            var sy = dy < 0 ? -1 : 1;
+            a.y -= (sy * oy) / 2;
+            b.y += (sy * oy) / 2;
+          }
+        }
+      }
+      if (!moved) break;
+    }
+    var x0 = Infinity, y0 = Infinity;
+    out.forEach(function (b) {
+      x0 = Math.min(x0, b.x);
+      y0 = Math.min(y0, b.y);
+    });
+    out.forEach(function (b) {
+      b.x -= x0;
+      b.y -= y0;
+    });
+    return out;
+  }
+
   // Lay out, and if anything is shared, once more now that the parents have
   // places. `run` is ELK's `layout`, wherever it lives (a worker, in the page).
   function layoutWith(run, graph) {
+    if (graph.profile === "architecture") {
+      return run(toElk(graph)).then(function (result) {
+        return fromElk(graph, result);
+      });
+    }
     return run(toElk(graph)).then(function (first) {
       var x = dict();
       (first.children || []).forEach(function (c) {
@@ -200,14 +286,12 @@
     graph.edges.forEach(function (e) {
       ends[e.id] = e;
     });
+    if (graph.profile === "architecture") return fromStress(graph, result, described);
     return {
       width: result.width || 0,
       height: result.height || 0,
       nodes: (result.children || []).map(function (c) {
-        var out = { id: c.id, x: c.x, y: c.y, width: c.width, height: c.height, node: described[c.id] };
-        // Where a component's lines end: on the ring round its plate, relative to the box.
-        if (out.node && out.node.symbol === "component") out.hub = { x: SIZE.width / 2, y: SIZE.plate / 2, r: SIZE.plate / 2 + SIZE.halo };
-        return out;
+        return { id: c.id, x: c.x, y: c.y, width: c.width, height: c.height, node: described[c.id] };
       }),
       edges: (result.edges || []).map(function (e) {
         var points = [];
@@ -225,7 +309,37 @@
     };
   }
 
-  var api = { inscription: inscription, describe: describe, wrap: wrap, toElk: toElk, fromElk: fromElk, layoutWith: layoutWith, SIZE: SIZE };
+  // An architecture's layout: its components clear of each other, every one
+  // with the ring round its plate (`hub`, relative to its box) as the place
+  // its lines end; its lines are curves drawn
+  // later (positions.js), so ELK's routes and the pulls are dropped, and the
+  // firewalls' permissions ride along to be drawn as lines of their own.
+  function fromStress(graph, result, described) {
+    var nodes = separate(
+      (result.children || []).map(function (c) {
+        return { id: c.id, x: c.x || 0, y: c.y || 0, width: c.width, height: c.height, node: described[c.id], hub: { x: SIZE.width / 2, y: SIZE.plate / 2, r: SIZE.plate / 2 + SIZE.halo } };
+      }),
+      SIZE.clear
+    );
+    var width = 0, height = 0;
+    nodes.forEach(function (n) {
+      width = Math.max(width, n.x + n.width);
+      height = Math.max(height, n.y + n.height);
+    });
+    return {
+      width: width,
+      height: height,
+      nodes: nodes,
+      edges: graph.edges.map(function (e) {
+        var out = { id: e.id, from: e.from, to: e.to, points: [] };
+        if (e.label) out.label = e.label;
+        return out;
+      }),
+      permits: (graph.permits || []).slice(),
+    };
+  }
+
+  var api = { inscription: inscription, describe: describe, wrap: wrap, toElk: toElk, fromElk: fromElk, layoutWith: layoutWith, separate: separate, SIZE: SIZE };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorGraph = api;
 })();

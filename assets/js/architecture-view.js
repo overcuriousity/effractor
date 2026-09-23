@@ -28,6 +28,7 @@
   function describe(doc) {
     var entities = doc.entities || {};
     var edges = [];
+    var permits = [];
     var incoming = Object.create(null);
     // `label`: a few words on the line — the relation, and its privilege;
     // a flow's name and its direction.
@@ -39,7 +40,14 @@
     }
     Object.keys(doc.associations || {}).forEach(function (id) {
       var a = doc.associations[id];
-      if (a.kind === "permits") return;
+      // A firewall rules on a flow, which is a line, not a component: its
+      // permission is drawn from the firewall to that line.
+      if (a.kind === "permits") {
+        if (has(entities, a.from) && has(doc.flows, a.to) && has(entities, doc.flows[a.to].source) && has(entities, doc.flows[a.to].target)) {
+          permits.push({ id: "association/" + id, firewall: "entity/" + a.from, flow: "flow/" + a.to, allowed: a.allowed === true ? true : a.allowed === false ? false : null });
+        }
+        return;
+      }
       // The file names the network first; the line runs from the machine to
       // the network it is managed from, so it cannot read "network manages".
       if (a.kind === "administration") return edge("association/" + id, a.to, a.from, a.kind, "managed from");
@@ -72,7 +80,7 @@
         unreachable: false,
       };
     });
-    return { profile: "architecture", nodes: nodes, edges: edges };
+    return { profile: "architecture", nodes: nodes, edges: edges, permits: permits };
   }
 
   var api = { describe: describe };

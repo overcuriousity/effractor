@@ -28,7 +28,7 @@ function lecture() {
 }
 
 test('an empty architecture draws nothing', () => {
-  assert.deepEqual(V.describe({ profile: 'architecture', entities: {}, associations: {}, flows: {}, attacker: { footholds: [] } }), { profile: 'architecture', nodes: [], edges: [] });
+  assert.deepEqual(V.describe({ profile: 'architecture', entities: {}, associations: {}, flows: {}, attacker: { footholds: [] } }), { profile: 'architecture', nodes: [], edges: [], permits: [] });
 });
 
 test('components are icons of their kind, with qualified ids and no fault symbols', () => {
@@ -88,4 +88,14 @@ test('a component is laid out as its plate and name, with no stem or symbol', ()
   const elk = G.toElk({ nodes: [node], edges: [] });
   assert.equal(elk.children[0].height, G.SIZE.component);
   assert.equal(elk.children[0].ports.find(p => p.id.endsWith(':out')).y, G.SIZE.component);
+});
+
+test('a firewall\'s permission is carried to be drawn to the flow it rules on, never as an edge', () => {
+  const g = V.describe(lecture());
+  assert.deepEqual(g.permits, [{ id: 'association/p1', firewall: 'entity/fw', flow: 'flow/ssh', allowed: true }]);
+  assert.ok(!g.edges.some(e => e.id === 'association/p1'));
+  const doc = lecture();
+  doc.associations.p1.allowed = 'unknown';
+  doc.associations.p2 = { kind: 'permits', from: 'fw', to: 'gone', allowed: true };
+  assert.deepEqual(V.describe(doc).permits, [{ id: 'association/p1', firewall: 'entity/fw', flow: 'flow/ssh', allowed: null }]);
 });

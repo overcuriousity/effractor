@@ -302,16 +302,48 @@
       }
     }
 
+    // A firewall's permission: a dotted line from the firewall to the middle
+    // of the flow it rules on, with a word — allows, blocks, ?.
+    function straight(a) {
+      return "M" + a.start.x + " " + a.start.y + "L" + a.end.x + " " + a.end.y;
+    }
+    function drawAttachment(a) {
+      var line = el("path", { d: straight(a), "data-id": a.id, "data-from": a.firewall, "data-to": a.flow }, ["edge", "permit", "permit-" + a.label.replace("?", "unknown")], edgeLayer);
+      var hit = el("path", { d: straight(a), "data-id": a.id, "data-from": a.firewall, "data-to": a.flow }, ["edge-hit"], edgeLayer);
+      var label = el("text", { x: a.mid.x, y: a.mid.y - 4, "data-id": a.id }, ["edge-label", "permit-label"], edgeLayer);
+      label.textContent = a.label;
+      return { line: line, hit: hit, label: label };
+    }
+    function redrawAttachment(parts, a) {
+      parts.line.setAttribute("d", straight(a));
+      parts.hit.setAttribute("d", straight(a));
+      parts.label.setAttribute("x", a.mid.x);
+      parts.label.setAttribute("y", a.mid.y - 4);
+    }
+
     function moveBy(id, dx, dy) {
       var p = free.at[id];
       if (!p) return;
       p.x += dx;
       p.y += dy;
       drawn.nodes[id].setAttribute("transform", "translate(" + p.x + " " + p.y + ")");
+      var flows = Object.create(null);
       drawn.edges.forEach(function (e) {
-        if (e.from !== id && e.to !== id) return;
-        var r = routes.route(free.at, e.route);
-        if (r) redrawCurve(e.parts, r);
+        if (!e.route) return;
+        if (e.from === id || e.to === id) {
+          var r = routes.route(free.at, e.route);
+          if (r) {
+            e.now = r;
+            redrawCurve(e.parts, r);
+          }
+        }
+        flows[e.id] = e;
+      });
+      drawn.attachments.forEach(function (a) {
+        var flow = flows[a.permit.flow];
+        if (a.permit.firewall !== id && !(flow && (flow.from === id || flow.to === id))) return;
+        var again = routes.attach(free.at, flow ? flow.now : null, a.permit);
+        if (again) redrawAttachment(a.parts, again);
       });
     }
 
@@ -349,7 +381,7 @@
       styles = styles || {};
       edgeLayer.replaceChildren();
       nodeLayer.replaceChildren();
-      drawn = { nodes: Object.create(null), edges: [] };
+      drawn = { nodes: Object.create(null), edges: [], attachments: [] };
       size = { width: layout.width, height: layout.height, x0: layout.x0 || 0, y0: layout.y0 || 0 };
       free = null;
       boxes = Object.create(null);
@@ -363,7 +395,13 @@
         });
         layout.edges.forEach(function (e) {
           var parts = drawCurve(e);
-          drawn.edges.push({ el: parts.line, parts: parts, route: e, id: e.id, from: e.from, to: e.to });
+          drawn.edges.push({ el: parts.line, parts: parts, route: e, now: e, id: e.id, from: e.from, to: e.to });
+        });
+        (layout.attachments || []).forEach(function (a) {
+          var parts = drawAttachment(a);
+          drawn.attachments.push({ parts: parts, permit: a });
+          // Highlighted by its own id only: its ends are a node and a line.
+          drawn.edges.push({ el: parts.line, id: a.id, from: null, to: null });
         });
       } else {
         layout.edges.forEach(function (e) {

@@ -305,3 +305,31 @@ test("reveal pans a node out from under an inset, and leaves a visible one alone
   r.reveal("association/ab", 400);
   assert.equal(viewport.getAttribute("transform"), "translate(-64 0) scale(1)");
 });
+
+test("a firewall's permission is a dotted line to its flow's middle that follows either end", () => {
+  const hub = { x: 74, y: 24, r: 28 };
+  const comp = (id, x, y) => ({ id, x, y, width: 148, height: 84, hub, node: { id, label: id, lines: [id], symbol: "component", component: "host", attributes: null, parents: 0 } });
+  const laid = Pos.place({
+    nodes: [comp("entity/fw", 150, 0), comp("entity/a", 0, 200), comp("entity/b", 300, 200)],
+    edges: [{ id: "flow/f", from: "entity/a", to: "entity/b", label: "f →" }],
+    permits: [{ id: "association/p", firewall: "entity/fw", flow: "flow/f", allowed: true }],
+  }, {});
+  const { r, host, node } = mounted();
+  r.render(laid, {});
+  const permit = dom.byClass(host, "permit")[0];
+  assert.equal(permit.getAttribute("data-id"), "association/p");
+  assert.ok(dom.text(host).includes("allows"));
+  const before = permit.getAttribute("d");
+  const drag = (id, dx) => {
+    node(id).dispatch("pointerdown", { clientX: 0, clientY: 0, button: 0, pointerId: 1 });
+    node(id).dispatch("pointermove", { clientX: dx, clientY: 0, pointerId: 1 });
+    node(id).dispatch("pointerup", { clientX: dx, clientY: 0, pointerId: 1 });
+  };
+  drag("entity/b", 40);
+  const afterFlow = permit.getAttribute("d");
+  assert.notEqual(afterFlow, before, "moving an end of the flow moves the line's end");
+  drag("entity/fw", -40);
+  assert.notEqual(permit.getAttribute("d"), afterFlow, "moving the firewall moves its start");
+  r.highlight(["association/p"], "selected");
+  assert.ok(permit.classList.contains("hl-selected"));
+});

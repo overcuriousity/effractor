@@ -200,3 +200,62 @@ test("an architecture's component is its plate and name; lines meet the plate", 
   const first = tree.nodes[0];
   assert.equal(fromElk(tree, { children: [{ id: first.id, x: 0, y: 0, width: 1, height: 1 }], edges: [] }).nodes[0].hub, undefined);
 });
+
+test("an architecture is laid out as a network: stress, no ports, and a firewall pulled to its flows", () => {
+  const V = require("../assets/js/architecture-view.js");
+  const graph = V.describe({
+    profile: "architecture",
+    entities: { fw: { kind: "firewall", label: "FW" }, cli: { kind: "application", label: "Client" }, sshd: { kind: "service", label: "SSH" } },
+    associations: { p: { kind: "permits", from: "fw", to: "ssh", allowed: true } },
+    flows: { ssh: { label: "SSH", source: "cli", target: "sshd", route: [] } },
+    attacker: { footholds: [] },
+  });
+  const elk = toElk(graph);
+  assert.equal(elk.layoutOptions["elk.algorithm"], "stress");
+  assert.ok(elk.children.every((c) => !c.ports));
+  assert.deepEqual(elk.edges.map((e) => [e.sources[0], e.targets[0]]), [["entity/cli", "entity/sshd"], ["entity/fw", "entity/cli"], ["entity/fw", "entity/sshd"]]);
+});
+
+test("ELK's stress layout of an architecture leaves no two components overlapping, and draws no pulls", async () => {
+  const ELK = require("elkjs");
+  const V = require("../assets/js/architecture-view.js");
+  const { layoutWith } = require("../assets/js/graph.js");
+  const entities = {};
+  ["network", "router", "firewall", "host", "application", "service", "account", "credential"].forEach((kind, i) => {
+    entities["e" + i] = { kind, label: kind };
+    entities["f" + i] = { kind, label: kind + " 2" };
+  });
+  const graph = V.describe({
+    profile: "architecture",
+    entities,
+    associations: { a: { kind: "hosts", from: "e3", to: "e4", privilege: "user" }, b: { kind: "attached", from: "e3", to: "e0" }, p: { kind: "permits", from: "e2", to: "fl", allowed: false } },
+    flows: { fl: { label: "x", source: "e4", target: "e5", route: [] } },
+    attacker: { footholds: [] },
+  });
+  const run = (g) => new ELK().layout(g);
+  const laid = await layoutWith(run, graph);
+  assert.equal(laid.nodes.length, 16);
+  for (let i = 0; i < laid.nodes.length; i++) {
+    for (let j = i + 1; j < laid.nodes.length; j++) {
+      const a = laid.nodes[i], b = laid.nodes[j];
+      const apart = a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
+      assert.ok(apart, a.id + " overlaps " + b.id);
+    }
+  }
+  assert.deepEqual(laid.edges.map((e) => e.id).sort(), ["association/a", "association/b", "flow/fl"]);
+  assert.deepEqual(laid.permits, [{ id: "association/p", firewall: "entity/e2", flow: "flow/fl", allowed: false }]);
+  assert.deepEqual((await layoutWith(run, graph)).nodes, laid.nodes, "the same file is arranged the same way");
+});
+
+test("separate pushes overlapping boxes apart by the gap, and leaves clear ones as they are", () => {
+  const { separate } = require("../assets/js/graph.js");
+  const clear = [{ id: "a", x: 0, y: 0, width: 10, height: 10 }, { id: "b", x: 50, y: 0, width: 10, height: 10 }];
+  assert.deepEqual(separate(clear, 5), clear);
+  const out = separate([{ id: "a", x: 0, y: 0, width: 10, height: 10 }, { id: "b", x: 4, y: 1, width: 10, height: 10 }, { id: "c", x: 4, y: 1, width: 10, height: 10 }], 5);
+  for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) {
+    const a = out[i], b = out[j];
+    assert.ok(a.x + a.width + 5 <= b.x + 1e-6 || b.x + b.width + 5 <= a.x + 1e-6 || a.y + a.height + 5 <= b.y + 1e-6 || b.y + b.height + 5 <= a.y + 1e-6, a.id + " " + b.id);
+  }
+  assert.equal(Math.min(...out.map((b) => b.x)), 0);
+  assert.equal(Math.min(...out.map((b) => b.y)), 0);
+});
