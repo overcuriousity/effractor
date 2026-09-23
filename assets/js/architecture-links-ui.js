@@ -66,43 +66,73 @@
     return anchor ? { x: box.right + 4, y: box.top } : { x: box.left + box.width / 2, y: box.top + box.height / 3 };
   }
 
-  // ---- Link: kind, then the other end, then the privilege ----
+  // ---- Link: the way, in words, then the component it goes to ----
 
-  function linkWord(choice) {
-    return choice.direction === "out" ? choice.kind + " →" : "← " + choice.kind;
+  function endItem(id, relation, from, to, privilege, other) {
+    return [name(other), "", function () { link(id, relation, from, to, privilege); }, { hint: kindOf(other) }];
   }
 
+  // Each way to link, with its privilege where it has one, opens the list of
+  // existing components that fit; the new link keeps the selection here.
   function startLink(id, anchor) {
     withCatalog(function (c) {
       var where = at(anchor);
-      var items = L.linkChoices(doc(), c, id)
-        .filter(function (choice) {
-          return choice.candidates.length > 0;
-        })
-        .map(function (choice) {
-          return [linkWord(choice), "", function () { pickEnd(id, choice, where); }];
+      var items = [];
+      L.linkChoices(doc(), c, id).forEach(function (choice) {
+        var ends = function (other) {
+          return choice.direction === "out" ? [id, other] : [other, id];
+        };
+        var variants = [];
+        choice.candidates.forEach(function (other) {
+          var fromTo = ends(other);
+          (L.privileges(doc(), choice.kind, fromTo[0], fromTo[1]) || [null]).forEach(function (p) {
+            if (variants.indexOf(p) < 0) variants.push(p);
+          });
         });
-      if (executable(id) && Object.keys(doc().entities).some(function (o) { return o !== id && kindOf(o) === "service"; })) {
-        items.push(["flow →", "", function () { pickFlowTarget(id, where); }]);
-      }
+        variants.forEach(function (p) {
+          var fitting = choice.candidates.filter(function (other) {
+            var fromTo = ends(other);
+            var allowed = L.privileges(doc(), choice.kind, fromTo[0], fromTo[1]);
+            return p === null ? !allowed : !!allowed && allowed.indexOf(p) >= 0;
+          });
+          items.push([L.phrase(choice.kind, choice.direction, p), "", fitting.map(function (other) {
+            var fromTo = ends(other);
+            return endItem(id, choice.kind, fromTo[0], fromTo[1], p, other);
+          }), { title: choice.kind + (p ? " · " + p : "") }]);
+        });
+      });
+      flowItems(id).forEach(function (item) {
+        items.push(item);
+      });
       if (!items.length) return app.say("nothing here to link “" + name(id) + "” to");
       app.showMenu(items, where.x, where.y);
     });
   }
 
-  function pickEnd(id, choice, where) {
-    var ends = choice.candidates.map(function (other) {
-      return [name(other), kindOf(other), function () {
-        var from = choice.direction === "out" ? id : other;
-        var to = choice.direction === "out" ? other : id;
-        var privileges = L.privileges(doc(), choice.kind, from, to);
-        if (!privileges || privileges.length === 1) return link(id, choice.kind, from, to, privileges && privileges[0]);
-        app.showMenu(privileges.map(function (p) {
-          return [p, "", function () { link(id, choice.kind, from, to, p); }];
-        }), where.x, where.y);
-      }];
+  // Software to a service, and a service from software: a flow with an empty
+  // route, whose networks and routers are said, never guessed.
+  function flowItems(id) {
+    var others = Object.keys(doc().entities).filter(function (o) { return o !== id; });
+    var out = [];
+    if (executable(id)) {
+      var to = others.filter(function (o) { return kindOf(o) === "service"; });
+      if (to.length) out.push([L.phrase("flow", "out"), "", to.map(function (o) {
+        return [name(o), "", function () { flow(id, o); }, { hint: "service" }];
+      }), { title: "flow" }]);
+    }
+    if (kindOf(id) === "service") {
+      var from = others.filter(executable);
+      if (from.length) out.push([L.phrase("flow", "in"), "", from.map(function (o) {
+        return [name(o), "", function () { flow(o, id); }, { hint: kindOf(o) }];
+      }), { title: "flow" }]);
+    }
+    return out;
+  }
+
+  function flow(source, target) {
+    U.apply(function () {
+      return L.putFlow(doc(), null, { label: name(source) + " to " + name(target), source: source, target: target, route: [] });
     });
-    app.showMenu(ends, where.x, where.y);
   }
 
   // The selection stays on the component: the next link starts from it too.
@@ -119,12 +149,7 @@
       return o !== source && kindOf(o) === "service";
     });
     app.showMenu(services.map(function (target) {
-      return [name(target), "service", function () {
-        // An empty route: which networks and routers it crosses is said, not guessed.
-        U.apply(function () {
-          return L.putFlow(doc(), null, { label: name(source) + " to " + name(target), source: source, target: target, route: [] });
-        });
-      }];
+      return [name(target), "", function () { flow(source, target); }, { hint: "service" }];
     }), where.x, where.y);
   }
 
@@ -172,10 +197,10 @@
   // The component's menu: Unlink › with each of its links and flows.
   function unlinkItems(id) {
     var items = L.linksOf(doc(), id).map(function (l) {
-      var arrow = l.direction === "out" ? l.kind + " → " : "← " + l.kind + " ";
-      return [arrow + name(l.other), "", function () { unlink("associations", l.id); }];
+      var a = doc().associations[l.id];
+      return [name(l.other), "", function () { unlink("associations", l.id); }, { hint: L.phrase(l.kind, l.direction, a.privilege), title: l.kind }];
     }).concat(L.flowsOf(doc(), id).map(function (f) {
-      return ["flow “" + doc().flows[f.id].label + "”", "", function () { unlink("flows", f.id); }];
+      return [doc().flows[f.id].label, "", function () { unlink("flows", f.id); }, { hint: "flow " + (f.direction === "out" ? "to " : "from ") + name(f.other) }];
     }));
     return items.length ? [["Unlink", "", items]] : [];
   }
@@ -187,8 +212,7 @@
     var links = block(form, "Links", linkButton);
     L.linksOf(doc(), id).forEach(function (l) {
       var a = doc().associations[l.id];
-      var arrow = l.direction === "out" ? "→" : "←";
-      row(links, [[l.kind, "kind-word"], [arrow, "arrow"], [name(l.other), "name"], [a.privilege || "", "privilege"]], "association/" + l.id, l.id, { collection: "associations", id: l.id, what: "Unlink" });
+      row(links, [[name(l.other), "name"], [L.phrase(l.kind, l.direction, a.privilege), "privilege"]], "association/" + l.id, l.kind + (a.privilege ? " · " + a.privilege : "") + " · " + l.id, { collection: "associations", id: l.id, what: "Unlink" });
     });
     if (!links.children.length) links.appendChild(el("li", "none", "empty"));
 
@@ -198,7 +222,7 @@
       }, "btn btn-ghost btn-small link-add");
       var flows = block(form, "Flows", flowButton);
       L.flowsOf(doc(), id).forEach(function (f) {
-        row(flows, [[doc().flows[f.id].label, "name"], [f.direction === "out" ? "→ " + name(f.other) : "← " + name(f.other), "privilege"]], "flow/" + f.id, f.id, { collection: "flows", id: f.id, what: "Delete the flow" });
+        row(flows, [[doc().flows[f.id].label, "name"], [(f.direction === "out" ? "to " : "from ") + name(f.other), "privilege"]], "flow/" + f.id, f.id, { collection: "flows", id: f.id, what: "Delete the flow" });
       });
       if (!flows.children.length) flows.appendChild(el("li", "none", "empty"));
     }

@@ -331,6 +331,28 @@
     return ["user", "admin"];
   }
 
+  // A way to link, in a few words about the *other* component, seen from the
+  // selected one; the file's relation name is for the tooltip.
+  var WORDS = {
+    attached: { out: "connected to", in: "connected here" },
+    hosts: { out: "runs here", in: "runs this" },
+    filters: { out: "its firewall", in: "its router" },
+    stores: { out: "kept here", in: "keeps this" },
+    authenticates: { out: "unlocks", in: "unlocks this" },
+    authorizes: { out: "accepts this account", in: "may log in" },
+    grants: { out: "grants it", in: "has rights here" },
+    administration: { out: "managed from here", in: "manages this" },
+    flow: { out: "flow to it", in: "flow from it" },
+  };
+  function phrase(relation, direction, privilege) {
+    var words = WORDS[relation] ? WORDS[relation][direction] : relation;
+    if (!privilege) return words;
+    if (relation === "hosts") return words + " as " + privilege;
+    if (relation === "stores") return words + ", " + (privilege === "admin" ? "admin-only" : "user-readable");
+    if (relation === "grants") return direction === "in" ? "is " + privilege + " here" : words + " " + privilege;
+    return words;
+  }
+
   var ENTITY_KINDS = ["network", "router", "firewall", "host", "application", "service", "account", "credential"];
 
   function hasFilters(doc, end, id) {
@@ -355,6 +377,12 @@
       (privilegesOf(relation, from, to) || [null]).forEach(function (p) {
         list.push({ relation: relation, direction: direction, privilege: p });
       });
+    }
+    // A flow runs from software to a service: offered from either end.
+    if (kind === "application" || kind === "service") offer("service", "flow", "out");
+    if (kind === "service") {
+      offer("application", "flow", "in");
+      offer("service", "flow", "in");
     }
     (catalog.associations || []).forEach(function (spec) {
       if (spec.kind === "permits") return;
@@ -381,6 +409,13 @@
     if (!added) return null;
     var from = option.direction === "out" ? id : added.entity;
     var to = option.direction === "out" ? added.entity : id;
+    if (option.relation === "flow") {
+      var label = function (e) {
+        return added.doc.entities[e].label;
+      };
+      var flowed = putFlow(added.doc, null, { label: label(from) + " to " + label(to), source: from, target: to, route: [] });
+      return flowed ? { doc: flowed.doc, select: "entity/" + added.entity, entity: added.entity } : null;
+    }
     var linked = putAssociation(added.doc, null, { kind: option.relation, from: from, to: to, privilege: option.privilege });
     if (!linked) return null;
     return { doc: linked.doc, select: "entity/" + added.entity, entity: added.entity };
@@ -454,7 +489,7 @@
     return out;
   }
 
-  var api = { KINDS: KINDS, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, renameId: renameId, remove: remove };
+  var api = { KINDS: KINDS, phrase: phrase, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, renameId: renameId, remove: remove };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
 })();

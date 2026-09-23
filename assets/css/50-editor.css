@@ -80,6 +80,7 @@
 }
 .menu button { display: flex; justify-content: space-between; gap: 16px; width: 100%; padding: 4px 8px; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .menu button:hover, .menu button:focus-visible { background: var(--color-bg-hover); outline: none; }
+.menu .menu-hint { margin-left: 8px; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .menu kbd { color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
 
 /* Every action as a button with its key, and the list of all keys. */

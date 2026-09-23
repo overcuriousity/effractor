@@ -313,13 +313,25 @@
 
   // `items`: [label, key, run], or [label, key, items] for a submenu, which
   // opens beside its item on hover, click, → or Enter; ← or Esc goes back.
+  // A fourth element {hint, title} adds a few quiet words after the label and
+  // a tooltip; the right-hand column is only ever a key.
   function fill(menu, items, nested) {
     menu.replaceChildren();
     items.forEach(function (item) {
       var button = document.createElement("button");
       button.type = "button";
       button.setAttribute("role", "menuitem");
-      button.appendChild(document.createTextNode(item[0]));
+      var extra = item[3] || {};
+      var text = document.createElement("span");
+      text.appendChild(document.createTextNode(item[0]));
+      if (extra.hint) {
+        var hint = document.createElement("span");
+        hint.className = "menu-hint";
+        hint.textContent = extra.hint;
+        text.appendChild(hint);
+      }
+      button.appendChild(text);
+      if (extra.title) button.title = extra.title;
       var key = document.createElement("kbd");
       var children = Array.isArray(item[2]) ? item[2] : null;
       key.textContent = children ? (item[1] ? item[1] + " ›" : "›") : item[1];

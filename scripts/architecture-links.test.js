@@ -318,7 +318,7 @@ test('Tab offers the kinds that can be linked to the selection, with each way to
   assert.deepEqual(router, ['network: attached, administration', 'application: hosts·admin', 'service: hosts·admin', 'account: grants·admin']);
   // A hosted executable offers no second host; an application stores as user.
   const client = L.addChoices(doc, CATALOG, 'ssh-client').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
-  assert.deepEqual(client, ['credential: stores·user']);
+  assert.deepEqual(client, ['service: flow', 'credential: stores·user']);
   assert.deepEqual(L.addChoices(doc, CATALOG, 'absent'), []);
 });
 
@@ -333,4 +333,57 @@ test('adding a linked component is one edit: the component, its link, the select
   const back = L.addLinked(doc, E, 'server', 'account', 'Account', CATALOG.entities.find((e) => e.kind === 'account'), { relation: 'grants', direction: 'in', privilege: 'user' });
   assert.deepEqual(back.doc.associations['account-grants-server'], { kind: 'grants', from: 'account', to: 'server', privilege: 'user' });
   assert.equal(L.addLinked(doc, E, 'absent', 'host', 'Host', {}, option), null);
+});
+
+test('each way to link reads as a few words from the selected component', () => {
+  const said = (relation, direction, privilege) => L.phrase(relation, direction, privilege);
+  assert.equal(said('hosts', 'out', 'admin'), 'runs here as admin');
+  assert.equal(said('hosts', 'in', 'user'), 'runs this as user');
+  assert.equal(said('grants', 'in', 'admin'), 'is admin here');
+  assert.equal(said('grants', 'out', 'user'), 'grants it user');
+  assert.equal(said('attached', 'out'), 'connected to');
+  assert.equal(said('attached', 'in'), 'connected here');
+  assert.equal(said('administration', 'in'), 'manages this');
+  assert.equal(said('administration', 'out'), 'managed from here');
+  assert.equal(said('stores', 'out', 'user'), 'kept here, user-readable');
+  assert.equal(said('stores', 'out', 'admin'), 'kept here, admin-only');
+  assert.equal(said('stores', 'in', 'user'), 'keeps this, user-readable');
+  assert.equal(said('authorizes', 'in'), 'may log in');
+  assert.equal(said('authorizes', 'out'), 'accepts this account');
+  assert.equal(said('authenticates', 'out'), 'unlocks');
+  assert.equal(said('authenticates', 'in'), 'unlocks this');
+  assert.equal(said('filters', 'out'), 'its firewall');
+  assert.equal(said('filters', 'in'), 'its router');
+  assert.equal(said('flow', 'out'), 'flow to it');
+  assert.equal(said('flow', 'in'), 'flow from it');
+  // Without a privilege yet (the Link menu asks for it next).
+  assert.equal(said('hosts', 'out'), 'runs here');
+  assert.equal(said('grants', 'in'), 'has rights here');
+  assert.equal(said('stores', 'out'), 'kept here');
+  // Every relation from every side has words, never the file's name.
+  for (const r of ['attached', 'hosts', 'filters', 'stores', 'authenticates', 'authorizes', 'grants', 'administration', 'flow']) {
+    for (const d of ['out', 'in']) assert.doesNotMatch(said(r, d, 'user'), /→|←|undefined/, r + d);
+  }
+});
+
+test('software is offered a flow to or from a new service', () => {
+  const doc = lecture();
+  const kinds = (id) => L.addChoices(doc, CATALOG, id).map((c) => c.kind + ': ' + c.options.map((o) => o.relation + ':' + o.direction).join(', '));
+  assert.deepEqual(kinds('ssh-client'), ['service: flow:out', 'credential: stores:out']);
+  assert.deepEqual(kinds('sshd'), ['application: flow:in', 'service: flow:out, flow:in', 'account: authorizes:in']);
+});
+
+test('adding a flow partner makes the component and a flow with an empty route', () => {
+  const doc = lecture();
+  const spec = CATALOG.entities.find((e) => e.kind === 'service');
+  const edit = L.addLinked(doc, E, 'ssh-client', 'service', 'Web server', spec, { relation: 'flow', direction: 'out', privilege: null });
+  assert.equal(edit.select, 'entity/web-server');
+  assert.deepEqual(edit.doc.flows['ssh-client-to-web-server'], {
+    label: 'SSH client to Web server', source: 'ssh-client', target: 'web-server', route: [],
+    parameters: { connect: { status: 'unknown' } },
+  });
+  assert.deepEqual(edit.doc.associations, doc.associations);
+  const back = L.addLinked(doc, E, 'sshd', 'application', 'Scanner', CATALOG.entities.find((e) => e.kind === 'application'), { relation: 'flow', direction: 'in', privilege: null });
+  assert.equal(back.doc.flows['scanner-to-ssh-server'].source, 'scanner');
+  assert.equal(back.doc.flows['scanner-to-ssh-server'].target, 'sshd');
 });

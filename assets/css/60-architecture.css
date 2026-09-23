@@ -49,10 +49,9 @@
 .link-list .empty { color: var(--color-fg-muted); font-size: var(--text-xs); }
 .link-row { display: flex; gap: 6px; align-items: baseline; width: 100%; padding: 2px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .link-row:hover { color: var(--color-fg-primary); background: var(--color-bg-hover); }
-.link-row .kind-word { flex: none; width: 7.5em; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .link-row .arrow, .route .arrow { color: var(--color-fg-muted); }
 .link-row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.link-row .privilege { color: var(--color-fg-secondary); font-family: var(--font-mono); font-size: var(--text-xs); }
+.link-row .privilege { flex: none; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .link-row.end { width: auto; padding: 0; text-decoration: underline dotted; }
 .link-add { min-width: 1.6em; padding: 0 4px; }
 .route { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; }

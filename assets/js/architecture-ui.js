@@ -118,7 +118,11 @@
   // where there is more than one way to link it, the way. The new component
   // is linked, selected and named in one step, as Tab adds a child in a tree.
   function optionWord(o) {
-    return (o.direction === "out" ? o.relation + " →" : "← " + o.relation) + (o.privilege ? " · " + o.privilege : "");
+    return L.phrase(o.relation, o.direction, o.privilege);
+  }
+  // The file's name for the relation, for the tooltip.
+  function optionTitle(o) {
+    return o.relation + (o.privilege ? " · " + o.privilege : "");
   }
   function addLinked(id, kind, option) {
     apply(function () {
@@ -130,10 +134,10 @@
       var items = L.addChoices(doc(), c, id).map(function (choice) {
         if (choice.options.length === 1) {
           var only = choice.options[0];
-          return [word(choice.kind), optionWord(only), function () { addLinked(id, choice.kind, only); }];
+          return [word(choice.kind), "", function () { addLinked(id, choice.kind, only); }, { hint: optionWord(only), title: optionTitle(only) }];
         }
         return [word(choice.kind), "", choice.options.map(function (o) {
-          return [optionWord(o), "", function () { addLinked(id, choice.kind, o); }];
+          return [optionWord(o), "", function () { addLinked(id, choice.kind, o); }, { title: optionTitle(o) }];
         })];
       });
       if (!items.length) return app.say("nothing can be linked to “" + doc().entities[id].label + "”");
