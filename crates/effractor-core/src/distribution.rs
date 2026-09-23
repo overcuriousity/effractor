@@ -7,6 +7,9 @@ pub enum Distribution {
     /// As a TTC: time 0 with probability `p`, else never.
     Bernoulli(f64),
     Exponential(f64),
+    /// The average time, as an effractor file writes it. Sampled with the
+    /// rate `1/m`, so it draws exactly what `Exponential(1/m)` draws.
+    ExponentialMean(f64),
     Gamma {
         shape: f64,
         scale: f64,
@@ -126,6 +129,7 @@ impl Distribution {
         match self {
             Self::Bernoulli(p) => probability("p", *p),
             Self::Exponential(rate) => positive("rate", *rate),
+            Self::ExponentialMean(mean) => positive("mean", *mean),
             Self::Gamma { shape, scale } => {
                 positive("shape", *shape).and(positive("scale", *scale))
             }

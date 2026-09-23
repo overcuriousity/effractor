@@ -385,3 +385,25 @@ proptest! {
         }
     }
 }
+
+/// An average time draws exactly what the rate 1/m draws: the file's new
+/// spelling changes no result wherever 1/m is the rate written before.
+#[test]
+fn a_mean_draws_the_same_bits_as_its_rate() {
+    for (mean, rate) in [(10.0, 0.1), (12.5, 0.08), (1.0, 1.0), (500.0, 0.002)] {
+        assert_eq!(1.0 / mean, rate, "the fixture pairs are exact");
+        let mut a = chunk_rng(7, 0);
+        let mut b = chunk_rng(7, 0);
+        for _ in 0..1000 {
+            let x = sample(&D::ExponentialMean(mean), &mut a);
+            let y = sample(&D::Exponential(rate), &mut b);
+            assert_eq!(x.to_bits(), y.to_bits());
+        }
+        for t in [0.0, 0.5, 3.0, 40.0] {
+            assert_eq!(
+                cdf(&D::ExponentialMean(mean), t).to_bits(),
+                cdf(&D::Exponential(rate), t).to_bits()
+            );
+        }
+    }
+}

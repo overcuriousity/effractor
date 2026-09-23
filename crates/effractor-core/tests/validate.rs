@@ -374,3 +374,24 @@ fn shorthands_expand_as_mal_defines_them() {
     assert_eq!(Ttc::Rate(2.0).distribution(), D::Exponential(2.0));
     assert_eq!(Ttc::P(0.3).distribution(), D::Bernoulli(0.3));
 }
+
+#[test]
+fn a_mean_must_be_positive_and_is_a_time_or_a_magnitude() {
+    use effractor_core::Distribution as D;
+    assert!(D::ExponentialMean(12.5).check_params().is_ok());
+    assert!(
+        D::ExponentialMean(0.0)
+            .check_params()
+            .unwrap_err()
+            .contains("mean")
+    );
+    assert!(D::ExponentialMean(-1.0).check_params().is_err());
+    assert!(D::ExponentialMean(f64::INFINITY).check_params().is_err());
+    assert!(D::ExponentialMean(3.0).check_ttc().is_ok());
+    assert!(D::ExponentialMean(3.0).check_magnitude().is_ok());
+    assert!(
+        D::Product(0.5, Box::new(D::ExponentialMean(3.0)))
+            .check_params()
+            .is_ok()
+    );
+}

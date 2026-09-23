@@ -102,6 +102,8 @@ pub fn sample(d: &Distribution, rng: &mut ChaCha8Rng) -> f64 {
             }
         }
         D::Exponential(rate) => -log(uniform(rng)) / rate,
+        // The rate first, then used as the arm above uses it: the same bits.
+        D::ExponentialMean(mean) => -log(uniform(rng)) / (1.0 / mean),
         D::Gamma { shape, scale } => gamma(*shape, rng) * scale,
         D::LogNormal { mu, sigma } => exp(mu + sigma * normal(rng)),
         D::Pareto { xm, alpha } => xm / pow(uniform(rng), 1.0 / alpha),
@@ -139,6 +141,7 @@ pub fn cdf(d: &Distribution, t: f64) -> f64 {
     match d {
         D::Bernoulli(p) => *p,
         D::Exponential(rate) => -expm1(-rate * t),
+        D::ExponentialMean(mean) => -expm1(-(1.0 / mean) * t),
         D::Gamma { shape, scale } => gamma_p(*shape, t / scale),
         D::LogNormal { mu, sigma } => {
             if t == 0.0 {

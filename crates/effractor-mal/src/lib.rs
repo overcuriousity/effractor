@@ -62,6 +62,7 @@ pub fn to_expr(d: &Distribution) -> String {
     match d {
         D::Bernoulli(p) => call("Bernoulli", &[*p]),
         D::Exponential(rate) => call("Exponential", &[*rate]),
+        D::ExponentialMean(mean) => call("Exponential", &[1.0 / mean]),
         D::Gamma { shape, scale } => call("Gamma", &[*shape, *scale]),
         D::LogNormal { mu, sigma } => call("LogNormal", &[*mu, *sigma]),
         D::Pareto { xm, alpha } => call("Pareto", &[*xm, *alpha]),
