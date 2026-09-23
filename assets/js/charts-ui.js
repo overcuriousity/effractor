@@ -1,5 +1,6 @@
 (function () {
   var app = window.effractor, data = window.effractorCharts, number = window.effractorResults.number;
+  var graphs = window.effractorGraphResults;
   var NS = 'http://www.w3.org/2000/svg';
   function el(tag, text, className) {
     var e = document.createElement(tag); if (text != null) e.textContent = text; if (className) e.className = className; return e;
@@ -26,11 +27,21 @@
     var focused = root.contains(document.activeElement) ? document.activeElement.tagName.toLowerCase() : null;
     var open = root.querySelector('details'); open = open && open.open;
     root.replaceChildren();
-    var cdf = kind === 'ttc', model = cdf ? data.cdf(result) : data.loss(result), rows = model.rows;
-    if (!rows.length) { root.appendChild(el('p', model.reason, 'empty')); return; }
+    var cdf = kind === 'ttc';
+    // A generated graph's target: one sampled curve, its rows as the solver
+    // gave them — [t, P, lower, upper] — and never an exact part.
+    var graph = cdf && graphs.isGraphResults(result);
+    if (cdf) document.getElementById('ttc-title').textContent = graph || (app.state.doc && app.state.doc.profile === 'architecture') ? graphs.TITLE : 'Time to top event';
+    var model = graph ? graphs.cdf(result.baseline.outcome) : cdf ? data.cdf(result) : data.loss(result);
+    var rows = graph ? model.rows.map(function (r) { return [r[0], null, r[1], r[2], r[3]]; }) : model.rows;
+    if (!rows.length) {
+      root.appendChild(el('p', graph ? 'Not available · ' + model.reason : model.reason, 'empty'));
+      (model.missing || []).forEach(function (path) { root.appendChild(el('p', path, 'hint mono')); });
+      return;
+    }
     var max = cdf ? result.horizon : rows[rows.length - 1][0];
     var unit = cdf ? result.time_unit : result.currency;
-    var title = cdf ? 'P(top ≤ time)' : 'P(loss ≥ amount)';
+    var title = graph ? 'P(target by time)' : cdf ? 'P(top ≤ time)' : 'P(loss ≥ amount)';
     var plot = svg('svg', { viewBox: '0 0 360 244', class: 'analysis-chart', role: 'img', tabindex: '0', 'aria-label': title + ' · Left/Right: values' });
     plot.appendChild(svg('title', {}, title));
     [0, .25, .5, .75, 1].forEach(function (v) {
@@ -50,7 +61,8 @@
       [1, 2].forEach(function (column) {
         plot.appendChild(svg('path', { d: data.line(rows.map(function (r) { return [r[0], r[column]]; }), max), class: column === 1 ? 'chart-line' : 'chart-line chart-sampled' }));
       });
-      root.appendChild(el('p', '— Exact · ┄ Sampled' + (model.confidence === null ? '' : ' · ' + number(model.confidence * 100) + '% pointwise band'), 'hint chart-key'));
+      var pointwise = model.confidence === null ? '' : ' · ' + number(model.confidence * 100) + '% pointwise band';
+      root.appendChild(el('p', (graph ? '┄ ' + graphs.TITLE : '— Exact · ┄ Sampled') + pointwise, 'hint chart-key'));
     } else {
       plot.appendChild(svg('path', { d: data.line(rows, max), class: 'chart-line' }));
       // A degenerate all-zero loss curve has one point, not a visible segment.
@@ -68,7 +80,8 @@
       cross.setAttribute('visibility', 'visible');
       vertical.setAttribute('x1', data.x(row[0], max)); vertical.setAttribute('x2', data.x(row[0], max));
       horizontal.setAttribute('y1', data.y(value)); horizontal.setAttribute('y2', data.y(value));
-      tooltip.textContent = number(row[0]) + ' ' + unit + (cdf ? ' · exact ' + number(row[1]) + ' · sampled ' + number(row[2]) + (row[3] === null ? '' : ' [' + number(row[3]) + ', ' + number(row[4]) + ']') : ' · P ≥ ' + number(row[1]));
+      var interval = row[3] === null ? '' : ' [' + number(row[3]) + ', ' + number(row[4]) + ']';
+      tooltip.textContent = number(row[0]) + ' ' + unit + (graph ? ' · P ' + number(row[2]) + interval : cdf ? ' · exact ' + number(row[1]) + ' · sampled ' + number(row[2]) + interval : ' · P ≥ ' + number(row[1]));
     }
     plot.addEventListener('pointermove', function (e) {
       var point = plot.createSVGPoint(); point.x = e.clientX; point.y = e.clientY;
@@ -88,7 +101,9 @@
       model.percentiles.forEach(function (p) { stats.append(el('dt', p[0]), el('dd', app.format.money(p[1], unit), 'num')); });
       root.append(stats, el('p', 'At most one event per horizon', 'hint'));
     }
-    var equivalent = table(cdf ? [unit, 'Exact', 'Sampled', 'Lower', 'Upper'] : [unit, 'P(loss ≥)'], rows);
+    var equivalent = graph
+      ? table(['Time · ' + unit, 'Probability', 'Lower', 'Upper'], model.rows)
+      : table(cdf ? [unit, 'Exact', 'Sampled', 'Lower', 'Upper'] : [unit, 'P(loss ≥)'], rows);
     equivalent.open = !!open; root.appendChild(equivalent);
     if (focused) (focused === "summary" ? equivalent.querySelector("summary") : plot).focus();
   }

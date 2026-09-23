@@ -508,6 +508,8 @@
   // has none for this text; a step selected there falls back to its
   // component in the architecture. Resolves to whether the view changed to it.
   function setView(mode) {
+    // Already there: nothing is drawn again and nothing moves.
+    if (mode === state.mode && (mode !== "attack" || attackShown())) return Promise.resolve(true);
     if (mode !== "attack") {
       var step = stepOf(state.selected);
       if (step && graphOf()) state.selected = AV.originOf(graphOf(), step);

@@ -52,6 +52,8 @@ mod tests {
             "architecture-edit.js",
             "architecture-links.js",
             "architecture-view.js",
+            "attack-view.js",
+            "graph-results.js",
         ] {
             assert!(at(pure) < at("app.js"), "{pure} loads before app.js");
         }
@@ -63,6 +65,12 @@ mod tests {
         assert!(at("menu.js") < at("architecture-ui.js"));
         assert!(at("editor.js") < at("architecture-ui.js"));
         assert!(at("architecture-ui.js") < at("architecture-links-ui.js"));
+        assert!(at("architecture-links-ui.js") < at("attack-ui.js"));
+        assert!(at("graph.js") < at("attack-view.js"));
+        assert!(at("results-view.js") < at("graph-results.js"));
+        assert!(at("graph-results.js") < at("charts-ui.js"));
+        assert!(html.contains("id=\"view-attack\""));
+        assert!(html.contains("id=\"attack-results\""));
         assert!(html.contains(&format!("href=\"{prefix}assets/css/60-architecture.css\"")));
         assert!(html.contains("data-file=\"new-architecture\""));
     }

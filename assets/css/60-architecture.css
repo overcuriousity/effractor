@@ -6,6 +6,10 @@
    and the tree's structure tools. */
 .workspace[data-profile="architecture"] .tree-only { display: none !important; }
 .workspace:not([data-profile="architecture"]) .architecture-only { display: none !important; }
+/* An architecture has two views, set by app.js as data-view: the components,
+   and the attack graph generated from them. */
+.workspace:not([data-view="attack"]) .attack-only { display: none !important; }
+.workspace[data-view="attack"] .architecture-view-only { display: none !important; }
 
 /* A component, as an investigation graph draws an entity: its kind's icon,
    white on a plate in its family's colour, the name under it — no box, no
@@ -116,3 +120,27 @@
 .node.hl-steps .shape, .node.hl-steps .stem { stroke: var(--color-accent); stroke-width: 2; }
 .edge.hl-steps { stroke: var(--color-accent); stroke-width: 2; }
 .node-component.hl-steps .halo { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 2 2.5; }
+.line-blocked { border-top: 1.5px dotted var(--viz-outline); }
+.line-unknown { border-top: 1.5px dashed var(--viz-outline); }
+
+/* Architecture or attack graph: two words, the one shown pressed. */
+.view-switch { display: inline-flex; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.view-switch .btn { border: 0; border-radius: 0; padding: 1px 8px; font-size: var(--text-xs); }
+.view-switch .btn[aria-pressed="true"] { background: var(--color-bg-active); color: var(--color-fg-primary); }
+
+/* A step in the inspector, and the attack results: a few words and values,
+   each source a link back into the architecture. */
+.step-facts { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: var(--text-sm); }
+.step-facts dt { color: var(--color-fg-muted); }
+.step-facts dd { margin: 0; overflow-wrap: anywhere; }
+.source-link { display: block; padding: 0; border: 0; background: none; color: inherit; font-family: var(--font-mono); font-size: var(--text-xs); text-align: left; text-decoration: underline dotted; cursor: pointer; overflow-wrap: anywhere; }
+.source-link:hover, .source-link:focus-visible { color: var(--color-fg-primary); background: var(--color-bg-hover); }
+.attack-results h3 { margin: 12px 0 4px; color: var(--color-fg-muted); font-size: var(--text-xs); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+.attack-headline { display: flex; align-items: baseline; gap: 8px; margin: 0; }
+.attack-headline .stat { font-family: var(--font-mono); font-size: 20px; }
+.attack-results .hint { margin: 2px 0 0; color: var(--color-fg-muted); font-size: var(--text-xs); }
+.attack-results .analysis-table tbody tr { cursor: pointer; }
+.attack-results .analysis-table tbody tr:hover, .attack-results .analysis-table tbody tr:focus-visible { background: var(--color-bg-hover); }
+.attack-results .analysis-table tr.is-selected { box-shadow: inset 2px 0 0 var(--color-accent); }
+.step-search { width: 100%; margin: 0 0 4px; }
+

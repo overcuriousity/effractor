@@ -290,15 +290,16 @@
 
   // ---- pointer ----
 
+  // In the attack view the canvas holds generated steps: attack-ui.js's.
   app.renderer.on("context", function (e) {
-    if (!arch()) return;
-    if (e.edge && P.selectionExists(doc(), e.edge, app.state.generated)) return edgeMenu(e.edge, e.x, e.y);
+    if (!arch() || app.state.mode === "attack") return;
+    if (e.edge && P.selectionExists(doc(), e.edge, null)) return edgeMenu(e.edge, e.x, e.y);
     var q = P.qualified(e.id);
     if (q && q.kind === "entity") return menuFor(q.id, e.x, e.y);
     backgroundMenu(e.x, e.y);
   });
   app.renderer.on("activate", function (e) {
-    if (!arch()) return;
+    if (!arch() || app.state.mode === "attack") return;
     if (e.id !== app.state.selected) app.select(e.id);
     focusLabel();
   });
@@ -668,6 +669,21 @@
         sample.setAttribute("class", sample.getAttribute("class") + " is-plate");
         return [sample, word(kind)];
       });
+    },
+    // A parameter of the selected component or flow, opened as if clicked:
+    // where a generated step's source leads.
+    openParameter: function (owner, slot) {
+      var record = ownerRecord(owner);
+      if (!record || !Object.prototype.hasOwnProperty.call(record.parameters || {}, slot)) return;
+      openSlot = owner + "\u0000" + slot;
+      renderProperties();
+      var first = $("param-status");
+      if (first) first.focus();
+    },
+    // A control of the selected item's form, by what it sets.
+    focusField: function (field) {
+      var control = $({ defense: "prop-defense", foothold: "prop-foothold", target: "prop-target", allowed: "prop-allowed", privilege: "prop-privilege" }[field] || "");
+      if (control) control.focus();
     },
     // For architecture-links-ui.js: the same edit queue, form parts and hooks.
     apply: apply,
