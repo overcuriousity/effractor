@@ -1,0 +1,4682 @@
+{
+  "graph": {
+    "effractor-graph": 1,
+    "library": {
+      "id": "core-components",
+      "version": 1
+    },
+    "semantics": "sequential-1",
+    "target": "state/host/server/admin",
+    "nodes": [
+      {
+        "id": "action/administration-login/admin-net/admin-account/bridge",
+        "label": "Admin login · Router administrator · Router from Administration network",
+        "kind": "all",
+        "inputs": [
+          "state/account/admin-account/material",
+          "state/network/admin-net/access"
+        ],
+        "origins": [
+          {
+            "rule": "administration-login",
+            "version": 1,
+            "entities": [
+              "admin-net",
+              "admin-account",
+              "bridge"
+            ],
+            "associations": [
+              "manage-bridge",
+              "router-grant"
+            ],
+            "flows": [],
+            "paths": [
+              "entities.admin-account.parameters.admin-login"
+            ],
+            "assumptions": [
+              "An administration association is explicit permission to attempt management authentication, not a successful login.",
+              "An isolated administration zone is not reached just because it administers something."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "illustrative",
+          "expression": "Exponential(1)",
+          "note": "Exercise assumption; not calibrated to the lecture",
+          "paths": [
+            "entities.admin-account.parameters.admin-login"
+          ],
+          "missing": []
+        }
+      },
+      {
+        "id": "action/credential-extract/workstation/admin-key",
+        "label": "Extract · Router administrator key · Workstation",
+        "kind": "all",
+        "inputs": [
+          "state/host/workstation/admin"
+        ],
+        "origins": [
+          {
+            "rule": "credential-extract",
+            "version": 1,
+            "entities": [
+              "workstation",
+              "admin-key"
+            ],
+            "associations": [
+              "admin-key-store"
+            ],
+            "flows": [],
+            "paths": [
+              "entities.admin-key.parameters.extract",
+              "entities.admin-key.parameters.extract-protected",
+              "entities.admin-key.defenses.protected"
+            ],
+            "assumptions": [
+              "Protection selects the authored replacement distribution, not a guarantee.",
+              "Possession requires an extraction action even from a controlled store."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "illustrative",
+          "expression": "Exponential(0.2)",
+          "note": "Exercise assumption; not calibrated to the lecture",
+          "paths": [
+            "entities.admin-key.parameters.extract",
+            "entities.admin-key.defenses.protected"
+          ],
+          "missing": []
+        }
+      },
+      {
+        "id": "action/credential-extract/workstation/server-key",
+        "label": "Extract · Server account key · Workstation",
+        "kind": "all",
+        "inputs": [
+          "state/host/workstation/user"
+        ],
+        "origins": [
+          {
+            "rule": "credential-extract",
+            "version": 1,
+            "entities": [
+              "workstation",
+              "server-key"
+            ],
+            "associations": [
+              "server-key-store"
+            ],
+            "flows": [],
+            "paths": [
+              "entities.server-key.parameters.extract",
+              "entities.server-key.parameters.extract-protected",
+              "entities.server-key.defenses.protected"
+            ],
+            "assumptions": [
+              "Protection selects the authored replacement distribution, not a guarantee.",
+              "Possession requires an extraction action even from a controlled store."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "illustrative",
+          "expression": "Exponential(0.2)",
+          "note": "Exercise assumption; not calibrated to the lecture",
+          "paths": [
+            "entities.server-key.parameters.extract",
+            "entities.server-key.defenses.protected"
+          ],
+          "missing": []
+        }
+      },
+      {
+        "id": "action/flow-connect/ssh",
+        "label": "Connect · SSH from the workstation",
+        "kind": "all",
+        "inputs": [
+          "state/application/ssh-client/control",
+          "state/permission/filter/ssh"
+        ],
+        "origins": [
+          {
+            "rule": "flow-connect",
+            "version": 1,
+            "entities": [
+              "ssh-client",
+              "sshd",
+              "bridge",
+              "filter"
+            ],
+            "associations": [
+              "allow-ssh"
+            ],
+            "flows": [
+              "ssh"
+            ],
+            "paths": [
+              "flows.ssh.parameters.connect"
+            ],
+            "assumptions": [
+              "The route is checked statically; there is no discovery of IP routes, NAT or transitive trust."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "illustrative",
+          "expression": "Exponential(2)",
+          "note": "Exercise assumption; not calibrated to the lecture",
+          "paths": [
+            "flows.ssh.parameters.connect"
+          ],
+          "missing": []
+        }
+      },
+      {
+        "id": "action/service-deploy-exploit/sshd",
+        "label": "Deploy exploit · SSH server",
+        "kind": "all",
+        "inputs": [
+          "state/service/sshd/exploit-ready"
+        ],
+        "origins": [
+          {
+            "rule": "service-deploy-exploit",
+            "version": 1,
+            "entities": [
+              "sshd"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [
+              "entities.sshd.parameters.deploy-exploit"
+            ],
+            "assumptions": [
+              "Deployment includes whatever bypass of detection or protection the author assumed in its note; there is no unreported extra success factor."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "illustrative",
+          "expression": "Exponential(0.5)",
+          "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately",
+          "paths": [
+            "entities.sshd.parameters.deploy-exploit"
+          ],
+          "missing": []
+        }
+      },
+      {
+        "id": "action/service-find-exploit/sshd",
+        "label": "Find exploit · SSH server",
+        "kind": "all",
+        "inputs": [
+          "state/service/sshd/reachable"
+        ],
+        "origins": [
+          {
+            "rule": "service-find-exploit",
+            "version": 1,
+            "entities": [
+              "sshd"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [
+              "entities.sshd.parameters.find-exploit",
+              "entities.sshd.parameters.find-exploit-patched",
+              "entities.sshd.defenses.patched"
+            ],
+            "assumptions": [
+              "Patching selects the authored replacement distribution; it does not by itself eliminate every exploit.",
+              "Exploit research is not reused across services."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "illustrative",
+          "expression": "Exponential(0.1)",
+          "note": "Exercise assumption; not calibrated to the lecture",
+          "paths": [
+            "entities.sshd.parameters.find-exploit",
+            "entities.sshd.defenses.patched"
+          ],
+          "missing": []
+        }
+      },
+      {
+        "id": "action/service-login/server-account/sshd",
+        "label": "Log in · Server account · SSH server",
+        "kind": "all",
+        "inputs": [
+          "state/account/server-account/material",
+          "state/service/sshd/reachable"
+        ],
+        "origins": [
+          {
+            "rule": "service-login",
+            "version": 1,
+            "entities": [
+              "server-account",
+              "sshd"
+            ],
+            "associations": [
+              "ssh-authorizes"
+            ],
+            "flows": [],
+            "paths": [
+              "entities.sshd.parameters.login"
+            ],
+            "assumptions": [
+              "Retries and account lockout are outside this library."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "illustrative",
+          "expression": "Exponential(1)",
+          "note": "Exercise assumption; not calibrated to the lecture",
+          "paths": [
+            "entities.sshd.parameters.login"
+          ],
+          "missing": []
+        }
+      },
+      {
+        "id": "input/flow-permission/filter/ssh",
+        "label": "Policy · Firewall · SSH from the workstation",
+        "kind": "input",
+        "inputs": [],
+        "origins": [
+          {
+            "rule": "flow-permission",
+            "version": 1,
+            "entities": [
+              "filter"
+            ],
+            "associations": [
+              "allow-ssh"
+            ],
+            "flows": [
+              "ssh"
+            ],
+            "paths": [
+              "associations.allow-ssh.allowed"
+            ],
+            "assumptions": [
+              "A router's admin can bypass its firewall for an explicitly modelled flow.",
+              "An unknown policy is an unknown branch, not a denial."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "policy",
+          "expression": "allowed",
+          "note": null,
+          "paths": [
+            "associations.allow-ssh.allowed"
+          ],
+          "missing": []
+        }
+      },
+      {
+        "id": "input/foothold/workstation/admin",
+        "label": "Foothold · Workstation · admin",
+        "kind": "input",
+        "inputs": [],
+        "origins": [
+          {
+            "rule": "foothold",
+            "version": 1,
+            "entities": [
+              "workstation"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [
+              "attacker.footholds[0]"
+            ],
+            "assumptions": [
+              "A foothold is an attacker input, never an estimate of an initial compromise."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "foothold",
+          "expression": null,
+          "note": null,
+          "paths": [
+            "attacker.footholds[0]"
+          ],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/account/admin-account/material",
+        "label": "Router administrator · material",
+        "kind": "any",
+        "inputs": [
+          "state/credential/admin-key/possessed"
+        ],
+        "origins": [
+          {
+            "rule": "account-material",
+            "version": 1,
+            "entities": [
+              "admin-key",
+              "admin-account"
+            ],
+            "associations": [
+              "admin-auth"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Any one authenticating credential suffices; multi-factor authentication is outside this library.",
+              "Material alone grants no access."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/account/server-account/material",
+        "label": "Server account · material",
+        "kind": "any",
+        "inputs": [
+          "state/credential/server-key/possessed"
+        ],
+        "origins": [
+          {
+            "rule": "account-material",
+            "version": 1,
+            "entities": [
+              "server-key",
+              "server-account"
+            ],
+            "associations": [
+              "server-auth"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Any one authenticating credential suffices; multi-factor authentication is outside this library.",
+              "Material alone grants no access."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/application/ssh-client/control",
+        "label": "SSH client · control",
+        "kind": "any",
+        "inputs": [
+          "state/host/workstation/user"
+        ],
+        "origins": [
+          {
+            "rule": "host-execution",
+            "version": 1,
+            "entities": [
+              "workstation",
+              "ssh-client"
+            ],
+            "associations": [
+              "client-hosting"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Controlling a machine at the privilege software runs with is controlling that software.",
+              "Router-hosted executables run as admin: this library has no router user state."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/credential/admin-key/possessed",
+        "label": "Router administrator key · possessed",
+        "kind": "any",
+        "inputs": [
+          "action/credential-extract/workstation/admin-key"
+        ],
+        "origins": [
+          {
+            "rule": "credential-extract",
+            "version": 1,
+            "entities": [
+              "workstation",
+              "admin-key"
+            ],
+            "associations": [
+              "admin-key-store"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Protection selects the authored replacement distribution, not a guarantee.",
+              "Possession requires an extraction action even from a controlled store."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/credential/server-key/possessed",
+        "label": "Server account key · possessed",
+        "kind": "any",
+        "inputs": [
+          "action/credential-extract/workstation/server-key"
+        ],
+        "origins": [
+          {
+            "rule": "credential-extract",
+            "version": 1,
+            "entities": [
+              "workstation",
+              "server-key"
+            ],
+            "associations": [
+              "server-key-store"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Protection selects the authored replacement distribution, not a guarantee.",
+              "Possession requires an extraction action even from a controlled store."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/flow/ssh/connected",
+        "label": "SSH from the workstation · connected",
+        "kind": "any",
+        "inputs": [
+          "action/flow-connect/ssh"
+        ],
+        "origins": [
+          {
+            "rule": "flow-connect",
+            "version": 1,
+            "entities": [
+              "ssh-client",
+              "sshd",
+              "bridge",
+              "filter"
+            ],
+            "associations": [
+              "allow-ssh"
+            ],
+            "flows": [
+              "ssh"
+            ],
+            "paths": [],
+            "assumptions": [
+              "The route is checked statically; there is no discovery of IP routes, NAT or transitive trust."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/host/server/admin",
+        "label": "Server · admin",
+        "kind": "any",
+        "inputs": [
+          "state/service/sshd/control",
+          "state/session/server-account/sshd"
+        ],
+        "origins": [
+          {
+            "rule": "execution-privilege",
+            "version": 1,
+            "entities": [
+              "server",
+              "sshd"
+            ],
+            "associations": [
+              "service-hosting"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Controlling software yields the privilege it runs with and no more: user software never alone grants admin."
+            ]
+          },
+          {
+            "rule": "session-grant",
+            "version": 1,
+            "entities": [
+              "server-account",
+              "sshd",
+              "server"
+            ],
+            "associations": [
+              "ssh-authorizes",
+              "server-grant",
+              "service-hosting"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "A grant is used only on the machine the service actually runs on; a login on one machine is never control of another."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/host/server/user",
+        "label": "Server · user",
+        "kind": "any",
+        "inputs": [
+          "state/host/server/admin"
+        ],
+        "origins": [
+          {
+            "rule": "admin-implies-user",
+            "version": 1,
+            "entities": [
+              "server"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Administrative control of a host includes everything a user can do on it."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/host/workstation/admin",
+        "label": "Workstation · admin",
+        "kind": "any",
+        "inputs": [
+          "input/foothold/workstation/admin"
+        ],
+        "origins": [
+          {
+            "rule": "foothold",
+            "version": 1,
+            "entities": [
+              "workstation"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [
+              "attacker.footholds[0]"
+            ],
+            "assumptions": [
+              "A foothold is an attacker input, never an estimate of an initial compromise."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/host/workstation/user",
+        "label": "Workstation · user",
+        "kind": "any",
+        "inputs": [
+          "state/application/ssh-client/control",
+          "state/host/workstation/admin"
+        ],
+        "origins": [
+          {
+            "rule": "admin-implies-user",
+            "version": 1,
+            "entities": [
+              "workstation"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Administrative control of a host includes everything a user can do on it."
+            ]
+          },
+          {
+            "rule": "execution-privilege",
+            "version": 1,
+            "entities": [
+              "workstation",
+              "ssh-client"
+            ],
+            "associations": [
+              "client-hosting"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Controlling software yields the privilege it runs with and no more: user software never alone grants admin."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/network/admin-net/access",
+        "label": "Administration network · access",
+        "kind": "any",
+        "inputs": [],
+        "origins": [],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/network/client-net/access",
+        "label": "Client network · access",
+        "kind": "any",
+        "inputs": [
+          "state/host/workstation/user",
+          "state/router/bridge/admin"
+        ],
+        "origins": [
+          {
+            "rule": "zone-access",
+            "version": 1,
+            "entities": [
+              "bridge",
+              "client-net"
+            ],
+            "associations": [
+              "bridge-client"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Access to a network is the capability to originate traffic in it, not control of its members."
+            ]
+          },
+          {
+            "rule": "zone-access",
+            "version": 1,
+            "entities": [
+              "workstation",
+              "client-net"
+            ],
+            "associations": [
+              "workstation-net"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Access to a network is the capability to originate traffic in it, not control of its members."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/network/server-net/access",
+        "label": "Server network · access",
+        "kind": "any",
+        "inputs": [
+          "state/host/server/user",
+          "state/router/bridge/admin"
+        ],
+        "origins": [
+          {
+            "rule": "zone-access",
+            "version": 1,
+            "entities": [
+              "bridge",
+              "server-net"
+            ],
+            "associations": [
+              "bridge-server"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Access to a network is the capability to originate traffic in it, not control of its members."
+            ]
+          },
+          {
+            "rule": "zone-access",
+            "version": 1,
+            "entities": [
+              "server",
+              "server-net"
+            ],
+            "associations": [
+              "server-net-link"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Access to a network is the capability to originate traffic in it, not control of its members."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/permission/filter/ssh",
+        "label": "Permitted · Firewall · SSH from the workstation",
+        "kind": "any",
+        "inputs": [
+          "input/flow-permission/filter/ssh",
+          "state/router/bridge/admin"
+        ],
+        "origins": [
+          {
+            "rule": "flow-permission",
+            "version": 1,
+            "entities": [
+              "bridge",
+              "filter"
+            ],
+            "associations": [
+              "bridge-filter",
+              "allow-ssh"
+            ],
+            "flows": [
+              "ssh"
+            ],
+            "paths": [],
+            "assumptions": [
+              "A router's admin can bypass its firewall for an explicitly modelled flow.",
+              "An unknown policy is an unknown branch, not a denial."
+            ]
+          },
+          {
+            "rule": "flow-permission",
+            "version": 1,
+            "entities": [
+              "filter"
+            ],
+            "associations": [
+              "allow-ssh"
+            ],
+            "flows": [
+              "ssh"
+            ],
+            "paths": [
+              "associations.allow-ssh.allowed"
+            ],
+            "assumptions": [
+              "A router's admin can bypass its firewall for an explicitly modelled flow.",
+              "An unknown policy is an unknown branch, not a denial."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/router/bridge/admin",
+        "label": "Router · admin",
+        "kind": "any",
+        "inputs": [
+          "action/administration-login/admin-net/admin-account/bridge"
+        ],
+        "origins": [
+          {
+            "rule": "administration-login",
+            "version": 1,
+            "entities": [
+              "admin-net",
+              "admin-account",
+              "bridge"
+            ],
+            "associations": [
+              "manage-bridge",
+              "router-grant"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "An administration association is explicit permission to attempt management authentication, not a successful login.",
+              "An isolated administration zone is not reached just because it administers something."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/service/sshd/control",
+        "label": "SSH server · control",
+        "kind": "any",
+        "inputs": [
+          "action/service-deploy-exploit/sshd",
+          "state/host/server/admin"
+        ],
+        "origins": [
+          {
+            "rule": "host-execution",
+            "version": 1,
+            "entities": [
+              "server",
+              "sshd"
+            ],
+            "associations": [
+              "service-hosting"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Controlling a machine at the privilege software runs with is controlling that software.",
+              "Router-hosted executables run as admin: this library has no router user state."
+            ]
+          },
+          {
+            "rule": "service-deploy-exploit",
+            "version": 1,
+            "entities": [
+              "sshd"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Deployment includes whatever bypass of detection or protection the author assumed in its note; there is no unreported extra success factor."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/service/sshd/exploit-ready",
+        "label": "SSH server · exploit-ready",
+        "kind": "any",
+        "inputs": [
+          "action/service-find-exploit/sshd"
+        ],
+        "origins": [
+          {
+            "rule": "service-find-exploit",
+            "version": 1,
+            "entities": [
+              "sshd"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Patching selects the authored replacement distribution; it does not by itself eliminate every exploit.",
+              "Exploit research is not reused across services."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/service/sshd/reachable",
+        "label": "SSH server · reachable",
+        "kind": "any",
+        "inputs": [
+          "state/flow/ssh/connected"
+        ],
+        "origins": [
+          {
+            "rule": "service-reachable",
+            "version": 1,
+            "entities": [
+              "sshd"
+            ],
+            "associations": [],
+            "flows": [
+              "ssh"
+            ],
+            "paths": [],
+            "assumptions": [
+              "Reaching a service is not controlling it."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/session/server-account/sshd",
+        "label": "Session · Server account · SSH server",
+        "kind": "any",
+        "inputs": [
+          "action/service-login/server-account/sshd"
+        ],
+        "origins": [
+          {
+            "rule": "service-login",
+            "version": 1,
+            "entities": [
+              "server-account",
+              "sshd"
+            ],
+            "associations": [
+              "ssh-authorizes"
+            ],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Retries and account lockout are outside this library."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      }
+    ]
+  },
+  "patch": {
+    "effractor-graph-results": 1,
+    "semantics": "sequential-1",
+    "library": {
+      "id": "core-components",
+      "version": 1
+    },
+    "target": "state/host/server/admin",
+    "time_unit": "d",
+    "horizon": 100.0,
+    "seed": "42",
+    "samples": 8192,
+    "confidence": 0.95,
+    "baseline": {
+      "id": null,
+      "outcome": {
+        "available": {
+          "method": "sampled",
+          "samples": 8192,
+          "confidence": 0.95,
+          "p_target": 1.0,
+          "ci": {
+            "lo": 0.9995312917117791,
+            "hi": 1.0
+          },
+          "ttc_cdf": [
+            [
+              0.0,
+              0.0,
+              2.710505431213761e-20,
+              0.00046870828822094795
+            ],
+            [
+              1.5625,
+              0.13525390625,
+              0.1280188220791232,
+              0.14283090945535046
+            ],
+            [
+              3.125,
+              0.40478515625,
+              0.39420294006904355,
+              0.41545662840381103
+            ],
+            [
+              4.6875,
+              0.6209716796875,
+              0.6104115921444406,
+              0.6314183663727402
+            ],
+            [
+              6.25,
+              0.7525634765625,
+              0.7431020269468074,
+              0.7617881689886592
+            ],
+            [
+              7.8125,
+              0.8399658203125,
+              0.8318672892870009,
+              0.8477456617426145
+            ],
+            [
+              9.375,
+              0.8951416015625,
+              0.8883209812538607,
+              0.9015918095837928
+            ],
+            [
+              10.9375,
+              0.9366455078125,
+              0.9311630303707857,
+              0.9417186665171619
+            ],
+            [
+              12.5,
+              0.961669921875,
+              0.9572913433707549,
+              0.9656157233416348
+            ],
+            [
+              14.0625,
+              0.9774169921875,
+              0.9739689589324677,
+              0.9804174868401806
+            ],
+            [
+              15.625,
+              0.98681640625,
+              0.984108340523589,
+              0.9890681222075083
+            ],
+            [
+              17.1875,
+              0.9925537109375,
+              0.9904473611223314,
+              0.9941983327392478
+            ],
+            [
+              18.75,
+              0.9957275390625,
+              0.9940641146570153,
+              0.9969262602554687
+            ],
+            [
+              20.3125,
+              0.9974365234375,
+              0.9960840840873944,
+              0.9983226575448076
+            ],
+            [
+              21.875,
+              0.998046875,
+              0.9968294893920998,
+              0.9987973832114302
+            ],
+            [
+              23.4375,
+              0.998779296875,
+              0.9977542442220053,
+              0.999336785547118
+            ],
+            [
+              25.0,
+              0.9990234375,
+              0.9980740108708718,
+              0.9995050712867827
+            ],
+            [
+              26.5625,
+              0.999267578125,
+              0.9984028519273321,
+              0.9996642826188534
+            ],
+            [
+              28.125,
+              0.99951171875,
+              0.9987450858448159,
+              0.9998101010899008
+            ],
+            [
+              29.6875,
+              0.999755859375,
+              0.9991101940419058,
+              0.999933045281342
+            ],
+            [
+              31.25,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              32.8125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              34.375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              35.9375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              37.5,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              39.0625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              40.625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              42.1875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              43.75,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              45.3125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              46.875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              48.4375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              50.0,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              51.5625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              53.125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              54.6875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              56.25,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              57.8125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              59.375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              60.9375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              62.5,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              64.0625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              65.625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              67.1875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              68.75,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              70.3125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              71.875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              73.4375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              75.0,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              76.5625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              78.125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              79.6875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              81.25,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              82.8125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              84.375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              85.9375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              87.5,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              89.0625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              90.625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              92.1875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              93.75,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              95.3125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              96.875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              98.4375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              100.0,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ]
+          ]
+        }
+      },
+      "nodes": [
+        {
+          "id": "action/administration-login/admin-net/admin-account/bridge",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/credential-extract/workstation/admin-key",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/credential-extract/workstation/server-key",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/flow-connect/ssh",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/service-deploy-exploit/sshd",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 0.9998779296875,
+              "ci": {
+                "lo": 0.9993088142501059,
+                "hi": 0.9999784512674077
+              }
+            }
+          }
+        },
+        {
+          "id": "action/service-find-exploit/sshd",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/service-login/server-account/sshd",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/flow-permission/filter/ssh",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/foothold/workstation/admin",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/material",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/material",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/application/ssh-client/control",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/credential/admin-key/possessed",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/credential/server-key/possessed",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/flow/ssh/connected",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/server/admin",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/server/user",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/workstation/admin",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/workstation/user",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/network/admin-net/access",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/network/client-net/access",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/network/server-net/access",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/permission/filter/ssh",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/router/bridge/admin",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/service/sshd/control",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/service/sshd/exploit-ready",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/service/sshd/reachable",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/session/server-account/sshd",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        }
+      ],
+      "assumptions": [
+        {
+          "path": "associations.allow-ssh.allowed",
+          "status": "policy",
+          "expression": "allowed",
+          "note": null
+        },
+        {
+          "path": "entities.server-key.parameters.extract",
+          "status": "illustrative",
+          "expression": "Exponential(0.2)",
+          "note": "Exercise assumption; not calibrated to the lecture"
+        },
+        {
+          "path": "entities.sshd.parameters.deploy-exploit",
+          "status": "illustrative",
+          "expression": "Exponential(0.5)",
+          "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
+        },
+        {
+          "path": "entities.sshd.parameters.find-exploit",
+          "status": "illustrative",
+          "expression": "Exponential(0.1)",
+          "note": "Exercise assumption; not calibrated to the lecture"
+        },
+        {
+          "path": "entities.sshd.parameters.login",
+          "status": "illustrative",
+          "expression": "Exponential(1)",
+          "note": "Exercise assumption; not calibrated to the lecture"
+        },
+        {
+          "path": "flows.ssh.parameters.connect",
+          "status": "illustrative",
+          "expression": "Exponential(2)",
+          "note": "Exercise assumption; not calibrated to the lecture"
+        }
+      ],
+      "witness": {
+        "sample": 0,
+        "target_time": 6.910393058726657,
+        "nodes": [
+          {
+            "id": "input/flow-permission/filter/ssh",
+            "time": 0.0
+          },
+          {
+            "id": "input/foothold/workstation/admin",
+            "time": 0.0
+          },
+          {
+            "id": "state/application/ssh-client/control",
+            "time": 0.0
+          },
+          {
+            "id": "state/host/workstation/admin",
+            "time": 0.0
+          },
+          {
+            "id": "state/host/workstation/user",
+            "time": 0.0
+          },
+          {
+            "id": "state/permission/filter/ssh",
+            "time": 0.0
+          },
+          {
+            "id": "action/flow-connect/ssh",
+            "time": 0.20426056628550843
+          },
+          {
+            "id": "state/flow/ssh/connected",
+            "time": 0.20426056628550843
+          },
+          {
+            "id": "state/service/sshd/reachable",
+            "time": 0.20426056628550843
+          },
+          {
+            "id": "action/service-find-exploit/sshd",
+            "time": 5.0771776876610115
+          },
+          {
+            "id": "state/service/sshd/exploit-ready",
+            "time": 5.0771776876610115
+          },
+          {
+            "id": "action/service-deploy-exploit/sshd",
+            "time": 6.910393058726657
+          },
+          {
+            "id": "state/host/server/admin",
+            "time": 6.910393058726657
+          },
+          {
+            "id": "state/service/sshd/control",
+            "time": 6.910393058726657
+          }
+        ],
+        "edges": [
+          {
+            "prerequisite": "action/flow-connect/ssh",
+            "dependent": "state/flow/ssh/connected"
+          },
+          {
+            "prerequisite": "action/service-deploy-exploit/sshd",
+            "dependent": "state/service/sshd/control"
+          },
+          {
+            "prerequisite": "action/service-find-exploit/sshd",
+            "dependent": "state/service/sshd/exploit-ready"
+          },
+          {
+            "prerequisite": "input/flow-permission/filter/ssh",
+            "dependent": "state/permission/filter/ssh"
+          },
+          {
+            "prerequisite": "input/foothold/workstation/admin",
+            "dependent": "state/host/workstation/admin"
+          },
+          {
+            "prerequisite": "state/application/ssh-client/control",
+            "dependent": "action/flow-connect/ssh"
+          },
+          {
+            "prerequisite": "state/flow/ssh/connected",
+            "dependent": "state/service/sshd/reachable"
+          },
+          {
+            "prerequisite": "state/host/workstation/admin",
+            "dependent": "state/host/workstation/user"
+          },
+          {
+            "prerequisite": "state/host/workstation/user",
+            "dependent": "state/application/ssh-client/control"
+          },
+          {
+            "prerequisite": "state/permission/filter/ssh",
+            "dependent": "action/flow-connect/ssh"
+          },
+          {
+            "prerequisite": "state/service/sshd/control",
+            "dependent": "state/host/server/admin"
+          },
+          {
+            "prerequisite": "state/service/sshd/exploit-ready",
+            "dependent": "action/service-deploy-exploit/sshd"
+          },
+          {
+            "prerequisite": "state/service/sshd/reachable",
+            "dependent": "action/service-find-exploit/sshd"
+          }
+        ]
+      }
+    },
+    "scenario": {
+      "id": "patch",
+      "outcome": {
+        "available": {
+          "method": "sampled",
+          "samples": 8192,
+          "confidence": 0.95,
+          "p_target": 1.0,
+          "ci": {
+            "lo": 0.9995312917117791,
+            "hi": 1.0
+          },
+          "ttc_cdf": [
+            [
+              0.0,
+              0.0,
+              2.710505431213761e-20,
+              0.00046870828822094795
+            ],
+            [
+              1.5625,
+              0.115966796875,
+              0.10921255745945174,
+              0.12308103538106169
+            ],
+            [
+              3.125,
+              0.3358154296875,
+              0.3256675017248596,
+              0.3461172669879473
+            ],
+            [
+              4.6875,
+              0.5206298828125,
+              0.5098045910558964,
+              0.5314358357749851
+            ],
+            [
+              6.25,
+              0.6439208984375,
+              0.6334865151546945,
+              0.6542203678844138
+            ],
+            [
+              7.8125,
+              0.7381591796875,
+              0.728528913174659,
+              0.7475661918374702
+            ],
+            [
+              9.375,
+              0.8072509765625,
+              0.7985658726666107,
+              0.8156480582998316
+            ],
+            [
+              10.9375,
+              0.8570556640625,
+              0.8493087281719242,
+              0.8644678900548711
+            ],
+            [
+              12.5,
+              0.8951416015625,
+              0.8883209812538607,
+              0.9015918095837928
+            ],
+            [
+              14.0625,
+              0.923828125,
+              0.9178829670248424,
+              0.9293759794652202
+            ],
+            [
+              15.625,
+              0.943359375,
+              0.9381428341715893,
+              0.9481603034009648
+            ],
+            [
+              17.1875,
+              0.9599609375,
+              0.9554954417939936,
+              0.9639952581986782
+            ],
+            [
+              18.75,
+              0.971923828125,
+              0.9681194795745598,
+              0.9752857874561378
+            ],
+            [
+              20.3125,
+              0.9801025390625,
+              0.9768458156778423,
+              0.9829092063686486
+            ],
+            [
+              21.875,
+              0.9862060546875,
+              0.9834427985877889,
+              0.9885135331719805
+            ],
+            [
+              23.4375,
+              0.98974609375,
+              0.9873234880253987,
+              0.9917096033680723
+            ],
+            [
+              25.0,
+              0.992919921875,
+              0.9908590300547093,
+              0.9945187423896666
+            ],
+            [
+              26.5625,
+              0.994873046875,
+              0.9930775976362596,
+              0.9962045939163655
+            ],
+            [
+              28.125,
+              0.996337890625,
+              0.9947769851074504,
+              0.9974335207763616
+            ],
+            [
+              29.6875,
+              0.997314453125,
+              0.9959369403357912,
+              0.9982257751021453
+            ],
+            [
+              31.25,
+              0.9979248046875,
+              0.9966789461939597,
+              0.9987039002153045
+            ],
+            [
+              32.8125,
+              0.998779296875,
+              0.9977542442220053,
+              0.999336785547118
+            ],
+            [
+              34.375,
+              0.9990234375,
+              0.9980740108708718,
+              0.9995050712867827
+            ],
+            [
+              35.9375,
+              0.9993896484375,
+              0.9985718937344816,
+              0.9997392670059695
+            ],
+            [
+              37.5,
+              0.999755859375,
+              0.9991101940419058,
+              0.999933045281342
+            ],
+            [
+              39.0625,
+              0.999755859375,
+              0.9991101940419058,
+              0.999933045281342
+            ],
+            [
+              40.625,
+              0.999755859375,
+              0.9991101940419058,
+              0.999933045281342
+            ],
+            [
+              42.1875,
+              0.999755859375,
+              0.9991101940419058,
+              0.999933045281342
+            ],
+            [
+              43.75,
+              0.9998779296875,
+              0.9993088142501059,
+              0.9999784512674077
+            ],
+            [
+              45.3125,
+              0.9998779296875,
+              0.9993088142501059,
+              0.9999784512674077
+            ],
+            [
+              46.875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              48.4375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              50.0,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              51.5625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              53.125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              54.6875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              56.25,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              57.8125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              59.375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              60.9375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              62.5,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              64.0625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              65.625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              67.1875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              68.75,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              70.3125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              71.875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              73.4375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              75.0,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              76.5625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              78.125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              79.6875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              81.25,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              82.8125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              84.375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              85.9375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              87.5,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              89.0625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              90.625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              92.1875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              93.75,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              95.3125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              96.875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              98.4375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              100.0,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ]
+          ]
+        }
+      },
+      "nodes": [
+        {
+          "id": "action/administration-login/admin-net/admin-account/bridge",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/credential-extract/workstation/admin-key",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/credential-extract/workstation/server-key",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/flow-connect/ssh",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/service-deploy-exploit/sshd",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/service-find-exploit/sshd",
+          "status": "blocked",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/service-login/server-account/sshd",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/flow-permission/filter/ssh",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/foothold/workstation/admin",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/material",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/material",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/application/ssh-client/control",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/credential/admin-key/possessed",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/credential/server-key/possessed",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/flow/ssh/connected",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/server/admin",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/server/user",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/workstation/admin",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/workstation/user",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/network/admin-net/access",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/network/client-net/access",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/network/server-net/access",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/permission/filter/ssh",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/router/bridge/admin",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/service/sshd/control",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/service/sshd/exploit-ready",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/service/sshd/reachable",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/session/server-account/sshd",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        }
+      ],
+      "assumptions": [
+        {
+          "path": "associations.allow-ssh.allowed",
+          "status": "policy",
+          "expression": "allowed",
+          "note": null
+        },
+        {
+          "path": "entities.server-key.parameters.extract",
+          "status": "illustrative",
+          "expression": "Exponential(0.2)",
+          "note": "Exercise assumption; not calibrated to the lecture"
+        },
+        {
+          "path": "entities.sshd.parameters.login",
+          "status": "illustrative",
+          "expression": "Exponential(1)",
+          "note": "Exercise assumption; not calibrated to the lecture"
+        },
+        {
+          "path": "flows.ssh.parameters.connect",
+          "status": "illustrative",
+          "expression": "Exponential(2)",
+          "note": "Exercise assumption; not calibrated to the lecture"
+        }
+      ],
+      "witness": {
+        "sample": 0,
+        "target_time": 9.869109204942117,
+        "nodes": [
+          {
+            "id": "input/flow-permission/filter/ssh",
+            "time": 0.0
+          },
+          {
+            "id": "input/foothold/workstation/admin",
+            "time": 0.0
+          },
+          {
+            "id": "state/application/ssh-client/control",
+            "time": 0.0
+          },
+          {
+            "id": "state/host/workstation/admin",
+            "time": 0.0
+          },
+          {
+            "id": "state/host/workstation/user",
+            "time": 0.0
+          },
+          {
+            "id": "state/permission/filter/ssh",
+            "time": 0.0
+          },
+          {
+            "id": "action/flow-connect/ssh",
+            "time": 0.20426056628550843
+          },
+          {
+            "id": "state/flow/ssh/connected",
+            "time": 0.20426056628550843
+          },
+          {
+            "id": "state/service/sshd/reachable",
+            "time": 0.20426056628550843
+          },
+          {
+            "id": "action/credential-extract/workstation/server-key",
+            "time": 9.379000546000169
+          },
+          {
+            "id": "state/account/server-account/material",
+            "time": 9.379000546000169
+          },
+          {
+            "id": "state/credential/server-key/possessed",
+            "time": 9.379000546000169
+          },
+          {
+            "id": "action/service-login/server-account/sshd",
+            "time": 9.869109204942117
+          },
+          {
+            "id": "state/host/server/admin",
+            "time": 9.869109204942117
+          },
+          {
+            "id": "state/session/server-account/sshd",
+            "time": 9.869109204942117
+          }
+        ],
+        "edges": [
+          {
+            "prerequisite": "action/credential-extract/workstation/server-key",
+            "dependent": "state/credential/server-key/possessed"
+          },
+          {
+            "prerequisite": "action/flow-connect/ssh",
+            "dependent": "state/flow/ssh/connected"
+          },
+          {
+            "prerequisite": "action/service-login/server-account/sshd",
+            "dependent": "state/session/server-account/sshd"
+          },
+          {
+            "prerequisite": "input/flow-permission/filter/ssh",
+            "dependent": "state/permission/filter/ssh"
+          },
+          {
+            "prerequisite": "input/foothold/workstation/admin",
+            "dependent": "state/host/workstation/admin"
+          },
+          {
+            "prerequisite": "state/account/server-account/material",
+            "dependent": "action/service-login/server-account/sshd"
+          },
+          {
+            "prerequisite": "state/application/ssh-client/control",
+            "dependent": "action/flow-connect/ssh"
+          },
+          {
+            "prerequisite": "state/credential/server-key/possessed",
+            "dependent": "state/account/server-account/material"
+          },
+          {
+            "prerequisite": "state/flow/ssh/connected",
+            "dependent": "state/service/sshd/reachable"
+          },
+          {
+            "prerequisite": "state/host/workstation/admin",
+            "dependent": "state/host/workstation/user"
+          },
+          {
+            "prerequisite": "state/host/workstation/user",
+            "dependent": "action/credential-extract/workstation/server-key"
+          },
+          {
+            "prerequisite": "state/host/workstation/user",
+            "dependent": "state/application/ssh-client/control"
+          },
+          {
+            "prerequisite": "state/permission/filter/ssh",
+            "dependent": "action/flow-connect/ssh"
+          },
+          {
+            "prerequisite": "state/service/sshd/reachable",
+            "dependent": "action/service-login/server-account/sshd"
+          },
+          {
+            "prerequisite": "state/session/server-account/sshd",
+            "dependent": "state/host/server/admin"
+          }
+        ]
+      }
+    },
+    "delta": {
+      "available": {
+        "mean": 0.0,
+        "ci": {
+          "lo": 0.0,
+          "hi": 0.0
+        },
+        "ci_reason": null
+      }
+    }
+  },
+  "deny": {
+    "effractor-graph-results": 1,
+    "semantics": "sequential-1",
+    "library": {
+      "id": "core-components",
+      "version": 1
+    },
+    "target": "state/host/server/admin",
+    "time_unit": "d",
+    "horizon": 100.0,
+    "seed": "42",
+    "samples": 8192,
+    "confidence": 0.95,
+    "baseline": {
+      "id": null,
+      "outcome": {
+        "available": {
+          "method": "sampled",
+          "samples": 8192,
+          "confidence": 0.95,
+          "p_target": 1.0,
+          "ci": {
+            "lo": 0.9995312917117791,
+            "hi": 1.0
+          },
+          "ttc_cdf": [
+            [
+              0.0,
+              0.0,
+              2.710505431213761e-20,
+              0.00046870828822094795
+            ],
+            [
+              1.5625,
+              0.13525390625,
+              0.1280188220791232,
+              0.14283090945535046
+            ],
+            [
+              3.125,
+              0.40478515625,
+              0.39420294006904355,
+              0.41545662840381103
+            ],
+            [
+              4.6875,
+              0.6209716796875,
+              0.6104115921444406,
+              0.6314183663727402
+            ],
+            [
+              6.25,
+              0.7525634765625,
+              0.7431020269468074,
+              0.7617881689886592
+            ],
+            [
+              7.8125,
+              0.8399658203125,
+              0.8318672892870009,
+              0.8477456617426145
+            ],
+            [
+              9.375,
+              0.8951416015625,
+              0.8883209812538607,
+              0.9015918095837928
+            ],
+            [
+              10.9375,
+              0.9366455078125,
+              0.9311630303707857,
+              0.9417186665171619
+            ],
+            [
+              12.5,
+              0.961669921875,
+              0.9572913433707549,
+              0.9656157233416348
+            ],
+            [
+              14.0625,
+              0.9774169921875,
+              0.9739689589324677,
+              0.9804174868401806
+            ],
+            [
+              15.625,
+              0.98681640625,
+              0.984108340523589,
+              0.9890681222075083
+            ],
+            [
+              17.1875,
+              0.9925537109375,
+              0.9904473611223314,
+              0.9941983327392478
+            ],
+            [
+              18.75,
+              0.9957275390625,
+              0.9940641146570153,
+              0.9969262602554687
+            ],
+            [
+              20.3125,
+              0.9974365234375,
+              0.9960840840873944,
+              0.9983226575448076
+            ],
+            [
+              21.875,
+              0.998046875,
+              0.9968294893920998,
+              0.9987973832114302
+            ],
+            [
+              23.4375,
+              0.998779296875,
+              0.9977542442220053,
+              0.999336785547118
+            ],
+            [
+              25.0,
+              0.9990234375,
+              0.9980740108708718,
+              0.9995050712867827
+            ],
+            [
+              26.5625,
+              0.999267578125,
+              0.9984028519273321,
+              0.9996642826188534
+            ],
+            [
+              28.125,
+              0.99951171875,
+              0.9987450858448159,
+              0.9998101010899008
+            ],
+            [
+              29.6875,
+              0.999755859375,
+              0.9991101940419058,
+              0.999933045281342
+            ],
+            [
+              31.25,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              32.8125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              34.375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              35.9375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              37.5,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              39.0625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              40.625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              42.1875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              43.75,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              45.3125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              46.875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              48.4375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              50.0,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              51.5625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              53.125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              54.6875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              56.25,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              57.8125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              59.375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              60.9375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              62.5,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              64.0625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              65.625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              67.1875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              68.75,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              70.3125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              71.875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              73.4375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              75.0,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              76.5625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              78.125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              79.6875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              81.25,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              82.8125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              84.375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              85.9375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              87.5,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              89.0625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              90.625,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              92.1875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              93.75,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              95.3125,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              96.875,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              98.4375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              100.0,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ]
+          ]
+        }
+      },
+      "nodes": [
+        {
+          "id": "action/administration-login/admin-net/admin-account/bridge",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/credential-extract/workstation/admin-key",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/credential-extract/workstation/server-key",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/flow-connect/ssh",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/service-deploy-exploit/sshd",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 0.9998779296875,
+              "ci": {
+                "lo": 0.9993088142501059,
+                "hi": 0.9999784512674077
+              }
+            }
+          }
+        },
+        {
+          "id": "action/service-find-exploit/sshd",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/service-login/server-account/sshd",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/flow-permission/filter/ssh",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/foothold/workstation/admin",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/material",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/material",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/application/ssh-client/control",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/credential/admin-key/possessed",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/credential/server-key/possessed",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/flow/ssh/connected",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/server/admin",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/server/user",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/workstation/admin",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/workstation/user",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/network/admin-net/access",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/network/client-net/access",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/network/server-net/access",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/permission/filter/ssh",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/router/bridge/admin",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/service/sshd/control",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/service/sshd/exploit-ready",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/service/sshd/reachable",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/session/server-account/sshd",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        }
+      ],
+      "assumptions": [
+        {
+          "path": "associations.allow-ssh.allowed",
+          "status": "policy",
+          "expression": "allowed",
+          "note": null
+        },
+        {
+          "path": "entities.server-key.parameters.extract",
+          "status": "illustrative",
+          "expression": "Exponential(0.2)",
+          "note": "Exercise assumption; not calibrated to the lecture"
+        },
+        {
+          "path": "entities.sshd.parameters.deploy-exploit",
+          "status": "illustrative",
+          "expression": "Exponential(0.5)",
+          "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
+        },
+        {
+          "path": "entities.sshd.parameters.find-exploit",
+          "status": "illustrative",
+          "expression": "Exponential(0.1)",
+          "note": "Exercise assumption; not calibrated to the lecture"
+        },
+        {
+          "path": "entities.sshd.parameters.login",
+          "status": "illustrative",
+          "expression": "Exponential(1)",
+          "note": "Exercise assumption; not calibrated to the lecture"
+        },
+        {
+          "path": "flows.ssh.parameters.connect",
+          "status": "illustrative",
+          "expression": "Exponential(2)",
+          "note": "Exercise assumption; not calibrated to the lecture"
+        }
+      ],
+      "witness": {
+        "sample": 0,
+        "target_time": 6.910393058726657,
+        "nodes": [
+          {
+            "id": "input/flow-permission/filter/ssh",
+            "time": 0.0
+          },
+          {
+            "id": "input/foothold/workstation/admin",
+            "time": 0.0
+          },
+          {
+            "id": "state/application/ssh-client/control",
+            "time": 0.0
+          },
+          {
+            "id": "state/host/workstation/admin",
+            "time": 0.0
+          },
+          {
+            "id": "state/host/workstation/user",
+            "time": 0.0
+          },
+          {
+            "id": "state/permission/filter/ssh",
+            "time": 0.0
+          },
+          {
+            "id": "action/flow-connect/ssh",
+            "time": 0.20426056628550843
+          },
+          {
+            "id": "state/flow/ssh/connected",
+            "time": 0.20426056628550843
+          },
+          {
+            "id": "state/service/sshd/reachable",
+            "time": 0.20426056628550843
+          },
+          {
+            "id": "action/service-find-exploit/sshd",
+            "time": 5.0771776876610115
+          },
+          {
+            "id": "state/service/sshd/exploit-ready",
+            "time": 5.0771776876610115
+          },
+          {
+            "id": "action/service-deploy-exploit/sshd",
+            "time": 6.910393058726657
+          },
+          {
+            "id": "state/host/server/admin",
+            "time": 6.910393058726657
+          },
+          {
+            "id": "state/service/sshd/control",
+            "time": 6.910393058726657
+          }
+        ],
+        "edges": [
+          {
+            "prerequisite": "action/flow-connect/ssh",
+            "dependent": "state/flow/ssh/connected"
+          },
+          {
+            "prerequisite": "action/service-deploy-exploit/sshd",
+            "dependent": "state/service/sshd/control"
+          },
+          {
+            "prerequisite": "action/service-find-exploit/sshd",
+            "dependent": "state/service/sshd/exploit-ready"
+          },
+          {
+            "prerequisite": "input/flow-permission/filter/ssh",
+            "dependent": "state/permission/filter/ssh"
+          },
+          {
+            "prerequisite": "input/foothold/workstation/admin",
+            "dependent": "state/host/workstation/admin"
+          },
+          {
+            "prerequisite": "state/application/ssh-client/control",
+            "dependent": "action/flow-connect/ssh"
+          },
+          {
+            "prerequisite": "state/flow/ssh/connected",
+            "dependent": "state/service/sshd/reachable"
+          },
+          {
+            "prerequisite": "state/host/workstation/admin",
+            "dependent": "state/host/workstation/user"
+          },
+          {
+            "prerequisite": "state/host/workstation/user",
+            "dependent": "state/application/ssh-client/control"
+          },
+          {
+            "prerequisite": "state/permission/filter/ssh",
+            "dependent": "action/flow-connect/ssh"
+          },
+          {
+            "prerequisite": "state/service/sshd/control",
+            "dependent": "state/host/server/admin"
+          },
+          {
+            "prerequisite": "state/service/sshd/exploit-ready",
+            "dependent": "action/service-deploy-exploit/sshd"
+          },
+          {
+            "prerequisite": "state/service/sshd/reachable",
+            "dependent": "action/service-find-exploit/sshd"
+          }
+        ]
+      }
+    },
+    "scenario": {
+      "id": "deny",
+      "outcome": {
+        "available": {
+          "method": "structural",
+          "samples": 0,
+          "confidence": 0.95,
+          "p_target": 0.0,
+          "ci": {
+            "lo": 0.0,
+            "hi": 0.0
+          },
+          "ttc_cdf": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              1.5625,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              3.125,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              4.6875,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              6.25,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              7.8125,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              9.375,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              10.9375,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              12.5,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              14.0625,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              15.625,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              17.1875,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              18.75,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              20.3125,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              21.875,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              23.4375,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              25.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              26.5625,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              28.125,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              29.6875,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              31.25,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              32.8125,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              34.375,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              35.9375,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              37.5,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              39.0625,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              40.625,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              42.1875,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              43.75,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              45.3125,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              46.875,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              48.4375,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              50.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              51.5625,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              53.125,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              54.6875,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              56.25,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              57.8125,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              59.375,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              60.9375,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              62.5,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              64.0625,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              65.625,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              67.1875,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              68.75,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              70.3125,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              71.875,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              73.4375,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              75.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              76.5625,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              78.125,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              79.6875,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              81.25,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              82.8125,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              84.375,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              85.9375,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              87.5,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              89.0625,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              90.625,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              92.1875,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              93.75,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              95.3125,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              96.875,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              98.4375,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              100.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ]
+        }
+      },
+      "nodes": [
+        {
+          "id": "action/administration-login/admin-net/admin-account/bridge",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/credential-extract/workstation/admin-key",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/credential-extract/workstation/server-key",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/flow-connect/ssh",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/service-deploy-exploit/sshd",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/service-find-exploit/sshd",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/service-login/server-account/sshd",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/flow-permission/filter/ssh",
+          "status": "blocked",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/foothold/workstation/admin",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/material",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/material",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/application/ssh-client/control",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/credential/admin-key/possessed",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/credential/server-key/possessed",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/flow/ssh/connected",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/server/admin",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/server/user",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/workstation/admin",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/host/workstation/user",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/network/admin-net/access",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/network/client-net/access",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/network/server-net/access",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/permission/filter/ssh",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/router/bridge/admin",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/service/sshd/control",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/service/sshd/exploit-ready",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/service/sshd/reachable",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/session/server-account/sshd",
+          "status": "unreachable",
+          "outcome": {
+            "available": {
+              "p": 0.0,
+              "ci": {
+                "lo": 0.0,
+                "hi": 0.0
+              }
+            }
+          }
+        }
+      ],
+      "assumptions": [],
+      "witness": null
+    },
+    "delta": {
+      "available": {
+        "mean": 1.0,
+        "ci": {
+          "lo": 1.0,
+          "hi": 1.0
+        },
+        "ci_reason": null
+      }
+    }
+  }
+}
