@@ -224,3 +224,27 @@ test('ELK lays out the attack graph, cycles included, with every line from a pre
     });
   }
 });
+
+test('a focus larger than the canvas is cut to the limit, and a focus that is gone falls back to the target', () => {
+  // One component bound by 600 steps.
+  const wide = chain(2);
+  for (let k = 0; k < 600; k++) {
+    wide.graph.nodes.push({ id: 'input/w' + k, label: 'W ' + k, kind: 'input', inputs: [], origins: [{ rule: 'r', version: 1, entities: ['hub'], associations: [], flows: [], paths: [], assumptions: [] }], timing: { status: 'foothold', expression: null, note: null, paths: [], missing: [] } });
+  }
+  const cut = V.describe(wide.graph, { nodes: [] }, { id: 'entity/hub' });
+  assert.equal(cut.shown, 500);
+  assert.equal(cut.graph.nodes.length, 500);
+  const gone = V.describe(chain(501).graph, { nodes: [] }, { id: 'step/state/x/nowhere/s' });
+  assert.equal(gone.shown, 500);
+  assert.ok(gone.graph.nodes.some(n => n.id === 'step/state/x/n500/s'), 'round the target');
+});
+
+test('a key belongs to the control it is typed in: letters to fields, Enter and space to buttons too', () => {
+  assert.equal(V.ownsKey('INPUT', 'g'), true);
+  assert.equal(V.ownsKey('TEXTAREA', 'g'), true);
+  assert.equal(V.ownsKey('BUTTON', 'g'), false);
+  assert.equal(V.ownsKey('BUTTON', 'Enter'), true);
+  assert.equal(V.ownsKey('BUTTON', ' '), true);
+  assert.equal(V.ownsKey('BUTTON', 'Tab'), true, 'keyboard focus moves on');
+  assert.equal(V.ownsKey('svg', 'g'), false);
+});

@@ -33,7 +33,9 @@
     var graph = cdf && graphs.isGraphResults(result);
     if (cdf) document.getElementById('ttc-title').textContent = graph || (app.state.doc && app.state.doc.profile === 'architecture') ? graphs.TITLE : 'Time to top event';
     var model = graph ? graphs.cdf(result.baseline.outcome) : cdf ? data.cdf(result) : data.loss(result);
-    var rows = graph ? model.rows.map(function (r) { return [r[0], null, r[1], r[2], r[3]]; }) : model.rows;
+    // Known by structure it is a solid line with no band; sampled, dashed in its band.
+    var structural = graph && model.method === 'structural';
+    var rows = graph ? model.rows.map(function (r) { return structural ? [r[0], r[1], null, null, null] : [r[0], null, r[1], r[2], r[3]]; }) : model.rows;
     if (!rows.length) {
       root.appendChild(el('p', graph ? 'Not available · ' + model.reason : model.reason, 'empty'));
       (model.missing || []).forEach(function (path) { root.appendChild(el('p', path, 'hint mono')); });
@@ -62,7 +64,7 @@
         plot.appendChild(svg('path', { d: data.line(rows.map(function (r) { return [r[0], r[column]]; }), max), class: column === 1 ? 'chart-line' : 'chart-line chart-sampled' }));
       });
       var pointwise = model.confidence === null ? '' : ' · ' + number(model.confidence * 100) + '% pointwise band';
-      root.appendChild(el('p', (graph ? '┄ ' + graphs.TITLE : '— Exact · ┄ Sampled') + pointwise, 'hint chart-key'));
+      root.appendChild(el('p', graph ? graphs.cdfKey(model) : '— Exact · ┄ Sampled' + pointwise, 'hint chart-key'));
     } else {
       plot.appendChild(svg('path', { d: data.line(rows, max), class: 'chart-line' }));
       // A degenerate all-zero loss curve has one point, not a visible segment.
@@ -81,7 +83,7 @@
       vertical.setAttribute('x1', data.x(row[0], max)); vertical.setAttribute('x2', data.x(row[0], max));
       horizontal.setAttribute('y1', data.y(value)); horizontal.setAttribute('y2', data.y(value));
       var interval = row[3] === null ? '' : ' [' + number(row[3]) + ', ' + number(row[4]) + ']';
-      tooltip.textContent = number(row[0]) + ' ' + unit + (graph ? ' · P ' + number(row[2]) + interval : cdf ? ' · exact ' + number(row[1]) + ' · sampled ' + number(row[2]) + interval : ' · P ≥ ' + number(row[1]));
+      tooltip.textContent = number(row[0]) + ' ' + unit + (graph ? ' · P ' + number(row[2] === null ? row[1] : row[2]) + interval : cdf ? ' · exact ' + number(row[1]) + ' · sampled ' + number(row[2]) + interval : ' · P ≥ ' + number(row[1]));
     }
     plot.addEventListener('pointermove', function (e) {
       var point = plot.createSVGPoint(); point.x = e.clientX; point.y = e.clientY;

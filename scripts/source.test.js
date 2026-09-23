@@ -76,4 +76,11 @@ test("a path into a list finds the item's line: a scenario's change, a foothold"
   assert.equal(pathLine(text, "scenarios.patch.changes[1].value"), 16, "a key inside a block item");
   assert.equal(pathLine(text, "scenarios.patch.changes[5]"), 12, "no such item: the list's line");
   assert.equal(pathLine(text, "flows.ssh.route[1]"), 8, "a flow sequence: its line");
+  // Dashes at the key's own indentation are a list under it too.
+  const flush = ["attacker:", "  footholds:", "  - {entity: ws, state: admin}", "  - {entity: laptop, state: user}", "  target: {entity: server, state: admin}"].join("\n");
+  assert.equal(pathLine(flush, "attacker.footholds[1]"), 4);
+  assert.equal(pathLine(flush, "attacker.target"), 5);
+  const top = ["footholds:", "- a", "- b", "other: 1"].join("\n");
+  assert.equal(pathLine(top, "footholds[1]"), 3);
+  assert.equal(pathLine(top, "other"), 4);
 });

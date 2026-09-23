@@ -201,7 +201,8 @@
     });
     var queue = [];
     seeds.forEach(function (id) {
-      if (id in at && !keep[at[id]]) {
+      // More seeds than the canvas holds: the first `limit` of them.
+      if (id in at && !keep[at[id]] && queue.length < limit) {
         keep[at[id]] = true;
         queue.push(at[id]);
       }
@@ -228,7 +229,11 @@
     var nodes = (graph && graph.nodes) || [];
     var limit = focus && focus.limit ? focus.limit : LIMIT;
     var id = focus && focus.id;
-    var seeds = !id ? [graph.target] : id.indexOf("step/") === 0 ? [id.slice(5)] : stepsFor(graph, id);
+    var at0 = indexOf(graph);
+    var seeds = (!id ? [] : id.indexOf("step/") === 0 ? [id.slice(5)] : stepsFor(graph, id)).filter(function (s) {
+      return s in at0;
+    });
+    // A focus that names nothing here: round the target.
     if (!seeds.length) seeds = [graph.target];
     var keep = windowOf({ nodes: nodes }, seeds, limit);
     var at = indexOf(graph);
@@ -286,8 +291,16 @@
     return LOOKS.indexOf(action) >= 0 ? null : "generated steps are read-only · edit the architecture";
   }
 
+  // Does a control with this tag take `key` for itself? A field takes
+  // every key; a button those that press it, and Tab, which moves on.
+  function ownsKey(tag, key) {
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) return true;
+    return tag === "BUTTON" && (key === "Enter" || key === " " || key === "Tab");
+  }
+
   var api = {
     LIMIT: LIMIT,
+    ownsKey: ownsKey,
     refuse: refuse,
     stepsFor: stepsFor,
     stepsForEntity: stepsForEntity,

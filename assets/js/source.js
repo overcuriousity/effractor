@@ -50,8 +50,11 @@
       if (hit < 0) return found;
       found = hit + 1;
       from = hit + 1;
+      // A list may sit at its key's own indentation: its dashes belong to it.
       for (end = from; end < lines.length; end++) {
-        if (!blank(lines[end]) && indentOf(lines[end]) <= level) break;
+        if (blank(lines[end])) continue;
+        var indent = indentOf(lines[end]);
+        if (indent < level || (indent === level && !/^\s*-(\s|$)/.test(lines[end]))) break;
       }
       var indices = parts[2] ? parts[2].slice(1, -1).split("][").map(Number) : [];
       for (var x = 0; x < indices.length; x++) {

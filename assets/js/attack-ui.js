@@ -348,7 +348,7 @@
   // ---- the attack view's keys ----
 
   function typingElsewhere(e) {
-    return !!e.target.closest(".analysis-chart, .chart-table, summary, .menu, .attack-results") || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName) || !!document.querySelector("dialog[open]");
+    return !!e.target.closest(".analysis-chart, .chart-table, summary, .menu, .attack-results") || V.ownsKey(e.target.tagName, e.key) || !!document.querySelector("dialog[open]");
   }
 
   // What would edit the architecture from the attack view, by key.

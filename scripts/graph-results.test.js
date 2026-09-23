@@ -131,3 +131,9 @@ test('a generated graph has no exact, cut-set, Pareto, loss or control analysis'
   assert.equal(R.isGraphResults(available), true);
   assert.equal(R.isGraphResults({ exact: {}, sampled: {} }), false);
 });
+
+test('the chart key names a band only where there was sampling', () => {
+  assert.equal(R.cdfKey(R.cdf(available.baseline.outcome)), '┄ Target compromise probability · 95% pointwise band');
+  assert.equal(R.cdfKey(R.cdf(unreachable.baseline.outcome)), '— Target compromise probability · by structure, not sampled');
+  assert.equal(R.cdfKey(R.cdf(seeded.baseline.outcome)), '— Target compromise probability · by structure, not sampled');
+});

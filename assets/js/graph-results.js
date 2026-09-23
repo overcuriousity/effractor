@@ -27,6 +27,13 @@
     return { rows: [], reason: u.reason, missing: u.missing || [], confidence: null, method: null };
   }
 
+  // What the chart's key says of its one curve: sampled, with its band, or
+  // known by structure, with none.
+  function cdfKey(model) {
+    if (model.method === "structural") return "— " + TITLE + " · by structure, not sampled";
+    return "┄ " + TITLE + (model.confidence === null ? "" : " · " + Math.round(model.confidence * 100) + "% pointwise band");
+  }
+
   function report(results, side) {
     return results ? (side === "scenario" ? results.scenario : results.baseline) : null;
   }
@@ -140,6 +147,7 @@
     band: band,
     isGraphResults: isGraphResults,
     cdf: cdf,
+    cdfKey: cdfKey,
     headline: headline,
     illustrative: illustrative,
     reachedBy: reachedBy,

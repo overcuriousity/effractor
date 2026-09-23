@@ -339,6 +339,25 @@ test('a step shows its state once, in the inspector, not again among the facts',
   assert.deepEqual(terms, ['P(step)', '95% CI']);
 });
 
+test('a regeneration overtaken by a newer edit leaves the selection to that edit', async () => {
+  const h = racePage('arch');
+  await h.app.ready;
+  assert.equal(await h.app.setMode('attack'), true);
+  h.app.select('step/state/service/web/control');
+  h.holdGenerate(true);
+  const first = h.app.applyEdit({ doc: h.docOf('arch-a'), select: h.app.state.selected });
+  await h.settle(); await h.settle();
+  const second = h.app.applyEdit({ doc: h.docOf('arch-b'), select: h.app.state.selected });
+  await h.settle(); await h.settle();
+  await h.release('generate arch-a');
+  await first;
+  assert.equal(h.app.state.selected, 'step/state/service/web/control', 'not downgraded to its component on the way');
+  await h.release('generate arch-b');
+  await second;
+  assert.equal(h.app.state.selected, 'step/state/service/web/control');
+  assert.equal(h.app.state.text, 'arch-b');
+});
+
 test('a kept architecture opens as it was left', async () => {
   const h = racePage('arch-kept');
   await h.app.ready;

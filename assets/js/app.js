@@ -468,9 +468,10 @@
   // it leaves the drawing to that one; overtaken by typing in the source,
   // which brings no text of its own, the canvas shows the architecture until
   // the source is valid again.
+  var OVERTAKEN = {};
   function followGraph(fit) {
     return generate().then(function (answer) {
-      if (answer.stale && state.sourceValid) return;
+      if (answer.stale && state.sourceValid) return OVERTAKEN;
       if (!answer.ok && !answer.stale) state.mode = "architecture";
       showView();
       return draw(fit);
@@ -609,7 +610,10 @@
         mark("updating");
       }
       store.save(text);
-      return loaded(text, parsed.ok, !!fit).then(function () {
+      return loaded(text, parsed.ok, !!fit).then(function (outcome) {
+        // A newer text overtook this one's attack graph: the selection, and
+        // what is solved, are that text's to settle.
+        if (outcome === OVERTAKEN) return true;
         select(carried(selectId), parent);
         autosolve.changed();
         return true;
