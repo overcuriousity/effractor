@@ -25,8 +25,8 @@ The owner reviewed the lecture implementation plan on 2026-09-22 and chose
 native, in-session execution: one feature branch per task, no worktree, a
 pause at each task boundary. "securiCAD parity" in the owner's words means
 the lecture-workflow milestone, not the later `mal-securicad-compatibility`
-import item. Task 1 (`architecture-document`) is on branch
-`feature/architecture-document`.
+import item. Task 1 (`architecture-document`) is merged (19e7791, with the
+review fixes d2566e9 and cd12e4c).
 
 What Task 1 adds, all test-first: `effractor_core::architecture` (the typed
 `Architecture`, `Document::{Tree, Architecture}`, the closed vocabulary with
@@ -146,9 +146,8 @@ reference pages were rendered and inspected, with detailed renders of figures
 `successor-design` is complete: the written spec is approved and `ROADMAP.md`
 contains the branch-sized implementation decomposition. The detailed
 [implementation plan](superpowers/plans/2026-09-21-lecture-workflow.md) is written
-and awaiting the second review and execution-method selection. Native execution
-is recommended because the eight branches share interfaces and have sequential
-owner UI checkpoints. No product code has changed; `lecture-workflow` remains
+and was reviewed on 2026-09-22; the owner chose native execution (see the
+architecture-documents continuation above). No product code has changed; `lecture-workflow` remains
 pending. The starting checkout was clean `master` at `c58d0cf`; the written-spec
 review commit is signed `c2e748b`.
 

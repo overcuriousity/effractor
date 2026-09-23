@@ -7,8 +7,14 @@ successor design is linked below. How work lands is in `CONTRIBUTING.md`.
 Approved successor spec:
 [`2026-09-21-lecture-workflow-design.md`](docs/superpowers/specs/2026-09-21-lecture-workflow-design.md).
 The [implementation plan](docs/superpowers/plans/2026-09-21-lecture-workflow.md)
-is awaiting owner review and execution-method selection. The items below are
-its delivery decomposition; implementation starts after that checkpoint.
+was reviewed by the owner on 2026-09-22, who chose native in-session execution:
+one feature branch per task, a pause for the owner at each task boundary. The
+items below are its delivery decomposition. Plan tasks 1
+(`architecture-document`) and 4 (`architecture-editor`) are done; the rest map
+as component-generation = 2, sequential-simulation = 3, architecture-links = 5,
+attack-graph-inspection = 6, defense-comparison = 7, lecture-workflow = 8.
+"securiCAD parity" in the owner's words means `lecture-workflow`, not the later
+`mal-securicad-compatibility`.
 
 **Rules.** `needs` = item ids that must be gone first. `cost` / `benefit` are
 1–5. An item is *ready* when everything it needs has been deleted; pick the
@@ -84,7 +90,9 @@ random draws and paired intervals; expose stepped/cancellable wasm solves and
 profile-specific result capabilities. Done when timing/cycle/shared-action
 oracles, analytic chain CDF, unknowns, no-op/combined scenarios and limits pass;
 new frozen fingerprints pass native and wasmtime; browser wasm agrees with
-native generation/results; and existing tree fingerprints remain unchanged.
+native generation/results; and existing tree fingerprints remain unchanged. Precondition: `wasmtime` is not
+on PATH on the owner's machine (checked 2026-09-23); install it before this item
+so the wasip1 fingerprints can be run locally, not only in CI.
 
 ### architecture-links — Relationships, flows and attacker configuration
 needs: —            cost: 3   benefit: 5
@@ -94,6 +102,8 @@ atomic reference-safe deletion undoable and do not infer permissive defaults.
 Done when editing tests cover endpoint/cardinality errors, incomplete models,
 multi-network routes and reference cleanup, and the owner can build the
 lecture architecture and configure the compromised workstation/server target.
+Replaces the architecture editor's interim refusal to delete a component that
+is still referenced.
 
 ### attack-graph-inspection — Linked architecture, routes and simulation views
 needs: architecture-links, sequential-simulation            cost: 3   benefit: 5
