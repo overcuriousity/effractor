@@ -27,7 +27,23 @@
     return { k: view.k, x: view.x + dx, y: view.y + dy };
   }
 
-  var api = { fit: fit, zoomAt: zoomAt, pan: pan, LIMITS: LIMITS };
+  // Where a menu of `size` opens beside `anchor` ({left, right, top}; a point
+  // has left = right): 2px right of it if it fits, else 2px left of it, else
+  // on the side with more room, against the window's edge; lifted if it
+  // would run off the bottom.
+  function menuAt(anchor, size, viewport) {
+    var right = anchor.right + 2;
+    var left = anchor.left - 2 - size.width;
+    var x;
+    if (right + size.width <= viewport.width) x = right;
+    else if (left >= 0) x = left;
+    else x = viewport.width - anchor.right >= anchor.left ? right : left;
+    x = Math.max(0, Math.min(x, viewport.width - size.width));
+    var y = Math.max(0, Math.min(anchor.top, viewport.height - size.height));
+    return { x: x, y: y };
+  }
+
+  var api = { fit: fit, zoomAt: zoomAt, pan: pan, menuAt: menuAt, LIMITS: LIMITS };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorView = api;
 })();

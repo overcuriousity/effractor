@@ -37,3 +37,23 @@ test("zoom stops at its limits and stays put there", () => {
 test("panning moves by screen pixels whatever the zoom", () => {
   assert.deepEqual(pan({ k: 3, x: 10, y: 20 }, 5, -5), { k: 3, x: 15, y: 15 });
 });
+
+const { menuAt } = require("../assets/js/view.js");
+
+test("a menu opens against what opened it, at its real size", () => {
+  const viewport = { width: 1000, height: 800 };
+  const anchor = { left: 300, right: 400, top: 100 };
+  // Room on the right: flush beside the anchor.
+  assert.deepEqual(menuAt(anchor, { width: 200, height: 100 }, viewport), { x: 402, y: 100 });
+  // No room on the right: flush on its left, whatever the menu's width.
+  const right = { left: 850, right: 950, top: 100 };
+  assert.deepEqual(menuAt(right, { width: 120, height: 100 }, viewport), { x: 728, y: 100 });
+  assert.deepEqual(menuAt(right, { width: 300, height: 100 }, viewport), { x: 548, y: 100 });
+  // Room on neither side: the side with more room, against the window's edge.
+  assert.deepEqual(menuAt({ left: 150, right: 900, top: 0 }, { width: 300, height: 100 }, viewport), { x: 0, y: 0 });
+  assert.deepEqual(menuAt({ left: 100, right: 850, top: 0 }, { width: 300, height: 100 }, viewport), { x: 700, y: 0 });
+  // Too low: lifted just enough to fit.
+  assert.deepEqual(menuAt({ left: 0, right: 10, top: 750 }, { width: 100, height: 200 }, viewport), { x: 12, y: 600 });
+  // A point is an anchor of no width.
+  assert.deepEqual(menuAt({ left: 500, right: 500, top: 10 }, { width: 100, height: 50 }, viewport), { x: 502, y: 10 });
+});

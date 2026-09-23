@@ -61,9 +61,17 @@
   }
 
   // Where a menu opens: beside a control, or in the canvas.
-  function at(anchor) {
-    var box = (anchor || document.getElementById("canvas")).getBoundingClientRect();
-    return anchor ? { x: box.right + 4, y: box.top } : { x: box.left + box.width / 2, y: box.top + box.height / 3 };
+  // Where a menu opens: beside the button that opened it, else beside the
+  // component on the canvas, else in the canvas.
+  function at(anchor, id) {
+    var node = !anchor && id ? document.querySelector('#canvas g[data-id="' + CSS.escape("entity/" + id) + '"]') : null;
+    var target = anchor || node;
+    if (target) {
+      var b = target.getBoundingClientRect();
+      return { x: b.right + 2, y: b.top, box: { left: b.left, right: b.right, top: b.top } };
+    }
+    var box = document.getElementById("canvas").getBoundingClientRect();
+    return { x: box.left + box.width / 2, y: box.top + box.height / 3 };
   }
 
   // ---- Link: the way, in words, then the component it goes to ----
@@ -76,7 +84,7 @@
   // existing components that fit; the new link keeps the selection here.
   function startLink(id, anchor) {
     withCatalog(function (c) {
-      var where = at(anchor);
+      var where = at(anchor, id);
       var items = [];
       L.linkChoices(doc(), c, id).forEach(function (choice) {
         var ends = function (other) {
@@ -108,7 +116,7 @@
       L.notes(doc(), id).forEach(function (n) {
         items.push([n.kind.charAt(0).toUpperCase() + n.kind.slice(1), "", null, { hint: n.hint }]);
       });
-      app.showMenu(items, where.x, where.y);
+      app.showMenu(items, where.x, where.y, where.box);
     });
   }
 
@@ -154,7 +162,7 @@
     if (!services.length) return app.say(L.emptyFlow(doc(), source));
     app.showMenu(services.map(function (target) {
       return [name(target), "", function () { flow(source, target); }, { hint: "service" }];
-    }), where.x, where.y);
+    }), where.x, where.y, where.box);
   }
 
   // ---- in a component's form: links, flows, foothold, target ----
@@ -381,7 +389,7 @@
         return [name(hop), kindOf(hop), function () {
           putFlow(id, { route: (doc().flows[id].route || []).concat([hop]) });
         }];
-      }), where.x, where.y);
+      }), where.x, where.y, where.box);
     }, "btn btn-ghost btn-small link-add");
     route.appendChild(add);
     if ((f.route || []).length) {

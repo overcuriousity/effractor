@@ -306,14 +306,25 @@
   // tree, where `parent` is the edge the row stands for.
   function showMenuAtSelection(items) {
     var at = document.querySelector("#canvas .node.hl-selected");
-    var box = (at || $("canvas")).getBoundingClientRect();
+    if (at) return showMenu(items, 0, 0, at.getBoundingClientRect());
+    var box = $("canvas").getBoundingClientRect();
     showMenu(items, box.left + box.width / 2, box.top + box.height / 2);
   }
 
-  function place(menu, x, y) {
-    menu.style.setProperty("--menu-x", Math.max(0, Math.min(x, window.innerWidth - 260)) + "px");
-    menu.style.setProperty("--menu-y", Math.max(0, Math.min(y, window.innerHeight - 30 * menu.children.length - 12)) + "px");
+  // Beside `anchor` ({left, right, top}), measured at the menu's real size:
+  // shown first, out of sight, so it has one.
+  function place(menu, anchor) {
+    menu.style.visibility = "hidden";
     menu.hidden = false;
+    var box = menu.getBoundingClientRect();
+    var at = window.effractorView.menuAt(
+      anchor,
+      { width: box.width, height: box.height },
+      { width: window.innerWidth, height: window.innerHeight }
+    );
+    menu.style.setProperty("--menu-x", at.x + "px");
+    menu.style.setProperty("--menu-y", at.y + "px");
+    menu.style.visibility = "";
   }
 
   // `items`: [label, key, run], or [label, key, items] for a submenu, which
@@ -362,8 +373,9 @@
           fill(submenu, children, true);
           opener = button;
           button.setAttribute("aria-expanded", "true");
-          var x = box.right + 2 + 260 > window.innerWidth ? box.left - 262 : box.right + 2;
-          place(submenu, x, box.top - 4);
+          // Flush against the list it opens from, on whichever side fits.
+          var edge = menu.getBoundingClientRect();
+          place(submenu, { left: edge.left, right: edge.right, top: box.top - 4 });
           if (focus) {
             var first = submenu.querySelector("button:not(:disabled)");
             if (first) first.focus();
@@ -402,13 +414,15 @@
     if (opener) opener.focus();
   });
 
-  function showMenu(items, x, y) {
+  // At the point (x, y), or beside `anchor` — the box of what opened it —
+  // when there is one.
+  function showMenu(items, x, y, anchor) {
     closeMenu();
     // Nothing to offer is not an empty box: the caller says why instead.
     if (!items.some(function (item) { return item[2] != null; })) return;
     var menu = $("context-menu");
     fill(menu, items, false);
-    place(menu, x, y);
+    place(menu, anchor || { left: x, right: x, top: y });
     menu.querySelector("button:not(:disabled)").focus(); // Tab and Enter work from here; Esc closes
   }
 
