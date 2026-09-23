@@ -74,30 +74,19 @@ the underlying rules and calibrated inputs.
 
 ## Lecture implementation
 
-### library-extension — Virtualisation, shared vulnerabilities, people, MFA, data
+### library-extension — Virtualisation, products, identity, operators, data
 needs: —            cost: 4   benefit: 5
 Extend the component library in place (owner, 2026-09-23: no versioning, no
-legacy to keep), oriented on securiCAD's coreLang and on modern architectures.
-Principle: a defense switch never changes the graph's structure; it switches
-an input or selects a replacement duration, so step ids pair across scenarios.
-Design approved by the owner so far (section 1):
-- `hosts: host → host` for VMs and containers, `privilege` = what the guest
-  runs as on the host; host control at it gives guest admin (logical); an
-  `escape` action (guest slot `escape`, unknown until set) gives the host back;
-  routers on hosts get the same escape. Nested hosting allowed, cycles errors.
-- `product` kind (one software version) with `find-exploit`,
-  `find-exploit-patched` and `patched`; `instance-of: service → product`. Any
-  reachable instance starts one shared discovery; each instance keeps its own
-  deploy. A partly patched fleet is two products. Services only.
-Still to design with the owner before a spec (sections 2–3): people and
-phishing (securiCAD's User: phishing to credentials or code on their
-workstation, with a training defense), multi-factor login (an MFA-satisfied
-fact from a policy input, a second-factor credential or a timed bypass), and
-data as a target (read/modified, held by hosts/software, encryption as an
-input plus key possession). Then a written spec amending
-`2026-09-21-lecture-workflow-design.md` §4–6, a plan, and branch-sized delivery.
-Done when every addition is generated, solved and inspectable, its rules and
-assumptions are in the catalog, and the owner accepts it in the browser.
+legacy to keep), oriented on securiCAD's coreLang and on cloud estates, AI
+agents and data (owner, 2026-09-24). Design:
+[`2026-09-24-library-extension-design.md`](docs/superpowers/specs/2026-09-24-library-extension-design.md)
+— hosts on hosts with escapes, shared product vulnerabilities, MFA, workload
+identity, role assumption, people (phishing) and AI agents (injection), data
+with holding, account access and encryption. Next: an implementation plan and
+the spec's five branch-sized parts. Done when every addition is generated,
+solved and inspectable, its rules and assumptions are in the catalog, the
+`cloud-agent` course example runs natively and in wasm alike, and the owner
+accepts it in the browser.
 
 ### defense-comparison — Inspect defense changes and remaining alternatives
 needs: library-extension            cost: 3   benefit: 5
@@ -106,7 +95,10 @@ deltas and visible changed/remaining/blocked routes. Surface illustrative
 inputs and missing replacement assumptions; clear comparisons on structural
 edits. Done when comparison view/edit tests pass and the owner verifies
 patch-only, credential-only, combined and denied-flow cases, including finite
-replacement TTCs and an explicit administration alternative. The final
+replacement TTCs and an explicit administration alternative. Include an
+attacker profile: a scenario may override durations (an AI-accelerated
+attacker), since that changes timing, not structure (library-extension §1).
+The final
 lecture-workflow item records full acceptance, checks and released delivery.
 
 ## Compatibility after the lecture milestone
