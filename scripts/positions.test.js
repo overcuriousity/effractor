@@ -95,7 +95,7 @@ test('a component with a plate: its lines end on the plate, not on the box aroun
   assert.ok(Math.abs(dist(ac.end, { x: 74, y: 224 }) - 24) < 1e-9, JSON.stringify(ac.end));
 });
 
-test('a firewall\'s permission runs from its ring to the middle of its flow, and can be left out', () => {
+test('a firewall\'s permission runs from its ring to its flow, off the flow\'s middle, and can be left out', () => {
   const hub = { x: 74, y: 24, r: 28 };
   const laid = {
     nodes: [{ ...box('entity/fw', 150, 0), hub }, { ...box('entity/a', 0, 200), hub }, { ...box('entity/b', 300, 200), hub }],
@@ -106,7 +106,11 @@ test('a firewall\'s permission runs from its ring to the middle of its flow, and
   const flow = out.edges[0];
   assert.equal(out.attachments.length, 1);
   const p = out.attachments[0];
-  assert.deepEqual(p.end, flow.mid);
+  // On the flow, off its middle (where the flow's label is), on the firewall's side.
+  const candidates = [Pos.along(flow, 0.35), Pos.along(flow, 0.65)];
+  assert.ok(candidates.some((c) => Math.abs(c.x - p.end.x) < 1e-9 && Math.abs(c.y - p.end.y) < 1e-9), JSON.stringify(p.end));
+  const d = (q) => Math.hypot(q.x - 224, q.y - 24);
+  assert.equal(d(p.end), Math.min(...candidates.map(d)));
   assert.ok(Math.abs(Math.hypot(p.start.x - 224, p.start.y - 24) - 28) < 1e-9, JSON.stringify(p.start));
   assert.equal(p.label, '?');
   assert.equal(Pos.attach(out.nodes, flow, { ...laid.permits[0], allowed: true }).label, 'allows');

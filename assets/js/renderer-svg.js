@@ -312,11 +312,15 @@
       var hit = el("path", { d: straight(a), "data-id": a.id, "data-from": a.firewall, "data-to": a.flow }, ["edge-hit"], edgeLayer);
       var label = el("text", { x: a.mid.x, y: a.mid.y - 4, "data-id": a.id }, ["edge-label", "permit-label"], edgeLayer);
       label.textContent = a.label;
-      return { line: line, hit: hit, label: label };
+      // Where the rule applies: a dot on the flow.
+      var dot = el("circle", { cx: a.end.x, cy: a.end.y, r: 3.5, "data-id": a.id }, ["permit-dot"], edgeLayer);
+      return { line: line, hit: hit, label: label, dot: dot };
     }
     function redrawAttachment(parts, a) {
       parts.line.setAttribute("d", straight(a));
       parts.hit.setAttribute("d", straight(a));
+      parts.dot.setAttribute("cx", a.end.x);
+      parts.dot.setAttribute("cy", a.end.y);
       parts.label.setAttribute("x", a.mid.x);
       parts.label.setAttribute("y", a.mid.y - 4);
     }

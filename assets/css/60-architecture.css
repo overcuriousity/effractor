@@ -41,10 +41,12 @@
 
 /* A flow is directional traffic, not structure: dashed. */
 .edge[data-id^="flow/"] { stroke-dasharray: 5 3; }
-/* A firewall's permission on a flow: dotted, from the firewall to the flow's
-   middle, with no arrowhead; its word says allows, blocks or ?. */
-.edge.permit { stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.5; }
-.edge.permit.hl-selected { stroke-dasharray: 1.5 3.5; }
+/* A firewall's permission on a flow: dotted, in the firewall's own colour,
+   ending in a dot where it lands on the flow — so it never reads as another
+   flow. Its word says allows, blocks or ?. */
+.edge.permit { stroke: var(--viz-family-network); stroke-dasharray: 1.5 3.5; stroke-linecap: round; stroke-width: 1.75; }
+.edge.permit.hl-selected { stroke: var(--color-accent); stroke-dasharray: 1.5 3.5; }
+.permit-dot { fill: var(--viz-family-network); pointer-events: none; }
 .edge-label.permit-label { font-style: italic; }
 
 /* The bottom bar's legend for an architecture: the families, the lines — and
@@ -54,7 +56,7 @@
 .swatch-identity { background: var(--viz-family-identity); border-color: transparent; }
 .line-sample { display: inline-block; width: 18px; height: 0; margin-right: 5px; border-top: 1.5px solid var(--viz-edge); vertical-align: middle; }
 .line-flow { border-top-style: dashed; }
-.line-permit { border-top: 2px dotted var(--viz-outline); }
+.line-permit { border-top: 2px dotted var(--viz-family-network); }
 .legend-toggle { padding: 1px 6px; font-size: var(--text-xs); }
 .legend-toggle[aria-pressed="false"] { color: var(--color-fg-muted); text-decoration: line-through; }
 .legend-toggle[aria-pressed="false"] .line-sample { opacity: 0.4; }

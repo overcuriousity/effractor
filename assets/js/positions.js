@@ -70,13 +70,27 @@
 
   var WORD = { true: "allows", false: "blocks", null: "?" };
 
+  // The point a fraction `t` along a routed curve.
+  function along(r, t) {
+    var u = 1 - t;
+    return {
+      x: u * u * r.start.x + 2 * u * t * r.control.x + t * t * r.end.x,
+      y: u * u * r.start.y + 2 * u * t * r.control.y + t * t * r.end.y,
+    };
+  }
+
   // A firewall's permission: a straight line from the firewall's ring to the
-  // middle of the flow it rules on, `flow` as that flow's curve now stands.
+  // flow it rules on, `flow` as that flow's curve now stands. It lands a
+  // third of the way in from whichever end is nearer the firewall, clear of
+  // the flow's own label in the middle.
   function attach(nodes, flow, permit) {
     var at = Array.isArray(nodes) ? byId(nodes) : nodes;
     var fw = at[permit.firewall];
     if (!fw || !flow) return null;
-    var end = flow.mid;
+    var c = center(fw);
+    var near = along(flow, 0.35);
+    var far = along(flow, 0.65);
+    var end = Math.hypot(near.x - c.x, near.y - c.y) <= Math.hypot(far.x - c.x, far.y - c.y) ? near : far;
     var start = border(fw, end);
     return {
       id: permit.id,
@@ -166,7 +180,7 @@
     return { load: load, move: move, clear: clear };
   }
 
-  var api = { place: place, route: route, attach: attach, createStore: createStore };
+  var api = { place: place, route: route, attach: attach, along: along, createStore: createStore };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorPositions = api;
 })();
