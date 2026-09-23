@@ -263,6 +263,20 @@ test('hosting already given is not offered twice', () => {
   assert.deepEqual(L.linkChoices(doc, CATALOG, 'workstation').find((c) => c.kind === 'hosts').candidates, [], 'and so has the router');
 });
 
+test('a router has one firewall and a firewall one router: a second is not offered', () => {
+  const doc = lecture();
+  doc.entities.edge = { kind: 'router', label: 'Edge' };
+  doc.entities['edge-rules'] = { kind: 'firewall', label: 'Edge rules' };
+  const out = (id) => L.linkChoices(doc, CATALOG, id).find((c) => c.kind === 'filters' && c.direction === 'out');
+  const into = (id) => L.linkChoices(doc, CATALOG, id).find((c) => c.kind === 'filters' && c.direction === 'in');
+  // bridge has its firewall: nothing more; edge may take only the free one.
+  assert.deepEqual(out('bridge').candidates, []);
+  assert.deepEqual(out('edge').candidates, ['edge-rules']);
+  // filter has its router; edge-rules may take only the free router.
+  assert.deepEqual(into('filter').candidates, []);
+  assert.deepEqual(into('edge-rules').candidates, ['edge']);
+});
+
 test('a router runs on a host, never on another router', () => {
   const doc = lecture();
   doc.entities.edge = { kind: 'router', label: 'Edge' };

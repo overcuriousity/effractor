@@ -309,6 +309,8 @@
             if (other === id || spec.to.indexOf(kindOf(doc, other)) < 0) return false;
             if (!endsAllowed(spec.kind, kind, kindOf(doc, other))) return false;
             if (spec.kind === "hosts" && hostOf(doc, other)) return false;
+            // One firewall per router, one router per firewall.
+            if (spec.kind === "filters" && (hasFilters(doc, "from", id) || hasFilters(doc, "to", other))) return false;
             return !linked(doc, spec.kind, id, other);
           }),
         });
@@ -317,11 +319,12 @@
         out.push({
           kind: spec.kind,
           direction: "in",
-          candidates: spec.kind === "hosts" && hostOf(doc, id) ? [] : ids.filter(function (other) {
+          candidates: (spec.kind === "hosts" && hostOf(doc, id)) || (spec.kind === "filters" && hasFilters(doc, "to", id)) ? [] : ids.filter(function (other) {
             return (
               other !== id &&
               spec.from.indexOf(kindOf(doc, other)) >= 0 &&
               endsAllowed(spec.kind, kindOf(doc, other), kind) &&
+              !(spec.kind === "filters" && hasFilters(doc, "from", other)) &&
               !linked(doc, spec.kind, other, id)
             );
           }),

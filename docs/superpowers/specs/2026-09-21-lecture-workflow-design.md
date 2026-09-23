@@ -160,7 +160,9 @@ routes are represented by distinct flow IDs. There is no implicit discovery of
 IP routes, transitive zone trust, wildcard ACL, NAT or packet-level simulation.
 
 An empty/partially constructed architecture is saveable. Missing hosting,
-filters, routing permissions or target produce an `incomplete` diagnostic and
+filters, routing permissions or target, and a route still being built (empty,
+ending at a router, or not yet at the target's network), produce an
+`incomplete` diagnostic and
 disable generation/solving where required; they never become permissive
 defaults. Dangling/wrong-type references are errors. UI deletion removes or
 edits the affected references atomically and remains undoable.

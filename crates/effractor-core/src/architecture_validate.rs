@@ -452,19 +452,20 @@ impl Cx<'_> {
     fn route(&mut self, id: &FlowId, flow: &Flow, at: &str, source_ok: bool, target_ok: bool) {
         let route = &flow.route;
         let path = format!("{at}.route");
+        // A route is built hop by hop: one that has not arrived yet is
+        // unfinished, not wrong. Only a hop that cannot be right is an error.
         if route.is_empty() {
-            self.error(
-                Code::InvalidRoute,
+            self.incomplete(
                 &path,
-                "a route names at least the one network both ends are in",
+                "no route yet: name the networks and routers it crosses, starting where its source runs",
             );
             return;
         }
-        if route.len().is_multiple_of(2) {
-            self.error(
-                Code::InvalidRoute,
+        let arrived = !route.len().is_multiple_of(2);
+        if !arrived {
+            self.incomplete(
                 &path,
-                "a route alternates network, router, network, …: its length is odd",
+                "the route ends at a router: the network after it is still to come",
             );
         }
         let mut ok = true;
@@ -510,15 +511,22 @@ impl Cx<'_> {
                 ok = false;
             }
         }
-        if !ok || route.len().is_multiple_of(2) {
+        if !ok {
             return;
         }
 
         // The ends: the source's host in the first network, the target's in
-        // the last. No host yet is incomplete; a host elsewhere is an error.
+        // the last. No host yet is incomplete. A source that does not run in
+        // the first network is an error; a route that has not yet reached the
+        // target's network is only unfinished.
         for (end, entity, index, ok) in [
             ("source", &flow.source, 0, source_ok),
-            ("target", &flow.target, route.len() - 1, target_ok),
+            (
+                "target",
+                &flow.target,
+                route.len() - 1,
+                target_ok && arrived,
+            ),
         ] {
             if !ok {
                 continue;
@@ -531,23 +539,32 @@ impl Cx<'_> {
                         "\"{entity}\" runs nowhere yet, so this flow cannot start or end at it"
                     ),
                 ),
-                Some(host) if !self.is_attached(host, network) => self.error(
+                Some(host) if !self.is_attached(host, network) && end == "source" => self.error(
                     Code::InvalidRoute,
                     format!("{path}[{index}]"),
                     format!(
                         "\"{host}\", which runs \"{entity}\", is not attached to \"{network}\""
                     ),
                 ),
+                Some(host) if !self.is_attached(host, network) => self.incomplete(
+                    format!("{path}[{index}]"),
+                    format!(
+                        "the route has not reached \"{host}\", which runs \"{entity}\", yet: it ends at \"{network}\""
+                    ),
+                ),
                 Some(_) => {}
             }
         }
 
-        // Every router on the route sits on both networks around it and has a
-        // firewall with a permission for this flow.
+        // Every router on the route sits on both networks around it (the one
+        // after it, once there is one) and has a firewall with a permission
+        // for this flow.
         for i in (1..route.len()).step_by(2) {
             let router = &route[i];
             for side in [i - 1, i + 1] {
-                let network = &route[side];
+                let Some(network) = route.get(side) else {
+                    continue;
+                };
                 if !self.is_attached(router, network) {
                     self.error(
                         Code::InvalidRoute,

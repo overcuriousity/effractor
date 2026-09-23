@@ -361,8 +361,6 @@ fn routes_alternate_networks_and_routers_the_ends_are_in() {
     let route = |image: &mut serde_json::Value, hops: &[&str]| {
         image["flows"]["ssh"]["route"] = serde_json::json!(hops);
     };
-    route(&mut image, &["client-net", "bridge"]);
-    assert!(has(&errors_of(&image), "invalid-route", "flows.ssh.route"));
     route(&mut image, &["client-net", "server-net", "bridge"]);
     assert!(has(
         &errors_of(&image),
@@ -387,18 +385,13 @@ fn routes_alternate_networks_and_routers_the_ends_are_in() {
         "invalid-route",
         "flows.ssh.route[0]"
     ));
+    // A router not on the network after it is wrong, whatever comes next.
     route(&mut image, &["client-net", "bridge", "admin-net"]);
     let errors = errors_of(&image);
     assert!(
         has(&errors, "invalid-route", "flows.ssh.route[1]"),
         "{errors:?}"
     );
-    assert!(
-        has(&errors, "invalid-route", "flows.ssh.route[2]"),
-        "{errors:?}"
-    );
-    route(&mut image, &[]);
-    assert!(has(&errors_of(&image), "invalid-route", "flows.ssh.route"));
     // A flow's ends are software, and its target a service.
     let mut image = self::image(LECTURE);
     image["flows"]["ssh"]["source"] = serde_json::json!("workstation");
@@ -436,6 +429,72 @@ fn routes_alternate_networks_and_routers_the_ends_are_in() {
         (diagnostics[0].code, diagnostics[0].path.as_str()),
         (effractor_core::Code::Incomplete, "flows.ssh.route[1]")
     );
+}
+
+/// The route of `image`'s flow `ssh` set to `hops`: its errors, and the paths
+/// of its `incomplete` warnings.
+fn route_state(
+    image: &serde_json::Value,
+    hops: &[&str],
+) -> (Vec<(&'static str, String)>, Vec<String>) {
+    let mut image = image.clone();
+    image["flows"]["ssh"]["route"] = serde_json::json!(hops);
+    match from_document(&image) {
+        Err(errors) => (
+            errors
+                .iter()
+                .filter(|d| d.severity == Severity::Error)
+                .map(|d| (d.code.as_str(), d.path.clone()))
+                .collect(),
+            Vec::new(),
+        ),
+        Ok(text) => {
+            let (_, diagnostics) = effractor_format::diagnose_document(&text);
+            (
+                Vec::new(),
+                diagnostics
+                    .iter()
+                    .filter(|d| d.code == effractor_core::Code::Incomplete)
+                    .map(|d| d.path.clone())
+                    .collect(),
+            )
+        }
+    }
+}
+
+#[test]
+fn a_route_built_or_shortened_hop_by_hop_is_incomplete_never_invalid() {
+    let image = image(LECTURE);
+    // A new flow has no route; each hop added in turn leaves a route that
+    // has not arrived yet. None of these is wrong, only unfinished.
+    for hops in [&[][..], &["client-net"], &["client-net", "bridge"]] {
+        let (errors, incomplete) = route_state(&image, hops);
+        assert_eq!(errors, vec![], "{hops:?}");
+        assert!(
+            incomplete.iter().any(|p| p.starts_with("flows.ssh.route")),
+            "{hops:?}: {incomplete:?}"
+        );
+    }
+    let (errors, incomplete) = route_state(&image, &["client-net", "bridge", "server-net"]);
+    assert_eq!(errors, vec![]);
+    assert!(!incomplete.iter().any(|p| p.starts_with("flows.ssh.route")));
+    // Still wrong at once: a first network the source is not in, a hop of
+    // the wrong kind, a router off the network before it.
+    assert!(has(
+        &route_state(&image, &["server-net"]).0,
+        "invalid-route",
+        "flows.ssh.route[0]"
+    ));
+    assert!(has(
+        &route_state(&image, &["client-net", "server-net"]).0,
+        "invalid-route",
+        "flows.ssh.route[1]"
+    ));
+    assert!(has(
+        &route_state(&image, &["server-net", "bridge"]).0,
+        "invalid-route",
+        "flows.ssh.route[0]"
+    ));
 }
 
 #[test]
