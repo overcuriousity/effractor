@@ -203,40 +203,16 @@ pub fn analyze(graph: &GeneratedGraph, resolved: &ResolvedGraph) -> GraphSupport
         (0..n).filter(|&i| seen[i]).collect()
     };
     let unknown = |i: usize| expands(i) && own[i] == Own::Unknown;
-
-    // Which nodes an unknown can reach, backwards along support edges: only
-    // those need their own support walked for the paths.
-    let mut tainted = vec![false; n];
-    let mut stack: Vec<usize> = (0..n).filter(|&i| unknown(i)).collect();
-    for &i in &stack {
-        tainted[i] = true;
-    }
-    while let Some(i) = stack.pop() {
-        for &j in &dependents[i] {
-            if !tainted[j] && support_inputs(j).contains(&i) {
-                tainted[j] = true;
-                stack.push(j);
-            }
+    let edges: Vec<Vec<usize>> = (0..n).map(support_inputs).collect();
+    let missing = missing_paths(&edges, &|i| {
+        if !unknown(i) {
+            return &[][..];
         }
-    }
-    let missing: Vec<Vec<String>> = (0..n)
-        .map(|i| {
-            if !tainted[i] {
-                return Vec::new();
-            }
-            let mut paths: Vec<String> = support_of(i)
-                .into_iter()
-                .filter(|&j| unknown(j))
-                .flat_map(|j| match &resolved.ttc[j] {
-                    ResolvedTtc::Unknown(paths) => paths.clone(),
-                    ResolvedTtc::Known(_) => Vec::new(),
-                })
-                .collect();
-            paths.sort();
-            paths.dedup();
-            paths
-        })
-        .collect();
+        match &resolved.ttc[i] {
+            ResolvedTtc::Unknown(paths) => &paths[..],
+            ResolvedTtc::Known(_) => &[][..],
+        }
+    });
 
     let target_support = if possible[graph.target] {
         support_of(graph.target)
@@ -248,5 +224,169 @@ pub fn analyze(graph: &GeneratedGraph, resolved: &ResolvedGraph) -> GraphSupport
         missing,
         zero,
         target_support,
+    }
+}
+
+/// For every node, the sorted, distinct paths of `own` over every node its
+/// support edges reach, itself included. Cycles are condensed first
+/// (Tarjan's algorithm, iteratively: a graph is user input), then each
+/// component takes the union of its own and its successors' paths as
+/// bitsets over the distinct paths, sinks first: linear in the graph times
+/// the number of distinct unknown paths / 64.
+fn missing_paths<'a>(
+    edges: &[Vec<usize>],
+    own: &dyn Fn(usize) -> &'a [String],
+) -> Vec<Vec<String>> {
+    let n = edges.len();
+    let mut names: Vec<&'a String> = (0..n).flat_map(own).collect();
+    names.sort();
+    names.dedup();
+    if names.is_empty() {
+        return vec![Vec::new(); n];
+    }
+    let words = names.len().div_ceil(64);
+
+    // Components in the order Tarjan closes them: every successor's before
+    // its own.
+    const NONE: usize = usize::MAX;
+    let mut index = vec![NONE; n];
+    let mut low = vec![0; n];
+    let mut on_stack = vec![false; n];
+    let mut stack: Vec<usize> = Vec::new();
+    let mut component = vec![NONE; n];
+    let mut components: Vec<Vec<usize>> = Vec::new();
+    let mut next = 0;
+    for root in 0..n {
+        if index[root] != NONE {
+            continue;
+        }
+        // (node, how many of its edges are done)
+        let mut calls: Vec<(usize, usize)> = vec![(root, 0)];
+        index[root] = next;
+        low[root] = next;
+        next += 1;
+        stack.push(root);
+        on_stack[root] = true;
+        while let Some(&mut (v, ref mut done)) = calls.last_mut() {
+            if let Some(&w) = edges[v].get(*done) {
+                *done += 1;
+                if index[w] == NONE {
+                    index[w] = next;
+                    low[w] = next;
+                    next += 1;
+                    stack.push(w);
+                    on_stack[w] = true;
+                    calls.push((w, 0));
+                } else if on_stack[w] {
+                    low[v] = low[v].min(index[w]);
+                }
+                continue;
+            }
+            calls.pop();
+            if let Some(&(parent, _)) = calls.last() {
+                low[parent] = low[parent].min(low[v]);
+            }
+            if low[v] == index[v] {
+                let c = components.len();
+                let mut members = Vec::new();
+                while let Some(w) = stack.pop() {
+                    on_stack[w] = false;
+                    component[w] = c;
+                    members.push(w);
+                    if w == v {
+                        break;
+                    }
+                }
+                components.push(members);
+            }
+        }
+    }
+
+    let mut bits = vec![0u64; components.len() * words];
+    for (c, members) in components.iter().enumerate() {
+        let (done, rest) = bits.split_at_mut(c * words);
+        let mine = &mut rest[..words];
+        for &v in members {
+            for path in own(v) {
+                let k = names.binary_search(&path).unwrap_or_default();
+                mine[k / 64] |= 1 << (k % 64);
+            }
+            for &w in &edges[v] {
+                let d = component[w];
+                if d != c {
+                    for (m, &b) in mine.iter_mut().zip(&done[d * words..(d + 1) * words]) {
+                        *m |= b;
+                    }
+                }
+            }
+        }
+    }
+    (0..n)
+        .map(|v| {
+            let mine = &bits[component[v] * words..(component[v] + 1) * words];
+            (0..names.len())
+                .filter(|k| mine[k / 64] & (1 << (k % 64)) != 0)
+                .map(|k| names[k].clone())
+                .collect()
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::missing_paths;
+
+    /// What `missing_paths` must equal: every node's reach walked on its own.
+    fn walked(edges: &[Vec<usize>], own: &[Vec<String>]) -> Vec<Vec<String>> {
+        (0..edges.len())
+            .map(|start| {
+                let mut seen = vec![false; edges.len()];
+                let mut stack = vec![start];
+                seen[start] = true;
+                let mut out: Vec<String> = Vec::new();
+                while let Some(i) = stack.pop() {
+                    out.extend(own[i].iter().cloned());
+                    for &j in &edges[i] {
+                        if !seen[j] {
+                            seen[j] = true;
+                            stack.push(j);
+                        }
+                    }
+                }
+                out.sort();
+                out.dedup();
+                out
+            })
+            .collect()
+    }
+
+    #[test]
+    fn condensed_unions_equal_walking_every_node_alone() {
+        // A small deterministic generator: cycles, self-loops, shared paths,
+        // more than 64 distinct paths so bitsets span words.
+        let mut state: u64 = 0x9e37_79b9_7f4a_7c15;
+        let mut next = |bound: u64| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state % bound) as usize
+        };
+        for round in 0..200 {
+            let n = 1 + next(60);
+            let edges: Vec<Vec<usize>> = (0..n)
+                .map(|_| (0..next(4)).map(|_| next(n as u64)).collect())
+                .collect();
+            let own: Vec<Vec<String>> = (0..n)
+                .map(|_| {
+                    if next(3) == 0 {
+                        (0..1 + next(3)).map(|_| format!("p{}", next(90))).collect()
+                    } else {
+                        Vec::new()
+                    }
+                })
+                .collect();
+            let got = missing_paths(&edges, &|i| &own[i][..]);
+            assert_eq!(got, walked(&edges, &own), "round {round}");
+        }
     }
 }

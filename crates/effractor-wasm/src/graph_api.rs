@@ -6,7 +6,8 @@ use effractor_components::GeneratedGraph;
 use effractor_core::architecture::Architecture;
 use effractor_core::{Code, Diagnostic, Document, ScenarioId, Severity};
 use effractor_solver::graph_results::{GraphConfig, GraphSolve};
-use serde_json::json;
+use effractor_solver::graph_support::GraphSupport;
+use serde_json::{Value, json};
 
 use crate::api::answer;
 
@@ -52,8 +53,9 @@ fn architecture_graph(
     Ok((model, graph, diagnostics))
 }
 
-/// `{ok: {revision, source, graph}, diagnostics}`: the baseline graph of the
-/// architecture `text`. `revision` is the caller's opaque token, handed back
+/// `{ok: {revision, source, graph, support}, diagnostics}`: the baseline graph
+/// of the architecture `text`, and what can happen in it before any number
+/// (`support`). `revision` is the caller's opaque token, handed back
 /// unchanged; `source` is exactly the text the graph describes.
 pub fn generate(text: &str, revision: &str) -> String {
     let (model, graph, warnings) = match architecture_graph(text) {
@@ -64,12 +66,38 @@ pub fn generate(text: &str, revision: &str) -> String {
         Ok(resolved) => resolved,
         Err(errors) => return answer(None, &errors),
     };
+    let support = effractor_solver::graph_support::analyze(&graph, &resolved);
     let ok = json!({
         "revision": revision,
         "source": text,
         "graph": effractor_components::graph_image(&graph, &resolved),
+        "support": support_image(&graph, &support),
     });
     answer(Some(ok), &warnings)
+}
+
+/// `{nodes: [{id, status, missing}], target_support: [id]}`, the nodes aligned
+/// with the graph's: whether each step is seeded, possible, blocked or
+/// unreachable, and which unknown source fields its time would rest on.
+fn support_image(graph: &GeneratedGraph, support: &GraphSupport) -> Value {
+    let nodes: Vec<Value> = graph
+        .nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| {
+            json!({
+                "id": n.id,
+                "status": support.status[i].as_str(),
+                "missing": support.missing[i],
+            })
+        })
+        .collect();
+    let target: Vec<&str> = support
+        .target_support
+        .iter()
+        .map(|&i| graph.nodes[i].id.as_str())
+        .collect();
+    json!({"nodes": nodes, "target_support": target})
 }
 
 /// A graph solve of `text`'s baseline, beside `scenario` unless that is

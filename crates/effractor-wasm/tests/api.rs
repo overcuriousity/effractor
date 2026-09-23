@@ -250,6 +250,72 @@ fn an_architecture_generates_its_graph_with_the_source_it_describes() {
 }
 
 #[test]
+fn generation_says_what_can_happen_before_any_number() {
+    let support_of = |text: &str| -> (Value, Value) {
+        let out = call(api::generate(text, "r"));
+        let ok = &out["ok"];
+        (ok["graph"].clone(), ok["support"].clone())
+    };
+    let status = |graph: &Value, support: &Value, id: &str| -> Value {
+        let i = graph["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|n| n["id"] == id)
+            .unwrap();
+        let entry = &support["nodes"][i];
+        assert_eq!(entry["id"], id, "aligned with the graph's nodes");
+        entry.clone()
+    };
+
+    let (graph, support) = support_of(LECTURE);
+    assert_eq!(
+        support["nodes"].as_array().unwrap().len(),
+        graph["nodes"].as_array().unwrap().len()
+    );
+    let foothold = status(&graph, &support, "input/foothold/workstation/admin");
+    assert_eq!(foothold["status"], "seeded");
+    assert_eq!(foothold["missing"], json!([]));
+    let target = status(&graph, &support, "state/host/server/admin");
+    assert_eq!(target["status"], "possible");
+    assert_eq!(
+        status(&graph, &support, "state/network/admin-net/access")["status"],
+        "unreachable"
+    );
+    let route = support["target_support"].as_array().unwrap();
+    assert!(route.contains(&json!("action/flow-connect/ssh")));
+    assert!(route.contains(&json!("state/host/server/admin")));
+    assert!(!route.contains(&json!("state/network/admin-net/access")));
+
+    // A denied permission blocks its step; with no other way in, the target
+    // cannot happen and has no support.
+    let mut image = call(api::parse(LECTURE))["ok"].clone();
+    image["associations"]["allow-ssh"]["allowed"] = json!(false);
+    let denied = call(api::serialize(&image.to_string()))["ok"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let (graph, support) = support_of(&denied);
+    assert_eq!(
+        status(&graph, &support, "input/flow-permission/filter/ssh")["status"],
+        "blocked"
+    );
+    assert_eq!(
+        status(&graph, &support, "state/host/server/admin")["status"],
+        "unreachable"
+    );
+    assert_eq!(support["target_support"], json!([]));
+
+    // An unknown input on the route: the target is still possible, and
+    // says which source fields its number waits for.
+    let unknown = include_str!("../../effractor-components/tests/fixtures/lecture-unknown.yaml");
+    let (graph, support) = support_of(unknown);
+    let target = status(&graph, &support, "state/host/server/admin");
+    assert_eq!(target["status"], "possible");
+    assert!(!target["missing"].as_array().unwrap().is_empty());
+}
+
+#[test]
 fn generation_refuses_what_is_not_a_complete_architecture() {
     // A tree is not generated from.
     let out = call(api::generate(WEBSERVER, "r"));
