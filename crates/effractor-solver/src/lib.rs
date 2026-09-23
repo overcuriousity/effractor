@@ -8,7 +8,9 @@
 pub mod attacker;
 pub mod bdd;
 pub mod dist;
+mod graph_mc;
 pub mod graph_plan;
+pub mod graph_results;
 pub mod graph_support;
 pub mod importance;
 pub mod mc;
