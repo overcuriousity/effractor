@@ -292,9 +292,14 @@
   document.body.appendChild(submenu);
   var opener = null; // the item whose submenu is open
 
+  function hideSubmenu() {
+    submenu.hidden = true;
+    if (opener) opener.setAttribute("aria-expanded", "false");
+  }
+
   function closeMenu() {
     $("context-menu").hidden = true;
-    submenu.hidden = true;
+    hideSubmenu();
   }
 
   // The same menu wherever a node is shown: on the canvas, and in the model
@@ -332,16 +337,24 @@
       }
       button.appendChild(text);
       if (extra.title) button.title = extra.title;
+      // One item is active at a time: the pointer takes the focus with it,
+      // so a hovered item and a focused one are never two.
+      button.addEventListener("mouseenter", function () {
+        button.focus();
+      });
       var key = document.createElement("kbd");
       var children = Array.isArray(item[2]) ? item[2] : null;
       key.textContent = children ? (item[1] ? item[1] + " ›" : "›") : item[1];
       button.appendChild(key);
       if (children) {
         button.setAttribute("aria-haspopup", "menu");
+        button.setAttribute("aria-expanded", "false");
         var open = function (focus) {
           var box = button.getBoundingClientRect();
+          if (opener && opener !== button) opener.setAttribute("aria-expanded", "false");
           fill(submenu, children, true);
           opener = button;
+          button.setAttribute("aria-expanded", "true");
           var x = box.right + 2 + 260 > window.innerWidth ? box.left - 262 : box.right + 2;
           place(submenu, x, box.top - 4);
           if (focus) submenu.children[0].focus();
@@ -364,9 +377,7 @@
         });
         // Pointing at a plain item of the first list closes an open submenu.
         if (!nested) {
-          button.addEventListener("mouseenter", function () {
-            submenu.hidden = true;
-          });
+          button.addEventListener("mouseenter", hideSubmenu);
         }
       }
       menu.appendChild(button);
@@ -377,7 +388,7 @@
     if (e.key !== "ArrowLeft" && e.key !== "Escape") return;
     e.preventDefault();
     e.stopPropagation();
-    submenu.hidden = true;
+    hideSubmenu();
     if (opener) opener.focus();
   });
 

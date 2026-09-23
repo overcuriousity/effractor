@@ -79,7 +79,9 @@
   font-size: var(--text-sm);
 }
 .menu button { display: flex; justify-content: space-between; gap: 16px; width: 100%; padding: 4px 8px; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.menu button:hover, .menu button:focus-visible { background: var(--color-bg-hover); outline: none; }
+/* The active item: under the pointer or the keys (they move together), and
+   an item whose submenu is open. */
+.menu button:hover, .menu button:focus, .menu button[aria-expanded="true"] { background: var(--color-bg-hover); outline: none; }
 .menu .menu-hint { margin-left: 8px; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .menu kbd { color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
 
