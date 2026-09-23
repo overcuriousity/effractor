@@ -14,6 +14,7 @@
 
 mod architecture_read;
 mod architecture_write;
+pub mod expr;
 #[cfg(test)]
 mod extension_tests;
 mod json;
