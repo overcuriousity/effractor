@@ -221,13 +221,15 @@
 /* ---- the inspector: the selected node's form, floating at the canvas edge ----
    Over the graph, not beside it: selecting never resizes the canvas, so
    nothing under the pointer moves (a node it would cover is panned into view
-   by the renderer). It keeps one size whatever it holds, and the HUD steps
-   aside while it is open. There while something is selected. */
+   by the renderer). Its width is fixed; its height is what it holds, up to
+   the canvas's, and eases from one selection's to the next (app.js sets it).
+   The HUD steps aside while it is open. There while something is selected. */
 .canvas { position: relative; display: flex; }
 .stage { position: relative; flex: 1; min-width: 0; }
 .inspector {
-  position: absolute; top: 8px; right: 8px; bottom: 8px; z-index: 2;
-  width: 280px;
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  width: 280px; max-height: calc(100% - 16px);
+  transition: height 160ms ease-out;
   overflow: hidden auto;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
@@ -238,7 +240,9 @@
 }
 .inspector[hidden] { display: none; }
 @keyframes inspector-in { from { opacity: 0; transform: translateX(8px); } }
-@media (prefers-reduced-motion: reduce) { .inspector { animation: none; } .hud-top-right { transition: none; } }
+.inspector.is-placing { transition: none; }
+@media (prefers-reduced-motion: reduce) { .inspector { animation: none; transition: none; } .hud-top-right { transition: none; } }
 .hud-top-right { transition: right 120ms ease-out; }
 .canvas:has(.inspector:not([hidden])) .hud-top-right { right: 298px; }
+.inspector .panel-section { border-bottom: 0; }
 .inspector .count { text-transform: none; letter-spacing: 0; font-weight: 400; }

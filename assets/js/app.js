@@ -102,6 +102,31 @@
   // and the arrows act on; without one it is the node's first parent.
   // An architecture's selection is qualified (`entity/web`); it has no edge
   // it was reached along and no solved facts yet.
+
+  // The inspector is as tall as what it holds: its content is measured, and
+  // the height eases there from the last selection's. Opened, it takes its
+  // height at once; there is nothing to ease from.
+  var inspectorShown = false;
+  function fitInspector() {
+    var box = $("inspector");
+    if (box.hidden) {
+      inspectorShown = false;
+      return;
+    }
+    var edges = box.offsetHeight - box.clientHeight;
+    var height = box.firstElementChild.offsetHeight + edges + "px";
+    if (inspectorShown) {
+      box.style.height = height;
+      return;
+    }
+    box.classList.add("is-placing");
+    box.style.height = height;
+    void box.offsetHeight;
+    box.classList.remove("is-placing");
+    inspectorShown = true;
+  }
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(fitInspector).observe($("inspector").firstElementChild);
+
   function select(id, parent) {
     var arch = P.isArchitecture(state.doc);
     state.selected = P.selectionExists(state.doc, id, state.generated) ? id : null;
