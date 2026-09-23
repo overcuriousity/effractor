@@ -28,3 +28,7 @@ test("the two dark blocks must not drift apart", () => {
   const broken = css.slice(0, i) + "--viz-imp-5: #fdb6ae" + css.slice(i + 20);
   assert.match(check(broken).join("\n"), /dark blocks differ: --viz-imp-5/);
 });
+test("a component family under 3:1 against the canvas fails", () => {
+  const broken = css.replace("--viz-family-compute: #2f7667", "--viz-family-compute: #d8e8e2");
+  assert.match(check(broken).join("\n"), /light: --viz-family-compute on --viz-canvas is \d\.\d\d, needs 3/);
+});

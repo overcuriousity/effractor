@@ -34,6 +34,10 @@
   function word(kind) {
     return kind.charAt(0).toUpperCase() + kind.slice(1);
   }
+  // A kind's icon, as the canvas draws it, for a menu or the legend.
+  function icon(kind) {
+    return window.effractorArchitectureIcons.svg(document, kind, 16);
+  }
 
   // The component library's catalog, from the wasm module, asked for once.
   var catalog = null;
@@ -136,15 +140,15 @@
       var items = L.addChoices(doc(), c, id).map(function (choice) {
         if (choice.options.length === 1) {
           var only = choice.options[0];
-          return [word(choice.kind), "", function () { addLinked(id, choice.kind, only); }, { hint: optionWord(only), title: optionTitle(only) }];
+          return [word(choice.kind), "", function () { addLinked(id, choice.kind, only); }, { hint: optionWord(only), title: optionTitle(only), icon: icon(choice.kind) }];
         }
         return [word(choice.kind), "", choice.options.map(function (o) {
           return [optionWord(o), "", function () { addLinked(id, choice.kind, o); }, { title: optionTitle(o) }];
-        })];
+        }), { icon: icon(choice.kind) }];
       });
       if (!items.length) return [[L.emptyLink(doc(), c, id) || "nothing can be linked to “" + doc().entities[id].label + "”", "", null]];
       L.notes(doc(), id).forEach(function (n) {
-        items.push([word(n.kind), "", null, { hint: n.hint }]);
+        items.push([word(n.kind), "", null, { hint: n.hint, icon: icon(n.kind) }]);
       });
       return items;
     }, function () {
@@ -168,14 +172,14 @@
   // The type picker: one menu of the eight kinds.
   function pickKind(x, y) {
     app.showMenu(A.KINDS.map(function (kind) {
-      return [word(kind), "", function () { create(kind); }];
+      return [word(kind), "", function () { create(kind); }, { icon: icon(kind) }];
     }), x, y);
   }
   // The background's menu: add a component, or put every one back where the
   // automatic layout wants it.
   function backgroundMenu(x, y) {
     var add = A.KINDS.map(function (kind) {
-      return [word(kind), "", function () { create(kind); }];
+      return [word(kind), "", function () { create(kind); }, { icon: icon(kind) }];
     });
     app.showMenu([["Add", "A", add], ["Arrange automatically", "", app.arrange]], x, y);
   }
@@ -652,6 +656,13 @@
   window.effractorArchitectureUi = {
     keys: function () {
       return KEYS;
+    },
+    legend: function () {
+      return A.KINDS.map(function (kind) {
+        var sample = window.effractorArchitectureIcons.svg(document, kind, 22);
+        sample.setAttribute("class", sample.getAttribute("class") + " is-plate");
+        return [sample, word(kind)];
+      });
     },
     // For architecture-links-ui.js: the same edit queue, form parts and hooks.
     apply: apply,

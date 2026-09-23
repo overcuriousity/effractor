@@ -13,7 +13,10 @@
     return !!o && Object.prototype.hasOwnProperty.call(o, k);
   }
 
+  // A node with a `hub` ({x, y, r}, relative to its box) is met on that
+  // circle — an architecture component's plate — and not on its box.
   function center(n) {
+    if (n.hub) return { x: n.x + n.hub.x, y: n.y + n.hub.y };
     return { x: n.x + n.width / 2, y: n.y + n.height / 2 };
   }
 
@@ -23,6 +26,10 @@
     var dx = toward.x - c.x;
     var dy = toward.y - c.y;
     if (!dx && !dy) return c;
+    if (n.hub) {
+      var len = Math.sqrt(dx * dx + dy * dy);
+      return { x: c.x + (dx / len) * n.hub.r, y: c.y + (dy / len) * n.hub.r };
+    }
     var t = Math.min(dx ? n.width / 2 / Math.abs(dx) : Infinity, dy ? n.height / 2 / Math.abs(dy) : Infinity);
     return { x: c.x + dx * t, y: c.y + dy * t };
   }

@@ -20,6 +20,7 @@
 
   function createSvgRenderer(doc) {
     var geometry = (typeof module !== "undefined" ? require("./graph.js") : window.effractorGraph).SIZE;
+    var icons = typeof module !== "undefined" ? require("./architecture-icons.js") : window.effractorArchitectureIcons;
     var viewMath = typeof module !== "undefined" ? require("./view.js") : window.effractorView;
 
     var svg = null;
@@ -190,6 +191,37 @@
       }
     }
 
+    // An architecture's component, as an investigation graph draws an
+    // entity: its kind's icon on a plate in its family's colour, the name
+    // under it. A count on the plate says how many values are still unknown;
+    // a badge beside it, that the attacker starts or ends here.
+    function drawComponent(g, n) {
+      var cx = geometry.width / 2;
+      var r = geometry.plate / 2;
+      el("circle", { cx: cx, cy: r, r: r + geometry.halo }, ["halo"], g);
+      el("circle", { cx: cx, cy: r, r: r }, ["plate"], g);
+      var scale = 26 / 24;
+      var glyph = el("g", { transform: "translate(" + (cx - 13) + " " + (r - 13) + ") scale(" + scale + ")" }, ["glyph"], g);
+      icons.parts(n.component).forEach(function (part) {
+        el(part[0], part[1], [], glyph);
+      });
+      n.lines.forEach(function (line, i) {
+        text(g, cx, geometry.plate + 16 + i * 14, line, "label-line");
+      });
+      if (n.unknown) {
+        var cw = String(n.unknown).length * 6 + 14;
+        var at = cx + r * 0.7;
+        el("rect", { x: at - cw / 2, y: r * 0.3 - 16, width: cw, height: 16, rx: 8 }, ["count"], g);
+        text(g, at, r * 0.3 - 4.5, n.unknown + "?", "count-text");
+      }
+      if (n.badge) {
+        var bw = String(n.badge).length * 5.6 + 12;
+        el("rect", { x: cx + r + 6, y: r - 8, width: bw, height: 16, rx: 3 }, ["tag", "badge"], g);
+        text(g, cx + r + 6 + bw / 2, r + 3.5, n.badge, "tag-text");
+      }
+      return g;
+    }
+
     function drawNode(item, style) {
       var n = item.node;
       var classes = ["node", "node-" + n.symbol];
@@ -201,8 +233,14 @@
       (style.classes || []).forEach(function (c) {
         classes.push(c);
       });
+      if (n.symbol === "component") classes.push("family-" + (icons.family(n.component) || "none"));
       var g = el("g", { "data-id": n.id, transform: "translate(" + item.x + " " + item.y + ")" }, classes, nodeLayer);
-      el("title", {}, [], g).textContent = n.label;
+      var tip = el("title", {}, [], g);
+      tip.textContent = n.label;
+      if (n.symbol === "component") {
+        tip.textContent = n.label + " — " + n.component + (n.unknown ? " · " + n.unknown + " unknown" : "");
+        return drawComponent(g, n);
+      }
 
       var w = geometry.width;
       var boxHeight = geometry.box;
@@ -217,16 +255,6 @@
         el("rect", { x: 0, y: below, width: w, height: geometry.strip }, ["shape", "strip"], g);
         text(g, w / 2, below + geometry.strip / 2 + 3.5, n.attributes, "attributes");
         below += geometry.strip;
-      }
-      // An architecture's component: the box is all of it, with a badge on
-      // its top edge when the attacker starts or ends there.
-      if (n.symbol === "component") {
-        if (n.badge) {
-          var bw = String(n.badge).length * 5.6 + 12;
-          el("rect", { x: w - bw - 6, y: -8, width: bw, height: 16, rx: 3 }, ["tag", "badge"], g);
-          text(g, w - 6 - bw / 2, 3, n.badge, "tag-text");
-        }
-        return g;
       }
       el("line", { x1: w / 2, y1: below, x2: w / 2, y2: below + geometry.stem }, ["stem"], g);
       symbol(g, n, below + geometry.stem);
@@ -331,7 +359,7 @@
       if (layout.free) {
         free = { at: Object.create(null) };
         layout.nodes.forEach(function (n) {
-          free.at[n.id] = { id: n.id, x: n.x, y: n.y, width: n.width, height: n.height };
+          free.at[n.id] = { id: n.id, x: n.x, y: n.y, width: n.width, height: n.height, hub: n.hub };
         });
         layout.edges.forEach(function (e) {
           var parts = drawCurve(e);

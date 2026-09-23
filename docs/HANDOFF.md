@@ -423,6 +423,13 @@ today, all of it after seeing the alternative:
   any depth, each list beside its item, and every list stays open while the
   pointer is in something it opened; the items on the way in stay quietly
   lit. No menu item closes its menu to open another one in its place.
+- **Architecture components are icons, not boxes** (owner, 2026-09-23, "lean
+  on Chainalysis Reactor"): each kind's line icon (`architecture-icons.js`:
+  Cisco's cloud, router, brick wall and server; window, gear, person, key)
+  white on a round plate in its family's colour (`--viz-family-*`: network,
+  compute, identity; contrast-checked), the name under it, lines ending on
+  the plate's ring. The kind is the tooltip, the `?` dialog has the legend,
+  the Add menus show the icons. Trees keep their boxes.
 - **Say why, never nothing** (owner, 2026-09-23): an empty menu or list states
   what is missing and how to add it.
 - **Relationships are said in plain words** from the selected component

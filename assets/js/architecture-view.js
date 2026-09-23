@@ -1,5 +1,5 @@
 // Architecture → what is drawn: the shared renderer's {profile, nodes, edges},
-// with components as neutral boxes and their relationships and flows as the
+// with components as their kinds' icons and their relationships and flows as the
 // edges. Pure: no DOM, no ELK. The canvas never stores a position.
 (function () {
   var graph = typeof module !== "undefined" ? require("./graph.js") : window.effractorGraph;
@@ -62,7 +62,9 @@
         symbol: "component",
         component: e.kind,
         inscription: null,
-        attributes: e.kind + (open ? " · " + open + " unknown" : ""),
+        // The kind is the icon; what is still unknown is a count on it.
+        attributes: null,
+        unknown: open,
         badge: badge[id] || null,
         parents: incoming[id] || 0,
         unquantified: open > 0,

@@ -24,6 +24,7 @@
 <script src="{{ asset_prefix }}assets/js/architecture-view.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/view.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/positions.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/architecture-icons.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/renderer-svg.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/layout.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/results-view.js" defer></script>
@@ -209,6 +210,10 @@
 <dialog class="help-dialog" id="help-dialog" aria-labelledby="help-title">
   <h2 class="label" id="help-title">Keys and pointer</h2>
   <dl class="help-keys" id="help-keys"></dl>
+  <div class="help-legend" id="help-legend" hidden>
+    <h2 class="label">Components</h2>
+    <dl class="help-keys" id="help-legend-list"></dl>
+  </div>
   <button class="btn btn-ghost" id="help-close" type="button">Close <kbd>Esc</kbd></button>
 </dialog>
 <div class="menu" id="file-menu" role="menu" hidden>

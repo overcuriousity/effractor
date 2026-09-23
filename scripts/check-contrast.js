@@ -44,7 +44,12 @@ const TEXT = [
   ["--color-fg-muted", "--color-bg-elevated"],
   ...STEPS.map((n) => [`--viz-imp-${n}-ink`, `--viz-imp-${n}`]),
 ];
-const GRAPHIC = [["--viz-outline", "--viz-canvas"]];
+const FAMILIES = ["network", "compute", "identity"];
+const GRAPHIC = [
+  ["--viz-outline", "--viz-canvas"],
+  ...FAMILIES.map((f) => [`--viz-family-${f}`, "--viz-canvas"]),
+  ...FAMILIES.map((f) => ["--viz-family-ink", `--viz-family-${f}`]),
+];
 
 function checkTheme(name, t) {
   const errors = [];

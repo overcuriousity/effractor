@@ -188,3 +188,15 @@ test("a tree with nothing shared is laid out once", async () => {
   await layoutWith((g) => (calls++, new ELK().layout(g)), describe(doc));
   assert.equal(calls, 1);
 });
+
+test("an architecture's component is its plate and name; lines meet the plate", () => {
+  const V = require("../assets/js/architecture-view.js");
+  const graph = V.describe({ profile: "architecture", entities: { ws: { kind: "host", label: "Workstation" } }, associations: {}, flows: {}, attacker: { footholds: [] } });
+  assert.equal(toElk(graph).children[0].height, SIZE.component);
+  const laid = fromElk(graph, { width: 148, height: SIZE.component, children: [{ id: "entity/ws", x: 5, y: 7, width: SIZE.width, height: SIZE.component }], edges: [] });
+  assert.deepEqual(laid.nodes[0].hub, { x: SIZE.width / 2, y: SIZE.plate / 2, r: SIZE.plate / 2 + SIZE.halo });
+  // A tree's node has no plate: its lines keep to the box.
+  const tree = describe(webserver);
+  const first = tree.nodes[0];
+  assert.equal(fromElk(tree, { children: [{ id: first.id, x: 0, y: 0, width: 1, height: 1 }], edges: [] }).nodes[0].hub, undefined);
+});

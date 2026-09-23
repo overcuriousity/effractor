@@ -31,7 +31,7 @@ test('an empty architecture draws nothing', () => {
   assert.deepEqual(V.describe({ profile: 'architecture', entities: {}, associations: {}, flows: {}, attacker: { footholds: [] } }), { profile: 'architecture', nodes: [], edges: [] });
 });
 
-test('components are neutral boxes with their kind, qualified ids and no fault symbols', () => {
+test('components are icons of their kind, with qualified ids and no fault symbols', () => {
   const g = V.describe(lecture());
   assert.equal(g.profile, 'architecture');
   assert.deepEqual(g.nodes.map(n => n.id), ['entity/lan', 'entity/ws', 'entity/srv', 'entity/cli', 'entity/sshd', 'entity/fw']);
@@ -41,11 +41,12 @@ test('components are neutral boxes with their kind, qualified ids and no fault s
   assert.equal(sshd.label, 'SSH server');
   assert.deepEqual(sshd.lines, ['SSH server']);
   assert.equal(sshd.inscription, null);
-  assert.equal(sshd.attributes, 'service · 1 unknown');
+  assert.equal(sshd.attributes, null);
+  assert.equal(sshd.unknown, 1);
   assert.equal(sshd.unquantified, true);
   assert.equal(sshd.top, false);
   const lan = g.nodes[0];
-  assert.equal(lan.attributes, 'network');
+  assert.equal(lan.unknown, 0);
   assert.equal(lan.unquantified, false);
 });
 
@@ -82,9 +83,9 @@ test('ids that are object keys elsewhere are just ids', () => {
   assert.deepEqual(V.describe(doc).nodes.map(n => n.id), ['entity/constructor', 'entity/__proto__']);
 });
 
-test('a component is laid out as its box and kind strip, with no stem or symbol', () => {
+test('a component is laid out as its plate and name, with no stem or symbol', () => {
   const node = V.describe(lecture()).nodes[0];
   const elk = G.toElk({ nodes: [node], edges: [] });
-  assert.equal(elk.children[0].height, G.SIZE.box + G.SIZE.strip);
-  assert.equal(elk.children[0].ports.find(p => p.id.endsWith(':out')).y, G.SIZE.box + G.SIZE.strip);
+  assert.equal(elk.children[0].height, G.SIZE.component);
+  assert.equal(elk.children[0].ports.find(p => p.id.endsWith(':out')).y, G.SIZE.component);
 });

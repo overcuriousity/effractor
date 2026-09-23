@@ -367,9 +367,10 @@
   // `items`: [label, key, run], or [label, key, items] for a nested list,
   // which opens beside its item on hover, click, → or Enter, as deep as the
   // items go; ← or Esc closes the innermost list. {items: function} in place
-  // of the items answers them when the list opens. A fourth element {hint, title} adds a few quiet
-  // words after the label and a tooltip; the right-hand column is only ever a
-  // key, and the arrow of an item that opens a list.
+  // of the items answers them when the list opens. A fourth element
+  // {hint, title, icon} adds a few quiet words after the label, a tooltip and
+  // an icon before it; the right-hand column is only ever a key, and the
+  // arrow of an item that opens a list.
   function fill(menu, items, depth) {
     menu.replaceChildren();
     items.forEach(function (item) {
@@ -378,6 +379,7 @@
       button.setAttribute("role", "menuitem");
       var extra = item[3] || {};
       var text = document.createElement("span");
+      if (extra.icon) text.appendChild(extra.icon);
       text.appendChild(document.createTextNode(item[0]));
       if (extra.hint) {
         var hint = document.createElement("span");
@@ -988,6 +990,18 @@
         list.appendChild(dt);
         list.appendChild(dd);
       });
+    // An architecture's legend: each kind's icon, by family.
+    var legend = arch() && window.effractorArchitectureUi ? window.effractorArchitectureUi.legend() : [];
+    $("help-legend").hidden = !legend.length;
+    $("help-legend-list").replaceChildren();
+    legend.forEach(function (row) {
+      var dt = document.createElement("dt");
+      dt.appendChild(row[0]);
+      var dd = document.createElement("dd");
+      dd.textContent = row[1];
+      $("help-legend-list").appendChild(dt);
+      $("help-legend-list").appendChild(dd);
+    });
     $("help-dialog").showModal();
   }
   $("help").addEventListener("click", openHelp);

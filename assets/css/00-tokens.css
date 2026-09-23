@@ -81,6 +81,13 @@
   --viz-imp-3: #e8796e; --viz-imp-3-ink: #2d2d2d;
   --viz-imp-4: #c8433c; --viz-imp-4-ink: #ffffff;
   --viz-imp-5: #901e1c; --viz-imp-5-ink: #ffffff;
+  /* An architecture's component families, as an investigation graph colours
+     its entities: three hues away from the danger hue and the accent, each
+     3:1 against the canvas and under its white glyph. */
+  --viz-family-network: #4f5a9a;
+  --viz-family-compute: #2f7667;
+  --viz-family-identity: #8a5d1f;
+  --viz-family-ink: #ffffff;
 
   color-scheme: light;
 }
@@ -142,6 +149,10 @@
     --viz-imp-3: #ab3a33; --viz-imp-3-ink: #e2e4ec;
     --viz-imp-4: #e36c61; --viz-imp-4-ink: #0e1015;
     --viz-imp-5: #fdb6ad; --viz-imp-5-ink: #0e1015;
+    --viz-family-network: #5b67b0;
+    --viz-family-compute: #2f8a78;
+    --viz-family-identity: #9c6c24;
+    --viz-family-ink: #ffffff;
 
     color-scheme: dark;
   }
@@ -192,6 +203,10 @@
     --viz-imp-3: #ab3a33; --viz-imp-3-ink: #e2e4ec;
     --viz-imp-4: #e36c61; --viz-imp-4-ink: #0e1015;
     --viz-imp-5: #fdb6ad; --viz-imp-5-ink: #0e1015;
+    --viz-family-network: #5b67b0;
+    --viz-family-compute: #2f8a78;
+    --viz-family-identity: #9c6c24;
+    --viz-family-ink: #ffffff;
 
     color-scheme: dark;
 }

@@ -215,7 +215,7 @@ test("a style may carry a tag, drawn as words: colour is never the only channel"
   assert.ok(!dom.text(node("phish")).includes("SPOF"));
 });
 
-test("an architecture's component is a box with its kind, no fault symbol, and its badge", () => {
+test("an architecture's component is its kind's icon on a plate, its name, its count and badge", () => {
   const arch = require("../assets/js/architecture-view.js").describe({
     profile: "architecture",
     entities: { ws: { kind: "host", label: "Workstation" }, sshd: { kind: "service", label: "SSH server", parameters: { login: { status: "unknown" } } } },
@@ -224,16 +224,24 @@ test("an architecture's component is a box with its kind, no fault symbol, and i
     attacker: { footholds: [{ entity: "ws", state: "admin" }] },
   });
   const { r, host, node } = mounted();
-  r.render({ width: 400, height: 100, nodes: arch.nodes.map((n, i) => ({ id: n.id, x: 160 * i, y: 0, width: 148, height: 62, node: n })), edges: [] }, {});
+  r.render({ width: 400, height: 100, nodes: arch.nodes.map((n, i) => ({ id: n.id, x: 160 * i, y: 0, width: 148, height: 84, node: n })), edges: [] }, {});
   const ws = node("entity/ws");
   assert.ok(ws.classList.contains("node-component"));
   assert.ok(ws.classList.contains("component-host"));
+  assert.ok(ws.classList.contains("family-compute"));
+  assert.equal(dom.byClass(ws, "plate").length, 1);
+  assert.ok(dom.byClass(ws, "glyph").length >= 1);
+  assert.equal(dom.byClass(ws, "box").length, 0);
   assert.equal(dom.byClass(ws, "symbol").length, 0);
   assert.equal(dom.byClass(ws, "stem").length, 0);
-  assert.deepEqual(dom.text(ws), ["Workstation", "host", "foothold · admin"]);
+  // The kind is the icon; in words it is the tooltip.
+  const tip = (g) => g.children.find((c) => c.tag === "title").textContent;
+  assert.equal(tip(ws), "Workstation — host");
+  assert.deepEqual(dom.text(ws), ["Workstation", "foothold · admin"]);
   const sshd = node("entity/sshd");
   assert.ok(sshd.classList.contains("is-unquantified"));
-  assert.deepEqual(dom.text(sshd), ["SSH server", "service · 1 unknown"]);
+  assert.equal(tip(sshd), "SSH server — service · 1 unknown");
+  assert.deepEqual(dom.text(sshd), ["SSH server", "1?"]);
   assert.equal(dom.byClass(host, "stem").length, 0);
 });
 

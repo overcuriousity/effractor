@@ -7,12 +7,37 @@
 .workspace[data-profile="architecture"] .tree-only { display: none !important; }
 .workspace:not([data-profile="architecture"]) .architecture-only { display: none !important; }
 
-/* A component is a neutral box: no fault symbol, no importance colour. Its
-   kind is written in the strip under the label; a number still owed is a
-   dashed outline, as for a tree leaf. */
-.node-component .strip { fill: var(--color-bg-surface); }
-.node-component.is-unquantified .box,
-.node-component.is-unquantified .strip { stroke-dasharray: 3 2.5; }
+/* A component, as an investigation graph draws an entity: its kind's icon,
+   white on a plate in its family's colour, the name under it — no box, no
+   fault symbol, no importance colour. The halo ring is quiet until the
+   component is selected; a value still owed dashes it, as a tree leaf's
+   outline is dashed. */
+.node-component .plate { stroke: none; }
+.node-component.family-network .plate { fill: var(--viz-family-network); }
+.node-component.family-compute .plate { fill: var(--viz-family-compute); }
+.node-component.family-identity .plate { fill: var(--viz-family-identity); }
+.node-component.family-none .plate { fill: var(--viz-outline); }
+.node-component .glyph { fill: none; stroke: var(--viz-family-ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.node-component .halo { fill: var(--viz-canvas); stroke: transparent; stroke-width: 2; }
+.node-component:hover .halo { stroke: var(--viz-outline); }
+.node-component.is-unquantified .halo { stroke: var(--viz-outline); stroke-dasharray: 3 2.5; }
+.node-component.hl-selected .halo { stroke: var(--color-accent); stroke-width: 2.5; stroke-dasharray: none; }
+/* The name reads over lines that pass under it. */
+.node-component .label-line { paint-order: stroke; stroke: var(--viz-canvas); stroke-width: 3px; stroke-linejoin: round; }
+.node-component .count { fill: var(--viz-canvas); stroke: var(--viz-outline); stroke-width: 1; stroke-dasharray: 3 2; }
+.node-component .count-text { fill: var(--color-fg-secondary); font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; text-anchor: middle; }
+
+/* The icons outside the canvas — the Add menu, the legend — are lines in the
+   colour of the words beside them. */
+.kind-icon { flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -3px; }
+.menu .kind-icon { margin-right: 8px; color: var(--color-fg-secondary); }
+/* The legend shows them as the canvas does: white on the family's plate. */
+.kind-icon.is-plate { padding: 3px; border-radius: 50%; color: var(--viz-family-ink); background: var(--viz-outline); stroke-width: 1.6; }
+.kind-icon.is-plate.family-network { background: var(--viz-family-network); }
+.kind-icon.is-plate.family-compute { background: var(--viz-family-compute); }
+.kind-icon.is-plate.family-identity { background: var(--viz-family-identity); }
+.help-legend { margin-top: 12px; }
+.help-legend dt { display: flex; align-items: center; }
 
 /* A flow is directional traffic, not structure: dashed. */
 .edge[data-id^="flow/"] { stroke-dasharray: 5 3; }

@@ -82,3 +82,15 @@ test('positions are kept per document in the browser, and a broken storage is no
   // Without any storage it still answers.
   assert.deepEqual(Pos.createStore(null).load('Lab'), {});
 });
+
+test('a component with a plate: its lines end on the plate, not on the box around its name', () => {
+  const hub = { x: 74, y: 24, r: 24 };
+  const out = Pos.place({
+    nodes: [{ ...box('entity/a', 0, 0), hub }, { ...box('entity/c', 0, 200), hub }],
+    edges: [{ id: 'association/ac', from: 'entity/a', to: 'entity/c' }],
+  }, {});
+  const ac = out.edges[0];
+  const dist = (p, c) => Math.hypot(p.x - c.x, p.y - c.y);
+  assert.ok(Math.abs(dist(ac.start, { x: 74, y: 24 }) - 24) < 1e-9, JSON.stringify(ac.start));
+  assert.ok(Math.abs(dist(ac.end, { x: 74, y: 224 }) - 24) < 1e-9, JSON.stringify(ac.end));
+});

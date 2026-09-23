@@ -5,9 +5,11 @@
   // stem, and its symbol under it; an attack-tree leaf adds a strip for cost
   // and detection between box and stem. A shared node is drawn once; its
   // incoming edges are what say it is shared.
-  var SIZE = { width: 148, box: 44, stem: 10, symbol: 40, strip: 18 };
+  var SIZE = { width: 148, box: 44, stem: 10, symbol: 40, strip: 18, plate: 48, halo: 4 };
   SIZE.gate = SIZE.box + SIZE.stem + SIZE.symbol;
   SIZE.leaf = SIZE.gate;
+  // An architecture's component: its plate, and two lines of name under it.
+  SIZE.component = SIZE.plate + 36;
 
   var LABEL = { chars: 22, lines: 2 };
 
@@ -109,9 +111,9 @@
     return { profile: doc.profile, nodes: nodes, edges: edges };
   }
 
-  // An architecture's component is its box and kind strip: no stem, no symbol.
+  // An architecture's component is its plate and name: no stem, no symbol.
   function height(node) {
-    if (node.symbol === "component") return SIZE.box + (node.attributes ? SIZE.strip : 0);
+    if (node.symbol === "component") return SIZE.component;
     return SIZE.gate + (node.attributes ? SIZE.strip : 0);
   }
 
@@ -202,7 +204,10 @@
       width: result.width || 0,
       height: result.height || 0,
       nodes: (result.children || []).map(function (c) {
-        return { id: c.id, x: c.x, y: c.y, width: c.width, height: c.height, node: described[c.id] };
+        var out = { id: c.id, x: c.x, y: c.y, width: c.width, height: c.height, node: described[c.id] };
+        // Where a component's lines end: on the ring round its plate, relative to the box.
+        if (out.node && out.node.symbol === "component") out.hub = { x: SIZE.width / 2, y: SIZE.plate / 2, r: SIZE.plate / 2 + SIZE.halo };
+        return out;
       }),
       edges: (result.edges || []).map(function (e) {
         var points = [];
