@@ -142,3 +142,17 @@ fn the_javascript_fixture_is_the_real_image() {
     // Key order is part of it: it is the order of the canvas.
     assert_eq!(doc(&text).to_string(), fixture.to_string());
 }
+
+/// The same for the lecture architecture, which the architecture editor's
+/// JavaScript builds, renames and deletes in.
+#[test]
+fn the_javascript_architecture_fixture_is_the_real_image() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let text = std::fs::read_to_string(root.join("docs/course/lecture-architecture.yaml")).unwrap();
+    let fixture =
+        std::fs::read_to_string(root.join("scripts/fixtures/architecture.doc.json")).unwrap();
+    let fixture: Value = serde_json::from_str(&fixture).unwrap();
+    assert_eq!(doc(&text), fixture);
+    assert_eq!(doc(&text).to_string(), fixture.to_string());
+    assert_eq!(from_document(&fixture).unwrap(), text);
+}

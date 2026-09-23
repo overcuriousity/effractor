@@ -121,34 +121,6 @@ test('defense switches are true, false or unknown, and only where the kind has o
   assert.equal(E.setDefense(doc, 'password', 'protected', 'maybe'), null);
 });
 
-test('an unreferenced component is deleted; a referenced one is refused until links can be removed', () => {
-  let doc = E.addEntity(E.empty(), 'host', 'Workstation', HOST).doc;
-  doc = E.addEntity(doc, 'network', 'LAN', { parameters: [], defense: null }).doc;
-  doc = E.addEntity(doc, 'host', 'Spare', HOST).doc;
-  doc.associations.join = { kind: 'attached', from: 'workstation', to: 'lan' };
-  doc.attacker.footholds.push({ entity: 'workstation', state: 'admin' });
-  const gone = E.removeEntity(doc, 'spare');
-  assert.deepEqual(Object.keys(gone.doc.entities), ['workstation', 'lan']);
-  assert.equal(gone.select, null);
-  assert.match(gone.notice, /Spare/);
-  assert.equal(E.references(doc, 'workstation'), 2);
-  assert.equal(E.references(doc, 'lan'), 1);
-  assert.equal(E.removeEntity(doc, 'workstation'), null);
-  assert.equal(E.removeEntity(doc, 'nowhere'), null);
-});
-
-test('references count flows, routes, targets and scenarios', () => {
-  const doc = E.empty();
-  for (const id of ['c', 's', 'n', 'r', 'k']) doc.entities[id] = { kind: 'host', label: id };
-  doc.flows.f = { label: 'F', source: 'c', target: 's', route: ['n', 'r', 'n'], parameters: {} };
-  doc.attacker.target = { entity: 's', state: 'admin' };
-  doc.scenarios.patch = { label: 'P', changes: [{ entity: 'k', defense: 'patched', value: true }] };
-  assert.equal(E.references(doc, 'c'), 1);
-  assert.equal(E.references(doc, 's'), 2);
-  assert.equal(E.references(doc, 'n'), 1, 'one flow, however often its route passes');
-  assert.equal(E.references(doc, 'k'), 1);
-});
-
 test('a description is set, trimmed, and removed when emptied', () => {
   const doc = E.addEntity(E.empty(), 'host', 'Server', HOST).doc;
   const set = E.setDescription(doc, 'server', '  Runs the shop  ');

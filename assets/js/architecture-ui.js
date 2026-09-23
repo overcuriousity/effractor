@@ -6,6 +6,7 @@
   if (typeof document === "undefined") return;
   var app = window.effractor;
   var A = window.effractorArchitectureEdit;
+  var L = window.effractorArchitectureLinks;
   var P = window.effractorProfiles;
   var $ = function (id) {
     return document.getElementById(id);
@@ -120,14 +121,12 @@
     else pickKind(box.left + box.width / 2, box.top + box.height / 3);
   }
 
+  // With everything that named it; the notice counts what went along.
   function remove() {
     var id = entityId();
     if (!id) return;
     apply(function () {
-      var edit = A.removeEntity(doc(), id);
-      var n = edit || !Object.prototype.hasOwnProperty.call(doc().entities, id) ? 0 : A.references(doc(), id);
-      if (n) app.say("“" + doc().entities[id].label + "” is linked " + n + (n === 1 ? " time" : " times") + " · unlink it in the source first");
-      return edit;
+      return L.remove(doc(), "entities", id);
     }, null, true);
   }
 
@@ -159,7 +158,7 @@
     ["A", "Add a component"],
     ["F2", "Rename"],
     ["P", "Edit parameters"],
-    ["Del", "Delete an unlinked component"],
+    ["Del", "Delete, with its links"],
     ["↑ ↓", "Previous, next component"],
     ["click", "Select a component"],
     ["double-click", "Rename it"],

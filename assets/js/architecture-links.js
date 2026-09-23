@@ -1,0 +1,271 @@
+// Architecture relationships, flows and attacker states, as pure edits with
+// the same contract as architecture-edit.js: {doc, select, notice?} or null.
+// Whether an association's kinds, ends and fields are valid is for the wasm
+// module to say; what this file does is keep references whole — a rename
+// rewrites every place an id is named, a delete takes along everything that
+// named what it deletes — so a document never points at nothing.
+(function () {
+  var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
+  var KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits"];
+  var PRIVILEGED = ["hosts", "stores", "grants"];
+  var COLLECTIONS = ["entities", "associations", "flows"];
+
+  function has(o, k) {
+    return !!o && Object.prototype.hasOwnProperty.call(o, k);
+  }
+
+  function clone(doc) {
+    return JSON.parse(JSON.stringify(doc));
+  }
+
+  function extensions(record) {
+    var out = {};
+    Object.keys(record || {}).forEach(function (k) {
+      if (k.indexOf("x-") === 0) out[k] = record[k];
+    });
+    return out;
+  }
+
+  // A map with one key renamed, in its place.
+  function renamed(map, from, to) {
+    var out = {};
+    Object.keys(map).forEach(function (k) {
+      out[k === from ? to : k] = map[k];
+    });
+    return out;
+  }
+
+  function freeId(map, base) {
+    base = slug(base);
+    if (!base || /^[0-9]+$/.test(base)) base = "item-" + base;
+    var id = base;
+    for (var n = 2; has(map, id); n++) id = base + "-" + n;
+    return id;
+  }
+
+  // What is wrong with `id` as the new name of `old` in a collection, or null.
+  function idProblem(doc, collection, old, id) {
+    if (COLLECTIONS.indexOf(collection) < 0) return "nothing to rename there";
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) return "an id is a-z, 0-9 and '-', not starting with '-'";
+    if (/^[0-9]+$/.test(id)) return "an id needs a letter or '-', not only digits";
+    if (id !== old && has(doc[collection], id)) return "“" + id + "” is taken";
+    return null;
+  }
+
+  // `value`: {kind, from, to, privilege?, allowed?, description?}. Written in
+  // canonical key order with only the fields its kind carries; `id` null
+  // makes a new one named after its ends.
+  function putAssociation(doc, id, value) {
+    if (!value || KINDS.indexOf(value.kind) < 0) return null;
+    var next = clone(doc);
+    next.associations = next.associations || {};
+    if (id == null) id = freeId(next.associations, value.from + "-" + value.kind + "-" + value.to);
+    else if (!has(next.associations, id) && idProblem(next, "associations", null, id)) return null;
+    var a = { kind: value.kind, from: String(value.from || ""), to: String(value.to || "") };
+    if (PRIVILEGED.indexOf(value.kind) >= 0) a.privilege = value.privilege;
+    if (value.kind === "permits") a.allowed = value.allowed;
+    var description = String(value.description == null ? "" : value.description).trim();
+    if (description) a.description = description;
+    Object.assign(a, extensions(has(next.associations, id) ? next.associations[id] : null));
+    if (has(next.associations, id) && JSON.stringify(next.associations[id]) === JSON.stringify(a)) return null;
+    next.associations[id] = a;
+    return { doc: next, select: "association/" + id };
+  }
+
+  // `value`: {label, source, target, route, protocol?}. The connect
+  // parameter is edited as a parameter; a new flow's is unknown.
+  function putFlow(doc, id, value) {
+    var label = String((value && value.label) == null ? "" : value.label).trim();
+    if (!label) return null;
+    var next = clone(doc);
+    next.flows = next.flows || {};
+    if (id == null) id = freeId(next.flows, label);
+    else if (!has(next.flows, id) && idProblem(next, "flows", null, id)) return null;
+    var old = has(next.flows, id) ? next.flows[id] : null;
+    var f = {
+      label: label,
+      source: String(value.source || ""),
+      target: String(value.target || ""),
+      route: (value.route || []).map(String),
+    };
+    var protocol = String(value.protocol == null ? "" : value.protocol).trim();
+    if (protocol) f.protocol = protocol;
+    f.parameters = old && old.parameters ? old.parameters : { connect: { status: "unknown" } };
+    Object.assign(f, extensions(old));
+    if (old && JSON.stringify(old) === JSON.stringify(f)) return null;
+    next.flows[id] = f;
+    return { doc: next, select: "flow/" + id };
+  }
+
+  function sameState(a, entity, state) {
+    return a.entity === entity && a.state === state;
+  }
+
+  function setFoothold(doc, entity, state, enabled) {
+    if (!has(doc.entities, entity) || !state) return null;
+    var footholds = (doc.attacker && doc.attacker.footholds) || [];
+    var there = footholds.some(function (s) {
+      return sameState(s, entity, state);
+    });
+    if (there === !!enabled) return null;
+    var next = clone(doc);
+    next.attacker = next.attacker || {};
+    next.attacker.footholds = enabled
+      ? footholds.concat([{ entity: entity, state: state }])
+      : footholds.filter(function (s) {
+          return !sameState(s, entity, state);
+        });
+    return { doc: next, select: "entity/" + entity };
+  }
+
+  // `state` null clears the target.
+  function setTarget(doc, entity, state) {
+    var attacker = doc.attacker || {};
+    if (state == null) {
+      if (!attacker.target) return null;
+      var cleared = clone(doc);
+      delete cleared.attacker.target;
+      return { doc: cleared, select: has(doc.entities, entity) ? "entity/" + entity : null };
+    }
+    if (!has(doc.entities, entity)) return null;
+    if (attacker.target && sameState(attacker.target, entity, state)) return null;
+    var next = clone(doc);
+    next.attacker = next.attacker || { footholds: [] };
+    next.attacker.target = { entity: entity, state: state };
+    return { doc: next, select: "entity/" + entity };
+  }
+
+  var SELECT = { entities: "entity/", associations: "association/", flows: "flow/" };
+
+  function renameId(doc, collection, old, id) {
+    if (COLLECTIONS.indexOf(collection) < 0 || !has(doc[collection], old) || old === id) return null;
+    if (idProblem(doc, collection, old, id)) return null;
+    var next = clone(doc);
+    next[collection] = renamed(next[collection], old, id);
+    var swap = function (v) {
+      return v === old ? id : v;
+    };
+    if (collection === "entities") {
+      Object.keys(next.associations || {}).forEach(function (k) {
+        var a = next.associations[k];
+        a.from = swap(a.from);
+        if (a.kind !== "permits") a.to = swap(a.to);
+      });
+      Object.keys(next.flows || {}).forEach(function (k) {
+        var f = next.flows[k];
+        f.source = swap(f.source);
+        f.target = swap(f.target);
+        f.route = (f.route || []).map(swap);
+      });
+      var attacker = next.attacker || {};
+      (attacker.footholds || []).forEach(function (s) {
+        s.entity = swap(s.entity);
+      });
+      if (attacker.target) attacker.target.entity = swap(attacker.target.entity);
+    }
+    if (collection === "flows") {
+      Object.keys(next.associations || {}).forEach(function (k) {
+        var a = next.associations[k];
+        if (a.kind === "permits") a.to = swap(a.to);
+      });
+    }
+    Object.keys(next.scenarios || {}).forEach(function (k) {
+      (next.scenarios[k].changes || []).forEach(function (c) {
+        if (collection === "entities" && has(c, "entity")) c.entity = swap(c.entity);
+        if (collection === "associations" && has(c, "association")) c.association = swap(c.association);
+      });
+    });
+    return { doc: next, select: SELECT[collection] + id };
+  }
+
+  function hostOf(doc, executable) {
+    var hosting = Object.keys(doc.associations || {}).filter(function (k) {
+      var a = doc.associations[k];
+      return a.kind === "hosts" && a.to === executable;
+    })[0];
+    return hosting ? doc.associations[hosting].from : null;
+  }
+
+  // Does the flow's route rest on `machine` being attached to `network`: a
+  // router beside it on the route, or the host of an end it starts or ends in?
+  function needsAttachment(doc, flow, machine, network) {
+    var route = flow.route || [];
+    for (var i = 0; i < route.length; i++) {
+      if (route[i] !== network) continue;
+      if (route[i - 1] === machine || route[i + 1] === machine) return true;
+      if (i === 0 && hostOf(doc, flow.source) === machine) return true;
+      if (i === route.length - 1 && hostOf(doc, flow.target) === machine) return true;
+    }
+    return false;
+  }
+
+  function title(doc, collection, id) {
+    var r = doc[collection][id];
+    if (collection === "associations") return r.kind + " " + r.from + " → " + r.to;
+    return r.label || id;
+  }
+
+  // Delete `id` and everything that named it: associations at either end,
+  // flows from, to or over it, the permissions of those flows, attacker
+  // states on it and scenario changes on any of these. Software left without
+  // a host stays, unhosted — an `incomplete`, never a guessed new host.
+  function remove(doc, collection, id) {
+    if (COLLECTIONS.indexOf(collection) < 0 || !has(doc[collection], id)) return null;
+    var next = clone(doc);
+    var gone = { entities: {}, associations: {}, flows: {} };
+    gone[collection][id] = true;
+    var links = 0;
+    if (collection === "entities") {
+      Object.keys(next.flows || {}).forEach(function (k) {
+        var f = next.flows[k];
+        if (f.source === id || f.target === id || (f.route || []).indexOf(id) >= 0) gone.flows[k] = true;
+      });
+    }
+    var link = collection === "associations" ? next.associations[id] : null;
+    if (link && link.kind === "attached") {
+      Object.keys(next.flows || {}).forEach(function (k) {
+        if (needsAttachment(next, next.flows[k], link.from, link.to)) gone.flows[k] = true;
+      });
+    }
+    Object.keys(next.associations || {}).forEach(function (k) {
+      var a = next.associations[k];
+      var end = a.kind === "permits" ? has(gone.flows, a.to) : has(gone.entities, a.to);
+      if (has(gone.entities, a.from) || end) gone.associations[k] = true;
+    });
+    COLLECTIONS.forEach(function (c) {
+      Object.keys(gone[c]).forEach(function (k) {
+        if (!has(next[c], k)) return;
+        delete next[c][k];
+        if (c !== "entities") links++;
+      });
+    });
+    if (collection !== "entities") links--;
+    var was = [];
+    var attacker = next.attacker || {};
+    if (collection === "entities") {
+      var before = (attacker.footholds || []).length;
+      attacker.footholds = (attacker.footholds || []).filter(function (s) {
+        return s.entity !== id;
+      });
+      if (attacker.footholds.length < before) was.push("a foothold");
+      if (attacker.target && attacker.target.entity === id) {
+        delete attacker.target;
+        was.push("the target");
+      }
+    }
+    Object.keys(next.scenarios || {}).forEach(function (k) {
+      var s = next.scenarios[k];
+      s.changes = (s.changes || []).filter(function (c) {
+        return !(has(c, "entity") && has(gone.entities, c.entity)) && !(has(c, "association") && has(gone.associations, c.association));
+      });
+    });
+    var notice = "deleted “" + title(doc, collection, id) + "”";
+    if (links) notice += " and " + links + (links === 1 ? " link" : " links");
+    if (was.length) notice += ", " + was.join(" and ");
+    return { doc: next, select: null, notice: notice + " · Ctrl+Z undoes" };
+  }
+
+  var api = { KINDS: KINDS, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, renameId: renameId, remove: remove };
+  if (typeof module !== "undefined") module.exports = api;
+  if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
+})();

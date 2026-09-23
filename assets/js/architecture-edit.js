@@ -5,6 +5,7 @@
 // Every function returns {doc, select, notice?} — `select` is the qualified
 // selection to land on — or null when the edit does not apply or changes
 // nothing. Source ids are fixed when a component is made; labels never move them.
+// Links, renames of ids and deletion are in architecture-links.js.
 (function () {
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
   var KINDS = ["network", "router", "firewall", "host", "application", "service", "account", "credential"];
@@ -127,41 +128,7 @@
     return { doc: next, select: "entity/" + id };
   }
 
-  // How many relationships, flows, attacker states and scenarios name `id`.
-  function references(doc, id) {
-    var n = 0;
-    Object.keys(doc.associations || {}).forEach(function (k) {
-      var a = doc.associations[k];
-      if (a.from === id || a.to === id) n++;
-    });
-    Object.keys(doc.flows || {}).forEach(function (k) {
-      var f = doc.flows[k];
-      if (f.source === id || f.target === id || (f.route || []).indexOf(id) >= 0) n++;
-    });
-    var attacker = doc.attacker || {};
-    (attacker.footholds || []).forEach(function (s) {
-      if (s.entity === id) n++;
-    });
-    if (attacker.target && attacker.target.entity === id) n++;
-    Object.keys(doc.scenarios || {}).forEach(function (k) {
-      (doc.scenarios[k].changes || []).forEach(function (c) {
-        if (c.entity === id) n++;
-      });
-    });
-    return n;
-  }
-
-  // Only a component nothing names: removing the links with it comes with
-  // the relationship editor.
-  function removeEntity(doc, id) {
-    if (!has(doc.entities, id) || references(doc, id) > 0) return null;
-    var next = clone(doc);
-    var label = next.entities[id].label || id;
-    delete next.entities[id];
-    return { doc: next, select: null, notice: "deleted “" + label + "” · Ctrl+Z undoes" };
-  }
-
-  var api = { KINDS: KINDS, STATUSES: STATUSES, empty: empty, addEntity: addEntity, renameEntity: renameEntity, setDescription: setDescription, setParameter: setParameter, setDefense: setDefense, references: references, removeEntity: removeEntity };
+  var api = { KINDS: KINDS, STATUSES: STATUSES, empty: empty, addEntity: addEntity, renameEntity: renameEntity, setDescription: setDescription, setParameter: setParameter, setDefense: setDefense };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureEdit = api;
 })();

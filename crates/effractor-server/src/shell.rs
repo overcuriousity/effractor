@@ -50,12 +50,14 @@ mod tests {
             "profiles.js",
             "revisions.js",
             "architecture-edit.js",
+            "architecture-links.js",
             "architecture-view.js",
         ] {
             assert!(at(pure) < at("app.js"), "{pure} loads before app.js");
         }
         assert!(at("graph.js") < at("architecture-view.js"));
         assert!(at("edit.js") < at("architecture-edit.js"));
+        assert!(at("edit.js") < at("architecture-links.js"));
         assert!(at("menu.js") < at("architecture-ui.js"));
         assert!(at("editor.js") < at("architecture-ui.js"));
         assert!(html.contains(&format!("href=\"{prefix}assets/css/60-architecture.css\"")));
