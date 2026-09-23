@@ -11,6 +11,7 @@
   var R = window.effractorGraphResults;
   var P = window.effractorProfiles;
   var U = window.effractorArchitectureUi;
+  var W = window.effractorWords;
   var $ = function (id) {
     return document.getElementById(id);
   };
@@ -103,11 +104,12 @@
       facts.appendChild(el("dt", term));
       facts.appendChild(dd);
     }
-    row("Step", s.kind + (s.rules.length ? " · " + s.rules.join(", ") : ""), s.assumptions.join("\n"));
+    var rules = s.rules.map(function (r) { return W.rule(U.catalog(), r); });
+    row("Step", rules.length ? rules.join(", ") : s.kind, s.assumptions.concat(s.rules).join("\n"));
     row("State", s.status + (s.reason ? " · " + s.reason : ""));
     if (s.kind !== "fact") {
-      var evidence = s.timing.status === "unknown" ? "? Unknown" : (s.timing.expression || "") + " · " + s.timing.status;
-      row("TTC", evidence, s.timing.note || (/^(illustrative|assumed|calibrated)$/.test(s.timing.status) ? "no reason given" : ""));
+      var evidence = s.timing.status === "unknown" ? "? Unknown" : (s.timing.expression || "") + " · " + W.status(s.timing.status);
+      row("Time", evidence, s.timing.note || (/^(illustrative|assumed|calibrated)$/.test(s.timing.status) ? "no reason given" : ""));
     }
     if (s.components.length) {
       row("Components", s.components.map(function (c) {
@@ -118,7 +120,7 @@
       }));
     }
     if (s.paths.length) row("Source", s.paths.map(sourceLink));
-    if (s.missing.length) row("Missing", s.missing.map(sourceLink));
+    if (s.missing.length) row("Unknown inputs", s.missing.map(sourceLink));
     form.appendChild(facts);
     var note = el("p", "generated · read-only", "hint");
     note.title = "Edit the architecture: its steps are generated again";
@@ -136,7 +138,7 @@
     block.appendChild(head);
     var g = generated();
     if (!g) {
-      head.appendChild(button("Generate", "Generate the attack graph (G)", function () {
+      head.appendChild(button("Build", "Build the attack graph (G)", function () {
         app.setMode("attack");
       }, "btn btn-ghost btn-small link-add"));
       form.appendChild(block);
@@ -231,7 +233,7 @@
     var half = R.timeTo(results, 0.5);
     if (half) box.appendChild(el("p", half.indexOf("not") === 0 ? "50% " + half : "50% by " + half, "hint num"));
     if (h.missing.length) {
-      heading(box, "Missing");
+      heading(box, "Unknown inputs");
       h.missing.forEach(function (path) {
         box.appendChild(sourceLink(path));
       });
@@ -243,10 +245,10 @@
     if (!rows.length) return;
     heading(box, "Assumptions", rows.length);
     var numeric = [false, false, true];
-    var t = tableOf(["Source", "Evidence", "TTC"], numeric);
+    var t = tableOf(["Source", "Confidence", "Time"], numeric);
     rows.forEach(function (a) {
       var row = el("tr");
-      cells(row, [a.path, a.status, a.expression || "?"], numeric);
+      cells(row, [a.path, W.status(a.status), a.expression || "?"], numeric);
       row.title = (a.note || (a.status === "policy" || a.status === "unknown" ? "" : "no reason given")) + (a.paths.length > 1 ? "\n" + a.paths.join("\n") : "");
       activeRow(row, function () {
         follow(a.path);
@@ -345,10 +347,10 @@
       renderAssumptions(box, results);
       renderRoute(box, results);
     } else {
-      box.appendChild(el("p", "Solve (Ctrl+Enter) to see the target's probability.", "empty"));
+      box.appendChild(el("p", "Calculate (Ctrl+Enter) to see the target's probability.", "empty"));
     }
     if (generated()) renderStepTable(box);
-    else box.appendChild(el("p", "Generate (G) to list the attack steps.", "empty"));
+    else box.appendChild(el("p", "Build the attack graph (G) to list its steps.", "empty"));
   }
 
   // ---- the attack view's keys ----
@@ -398,7 +400,7 @@
       return [path, "", function () {
         follow(path);
       }];
-    })] : ["no source field: logical", "", null], ["generated · read-only", "", null]];
+    })] : ["derived — nothing to set", "", null], ["generated · read-only", "", null]];
   }
 
   app.renderer.on("context", function (e) {
@@ -437,7 +439,7 @@
     var on = attack();
     $("view-architecture").setAttribute("aria-pressed", String(!on));
     $("view-attack").setAttribute("aria-pressed", String(on));
-    $("view-attack").title = generated() ? "Attack graph (G)" : "Generate the attack graph (G)";
+    $("view-attack").title = generated() ? "Attack graph (G)" : "Build the attack graph (G)";
     var count = app.state.stepCount;
     $("attack-count").textContent = !count ? "" : count.shown === count.total ? count.total + " steps" : count.shown + " of " + count.total + " steps shown";
     if (!arch()) {

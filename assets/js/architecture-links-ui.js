@@ -261,7 +261,7 @@
     var states = statesOf(id);
     if (!states.length) return;
     var a = doc().attacker || {};
-    var options = [["", "—"]].concat(states.map(function (s) { return [s, s]; }));
+    var options = [["", "—"]].concat(states.map(function (s) { return [s, window.effractorWords.state(catalog, s)]; }));
     var held = (a.footholds || []).filter(function (s) { return s.entity === id; }).map(function (s) { return s.state; });
     var foothold = U.field(form, "prop-foothold", "Foothold", M.dropdown(options, held[0] || ""));
     foothold.addEventListener("change", function () {

@@ -17,11 +17,12 @@
 
   // Where the attacker starts and what it is after, as pins on components:
   // each its own, so one can be picked up and dragged elsewhere.
-  function pins(doc) {
+  // `word(state)`, when given, is what the pin says for the state.
+  function pins(doc, word) {
     var out = Object.create(null);
     var attacker = doc.attacker || {};
     function put(entity, role, state) {
-      (out[entity] = out[entity] || []).push({ role: role, state: state });
+      (out[entity] = out[entity] || []).push({ role: role, state: state, word: word ? word(state) : state });
     }
     (attacker.footholds || []).forEach(function (s) {
       put(s.entity, "foothold", s.state);
@@ -56,7 +57,8 @@
       : [];
   }
 
-  function describe(doc) {
+  // `word(state)`: optional, the pins' words for a state (the catalog's).
+  function describe(doc, word) {
     var entities = doc.entities || {};
     var edges = [];
     var permits = [];
@@ -90,7 +92,7 @@
       edge("flow/" + id, f.source, f.target, "flow", String(f.label == null ? id : f.label), "flow");
     });
 
-    var pinned = pins(doc);
+    var pinned = pins(doc, word);
     var nodes = Object.keys(entities).map(function (id) {
       var e = entities[id];
       var label = String(e.label == null ? id : e.label);

@@ -34,6 +34,8 @@ pub enum Duration {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rule {
     pub id: &'static str,
+    /// What the page calls it.
+    pub title: &'static str,
     pub version: u32,
     /// The source ids a generated step's identity is built from, in order.
     pub bindings: &'static [&'static str],
@@ -50,6 +52,7 @@ use Duration as D;
 pub const RULES: [Rule; 16] = [
     Rule {
         id: "foothold",
+        title: "The attacker starts here",
         version: 1,
         bindings: &["entity", "state"],
         prerequisites: "a declared foothold",
@@ -62,6 +65,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "admin-implies-user",
+        title: "Admin control includes user control",
         version: 1,
         bindings: &["host"],
         prerequisites: "host.admin",
@@ -72,6 +76,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "host-execution",
+        title: "Controlling a machine controls its software",
         version: 1,
         bindings: &["hosts"],
         prerequisites: "the hosting machine at the executable's declared privilege (admin also satisfies user)",
@@ -85,6 +90,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "execution-privilege",
+        title: "Controlled software acts with its privilege",
         version: 1,
         bindings: &["hosts"],
         prerequisites: "executable.control",
@@ -97,6 +103,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "hosted-router",
+        title: "Controlling the host controls its router",
         version: 1,
         bindings: &["hosts"],
         prerequisites: "the hosting host at the router's declared privilege (admin also satisfies user)",
@@ -110,6 +117,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "zone-access",
+        title: "A controlled machine reaches its networks",
         version: 1,
         bindings: &["attached"],
         prerequisites: "host.user or router.admin, for a machine attached to the network",
@@ -122,6 +130,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "flow-permission",
+        title: "The firewall lets the flow through",
         version: 1,
         bindings: &["permits"],
         prerequisites: "the permission's policy allows the flow, or the managing router is under admin control",
@@ -135,6 +144,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "flow-connect",
+        title: "Connect along the flow",
         version: 1,
         bindings: &["flow"],
         prerequisites: "source.control and every permission along the route",
@@ -150,6 +160,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "service-reachable",
+        title: "A connection reaches the service",
         version: 1,
         bindings: &["service"],
         prerequisites: "any inbound flow.connected",
@@ -160,6 +171,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "service-find-exploit",
+        title: "Find an exploit",
         version: 1,
         bindings: &["service"],
         prerequisites: "service.reachable",
@@ -176,6 +188,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "service-deploy-exploit",
+        title: "Use the exploit",
         version: 1,
         bindings: &["service"],
         prerequisites: "service.exploit-ready",
@@ -191,6 +204,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "credential-extract",
+        title: "Extract a credential",
         version: 1,
         bindings: &["stores"],
         prerequisites: "the storing host at the store's privilege, or the storing application under control",
@@ -207,6 +221,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "account-material",
+        title: "A held credential unlocks its account",
         version: 1,
         bindings: &["authenticates"],
         prerequisites: "credential.possessed",
@@ -220,6 +235,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "service-login",
+        title: "Log in to a service",
         version: 1,
         bindings: &["authorizes"],
         prerequisites: "service.reachable and account.material, for an account the service authorizes",
@@ -233,6 +249,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "session-grant",
+        title: "A login gives the account's rights",
         version: 1,
         bindings: &["authorizes", "grants"],
         prerequisites: "account.session at a service, and a grant on the machine that hosts that service",
@@ -245,6 +262,7 @@ pub const RULES: [Rule; 16] = [
     },
     Rule {
         id: "administration-login",
+        title: "Admin login from a network",
         version: 1,
         bindings: &["administration", "grants"],
         prerequisites: "access to the administering network and account.material, for an account granted on the managed machine",
@@ -311,6 +329,53 @@ fn relation_description(kind: RelationKind) -> &'static str {
         RelationKind::Permits => {
             "A firewall's named permission for a flow: `allowed: true | false | unknown`."
         }
+    }
+}
+
+/// One line a newcomer can tell the kinds apart by.
+fn kind_meaning(kind: EntityKind) -> &'static str {
+    match kind {
+        EntityKind::Network => {
+            "A network or zone. Being in it means the attacker can send traffic there."
+        }
+        EntityKind::Router => "Forwards traffic between networks and can be administered.",
+        EntityKind::Firewall => "A router's filter: which flows it lets through.",
+        EntityKind::Host => "A machine: a workstation, a server or a virtual machine.",
+        EntityKind::Application => {
+            "Software that makes connections, e.g. a browser or mail client. Reached only through what it opens."
+        }
+        EntityKind::Service => {
+            "Software that accepts connections, e.g. a web server or SSH. Exploited or logged into over the network."
+        }
+        EntityKind::Account => "An identity that services accept and that has rights on machines.",
+        EntityKind::Credential => {
+            "What proves an account, e.g. a password or key. Must be extracted from where it is kept."
+        }
+    }
+}
+
+/// A state as the page and generated labels say it.
+pub(crate) fn state_word(state: State) -> &'static str {
+    match state {
+        State::Access => "access",
+        State::User => "user control",
+        State::Admin => "admin control",
+        State::Control => "controlled",
+        State::Possessed => "held",
+    }
+}
+
+/// A parameter as the page names it.
+fn slot_name(slot: Slot) -> &'static str {
+    match slot {
+        Slot::Connect => "Connect",
+        Slot::FindExploit => "Find an exploit",
+        Slot::FindExploitPatched => "Find an exploit (patched)",
+        Slot::DeployExploit => "Use the exploit",
+        Slot::Login => "Log in",
+        Slot::Extract => "Extract",
+        Slot::ExtractProtected => "Extract (protected)",
+        Slot::AdminLogin => "Admin login",
     }
 }
 
@@ -385,6 +450,7 @@ pub fn catalog() -> Value {
             json!({
                 "kind": kind.as_str(),
                 "description": kind_description(kind),
+                "meaning": kind_meaning(kind),
                 "states": kind.states().iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                 "parameters": kind.slots().iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                 "defense": kind.defense().map(Defense::as_str),
@@ -416,13 +482,13 @@ pub fn catalog() -> Value {
         .collect();
     let states: Vec<Value> = State::ALL
         .iter()
-        .map(|&s| json!({"id": s.as_str(), "description": state_description(s)}))
+        .map(|&s| json!({"id": s.as_str(), "word": state_word(s), "description": state_description(s)}))
         .collect();
     let parameters: Vec<Value> = Slot::ALL
         .iter()
         .map(|&slot| {
             let (owner, description) = slot_description(slot);
-            json!({"slot": slot.as_str(), "owner": owner, "description": description})
+            json!({"slot": slot.as_str(), "name": slot_name(slot), "owner": owner, "description": description})
         })
         .collect();
     let rules: Vec<Value> = RULES
@@ -430,6 +496,7 @@ pub fn catalog() -> Value {
         .map(|r| {
             json!({
                 "id": r.id,
+                "title": r.title,
                 "version": r.version,
                 "bindings": r.bindings,
                 "prerequisites": r.prerequisites,

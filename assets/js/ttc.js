@@ -21,9 +21,9 @@
     var p = preset(value);
     if (!value) return 'Choose a preset or enter a distribution.';
     if (!p) return 'Custom distribution · time in ' + unitName(unit, 2);
-    if (p[2] === 0) return value + ': never occurs · blocked.';
-    if (p[1] === 0) return value + ': ' + (p[2] === 1 ? 'immediate success.' : '50% immediate success; otherwise never.');
-    return value + ': ' + (p[2] === 1 ? 'eventual success' : '50% eventual success; otherwise never') + '. Exponential wait, mean ' + p[1] + ' ' + unitName(unit, p[1]) + (p[2] === 1 ? '.' : ' if successful.') + ' Not a guarantee within the horizon.';
+    if (p[2] === 0) return 'Never occurs · blocked.';
+    if (p[1] === 0) return p[2] === 1 ? 'Immediate success.' : '50% immediate success; otherwise never.';
+    return (p[2] === 1 ? 'Eventual success' : '50% eventual success; otherwise never') + '. Exponential wait, mean ' + p[1] + ' ' + unitName(unit, p[1]) + (p[2] === 1 ? '.' : ' if successful.') + ' Not a guarantee within the horizon.';
   }
   function options(unit) {
     return [['', 'Choose timing…']].concat(PRESETS.map(function (p) { return [p[0], label(p, unit)]; }), [['custom', 'Custom distribution…']]);

@@ -19,7 +19,7 @@ use effractor_core::{
     AssociationId, Code, Diagnostic, EntityId, FlowId, Severity, validate_architecture,
 };
 
-use crate::catalog::{MAX_GENERATED_DEPENDENCIES, MAX_GENERATED_NODES, RULES};
+use crate::catalog::{MAX_GENERATED_DEPENDENCIES, MAX_GENERATED_NODES, RULES, state_word};
 use crate::graph::{
     Binding, GeneratedGraph, GeneratedKind, GeneratedNode, Origin, Owner, SEMANTICS,
 };
@@ -279,18 +279,21 @@ impl<'a> Builder<'a> {
         for (id, entity) in &self.m.entities {
             for state in entity.kind.states() {
                 let fid = self.state_id(id, state.as_str());
-                self.fact(fid, format!("{} · {}", entity.label, state.as_str()));
+                self.fact(fid, format!("{} · {}", entity.label, state_word(*state)));
             }
             match entity.kind {
                 EntityKind::Service => {
-                    for state in ["reachable", "exploit-ready"] {
+                    for (state, word) in [
+                        ("reachable", "reachable"),
+                        ("exploit-ready", "exploit ready"),
+                    ] {
                         let fid = self.state_id(id, state);
-                        self.fact(fid, format!("{} · {state}", entity.label));
+                        self.fact(fid, format!("{} · {word}", entity.label));
                     }
                 }
                 EntityKind::Account => {
                     let fid = self.state_id(id, "material");
-                    self.fact(fid, format!("{} · material", entity.label));
+                    self.fact(fid, format!("{} · credential held", entity.label));
                 }
                 _ => {}
             }
@@ -303,7 +306,7 @@ impl<'a> Builder<'a> {
             let label = format!(
                 "Foothold · {} · {}",
                 self.label(&f.entity),
-                f.state.as_str()
+                state_word(f.state)
             );
             self.insert(
                 id.clone(),
@@ -394,12 +397,12 @@ impl<'a> Builder<'a> {
             let fact = Self::permission_id(from, to);
             self.insert(
                 input.clone(),
-                format!("Policy · {firewall} · {}", flow.label),
+                format!("Firewall rule · {firewall} · {}", flow.label),
                 DraftKind::Input(Binding::Permission(aid.clone())),
             );
             self.fact(
                 fact.clone(),
-                format!("Permitted · {firewall} · {}", flow.label),
+                format!("Let through · {firewall} · {}", flow.label),
             );
             let policy = Origin {
                 entities: vec![from.clone()],
@@ -486,7 +489,7 @@ impl<'a> Builder<'a> {
             let control = self.state_id(sid, State::Control.as_str());
             self.action(
                 format!("action/service-find-exploit/{sid}"),
-                format!("Find exploit · {}", entity.label),
+                format!("Find an exploit · {}", entity.label),
                 Binding::Parameter {
                     owner: owner.clone(),
                     base: Slot::FindExploit,
@@ -503,7 +506,7 @@ impl<'a> Builder<'a> {
             };
             self.action(
                 format!("action/service-deploy-exploit/{sid}"),
-                format!("Deploy exploit · {}", entity.label),
+                format!("Use the exploit · {}", entity.label),
                 Binding::Parameter {
                     owner,
                     base: Slot::DeployExploit,
@@ -583,7 +586,7 @@ impl<'a> Builder<'a> {
             let session = format!("state/session/{from}/{to}");
             self.fact(
                 session.clone(),
-                format!("Session · {} · {}", self.label(from), self.label(to)),
+                format!("Logged in · {} · {}", self.label(from), self.label(to)),
             );
             let prerequisites = [
                 self.state_id(to, "reachable"),

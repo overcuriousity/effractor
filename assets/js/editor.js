@@ -196,7 +196,7 @@
     ["Enter in Pareto scatter", "Highlight an attack path"],
     ["↑ ↓ ← →", "Walk the tree: parent, child, siblings"],
     ["any letter", "Rename, starting with that letter"],
-    ["Ctrl+Enter", "Solve, or cancel a running solve"],
+    ["Ctrl+Enter", "Calculate, or cancel a running calculation"],
   ];
   // What both profiles share; architecture-ui.js adds its own above it.
   var COMMON_KEYS = [
@@ -999,12 +999,22 @@
       dt.appendChild(row[0]);
       var dd = document.createElement("dd");
       dd.textContent = row[1];
+      if (row[2]) {
+        var meaning = document.createElement("span");
+        meaning.className = "hint legend-meaning";
+        meaning.textContent = row[2];
+        dd.appendChild(meaning);
+      }
       $("help-legend-list").appendChild(dt);
       $("help-legend-list").appendChild(dd);
     });
     $("help-dialog").showModal();
   }
   $("help").addEventListener("click", openHelp);
+  $("kinds-legend").addEventListener("click", function () {
+    openHelp();
+    $("help-legend").scrollIntoView({ block: "start" });
+  });
   $("help-close").addEventListener("click", function () {
     $("help-dialog").close();
   });

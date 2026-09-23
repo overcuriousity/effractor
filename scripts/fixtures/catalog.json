@@ -7,6 +7,7 @@
     {
       "kind": "network",
       "description": "A network or security zone. `access` means an attacker can originate traffic there, not that every member is compromised.",
+      "meaning": "A network or zone. Being in it means the attacker can send traffic there.",
       "states": [
         "access"
       ],
@@ -16,6 +17,7 @@
     {
       "kind": "router",
       "description": "A forwarding and management device. `admin` means administrative control.",
+      "meaning": "Forwards traffic between networks and can be administered.",
       "states": [
         "admin"
       ],
@@ -25,6 +27,7 @@
     {
       "kind": "firewall",
       "description": "The filter managed by one router. Its permissions apply to named flows.",
+      "meaning": "A router's filter: which flows it lets through.",
       "states": [],
       "parameters": [],
       "defense": null
@@ -32,6 +35,7 @@
     {
       "kind": "host",
       "description": "A workstation or server. `user` and `admin` control are distinct.",
+      "meaning": "A machine: a workstation, a server or a virtual machine.",
       "states": [
         "user",
         "admin"
@@ -42,6 +46,7 @@
     {
       "kind": "application",
       "description": "Client-side software running on a host or router.",
+      "meaning": "Software that makes connections, e.g. a browser or mail client. Reached only through what it opens.",
       "states": [
         "control"
       ],
@@ -51,6 +56,7 @@
     {
       "kind": "service",
       "description": "A reachable service running on a host or router, with exploit and login routes.",
+      "meaning": "Software that accepts connections, e.g. a web server or SSH. Exploited or logged into over the network.",
       "states": [
         "control"
       ],
@@ -65,6 +71,7 @@
     {
       "kind": "account",
       "description": "An identity with explicit authentication and grants; no implicit global privileges.",
+      "meaning": "An identity that services accept and that has rights on machines.",
       "states": [],
       "parameters": [
         "admin-login"
@@ -74,6 +81,7 @@
     {
       "kind": "credential",
       "description": "A description of authentication material; `possessed` is the attacker holding it. Never the secret itself.",
+      "meaning": "What proves an account, e.g. a password or key. Must be extracted from where it is kept.",
       "states": [
         "possessed"
       ],
@@ -195,63 +203,76 @@
   "states": [
     {
       "id": "access",
+      "word": "access",
       "description": "Traffic can be originated in this network."
     },
     {
       "id": "user",
+      "word": "user control",
       "description": "User-level control of this machine."
     },
     {
       "id": "admin",
+      "word": "admin control",
       "description": "Administrative control of this machine."
     },
     {
       "id": "control",
+      "word": "controlled",
       "description": "This software does what the attacker says."
     },
     {
       "id": "possessed",
+      "word": "held",
       "description": "The attacker holds this credential."
     }
   ],
   "parameters": [
     {
       "slot": "connect",
+      "name": "Connect",
       "owner": "flow",
       "description": "Time to establish the flow once its source is controlled and its route permitted."
     },
     {
       "slot": "find-exploit",
+      "name": "Find an exploit",
       "owner": "service",
       "description": "Time to find a usable exploit for a reachable service."
     },
     {
       "slot": "find-exploit-patched",
+      "name": "Find an exploit (patched)",
       "owner": "service",
       "description": "The same, once the service is patched; selected by `defenses.patched`."
     },
     {
       "slot": "deploy-exploit",
+      "name": "Use the exploit",
       "owner": "service",
       "description": "Time to turn a found exploit into control of the service."
     },
     {
       "slot": "login",
+      "name": "Log in",
       "owner": "service",
       "description": "Time to log in with an account's material, once the service is reachable."
     },
     {
       "slot": "extract",
+      "name": "Extract",
       "owner": "credential",
       "description": "Time to extract the credential from a store the attacker controls."
     },
     {
       "slot": "extract-protected",
+      "name": "Extract (protected)",
       "owner": "credential",
       "description": "The same, once the store is protected; selected by `defenses.protected`."
     },
     {
       "slot": "admin-login",
+      "name": "Admin login",
       "owner": "account",
       "description": "Time to authenticate to a machine's management from an administering network."
     }
@@ -259,6 +280,7 @@
   "rules": [
     {
       "id": "foothold",
+      "title": "The attacker starts here",
       "version": 1,
       "bindings": [
         "entity",
@@ -276,6 +298,7 @@
     },
     {
       "id": "admin-implies-user",
+      "title": "Admin control includes user control",
       "version": 1,
       "bindings": [
         "host"
@@ -292,6 +315,7 @@
     },
     {
       "id": "host-execution",
+      "title": "Controlling a machine controls its software",
       "version": 1,
       "bindings": [
         "hosts"
@@ -309,6 +333,7 @@
     },
     {
       "id": "execution-privilege",
+      "title": "Controlled software acts with its privilege",
       "version": 1,
       "bindings": [
         "hosts"
@@ -325,6 +350,7 @@
     },
     {
       "id": "hosted-router",
+      "title": "Controlling the host controls its router",
       "version": 1,
       "bindings": [
         "hosts"
@@ -342,6 +368,7 @@
     },
     {
       "id": "zone-access",
+      "title": "A controlled machine reaches its networks",
       "version": 1,
       "bindings": [
         "attached"
@@ -358,6 +385,7 @@
     },
     {
       "id": "flow-permission",
+      "title": "The firewall lets the flow through",
       "version": 1,
       "bindings": [
         "permits"
@@ -375,6 +403,7 @@
     },
     {
       "id": "flow-connect",
+      "title": "Connect along the flow",
       "version": 1,
       "bindings": [
         "flow"
@@ -393,6 +422,7 @@
     },
     {
       "id": "service-reachable",
+      "title": "A connection reaches the service",
       "version": 1,
       "bindings": [
         "service"
@@ -409,6 +439,7 @@
     },
     {
       "id": "service-find-exploit",
+      "title": "Find an exploit",
       "version": 1,
       "bindings": [
         "service"
@@ -431,6 +462,7 @@
     },
     {
       "id": "service-deploy-exploit",
+      "title": "Use the exploit",
       "version": 1,
       "bindings": [
         "service"
@@ -449,6 +481,7 @@
     },
     {
       "id": "credential-extract",
+      "title": "Extract a credential",
       "version": 1,
       "bindings": [
         "stores"
@@ -471,6 +504,7 @@
     },
     {
       "id": "account-material",
+      "title": "A held credential unlocks its account",
       "version": 1,
       "bindings": [
         "authenticates"
@@ -488,6 +522,7 @@
     },
     {
       "id": "service-login",
+      "title": "Log in to a service",
       "version": 1,
       "bindings": [
         "authorizes"
@@ -506,6 +541,7 @@
     },
     {
       "id": "session-grant",
+      "title": "A login gives the account's rights",
       "version": 1,
       "bindings": [
         "authorizes",
@@ -523,6 +559,7 @@
     },
     {
       "id": "administration-login",
+      "title": "Admin login from a network",
       "version": 1,
       "bindings": [
         "administration",

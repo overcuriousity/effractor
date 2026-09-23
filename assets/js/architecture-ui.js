@@ -8,6 +8,7 @@
   var A = window.effractorArchitectureEdit;
   var L = window.effractorArchitectureLinks;
   var P = window.effractorProfiles;
+  var W = window.effractorWords;
   var $ = function (id) {
     return document.getElementById(id);
   };
@@ -171,15 +172,17 @@
 
   // The type picker: one menu of the eight kinds.
   function pickKind(x, y) {
-    app.showMenu(A.KINDS.map(function (kind) {
-      return [word(kind), "", function () { create(kind); }, { icon: icon(kind) }];
-    }), x, y);
+    loadCatalog().catch(function () {}).then(function () {
+      app.showMenu(A.KINDS.map(function (kind) {
+        return [word(kind), "", function () { create(kind); }, { icon: icon(kind), title: W.meaning(catalog, kind) }];
+      }), x, y);
+    });
   }
   // The background's menu: add a component, put every one back where the
   // automatic layout wants it, show or hide the firewalls' permissions.
   function backgroundMenu(x, y) {
     var add = A.KINDS.map(function (kind) {
-      return [word(kind), "", function () { create(kind); }, { icon: icon(kind) }];
+      return [word(kind), "", function () { create(kind); }, { icon: icon(kind), title: W.meaning(catalog, kind) }];
     });
     var shown = app.permits();
     app.showMenu([
@@ -441,7 +444,7 @@
     }
     var form = document.createElement("div");
     form.className = "parameter-form";
-    var status = field(form, "param-status", "Evidence", window.effractorMenu.dropdown(STATUS, draft.status));
+    var status = field(form, "param-status", "Confidence", window.effractorMenu.dropdown(STATUS, draft.status));
     status.addEventListener("change", function () {
       draft.status = status.value;
       keep();
@@ -456,13 +459,14 @@
       var timing = window.effractorTtc.attach(ttc, doc().time_unit);
       var l = document.createElement("label");
       l.htmlFor = "param-ttc";
-      l.textContent = "TTC";
+      l.textContent = "Time";
+      l.title = "Time to compromise: how long this takes the attacker";
       form.appendChild(l);
       form.appendChild(timing);
       ttc.addEventListener("input", function () { draft.ttc = ttc.value; keep(); });
       ttc.addEventListener("change", function () { draft.ttc = ttc.value; keep(); });
-      var note = field(form, "param-note", "Basis", input("textarea", draft.note));
-      note.placeholder = "source · required if calibrated";
+      var note = field(form, "param-note", "Reason", input("textarea", draft.note));
+      note.placeholder = "why this value · required if calibrated";
       note.addEventListener("input", function () { draft.note = note.value; keep(); });
     }
     var actions = document.createElement("div");
@@ -520,10 +524,10 @@
       head.setAttribute("aria-expanded", String(openSlot === key));
       // A reason is only required of a calibrated value; its absence shows.
       var reason = p.note ? p.note : p.status === "unknown" ? "" : "no reason given";
-      head.title = slotHint(slot) + (reason ? "\n" + reason : "");
+      head.title = slotHint(slot) + (reason ? "\n" + reason : "") + "\n" + slot;
       var name = document.createElement("span");
       name.className = "slot";
-      name.textContent = slot;
+      name.textContent = W.slot(catalog, slot);
       var value = document.createElement("span");
       value.className = "given" + (p.status === "unknown" ? " is-unknown" : "");
       value.textContent = drafts[key] ? "draft" : given(p);
@@ -637,7 +641,10 @@
       return;
     }
     if (!wasArch) {
-      loadCatalog().catch(function () {});
+      var had = !!catalog;
+      loadCatalog().then(function () {
+        if (!had && P.isArchitecture(app.state.doc)) app.redraw();
+      }, function () {});
       // Only the results tab has a meaning here, and it says so.
       if (window.effractorTabs) window.effractorTabs.show("results");
     }
@@ -667,7 +674,7 @@
       return A.KINDS.map(function (kind) {
         var sample = window.effractorArchitectureIcons.svg(document, kind, 22);
         sample.setAttribute("class", sample.getAttribute("class") + " is-plate");
-        return [sample, word(kind)];
+        return [sample, word(kind), W.meaning(catalog, kind)];
       });
     },
     // A parameter of the selected component or flow, opened as if clicked:
@@ -696,6 +703,10 @@
     menuItems: extraItems,
     keyList: KEYS,
     loadCatalog: loadCatalog,
+    // The catalog if it has arrived, else null: words fall back to ids.
+    catalog: function () {
+      return catalog;
+    },
     word: word,
     SWITCH: SWITCH,
   };
