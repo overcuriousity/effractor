@@ -284,22 +284,24 @@
 
   // ---- context menu ----
 
-  // A menu item's submenu opens beside it, in one second list.
-  var submenu = document.createElement("div");
-  submenu.className = "menu submenu";
-  submenu.setAttribute("role", "menu");
-  submenu.hidden = true;
-  document.body.appendChild(submenu);
-  var opener = null; // the item whose submenu is open
+  // The open lists, outermost first: the menu itself, then one list per
+  // level of nesting, each beside the item that opened it. A list stays open
+  // while the pointer or the keys are anywhere in what it opened.
+  var lists = [$("context-menu")];
+  var openers = [null]; // openers[n]: the item in list n-1 that opened list n
 
-  function hideSubmenu() {
-    submenu.hidden = true;
-    if (opener) opener.setAttribute("aria-expanded", "false");
+  // Every list deeper than `depth` goes; list `depth` stays.
+  function closeFrom(depth) {
+    while (lists.length > depth + 1) {
+      lists.pop().remove();
+      var opener = openers.pop();
+      if (opener) opener.setAttribute("aria-expanded", "false");
+    }
   }
 
   function closeMenu() {
+    closeFrom(0);
     $("context-menu").hidden = true;
-    hideSubmenu();
   }
 
   // The same menu wherever a node is shown: on the canvas, and in the model
@@ -327,11 +329,48 @@
     menu.style.visibility = "";
   }
 
-  // `items`: [label, key, run], or [label, key, items] for a submenu, which
-  // opens beside its item on hover, click, → or Enter; ← or Esc goes back.
-  // A fourth element {hint, title} adds a few quiet words after the label and
-  // a tooltip; the right-hand column is only ever a key.
-  function fill(menu, items, nested) {
+  // Opens `button`'s children as list `depth` + 1, flush against list
+  // `depth` on whichever side fits. `children` is the items, or a function
+  // that answers them (a promise will do) for lists that need the catalog.
+  function openChild(depth, button, children, focus) {
+    if (openers[depth + 1] === button) {
+      if (focus) focusFirst(lists[depth + 1]);
+      return;
+    }
+    closeFrom(depth);
+    var list = document.createElement("div");
+    list.className = "menu submenu";
+    list.setAttribute("role", "menu");
+    list.hidden = true;
+    document.body.appendChild(list);
+    lists.push(list);
+    openers.push(button);
+    button.setAttribute("aria-expanded", "true");
+    Promise.resolve(typeof children === "function" ? children() : children).then(function (items) {
+      if (lists[depth + 1] !== list) return; // closed, or another opened since
+      // Nothing to offer is still a list: it says why.
+      fill(list, items && items.length ? items : [["Nothing here", "", null]], depth + 1);
+      var box = button.getBoundingClientRect();
+      var edge = lists[depth].getBoundingClientRect();
+      place(list, { left: edge.left, right: edge.right, top: box.top - 4 });
+      if (focus) focusFirst(list);
+    }, function () {
+      if (lists[depth + 1] === list) fill(list, [["Could not be read", "", null]], depth + 1);
+    });
+  }
+
+  function focusFirst(list) {
+    var first = list.querySelector("button:not(:disabled)");
+    if (first) first.focus();
+  }
+
+  // `items`: [label, key, run], or [label, key, items] for a nested list,
+  // which opens beside its item on hover, click, → or Enter, as deep as the
+  // items go; ← or Esc closes the innermost list. {items: function} in place
+  // of the items answers them when the list opens. A fourth element {hint, title} adds a few quiet
+  // words after the label and a tooltip; the right-hand column is only ever a
+  // key, and the arrow of an item that opens a list.
+  function fill(menu, items, depth) {
     menu.replaceChildren();
     items.forEach(function (item) {
       var button = document.createElement("button");
@@ -355,64 +394,73 @@
         menu.appendChild(button);
         return;
       }
+      var children = Array.isArray(item[2]) ? item[2] : item[2].items || null;
+      var right = document.createElement("span");
+      right.className = "menu-right";
+      if (item[1]) {
+        var key = document.createElement("kbd");
+        key.textContent = item[1];
+        right.appendChild(key);
+      }
+      if (children) {
+        var arrow = document.createElement("span");
+        arrow.className = "menu-arrow";
+        arrow.setAttribute("aria-hidden", "true");
+        arrow.textContent = "›";
+        right.appendChild(arrow);
+      }
+      button.appendChild(right);
       // One item is active at a time: the pointer takes the focus with it,
       // so a hovered item and a focused one are never two.
       button.addEventListener("mouseenter", function () {
         button.focus();
       });
-      var key = document.createElement("kbd");
-      var children = Array.isArray(item[2]) ? item[2] : null;
-      key.textContent = children ? (item[1] ? item[1] + " ›" : "›") : item[1];
-      button.appendChild(key);
       if (children) {
         button.setAttribute("aria-haspopup", "menu");
         button.setAttribute("aria-expanded", "false");
-        var open = function (focus) {
-          var box = button.getBoundingClientRect();
-          if (opener && opener !== button) opener.setAttribute("aria-expanded", "false");
-          fill(submenu, children, true);
-          opener = button;
-          button.setAttribute("aria-expanded", "true");
-          // Flush against the list it opens from, on whichever side fits.
-          var edge = menu.getBoundingClientRect();
-          place(submenu, { left: edge.left, right: edge.right, top: box.top - 4 });
-          if (focus) {
-            var first = submenu.querySelector("button:not(:disabled)");
-            if (first) first.focus();
-          }
-        };
         button.addEventListener("click", function () {
-          open(true);
+          openChild(depth, button, children, true);
         });
         button.addEventListener("mouseenter", function () {
-          open(false);
+          openChild(depth, button, children, false);
         });
         button.addEventListener("keydown", function (e) {
           if (e.key !== "ArrowRight") return;
           e.preventDefault();
-          open(true);
+          e.stopPropagation();
+          openChild(depth, button, children, true);
         });
       } else {
         button.addEventListener("click", function () {
           closeMenu();
           item[2]();
         });
-        // Pointing at a plain item of the first list closes an open submenu.
-        if (!nested) {
-          button.addEventListener("mouseenter", hideSubmenu);
-        }
+        // Pointing at a plain item closes whatever its siblings had opened.
+        button.addEventListener("mouseenter", function () {
+          closeFrom(depth);
+        });
       }
       menu.appendChild(button);
     });
+    // ↑ ↓ walk the list; ← and Esc close a nested one and go back to the
+    // item that opened it.
+    menu.onkeydown = function (e) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        var buttons = Array.prototype.slice.call(menu.querySelectorAll("button:not(:disabled)"));
+        var at = buttons.indexOf(document.activeElement);
+        var next = buttons[(at + (e.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length];
+        if (next) next.focus();
+        return;
+      }
+      if (!depth || (e.key !== "ArrowLeft" && e.key !== "Escape")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var opener = openers[depth];
+      closeFrom(depth - 1);
+      if (opener) opener.focus();
+    };
   }
-
-  submenu.addEventListener("keydown", function (e) {
-    if (e.key !== "ArrowLeft" && e.key !== "Escape") return;
-    e.preventDefault();
-    e.stopPropagation();
-    hideSubmenu();
-    if (opener) opener.focus();
-  });
 
   // At the point (x, y), or beside `anchor` — the box of what opened it —
   // when there is one.
@@ -421,9 +469,9 @@
     // Nothing to offer is not an empty box: the caller says why instead.
     if (!items.some(function (item) { return item[2] != null; })) return;
     var menu = $("context-menu");
-    fill(menu, items, false);
+    fill(menu, items, 0);
     place(menu, anchor || { left: x, right: x, top: y });
-    menu.querySelector("button:not(:disabled)").focus(); // Tab and Enter work from here; Esc closes
+    focusFirst(menu); // Tab and Enter work from here; Esc closes
   }
 
   // The one menu for every right-click on the page: the controls list, the
@@ -452,7 +500,7 @@
     focusLabel();
   });
   document.addEventListener("pointerdown", function (e) {
-    if (!$("context-menu").contains(e.target) && !submenu.contains(e.target)) closeMenu();
+    if (!e.target.closest || !e.target.closest(".menu")) closeMenu();
   });
 
   // ---- link existing: a search over the nodes ----

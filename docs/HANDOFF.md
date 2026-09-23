@@ -416,8 +416,13 @@ today, all of it after seeing the alternative:
   would cover is panned into view (`renderer.reveal`). Not in either panel:
   the left is the model, the right is the analysis.
 - **Menus are hierarchical** (owner, 2026-09-23): an item may carry a submenu
-  (`[label, key, items]`), one item is active at a time, greyed notes
-  (`run` null) explain what is not offered. The right-hand column is only a key.
+  (`[label, key, items]`, or `{items: fn}` answered when it opens), one item
+  is active at a time, greyed notes (`run` null) explain what is not offered.
+  The right-hand column is only a key, plus a clear `›` on an item that nests.
+- **Menus nest, never replace** (owner, 2026-09-23, after Paradox games' menus):
+  any depth, each list beside its item, and every list stays open while the
+  pointer is in something it opened; the items on the way in stay quietly
+  lit. No menu item closes its menu to open another one in its place.
 - **Say why, never nothing** (owner, 2026-09-23): an empty menu or list states
   what is missing and how to add it.
 - **Relationships are said in plain words** from the selected component

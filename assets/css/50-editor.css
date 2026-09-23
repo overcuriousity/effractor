@@ -80,9 +80,14 @@
   font-size: var(--text-sm);
 }
 .menu button { display: flex; justify-content: space-between; gap: 16px; width: 100%; padding: 4px 8px; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-/* The active item: under the pointer or the keys (they move together), and
-   an item whose submenu is open. */
-.menu button:hover, .menu button:focus, .menu button[aria-expanded="true"] { background: var(--color-bg-hover); outline: none; }
+/* The active item: under the pointer or the keys (they move together). */
+.menu button:hover, .menu button:focus { background: var(--color-bg-hover); outline: none; }
+/* The way in: each item whose list is open, quieter than the active one. */
+.menu button[aria-expanded="true"]:not(:focus):not(:hover) { background: color-mix(in srgb, var(--color-bg-hover) 55%, transparent); }
+.menu .menu-right { display: flex; align-items: center; gap: 6px; }
+/* An item that opens a list says so with an arrow, never with a key alone. */
+.menu .menu-arrow { width: 0.7em; color: var(--color-fg-primary); font-size: var(--text-md); line-height: 1; text-align: right; }
+.menu button[aria-expanded="true"] .menu-arrow { color: var(--color-accent); }
 .menu button.is-note { color: var(--color-fg-muted); cursor: default; background: none; }
 .menu .menu-hint { margin-left: 8px; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .menu kbd { color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); }

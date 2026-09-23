@@ -82,9 +82,10 @@
 
   // Each way to link, with its privilege where it has one, opens the list of
   // existing components that fit; the new link keeps the selection here.
-  function startLink(id, anchor) {
-    withCatalog(function (c) {
-      var where = at(anchor, id);
+  // When nothing can be linked, one greyed note that says why.
+  function linkItems(id) {
+    return U.loadCatalog().then(function (c) {
+      catalog = c;
       var items = [];
       L.linkChoices(doc(), c, id).forEach(function (choice) {
         var ends = function (other) {
@@ -112,10 +113,19 @@
       flowItems(id).forEach(function (item) {
         items.push(item);
       });
-      if (!items.length) return app.say(L.emptyLink(doc(), c, id) || "nothing here to link “" + name(id) + "” to");
+      if (!items.length) return [[L.emptyLink(doc(), c, id) || "nothing here to link “" + name(id) + "” to", "", null]];
       L.notes(doc(), id).forEach(function (n) {
         items.push([n.kind.charAt(0).toUpperCase() + n.kind.slice(1), "", null, { hint: n.hint }]);
       });
+      return items;
+    }, function () {
+      return [["the component library could not be read", "", null]];
+    });
+  }
+  function startLink(id, anchor) {
+    linkItems(id).then(function (items) {
+      if (!items.some(function (item) { return item[2] != null; })) return app.say(items[0][0]);
+      var where = at(anchor, id);
       app.showMenu(items, where.x, where.y, where.box);
     });
   }
@@ -449,7 +459,7 @@
   U.sections.association = associationSection;
   U.sections.flow = flowSection;
   U.menuItems.push(function (id) {
-    return [["Link…", "L", function () { startLink(id, null); }]].concat(unlinkItems(id));
+    return [["Link", "L", { items: function () { return linkItems(id); } }]].concat(unlinkItems(id));
   });
   U.keyList.splice(1, 0, ["L", "Link the selected component"]);
 

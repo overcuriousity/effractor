@@ -129,8 +129,10 @@
       return L.addLinked(doc(), A, id, kind, freeLabel(kind), kindSpec(kind), option);
     }, focusLabel);
   }
-  function addLinkedMenu(id, x, y) {
-    loadCatalog().then(function (c) {
+  // What can be added linked to `id`, by kind and then by way; when nothing
+  // can, one greyed note that says why.
+  function addLinkedItems(id) {
+    return loadCatalog().then(function (c) {
       var items = L.addChoices(doc(), c, id).map(function (choice) {
         if (choice.options.length === 1) {
           var only = choice.options[0];
@@ -140,13 +142,19 @@
           return [optionWord(o), "", function () { addLinked(id, choice.kind, o); }, { title: optionTitle(o) }];
         })];
       });
-      if (!items.length) return app.say(L.emptyLink(doc(), c, id) || "nothing can be linked to “" + doc().entities[id].label + "”");
+      if (!items.length) return [[L.emptyLink(doc(), c, id) || "nothing can be linked to “" + doc().entities[id].label + "”", "", null]];
       L.notes(doc(), id).forEach(function (n) {
         items.push([word(n.kind), "", null, { hint: n.hint }]);
       });
-      app.showMenu(items, x, y);
+      return items;
     }, function () {
-      app.say("the component library could not be read");
+      return [["the component library could not be read", "", null]];
+    });
+  }
+  function addLinkedMenu(id, x, y) {
+    addLinkedItems(id).then(function (items) {
+      if (!items.some(function (item) { return item[2] != null; })) return app.say(items[0][0]);
+      app.showMenu(items, x, y);
     });
   }
   // Beside the selected component on the canvas, or beside a control.
@@ -197,7 +205,7 @@
 
   function menuFor(id, x, y) {
     app.select("entity/" + id);
-    var items = [["Add linked…", "Tab", function () { addLinkedMenu(id, x, y); }], ["Rename", "F2", focusLabel]];
+    var items = [["Add linked", "Tab", { items: function () { return addLinkedItems(id); } }], ["Rename", "F2", focusLabel]];
     if (Object.keys(doc().entities[id].parameters || {}).length) items.push(["Edit parameters", "P", firstParameter]);
     extraItems.forEach(function (more) {
       items = items.concat(more(id));
