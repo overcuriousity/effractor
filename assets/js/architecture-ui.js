@@ -140,7 +140,10 @@
           return [optionWord(o), "", function () { addLinked(id, choice.kind, o); }, { title: optionTitle(o) }];
         })];
       });
-      if (!items.length) return app.say("nothing can be linked to “" + doc().entities[id].label + "”");
+      if (!items.length) return app.say(L.emptyLink(doc(), c, id) || "nothing can be linked to “" + doc().entities[id].label + "”");
+      L.notes(doc(), id).forEach(function (n) {
+        items.push([word(n.kind), "", null, { hint: n.hint }]);
+      });
       app.showMenu(items, x, y);
     }, function () {
       app.say("the component library could not be read");

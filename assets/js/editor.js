@@ -337,6 +337,13 @@
       }
       button.appendChild(text);
       if (extra.title) button.title = extra.title;
+      // An item with nothing to run is a note: greyed, and it says why.
+      if (item[2] == null) {
+        button.disabled = true;
+        button.classList.add("is-note");
+        menu.appendChild(button);
+        return;
+      }
       // One item is active at a time: the pointer takes the focus with it,
       // so a hovered item and a focused one are never two.
       button.addEventListener("mouseenter", function () {
@@ -357,7 +364,10 @@
           button.setAttribute("aria-expanded", "true");
           var x = box.right + 2 + 260 > window.innerWidth ? box.left - 262 : box.right + 2;
           place(submenu, x, box.top - 4);
-          if (focus) submenu.children[0].focus();
+          if (focus) {
+            var first = submenu.querySelector("button:not(:disabled)");
+            if (first) first.focus();
+          }
         };
         button.addEventListener("click", function () {
           open(true);
@@ -394,10 +404,12 @@
 
   function showMenu(items, x, y) {
     closeMenu();
+    // Nothing to offer is not an empty box: the caller says why instead.
+    if (!items.some(function (item) { return item[2] != null; })) return;
     var menu = $("context-menu");
     fill(menu, items, false);
     place(menu, x, y);
-    menu.children[0].focus(); // Tab and Enter work from here; Esc closes
+    menu.querySelector("button:not(:disabled)").focus(); // Tab and Enter work from here; Esc closes
   }
 
   // The one menu for every right-click on the page: the controls list, the
@@ -474,6 +486,17 @@
       });
       list.appendChild(item);
     });
+    // An empty list says why, not nothing.
+    if (!ids.length) {
+      var why = document.createElement("li");
+      why.className = "empty";
+      why.textContent = $("link-search").value.trim()
+        ? "no node matches"
+        : linkMode === "move"
+          ? "no other node can take it without making a cycle"
+          : "every other node is above it, below it already, or would make a cycle";
+      list.appendChild(why);
+    }
     return ids;
   }
 

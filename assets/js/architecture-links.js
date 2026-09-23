@@ -489,7 +489,60 @@
     return out;
   }
 
-  var api = { KINDS: KINDS, phrase: phrase, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, renameId: renameId, remove: remove };
+  // ---- what cannot be linked, and why: said where it would be looked for ----
+
+  // Greyed entries for the Tab and Link menus: a kind that is not linked
+  // directly, and the way to get there instead.
+  function notes(doc, id) {
+    switch (kindOf(doc, id)) {
+      case "host":
+        return [{ kind: "router", hint: "through a network" }];
+      case "router":
+        return [{ kind: "host", hint: "through a network" }];
+      case "firewall":
+        return [{ kind: "flow", hint: "permitted in the flow" }];
+      default:
+        return [];
+    }
+  }
+
+  function list(words) {
+    return words.length < 2 ? words.join("") : words.slice(0, -1).join(", ") + " or " + words[words.length - 1];
+  }
+
+  // Why the Link menu of `id` would be empty, or null when it is not.
+  function emptyLink(doc, catalog, id) {
+    var kind = kindOf(doc, id);
+    if (!kind) return null;
+    var choices = linkChoices(doc, catalog, id);
+    if (choices.some(function (c) { return c.candidates.length; })) return null;
+    if (kind === "firewall" && hasFilters(doc, "to", id)) return "a firewall permits flows · set it in each flow that crosses its router";
+    var kinds = addChoices(doc, catalog, id).map(function (c) {
+      return c.kind;
+    });
+    return "no " + list(kinds) + " yet · Tab adds one linked";
+  }
+
+  // Why software has no service to send a flow to, or null.
+  function emptyFlow(doc, id) {
+    var any = Object.keys(doc.entities).some(function (o) {
+      return o !== id && kindOf(doc, o) === "service";
+    });
+    return any ? null : "no service yet · Tab on “" + doc.entities[id].label + "” adds one with a flow";
+  }
+
+  // Why a flow's route has no next hop to offer, or null.
+  function emptyHop(doc, flow) {
+    if (nextHops(doc, flow).length) return null;
+    var want = (flow.route || []).length % 2 === 0 ? "network" : "router";
+    var exists = Object.keys(doc.entities).some(function (id) {
+      return kindOf(doc, id) === want;
+    });
+    if (exists) return "every " + want + " is on this route already";
+    return want === "router" ? "no router yet · add one with A, then connect it to both networks" : "no network yet · add one with A";
+  }
+
+  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, renameId: renameId, remove: remove };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
 })();

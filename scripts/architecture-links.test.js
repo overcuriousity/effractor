@@ -387,3 +387,33 @@ test('adding a flow partner makes the component and a flow with an empty route',
   assert.equal(back.doc.flows['scanner-to-ssh-server'].source, 'scanner');
   assert.equal(back.doc.flows['scanner-to-ssh-server'].target, 'sshd');
 });
+
+test('what cannot be linked is explained where it would be looked for', () => {
+  const doc = lecture();
+  // Greyed entries in the Tab and Link menus: the way to get there instead.
+  assert.deepEqual(L.notes(doc, 'server'), [{ kind: 'router', hint: 'through a network' }]);
+  assert.deepEqual(L.notes(doc, 'bridge'), [{ kind: 'host', hint: 'through a network' }]);
+  assert.deepEqual(L.notes(doc, 'filter'), [{ kind: 'flow', hint: 'permitted in the flow' }]);
+  assert.deepEqual(L.notes(doc, 'sshd'), []);
+  assert.deepEqual(L.notes(doc, 'absent'), []);
+});
+
+test('an empty Link menu says what is missing', () => {
+  const doc = lecture();
+  // The firewall has its router: its permissions are the flows'.
+  assert.equal(L.emptyLink(doc, CATALOG, 'filter'), 'a firewall permits flows · set it in each flow that crosses its router');
+  // A lone host in a new document: nothing to link to yet.
+  const lone = { entities: { h: { kind: 'host', label: 'H' } }, associations: {}, flows: {} };
+  assert.equal(L.emptyLink(lone, CATALOG, 'h'), 'no network, application, service, account or credential yet · Tab adds one linked');
+  assert.equal(L.emptyLink(doc, CATALOG, 'sshd'), null, 'there is something to link');
+});
+
+test('an empty flow or route choice says what to add', () => {
+  const doc = lecture();
+  const noServices = { entities: { c: { kind: 'application', label: 'C' } }, associations: {}, flows: {} };
+  assert.equal(L.emptyFlow(noServices, 'c'), 'no service yet · Tab on “C” adds one with a flow');
+  assert.equal(L.emptyFlow(doc, 'ssh-client'), null);
+  assert.equal(L.emptyHop(doc, { route: ['client-net', 'bridge', 'server-net'] }), 'every router is on this route already');
+  assert.equal(L.emptyHop({ entities: { n: { kind: 'network', label: 'N' } }, associations: {}, flows: {} }, { route: ['n'] }), 'no router yet · add one with A, then connect it to both networks');
+  assert.equal(L.emptyHop(doc, { route: [] }), null);
+});

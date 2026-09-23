@@ -104,7 +104,10 @@
       flowItems(id).forEach(function (item) {
         items.push(item);
       });
-      if (!items.length) return app.say("nothing here to link “" + name(id) + "” to");
+      if (!items.length) return app.say(L.emptyLink(doc(), c, id) || "nothing here to link “" + name(id) + "” to");
+      L.notes(doc(), id).forEach(function (n) {
+        items.push([n.kind.charAt(0).toUpperCase() + n.kind.slice(1), "", null, { hint: n.hint }]);
+      });
       app.showMenu(items, where.x, where.y);
     });
   }
@@ -148,6 +151,7 @@
     var services = Object.keys(doc().entities).filter(function (o) {
       return o !== source && kindOf(o) === "service";
     });
+    if (!services.length) return app.say(L.emptyFlow(doc(), source));
     app.showMenu(services.map(function (target) {
       return [name(target), "", function () { flow(source, target); }, { hint: "service" }];
     }), where.x, where.y);
@@ -372,7 +376,7 @@
     var add = button("+", (f.route || []).length % 2 ? "Add a router" : "Add a network", function () {
       var where = at(add);
       var hops = L.nextHops(doc(), doc().flows[id]);
-      if (!hops.length) return app.say("no " + ((f.route || []).length % 2 ? "router" : "network") + " left to add");
+      if (!hops.length) return app.say(L.emptyHop(doc(), doc().flows[id]));
       app.showMenu(hops.map(function (hop) {
         return [name(hop), kindOf(hop), function () {
           putFlow(id, { route: (doc().flows[id].route || []).concat([hop]) });
@@ -398,7 +402,8 @@
     L.flowPermissions(doc(), id).forEach(function (p, i) {
       var fieldId = "prop-permit-" + i;
       if (!p.firewall) {
-        U.field(form, fieldId, name(p.router), el("span", "? no firewall", "empty"));
+        var missing = U.field(form, fieldId, name(p.router), el("span", "? no firewall", "empty"));
+        missing.title = "“" + name(p.router) + "” has no firewall yet · Tab on it → Firewall";
         return;
       }
       var options = [["none", "? none"], ["true", "Allowed"], ["false", "Denied"], ["unknown", "Unknown"]];
