@@ -10,10 +10,10 @@ The [implementation plan](docs/superpowers/plans/2026-09-21-lecture-workflow.md)
 was reviewed by the owner on 2026-09-22, who chose native in-session execution:
 one feature branch per task, a pause for the owner at each task boundary. The
 items below are its delivery decomposition. Plan tasks 1
-(`architecture-document`), 2 (`component-generation`), 4
-(`architecture-editor`) and 5 (`architecture-links`) are done; the rest map as
-sequential-simulation = 3, attack-graph-inspection = 6, defense-comparison = 7,
-lecture-workflow = 8.
+(`architecture-document`), 2 (`component-generation`), 3
+(`sequential-simulation`), 4 (`architecture-editor`) and 5
+(`architecture-links`) are done; the rest map as attack-graph-inspection = 6,
+defense-comparison = 7, lecture-workflow = 8.
 "securiCAD parity" in the owner's words means `lecture-workflow`, not the later
 `mal-securicad-compatibility`.
 
@@ -72,21 +72,8 @@ the underlying rules and calibrated inputs.
 
 ## Lecture implementation
 
-### sequential-simulation — Prerequisite-dependent timing and paired scenarios
-needs: —            cost: 4   benefit: 5
-Implement iterative event evaluation for generated graphs, accumulated action
-durations, justified cycle entry, explicit unknown-result states, sampled
-probability/CDF and route witnesses. Compare typed defense overlays with common
-random draws and paired intervals; expose stepped/cancellable wasm solves and
-profile-specific result capabilities. Done when timing/cycle/shared-action
-oracles, analytic chain CDF, unknowns, no-op/combined scenarios and limits pass;
-new frozen fingerprints pass native and wasmtime; browser wasm agrees with
-native generation/results; and existing tree fingerprints remain unchanged. Precondition: `wasmtime` is not
-on PATH on the owner's machine (checked 2026-09-23); install it before this item
-so the wasip1 fingerprints can be run locally, not only in CI.
-
 ### attack-graph-inspection — Linked architecture, routes and simulation views
-needs: sequential-simulation            cost: 3   benefit: 5
+needs: —            cost: 3   benefit: 5
 Add Generate, linked component/step selection, rule and assumption inspection,
 blocked and unknown route states, graph focus and the full step table. Show
 sampled compromise probability/CDF with table and bands, and capability-gate

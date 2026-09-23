@@ -157,6 +157,46 @@ Local `scripts/build-wasm.sh`, `npm test` (201), `cargo test --workspace`,
 fmt, Clippy `-D warnings` and the roadmap check passed; the built wasm module
 generated the lecture graph (28 nodes) under node.
 
+## Continuation — sequential simulation (2026-09-23)
+
+Task 3 (`sequential-simulation`) is on `feature/sequential-simulation`. No UI
+changed: the app still gates solving by `profiles.capabilities(doc).solve`,
+false for an architecture, until Task 6 wires it. What exists:
+
+- `effractor-solver` now depends on `effractor-components` and `effractor-mal`.
+  `graph_plan` (`EventPlan`, `GraphOp`, `Witness`): an event queue, times in
+  nondecreasing order, ties by node index, each node finalized once. A fact's
+  own duration is not read. `graph_support::analyze` gives per-node
+  `seeded`/`possible`/`blocked`/`unreachable`, the unknown source paths each
+  node's number would rest on (its own support: every prerequisite of an
+  action, possible producers of a fact, nothing behind an always-zero fact),
+  and the target support; `never(d)` judges impossibility by meaning.
+  `graph_mc` (private) samples baseline and one scenario on the same windows
+  (`256 * (iteration * nodes + slot)`, slot = sorted graph index);
+  `graph_results` (`GraphConfig`, `GraphSolve`, `GraphResults`) is the
+  stepped solve and the result envelope of the plan.
+- Choices the plan left open: `seed` is always a decimal string; the delta is
+  `{mean, ci, ci_reason}`; witness nodes are ordered by time then index;
+  assumptions are the parameters and policies in the target support plus the
+  always-zero inputs seeding facts in it (so an allowed permission on the route
+  is listed); unknown durations sample as never internally and nothing resting
+  on one reports a number; a structural target still samples, for the nodes.
+- Wasm: `Session` holds a tree or a graph solve; `begin(text)` on an
+  architecture begins the baseline graph (it used to answer `unsupported`);
+  `begin_graph` / `solve_graph_begin(text, scenario, revision)`, empty scenario
+  = baseline; a graph finish is `{ok: {revision, source, result}}`. The worker
+  posts `begun` (never `exact`) for a graph and takes optional `scenario` /
+  `revision`; `solver.solve(text, on, {scenario, revision})` calls
+  `on.onBegin`.
+- Checks: `tests/snapshots/lecture-graph.json` freezes the lecture graph and
+  the patch/deny results at 8192 samples (native and wasip1 agree; tree
+  snapshots unchanged). `scripts/check-graph-agreement.js` (CI, after the
+  workspace tests) compares native `examples/graph-agreement` with browser
+  wasm on baseline, patch, deny, the unknown fixture and a seed above 2^53.
+  The lecture at 10,000 samples took about 37 ms in node-hosted wasm, parse and
+  generation included.
+- `wasmtime` 48.0.2 is installed with `cargo install` (49 needs rustc 1.96).
+
 ## Continuation — architecture links (2026-09-23)
 
 Task 5 (`architecture-links`) is merged after the owner's look in the 8081
