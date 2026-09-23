@@ -170,7 +170,7 @@
     app.select(qualified);
     app.showMenu([
       ["Show in source", "", function () { app.showSourcePath(COLLECTION[q.kind] + "." + q.id); }],
-      ["Delete", "Del", remove],
+      [q.kind === "association" ? "Unlink" : "Delete", "Del", remove],
     ], x, y);
   }
   var extraItems = [];

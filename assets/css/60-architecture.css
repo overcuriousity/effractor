@@ -43,6 +43,9 @@
 .link-block { grid-column: 1 / -1; border-top: 1px solid var(--color-border); padding-top: 4px; }
 .link-head { display: flex; align-items: center; justify-content: space-between; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .link-list { margin: 0; padding: 0; list-style: none; }
+.link-list li { display: flex; align-items: baseline; }
+.link-list .unlink { flex: none; padding: 0 4px; border: 0; background: none; color: var(--color-fg-muted); font: inherit; cursor: pointer; }
+.link-list .unlink:hover, .link-list .unlink:focus-visible { color: var(--color-fg-primary); background: var(--color-bg-hover); }
 .link-list .empty { color: var(--color-fg-muted); font-size: var(--text-xs); }
 .link-row { display: flex; gap: 6px; align-items: baseline; width: 100%; padding: 2px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .link-row:hover { color: var(--color-fg-primary); background: var(--color-bg-hover); }

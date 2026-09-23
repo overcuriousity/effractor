@@ -146,6 +146,8 @@ test('deleting a flow or a permission takes its references along', () => {
   let d = L.remove(lecture(), 'flows', 'ssh').doc;
   assert.equal('allow-ssh' in d.associations, false);
   assert.deepEqual(d.scenarios.deny.changes, []);
+  const unlinked = L.remove(lecture(), 'associations', 'ssh-authorizes');
+  assert.equal(unlinked.notice, 'deleted “authorizes Server account → SSH server” · Ctrl+Z undoes');
   d = L.remove(lecture(), 'associations', 'allow-ssh').doc;
   assert.equal('ssh' in d.flows, true);
   assert.deepEqual(d.scenarios.deny.changes, []);

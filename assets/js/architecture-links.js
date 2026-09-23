@@ -201,7 +201,13 @@
 
   function title(doc, collection, id) {
     var r = doc[collection][id];
-    if (collection === "associations") return r.kind + " " + r.from + " → " + r.to;
+    var label = function (entity) {
+      return has(doc.entities, entity) && doc.entities[entity].label ? doc.entities[entity].label : entity;
+    };
+    if (collection === "associations") {
+      var to = r.kind === "permits" ? (has(doc.flows, r.to) ? doc.flows[r.to].label : r.to) : label(r.to);
+      return r.kind + " " + label(r.from) + " → " + to;
+    }
     return r.label || id;
   }
 

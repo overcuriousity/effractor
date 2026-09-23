@@ -142,7 +142,8 @@
     return list;
   }
 
-  function row(list, parts, select, title) {
+  // `drop`: {collection, id, what} — the × that removes this link or flow.
+  function row(list, parts, select, title, drop) {
     var item = el("li");
     var b = el("button", null, "link-row");
     b.type = "button";
@@ -154,7 +155,29 @@
       app.select(select);
     });
     item.appendChild(b);
+    if (drop) item.appendChild(button("×", drop.what, function () { unlink(drop.collection, drop.id); }, "unlink"));
     list.appendChild(item);
+  }
+
+  // Remove a link or a flow and stay on the selected component.
+  function unlink(collection, id) {
+    var here = app.state.selected;
+    U.apply(function () {
+      var edit = L.remove(doc(), collection, id);
+      if (edit && P.selectionExists(edit.doc, here, null)) edit.select = here;
+      return edit;
+    });
+  }
+
+  // The component's menu: Unlink › with each of its links and flows.
+  function unlinkItems(id) {
+    var items = L.linksOf(doc(), id).map(function (l) {
+      var arrow = l.direction === "out" ? l.kind + " → " : "← " + l.kind + " ";
+      return [arrow + name(l.other), "", function () { unlink("associations", l.id); }];
+    }).concat(L.flowsOf(doc(), id).map(function (f) {
+      return ["flow “" + doc().flows[f.id].label + "”", "", function () { unlink("flows", f.id); }];
+    }));
+    return items.length ? [["Unlink", "", items]] : [];
   }
 
   function entitySection(form, id) {
@@ -165,7 +188,7 @@
     L.linksOf(doc(), id).forEach(function (l) {
       var a = doc().associations[l.id];
       var arrow = l.direction === "out" ? "→" : "←";
-      row(links, [[l.kind, "kind-word"], [arrow, "arrow"], [name(l.other), "name"], [a.privilege || "", "privilege"]], "association/" + l.id, l.id);
+      row(links, [[l.kind, "kind-word"], [arrow, "arrow"], [name(l.other), "name"], [a.privilege || "", "privilege"]], "association/" + l.id, l.id, { collection: "associations", id: l.id, what: "Unlink" });
     });
     if (!links.children.length) links.appendChild(el("li", "none", "empty"));
 
@@ -175,7 +198,7 @@
       }, "btn btn-ghost btn-small link-add");
       var flows = block(form, "Flows", flowButton);
       L.flowsOf(doc(), id).forEach(function (f) {
-        row(flows, [[doc().flows[f.id].label, "name"], [f.direction === "out" ? "→ " + name(f.other) : "← " + name(f.other), "privilege"]], "flow/" + f.id, f.id);
+        row(flows, [[doc().flows[f.id].label, "name"], [f.direction === "out" ? "→ " + name(f.other) : "← " + name(f.other), "privilege"]], "flow/" + f.id, f.id, { collection: "flows", id: f.id, what: "Delete the flow" });
       });
       if (!flows.children.length) flows.appendChild(el("li", "none", "empty"));
     }
@@ -389,7 +412,7 @@
   U.sections.association = associationSection;
   U.sections.flow = flowSection;
   U.menuItems.push(function (id) {
-    return [["Link…", "L", function () { startLink(id, null); }]];
+    return [["Link…", "L", function () { startLink(id, null); }]].concat(unlinkItems(id));
   });
   U.keyList.splice(1, 0, ["L", "Link the selected component"]);
 
