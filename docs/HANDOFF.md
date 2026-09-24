@@ -5,6 +5,23 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — unknown hosting privilege (2026-09-24)
+
+Owner, from the look at an import: "hosts · admin" was a guess. Now a
+host's application or service may say `privilege: unknown`
+(`Privilege::Unknown`; reader `HOSTING_PRIVILEGES` for `hosts` only; the
+validator refuses it for a router or guest on a box). Generation keeps what
+holds either way (host admin → control, control → host user) and makes the
+two privilege-dependent steps actions with `Binding::UnknownPrivilege(aid)`:
+`action/host-execution/<host>/<sw>` ("Runs as user? · …") and
+`action/execution-privilege/<sw>/<host>` ("Runs as admin? · …"), resolved as
+unknown with the path `associations.<id>.privilege`. Rule names and every
+existing graph are unchanged. In the page the link form offers `unknown`
+(`fieldsOf`), never the Link menu or Tab (`variants`, `addChoices`); the
+canvas says `hosts · unknown`. The nmap import writes `unknown` (no more
+"Privilege assumed" note) and leaves `tcpwrapped` ports out with a note.
+Lecture design §4 and nmap design §1, §3.4, §4.3 amended.
+
 ## Continuation — routers from nmap (2026-09-24)
 
 `nmap-routers` (spec §4.5 of the nmap design, owner's design in
