@@ -14,7 +14,7 @@
 // classes are the interface anyway.
 (function () {
   var NS = "http://www.w3.org/2000/svg";
-  var EVENTS = ["select", "activate", "context", "drop", "move"];
+  var EVENTS = ["select", "activate", "context", "drop", "move", "pick"];
   var DRAG_PX = 4; // movement below this is a click
   var PADDING = 32;
 
@@ -31,6 +31,7 @@
     var ghostLayer = null;
     var glideFrame = null; // a glide in flight: {finish}
     var GLIDE_MS = 260;
+    var marquee = null; // the selection rectangle being drawn
     // Keyed by node id, which may be any word (`constructor`…): no prototype.
     var drawn = { nodes: Object.create(null), edges: [] };
     var size = { width: 0, height: 0 };
@@ -78,6 +79,17 @@
       return hit ? { id: hit.getAttribute("data-id"), from: hit.getAttribute("data-from"), to: hit.getAttribute("data-to") } : null;
     }
 
+    // Client coordinates → drawing coordinates.
+    function pointAt(cx, cy) {
+      var box = svg.getBoundingClientRect();
+      return { x: (cx - box.left - view.x) / view.k, y: (cy - box.top - view.y) / view.k };
+    }
+
+    function dropMarquee() {
+      if (marquee) marquee.remove();
+      marquee = null;
+    }
+
     function applyView() {
       viewport.setAttribute("transform", "translate(" + view.x + " " + view.y + ") scale(" + view.k + ")");
     }
@@ -112,6 +124,15 @@
         stopGlide();
         if (e.button !== 0) return;
         gesture = { id: idAt(e.target), edge: edgeAt(e.target), x: e.clientX, y: e.clientY, moved: false };
+        // Shift + drag on empty canvas: a selection rectangle (a free layout only).
+        if (free && e.shiftKey && !gesture.id && !gesture.edge) gesture.rect = pointAt(e.clientX, e.clientY);
+        // A selected component among several carries the others along.
+        var lit = highlights.selected || {};
+        if (free && gesture.id && lit[gesture.id] && Object.keys(lit).length > 1) {
+          gesture.group = Object.keys(lit).filter(function (id) {
+            return free.at[id];
+          });
+        }
         if (svg.focus) svg.focus();
       });
       svg.addEventListener("pointermove", function (e) {
@@ -123,10 +144,24 @@
         // to the svg, not to the node under it.
         if (!gesture.moved) svg.setPointerCapture(e.pointerId);
         gesture.moved = true;
+        if (gesture.rect) {
+          svg.classList.add("is-picking");
+          var p = pointAt(e.clientX, e.clientY), r = gesture.rect;
+          if (!marquee) marquee = el("rect", {}, ["marquee"], viewport);
+          marquee.setAttribute("x", Math.min(r.x, p.x));
+          marquee.setAttribute("y", Math.min(r.y, p.y));
+          marquee.setAttribute("width", Math.abs(p.x - r.x));
+          marquee.setAttribute("height", Math.abs(p.y - r.y));
+          gesture.to = p;
+          return;
+        }
         svg.classList.add(gesture.id ? (free ? "is-moving" : "is-dragging") : "is-panning");
         if (gesture.id && free) {
-          // A free layout's node goes where the pointer takes it, lines and all.
-          moveBy(gesture.id, dx / view.k, dy / view.k);
+          // A free layout's node goes where the pointer takes it, lines and
+          // all; several selected ones go together.
+          (gesture.group || [gesture.id]).forEach(function (id) {
+            moveBy(id, dx / view.k, dy / view.k);
+          });
           gesture.x = e.clientX;
           gesture.y = e.clientY;
           return;
@@ -142,15 +177,25 @@
         if (!gesture) return;
         var g = gesture;
         gesture = null;
-        svg.classList.remove("is-dragging", "is-moving", "is-panning");
+        svg.classList.remove("is-dragging", "is-moving", "is-panning", "is-picking");
         // A press and release in place is the selection: of the node the press
         // landed on, whatever the browser makes the target of its click.
         var ctrl = !!(e.ctrlKey || e.metaKey);
+        if (g.rect && g.moved) {
+          dropMarquee();
+          svg.releasePointerCapture(e.pointerId);
+          var nodes = Object.keys(free.at).map(function (id) {
+            return free.at[id];
+          });
+          return emit("pick", { ids: window.effractorClusters.within(nodes, { x0: g.rect.x, y0: g.rect.y, x1: g.to.x, y1: g.to.y }), add: ctrl });
+        }
         if (!g.moved) return emit("select", g.edge ? { id: g.edge.to, parent: g.edge.from, edge: g.edge.id, x: e.clientX, y: e.clientY, ctrl: ctrl } : { id: g.id, parent: undefined, x: e.clientX, y: e.clientY, ctrl: ctrl });
         svg.releasePointerCapture(e.pointerId);
         if (free && g.id) {
-          var p = free.at[g.id];
-          if (p) emit("move", { id: g.id, x: p.x, y: p.y });
+          (g.group || [g.id]).forEach(function (id) {
+            var p = free.at[id];
+            if (p) emit("move", { id: id, x: p.x, y: p.y });
+          });
           return;
         }
         var target = idAt(dropTarget(e));
@@ -158,7 +203,8 @@
       });
       svg.addEventListener("pointercancel", function () {
         gesture = null;
-        svg.classList.remove("is-dragging", "is-moving", "is-panning");
+        dropMarquee();
+        svg.classList.remove("is-dragging", "is-moving", "is-panning", "is-picking");
       });
       // A panel opening or the window changing size: a view nobody has moved
       // since it was fitted is fitted again; one the author placed stays put.
@@ -690,7 +736,7 @@
       (handlers[name] = handlers[name] || []).push(handler);
     }
 
-    return { mount: mount, render: render, highlight: highlight, fit: fit, zoomBy: zoomBy, on: on, reveal: reveal };
+    return { mount: mount, render: render, highlight: highlight, fit: fit, zoomBy: zoomBy, on: on, reveal: reveal, pointAt: pointAt };
   }
 
   var api = { createSvgRenderer: createSvgRenderer, EVENTS: EVENTS };

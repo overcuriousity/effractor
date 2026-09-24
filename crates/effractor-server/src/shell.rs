@@ -78,6 +78,8 @@ mod tests {
         assert!(at("architecture-links.js") < at("nmap.js"));
         assert!(at("nmap.js") < at("app.js"), "nmap.js loads before app.js");
         assert!(at("architecture-links-ui.js") < at("nmap-ui.js"));
+        assert!(at("architecture-links-ui.js") < at("cluster-ui.js"));
+        assert!(at("cluster-ui.js") < at("attacker-pins.js"));
         assert!(html.contains("id=\"nmap-dialog\""));
         assert!(html.contains("id=\"nmap-hint\""));
         assert!(html.contains("id=\"nmap-hint-close\""));

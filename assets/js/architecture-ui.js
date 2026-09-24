@@ -199,21 +199,38 @@
   // automatic layout wants it, show or hide the firewalls' permissions.
   function backgroundMenu(x, y) {
     var shown = app.permits();
-    app.showMenu([
+    var items = [
       ["Add", "A", kindMenu()],
       ["Arrange automatically", "", app.arrange],
       [shown ? "Hide firewall permissions" : "Show firewall permissions", "", function () { app.setPermits(!shown); }],
-    ], x, y);
+    ];
+    backgroundItems.forEach(function (more) {
+      items = items.concat(more());
+    });
+    app.showMenu(items, x, y);
   }
+  // Filled in by cluster-ui.js: more items for the background menu.
+  var backgroundItems = [];
   function pickKindAt(anchor) {
     var box = (anchor || $("canvas")).getBoundingClientRect();
     if (anchor) pickKind(box.right + 4, box.top);
     else pickKind(box.left + box.width / 2, box.top + box.height / 3);
   }
 
+  function picked() {
+    return app.state.picked || [];
+  }
+
   // With everything that named it; the notice counts what went along.
+  // Several selected, or a cluster: every component in them, in one edit.
   function remove() {
     var q = selection();
+    if (picked().length > 1 || (q && q.kind === "cluster")) {
+      var members = window.effractorClusters.entitiesOf(doc(), picked().length > 1 ? picked() : [app.state.selected]);
+      return apply(function () {
+        return L.removeAll(doc(), members);
+      }, null, true);
+    }
     if (!q || !COLLECTION[q.kind]) return;
     apply(function () {
       return L.remove(doc(), COLLECTION[q.kind], q.id);
@@ -268,6 +285,8 @@
     ["click", "Select a component"],
     ["double-click", "Rename it"],
     ["drag a component", "Move it (kept in this browser)"],
+    ["Ctrl-click", "Add to the selection, or take out"],
+    ["Shift + drag", "Select in a rectangle"],
     ["right-click", "Its actions; on the background, add or arrange"],
   ];
 
@@ -286,7 +305,7 @@
       e.preventDefault();
       return walk(key === "ArrowDown" ? 1 : -1);
     }
-    if ((key === "Delete" || key === "Backspace") && selection()) {
+    if ((key === "Delete" || key === "Backspace") && (selection() || picked().length > 1)) {
       e.preventDefault();
       return remove();
     }
@@ -308,8 +327,11 @@
   // ---- pointer ----
 
   // In the attack view the canvas holds generated steps: attack-ui.js's.
+  // Filled in by cluster-ui.js: each gets the event first, true if it answered.
+  var contextHooks = [];
   app.renderer.on("context", function (e) {
     if (!arch() || app.state.mode === "attack") return;
+    for (var i = 0; i < contextHooks.length; i++) if (contextHooks[i](e)) return;
     if (e.edge && P.selectionExists(doc(), e.edge, null)) return edgeMenu(e.edge, e.x, e.y);
     var q = P.qualified(e.id);
     if (q && q.kind === "entity") return menuFor(q.id, e.x, e.y);
@@ -347,8 +369,8 @@
     rail.addChild.disabled = false;
     rail.addChild.title = entityId() ? "Add linked to “" + entity().label + "” (Tab)" : "Add a component (A)";
     rail.addChild.setAttribute("aria-label", entityId() ? "Add linked component" : "Add a component");
-    rail.deleteNode.disabled = !selection();
-    rail.deleteNode.title = selection() ? "Delete “" + app.labelOf(app.state.selected) + "” (Del)" : "Delete";
+    rail.deleteNode.disabled = !selection() && picked().length < 2;
+    rail.deleteNode.title = picked().length > 1 ? "Delete " + picked().length + " selected (Del)" : selection() ? "Delete “" + app.labelOf(app.state.selected) + "” (Del)" : "Delete";
     document.querySelectorAll('[data-action="undo"], [data-action="redo"]').forEach(function (b) {
       b.disabled = b.getAttribute("data-action") === "undo" ? !app.canUndo() : !app.canRedo();
     });
@@ -591,6 +613,11 @@
     var form = $("properties");
     var keepFocus = document.activeElement && form.contains(document.activeElement) ? document.activeElement.id : null;
     form.replaceChildren();
+    if (picked().length > 1 && sections.picked) {
+      form.hidden = false;
+      sections.picked(form);
+      return;
+    }
     var q = selection();
     var e = entity();
     if (q && !e && sections[q.kind]) {
@@ -739,6 +766,8 @@
     render: renderProperties,
     sections: sections,
     menuItems: extraItems,
+    contextHooks: contextHooks,
+    backgroundItems: backgroundItems,
     kindExtras: kindExtras,
     linkedExtras: linkedExtras,
     keyList: KEYS,

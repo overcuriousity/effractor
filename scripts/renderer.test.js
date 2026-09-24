@@ -188,9 +188,9 @@ test("dragging the background pans, the wheel zooms, fit undoes both", () => {
   assert.equal(viewport.getAttribute("transform"), fitted);
 });
 
-test("the events are the five of the interface, and no others", () => {
+test("the events are the six of the interface, and no others", () => {
   const { r } = mounted();
-  assert.deepEqual(EVENTS, ["select", "activate", "context", "drop", "move"]);
+  assert.deepEqual(EVENTS, ["select", "activate", "context", "drop", "move", "pick"]);
   assert.throws(() => r.on("hover", () => {}), /hover/);
 });
 

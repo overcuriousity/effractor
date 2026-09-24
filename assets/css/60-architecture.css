@@ -284,3 +284,11 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .hud-hint .hint-close svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
 /* A node gliding into a cluster as it closes. */
 .ghosts .is-leaving { pointer-events: none; }
+/* The selection rectangle (Shift + drag). */
+.marquee { fill: var(--color-accent-dim); stroke: var(--color-accent); stroke-width: 1; stroke-dasharray: 4 3; pointer-events: none; }
+.graph.is-picking { cursor: crosshair; }
+/* Several selected, or a cluster's members, in the inspector. */
+.cluster-members { list-style: none; margin: 4px 0 0; padding: 0; }
+.cluster-members li { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 4px; cursor: pointer; }
+.cluster-members li:hover { background: var(--color-bg-hover); }
+.cluster-members .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

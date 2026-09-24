@@ -78,7 +78,7 @@
   // `mode` is the architecture's view: "architecture" or "attack", its
   // generated graph. `generated`: {graph, support, revision} of the text on
   // the page, or null. `sourceValid`: the source view's text is the document's.
-  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastSampledMs: null, revision: gate.current(), sourceValid: true, mode: "architecture", generated: null, blockers: null, diagnostics: [], documents: 0, scenario: "", hidden: null, bundles: null };
+  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastSampledMs: null, revision: gate.current(), sourceValid: true, mode: "architecture", generated: null, blockers: null, diagnostics: [], documents: 0, scenario: "", hidden: null, bundles: null, picked: [], placed: null };
   var view = window.effractorResults;
   var AV = window.effractorAttackView;
   var GR = window.effractorGraphResults;
@@ -151,20 +151,44 @@
     return typeof id === "string" && id.indexOf("step/") === 0 ? id.slice(5) : null;
   }
 
+  // Several at once (clustering spec §3), in the architecture view only:
+  // `ids` qualified components or clusters; `add` keeps what was picked.
+  function pick(ids, add) {
+    if (!P.isArchitecture(state.doc) || attackShown()) return;
+    var next = add ? state.picked.slice() : [];
+    ids.forEach(function (id) {
+      if (/^(entity|cluster)\//.test(id) && P.selectionExists(state.doc, id, null) && next.indexOf(id) < 0) next.push(id);
+    });
+    setPicked(next);
+  }
+  function togglePick(id) {
+    var next = state.picked.slice();
+    var at = next.indexOf(id);
+    if (at >= 0) next.splice(at, 1);
+    else if (P.selectionExists(state.doc, id, null)) next.push(id);
+    setPicked(next);
+  }
+  function setPicked(list) {
+    state.picked = list;
+    select(list.length === 1 ? list[0] : null, undefined, true);
+  }
+
   // Where `id` is drawn: a member of a closed cluster is drawn as the cluster.
   function shown(id) {
     var q = P.qualified(id);
     return q && q.kind === "entity" && state.hidden && Object.prototype.hasOwnProperty.call(state.hidden, q.id) ? state.hidden[q.id] : id;
   }
 
-  function select(id, parent) {
+  // `keepPicked`: the several selected stay (pick() calls with it).
+  function select(id, parent, keepPicked) {
     var arch = P.isArchitecture(state.doc);
     state.selected = P.selectionExists(state.doc, id, graphOf()) ? id : null;
+    if (!keepPicked) state.picked = state.selected ? [state.selected] : [];
     var parents = state.selected && !arch ? window.effractorEdit.parentsOf(state.doc, state.selected) : [];
     // `parentChosen`: the edge was named (a tree row, an arrow key), not guessed.
     state.parentChosen = parents.indexOf(parent) >= 0;
     state.parent = state.parentChosen ? parent : parents[0] || null;
-    renderer.highlight(state.selected ? [shown(state.selected)] : [], "selected");
+    renderer.highlight(state.picked.map(shown), "selected");
     // A selected flow shows where it goes: the networks and routers on its
     // route, which its line from end to end does not.
     var flow = arch && state.selected && state.selected.indexOf("flow/") === 0 ? state.selected.slice(5) : null;
@@ -195,7 +219,7 @@
     var step = arch ? stepOf(state.selected) : null;
     // The inspector on the canvas is the selection made visible: there while
     // something is selected, gone when nothing is. No panel opens for it.
-    $("inspector").hidden = !state.selected;
+    $("inspector").hidden = !state.selected && state.picked.length < 2;
     // The inspector floats over the canvas: what it would cover is panned
     // into view, and nothing else moves.
     if (state.selected) renderer.reveal(shown(state.selected), $("inspector").getBoundingClientRect().width + 8);
@@ -328,6 +352,29 @@
   renderer.on("move", function (e) {
     if (P.isArchitecture(state.doc)) positions.move(state.doc.name, e.id, e.x, e.y);
   });
+  renderer.on("pick", function (e) {
+    pick(e.ids, e.add);
+  });
+
+  // Where drawn nodes stand now: dragged positions over the last layout.
+  function positionsOf(ids) {
+    var stored = positions.load(state.doc.name);
+    var laid = state.placed ? state.placed.nodes : [];
+    var out = {};
+    ids.forEach(function (id) {
+      if (Object.prototype.hasOwnProperty.call(stored, id)) return void (out[id] = stored[id]);
+      var n = laid.filter(function (x) {
+        return x.id === id;
+      })[0];
+      if (n) out[id] = { x: n.x, y: n.y };
+    });
+    return out;
+  }
+  function putPositions(map) {
+    Object.keys(map).forEach(function (id) {
+      positions.move(state.doc.name, id, map[id].x, map[id].y);
+    });
+  }
   // A firewall's permissions on the canvas, shown or not; this browser
   // remembers which.
   var PERMITS = "effractor.permits";
@@ -407,6 +454,8 @@
   renderer.on("select", function (e) {
     // A merged line holds several: cluster-ui.js asks which.
     if (e.edge && /^(links|flows|permits)\//.test(e.edge)) return;
+    // Ctrl-click adds a component or cluster to the selection, or takes it out.
+    if (e.ctrl && e.id && !e.edge && P.isArchitecture(state.doc) && !attackShown() && /^(entity|cluster)\//.test(e.id)) return togglePick(e.id);
     // An architecture's edge is a relationship or a flow of its own.
     if (e.edge && P.isArchitecture(state.doc) && P.selectionExists(state.doc, e.edge, graphOf())) return select(e.edge);
     select(e.id, e.parent);
@@ -1050,6 +1099,12 @@
   window.effractor.select = select;
   window.effractor.labelOf = labelOf;
   window.effractor.shown = shown;
+  window.effractor.pick = pick;
+  window.effractor.positionsOf = positionsOf;
+  window.effractor.putPositions = putPositions;
+  window.effractor.storedPositions = function () {
+    return positions.load(state.doc.name);
+  };
   window.effractor.arrange = arrange;
   window.effractor.permits = function () {
     return showPermits;
@@ -1230,6 +1285,8 @@
       fileActions[e.key === "s" ? "save" : "open"]();
     } else if (e.key === "Escape") {
       closeFileMenu();
+      // Esc on the canvas lets go of what is selected.
+      if (P.isArchitecture(state.doc) && !e.defaultPrevented && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && !e.target.closest(".menu") && !document.querySelector("dialog[open]") && (state.selected || state.picked.length)) select(null);
     } else if (e.key === "f" && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
       renderer.fit();
     } else if ((e.key === "+" || e.key === "-") && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
