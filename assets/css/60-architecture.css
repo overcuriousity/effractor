@@ -292,3 +292,7 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .cluster-members li { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 4px; cursor: pointer; }
 .cluster-members li:hover { background: var(--color-bg-hover); }
 .cluster-members .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cluster-members .member-out { padding: 0 6px; line-height: 1.4; color: var(--color-fg-muted); }
+.cluster-members .member-out:hover { color: var(--color-fg-primary); }
+.member-ghost { font-family: var(--font-sans); letter-spacing: 0; }
+.node-component.is-cluster.hl-pin-drop .halo { stroke: var(--color-accent); stroke-width: 3; stroke-dasharray: none; }

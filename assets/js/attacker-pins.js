@@ -22,12 +22,18 @@
     return P.isArchitecture(doc()) && document.getElementById("app").getAttribute("data-view") !== "attack";
   }
 
-  // The component under the pointer, by id, or null.
-  function entityAt(x, y) {
+  // What is under the pointer: {entity} a component, {cluster} a closed
+  // cluster, or null.
+  function targetAt(x, y) {
     var hit = document.elementFromPoint(x, y);
     var node = hit && hit.closest ? hit.closest("#canvas .node") : null;
     var q = node ? P.qualified(node.getAttribute("data-id")) : null;
-    return q && q.kind === "entity" && own(doc().entities, q.id) ? q.id : null;
+    if (q && q.kind === "entity" && own(doc().entities, q.id)) return { entity: q.id };
+    var c = q && q.kind === "cluster" ? own(doc().clusters, q.id) : null;
+    return c && c.closed ? { cluster: q.id } : null;
+  }
+  function drawnId(target) {
+    return target ? (target.entity ? "entity/" + target.entity : "cluster/" + target.cluster) : null;
   }
 
   function place(role, entity, state, from) {
@@ -56,14 +62,43 @@
     });
   }
 
+  // Dropped on a closed cluster (clustering spec §4.1): which member, and
+  // where it has several, which state.
+  function dropOnCluster(role, cid, from, x, y) {
+    var c = doc().clusters[cid];
+    U.loadCatalog().then(function (catalog) {
+      var items = c.members.filter(function (m) {
+        return own(doc().entities, m);
+      }).map(function (m) {
+        var e = doc().entities[m];
+        var spec = (catalog.entities || []).filter(function (s) {
+          return s.kind === e.kind;
+        })[0];
+        var states = spec ? spec.states : [];
+        if (!states.length) return null;
+        if (states.length === 1) return [e.label, "", function () { place(role, m, states[0], from); }];
+        return [e.label, "", states.map(function (s) {
+          return [window.effractorWords.state(catalog, s), "", function () {
+            place(role, m, s, from);
+          }];
+        })];
+      }).filter(Boolean);
+      if (!items.length) return app.say("no member of “" + window.effractorClusters.label(doc(), cid) + "” takes a pin");
+      app.showMenu([[role + " on …", "", null]].concat(items), x, y);
+    }, function () {
+      app.say("the component library could not be read");
+    });
+  }
+
   // ---- the drag: from the tray or from a component's pin ----
 
   var drag = null; // {role, from, x, y, moved, ghost, over}
 
-  function hover(entity) {
-    if (drag.over === entity) return;
-    drag.over = entity;
-    app.renderer.highlight(entity ? ["entity/" + entity] : [], "pin-drop");
+  function hover(target) {
+    var id = drawnId(target);
+    if (drag.over === id) return;
+    drag.over = id;
+    app.renderer.highlight(id ? [id] : [], "pin-drop");
   }
 
   function end() {
@@ -84,8 +119,9 @@
     var from = null;
     var node = pin.closest(".node");
     if (node) {
+      // A pin on a closed cluster is its member's.
       var q = P.qualified(node.getAttribute("data-id"));
-      from = { entity: q.id, state: pin.getAttribute("data-pin-state") };
+      from = { entity: pin.getAttribute("data-pin-entity") || q.id, state: pin.getAttribute("data-pin-state") };
     }
     drag = { role: pin.getAttribute("data-pin-role"), from: from, x: e.clientX, y: e.clientY, moved: false, ghost: null, over: null };
   }, true);
@@ -103,7 +139,7 @@
     }
     drag.ghost.style.setProperty("--pin-x", e.clientX + "px");
     drag.ghost.style.setProperty("--pin-y", e.clientY + "px");
-    hover(entityAt(e.clientX, e.clientY));
+    hover(targetAt(e.clientX, e.clientY));
   });
 
   document.addEventListener("pointerup", function (e) {
@@ -118,10 +154,11 @@
       if (q && q.kind === "entity") return drop(d.role, q.id, null, e.clientX, e.clientY);
       return app.say("drag the " + d.role + " onto a component");
     }
-    var entity = entityAt(e.clientX, e.clientY);
-    if (entity) {
-      if (d.from && d.from.entity === entity) return;
-      return drop(d.role, entity, d.from, e.clientX, e.clientY);
+    var target = targetAt(e.clientX, e.clientY);
+    if (target && target.cluster) return dropOnCluster(d.role, target.cluster, d.from, e.clientX, e.clientY);
+    if (target) {
+      if (d.from && d.from.entity === target.entity) return;
+      return drop(d.role, target.entity, d.from, e.clientX, e.clientY);
     }
     if (!d.from) return app.say("drop the " + d.role + " on a component");
     U.apply(function () {

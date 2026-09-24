@@ -88,7 +88,7 @@
   }
 
   function focusLabel() {
-    var field = $("prop-label");
+    var field = $("prop-label") || $("prop-cluster-label");
     if (!field) return;
     field.focus();
     field.select();
