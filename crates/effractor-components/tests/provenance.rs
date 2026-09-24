@@ -511,6 +511,7 @@ fn mfa_resolves_as_a_policy_on_its_switch() {
         id("mfa"),
         Scenario {
             label: "MFA".into(),
+            attacker: None,
             changes: vec![Change::EntityDefense {
                 entity: id("server-account"),
                 defense: Defense::Mfa,

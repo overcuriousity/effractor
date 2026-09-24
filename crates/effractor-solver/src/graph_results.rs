@@ -274,6 +274,10 @@ impl GraphSolve {
             sampler: GraphSampler {
                 plan,
                 sides: draws,
+                speeds: sides
+                    .iter()
+                    .map(|s| s.resolved.speed.as_ref().map_or(1.0, |(v, _)| *v))
+                    .collect(),
                 target: graph.target,
                 horizon: model.horizon,
                 seed: config.seed,
@@ -566,6 +570,15 @@ impl GraphSolve {
                 })
             })
             .collect();
+        if let Some((speed, path)) = &r.speed {
+            out.push(Assumption {
+                path: path.clone(),
+                paths: vec![path.clone()],
+                status: "attacker",
+                expression: Some(format!("{speed} × faster")),
+                note: None,
+            });
+        }
         out.sort_by(|a, b| a.path.cmp(&b.path));
         out.dedup_by(|a, b| a.path == b.path);
         out

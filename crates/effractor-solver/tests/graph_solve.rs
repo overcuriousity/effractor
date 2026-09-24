@@ -528,3 +528,62 @@ fn a_blocked_result_lists_the_inputs_that_block_it() {
             .contains(&serde_json::json!("entities.openssh.defenses.patched"))
     );
 }
+
+/// The lecture with every average time halved: what an attacker twice as fast
+/// meets, written out step by step.
+fn halved(text: &str) -> String {
+    [
+        ("10", "5"),
+        ("5", "2.5"),
+        ("2", "1"),
+        ("1", "0.5"),
+        ("0.5", "0.25"),
+    ]
+    .iter()
+    .fold(text.to_owned(), |t, (from, to)| {
+        // Each average once, largest first, marked so it is not halved twice.
+        t.replace(
+            &format!("Exponential(mean {from})\""),
+            &format!("Exponential(mean {to}~)\""),
+        )
+    })
+    .replace("~)", ")")
+}
+
+#[test]
+fn a_faster_attacker_takes_the_same_draws_in_less_time() {
+    // A horizon short enough that speed decides.
+    let lecture = LECTURE.replacen("horizon: 100\n", "horizon: 5\n", 1);
+    let text = with_scenario(
+        &lecture,
+        "  fast:\n    label: Twice as fast\n    attacker: {speed: 2}\n    changes: []",
+    );
+    let r = solve(&text, Some("fast"), 10_000);
+    let written_out = solve(&halved(&lecture), None, 10_000);
+    // Scaling a draw by two is exact, so the scenario is the halved model's
+    // baseline to the last bit.
+    assert_eq!(r["scenario"]["outcome"], written_out["baseline"]["outcome"]);
+    assert_eq!(r["scenario"]["nodes"], written_out["baseline"]["nodes"]);
+    // A faster attacker only ever gets there sooner: a negative benefit.
+    let d = delta(&r);
+    assert!(d["mean"].as_f64().unwrap() < 0.0, "{d}");
+    assert!(p_target(&r["scenario"]) > p_target(&r["baseline"]));
+    // The scenario says its times were scaled; the baseline does not.
+    let speed = assumption(&r["scenario"], "scenarios.fast.attacker.speed")
+        .unwrap_or_else(|| panic!("{}", r["scenario"]["assumptions"]));
+    assert_eq!(speed["status"], "attacker");
+    assert_eq!(speed["expression"], "2 × faster");
+    assert!(assumption(&r["baseline"], "scenarios.fast.attacker.speed").is_none());
+}
+
+#[test]
+fn an_attacker_at_speed_one_changes_nothing() {
+    let text = with_scenario(
+        LECTURE,
+        "  same:\n    label: Same\n    attacker: {speed: 1}\n    changes: []",
+    );
+    let r = solve(&text, Some("same"), 4096);
+    assert_eq!(r["scenario"]["outcome"], r["baseline"]["outcome"]);
+    assert_eq!(r["scenario"]["nodes"], r["baseline"]["nodes"]);
+    assert_eq!(delta(&r)["mean"], 0.0);
+}

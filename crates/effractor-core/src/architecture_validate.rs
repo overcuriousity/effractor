@@ -780,6 +780,15 @@ impl Cx<'_> {
     fn scenarios(&mut self) {
         let m = self.m;
         for (id, scenario) in &m.scenarios {
+            if let Some(profile) = &scenario.attacker
+                && !(profile.speed.is_finite() && profile.speed > 0.0)
+            {
+                self.error(
+                    Code::ParamDomain,
+                    format!("scenarios.{id}.attacker.speed"),
+                    "an attacker's speed is a number above 0: 2 is twice as fast, 0.5 half",
+                );
+            }
             let mut set: HashMap<String, usize> = HashMap::new();
             for (i, change) in scenario.changes.iter().enumerate() {
                 let at = format!("scenarios.{id}.changes[{i}]");

@@ -877,8 +877,18 @@ pub enum Change {
 }
 
 /// A named overlay of changes; scenarios do not inherit from one another.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Scenario {
     pub label: String,
+    /// Who attacks, when not the attacker the parameters were written for.
+    pub attacker: Option<AttackerProfile>,
     pub changes: Vec<Change>,
+}
+
+/// An attacker who does every timed step `speed` times as fast: each sampled
+/// time is divided by it. Which steps exist, their chances of success and the
+/// steps that take no time stay as they are.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AttackerProfile {
+    pub speed: f64,
 }

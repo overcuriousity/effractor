@@ -39,6 +39,14 @@ const CASES = [
       .replace(/ttc: "Never"\n(\s+note: "Exercise assumption: perfect blocking)/g, 'ttc: "Exponential(mean 200)"\n$1'),
     scenario: 'both',
   },
+  {
+    // An attacker at a speed that is not a power of two: every draw divided.
+    name: 'faster attacker',
+    text: lecture
+      .replace('horizon: 100', 'horizon: 5')
+      .replace('\nanalysis:\n', '\n  fast:\n    label: Faster\n    attacker: {speed: 3}\n    changes: []\nanalysis:\n'),
+    scenario: 'fast',
+  },
   { name: 'large seed', text: lecture.replace('seed: 42', 'seed: ' + LARGE_SEED), scenario: 'both' },
   { name: 'cloud baseline', text: cloud, scenario: '' },
   { name: 'cloud encrypt', text: cloud, scenario: 'encrypt' },

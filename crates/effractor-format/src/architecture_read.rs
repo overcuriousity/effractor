@@ -5,9 +5,9 @@
 //! ask for and a save writes them out.
 
 use effractor_core::architecture::{
-    Architecture, Association, Attacker, Change, Defense, Defenses, Entity, EntityKind, Evidence,
-    Factor, Flow, LibraryPin, Mode, Parameter, Privilege, Relation, RelationKind, Scenario, Slot,
-    State, StateRef, Switch,
+    Architecture, Association, Attacker, AttackerProfile, Change, Defense, Defenses, Entity,
+    EntityKind, Evidence, Factor, Flow, LibraryPin, Mode, Parameter, Privilege, Relation,
+    RelationKind, Scenario, Slot, State, StateRef, Switch,
 };
 use effractor_core::{Code, Pos};
 use indexmap::IndexMap;
@@ -529,10 +529,19 @@ fn attacker(cx: &mut Cx, entry: &Entry) -> Option<Attacker> {
 }
 
 fn scenario(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Scenario> {
-    let f = cx.fields(&entry.value, path, entry.key_pos, &["label", "changes"])?;
+    let f = cx.fields(
+        &entry.value,
+        path,
+        entry.key_pos,
+        &["label", "attacker", "changes"],
+    )?;
     let label = cx
         .required(&f, "label")
         .and_then(|e| cx.string(&e.value, &f.path("label")));
+    let attacker = match f.get("attacker") {
+        None => Some(None),
+        Some(e) => attacker_profile(cx, &e.value, &f.path("attacker"), e.key_pos).map(Some),
+    };
     let changes = match f.get("changes") {
         None => Some(vec![]),
         Some(e) => {
@@ -549,8 +558,18 @@ fn scenario(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Scenario> {
     };
     Some(Scenario {
         label: label?,
+        attacker: attacker?,
         changes: changes?,
     })
+}
+
+/// `{speed: n}`; whether n is a usable speed is the validator's to say.
+fn attacker_profile(cx: &mut Cx, node: &Node, path: &str, pos: Pos) -> Option<AttackerProfile> {
+    let f = cx.fields(node, path, pos, &["speed"])?;
+    let speed = cx
+        .required(&f, "speed")
+        .and_then(|e| cx.number(&e.value, &f.path("speed")))?;
+    Some(AttackerProfile { speed })
 }
 
 /// `{entity, defense, value}` or `{association, field: allowed, value}`.

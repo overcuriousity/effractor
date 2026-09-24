@@ -29,6 +29,7 @@ pub fn resolve(
         defenses: HashMap::new(),
         permissions: HashMap::new(),
     };
+    let mut speed = None;
     if let Some(sid) = scenario {
         let Some(s) = model.scenarios.get(sid) else {
             return Err(vec![Diagnostic::error(
@@ -37,6 +38,10 @@ pub fn resolve(
                 format!("\"{sid}\" is not a scenario"),
             )]);
         };
+        speed = s
+            .attacker
+            .as_ref()
+            .map(|a| (a.speed, format!("scenarios.{sid}.attacker.speed")));
         for (i, change) in s.changes.iter().enumerate() {
             let path = format!("scenarios.{sid}.changes[{i}]");
             match change {
@@ -59,6 +64,7 @@ pub fn resolve(
         ttc: Vec::with_capacity(n),
         evidence: Vec::with_capacity(n),
         paths: Vec::with_capacity(n),
+        speed,
     };
     for node in &graph.nodes {
         let (ttc, evidence, paths) = match &node.duration {

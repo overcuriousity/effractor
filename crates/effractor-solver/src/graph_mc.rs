@@ -31,6 +31,8 @@ pub(crate) type Side = Vec<Draw>;
 pub(crate) struct GraphSampler {
     pub(crate) plan: EventPlan,
     pub(crate) sides: Vec<Side>,
+    /// Per side: what every random draw is divided by. 1 leaves it exact.
+    pub(crate) speeds: Vec<f64>,
     pub(crate) target: usize,
     pub(crate) horizon: f64,
     pub(crate) seed: u64,
@@ -102,6 +104,7 @@ impl GraphSampler {
         let mut reached = [false; 2];
         for iteration in 0..n {
             for (s, side) in self.sides.iter().enumerate() {
+                let speed = self.speeds[s];
                 for (slot, draw) in side.iter().enumerate() {
                     durations[slot] = match draw {
                         Draw::Fixed(t) => *t,
@@ -109,7 +112,7 @@ impl GraphSampler {
                             rng.set_word_pos(
                                 (u128::from(iteration) * nodes as u128 + slot as u128) * WINDOW,
                             );
-                            sample(d, &mut rng)
+                            sample(d, &mut rng) / speed
                         }
                     };
                 }
@@ -206,6 +209,7 @@ mod tests {
         GraphSampler {
             plan,
             sides: vec![side(0.5), side(0.05)],
+            speeds: vec![1.0, 1.0],
             target: 3,
             horizon: 1.0,
             seed: 7,

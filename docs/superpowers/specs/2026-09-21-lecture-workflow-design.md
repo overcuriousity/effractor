@@ -414,6 +414,22 @@ to the wrong entity kind or a missing permission are errors. Combined defenses
 are one overlay with several changes. Editing the baseline's parameters or
 structure clears stale results; scenarios continue to refer to validated IDs.
 
+**Attacker profile** (owner, 2026-09-24). A scenario may also name a faster
+or slower attacker, `attacker: {speed: n}` with `n > 0`: every sampled time of
+that side is divided by `n`, on the same draws as the baseline. `2` is twice as
+fast, `0.5` half. Which steps exist, their chances of success (`c%`), logical
+steps and `Never`/`Immediate` stay as written: an AI-accelerated attacker changes
+timing, not structure. The scenario's assumption list names the speed. A
+scenario may carry a speed, changes, or both.
+
+```yaml
+scenarios:
+  ai-attacker:
+    label: AI-accelerated attacker
+    attacker: {speed: 4}
+    changes: []
+```
+
 Solve baseline and selected scenario with paired samples. At each sample compute
 `delta = I(target_base <= horizon) - I(target_scenario <= horizon)`. Positive
 delta means reduced compromise probability. Report its mean and the two-sided

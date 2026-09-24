@@ -107,6 +107,7 @@ fn validation_names_the_field_that_is_wrong() {
         "s".parse().unwrap(),
         Scenario {
             label: "S".into(),
+            attacker: None,
             changes: vec![
                 Change::EntityDefense {
                     entity: id("openssh"),

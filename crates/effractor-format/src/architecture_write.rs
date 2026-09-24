@@ -213,6 +213,11 @@ fn document(w: &mut Writer, m: &Architecture) {
         let path = format!("scenarios.{id}");
         w.open(2, id.as_str());
         w.line(4, "label", &string(&scenario.label, Context::Block));
+        if let Some(profile) = &scenario.attacker {
+            let mut fields = vec![format!("speed: {}", effractor_mal::number(profile.speed))];
+            w.extension_fields(&format!("{path}.attacker"), &mut fields);
+            w.line(4, "attacker", &format!("{{{}}}", fields.join(", ")));
+        }
         if scenario.changes.is_empty() {
             w.line(4, "changes", "[]");
         } else {

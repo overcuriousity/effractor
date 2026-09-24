@@ -119,4 +119,7 @@ pub struct ResolvedGraph {
     pub evidence: Vec<Vec<Parameter>>,
     /// The exact source fields that decided each node's duration.
     pub paths: Vec<Vec<String>>,
+    /// The scenario's attacker speed and where it is set; every sampled time
+    /// is divided by it. `None`: the attacker the parameters describe.
+    pub speed: Option<(f64, String)>,
 }

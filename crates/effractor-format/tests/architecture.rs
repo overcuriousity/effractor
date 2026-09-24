@@ -1325,3 +1325,56 @@ fn data_holdings_access_keys_and_readers_round_trip() {
         );
     }
 }
+
+#[test]
+fn a_scenario_may_speed_the_attacker_up() {
+    let mut image = image(LECTURE);
+    image["scenarios"]["fast"] = serde_json::json!({
+        "label": "AI-accelerated attacker",
+        "attacker": {"speed": 4},
+        "changes": [],
+    });
+    let text = from_document(&image).unwrap();
+    assert!(
+        text.contains(
+            "  fast:\n    label: AI-accelerated attacker\n    attacker: {speed: 4}\n    changes: []\n"
+        ),
+        "{text}"
+    );
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    let Ok(Document::Architecture(a)) = load_document(&text) else {
+        panic!("an architecture")
+    };
+    let scenario = |id: &str| &a.scenarios[&id.parse::<effractor_core::ScenarioId>().unwrap()];
+    let fast = scenario("fast");
+    assert_eq!(fast.attacker.as_ref().unwrap().speed, 4.0);
+    // The other scenarios name no attacker and write none.
+    assert!(scenario("patch-server").attacker.is_none());
+    assert!(!LECTURE.contains("    attacker:"));
+
+    // A speed is a positive finite number, and nothing else rides along.
+    for (speed, code) in [
+        (serde_json::json!(0), "param-domain"),
+        (serde_json::json!(-2), "param-domain"),
+        (serde_json::json!("fast"), "wrong-type"),
+    ] {
+        image["scenarios"]["fast"]["attacker"] = serde_json::json!({"speed": speed});
+        let errors = errors_of(&image);
+        assert!(
+            has(&errors, code, "scenarios.fast.attacker.speed"),
+            "{speed}: {errors:?}"
+        );
+    }
+    image["scenarios"]["fast"]["attacker"] = serde_json::json!({"speed": 2, "skill": 3});
+    assert!(has(
+        &errors_of(&image),
+        "unknown-key",
+        "scenarios.fast.attacker.skill"
+    ));
+    image["scenarios"]["fast"]["attacker"] = serde_json::json!({});
+    assert!(has(
+        &errors_of(&image),
+        "missing-key",
+        "scenarios.fast.attacker.speed"
+    ));
+}
