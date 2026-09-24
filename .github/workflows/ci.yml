@@ -35,6 +35,8 @@ jobs:
       # The browser module and the native build answer generated graphs alike.
       - name: graph agreement, native and browser wasm
         run: node scripts/check-graph-agreement.js
+      - name: nmap import saves in browser wasm
+        run: node scripts/check-nmap-wasm.js
       - name: static site export
         run: scripts/build-site.sh
       - name: wasm build

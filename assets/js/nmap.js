@@ -6,6 +6,8 @@
 // is valid.
 (function () {
   var node = typeof module !== "undefined";
+  var A = node ? require("./architecture-edit.js") : window.effractorArchitectureEdit;
+  var L = node ? require("./architecture-links.js") : window.effractorArchitectureLinks;
 
   // ---- commands (spec §3.2) ----
 
@@ -381,7 +383,85 @@
     return s;
   }
 
-  var api = { LEVELS: LEVELS, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary };
+  // ---- applying (spec §4) ----
+
+  var ASSUMED = "Privilege assumed by the nmap import.";
+  var STAMP = /^Last nmap import: .*$/m;
+
+  function stampLine(stamp) {
+    return "Last nmap import: " + stamp.date + ", " + stamp.level + " scan of " + stamp.range + ".";
+  }
+
+  // `specOf(kind)`: the catalog entry of a kind, for its parameter slots.
+  function apply(doc, p, ticks, specOf, stamp) {
+    var s = summary(doc, p, ticks, null);
+    var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged; });
+    if (!s.hosts && !s.services && !s.flows && !s.networks && !merging) return null;
+    var next = JSON.parse(JSON.stringify(doc));
+    function step(edit) {
+      if (!edit) throw new Error("the nmap import could not be applied");
+      next = edit.doc;
+      return edit;
+    }
+    function link(kind, from, to, extra) {
+      step(L.putAssociation(next, null, Object.assign({ kind: kind, from: from, to: to }, extra || {})));
+    }
+    var network = null;
+    if (s.networks) {
+      network = step(A.addEntity(next, "network", p.network.label, specOf("network"))).entity;
+      next.entities[network].addresses = p.network.addresses.slice();
+    }
+    var madeProducts = Object.create(null);
+    p.hosts.forEach(function (h) {
+      if (!ticks.hosts[h.key]) return;
+      var host = h.known || h.merged;
+      if (!host) {
+        host = step(A.addEntity(next, "host", h.label, specOf("host"))).entity;
+        next.entities[host].addresses = h.addresses.slice();
+        if (h.os) next.entities[host].description = h.os;
+        h.networks.forEach(function (n) {
+          var to = n === "new" ? network : n;
+          if (to) link("attached", host, to);
+        });
+      } else if (h.merged) {
+        next.entities[host].addresses = h.addresses.slice();
+      }
+      h.ports.forEach(function (r) {
+        if (!ticks.ports[r.key]) return;
+        var service = r.known;
+        if (!service) {
+          service = step(A.addEntity(next, "service", r.label, specOf("service"))).entity;
+          link("hosts", host, service, { privilege: "admin", description: ASSUMED });
+          var product = r.product.existing || madeProducts[r.product.label];
+          if (!product) {
+            product = step(A.addEntity(next, "product", r.product.label, specOf("product"))).entity;
+            if (r.product.identified) madeProducts[r.product.label] = product;
+          }
+          link("instance-of", service, product);
+        }
+        if (r.addsFlow) {
+          step(L.putFlow(next, null, { label: r.label + " on " + h.label, source: p.app, target: service, route: h.route.slice(), protocol: r.proto }));
+        }
+      });
+    });
+    var old = next.entities[p.app].description || "";
+    var line = stampLine(stamp);
+    var described = A.setDescription(next, p.app, STAMP.test(old) ? old.replace(STAMP, line) : (old ? old + "\n" : "") + line);
+    if (described) next = described.doc;
+    return { doc: next, select: "entity/" + p.app };
+  }
+
+  // An application that is nmap, run by `hostId` as user when given.
+  function addNmap(doc, hostId, label, specOf) {
+    var added = A.addEntity(doc, "application", label, specOf("application"));
+    if (!added) return null;
+    added.doc.entities[added.entity].tool = "nmap";
+    if (!hostId) return added;
+    var hosted = L.putAssociation(added.doc, null, { kind: "hosts", from: hostId, to: added.entity, privilege: "user" });
+    return hosted ? { doc: hosted.doc, select: added.select, entity: added.entity } : null;
+  }
+
+  var api = { LEVELS: LEVELS, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, apply: apply, addNmap: addNmap, stampLine: stampLine, ASSUMED: ASSUMED };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmap = api;
 })();

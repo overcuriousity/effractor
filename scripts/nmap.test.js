@@ -232,3 +232,100 @@ test('unidentified software is never shared, not even in the count', () => {
   const p = N.plan(lab(), 'nmap', two, '10.0.1.0/24', {});
   assert.equal(N.summary(lab(), p, N.defaults(p), null).products, 2);
 });
+
+const CATALOG = require('./fixtures/catalog.json');
+const specOf = kind => CATALOG.entities.filter(e => e.kind === kind)[0];
+const STAMP = { date: '2026-09-24', level: 'Deep', range: '10.0.1.0/24' };
+
+test('applying adds exactly what was ticked, once, and leaves the rest alone', () => {
+  const d = lab();
+  const before = JSON.stringify(d);
+  const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', {});
+  const edit = N.apply(d, p, N.defaults(p), specOf, STAMP);
+  assert.equal(JSON.stringify(d), before, 'pure');
+  assert.equal(edit.select, 'entity/nmap');
+  const out = edit.doc;
+  for (const id of Object.keys(d.entities)) {
+    if (id !== 'nmap') assert.deepEqual(out.entities[id], d.entities[id], 'untouched: ' + id);
+  }
+  for (const id of Object.keys(d.associations)) assert.deepEqual(out.associations[id], d.associations[id]);
+  assert.deepEqual(out.flows.f1, d.flows.f1);
+  assert.equal(out.entities.nmap.description, 'Last nmap import: 2026-09-24, Deep scan of 10.0.1.0/24.');
+  const host = Object.keys(out.entities).find(id => out.entities[id].label === '10.0.1.7');
+  assert.deepEqual(out.entities[host].addresses, ['10.0.1.7']);
+  assert.equal(out.entities[host].kind, 'host');
+  assert.ok(Object.values(out.associations).some(a => a.kind === 'attached' && a.from === host && a.to === 'lan'));
+  const hosting = Object.values(out.associations).filter(a => a.kind === 'hosts' && a.privilege === 'admin' && a.description === 'Privilege assumed by the nmap import.');
+  assert.equal(hosting.length, 3);
+  const openssh = Object.values(out.associations).filter(a => a.kind === 'instance-of' && a.to === 'openssh');
+  assert.equal(openssh.length, 2, 'the known product is shared');
+  const flows = Object.values(out.flows).filter(f => f.source === 'nmap');
+  assert.deepEqual(flows.map(f => [f.label, f.protocol, f.route]).sort(), [
+    ['domain on Server', 'udp/53', ['lan']],
+    ['ssh on 10.0.1.7', 'tcp/22', ['lan']],
+    ['ssh on Server', 'tcp/22', ['lan']],
+    ['tcp/8443 on Server', 'tcp/8443', ['lan']],
+  ]);
+  // Scanning again changes nothing but the stamp.
+  const again = N.plan(out, 'nmap', deep(), '10.0.1.0/24', {});
+  const s = N.summary(out, again, N.defaults(again), { entities: 500, relationships: 2000 });
+  assert.deepEqual([s.hosts, s.services, s.products, s.flows], [0, 0, 0, 0]);
+});
+
+test('merging fills the chosen host; a proposed network is made and used', () => {
+  const d = lab();
+  const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', { h1: 'printer' });
+  const merged = N.apply(d, p, N.defaults(p), specOf, STAMP).doc;
+  assert.deepEqual(merged.entities.printer.addresses, ['10.0.1.7']);
+  assert.equal(merged.entities.printer.label, 'Printer');
+
+  const bare = lab();
+  delete bare.entities.lan.addresses;
+  const one = { args: '', silentUdp: 0, hosts: [{ addresses: ['10.0.1.9'], hostname: null, os: null, ports: [] }] };
+  const q = N.plan(bare, 'nmap', one, '10.0.1.0/24', {});
+  const out = N.apply(bare, q, N.defaults(q), specOf, STAMP).doc;
+  const net = Object.keys(out.entities).find(id => out.entities[id].label === '10.0.1.0/24');
+  assert.deepEqual(out.entities[net], { kind: 'network', label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
+  const h = Object.keys(out.entities).find(id => out.entities[id].label === '10.0.1.9');
+  assert.ok(Object.values(out.associations).some(a => a.kind === 'attached' && a.from === h && a.to === net));
+});
+
+test('nothing ticked is no edit; a second import keeps the rest of the description', () => {
+  const d = lab();
+  const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', {});
+  assert.equal(N.apply(d, p, { hosts: {}, ports: {}, network: false }, specOf, STAMP), null);
+  d.entities.nmap.description = 'Runs from the admin box.\nLast nmap import: 2026-09-01, Standard scan of 10.0.1.0/24.';
+  const out = N.apply(d, p, N.defaults(p), specOf, STAMP).doc;
+  assert.equal(out.entities.nmap.description, 'Runs from the admin box.\nLast nmap import: 2026-09-24, Deep scan of 10.0.1.0/24.');
+});
+
+test('a hostile name becomes a label as it is and a valid id', () => {
+  const d = lab();
+  const scan = N.read(fixture('hostile.xml')).scan;
+  const p = N.plan(d, 'nmap', scan, '10.0.3.0/24', {});
+  const out = N.apply(d, p, N.defaults(p), specOf, STAMP).doc;
+  const id = Object.keys(out.entities).find(k => out.entities[k].label === '<img src=x onerror=alert(1)>&ünï');
+  assert.match(id, /^[a-z0-9][a-z0-9-]*$/);
+  assert.match(id, /[a-z-]/);
+});
+
+test('a new nmap application runs on its host as user and says it is nmap', () => {
+  const d = lab();
+  const e = N.addNmap(d, 'srv', 'nmap', specOf);
+  assert.equal(e.doc.entities[e.entity].tool, 'nmap');
+  assert.equal(e.doc.entities[e.entity].kind, 'application');
+  assert.ok(Object.values(e.doc.associations).some(a => a.kind === 'hosts' && a.from === 'srv' && a.to === e.entity && a.privilege === 'user'));
+  assert.equal(e.select, 'entity/' + e.entity);
+  const loose = N.addNmap(E.empty(), null, 'nmap', specOf);
+  assert.deepEqual(Object.keys(loose.doc.associations), []);
+});
+
+test('the imported lab document is the one the Rust test validates', () => {
+  const d = lab();
+  const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', { h1: 'printer' });
+  const out = N.apply(d, p, N.defaults(p), specOf, STAMP).doc;
+  const file = 'scripts/fixtures/nmap/imported.doc.json';
+  const text = JSON.stringify(out, null, 2) + '\n';
+  if (process.env.NMAP_FIXTURE === 'write') fs.writeFileSync(file, text);
+  assert.equal(fs.readFileSync(file, 'utf8'), text);
+});

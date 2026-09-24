@@ -1,0 +1,280 @@
+{
+  "effractor": 2,
+  "profile": "architecture",
+  "name": "Untitled",
+  "time_unit": "d",
+  "horizon": 100,
+  "library": {
+    "id": "core-components",
+    "version": 1
+  },
+  "entities": {
+    "lan": {
+      "kind": "network",
+      "label": "Lab network",
+      "addresses": [
+        "10.0.1.0/24"
+      ]
+    },
+    "admin-box": {
+      "kind": "host",
+      "label": "Admin box",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      }
+    },
+    "nmap": {
+      "kind": "application",
+      "label": "nmap",
+      "tool": "nmap",
+      "description": "Last nmap import: 2026-09-24, Deep scan of 10.0.1.0/24."
+    },
+    "srv": {
+      "kind": "host",
+      "label": "Server",
+      "addresses": [
+        "10.0.1.5"
+      ]
+    },
+    "sshd": {
+      "kind": "service",
+      "label": "ssh"
+    },
+    "openssh": {
+      "kind": "product",
+      "label": "OpenSSH 9.6p1"
+    },
+    "printer": {
+      "kind": "host",
+      "label": "Printer",
+      "addresses": [
+        "10.0.1.7"
+      ]
+    },
+    "tcp-8443": {
+      "kind": "service",
+      "label": "tcp/8443",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "unidentified-tcp-8443-on-server": {
+      "kind": "product",
+      "label": "unidentified tcp/8443 on Server",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "domain": {
+      "kind": "service",
+      "label": "domain",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "dnsmasq-2-90": {
+      "kind": "product",
+      "label": "dnsmasq 2.90",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "ssh": {
+      "kind": "service",
+      "label": "ssh",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    }
+  },
+  "associations": {
+    "a1": {
+      "kind": "attached",
+      "from": "admin-box",
+      "to": "lan"
+    },
+    "a2": {
+      "kind": "attached",
+      "from": "srv",
+      "to": "lan"
+    },
+    "a3": {
+      "kind": "hosts",
+      "from": "admin-box",
+      "to": "nmap",
+      "privilege": "user"
+    },
+    "a4": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "sshd",
+      "privilege": "admin"
+    },
+    "a5": {
+      "kind": "instance-of",
+      "from": "sshd",
+      "to": "openssh"
+    },
+    "srv-hosts-tcp-8443": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "tcp-8443",
+      "privilege": "admin",
+      "description": "Privilege assumed by the nmap import."
+    },
+    "tcp-8443-instance-of-unidentified-tcp-8443-on-server": {
+      "kind": "instance-of",
+      "from": "tcp-8443",
+      "to": "unidentified-tcp-8443-on-server"
+    },
+    "srv-hosts-domain": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "domain",
+      "privilege": "admin",
+      "description": "Privilege assumed by the nmap import."
+    },
+    "domain-instance-of-dnsmasq-2-90": {
+      "kind": "instance-of",
+      "from": "domain",
+      "to": "dnsmasq-2-90"
+    },
+    "printer-hosts-ssh": {
+      "kind": "hosts",
+      "from": "printer",
+      "to": "ssh",
+      "privilege": "admin",
+      "description": "Privilege assumed by the nmap import."
+    },
+    "ssh-instance-of-openssh": {
+      "kind": "instance-of",
+      "from": "ssh",
+      "to": "openssh"
+    }
+  },
+  "flows": {
+    "f1": {
+      "label": "ssh on Server",
+      "source": "nmap",
+      "target": "sshd",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/22",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-8443-on-server": {
+      "label": "tcp/8443 on Server",
+      "source": "nmap",
+      "target": "tcp-8443",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "domain-on-server": {
+      "label": "domain on Server",
+      "source": "nmap",
+      "target": "domain",
+      "route": [
+        "lan"
+      ],
+      "protocol": "udp/53",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "ssh-on-printer": {
+      "label": "ssh on Printer",
+      "source": "nmap",
+      "target": "ssh",
+      "route": [],
+      "protocol": "tcp/22",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    }
+  },
+  "attacker": {
+    "footholds": []
+  },
+  "scenarios": {},
+  "analysis": {
+    "seed": 42,
+    "samples": 10000,
+    "confidence": 0.95
+  }
+}

@@ -156,3 +156,30 @@ fn the_javascript_architecture_fixture_is_the_real_image() {
     assert_eq!(doc(&text).to_string(), fixture.to_string());
     assert_eq!(from_document(&fixture).unwrap(), text);
 }
+
+/// What the nmap import produces for the lab scan saves, and says nothing
+/// worse than `incomplete` (the lab has no target yet).
+#[test]
+fn the_nmap_import_fixture_is_a_valid_architecture() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let fixture =
+        std::fs::read_to_string(root.join("scripts/fixtures/nmap/imported.doc.json")).unwrap();
+    let fixture: Value = serde_json::from_str(&fixture).unwrap();
+    let text = from_document(&fixture).unwrap_or_else(|d| panic!("{d:?}"));
+    assert!(text.contains("tool: nmap"), "{text}");
+    let (doc, diagnostics) = effractor_format::diagnose_document(&text);
+    assert!(doc.is_some());
+    let serious: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.severity == effractor_core::Severity::Error)
+        .collect();
+    assert!(serious.is_empty(), "{serious:?}");
+    // No service lacks its product or its host.
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|d| d.code == effractor_core::Code::Incomplete
+                && (d.message.contains("product") || d.message.contains("runs nowhere"))),
+        "{diagnostics:?}"
+    );
+}
