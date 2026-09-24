@@ -192,3 +192,18 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 /* No attack graph yet: the button and the chip open what to finish. */
 .view-switch #view-attack.is-blocked { text-decoration: underline dotted var(--color-warning); text-underline-offset: 3px; }
 .topbar > .status.is-blocked { color: var(--color-warning); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+
+/* The nmap dialog: level, range, command, paste; then the preview. */
+.nmap-dialog { width: min(44rem, 94vw); }
+.nmap-levels { border: 0; padding: 0; margin: 0 0 12px; display: grid; gap: 4px; }
+.nmap-level { display: grid; grid-template-columns: auto 6rem 1fr; gap: 8px; align-items: baseline; }
+.nmap-dialog input[type="text"], .nmap-dialog textarea { width: 100%; font-family: var(--font-mono); }
+.nmap-command { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.nmap-command code { flex: 1; font-family: var(--font-mono); overflow-wrap: anywhere; user-select: all; }
+.nmap-rows, .nmap-ports { list-style: none; margin: 0; padding: 0; }
+.nmap-rows { max-height: 50vh; overflow: auto; margin: 12px 0; }
+.nmap-host { margin: 0 0 8px; }
+.nmap-ports { padding-left: 24px; }
+.nmap-row { display: flex; gap: 8px; align-items: baseline; font-size: var(--text-sm); }
+.nmap-row span { overflow-wrap: anywhere; }
+.nmap-row .pick.nmap-merge { width: auto; margin-left: auto; }

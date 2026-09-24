@@ -33,6 +33,7 @@
 <script src="{{ asset_prefix }}assets/js/edit.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/architecture-edit.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/architecture-links.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/nmap.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/problems.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/vocabulary.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/profiles.js" defer></script>
@@ -49,6 +50,7 @@
 <script src="{{ asset_prefix }}assets/js/editor.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/architecture-ui.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/architecture-links-ui.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/nmap-ui.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/attacker-pins.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/attack-ui.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/source.js" defer></script>
@@ -223,6 +225,26 @@
   <p id="share-status" role="status" class="hint"></p>
   {% if sharing %}<div id="share-server-list"><h3 class="label">My shares</h3><p class="hint" id="shares-empty">No shares</p><ul id="my-shares"></ul></div>{% endif %}
   <button class="btn btn-ghost" id="share-close" type="button">Close</button>
+</dialog>
+<dialog class="help-dialog nmap-dialog" id="nmap-dialog" aria-labelledby="nmap-title">
+  <h2 class="label" id="nmap-title">nmap</h2>
+  <p class="hint" id="nmap-unplaced" hidden>nmap is not on a host; the flows will have no route until you place it.</p>
+  <div id="nmap-ask">
+    <fieldset class="nmap-levels" id="nmap-levels"><legend class="label">Scan level</legend></fieldset>
+    <p><label for="nmap-range">Range</label> <input id="nmap-range" type="text" autocomplete="off" spellcheck="false" placeholder="10.0.1.0/24"></p>
+    <p class="hint">Real addresses go into the file, and into any link you share.</p>
+    <div class="nmap-command"><code id="nmap-command"></code><button class="btn btn-ghost" id="nmap-copy" type="button">Copy</button></div>
+    <p><label for="nmap-paste">Result</label></p>
+    <textarea id="nmap-paste" rows="8" spellcheck="false" placeholder="Paste the output, or drop the .xml file here"></textarea>
+    <p class="hint" id="nmap-problem" role="status"></p>
+    <button class="btn" id="nmap-read" type="button">Read</button><button class="btn btn-ghost" id="nmap-cancel" type="button">Cancel</button>
+  </div>
+  <div id="nmap-preview" hidden>
+    <ul class="nmap-rows" id="nmap-rows"></ul>
+    <p class="hint" id="nmap-notes"></p>
+    <p id="nmap-summary" role="status"></p>
+    <button class="btn" id="nmap-add" type="button">Add</button><button class="btn btn-ghost" id="nmap-back" type="button">Back</button><button class="btn btn-ghost" id="nmap-close" type="button">Cancel</button>
+  </div>
 </dialog>
 <dialog class="link-dialog" id="link-dialog" aria-label="Reuse an existing node">
   <input class="link-search" id="link-search" type="search" placeholder="Reuse which node under this one…" aria-controls="link-results">
