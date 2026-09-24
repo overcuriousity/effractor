@@ -147,6 +147,11 @@ account assuming itself is an error.
 
 ### 3.5 Operators: people and agents
 
+> **Amended 2026-09-24 (§10).** People are built as written here. The `agent`
+> kind, `shell`, `inject`, `agent-shell` and the `guarded` switch on agents
+> are replaced by content-processing software (§10); where this section says
+> "agent", read "software that processes content".
+
 Two new kinds read content and act on it.
 
 **`person`** — a human user. States `contacted`, `deceived`. Associations
@@ -240,7 +245,7 @@ Assumptions shown with these rules: encryption at rest does not stop software
 that serves the data, and it does not stop modification. Client-side
 encryption is a service holding with `decrypts: false`.
 
-* `data-poisoning` (logical): data `modified` + `reads: agent → data` → agent
+* `data-poisoning` (logical, amended by §10): data `modified` + `reads: application | service → data` → reader
   `contacted`. Poisoning what an agent reads leads through `inject` to its
   tools and identity.
 
@@ -277,7 +282,8 @@ switch are errors, as today.
   fixture gain a product for `sshd`; the `patch` scenario names it. Their
   generated graphs change only by the product steps; the lecture results stay
   explainable by the same routes.
-* A new shipped example, `assets/examples/17-cloud-support-agent-architecture.yaml`
+* A new shipped example (amended by §10: its support agent is a service that
+  processes content), `assets/examples/17-cloud-support-agent-architecture.yaml`
   (listed in the examples README and the course README), exercises every
   addition in one plausible estate: a support agent that reads a public ticket
   queue (`delivers: internet`), runs as a role that may assume a data-reader
@@ -299,7 +305,8 @@ the owner in the browser before the next:
 2. **products** — §2.2 (touches the lecture fixtures).
 3. **identity** — §3.1–3.4: account states, MFA, workload identity, role
    assumption.
-4. **operators** — §3.5: person, agent, phishing, injection.
+4. **operators** — §3.5: person and phishing (done). Content-processing
+   software, §10, is its own part before data.
 5. **data** — §4, and the cloud support agent example.
 
 ## 9. Outside this extension
@@ -308,3 +315,54 @@ Client-side exploits of applications; availability as its own state;
 exfiltration duration; retries and lockout; trust-policy conditions; a
 cloud-provider kind (a managed service is a service on a host standing for
 the platform); attacker profiles (roadmap, `defense-comparison`).
+
+## 10. Amendment (2026-09-24): content-processing software replaces the agent
+
+The owner reviewed the operators part and chose the general form: an AI agent
+is one case of software that processes untrusted content with real
+permissions, as are a CI runner building outside pull requests, a mail
+gateway opening attachments, a document converter and a chatbot calling
+tools. The application is used in production, not only for teaching, so the
+vocabulary models the pattern once instead of one kind per case. There is no
+`agent` kind.
+
+* **Content reaches software.** `delivers: network → person | application |
+  service`. For software, `contacted` is a generated fact (not a declared
+  state), as `reachable` is for a service.
+* **Take-over through content** (timed, one per software that content can
+  reach): software `contacted` → software `control`. New slots
+  `take-over` and `take-over-guarded` on application and service; new switch
+  `defenses.guarded` on both (input validation, sandboxing, guardrails, human
+  approval of actions — the note says which). For an AI agent this is prompt
+  injection; for a parser it is a malicious file. It is a property of the
+  deployment, so it sits on the software, not on its product.
+* **Contained software.** `hosts` gains `contained: true | false` for any
+  executable. `contained: true` removes `execution-privilege` for that
+  hosting: controlling the software does not control its machine (a
+  sandboxed browser, a locked-down container, an agent without a shell).
+  Absent means `false`, today's behaviour, so no existing file changes;
+  canonical saves write only `contained: true`.
+* **What the software reads.** `reads: application | service → data` (§4.4)
+  and `data-poisoning` reach the reading software's `contacted`.
+* **A controlled service feeding its clients.** `content-from-service` extends
+  to software whose own flows target a controlled service (a compromised tool
+  server, a poisoned retrieval service, a watering hole for a client).
+  **Open for the next session's brainstorming:** whether this applies to every
+  flow source — which would give every existing client a take-over step with
+  an unknown time — or only to software the author marks as processing
+  content (for example: one that some `delivers` or `reads` names, or one
+  whose `take-over` slot is authored). The recommendation is the opt-in form,
+  so existing models keep their numbers.
+* **Identity and flows unchanged.** A content-processing service that
+  `runs-as` an account and has flows is what the spec's "agent" was: its
+  control connects its flows and authenticates its identity through the
+  existing rules.
+* **Words.** The catalog names the step "Take over through content", the
+  switch "Guarded", the setting "contained". §9's "client-side exploits of
+  applications" is no longer outside the library: this step is how they are
+  modelled.
+* **Example 17** keeps its story; its support agent is a service that runs as
+  a role, is delivered the public ticket queue, reads the help articles, and
+  is hosted `contained: false` on the support VM. Its `guardrails` scenario
+  switches `guarded` on that service.
+

@@ -1515,6 +1515,16 @@ Run the full check list (Task 1, Step 15) with `git commit -S -m "Log in through
 
 ### Task 4: Operators — people and agents
 
+> **Done, amended (2026-09-24).** Landed with people only (PR #80). The agent
+> parts below (the `agent` kind, `shell`, `inject`, `agent-shell`, the
+> `guarded` switch on agents) were built, reviewed by the owner and removed
+> before merge: spec §10 replaces them with content-processing software.
+> Kept: `person`, `knows`, `operates`, `delivers` (network → person),
+> `phish`, `person-disclose`, `person-run`, `content-from-zone`,
+> `content-from-service` (through applications a person operates), the
+> `operators()` generator and the `bound()` helper. The text below is the
+> record of what was planned, not a to-do.
+
 Branch: `feature/operators`.
 
 **Files:**
@@ -2020,7 +2030,26 @@ Run the full check list (Task 1, Step 15) with `git commit -S -m "Deceive people
 
 ---
 
+### Task 4b: Content-processing software (spec §10) — to be planned
+
+Not yet written. The next session brainstorms §10's open question (which
+software a controlled service's content reaches), then writes this task with
+superpowers:writing-plans in the style of Tasks 1–3: `delivers` to
+application and service, the generated `contacted` fact for software,
+`take-over` / `take-over-guarded` slots and the `guarded` switch on
+application and service, `hosts.contained`, and the extended
+`content-from-service`. It comes before Task 5.
+
 ### Task 5: Data — targets, holding, access, encryption; the cloud support agent example
+
+> **Re-plan before executing (2026-09-24).** Written when agents were a kind.
+> After Task 4b, replace every `EntityKind::Agent`, `agent` in `holds`/`reads`
+> kinds, `shell`, `inject` and `guarded`-on-agent below with the §10 forms
+> (a content-processing service; `reads: application | service → data`;
+> `contained`; `take-over`), including example 17's `support-agent`, its
+> `agent-hosting` (`shell: true` → `contained: false`) and the
+> `guardrails` scenario, and drop `BOOLS` from Task 4's consumes list (Task 4
+> no longer adds it; Task 5 adds it for `decrypts`).
 
 Branch: `feature/data`.
 
