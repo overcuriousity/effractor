@@ -208,3 +208,13 @@ test('putting a scenario again keeps its x- fields and speed', () => {
   const d = C.putScenario(withExtra, 'patch', 'Patch again', []).doc;
   assert.deepEqual(d.scenarios.patch, { label: 'Patch again', attacker: { speed: 3 }, changes: [], 'x-owner': 'blue team' });
 });
+
+test('a comparison is current only for the scenario chosen and the text on the page', () => {
+  const r = R('deny');
+  assert.equal(C.state(r, 'deny', 7, 7), 'current');
+  // Solved for an older text: shown as outdated, and no routes are drawn from it.
+  assert.equal(C.state(r, 'deny', 6, 7), 'stale');
+  assert.equal(C.state(r, 'patch', 7, 7), 'none', 'another scenario');
+  assert.equal(C.state(R('available'), 'deny', 7, 7), 'none', 'baseline only');
+  assert.equal(C.state(null, 'deny', 7, 7), 'none');
+});

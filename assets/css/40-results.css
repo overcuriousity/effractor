@@ -107,6 +107,7 @@
 .workspace:is([data-results="updating"], [data-results="exact"]) :is(#hud-eal, #hud-p95, #tab-ttc, #tab-loss, #tab-pareto, .control-worth, .controls-baseline, #selected-facts) { opacity: .45; }
 
 /* Compare: the baseline against one scenario. */
+.compare-results.is-stale .compare-facts { opacity: .5; }
 .compare-pick, .compare-row { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: var(--text-sm); }
 .compare-term { flex: none; color: var(--color-fg-muted); }
 .compare-pick .pick { flex: 1; min-width: 0; }

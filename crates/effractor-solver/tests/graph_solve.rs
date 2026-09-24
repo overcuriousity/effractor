@@ -572,7 +572,7 @@ fn a_faster_attacker_takes_the_same_draws_in_less_time() {
     let speed = assumption(&r["scenario"], "scenarios.fast.attacker.speed")
         .unwrap_or_else(|| panic!("{}", r["scenario"]["assumptions"]));
     assert_eq!(speed["status"], "attacker");
-    assert_eq!(speed["expression"], "2 × faster");
+    assert_eq!(speed["expression"], "2 × speed");
     assert!(assumption(&r["baseline"], "scenarios.fast.attacker.speed").is_none());
 }
 

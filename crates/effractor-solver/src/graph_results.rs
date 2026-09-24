@@ -575,7 +575,7 @@ impl GraphSolve {
                 path: path.clone(),
                 paths: vec![path.clone()],
                 status: "attacker",
-                expression: Some(format!("{speed} × faster")),
+                expression: Some(format!("{speed} × speed")),
                 note: None,
             });
         }

@@ -793,11 +793,18 @@ test('a chosen scenario is solved with the baseline, and one the document no lon
   r.result.ok.result.scenario = { id: 'deny', outcome: { available: { method: 'structural', samples: 0, confidence: 0.95, p_target: 0, ci: { lo: 0, hi: 0 }, ttc_cdf: [] } }, nodes: [], assumptions: [], witness: null };
   run.resolve(r); await h.settle();
   assert.equal(h.app.state.results, null, 'an answer about another comparison');
-  // An edit that drops the scenario drops the choice.
+  // An accepted answer names the revision it was solved for; an edit moves on.
   h.app.setScenario('deny');
   await h.tick();
-  h.runs[h.runs.length - 1].resolve({ cancelled: true }); await h.settle();
+  const again = h.runs[h.runs.length - 1];
+  const solvedAt = h.app.state.revision;
+  const r2 = graphResult('arch-scen', solvedAt, 0.5);
+  r2.result.ok.result.scenario = r.result.ok.result.scenario;
+  again.resolve(r2); await h.settle();
+  assert.equal(h.app.state.solvedRevision, solvedAt);
+  // An edit that drops the scenario drops the choice.
   await h.app.applyEdit({ doc: h.docOf('arch-plain') });
+  assert.notEqual(h.app.state.revision, h.app.state.solvedRevision, 'the shown comparison is of an older text');
   assert.equal(h.app.state.scenario, '');
   await h.tick();
   assert.equal(h.runs[h.runs.length - 1].options.scenario, '');

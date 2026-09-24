@@ -116,6 +116,10 @@
     var C = window.effractorComparison;
     var rows = C.rows(result);
     var max = result.horizon, unit = result.time_unit;
+    if (!rows.length) {
+      root.appendChild(el('p', 'Not available · both sides rest on unknown inputs', 'empty'));
+      return;
+    }
     var s = app.state.doc && app.state.doc.scenarios && app.state.doc.scenarios[result.scenario.id];
     var name = s && s.label != null ? s.label : result.scenario.id;
     var title = 'P(target by time) · baseline and ' + name;

@@ -898,7 +898,10 @@
         if (arch && scenario !== state.scenario) return;
         if (arch) state.blockers = null;
         state.lastSampledMs = performance.now() - started;
-        if (arch) showGraph(answer.result);
+        if (arch) {
+          state.solvedRevision = revision;
+          showGraph(answer.result);
+        }
         else showAll(answer);
         chip(analysisLabel(state.doc.analysis));
       })

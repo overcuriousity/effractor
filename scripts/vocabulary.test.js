@@ -26,3 +26,7 @@ test('a defence switch and its step status read as words', () => {
   assert.equal(W.defense(null, 'mfa'), 'mfa');
   assert.equal(W.status('defense'), 'Defence switch');
 });
+
+test('an attacker profile is named as such among the assumptions', () => {
+  assert.equal(require('../assets/js/vocabulary.js').status('attacker'), 'Attacker speed');
+});

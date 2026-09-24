@@ -255,13 +255,17 @@
     box.appendChild(ul);
   }
 
-  var asked = null; // the revision whose graph this tab asked for
-
   function comparison(box, d, id) {
     var results = app.state.results;
-    if (!R.isGraphResults(results) || !results.scenario || results.scenario.id !== id) {
-      box.appendChild(el("p", app.state.running ? "calculating…" : "Calculate to compare", "empty"));
+    var now = R.isGraphResults(results) ? C.state(results, id, app.state.solvedRevision, app.state.revision) : "none";
+    if (now === "none") {
+      box.appendChild(el("p", "Calculate to compare", "empty"));
       return;
+    }
+    // Numbers of an older text: said as such, and no routes are read from them.
+    if (now === "stale") {
+      box.classList.add("is-stale");
+      box.appendChild(el("p", "outdated · for the text before the last edit", "hint"));
     }
     var s = C.summary(results);
     var by = results.horizon + " " + results.time_unit;
@@ -292,15 +296,16 @@
         }, "source-link"));
       });
     }
+    if (now === "stale") return;
     var g = app.state.generated;
     if (!g || g.revision !== app.state.revision) {
-      if (asked !== app.state.revision) {
-        asked = app.state.revision;
-        app.generate().then(function (answer) {
-          if (answer && answer.ok) render(true);
+      // Built on request only: a build of its own would overtake one the
+      // attack view is waiting for.
+      box.appendChild(button("Build the attack graph", "Routes need the attack graph", function () {
+        app.generate().then(function () {
+          render(true);
         });
-      }
-      box.appendChild(el("p", "routes follow once the attack graph is built", "hint"));
+      }));
       return;
     }
     var r = C.routes(g.graph, results, d, id);
@@ -319,12 +324,12 @@
     var box = $("compare-view");
     if (!box) return;
     var d = doc();
-    var key = { doc: d, scenario: app.state.scenario, results: app.state.results, generated: app.state.generated, running: app.state.running };
+    var key = { doc: d, scenario: app.state.scenario, results: app.state.results, generated: app.state.generated, revision: app.state.revision, solved: app.state.solvedRevision };
     if (!force && Object.keys(key).every(function (k) { return key[k] === shown[k]; })) return;
-    shown = key;
-    // Typing in a field is not interrupted by the answer to something else.
+    // Typing in a field is not interrupted: this is drawn when focus leaves it.
     var active = document.activeElement;
-    if (!force && active && box.contains(active) && active.tagName === "INPUT") return;
+    if (active && box.contains(active) && active.tagName === "INPUT") return;
+    shown = key;
     box.replaceChildren();
     if (!P.isArchitecture(d)) return;
     var ids = C.ids(d);
@@ -349,6 +354,13 @@
 
   var add = $("scenario-add");
   if (add) add.addEventListener("click", newScenario);
+  var view = $("compare-view");
+  if (view) view.addEventListener("focusout", function () {
+    // After the field has let go of focus, and before anything else changes.
+    setTimeout(function () {
+      render(false);
+    }, 0);
+  });
   app.onChange(function () {
     render(false);
   });

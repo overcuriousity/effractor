@@ -2137,7 +2137,7 @@
      "scenarios.fast.attacker.speed"
     ],
     "status": "attacker",
-    "expression": "2 × faster",
+    "expression": "2 × speed",
     "note": null
    }
   ],

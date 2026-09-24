@@ -306,7 +306,15 @@
     };
   }
 
+  // "current": this result compares the chosen scenario for the text on the
+  // page; "stale": it did, for an older text; "none": it does not compare it.
+  function state(result, id, solvedRevision, revision) {
+    if (!result || !result.scenario || !id || result.scenario.id !== id) return "none";
+    return solvedRevision === revision ? "current" : "stale";
+  }
+
   var api = {
+    state: state,
     ids: ids,
     freshId: freshId,
     selectable: selectable,
