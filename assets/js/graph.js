@@ -172,12 +172,77 @@
     };
   }
 
-  // An architecture is a network, not a tree: ELK's stress layout puts linked
-  // components near each other and the rest apart, with no rows and no
-  // ports. A firewall is pulled towards both ends of every flow it rules on,
-  // so it settles beside its router, among the traffic it governs; the pulls
-  // shape the layout and are never drawn.
+  // A host and what it runs, laid out as one block (owner, 2026-09-24): the
+  // host on top, centred; its software in rows of BLOCK.columns under it, in
+  // the file's order; under each, the products only this host's software
+  // uses. A product used on two hosts, a router or guest on the box, and
+  // everything else keep places of their own. Returns {blocks: {host:
+  // {members, at: {id: {x, y}}, width, height}}, of: {member: host}}.
+  var BLOCK = { columns: 5, gap: 12 };
+  var SOFTWARE = { application: true, service: true };
+  function blocks(graph) {
+    var node = dict(), order = dict();
+    graph.nodes.forEach(function (n, i) {
+      node[n.id] = n;
+      order[n.id] = i;
+    });
+    var runs = dict(), hostOf = dict(), usedBy = dict();
+    graph.edges.forEach(function (e) {
+      if (!node[e.from] || !node[e.to]) return;
+      if (e.kind === "hosts" && node[e.from].component === "host" && SOFTWARE[node[e.to].component] && !hostOf[e.to]) {
+        hostOf[e.to] = e.from;
+        (runs[e.from] = runs[e.from] || []).push(e.to);
+      }
+      if (e.kind === "instance-of") (usedBy[e.to] = usedBy[e.to] || []).push(e.from);
+    });
+    // A product goes under the first of its users when every user runs on one host.
+    var under = dict();
+    Object.keys(usedBy).sort(function (a, b) { return order[a] - order[b]; }).forEach(function (product) {
+      var users = usedBy[product];
+      var host = hostOf[users[0]];
+      if (!host || !users.every(function (u) { return hostOf[u] === host; })) return;
+      var first = users.slice().sort(function (a, b) { return order[a] - order[b]; })[0];
+      (under[first] = under[first] || []).push(product);
+    });
+    var cell = SIZE.width + BLOCK.gap, row = SIZE.component + BLOCK.gap;
+    var out = { blocks: dict(), of: dict() };
+    Object.keys(runs).sort(function (a, b) { return order[a] - order[b]; }).forEach(function (host) {
+      var software = runs[host].slice().sort(function (a, b) { return order[a] - order[b]; });
+      var columns = Math.min(BLOCK.columns, software.length);
+      var width = columns * cell - BLOCK.gap;
+      var at = dict(), members = [host], y = row;
+      at[host] = { x: (width - SIZE.width) / 2, y: 0 };
+      for (var start = 0; start < software.length; start += BLOCK.columns) {
+        var tier = software.slice(start, start + BLOCK.columns), deepest = 0;
+        tier.forEach(function (sw, i) {
+          at[sw] = { x: i * cell, y: y };
+          members.push(sw);
+          (under[sw] || []).forEach(function (product, k) {
+            at[product] = { x: i * cell, y: y + (k + 1) * row };
+            members.push(product);
+          });
+          deepest = Math.max(deepest, (under[sw] || []).length);
+        });
+        y += (deepest + 1) * row;
+      }
+      members.forEach(function (m) { out.of[m] = host; });
+      out.blocks[host] = { members: members, at: at, width: width, height: y - BLOCK.gap };
+    });
+    return out;
+  }
+
+  // An architecture is a network, not a tree: ELK's stress layout places each
+  // host's block (see blocks) and every component outside one, linked ones
+  // near each other, with no rows and no ports. Only links pull: flows are
+  // drawn, never pulled, so a scanner does not drag everything to itself. A
+  // firewall is pulled towards both ends of every flow it rules on, so it
+  // settles beside its router, among the traffic it governs; the pulls shape
+  // the layout and are never drawn.
   function toStress(graph) {
+    var grouped = blocks(graph);
+    function place(id) {
+      return grouped.of[id] || id;
+    }
     var flows = dict();
     graph.edges.forEach(function (e) {
       flows[e.id] = e;
@@ -187,8 +252,17 @@
       var f = flows[p.flow];
       if (!f) return;
       [f.from, f.to].forEach(function (end) {
-        if (end !== p.firewall) pulls.push({ id: "pull/" + pulls.length, sources: [p.firewall], targets: [end] });
+        if (place(end) !== place(p.firewall)) pulls.push({ id: "pull/" + pulls.length, sources: [place(p.firewall)], targets: [place(end)] });
       });
+    });
+    var seen = dict();
+    var links = [];
+    graph.edges.forEach(function (e) {
+      if (e.kind === "flow") return;
+      var from = place(e.from), to = place(e.to);
+      if (from === to || seen[from + "\u0000" + to]) return;
+      seen[from + "\u0000" + to] = true;
+      links.push({ id: e.id, sources: [from], targets: [to] });
     });
     return {
       id: "root",
@@ -197,14 +271,15 @@
         "elk.stress.desiredEdgeLength": String(SIZE.reach),
         "elk.padding": "[top=0,left=0,bottom=0,right=0]",
       },
-      children: graph.nodes.map(function (n) {
-        return { id: n.id, width: SIZE.width, height: height(n) };
-      }),
-      edges: graph.edges
-        .map(function (e) {
-          return { id: e.id, sources: [e.from], targets: [e.to] };
+      children: graph.nodes
+        .filter(function (n) {
+          return !grouped.of[n.id] || grouped.of[n.id] === n.id;
         })
-        .concat(pulls),
+        .map(function (n) {
+          var block = grouped.blocks[n.id];
+          return block ? { id: n.id, width: block.width, height: block.height } : { id: n.id, width: SIZE.width, height: height(n) };
+        }),
+      edges: links.concat(pulls),
     };
   }
 
@@ -325,20 +400,34 @@
   // later (positions.js), so ELK's routes and the pulls are dropped, and the
   // firewalls' permissions ride along to be drawn as lines of their own.
   function fromStress(graph, result, described) {
-    var nodes = separate(
+    var grouped = blocks(graph);
+    var hub = { x: SIZE.width / 2, y: SIZE.plate / 2, r: SIZE.plate / 2 + SIZE.halo };
+    // Blocks and single components pushed clear of each other as wholes,
+    // then each block filled in round its host.
+    var placed = separate(
       (result.children || []).map(function (c) {
-        return { id: c.id, x: c.x || 0, y: c.y || 0, width: c.width, height: c.height, node: described[c.id], hub: { x: SIZE.width / 2, y: SIZE.plate / 2, r: SIZE.plate / 2 + SIZE.halo } };
+        return { id: c.id, x: c.x || 0, y: c.y || 0, width: c.width, height: c.height };
       }),
       SIZE.clear
     );
-    var width = 0, height = 0;
+    var nodes = [];
+    placed.forEach(function (p) {
+      var block = grouped.blocks[p.id];
+      (block ? block.members : [p.id]).forEach(function (id) {
+        var off = block ? block.at[id] : { x: 0, y: 0 };
+        var n = described[id];
+        // Whole pixels: crisp, and a block's shape exact (the gap absorbs it).
+        nodes.push({ id: id, x: Math.round(p.x) + off.x, y: Math.round(p.y) + off.y, width: SIZE.width, height: height(n), node: n, hub: hub });
+      });
+    });
+    var right = 0, bottom = 0;
     nodes.forEach(function (n) {
-      width = Math.max(width, n.x + n.width);
-      height = Math.max(height, n.y + n.height);
+      right = Math.max(right, n.x + n.width);
+      bottom = Math.max(bottom, n.y + n.height);
     });
     return {
-      width: width,
-      height: height,
+      width: right,
+      height: bottom,
       nodes: nodes,
       edges: graph.edges.map(function (e) {
         var out = { id: e.id, from: e.from, to: e.to, points: [] };
@@ -350,7 +439,7 @@
     };
   }
 
-  var api = { inscription: inscription, describe: describe, wrap: wrap, toElk: toElk, fromElk: fromElk, layoutWith: layoutWith, separate: separate, SIZE: SIZE };
+  var api = { inscription: inscription, describe: describe, wrap: wrap, toElk: toElk, fromElk: fromElk, layoutWith: layoutWith, separate: separate, blocks: blocks, SIZE: SIZE };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorGraph = api;
 })();

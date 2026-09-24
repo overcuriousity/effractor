@@ -201,7 +201,7 @@ test("an architecture's component is its plate and name; lines meet the plate", 
   assert.equal(fromElk(tree, { children: [{ id: first.id, x: 0, y: 0, width: 1, height: 1 }], edges: [] }).nodes[0].hub, undefined);
 });
 
-test("an architecture is laid out as a network: stress, no ports, and a firewall pulled to its flows", () => {
+test("an architecture is laid out as a network: stress, no ports, flows never pull, a firewall pulled to its flows", () => {
   const V = require("../assets/js/architecture-view.js");
   const graph = V.describe({
     profile: "architecture",
@@ -213,7 +213,7 @@ test("an architecture is laid out as a network: stress, no ports, and a firewall
   const elk = toElk(graph);
   assert.equal(elk.layoutOptions["elk.algorithm"], "stress");
   assert.ok(elk.children.every((c) => !c.ports));
-  assert.deepEqual(elk.edges.map((e) => [e.sources[0], e.targets[0]]), [["entity/cli", "entity/sshd"], ["entity/fw", "entity/cli"], ["entity/fw", "entity/sshd"]]);
+  assert.deepEqual(elk.edges.map((e) => [e.sources[0], e.targets[0]]), [["entity/fw", "entity/cli"], ["entity/fw", "entity/sshd"]]);
 });
 
 test("ELK's stress layout of an architecture leaves no two components overlapping, and draws no pulls", async () => {
@@ -258,4 +258,106 @@ test("separate pushes overlapping boxes apart by the gap, and leaves clear ones 
   }
   assert.equal(Math.min(...out.map((b) => b.x)), 0);
   assert.equal(Math.min(...out.map((b) => b.y)), 0);
+});
+
+// ---- grouped by host (owner, 2026-09-24): a host, its software, their products ----
+
+const V = require("../assets/js/architecture-view.js");
+const { blocks, layoutWith } = require("../assets/js/graph.js");
+
+// Two hosts on one network: "box" runs dns and http (each with its own
+// product) and a router; "pc" runs ssh on OpenSSH, which "box"'s http also
+// uses, so OpenSSH is shared and stays out of both blocks.
+function lan() {
+  return {
+    profile: "architecture",
+    entities: {
+      net: { kind: "network", label: "LAN" },
+      box: { kind: "host", label: "Box" },
+      rt: { kind: "router", label: "Box router" },
+      dns: { kind: "service", label: "dns" },
+      nsd: { kind: "product", label: "NSD" },
+      http: { kind: "service", label: "http" },
+      web: { kind: "product", label: "Web UI" },
+      pc: { kind: "host", label: "PC" },
+      ssh: { kind: "service", label: "ssh" },
+      openssh: { kind: "product", label: "OpenSSH" },
+      nmap: { kind: "application", label: "nmap" },
+      lone: { kind: "host", label: "Lone" },
+    },
+    associations: {
+      a1: { kind: "attached", from: "box", to: "net" },
+      a2: { kind: "attached", from: "pc", to: "net" },
+      a3: { kind: "hosts", from: "box", to: "dns", privilege: "unknown" },
+      a4: { kind: "hosts", from: "box", to: "http", privilege: "unknown" },
+      a5: { kind: "instance-of", from: "dns", to: "nsd" },
+      a6: { kind: "instance-of", from: "http", to: "web" },
+      a7: { kind: "hosts", from: "pc", to: "ssh", privilege: "unknown" },
+      a8: { kind: "instance-of", from: "ssh", to: "openssh" },
+      a9: { kind: "instance-of", from: "http", to: "openssh" },
+      a10: { kind: "hosts", from: "box", to: "rt", privilege: "admin" },
+      a11: { kind: "attached", from: "rt", to: "net" },
+      a12: { kind: "hosts", from: "pc", to: "nmap", privilege: "user" },
+    },
+    flows: {
+      f1: { label: "dns", source: "nmap", target: "dns", route: ["net"] },
+      f2: { label: "http", source: "nmap", target: "http", route: ["net"] },
+    },
+    attacker: { footholds: [] },
+  };
+}
+
+test("a block is a host with the software it runs and the products only that software uses", () => {
+  const b = blocks(V.describe(lan()));
+  assert.deepEqual(Object.keys(b.blocks), ["entity/box", "entity/pc"], "a host that runs nothing is no block");
+  assert.deepEqual(b.blocks["entity/box"].members, ["entity/box", "entity/dns", "entity/nsd", "entity/http", "entity/web"]);
+  assert.deepEqual(b.blocks["entity/pc"].members, ["entity/pc", "entity/ssh", "entity/nmap"]);
+  assert.equal(b.of["entity/openssh"], undefined, "a product two hosts use is shared");
+  assert.equal(b.of["entity/rt"], undefined, "a router on its box keeps its own place, between its networks");
+  const at = b.blocks["entity/box"].at;
+  // The host on top, centred; its services in a row under it; each product under its service.
+  assert.ok(at["entity/dns"].y > at["entity/box"].y && at["entity/dns"].y === at["entity/http"].y);
+  assert.ok(at["entity/nsd"].y > at["entity/dns"].y && at["entity/nsd"].x === at["entity/dns"].x);
+  assert.equal(at["entity/web"].x, at["entity/http"].x);
+  assert.ok(at["entity/dns"].x < at["entity/http"].x, "in the file's order");
+  const w = b.blocks["entity/box"].width;
+  assert.equal(at["entity/box"].x + SIZE.width / 2, w / 2, "the host is centred over its row");
+});
+
+test("a host with many services wraps them into rows of five", () => {
+  const doc = lan();
+  for (let i = 0; i < 7; i++) {
+    doc.entities["s" + i] = { kind: "service", label: "s" + i };
+    doc.associations["h" + i] = { kind: "hosts", from: "lone", to: "s" + i, privilege: "unknown" };
+  }
+  const block = blocks(V.describe(doc)).blocks["entity/lone"];
+  const ys = [...new Set(["s0", "s1", "s2", "s3", "s4", "s5", "s6"].map((s) => block.at["entity/" + s].y))];
+  assert.equal(ys.length, 2, "two rows");
+  assert.equal(block.at["entity/s5"].x, block.at["entity/s0"].x, "the sixth starts the second row");
+});
+
+test("arranged: every block keeps its shape, nothing overlaps, and flows move nothing", async () => {
+  const run = (g) => new ELK().layout(g);
+  const graph = V.describe(lan());
+  const laid = await layoutWith(run, graph);
+  const pos = byId(laid.nodes);
+  const b = blocks(graph);
+  for (const [host, block] of Object.entries(b.blocks)) {
+    for (const m of block.members) {
+      assert.equal(pos[m].x - pos[host].x, block.at[m].x - block.at[host].x, m + " keeps its place in " + host);
+      assert.equal(pos[m].y - pos[host].y, block.at[m].y - block.at[host].y, m + " keeps its place in " + host);
+    }
+  }
+  for (let i = 0; i < laid.nodes.length; i++) {
+    for (let j = i + 1; j < laid.nodes.length; j++) {
+      const a = laid.nodes[i], c = laid.nodes[j];
+      const apart = a.x + a.width <= c.x || c.x + c.width <= a.x || a.y + a.height <= c.y || c.y + c.height <= a.y;
+      assert.ok(apart, a.id + " overlaps " + c.id);
+    }
+  }
+  const noFlows = lan();
+  noFlows.flows = {};
+  const bare = await layoutWith(run, V.describe(noFlows));
+  assert.deepEqual(bare.nodes.map((n) => [n.id, n.x, n.y]), laid.nodes.map((n) => [n.id, n.x, n.y]), "flows are drawn, never pulled");
+  assert.deepEqual(laid.edges.map((e) => e.id).sort(), Object.keys(lan().associations).map((k) => "association/" + k).concat(["flow/f1", "flow/f2"]).sort(), "every line is still drawn");
 });

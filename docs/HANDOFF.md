@@ -5,6 +5,21 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — grouped layout (2026-09-24)
+
+Owner, after an nmap import made a tangle: "Arrange automatically" now lays
+an architecture out grouped by host (the owner chose it over tuned springs,
+and to leave flows drawn as they are). `graph.blocks(graph)` gathers each
+host with the software it `hosts` and the products only that software uses:
+host on top, centred; software in rows of five under it, in file order; each
+product under its first user. A product used on two hosts, a router or guest
+on a box, networks and everything else keep places of their own. ELK stress
+then places blocks and single components, pulled by links only: **flows no
+longer pull** (a scanner dragged everything to itself), firewall pulls stay.
+`separate` pushes blocks apart as wholes; blocks land on whole pixels.
+Positions a visitor dragged still win; the background menu's "Arrange
+automatically" forgets them.
+
 ## Continuation — unknown hosting privilege (2026-09-24)
 
 Owner, from the look at an import: "hosts · admin" was a guess. Now a
@@ -533,7 +548,8 @@ preview. What exists:
   on the background menu forgets the moves. Trees keep ELK routes and
   drag-onto-to-move. The renderer interface gained `move` and `reveal`.
 - An architecture's automatic layout is ELK **stress** (`graph.toStress`), not
-  the tree's layered one, then `graph.separate` pushes overlapping components
+  the tree's layered one (since 2026-09-24 over host blocks, see "grouped
+  layout"), then `graph.separate` pushes overlapping components
   apart (deterministic, tested against real ELK). A firewall is pulled to both
   ends of each flow it `permits`, so it sits by its router among its traffic.
   Each permission is drawn as a dotted line from the firewall to its flow's
