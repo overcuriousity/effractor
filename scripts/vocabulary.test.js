@@ -30,3 +30,18 @@ test('a defence switch and its step status read as words', () => {
 test('an attacker profile is named as such among the assumptions', () => {
   assert.equal(require('../assets/js/vocabulary.js').status('attacker'), 'Attacker speed');
 });
+
+test('a source path in plain words: the component, then what of it', () => {
+  const doc = require('./fixtures/graph/lecture-doc.json');
+  const path = (p) => W.path(doc, catalog, p);
+  assert.equal(path('entities.openssh.parameters.find-exploit'), 'OpenSSH · ' + W.slot(catalog, 'find-exploit'));
+  assert.equal(path('entities.server-account.defenses.mfa'), 'Server account · ' + W.defense(catalog, 'mfa'));
+  assert.equal(path('flows.ssh.parameters.connect'), 'SSH from the workstation · ' + W.slot(catalog, 'connect'));
+  assert.equal(path('associations.allow-ssh.allowed'), 'Firewall · SSH from the workstation');
+  assert.equal(path('scenarios.deny.changes[0]'), 'Deny SSH at the router · change 1');
+  assert.equal(path('scenarios.deny.attacker.speed'), 'Deny SSH at the router · attacker speed');
+  // What it cannot name, it shows as it is.
+  assert.equal(path('entities.nobody.parameters.login'), 'entities.nobody.parameters.login');
+  assert.equal(path('attacker.target'), 'attacker.target');
+  assert.equal(W.path(null, catalog, 'flows.ssh.parameters.connect'), 'flows.ssh.parameters.connect');
+});

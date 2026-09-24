@@ -62,7 +62,9 @@
       return out;
     }
     out.ci = { lo: a.ci.lo, hi: a.ci.hi };
-    out.qualifier = Math.round(a.confidence * 100) + "% CI " + band(a.ci) + (illustrative(r) ? " · illustrative inputs" : "");
+    // An interval that prints as one number says nothing the number does not.
+    var ci = number(a.ci.lo) === number(a.ci.hi) ? [] : [Math.round(a.confidence * 100) + "% CI " + band(a.ci)];
+    out.qualifier = ci.concat(illustrative(r) ? ["illustrative inputs"] : []).join(" · ");
     return out;
   }
 

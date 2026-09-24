@@ -141,3 +141,10 @@ test('the chart key names a band only where there was sampling', () => {
   assert.equal(R.cdfKey(R.cdf(unreachable.baseline.outcome)), '— Target compromise probability · by structure, not sampled');
   assert.equal(R.cdfKey(R.cdf(seeded.baseline.outcome)), '— Target compromise probability · by structure, not sampled');
 });
+
+test('an interval that prints as one number is not said', () => {
+  const h = R.headline(available);
+  // Every sample reached the target: its interval is 1.00–1.00 as printed.
+  assert.doesNotMatch(h.qualifier, /CI/);
+  assert.match(h.qualifier, /illustrative inputs/);
+});

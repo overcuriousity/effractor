@@ -20,6 +20,27 @@
       return hit && hit.meaning ? hit.meaning : "";
     },
     status: function (id) { return STATUS[id] || id; },
+    // A source path as the page names it: the component or flow by its
+    // label, then what of it. A path it cannot name is shown as it is.
+    path: function (doc, catalog, path) {
+      if (!doc) return path;
+      function label(collection, id) {
+        var map = doc[collection];
+        var e = map && Object.prototype.hasOwnProperty.call(map, id) ? map[id] : null;
+        return e ? (e.label != null ? e.label : id) : null;
+      }
+      var m, name;
+      if ((m = /^entities\.([^.[\]]+)\.parameters\.([^.[\]]+)$/.exec(path)) && (name = label("entities", m[1]))) return name + " · " + api.slot(catalog, m[2]);
+      if ((m = /^entities\.([^.[\]]+)\.defenses\.([^.[\]]+)$/.exec(path)) && (name = label("entities", m[1]))) return name + " · " + api.defense(catalog, m[2]);
+      if ((m = /^flows\.([^.[\]]+)\.parameters\.([^.[\]]+)$/.exec(path)) && (name = label("flows", m[1]))) return name + " · " + api.slot(catalog, m[2]);
+      if ((m = /^associations\.([^.[\]]+)\.allowed$/.exec(path))) {
+        var a = doc.associations && Object.prototype.hasOwnProperty.call(doc.associations, m[1]) ? doc.associations[m[1]] : null;
+        if (a && a.kind === "permits" && label("entities", a.from) && label("flows", a.to)) return label("entities", a.from) + " · " + label("flows", a.to);
+      }
+      if ((m = /^scenarios\.([^.[\]]+)\.changes\[(\d+)\]$/.exec(path)) && (name = label("scenarios", m[1]))) return name + " · change " + (Number(m[2]) + 1);
+      if ((m = /^scenarios\.([^.[\]]+)\.attacker\.speed$/.exec(path)) && (name = label("scenarios", m[1]))) return name + " · attacker speed";
+      return path;
+    },
   };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorWords = api;

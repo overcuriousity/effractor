@@ -239,3 +239,19 @@ test('probabilities and intervals as the comparison table says them', () => {
   assert.equal(C.signed(0), '0.00');
   assert.equal(C.interval({ lo: -0.3, hi: -0.25 }, true), '−0.300 to −0.250');
 });
+
+test('a switch set to what the file already says changes no step', () => {
+  // The lecture's key is written unprotected; "protected: off" is no change.
+  const same = C.setChange(doc, 'both', { entity: 'server-key', defense: 'protected' }, false).doc;
+  const out = C.changedSteps(lecture.graph, same, 'both');
+  assert.deepEqual(out.steps, ['action/product-find-exploit/openssh']);
+  const set = C.settings(same, 'both');
+  assert.deepEqual(set.asWritten, ['entities.server-key.defenses.protected']);
+  assert.deepEqual(C.settings(doc, 'both').asWritten, []);
+});
+
+test('a speed is said as a plain number', () => {
+  assert.equal(C.speedText(2), '2 × speed');
+  assert.equal(C.speedText(0.5), '0.5 × speed');
+  assert.equal(C.speedText(1.25), '1.25 × speed');
+});

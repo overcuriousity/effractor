@@ -154,7 +154,13 @@
 .attack-results .analysis-table tbody tr { cursor: pointer; }
 .attack-results .analysis-table tbody tr:hover, .attack-results .analysis-table tbody tr:focus-visible { background: var(--color-bg-hover); }
 .attack-results .analysis-table tr.is-selected { box-shadow: inset 2px 0 0 var(--color-accent); }
-.step-search { width: 100%; margin: 0 0 4px; }
+.step-search { display: block; width: 100%; min-width: 0; margin: 0 0 4px; padding: 3px 5px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-base); color: var(--color-fg-primary); font: inherit; font-size: var(--text-sm); }
+.assumptions { margin: 0; padding: 0; list-style: none; }
+.assumption { display: block; width: calc(100% + 8px); margin: 0 -4px; padding: 3px 4px; border: 0; border-bottom: 1px solid var(--color-border-subtle); border-radius: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer; }
+.assumption:hover, .assumption:focus-visible { background: var(--color-bg-hover); }
+.assumption-what { display: block; overflow-wrap: anywhere; }
+.assumption-how { display: flex; flex-wrap: wrap; gap: 0 8px; color: var(--color-fg-muted); font-size: var(--text-xs); }
+.assumption-how .mono { font-family: var(--font-mono); }
 
 
 /* Attacker pins (attacker-pins.js): a foothold and a target in the canvas

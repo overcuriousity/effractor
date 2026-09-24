@@ -150,15 +150,33 @@
     return out;
   }
 
-  // What one scenario sets, by switch path, and its attacker's speed.
+  // A switch as the file writes it, before any scenario: true, false or
+  // "unknown" (also for one the file leaves out).
+  function written_(doc, change) {
+    if (change.association != null) {
+      var a = doc.associations && doc.associations[change.association];
+      return a && a.allowed !== undefined ? a.allowed : "unknown";
+    }
+    var e = doc.entities && doc.entities[change.entity];
+    return e && e.defenses && has(e.defenses, change.defense) ? e.defenses[change.defense] : "unknown";
+  }
+
+  // What one scenario sets, by switch path; which of those only repeat what
+  // the file says (no change at all); and its attacker's speed.
   function settings(doc, id) {
     if (!has(doc && doc.scenarios, id)) return null;
     var s = doc.scenarios[id];
     var values = {};
+    var asWritten = [];
     (s.changes || []).forEach(function (c) {
       values[keyOf(c)] = c.value;
+      if (written_(doc, c) === c.value) asWritten.push(keyOf(c));
     });
-    return { label: s.label, values: values, speed: s.attacker && typeof s.attacker.speed === "number" ? s.attacker.speed : null };
+    return { label: s.label, values: values, asWritten: asWritten, speed: s.attacker && typeof s.attacker.speed === "number" ? s.attacker.speed : null };
+  }
+
+  function speedText(speed) {
+    return String(speed) + " \u00d7 speed";
   }
 
   function outcome(side) {
@@ -223,7 +241,9 @@
   function changedSteps(graph, doc, id) {
     var s = settings(doc, id);
     if (!s) return { steps: [], speed: null };
-    var keys = Object.keys(s.values);
+    var keys = Object.keys(s.values).filter(function (k) {
+      return s.asWritten.indexOf(k) < 0;
+    });
     var steps = graph.nodes
       .filter(function (n) {
         var paths = nodePaths(n);
@@ -344,6 +364,7 @@
 
   var api = {
     probability: probability,
+    speedText: speedText,
     signed: signed,
     interval: interval,
     state: state,

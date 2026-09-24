@@ -254,9 +254,9 @@
     line.appendChild(el("span", h.label + " by " + h.by, "label"));
     line.appendChild(el("span", h.p === null ? "—" : R.number(h.p), "stat num"));
     box.appendChild(line);
-    box.appendChild(el("p", h.qualifier, "hint num"));
+    if (h.qualifier) box.appendChild(el("p", h.qualifier, "hint"));
     var half = R.timeTo(results, 0.5);
-    if (half) box.appendChild(el("p", half.indexOf("not") === 0 ? "50% " + half : "50% by " + half, "hint num"));
+    if (half) box.appendChild(el("p", half.indexOf("not") === 0 ? "50% " + half : "50% by " + half, "hint"));
     if (h.missing.length) {
       heading(box, "Unknown inputs");
       h.missing.forEach(function (path) {
@@ -265,31 +265,39 @@
     }
   }
 
+  // What the target's number rests on: each input in plain words, its
+  // evidence and value under it; the source path and the note on hover.
   function renderAssumptions(box, results) {
     var rows = R.assumptions(results.baseline);
     if (!rows.length) return;
     heading(box, "Assumptions", rows.length);
-    var numeric = [false, false, true];
-    var t = tableOf(["Source", "Confidence", "Time"], numeric);
+    var list = el("ul", null, "assumptions");
     rows.forEach(function (a) {
-      var row = el("tr");
-      cells(row, [a.path, W.status(a.status), a.expression || "?"], numeric);
-      row.title = (a.note || (a.status === "policy" || a.status === "defense" || a.status === "unknown" ? "" : "no reason given")) + (a.paths.length > 1 ? "\n" + a.paths.join("\n") : "");
-      activeRow(row, function () {
+      var li = el("li");
+      var b = el("button", null, "assumption");
+      b.type = "button";
+      b.appendChild(el("span", W.path(doc(), U.catalog(), a.path), "assumption-what"));
+      var how = el("span", null, "assumption-how");
+      how.appendChild(el("span", W.status(a.status)));
+      if (a.expression) how.appendChild(el("span", a.expression, "mono"));
+      b.appendChild(how);
+      b.title = a.path + "\n" + (a.note || (a.status === "policy" || a.status === "defense" || a.status === "unknown" ? "" : "no reason given")) + (a.paths.length > 1 ? "\n" + a.paths.join("\n") : "");
+      b.addEventListener("click", function () {
         follow(a.path);
       });
-      t.body.appendChild(row);
+      li.appendChild(b);
+      list.appendChild(li);
     });
-    box.appendChild(t.scroll);
+    box.appendChild(list);
   }
 
   function renderRoute(box, results) {
     var w = R.witness(results.baseline, generated() ? generated().graph : null);
     if (!w) return;
     heading(box, w.title, w.steps.length);
-    box.appendChild(el("p", "sample " + w.sample + " · target at " + R.number(w.time) + " " + results.time_unit, "hint num"));
+    box.appendChild(el("p", "sample " + w.sample + " · target at " + R.number(w.time) + " " + results.time_unit, "hint"));
     var numeric = [true, false];
-    var t = tableOf([results.time_unit, "Step"], numeric);
+    var t = tableOf(["Time · " + results.time_unit, "Step"], numeric);
     w.steps.forEach(function (s) {
       var row = el("tr");
       row.setAttribute("data-step", s.id);

@@ -202,6 +202,8 @@
       }
       var text = el("span", s.label + (s.entity != null ? " · " + s.word : ""), "compare-what");
       text.title = key + " · as written: " + word(s, s.baseline);
+      // Set to what the file already says: kept, and said to change nothing.
+      if (set.asWritten.indexOf(key) >= 0) text.appendChild(el("span", " · as written", "compare-same"));
       li.appendChild(text);
       var pick = menu.dropdown(VALUES[s.association != null ? "permission" : "defense"], String(set.values[key]));
       pick.setAttribute("aria-label", s.label + " in this scenario");
@@ -325,7 +327,7 @@
     }
     var r = C.routes(g.graph, results, d, id);
     var changed = C.changedSteps(g.graph, d, id);
-    if (changed.speed !== null) box.appendChild(el("p", "every timed step at " + R.number(changed.speed) + " × speed", "hint"));
+    if (changed.speed !== null) box.appendChild(el("p", "every timed step at " + C.speedText(changed.speed), "hint"));
     if (r.targetBlocked) box.appendChild(el("p", "the target is blocked", "hint"));
     stepList(box, "Blocked", r.blocked, g.graph, "nothing blocked that was open");
     stepList(box, "Changed, still open", r.changed, g.graph, "no changed step stays open");
