@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 33] = [
+pub const RULES: [Rule; 31] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -82,7 +82,7 @@ pub const RULES: [Rule; 33] = [
         prerequisites: "the hosting machine at the executable's declared privilege (admin also satisfies user)",
         output: "executable.control",
         duration: D::Logical,
-        scope: "one per hosts association naming an executable or agent",
+        scope: "one per hosts association naming an executable",
         assumptions: &[
             "Controlling a machine at the privilege software runs with is controlling that software.",
             "Router-hosted executables run as admin: this library has no router user state.",
@@ -371,7 +371,7 @@ pub const RULES: [Rule; 33] = [
         version: 1,
         bindings: &["delivers"],
         prerequisites: "network.access",
-        output: "person or agent .contacted",
+        output: "person.contacted",
         duration: D::Logical,
         scope: "one per delivers association",
         assumptions: &[
@@ -383,10 +383,10 @@ pub const RULES: [Rule; 33] = [
         title: "A controlled service reaches its readers",
         version: 1,
         bindings: &["flow"],
-        prerequisites: "control of the service a reader's flow targets: an agent's own flows, a person's through the applications they operate",
-        output: "person or agent .contacted",
+        prerequisites: "control of a service that a flow from an application the person operates targets",
+        output: "person.contacted",
         duration: D::Logical,
-        scope: "one per flow from an agent, or per flow from an application a person operates",
+        scope: "one per flow from an application a person operates",
         assumptions: &[
             "Watering holes, poisoned retrieval stores and compromised tool servers are this rule.",
         ],
@@ -429,35 +429,6 @@ pub const RULES: [Rule; 33] = [
         scope: "one per operates association",
         assumptions: &[
             "Which consequences of deceit exist — disclosure, running something — is the author's choice of associations.",
-        ],
-    },
-    Rule {
-        id: "inject",
-        title: "Instruct an agent through its content",
-        version: 1,
-        bindings: &["agent"],
-        prerequisites: "agent.contacted",
-        output: "agent.control",
-        duration: D::Slot {
-            slot: Slot::Inject,
-            replaced_by: Some((Defense::Guarded, Slot::InjectGuarded)),
-        },
-        scope: "one per agent",
-        assumptions: &[
-            "Guardrails or human approval of tool calls select the authored replacement distribution, not a guarantee.",
-        ],
-    },
-    Rule {
-        id: "agent-shell",
-        title: "An agent with a shell controls its machine",
-        version: 1,
-        bindings: &["hosts"],
-        prerequisites: "agent.control, for an agent hosted with `shell: true`",
-        output: "the hosting machine at the agent's declared privilege",
-        duration: D::Logical,
-        scope: "one per hosts association naming an agent with a shell",
-        assumptions: &[
-            "Without a shell among its tools, controlling an agent does not control its machine; its flows and identity still do their part.",
         ],
     },
     Rule {
@@ -522,9 +493,6 @@ fn kind_description(kind: EntityKind) -> &'static str {
         EntityKind::Service => {
             "A reachable service running on a host or router, with exploit and login routes."
         }
-        EntityKind::Agent => {
-            "Software that reads content and acts on its own with tools: a coding agent, a support bot. Hosted like an application; `shell` says whether its tools run commands."
-        }
         EntityKind::Person => {
             "A human user who reads content and can be deceived. `knows` and `operates` say what deceit gives away."
         }
@@ -546,7 +514,7 @@ fn relation_description(kind: RelationKind) -> &'static str {
             "Membership of a network; a machine can be attached to several. Implies no flow permission."
         }
         RelationKind::Hosts => {
-            "The machine an executable, agent, router or guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host. For an agent, `shell: true | false` says whether its tools run commands there."
+            "The machine an executable, a router or a guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host."
         }
         RelationKind::Filters => "The firewall a router manages: one each way.",
         RelationKind::Stores => {
@@ -567,7 +535,7 @@ fn relation_description(kind: RelationKind) -> &'static str {
         }
         RelationKind::InstanceOf => "The software version a service runs: exactly one product.",
         RelationKind::RunsAs => {
-            "The identity a workload runs as: a host at `privilege: user | admin`, software or an agent as `user`. Code in it can use the identity without credentials."
+            "The identity a workload runs as: a host at `privilege: user | admin`, software as `user`. Code in it can use the identity without credentials."
         }
         RelationKind::Assumes => "An account that may become another, e.g. a role it can assume.",
         RelationKind::Knows => "A credential a person could disclose when deceived.",
@@ -575,7 +543,7 @@ fn relation_description(kind: RelationKind) -> &'static str {
             "Software a person uses; deceived, they run what they are sent in it."
         }
         RelationKind::Delivers => {
-            "Content from anyone in this network reaches the person or agent: mail, a public queue."
+            "Content from anyone in this network reaches the person: mail, a public web page."
         }
     }
 }
@@ -596,9 +564,6 @@ fn kind_meaning(kind: EntityKind) -> &'static str {
         }
         EntityKind::Service => {
             "Software that accepts connections, e.g. a web server or SSH. Exploited or logged into over the network."
-        }
-        EntityKind::Agent => {
-            "An AI agent or automation that reads content and acts with real permissions."
         }
         EntityKind::Person => "A person who reads mail or pages and can be deceived into acting.",
         EntityKind::Product => {
@@ -639,8 +604,6 @@ fn slot_name(slot: Slot) -> &'static str {
         Slot::MfaBypass => "Get past multi-factor login",
         Slot::Phish => "Deceive",
         Slot::PhishTrained => "Deceive (trained)",
-        Slot::Inject => "Inject instructions",
-        Slot::InjectGuarded => "Inject instructions (guarded)",
     }
 }
 
@@ -698,14 +661,6 @@ fn slot_description(slot: Slot) -> (&'static str, &'static str) {
             "person",
             "The same, once the person is trained; selected by `defenses.trained`.",
         ),
-        Slot::Inject => (
-            "agent",
-            "Time to get an agent to follow instructions hidden in content it reads.",
-        ),
-        Slot::InjectGuarded => (
-            "agent",
-            "The same, with guardrails or human approval; selected by `defenses.guarded`.",
-        ),
         Slot::MfaBypass => (
             "account",
             "Time to get past the second factor once a first factor is held: push fatigue, a proxy, a SIM swap — the note says which.",
@@ -735,10 +690,6 @@ fn defense_word(defense: Defense) -> (&'static str, &'static str) {
         Defense::Trained => (
             "Trained",
             "The person is trained against deception: `phish-trained` stands in for `phish`.",
-        ),
-        Defense::Guarded => (
-            "Guarded",
-            "Guardrails or human approval of tool calls: `inject-guarded` stands in for `inject`.",
         ),
     }
 }

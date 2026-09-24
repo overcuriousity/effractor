@@ -381,13 +381,12 @@ test('Tab offers the kinds that can be linked to the selection, with each way to
     'host: hosts → · user, hosts → · admin, ← hosts · user, ← hosts · admin',
     'application: hosts → · user, hosts → · admin',
     'service: hosts → · user, hosts → · admin',
-    'agent: hosts → · user, hosts → · admin',
     'account: ← grants · user, ← grants · admin, runs-as → · user, runs-as → · admin',
     'credential: stores → · user, stores → · admin',
   ]);
   // A router hosts and is granted only as admin; it has its firewall already.
   const router = L.addChoices(doc, CATALOG, 'bridge').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
-  assert.deepEqual(router, ['network: attached, administration', 'host: hosts·user, hosts·admin', 'application: hosts·admin', 'service: hosts·admin', 'agent: hosts·admin', 'account: grants·admin']);
+  assert.deepEqual(router, ['network: attached, administration', 'host: hosts·user, hosts·admin', 'application: hosts·admin', 'service: hosts·admin', 'account: grants·admin']);
   // A hosted executable offers no second host; an application stores as user.
   const client = L.addChoices(doc, CATALOG, 'ssh-client').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
   assert.deepEqual(client, ['service: flow', 'account: runs-as·user', 'credential: stores·user', 'person: operates']);
@@ -442,9 +441,9 @@ test('software is offered a flow to or from a new service', () => {
   const doc = lecture();
   const kinds = (id) => L.addChoices(doc, CATALOG, id).map((c) => c.kind + ': ' + c.options.map((o) => o.relation + ':' + o.direction).join(', '));
   assert.deepEqual(kinds('ssh-client'), ['service: flow:out', 'account: runs-as:out', 'credential: stores:out', 'person: operates:in']);
-  assert.deepEqual(kinds('sshd'), ['application: flow:in', 'service: flow:out, flow:in', 'agent: flow:in', 'account: authorizes:in, runs-as:out'], 'it runs its product already');
+  assert.deepEqual(kinds('sshd'), ['application: flow:in', 'service: flow:out, flow:in', 'account: authorizes:in, runs-as:out'], 'it runs its product already');
   doc.entities.web = { kind: 'service', label: 'Web' };
-  assert.deepEqual(kinds('web'), ['router: hosts:in', 'host: hosts:in, hosts:in', 'application: flow:in', 'service: flow:out, flow:in', 'product: instance-of:out', 'agent: flow:in', 'account: authorizes:in, runs-as:out']);
+  assert.deepEqual(kinds('web'), ['router: hosts:in', 'host: hosts:in, hosts:in', 'application: flow:in', 'service: flow:out, flow:in', 'product: instance-of:out', 'account: authorizes:in, runs-as:out']);
   const version = L.linkChoices(doc, CATALOG, 'web').find((c) => c.kind === 'instance-of');
   assert.deepEqual(version.candidates, ['openssh']);
   assert.deepEqual(L.linkChoices(doc, CATALOG, 'sshd').find((c) => c.kind === 'instance-of').candidates, []);
@@ -481,7 +480,7 @@ test('an empty Link menu says what is missing', () => {
   assert.equal(L.emptyLink(doc, CATALOG, 'filter'), 'a firewall permits flows · set it in each flow that crosses its router');
   // A lone host in a new document: nothing to link to yet.
   const lone = { entities: { h: { kind: 'host', label: 'H' } }, associations: {}, flows: {} };
-  assert.equal(L.emptyLink(lone, CATALOG, 'h'), 'no network, router, host, application, service, agent, account or credential yet · Tab adds one linked');
+  assert.equal(L.emptyLink(lone, CATALOG, 'h'), 'no network, router, host, application, service, account or credential yet · Tab adds one linked');
   assert.equal(L.emptyLink(doc, CATALOG, 'sshd'), null, 'there is something to link');
 });
 
@@ -536,23 +535,6 @@ test('an account cannot be linked to become itself', () => {
   const doc = { entities: { a: { kind: 'account', label: 'A' } }, associations: {}, flows: {} };
   const become = L.linkChoices(doc, CATALOG, 'a').find((c) => c.kind === 'assumes' && c.direction === 'out');
   assert.deepEqual(become.candidates, []);
-});
-
-test('an agent hosting offers a shell, and an agent may send flows', () => {
-  const doc = { entities: { vm: { kind: 'host', label: 'VM' }, bot: { kind: 'agent', label: 'Bot' }, api: { kind: 'service', label: 'API' } }, associations: {}, flows: {} };
-  assert.deepEqual(L.variants(doc, 'hosts', 'vm', 'bot'), [
-    { privilege: 'user', shell: false }, { privilege: 'user', shell: true },
-    { privilege: 'admin', shell: false }, { privilege: 'admin', shell: true },
-  ]);
-  assert.equal(L.phrase('hosts', 'in', 'user', { privilege: 'user', shell: true }), 'runs this as user, with a shell');
-  const put = L.putAssociation(doc, null, { kind: 'hosts', from: 'vm', to: 'bot', privilege: 'user', shell: true });
-  assert.deepEqual(Object.keys(put.doc.associations[Object.keys(put.doc.associations)[0]]), ['kind', 'from', 'to', 'privilege', 'shell']);
-  // A shell is said only where an agent runs.
-  assert.deepEqual(L.variants(doc, 'hosts', 'vm', 'api'), [{ privilege: 'user' }, { privilege: 'admin' }]);
-  const plain = L.putAssociation(doc, null, { kind: 'hosts', from: 'vm', to: 'api', privilege: 'user', shell: true });
-  assert.equal('shell' in plain.doc.associations[Object.keys(plain.doc.associations)[0]], false);
-  assert.ok(L.addChoices(doc, CATALOG, 'bot').some((c) => c.kind === 'service' && c.options.some((o) => o.relation === 'flow')));
-  assert.ok(L.addChoices(doc, CATALOG, 'api').some((c) => c.kind === 'agent' && c.options.some((o) => o.relation === 'flow' && o.direction === 'in')));
 });
 
 test('deleting a person takes what they know and are reached by along', () => {

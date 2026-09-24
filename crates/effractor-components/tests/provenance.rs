@@ -556,43 +556,19 @@ fn operator_switches_never_change_the_graph() {
     for (key, kind) in [
         ("internet", EntityKind::Network),
         ("ada", EntityKind::Person),
-        ("bot", EntityKind::Agent),
     ] {
         model.entities.insert(id(key), Entity::new(kind, key));
     }
-    for (key, relation) in [
-        (
-            "mail-ada",
-            Relation::Delivers {
+    model.associations.insert(
+        id("mail-ada"),
+        effractor_core::architecture::Association {
+            relation: Relation::Delivers {
                 from: id("internet"),
                 to: id("ada"),
             },
-        ),
-        (
-            "mail-bot",
-            Relation::Delivers {
-                from: id("internet"),
-                to: id("bot"),
-            },
-        ),
-        (
-            "server-bot",
-            Relation::Hosts {
-                from: id("server"),
-                to: id("bot"),
-                privilege: Privilege::User,
-                shell: Some(true),
-            },
-        ),
-    ] {
-        model.associations.insert(
-            id(key),
-            effractor_core::architecture::Association {
-                relation,
-                description: None,
-            },
-        );
-    }
+            description: None,
+        },
+    );
     let baseline = shape(&generate(&model).unwrap());
     for value in [Switch::On, Switch::Off, Switch::Unknown] {
         let mut m = model.clone();
@@ -604,5 +580,4 @@ fn operator_switches_never_change_the_graph() {
         assert_eq!(shape(&generate(&m).unwrap()), baseline, "{value:?}");
     }
     assert!(baseline.contains_key("action/phish/ada"));
-    assert!(baseline.contains_key("action/inject/bot"));
 }

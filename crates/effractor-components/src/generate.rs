@@ -391,7 +391,6 @@ impl<'a> Builder<'a> {
                 from,
                 to,
                 privilege,
-                shell,
             } = &a.relation
             else {
                 continue;
@@ -414,15 +413,6 @@ impl<'a> Builder<'a> {
                     let admin = self.state_id(to, State::Admin.as_str());
                     self.produce(&machine, &admin, bound("hosted-host"));
                     self.escape("guest-escape", to, from, *privilege, aid);
-                }
-                // An agent: controlled by its machine; the machine by it only
-                // through a shell. (`bound` here is this loop's closure.)
-                EntityKind::Agent => {
-                    let control = self.state_id(to, State::Control.as_str());
-                    self.produce(&machine, &control, bound("host-execution"));
-                    if *shell == Some(true) {
-                        self.produce(&control, &machine, bound("agent-shell"));
-                    }
                 }
                 _ => {
                     let control = self.state_id(to, State::Control.as_str());
@@ -583,8 +573,8 @@ impl<'a> Builder<'a> {
         }
     }
 
-    /// Content reaches readers from zones and from controlled services; a
-    /// deceived person discloses and runs, an instructed agent is controlled.
+    /// Content reaches people from zones and from controlled services; a
+    /// deceived person discloses and runs.
     fn operators(&mut self) {
         for (aid, a) in &self.m.associations {
             match &a.relation {
@@ -617,63 +607,32 @@ impl<'a> Builder<'a> {
             }
         }
         for (eid, entity) in &self.m.entities {
+            if entity.kind != EntityKind::Person {
+                continue;
+            }
             let owner = Owner::Entity(eid.clone());
             let contacted = self.state_id(eid, State::Contacted.as_str());
-            match entity.kind {
-                EntityKind::Agent => {
-                    for fid in self.flows_from.get(eid).cloned().unwrap_or_default() {
-                        let target = &self.m.flows[fid].target;
-                        let served = self.state_id(target, State::Control.as_str());
-                        let o = bound("content-from-service", &[target, eid], &[], &[fid]);
-                        self.produce(&served, &contacted, o);
-                    }
-                    let o = Origin {
-                        paths: vec![
-                            owner.slot_path(Slot::Inject),
-                            owner.slot_path(Slot::InjectGuarded),
-                            format!("entities.{eid}.defenses.guarded"),
-                        ],
-                        ..bound("inject", &[eid], &[], &[])
-                    };
-                    let control = self.state_id(eid, State::Control.as_str());
-                    self.action(
-                        format!("action/inject/{eid}"),
-                        format!("Inject instructions · {}", entity.label),
-                        Binding::Parameter {
-                            owner,
-                            base: Slot::Inject,
-                            replacement: Some((Defense::Guarded, Slot::InjectGuarded)),
-                        },
-                        &[contacted],
-                        &control,
-                        o,
-                    );
-                }
-                EntityKind::Person => {
-                    let o = Origin {
-                        paths: vec![
-                            owner.slot_path(Slot::Phish),
-                            owner.slot_path(Slot::PhishTrained),
-                            format!("entities.{eid}.defenses.trained"),
-                        ],
-                        ..bound("phish", &[eid], &[], &[])
-                    };
-                    let deceived = self.state_id(eid, State::Deceived.as_str());
-                    self.action(
-                        format!("action/phish/{eid}"),
-                        format!("Deceive · {}", entity.label),
-                        Binding::Parameter {
-                            owner,
-                            base: Slot::Phish,
-                            replacement: Some((Defense::Trained, Slot::PhishTrained)),
-                        },
-                        &[contacted],
-                        &deceived,
-                        o,
-                    );
-                }
-                _ => {}
-            }
+            let o = Origin {
+                paths: vec![
+                    owner.slot_path(Slot::Phish),
+                    owner.slot_path(Slot::PhishTrained),
+                    format!("entities.{eid}.defenses.trained"),
+                ],
+                ..bound("phish", &[eid], &[], &[])
+            };
+            let deceived = self.state_id(eid, State::Deceived.as_str());
+            self.action(
+                format!("action/phish/{eid}"),
+                format!("Deceive · {}", entity.label),
+                Binding::Parameter {
+                    owner,
+                    base: Slot::Phish,
+                    replacement: Some((Defense::Trained, Slot::PhishTrained)),
+                },
+                &[contacted],
+                &deceived,
+                o,
+            );
         }
     }
 

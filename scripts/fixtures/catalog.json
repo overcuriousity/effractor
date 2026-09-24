@@ -82,20 +82,6 @@
       "defense": "patched"
     },
     {
-      "kind": "agent",
-      "description": "Software that reads content and acts on its own with tools: a coding agent, a support bot. Hosted like an application; `shell` says whether its tools run commands.",
-      "meaning": "An AI agent or automation that reads content and acts with real permissions.",
-      "states": [
-        "contacted",
-        "control"
-      ],
-      "parameters": [
-        "inject",
-        "inject-guarded"
-      ],
-      "defense": "guarded"
-    },
-    {
       "kind": "account",
       "description": "An identity with explicit authentication and grants; no implicit global privileges. Multi-factor login is its switch.",
       "meaning": "An identity that services accept and that has rights on machines.",
@@ -157,14 +143,12 @@
         "application",
         "service",
         "router",
-        "host",
-        "agent"
+        "host"
       ],
       "fields": [
-        "privilege",
-        "shell"
+        "privilege"
       ],
-      "description": "The machine an executable, agent, router or guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host. For an agent, `shell: true | false` says whether its tools run commands there."
+      "description": "The machine an executable, a router or a guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host."
     },
     {
       "kind": "filters",
@@ -270,8 +254,7 @@
       "from": [
         "host",
         "application",
-        "service",
-        "agent"
+        "service"
       ],
       "to": [
         "account"
@@ -279,7 +262,7 @@
       "fields": [
         "privilege"
       ],
-      "description": "The identity a workload runs as: a host at `privilege: user | admin`, software or an agent as `user`. Code in it can use the identity without credentials."
+      "description": "The identity a workload runs as: a host at `privilege: user | admin`, software as `user`. Code in it can use the identity without credentials."
     },
     {
       "kind": "assumes",
@@ -320,11 +303,10 @@
         "network"
       ],
       "to": [
-        "person",
-        "agent"
+        "person"
       ],
       "fields": [],
-      "description": "Content from anyone in this network reaches the person or agent: mail, a public queue."
+      "description": "Content from anyone in this network reaches the person: mail, a public web page."
     }
   ],
   "states": [
@@ -384,11 +366,6 @@
       "id": "trained",
       "word": "Trained",
       "description": "The person is trained against deception: `phish-trained` stands in for `phish`."
-    },
-    {
-      "id": "guarded",
-      "word": "Guarded",
-      "description": "Guardrails or human approval of tool calls: `inject-guarded` stands in for `inject`."
     }
   ],
   "parameters": [
@@ -463,18 +440,6 @@
       "name": "Deceive (trained)",
       "owner": "person",
       "description": "The same, once the person is trained; selected by `defenses.trained`."
-    },
-    {
-      "slot": "inject",
-      "name": "Inject instructions",
-      "owner": "agent",
-      "description": "Time to get an agent to follow instructions hidden in content it reads."
-    },
-    {
-      "slot": "inject-guarded",
-      "name": "Inject instructions (guarded)",
-      "owner": "agent",
-      "description": "The same, with guardrails or human approval; selected by `defenses.guarded`."
     }
   ],
   "rules": [
@@ -525,7 +490,7 @@
       "duration": {
         "kind": "logical"
       },
-      "scope": "one per hosts association naming an executable or agent",
+      "scope": "one per hosts association naming an executable",
       "assumptions": [
         "Controlling a machine at the privilege software runs with is controlling that software.",
         "Router-hosted executables run as admin: this library has no router user state."
@@ -905,7 +870,7 @@
         "delivers"
       ],
       "prerequisites": "network.access",
-      "output": "person or agent .contacted",
+      "output": "person.contacted",
       "duration": {
         "kind": "logical"
       },
@@ -921,12 +886,12 @@
       "bindings": [
         "flow"
       ],
-      "prerequisites": "control of the service a reader's flow targets: an agent's own flows, a person's through the applications they operate",
-      "output": "person or agent .contacted",
+      "prerequisites": "control of a service that a flow from an application the person operates targets",
+      "output": "person.contacted",
       "duration": {
         "kind": "logical"
       },
-      "scope": "one per flow from an agent, or per flow from an application a person operates",
+      "scope": "one per flow from an application a person operates",
       "assumptions": [
         "Watering holes, poisoned retrieval stores and compromised tool servers are this rule."
       ]
@@ -985,45 +950,6 @@
       "scope": "one per operates association",
       "assumptions": [
         "Which consequences of deceit exist — disclosure, running something — is the author's choice of associations."
-      ]
-    },
-    {
-      "id": "inject",
-      "title": "Instruct an agent through its content",
-      "version": 1,
-      "bindings": [
-        "agent"
-      ],
-      "prerequisites": "agent.contacted",
-      "output": "agent.control",
-      "duration": {
-        "kind": "slot",
-        "slot": "inject",
-        "replaced_by": {
-          "defense": "guarded",
-          "slot": "inject-guarded"
-        }
-      },
-      "scope": "one per agent",
-      "assumptions": [
-        "Guardrails or human approval of tool calls select the authored replacement distribution, not a guarantee."
-      ]
-    },
-    {
-      "id": "agent-shell",
-      "title": "An agent with a shell controls its machine",
-      "version": 1,
-      "bindings": [
-        "hosts"
-      ],
-      "prerequisites": "agent.control, for an agent hosted with `shell: true`",
-      "output": "the hosting machine at the agent's declared privilege",
-      "duration": {
-        "kind": "logical"
-      },
-      "scope": "one per hosts association naming an agent with a shell",
-      "assumptions": [
-        "Without a shell among its tools, controlling an agent does not control its machine; its flows and identity still do their part."
       ]
     },
     {

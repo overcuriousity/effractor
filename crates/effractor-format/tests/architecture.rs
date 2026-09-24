@@ -1059,8 +1059,8 @@ fn factors_workload_identities_and_roles_round_trip() {
     );
 }
 
-/// A mail user and a support bot, both reached from the internet.
-fn operators(shell: &str) -> String {
+/// A mail user reached from the internet.
+fn people() -> String {
     CANONICAL
         .replace(
             "entities: {}",
@@ -1077,17 +1077,6 @@ fn operators(shell: &str) -> String {
   mail:
     kind: application
     label: Mail
-  bot:
-    kind: agent
-    label: Bot
-    parameters:
-      inject:
-        status: illustrative
-        ttc: "Exponential(mean 3)"
-        note: Exercise assumption
-      inject-guarded:
-        status: unknown
-    defenses: {guarded: false}
   pw:
     kind: credential
     label: Password
@@ -1102,25 +1091,21 @@ fn operators(shell: &str) -> String {
     label: Ada
     parameters:
       phish:
-        status: unknown
+        status: illustrative
+        ttc: "Exponential(mean 7)"
+        note: Exercise assumption
       phish-trained:
         status: unknown
     defenses: {trained: false}"#,
         )
         .replace(
             "associations: {}",
-            &format!(
-                r#"associations:
+            r#"associations:
   vm-mail:
     kind: hosts
     from: vm
     to: mail
     privilege: user
-  vm-bot:
-    kind: hosts
-    from: vm
-    to: bot
-    privilege: admin{shell}
   ada-pw:
     kind: knows
     from: ada
@@ -1132,44 +1117,30 @@ fn operators(shell: &str) -> String {
   mail-ada:
     kind: delivers
     from: internet
-    to: ada
-  tickets:
-    kind: delivers
-    from: internet
-    to: bot"#
-            ),
+    to: ada"#,
         )
 }
 
 #[test]
-fn people_agents_and_shells_round_trip() {
-    let text = operators("\n    shell: true");
+fn people_round_trip() {
+    let text = people();
     assert_eq!(canonicalize(&text).unwrap(), text);
     let Document::Architecture(m) = load_document(&text).unwrap() else {
         panic!("not an architecture");
     };
-    assert!(matches!(
-        m.associations[&"vm-bot".parse::<effractor_core::AssociationId>().unwrap()].relation,
-        effractor_core::architecture::Relation::Hosts {
-            shell: Some(true),
-            ..
-        }
-    ));
-    let (_, d) = effractor_format::diagnose_document(&operators("\n    shell: maybe"));
-    assert!(
-        d.iter()
-            .any(|d| d.path == "associations.vm-bot.shell" && d.severity == Severity::Error),
-        "{d:?}"
+    assert_eq!(
+        m.entities[&"ada".parse::<effractor_core::EntityId>().unwrap()].kind,
+        effractor_core::architecture::EntityKind::Person
     );
     let misplaced = text.replace(
         "    from: internet\n    to: ada\n",
-        "    from: internet\n    to: ada\n    shell: true\n",
+        "    from: internet\n    to: ada\n    privilege: user\n",
     );
     let (_, d) = effractor_format::diagnose_document(&misplaced);
     assert!(
         d.iter()
             .any(|d| d.code == effractor_core::Code::MisplacedKey
-                && d.path == "associations.mail-ada.shell"),
+                && d.path == "associations.mail-ada.privilege"),
         "{d:?}"
     );
 }

@@ -307,22 +307,6 @@ impl Cx<'_> {
                         "a host runs on a host, not on a router",
                     )
                 }
-                (Relation::Hosts { shell: Some(_), .. }, _, Some(k)) if k != EntityKind::Agent => self
-                    .error(
-                        Code::MisplacedKey,
-                        format!("{at}.shell"),
-                        "`shell` says whether an agent's tools run commands; this runs no agent",
-                    ),
-                (
-                    Relation::Hosts {
-                        shell: None, to, ..
-                    },
-                    _,
-                    Some(EntityKind::Agent),
-                ) => self.incomplete(
-                    at.clone(),
-                    format!("say whether \"{to}\"'s tools run commands on its host: `shell: true | false`"),
-                ),
                 (Relation::Assumes { from, to }, _, _) if from == to => self.error(
                     Code::AssociationType,
                     format!("{at}.to"),
@@ -557,11 +541,7 @@ impl Cx<'_> {
             let source = self.entity_of(
                 &flow.source,
                 &format!("{at}.source"),
-                &[
-                    EntityKind::Application,
-                    EntityKind::Service,
-                    EntityKind::Agent,
-                ],
+                &[EntityKind::Application, EntityKind::Service],
             );
             let target = self.entity_of(
                 &flow.target,

@@ -3,7 +3,7 @@
 //! component library the document pins, and the generated graph is a derived
 //! artifact, never a second source of truth.
 //!
-//! The vocabulary is small and closed on purpose: eleven entity kinds, fifteen
+//! The vocabulary is small and closed on purpose: ten entity kinds, fifteen
 //! association kinds, seven states. What a kind may carry — which parameter
 //! slots, which defence switches, which states — is answered by the methods
 //! here, so the reader, the validator and the writer agree on one answer.
@@ -93,14 +93,13 @@ pub enum EntityKind {
     Application,
     Service,
     Product,
-    Agent,
     Account,
     Credential,
     Person,
 }
 
 impl EntityKind {
-    pub const ALL: [EntityKind; 11] = [
+    pub const ALL: [EntityKind; 10] = [
         Self::Network,
         Self::Router,
         Self::Firewall,
@@ -108,7 +107,6 @@ impl EntityKind {
         Self::Application,
         Self::Service,
         Self::Product,
-        Self::Agent,
         Self::Account,
         Self::Credential,
         Self::Person,
@@ -124,7 +122,6 @@ impl EntityKind {
             Self::Application => "application",
             Self::Service => "service",
             Self::Product => "product",
-            Self::Agent => "agent",
             Self::Account => "account",
             Self::Credential => "credential",
             Self::Person => "person",
@@ -142,7 +139,6 @@ impl EntityKind {
             Self::Host => &[State::User, State::Admin],
             Self::Application | Self::Service => &[State::Control],
             Self::Credential => &[State::Possessed],
-            Self::Agent => &[State::Contacted, State::Control],
             Self::Person => &[State::Contacted, State::Deceived],
         }
     }
@@ -156,7 +152,6 @@ impl EntityKind {
             Self::Credential => &[Slot::Extract, Slot::ExtractProtected],
             Self::Account => &[Slot::AdminLogin, Slot::MfaBypass],
             Self::Host | Self::Router => &[Slot::Escape],
-            Self::Agent => &[Slot::Inject, Slot::InjectGuarded],
             Self::Person => &[Slot::Phish, Slot::PhishTrained],
             _ => &[],
         }
@@ -167,7 +162,6 @@ impl EntityKind {
         match self {
             Self::Product => Some(Defense::Patched),
             Self::Account => Some(Defense::Mfa),
-            Self::Agent => Some(Defense::Guarded),
             Self::Person => Some(Defense::Trained),
             Self::Credential => Some(Defense::Protected),
             _ => None,
@@ -181,7 +175,7 @@ impl EntityKind {
 
     /// Is this kind software — the `to` of `hosts`?
     pub fn is_executable(self) -> bool {
-        matches!(self, Self::Application | Self::Service | Self::Agent)
+        matches!(self, Self::Application | Self::Service)
     }
 }
 
@@ -310,12 +304,10 @@ pub enum Slot {
     MfaBypass,
     Phish,
     PhishTrained,
-    Inject,
-    InjectGuarded,
 }
 
 impl Slot {
-    pub const ALL: [Slot; 14] = [
+    pub const ALL: [Slot; 12] = [
         Self::Connect,
         Self::FindExploit,
         Self::FindExploitPatched,
@@ -328,8 +320,6 @@ impl Slot {
         Self::MfaBypass,
         Self::Phish,
         Self::PhishTrained,
-        Self::Inject,
-        Self::InjectGuarded,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -346,8 +336,6 @@ impl Slot {
             Self::MfaBypass => "mfa-bypass",
             Self::Phish => "phish",
             Self::PhishTrained => "phish-trained",
-            Self::Inject => "inject",
-            Self::InjectGuarded => "inject-guarded",
         }
     }
 }
@@ -387,8 +375,6 @@ pub struct Defenses {
     pub mfa: Option<Switch>,
     /// A person: `phish-trained` stands in for `phish`.
     pub trained: Option<Switch>,
-    /// An agent: `inject-guarded` stands in for `inject`.
-    pub guarded: Option<Switch>,
 }
 
 impl Defenses {
@@ -398,7 +384,6 @@ impl Defenses {
             Defense::Protected => self.protected,
             Defense::Mfa => self.mfa,
             Defense::Trained => self.trained,
-            Defense::Guarded => self.guarded,
         }
     }
 
@@ -408,7 +393,6 @@ impl Defenses {
             Defense::Protected => self.protected = value,
             Defense::Mfa => self.mfa = value,
             Defense::Trained => self.trained = value,
-            Defense::Guarded => self.guarded = value,
         }
     }
 }
@@ -466,9 +450,6 @@ pub enum Relation {
         from: EntityId,
         to: EntityId,
         privilege: Privilege,
-        /// For an agent only: whether its tools run commands on the host.
-        /// None is unsaid.
-        shell: Option<bool>,
     },
     /// router → firewall: one each way.
     Filters { from: EntityId, to: EntityId },
@@ -516,8 +497,8 @@ pub enum Relation {
     Knows { from: EntityId, to: EntityId },
     /// person → application: the software they use.
     Operates { from: EntityId, to: EntityId },
-    /// network → person | agent: content from anyone in the zone reaches
-    /// this reader.
+    /// network → person: content from anyone in the zone reaches this
+    /// reader.
     Delivers { from: EntityId, to: EntityId },
 }
 
@@ -609,7 +590,7 @@ impl RelationKind {
             Self::Administration => &[K::Network],
             Self::Permits => &[K::Firewall],
             Self::InstanceOf => &[K::Service],
-            Self::RunsAs => &[K::Host, K::Application, K::Service, K::Agent],
+            Self::RunsAs => &[K::Host, K::Application, K::Service],
             Self::Assumes => &[K::Account],
             Self::Knows | Self::Operates => &[K::Person],
             Self::Delivers => &[K::Network],
@@ -622,7 +603,7 @@ impl RelationKind {
         match self {
             Self::Attached => &[K::Network],
             // A router or a guest host runs on a host too: an appliance's box, a VM, a container.
-            Self::Hosts => &[K::Application, K::Service, K::Router, K::Host, K::Agent],
+            Self::Hosts => &[K::Application, K::Service, K::Router, K::Host],
             Self::Filters => &[K::Firewall],
             Self::Stores => &[K::Credential],
             Self::Authenticates => &[K::Account],
@@ -633,7 +614,7 @@ impl RelationKind {
             Self::RunsAs | Self::Assumes => &[K::Account],
             Self::Knows => &[K::Credential],
             Self::Operates => &[K::Application],
-            Self::Delivers => &[K::Person, K::Agent],
+            Self::Delivers => &[K::Person],
         }
     }
 
@@ -642,7 +623,6 @@ impl RelationKind {
         match self {
             Self::Permits => &["allowed"],
             Self::Authenticates => &["factor"],
-            Self::Hosts => &["privilege", "shell"],
             k if k.has_privilege() => &["privilege"],
             _ => &[],
         }
@@ -749,17 +729,10 @@ pub enum Defense {
     Protected,
     Mfa,
     Trained,
-    Guarded,
 }
 
 impl Defense {
-    pub const ALL: [Defense; 5] = [
-        Self::Patched,
-        Self::Protected,
-        Self::Mfa,
-        Self::Trained,
-        Self::Guarded,
-    ];
+    pub const ALL: [Defense; 4] = [Self::Patched, Self::Protected, Self::Mfa, Self::Trained];
 
     pub fn as_str(self) -> &'static str {
         match self {
@@ -767,7 +740,6 @@ impl Defense {
             Self::Protected => "protected",
             Self::Mfa => "mfa",
             Self::Trained => "trained",
-            Self::Guarded => "guarded",
         }
     }
 }

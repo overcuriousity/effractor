@@ -8,11 +8,11 @@
 // Links, renames of ids and deletion are in architecture-links.js.
 (function () {
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
-  var KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "agent", "account", "credential", "person"];
+  var KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential", "person"];
   // The Add menu's groups: the families the canvas colours.
   var GROUPS = [
     ["Network", ["network", "router", "firewall"]],
-    ["Compute", ["host", "application", "service", "product", "agent"]],
+    ["Compute", ["host", "application", "service", "product"]],
     ["Identity", ["account", "credential", "person"]],
   ];
   var STATUSES = ["unknown", "illustrative", "assumed", "calibrated"];

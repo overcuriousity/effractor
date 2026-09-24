@@ -88,7 +88,6 @@ fn validation_names_the_field_that_is_wrong() {
                 from: id("net"),
                 to: id("sshd"),
                 privilege: Privilege::Admin,
-                shell: None,
             },
             description: None,
         },
@@ -149,7 +148,6 @@ fn a_router_runs_on_one_host_and_only_on_a_host() {
             from: id(from),
             to: id(to),
             privilege: Privilege::Admin,
-            shell: None,
         },
         description: None,
     };
@@ -232,7 +230,6 @@ fn vm_model() -> Architecture {
             from: from.parse().unwrap(),
             to: to.parse().unwrap(),
             privilege: Privilege::User,
-            shell: None,
         },
         description: None,
     };
@@ -269,7 +266,6 @@ fn a_hosting_cycle_is_an_error() {
                 from: "ct".parse().unwrap(),
                 to: "hv".parse().unwrap(),
                 privilege: Privilege::User,
-                shell: None,
             },
             description: None,
         },
@@ -294,7 +290,6 @@ fn a_router_cannot_host_a_host() {
                 from: "r".parse().unwrap(),
                 to: "hv".parse().unwrap(),
                 privilege: Privilege::Admin,
-                shell: None,
             },
             description: None,
         },
@@ -408,7 +403,7 @@ fn an_account_cannot_assume_itself_and_software_runs_as_user() {
 }
 
 #[test]
-fn people_and_agents_carry_their_switches() {
+fn people_carry_their_training_switch() {
     assert_eq!(
         EntityKind::Person.states(),
         &[State::Contacted, State::Deceived]
@@ -418,89 +413,6 @@ fn people_and_agents_carry_their_switches() {
         &[Slot::Phish, Slot::PhishTrained]
     );
     assert_eq!(EntityKind::Person.defense(), Some(Defense::Trained));
-    assert_eq!(
-        EntityKind::Agent.states(),
-        &[State::Contacted, State::Control]
-    );
-    assert_eq!(
-        EntityKind::Agent.slots(),
-        &[Slot::Inject, Slot::InjectGuarded]
-    );
-    assert_eq!(EntityKind::Agent.defense(), Some(Defense::Guarded));
-}
-
-fn agent_model(shell: Option<bool>) -> Architecture {
-    let mut m = Architecture::new("A");
-    m.entities
-        .insert("vm".parse().unwrap(), Entity::new(EntityKind::Host, "VM"));
-    m.entities.insert(
-        "bot".parse().unwrap(),
-        Entity::new(EntityKind::Agent, "Bot"),
-    );
-    m.associations.insert(
-        "vm-bot".parse().unwrap(),
-        Association {
-            relation: Relation::Hosts {
-                from: "vm".parse().unwrap(),
-                to: "bot".parse().unwrap(),
-                privilege: Privilege::User,
-                shell,
-            },
-            description: None,
-        },
-    );
-    m
-}
-
-#[test]
-fn an_agent_needs_a_host_and_a_word_on_its_shell() {
-    let mut m = agent_model(None);
-    let d = validate_architecture(&m);
-    assert!(
-        d.iter().any(|d| d.code == Code::Incomplete
-            && d.path == "associations.vm-bot"
-            && d.message.contains("shell")),
-        "{d:?}"
-    );
-    m.associations.clear();
-    let d = validate_architecture(&m);
-    assert!(
-        d.iter()
-            .any(|d| d.code == Code::Incomplete && d.path == "entities.bot"),
-        "{d:?}"
-    );
-    let d = validate_architecture(&agent_model(Some(true)));
-    assert!(
-        d.iter().all(|d| !d.path.starts_with("associations.vm-bot")),
-        "{d:?}"
-    );
-}
-
-#[test]
-fn only_an_agent_hosting_says_shell() {
-    let mut m = agent_model(Some(false));
-    m.entities.insert(
-        "app".parse().unwrap(),
-        Entity::new(EntityKind::Application, "App"),
-    );
-    m.associations.insert(
-        "vm-app".parse().unwrap(),
-        Association {
-            relation: Relation::Hosts {
-                from: "vm".parse().unwrap(),
-                to: "app".parse().unwrap(),
-                privilege: Privilege::User,
-                shell: Some(true),
-            },
-            description: None,
-        },
-    );
-    let d = validate_architecture(&m);
-    assert!(
-        d.iter()
-            .any(|d| d.code == Code::MisplacedKey && d.path == "associations.vm-app.shell"),
-        "{d:?}"
-    );
 }
 
 #[test]

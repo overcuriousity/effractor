@@ -9,9 +9,9 @@
   var KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of", "runs-as", "assumes", "knows", "operates", "delivers"];
   var PRIVILEGED = ["hosts", "stores", "grants", "runs-as"];
   // The fields a link carries beside kind/from/to, in the file's order.
-  var FIELD_ORDER = ["privilege", "factor", "shell"];
+  var FIELD_ORDER = ["privilege", "factor"];
   // What a field's value adds to a link's words; a missing entry adds nothing.
-  var FIELD_WORDS = { factor: { second: "as second factor" }, shell: { true: "with a shell", false: "no shell" } };
+  var FIELD_WORDS = { factor: { second: "as second factor" } };
   var COLLECTIONS = ["entities", "associations", "flows"];
 
   function has(o, k) {
@@ -69,7 +69,6 @@
     if (PRIVILEGED.indexOf(value.kind) >= 0) a.privilege = value.privilege;
     if (value.kind === "permits") a.allowed = value.allowed;
     if (value.kind === "authenticates" && value.factor === "second") a.factor = "second";
-    if (value.kind === "hosts" && typeof value.shell === "boolean" && kindOf(next, a.to) === "agent") a.shell = value.shell;
     var description = String(value.description == null ? "" : value.description).trim();
     if (description) a.description = description;
     Object.assign(a, extensions(has(next.associations, id) ? next.associations[id] : null));
@@ -411,7 +410,6 @@
     var p = privilegesOf(kind, fromKind, toKind);
     if (p) out.push({ name: "privilege", values: p });
     if (kind === "authenticates") out.push({ name: "factor", values: ["first", "second"] });
-    if (kind === "hosts" && toKind === "agent") out.push({ name: "shell", values: [false, true] });
     return out;
   }
 
@@ -473,7 +471,7 @@
   }
 
 
-  var ENTITY_KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "agent", "account", "credential", "person"];
+  var ENTITY_KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential", "person"];
 
   function hasFilters(doc, end, id) {
     return Object.keys(doc.associations || {}).some(function (k) {
@@ -500,11 +498,10 @@
       });
     }
     // A flow runs from software to a service: offered from either end.
-    if (kind === "application" || kind === "service" || kind === "agent") offer("service", "flow", "out");
+    if (kind === "application" || kind === "service") offer("service", "flow", "out");
     if (kind === "service") {
       offer("application", "flow", "in");
       offer("service", "flow", "in");
-      offer("agent", "flow", "in");
     }
     (catalog.associations || []).forEach(function (spec) {
       if (spec.kind === "permits") return;

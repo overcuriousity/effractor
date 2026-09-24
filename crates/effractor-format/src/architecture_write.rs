@@ -11,7 +11,7 @@ use effractor_core::architecture::{Architecture, Change, Factor, Parameter, Rela
 
 use crate::CURRENT_VERSION;
 use crate::architecture_read::{
-    BOOLS, DEFENSES, EVIDENCE, FACTORS, KINDS, PRIVILEGES, RELATIONS, STATES, SWITCHES,
+    DEFENSES, EVIDENCE, FACTORS, KINDS, PRIVILEGES, RELATIONS, STATES, SWITCHES,
 };
 use crate::lower::{ARCHITECTURE, Extras, TIME_UNITS};
 use crate::write::{Context, WIDTH, Writer, expression, string, word};
@@ -112,12 +112,6 @@ fn document(w: &mut Writer, m: &Architecture) {
                 }
                 if let Some(privilege) = r.privilege() {
                     w.line(4, "privilege", word(&PRIVILEGES, &privilege));
-                }
-                if let Relation::Hosts {
-                    shell: Some(shell), ..
-                } = r
-                {
-                    w.line(4, "shell", word(&BOOLS, shell));
                 }
                 if let Relation::Authenticates {
                     factor: Factor::Second,
