@@ -37,7 +37,7 @@
     });
     item.addEventListener("contextmenu", function (ev) {
       ev.preventDefault();
-      U.menuFor(id, ev.clientX, ev.clientY);
+      U.menuFor(id, ev.clientX, ev.clientY, true);
     });
     if (extra) extra(item);
     list.appendChild(item);
@@ -112,7 +112,7 @@
     act(function () { return C.toggleAll(doc()); });
   }
   // K and the rail (owner, 2026-09-25): nothing selected, everything; one
-  // cluster or a member of one, dissolve it; several, one cluster of them.
+  // cluster or a member of one, open or close it; several, one cluster of them.
   function pressK() {
     var picked = app.state.picked || [];
     var edit = C.pressK(doc(), picked);
@@ -125,7 +125,7 @@
     if (picked.length > 1) return "Cluster the " + picked.length + " selected (K)";
     var q = P.qualified(picked[0]);
     var cid = q && q.kind === "cluster" ? q.id : q && q.kind === "entity" ? C.clusterOf(doc(), q.id) : null;
-    return cid && own(doc().clusters, cid) ? "Dissolve “" + C.label(doc(), cid) + "” (K)" : "Cluster · uncluster (K)";
+    return cid && own(doc().clusters, cid) ? (doc().clusters[cid].closed ? "Open" : "Close") + " “" + C.label(doc(), cid) + "” (K)" : "Cluster · uncluster (K)";
   }
   function buildMissing() {
     if (!C.build(doc())) return app.say("nothing more runs together");
@@ -185,7 +185,7 @@
       return focusName();
     }
   });
-  U.keyList.push(["C", "Cluster the selected; open or close a cluster"], ["K", "Nothing selected: cluster · uncluster all; one: dissolve its cluster; several: merge into one"]);
+  U.keyList.push(["C", "Cluster the selected; open or close a cluster"], ["K", "Nothing selected: cluster · uncluster all; one: open or close its cluster; several: merge into one"]);
 
   // ---- menus ----
 

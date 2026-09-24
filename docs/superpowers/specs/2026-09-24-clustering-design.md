@@ -177,8 +177,8 @@ or router (id made unique against existing clusters).
   with nothing selected, *cluster · uncluster all* — with no clusters it
   makes what runs together, closed; else, if any is closed, it opens all;
   else it closes all, never removing one. With one selected, a cluster or a
-  member of one, it dissolves that cluster (a component in none: it says
-  so). With several selected, clusters among them, it merges them into one
+  member of one, it opens or closes that cluster, which stays (a component
+  in none: it says so). With several selected, clusters among them, it merges them into one
   cluster. Its tooltip says which.
 * **C:** with two or more picked, cluster them (label: the first's, "+n");
   a member of another cluster moves over, dissolving one left with fewer
@@ -200,7 +200,8 @@ Every refusal says why (`app.say`): *Select two or more to cluster*,
 
 A selected cluster shows its label (editable), open/closed, and its members,
 each with its icon, selecting itself on click, its component menu on a
-right-click, and a × that takes it out.
+right-click (the inspector stays until an action needs the component), and
+a × that takes it out.
 Selecting a member of a closed cluster opens that member's form and lights
 the cluster node; the cluster stays closed, so looking never edits the file.
 

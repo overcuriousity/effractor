@@ -140,13 +140,18 @@ test('what glides from where when clusters open and close', () => {
   assert.deepEqual(C.transitions(null, null), { origins: {}, exits: {} });
 });
 
-test('K: nothing selected toggles all; one dissolves; several merge', () => {
+test('K: nothing selected toggles all; one opens or closes its cluster; several merge', () => {
   const doc = C.build(IMPORTED).doc;
   // Nothing selected: the rail's toggle.
   assert.deepEqual(C.pressK(doc, []).doc, C.toggleAll(doc).doc);
-  // A cluster, or a member of one: that cluster is dissolved.
-  assert.equal('srv' in C.pressK(doc, ['cluster/srv']).doc.clusters, false);
-  assert.equal('srv' in C.pressK(doc, ['entity/domain']).doc.clusters, false);
+  // A cluster, or a member of one: that cluster opens, or closes; it stays.
+  const opened = C.pressK(doc, ['cluster/srv']);
+  assert.equal(opened.doc.clusters.srv.closed, false);
+  assert.equal(opened.select, 'cluster/srv');
+  assert.equal(C.pressK(opened.doc, ['cluster/srv']).doc.clusters.srv.closed, true);
+  const byMember = C.pressK(doc, ['entity/domain']);
+  assert.equal(byMember.doc.clusters.srv.closed, false);
+  assert.equal(byMember.select, 'entity/domain', 'the member stays selected');
   // A component in no cluster: nothing to do, and why.
   const alone = C.pressK(doc, ['entity/openssh']);
   assert.equal(alone.doc, undefined);

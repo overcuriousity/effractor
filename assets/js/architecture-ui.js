@@ -246,8 +246,10 @@
     app.select("entity/" + ids[next]);
   }
 
-  function menuFor(id, x, y) {
-    app.select("entity/" + id);
+  // `keep`: the menu of a component listed elsewhere (a cluster's members):
+  // what is selected stays until an action that needs the component runs.
+  function menuFor(id, x, y, keep) {
+    if (!keep) app.select("entity/" + id);
     var items = [["Add linked", "Tab", { items: function () { return addLinkedItems(id); } }], ["Rename", "F2", focusLabel]];
     if (window.effractorArchitectureView.shownSlots(doc(), id).length) items.push(["Edit parameters", "P", firstParameter]);
     extraItems.forEach(function (more) {
@@ -255,6 +257,16 @@
     });
     items.push(["Show in source", "", function () { app.showSourcePath("entities." + id); }]);
     items.push(["Delete", "Del", remove]);
+    if (keep) {
+      items = items.map(function (item) {
+        if (typeof item[2] !== "function") return item;
+        var run = item[2];
+        return [item[0], item[1], function () {
+          app.select("entity/" + id);
+          run();
+        }].concat(item.slice(3));
+      });
+    }
     app.showMenu(items, x, y);
   }
 

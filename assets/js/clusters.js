@@ -276,17 +276,17 @@
   }
 
   // K (owner, 2026-09-25): nothing selected, the rail's toggle; one
-  // cluster, or a member of one, dissolves it; several, clusters among them,
-  // become one cluster. `picked`: qualified ids. An edit, or {refusal}.
+  // cluster, or a member of one, opens or closes it; several, clusters among
+  // them, become one cluster. `picked`: qualified ids. An edit, or {refusal}.
   function pressK(doc, picked) {
     if (!picked.length) return toggleAll(doc) || { refusal: "nothing runs together here · select two or more and press K" };
     if (picked.length === 1) {
       var q = picked[0];
       var cid = q.indexOf("cluster/") === 0 ? q.slice(8) : q.indexOf("entity/") === 0 ? clusterOf(doc, q.slice(7)) : null;
       if (cid && has(doc.clusters, cid)) {
-        var gone = dissolve(doc, cid);
-        gone.select = q.indexOf("entity/") === 0 ? q : null;
-        return gone;
+        var turned = setClosed(doc, cid, !doc.clusters[cid].closed);
+        turned.select = q;
+        return turned;
       }
       return { refusal: "“" + nameOf(doc, q.slice(q.indexOf("/") + 1)) + "” is in no cluster" };
     }
