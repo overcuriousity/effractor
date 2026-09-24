@@ -72,26 +72,6 @@ agreement in CI, and the workflow by the owner's browser walkthrough. Numerical
 agreement with the lecture's screenshots is not an acceptance criterion without
 the underlying rules and calibrated inputs.
 
-## Canvas
-
-### clustering — Collapse components into one node, as Reactor clusters
-needs: —            cost: 4   benefit: 4
-Owner request, 2026-09-24, after Chainalysis Reactor. Mark components (drag a
-rectangle, or ctrl-click) and cluster them into one node; clicking it lists
-its members in the inspector, each can be taken out, and it opens and closes
-in place. Offered automatically for what runs together: a host with the
-software it hosts and the products only that software uses (`graph.blocks`),
-a router with its box and firewall. A cluster shows its members' rings and
-unknown counts; lines to the outside become one line per outside component
-with a count, lines inside are hidden. A cluster is a way of looking, not a
-change to the model: generation, results and ids ignore it. Clusters are
-kept in the file as a list of groups (the owner leaned that way: an
-appliance is the author's statement), so a shared link looks the same.
-Design: [`2026-09-24-clustering-design.md`](docs/superpowers/specs/2026-09-24-clustering-design.md). Done in one
-PR when an nmap import can be collapsed by host in one step, a rectangle
-makes a cluster, a member can be taken out, and the attack graph and results
-are unchanged by clustering (tested).
-
 ## Compatibility after the lecture milestone
 
 ### mal-securicad-compatibility — Reuse existing models and libraries

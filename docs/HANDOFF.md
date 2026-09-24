@@ -5,6 +5,58 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — clustering (2026-09-25)
+
+`clustering` is done (spec
+[`2026-09-24-clustering-design.md`](superpowers/specs/2026-09-24-clustering-design.md),
+plan [`2026-09-24-clustering.md`](superpowers/plans/2026-09-24-clustering.md));
+the owner shaped it over eight looks in the 8081 preview. The spec records
+each of the owner's decisions with its date; read it before changing any.
+
+- **File:** top-level `clusters: {id: {label?, members, shown?, closed}}`,
+  in place, no version change. `shown` = members of a closed cluster drawn
+  beside its stack, inside its outline. The validator refuses a non-entity
+  member, an entity in two clusters, fewer than two members, a `shown` entry
+  that is not a member. Generation and results never read it
+  (`crates/effractor-solver/tests/graph_clusters.rs`).
+- **`clusters.js` (pure):** every cluster edit (`make`, `build`, `gather`,
+  `toggleAll`, `pressK`, `takeOut`, `moveTo`, `merge`, `stack` via `merge`,
+  `peel`/`unpeel`, `dissolve`, `rename`, `setClosed`), `together` (what runs
+  together: a host with its router + firewall, software and products only it
+  uses; a router on no box with its firewall), `forget`/`rekey` (used by
+  `architecture-links.remove`/`renameId`), and the drawing's geometry
+  (`segments`/`arc` ring sectors, `within` rectangle, `closeAt`/`reopen` in
+  place, `transitions`/`opened` for the glide, `spread` to push aside what an
+  opened cluster covers, `lit`). Loads right after `graph.js`; `edit.js`'s
+  `slug` is looked up lazily.
+- **Drawing:** `architecture-view.describe` folds a closed cluster into one
+  node (`cluster/<id>`, most specific member's icon, stacked plate, ring
+  sectors per member: red vulnerable, amber unknown inputs), merges lines per
+  pair of drawn ends (`links/…`, `flows/…`, `permits/…`, listed in
+  `bundles`), and lists outlines in `groups`; `hidden` says where a member is
+  drawn (`app.shown`). `graph.blocks` lays out every outline's contents as a
+  block with room for the outline and its name tab. The renderer glides
+  between drawings (`render(layout, styles, motion)`, not under reduced
+  motion), draws outlines (above lines; a 14 px hit band and a name tab),
+  draws the rectangle (Shift + drag), drags selections and outlines as
+  groups, lights a merge target with a small pull, and emits `pick` and
+  (free layout, onto a node) `drop`.
+- **Selecting:** `state.picked` (qualified ids) beside `state.selected`;
+  Ctrl-click, Shift + drag, Esc; Del and dragging act on all.
+- **`cluster-ui.js` (DOM):** K (nothing selected: cluster · uncluster all;
+  one cluster or member: open/close; several: merge), C, the rail icon, the
+  menus (component, cluster — also on a right-click anywhere inside an
+  outline —, selection, background incl. *Hide cluster outlines*), the
+  cluster inspector (label, shown, members: click selects, right-click is
+  the member's menu without leaving, × takes out, drag out peels it beside
+  the stack), merging by dragging one onto another, and positions kept in
+  place on open/close. The bottom bar's *cluster outline* switch hides
+  outlines (`effractor.outlines`). Pins dropped on a cluster ask which member.
+- **nmap import:** clusters what it brought in by host, open (`gather`), and
+  arranges a drawing nobody arranged by hand.
+- The wasm module must be rebuilt (`scripts/build-wasm.sh`) for a page to
+  read `clusters`; an old module refuses the key.
+
 ## Continuation — nmap checks (2026-09-24)
 
 `nmap-scripts` (nmap design §3.2, §3.4, §4.6; owner's design in
