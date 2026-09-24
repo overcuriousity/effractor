@@ -71,9 +71,11 @@ Distributions are MAL's set in effractor's spelling (amended 2026-09-23 by
 the [readable time notation](2026-09-23-readable-time-notation-design.md)):
 a chance `c%`, `Exponential(mean m)`, `Gamma(k, θ)`, `LogNormal(μ, σ)`,
 `Pareto(xm, α)`, `TruncatedNormal(μ, σ)` (truncated at 0), `Never`,
-`Immediate`, and the product form `c% * <dist>`. MAL's `Bernoulli(p)`, rates
-and named shorthands are refused with their replacement; the MAL import
-translates them.
+`Immediate`, and the product form `c% * <dist>`. A document written in MAL's
+spelling (`Bernoulli(p)`, rates, named shorthands) before the notation changed
+still reads — shared links carry such documents — and is saved in effractor's;
+an expression that is wrong in both is reported in effractor's spelling, and
+the single-field parser refuses MAL's with its replacement.
 
 `c%` alone means: time 0 with probability `c/100`, else ∞.
 `c% * D` means: ∞ with probability `1 − c/100`, else a draw from `D`.

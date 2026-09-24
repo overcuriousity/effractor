@@ -44,11 +44,15 @@ Spec: [readable time notation](superpowers/specs/2026-09-23-readable-time-notati
 plan: [its implementation](superpowers/plans/2026-09-23-readable-time-notation.md).
 
 - effractor files write `30%`, `50% * Exponential(mean 12.5)`, `Never`,
-  `Immediate`. MAL's `Bernoulli`, rates, presets, `Infinity`/`Zero`/
-  `Enabled`/`Disabled` are errors that name their replacement.
+  `Immediate`. `expr::parse` refuses MAL's `Bernoulli`, rates, presets,
+  `Infinity`/`Zero`/`Enabled`/`Disabled`, naming the replacement; a whole
+  document still reads them (`lower.rs` falls back to `effractor_mal`), because
+  links shared before the notation carry them. The owner requires every link
+  already shared to keep opening (2026-09-24); the fixture is
+  `crates/effractor-format/tests/fixtures/shared/`.
 - The grammar is `effractor_format::expr` (`parse`, `write`, `chance`); the
   reader, the canonical writer, result JSON and wasm `ttc_sketch` use it.
-  `effractor-mal` keeps MAL's spelling, only for the future import.
+  `effractor-mal` keeps MAL's spelling, for old documents and the import.
 - `Distribution::ExponentialMean(m)` is what files produce: stored as written,
   so every save reads back exactly. It samples with rate `1/m`, the same bits
   as `Exponential(1/m)`; no frozen fingerprint moved. `Exponential(rate)`

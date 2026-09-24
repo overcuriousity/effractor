@@ -3,7 +3,7 @@
 //! (`Exponential(mean 12.5)`), `Never`, `Immediate`, and the other
 //! distributions by their parameters. MAL's spelling (`Bernoulli`, rates,
 //! named presets) is refused with its replacement; `effractor-mal` reads it
-//! for the import. Syntax and arity live here; domains are `core::validate`'s,
+//! for the import and for documents written before this notation. Syntax and arity live here; domains are `core::validate`'s,
 //! except a chance's 0–100, which only the percent sign gives a meaning.
 
 use effractor_core::{Distribution, Shorthand};

@@ -319,8 +319,12 @@ impl Cx {
             self.wrong_type(node, path, "a distribution expression");
             return None;
         };
+        // A document written before the readable notation, a shared link
+        // above all, keeps reading as it did; the next save rewrites it. The
+        // error a person sees is still the one in today's spelling.
         match crate::expr::parse(text) {
             Ok(d) => Some(d),
+            Err(_) if let Ok(d) = effractor_mal::parse_expr(text) => Some(d),
             Err(e) => {
                 // Into the expression: past the opening quote if there is one.
                 let col = node.pos.col + e.col - 1 + usize::from(!plain);

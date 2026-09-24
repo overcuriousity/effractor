@@ -295,15 +295,15 @@ fn one_pass_reports_every_problem() {
 }
 
 #[test]
-fn an_old_spelling_names_its_replacement_at_its_column() {
-    let line = "  t: {label: T, leaf: basic, ttc: \"Bernoulli(0.5)\"}";
+fn a_mistaken_expression_is_named_at_its_column() {
+    let line = "  t: {label: T, leaf: basic, ttc: \"Exponential(5) * 50%\"}";
     let text = doc(&format!("{line}\n"));
     let (code, path, at_line, col) = one(&text);
     assert_eq!((code, path.as_str()), ("expression", "nodes.t.ttc"));
-    assert_eq!((at_line, col), (6, line.find("Bernoulli").unwrap() + 1));
+    assert_eq!((at_line, col), (6, line.find("Exponential").unwrap() + 1));
     let (_, diagnostics) = diagnose(&text);
     assert!(
-        diagnostics[0].message.contains("50%"),
+        diagnostics[0].message.contains("Exponential(mean 0.2)"),
         "{}",
         diagnostics[0].message
     );
