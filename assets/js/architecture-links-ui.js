@@ -26,8 +26,9 @@
     var e = own(doc().entities, id);
     return e ? e.kind : null;
   }
+  // What may send a flow: software, and an agent's tool calls.
   function executable(id) {
-    return kindOf(id) === "application" || kindOf(id) === "service";
+    return ["application", "service", "agent"].indexOf(kindOf(id)) >= 0;
   }
   function selectedEntity() {
     var q = P.qualified(app.state.selected);
@@ -390,7 +391,7 @@
       if (current && !options.some(function (o) { return o[0] === current; })) options.push([current, current]);
       return M.dropdown(options, current);
     };
-    var source = U.field(form, "prop-source", "From", pick(["application", "service"], f.source));
+    var source = U.field(form, "prop-source", "From", pick(["application", "service", "agent"], f.source));
     source.addEventListener("change", function () {
       putFlow(id, { source: source.value });
     });

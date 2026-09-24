@@ -3,7 +3,7 @@
 use effractor_components::{RULES, catalog};
 use serde_json::Value;
 
-const RULE_IDS: [&str; 26] = [
+const RULE_IDS: [&str; 33] = [
     "foothold",
     "admin-implies-user",
     "host-execution",
@@ -27,6 +27,13 @@ const RULE_IDS: [&str; 26] = [
     "account-authenticated",
     "workload-identity",
     "assume-role",
+    "content-from-zone",
+    "content-from-service",
+    "phish",
+    "person-disclose",
+    "person-run",
+    "inject",
+    "agent-shell",
     "service-login",
     "session-grant",
     "administration-login",
@@ -57,13 +64,15 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
             "application",
             "service",
             "product",
+            "agent",
             "account",
-            "credential"
+            "credential",
+            "person"
         ]
     );
-    assert_eq!(ids(&c["associations"], "kind").len(), 12);
-    assert_eq!(ids(&c["states"], "id").len(), 5);
-    assert_eq!(ids(&c["parameters"], "slot").len(), 10);
+    assert_eq!(ids(&c["associations"], "kind").len(), 15);
+    assert_eq!(ids(&c["states"], "id").len(), 7);
+    assert_eq!(ids(&c["parameters"], "slot").len(), 14);
     let rules = ids(&c["rules"], "id");
     assert_eq!(rules, RULE_IDS);
     for rule in &RULES {

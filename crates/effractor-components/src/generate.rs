@@ -71,6 +71,7 @@ fn generate_within(
     b.zone_access();
     b.permissions();
     b.flows();
+    b.operators();
     b.products();
     b.services();
     b.credentials();
@@ -119,6 +120,8 @@ struct Builder<'a> {
     grants_on: HashMap<&'a EntityId, Vec<(&'a EntityId, Privilege, &'a AssociationId)>>,
     /// service → (product, instance-of association)
     product_of: HashMap<&'a EntityId, (&'a EntityId, &'a AssociationId)>,
+    /// flow source → its flows, in document order
+    flows_from: HashMap<&'a EntityId, Vec<&'a FlowId>>,
     /// flow → the route paths the validator marked `unfinished`
     unfinished: HashMap<&'a FlowId, Vec<String>>,
 }
@@ -139,14 +142,19 @@ impl<'a> Builder<'a> {
             grant: HashMap::new(),
             grants_on: HashMap::new(),
             product_of: HashMap::new(),
+            flows_from: HashMap::new(),
             unfinished: HashMap::new(),
         };
+        for (fid, flow) in &m.flows {
+            b.flows_from.entry(&flow.source).or_default().push(fid);
+        }
         for (id, a) in &m.associations {
             match &a.relation {
                 Relation::Hosts {
                     from,
                     to,
                     privilege,
+                    ..
                 } => {
                     b.host_of.insert(to, (from, *privilege, id));
                 }
@@ -383,6 +391,7 @@ impl<'a> Builder<'a> {
                 from,
                 to,
                 privilege,
+                shell,
             } = &a.relation
             else {
                 continue;
@@ -405,6 +414,15 @@ impl<'a> Builder<'a> {
                     let admin = self.state_id(to, State::Admin.as_str());
                     self.produce(&machine, &admin, bound("hosted-host"));
                     self.escape("guest-escape", to, from, *privilege, aid);
+                }
+                // An agent: controlled by its machine; the machine by it only
+                // through a shell. (`bound` here is this loop's closure.)
+                EntityKind::Agent => {
+                    let control = self.state_id(to, State::Control.as_str());
+                    self.produce(&machine, &control, bound("host-execution"));
+                    if *shell == Some(true) {
+                        self.produce(&control, &machine, bound("agent-shell"));
+                    }
                 }
                 _ => {
                     let control = self.state_id(to, State::Control.as_str());
@@ -562,6 +580,100 @@ impl<'a> Builder<'a> {
                 ..origin("service-reachable")
             };
             self.produce(&connected, &reachable, r);
+        }
+    }
+
+    /// Content reaches readers from zones and from controlled services; a
+    /// deceived person discloses and runs, an instructed agent is controlled.
+    fn operators(&mut self) {
+        for (aid, a) in &self.m.associations {
+            match &a.relation {
+                Relation::Delivers { from, to } => {
+                    let access = self.state_id(from, State::Access.as_str());
+                    let contacted = self.state_id(to, State::Contacted.as_str());
+                    let o = bound("content-from-zone", &[from, to], &[aid], &[]);
+                    self.produce(&access, &contacted, o);
+                }
+                Relation::Knows { from, to } => {
+                    let deceived = self.state_id(from, State::Deceived.as_str());
+                    let possessed = self.state_id(to, State::Possessed.as_str());
+                    let o = bound("person-disclose", &[from, to], &[aid], &[]);
+                    self.produce(&deceived, &possessed, o);
+                }
+                Relation::Operates { from, to } => {
+                    let deceived = self.state_id(from, State::Deceived.as_str());
+                    let control = self.state_id(to, State::Control.as_str());
+                    let o = bound("person-run", &[from, to], &[aid], &[]);
+                    self.produce(&deceived, &control, o);
+                    let contacted = self.state_id(from, State::Contacted.as_str());
+                    for fid in self.flows_from.get(to).cloned().unwrap_or_default() {
+                        let target = &self.m.flows[fid].target;
+                        let served = self.state_id(target, State::Control.as_str());
+                        let o = bound("content-from-service", &[from, to, target], &[aid], &[fid]);
+                        self.produce(&served, &contacted, o);
+                    }
+                }
+                _ => {}
+            }
+        }
+        for (eid, entity) in &self.m.entities {
+            let owner = Owner::Entity(eid.clone());
+            let contacted = self.state_id(eid, State::Contacted.as_str());
+            match entity.kind {
+                EntityKind::Agent => {
+                    for fid in self.flows_from.get(eid).cloned().unwrap_or_default() {
+                        let target = &self.m.flows[fid].target;
+                        let served = self.state_id(target, State::Control.as_str());
+                        let o = bound("content-from-service", &[target, eid], &[], &[fid]);
+                        self.produce(&served, &contacted, o);
+                    }
+                    let o = Origin {
+                        paths: vec![
+                            owner.slot_path(Slot::Inject),
+                            owner.slot_path(Slot::InjectGuarded),
+                            format!("entities.{eid}.defenses.guarded"),
+                        ],
+                        ..bound("inject", &[eid], &[], &[])
+                    };
+                    let control = self.state_id(eid, State::Control.as_str());
+                    self.action(
+                        format!("action/inject/{eid}"),
+                        format!("Inject instructions · {}", entity.label),
+                        Binding::Parameter {
+                            owner,
+                            base: Slot::Inject,
+                            replacement: Some((Defense::Guarded, Slot::InjectGuarded)),
+                        },
+                        &[contacted],
+                        &control,
+                        o,
+                    );
+                }
+                EntityKind::Person => {
+                    let o = Origin {
+                        paths: vec![
+                            owner.slot_path(Slot::Phish),
+                            owner.slot_path(Slot::PhishTrained),
+                            format!("entities.{eid}.defenses.trained"),
+                        ],
+                        ..bound("phish", &[eid], &[], &[])
+                    };
+                    let deceived = self.state_id(eid, State::Deceived.as_str());
+                    self.action(
+                        format!("action/phish/{eid}"),
+                        format!("Deceive · {}", entity.label),
+                        Binding::Parameter {
+                            owner,
+                            base: Slot::Phish,
+                            replacement: Some((Defense::Trained, Slot::PhishTrained)),
+                        },
+                        &[contacted],
+                        &deceived,
+                        o,
+                    );
+                }
+                _ => {}
+            }
         }
     }
 
@@ -936,6 +1048,21 @@ impl<'a> Builder<'a> {
             nodes,
             target,
         }
+    }
+}
+
+/// A rule's origin with what it bound.
+fn bound(
+    rule: &str,
+    entities: &[&EntityId],
+    associations: &[&AssociationId],
+    flows: &[&FlowId],
+) -> Origin {
+    Origin {
+        entities: entities.iter().map(|&e| e.clone()).collect(),
+        associations: associations.iter().map(|&a| a.clone()).collect(),
+        flows: flows.iter().map(|&f| f.clone()).collect(),
+        ..origin(rule)
     }
 }
 

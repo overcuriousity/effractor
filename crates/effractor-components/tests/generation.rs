@@ -21,6 +21,13 @@ const NOT_YET_IN_AN_EXAMPLE: &[&str] = &[
     "mfa-second-factor",
     "workload-identity",
     "assume-role",
+    "content-from-zone",
+    "content-from-service",
+    "phish",
+    "person-disclose",
+    "person-run",
+    "inject",
+    "agent-shell",
 ];
 
 const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
@@ -631,6 +638,7 @@ fn user_software_never_grants_admin_and_root_software_does() {
         from: id("server"),
         to: id("sshd"),
         privilege: Privilege::User,
+        shell: None,
     };
     let graph = generate(&m).unwrap();
     assert_eq!(
@@ -665,6 +673,7 @@ fn a_router_on_a_host_is_controlled_from_it_and_left_by_an_escape() {
             from: id("hypervisor"),
             to: id("bridge"),
             privilege: Privilege::Admin,
+            shell: None,
         },
     );
     let graph = generate(&m).unwrap();
@@ -706,6 +715,7 @@ fn a_router_on_a_host_is_controlled_from_it_and_left_by_an_escape() {
             from: id("hypervisor"),
             to: id("bridge"),
             privilege: Privilege::User,
+            shell: None,
         },
     );
     let graph = generate(&m).unwrap();
@@ -735,6 +745,7 @@ fn router_software_runs_as_admin() {
             from: id("bridge"),
             to: id("router-web"),
             privilege: Privilege::Admin,
+            shell: None,
         },
     );
     let graph = generate(&m).unwrap();
@@ -811,6 +822,7 @@ fn extraction_is_per_store_and_discovery_per_product() {
             from: id("workstation"),
             to: id("backup-client"),
             privilege: Privilege::User,
+            shell: None,
         },
     );
     m.flows.insert(id("backup"), {
@@ -907,6 +919,7 @@ fn a_hypervisor_controls_its_guests_and_a_guest_escapes_by_a_timed_step() {
             from: id("hv"),
             to: id("server"),
             privilege: Privilege::User,
+            shell: None,
         },
     );
     let g = generate(&m).unwrap();
@@ -939,6 +952,7 @@ fn a_router_on_a_host_escapes_to_it_by_a_timed_step() {
             from: id("box"),
             to: id("bridge"),
             privilege: Privilege::Admin,
+            shell: None,
         },
     );
     let g = generate(&m).unwrap();
@@ -967,6 +981,7 @@ fn two_instances_share_one_discovery_and_deploy_separately() {
             from: id("server"),
             to: id("sshd2"),
             privilege: Privilege::User,
+            shell: None,
         },
     );
     relate(
@@ -1024,6 +1039,7 @@ fn an_action_names_the_component_whose_time_it_takes_last() {
             from: id("hv"),
             to: id("server"),
             privilege: Privilege::User,
+            shell: None,
         },
     );
     let g = generate(&m).unwrap();
@@ -1205,4 +1221,168 @@ fn role_cycles_are_finite() {
     // …but A→B→A with nothing seeding it is not a derivation.
     assert!(!reached.contains("state/account/role-a/authenticated"));
     assert!(!reached.contains("state/account/role-b/authenticated"));
+}
+
+/// The lecture with a phishable administrator who uses the SSH client and
+/// knows the server key, and a support bot on the server that reads mail.
+fn operators() -> Architecture {
+    let mut m = lecture();
+    add(&mut m, "internet", EntityKind::Network);
+    add(&mut m, "ada", EntityKind::Person);
+    add(&mut m, "bot", EntityKind::Agent);
+    add(&mut m, "bot-role", EntityKind::Account);
+    relate(
+        &mut m,
+        "mail-ada",
+        Relation::Delivers {
+            from: id("internet"),
+            to: id("ada"),
+        },
+    );
+    relate(
+        &mut m,
+        "mail-bot",
+        Relation::Delivers {
+            from: id("internet"),
+            to: id("bot"),
+        },
+    );
+    relate(
+        &mut m,
+        "ada-key",
+        Relation::Knows {
+            from: id("ada"),
+            to: id("server-key"),
+        },
+    );
+    relate(
+        &mut m,
+        "ada-client",
+        Relation::Operates {
+            from: id("ada"),
+            to: id("ssh-client"),
+        },
+    );
+    relate(
+        &mut m,
+        "server-bot",
+        Relation::Hosts {
+            from: id("server"),
+            to: id("bot"),
+            privilege: Privilege::User,
+            shell: Some(true),
+        },
+    );
+    relate(
+        &mut m,
+        "bot-runs-as",
+        Relation::RunsAs {
+            from: id("bot"),
+            to: id("bot-role"),
+            privilege: Privilege::User,
+        },
+    );
+    m
+}
+
+#[test]
+fn content_reaches_readers_and_deceit_or_injection_follows_by_a_timed_step() {
+    let g = generate(&operators()).unwrap();
+    assert!(
+        inputs(&g, "state/person/ada/contacted")
+            .contains(&"state/network/internet/access".to_owned())
+    );
+    assert_eq!(
+        inputs(&g, "action/phish/ada"),
+        vec!["state/person/ada/contacted"]
+    );
+    assert!(matches!(
+        node(&g, "action/phish/ada").duration,
+        Binding::Parameter {
+            base: Slot::Phish,
+            replacement: Some((Defense::Trained, Slot::PhishTrained)),
+            ..
+        }
+    ));
+    assert!(
+        inputs(&g, "state/credential/server-key/possessed")
+            .contains(&"state/person/ada/deceived".to_owned())
+    );
+    assert!(
+        inputs(&g, "state/application/ssh-client/control")
+            .contains(&"state/person/ada/deceived".to_owned())
+    );
+    assert_eq!(
+        inputs(&g, "action/inject/bot"),
+        vec!["state/agent/bot/contacted"]
+    );
+    assert!(matches!(
+        node(&g, "action/inject/bot").duration,
+        Binding::Parameter {
+            base: Slot::Inject,
+            replacement: Some((Defense::Guarded, Slot::InjectGuarded)),
+            ..
+        }
+    ));
+    assert!(
+        inputs(&g, "state/account/bot-role/authenticated")
+            .contains(&"state/agent/bot/control".to_owned())
+    );
+}
+
+#[test]
+fn a_controlled_service_reaches_the_readers_whose_flows_target_it() {
+    // The lecture's SSH client flows to sshd: whoever controls sshd reaches
+    // the client's operator.
+    let g = generate(&operators()).unwrap();
+    let mut contacted = inputs(&g, "state/person/ada/contacted");
+    contacted.sort();
+    assert_eq!(
+        contacted,
+        vec![
+            "state/network/internet/access",
+            "state/service/sshd/control"
+        ]
+    );
+}
+
+#[test]
+fn an_agent_controls_its_host_only_with_a_shell() {
+    let g = generate(&operators()).unwrap();
+    assert!(inputs(&g, "state/agent/bot/control").contains(&"state/host/server/user".to_owned()));
+    assert!(inputs(&g, "state/host/server/user").contains(&"state/agent/bot/control".to_owned()));
+    let mut m = operators();
+    relate(
+        &mut m,
+        "server-bot",
+        Relation::Hosts {
+            from: id("server"),
+            to: id("bot"),
+            privilege: Privilege::User,
+            shell: Some(false),
+        },
+    );
+    let g = generate(&m).unwrap();
+    assert!(!inputs(&g, "state/host/server/user").contains(&"state/agent/bot/control".to_owned()));
+    assert!(inputs(&g, "state/agent/bot/control").contains(&"state/host/server/user".to_owned()));
+}
+
+#[test]
+fn an_agent_flow_reaches_the_agent_back_from_its_service() {
+    let mut m = operators();
+    m.flows.insert(id("bot-ssh"), {
+        let mut f = m.flows[&id::<FlowId>("ssh")].clone();
+        f.source = id("bot");
+        f.label = "Bot to SSH".into();
+        f.route = vec![id("server-net")];
+        f
+    });
+    let g = generate(&m).unwrap();
+    assert!(
+        inputs(&g, "state/agent/bot/contacted").contains(&"state/service/sshd/control".to_owned())
+    );
+    assert_eq!(
+        inputs(&g, "action/flow-connect/bot-ssh"),
+        vec!["state/agent/bot/control"]
+    );
 }

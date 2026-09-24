@@ -82,6 +82,20 @@
       "defense": "patched"
     },
     {
+      "kind": "agent",
+      "description": "Software that reads content and acts on its own with tools: a coding agent, a support bot. Hosted like an application; `shell` says whether its tools run commands.",
+      "meaning": "An AI agent or automation that reads content and acts with real permissions.",
+      "states": [
+        "contacted",
+        "control"
+      ],
+      "parameters": [
+        "inject",
+        "inject-guarded"
+      ],
+      "defense": "guarded"
+    },
+    {
       "kind": "account",
       "description": "An identity with explicit authentication and grants; no implicit global privileges. Multi-factor login is its switch.",
       "meaning": "An identity that services accept and that has rights on machines.",
@@ -104,6 +118,20 @@
         "extract-protected"
       ],
       "defense": "protected"
+    },
+    {
+      "kind": "person",
+      "description": "A human user who reads content and can be deceived. `knows` and `operates` say what deceit gives away.",
+      "meaning": "A person who reads mail or pages and can be deceived into acting.",
+      "states": [
+        "contacted",
+        "deceived"
+      ],
+      "parameters": [
+        "phish",
+        "phish-trained"
+      ],
+      "defense": "trained"
     }
   ],
   "associations": [
@@ -129,12 +157,14 @@
         "application",
         "service",
         "router",
-        "host"
+        "host",
+        "agent"
       ],
       "fields": [
-        "privilege"
+        "privilege",
+        "shell"
       ],
-      "description": "The machine an executable, a router or a guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host."
+      "description": "The machine an executable, agent, router or guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host. For an agent, `shell: true | false` says whether its tools run commands there."
     },
     {
       "kind": "filters",
@@ -240,7 +270,8 @@
       "from": [
         "host",
         "application",
-        "service"
+        "service",
+        "agent"
       ],
       "to": [
         "account"
@@ -248,7 +279,7 @@
       "fields": [
         "privilege"
       ],
-      "description": "The identity a workload runs as: a host at `privilege: user | admin`, software as `user`. Code in it can use the identity without credentials."
+      "description": "The identity a workload runs as: a host at `privilege: user | admin`, software or an agent as `user`. Code in it can use the identity without credentials."
     },
     {
       "kind": "assumes",
@@ -260,6 +291,40 @@
       ],
       "fields": [],
       "description": "An account that may become another, e.g. a role it can assume."
+    },
+    {
+      "kind": "knows",
+      "from": [
+        "person"
+      ],
+      "to": [
+        "credential"
+      ],
+      "fields": [],
+      "description": "A credential a person could disclose when deceived."
+    },
+    {
+      "kind": "operates",
+      "from": [
+        "person"
+      ],
+      "to": [
+        "application"
+      ],
+      "fields": [],
+      "description": "Software a person uses; deceived, they run what they are sent in it."
+    },
+    {
+      "kind": "delivers",
+      "from": [
+        "network"
+      ],
+      "to": [
+        "person",
+        "agent"
+      ],
+      "fields": [],
+      "description": "Content from anyone in this network reaches the person or agent: mail, a public queue."
     }
   ],
   "states": [
@@ -287,6 +352,16 @@
       "id": "possessed",
       "word": "held",
       "description": "The attacker holds this credential."
+    },
+    {
+      "id": "contacted",
+      "word": "reached by content",
+      "description": "Content the attacker controls is in front of this reader."
+    },
+    {
+      "id": "deceived",
+      "word": "deceived",
+      "description": "This person acts on what the attacker sent."
     }
   ],
   "defenses": [
@@ -304,6 +379,16 @@
       "id": "mfa",
       "word": "Multi-factor login",
       "description": "The account needs a second factor: a first factor alone no longer logs in."
+    },
+    {
+      "id": "trained",
+      "word": "Trained",
+      "description": "The person is trained against deception: `phish-trained` stands in for `phish`."
+    },
+    {
+      "id": "guarded",
+      "word": "Guarded",
+      "description": "Guardrails or human approval of tool calls: `inject-guarded` stands in for `inject`."
     }
   ],
   "parameters": [
@@ -366,6 +451,30 @@
       "name": "Get past multi-factor login",
       "owner": "account",
       "description": "Time to get past the second factor once a first factor is held: push fatigue, a proxy, a SIM swap — the note says which."
+    },
+    {
+      "slot": "phish",
+      "name": "Deceive",
+      "owner": "person",
+      "description": "Time until the person acts on a lure once content reaches them."
+    },
+    {
+      "slot": "phish-trained",
+      "name": "Deceive (trained)",
+      "owner": "person",
+      "description": "The same, once the person is trained; selected by `defenses.trained`."
+    },
+    {
+      "slot": "inject",
+      "name": "Inject instructions",
+      "owner": "agent",
+      "description": "Time to get an agent to follow instructions hidden in content it reads."
+    },
+    {
+      "slot": "inject-guarded",
+      "name": "Inject instructions (guarded)",
+      "owner": "agent",
+      "description": "The same, with guardrails or human approval; selected by `defenses.guarded`."
     }
   ],
   "rules": [
@@ -416,7 +525,7 @@
       "duration": {
         "kind": "logical"
       },
-      "scope": "one per hosts association",
+      "scope": "one per hosts association naming an executable or agent",
       "assumptions": [
         "Controlling a machine at the privilege software runs with is controlling that software.",
         "Router-hosted executables run as admin: this library has no router user state."
@@ -434,7 +543,7 @@
       "duration": {
         "kind": "logical"
       },
-      "scope": "one per hosts association",
+      "scope": "one per hosts association naming an application or service",
       "assumptions": [
         "Controlling software yields the privilege it runs with and no more: user software never alone grants admin."
       ]
@@ -786,6 +895,135 @@
       "scope": "one per assumes association",
       "assumptions": [
         "Trust-policy conditions (external id, required MFA, source address) are not modelled."
+      ]
+    },
+    {
+      "id": "content-from-zone",
+      "title": "Content from a zone reaches a reader",
+      "version": 1,
+      "bindings": [
+        "delivers"
+      ],
+      "prerequisites": "network.access",
+      "output": "person or agent .contacted",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per delivers association",
+      "assumptions": [
+        "Anyone who can send traffic in the zone can put content in front of the reader: mail from the internet, a public ticket queue."
+      ]
+    },
+    {
+      "id": "content-from-service",
+      "title": "A controlled service reaches its readers",
+      "version": 1,
+      "bindings": [
+        "flow"
+      ],
+      "prerequisites": "control of the service a reader's flow targets: an agent's own flows, a person's through the applications they operate",
+      "output": "person or agent .contacted",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per flow from an agent, or per flow from an application a person operates",
+      "assumptions": [
+        "Watering holes, poisoned retrieval stores and compromised tool servers are this rule."
+      ]
+    },
+    {
+      "id": "phish",
+      "title": "Deceive a person",
+      "version": 1,
+      "bindings": [
+        "person"
+      ],
+      "prerequisites": "person.contacted",
+      "output": "person.deceived",
+      "duration": {
+        "kind": "slot",
+        "slot": "phish",
+        "replaced_by": {
+          "defense": "trained",
+          "slot": "phish-trained"
+        }
+      },
+      "scope": "one per person",
+      "assumptions": [
+        "Training selects the authored replacement distribution; it does not make a person undeceivable."
+      ]
+    },
+    {
+      "id": "person-disclose",
+      "title": "A deceived person discloses what they know",
+      "version": 1,
+      "bindings": [
+        "knows"
+      ],
+      "prerequisites": "person.deceived",
+      "output": "credential.possessed",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per knows association",
+      "assumptions": [
+        "What a person knows is what they could type into a convincing fake login."
+      ]
+    },
+    {
+      "id": "person-run",
+      "title": "A deceived person runs what they are sent",
+      "version": 1,
+      "bindings": [
+        "operates"
+      ],
+      "prerequisites": "person.deceived",
+      "output": "application.control",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per operates association",
+      "assumptions": [
+        "Which consequences of deceit exist — disclosure, running something — is the author's choice of associations."
+      ]
+    },
+    {
+      "id": "inject",
+      "title": "Instruct an agent through its content",
+      "version": 1,
+      "bindings": [
+        "agent"
+      ],
+      "prerequisites": "agent.contacted",
+      "output": "agent.control",
+      "duration": {
+        "kind": "slot",
+        "slot": "inject",
+        "replaced_by": {
+          "defense": "guarded",
+          "slot": "inject-guarded"
+        }
+      },
+      "scope": "one per agent",
+      "assumptions": [
+        "Guardrails or human approval of tool calls select the authored replacement distribution, not a guarantee."
+      ]
+    },
+    {
+      "id": "agent-shell",
+      "title": "An agent with a shell controls its machine",
+      "version": 1,
+      "bindings": [
+        "hosts"
+      ],
+      "prerequisites": "agent.control, for an agent hosted with `shell: true`",
+      "output": "the hosting machine at the agent's declared privilege",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per hosts association naming an agent with a shell",
+      "assumptions": [
+        "Without a shell among its tools, controlling an agent does not control its machine; its flows and identity still do their part."
       ]
     },
     {

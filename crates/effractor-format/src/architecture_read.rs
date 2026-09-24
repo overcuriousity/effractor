@@ -15,7 +15,7 @@ use indexmap::IndexMap;
 use crate::lower::{Cx, TIME_UNITS};
 use crate::tree::{Entry, Node};
 
-pub const KINDS: [(&str, EntityKind); 9] = [
+pub const KINDS: [(&str, EntityKind); 11] = [
     ("network", EntityKind::Network),
     ("router", EntityKind::Router),
     ("firewall", EntityKind::Firewall),
@@ -23,10 +23,12 @@ pub const KINDS: [(&str, EntityKind); 9] = [
     ("application", EntityKind::Application),
     ("service", EntityKind::Service),
     ("product", EntityKind::Product),
+    ("agent", EntityKind::Agent),
     ("account", EntityKind::Account),
     ("credential", EntityKind::Credential),
+    ("person", EntityKind::Person),
 ];
-pub const RELATIONS: [(&str, RelationKind); 12] = [
+pub const RELATIONS: [(&str, RelationKind); 15] = [
     ("attached", RelationKind::Attached),
     ("hosts", RelationKind::Hosts),
     ("filters", RelationKind::Filters),
@@ -39,15 +41,20 @@ pub const RELATIONS: [(&str, RelationKind); 12] = [
     ("instance-of", RelationKind::InstanceOf),
     ("runs-as", RelationKind::RunsAs),
     ("assumes", RelationKind::Assumes),
+    ("knows", RelationKind::Knows),
+    ("operates", RelationKind::Operates),
+    ("delivers", RelationKind::Delivers),
 ];
 pub const PRIVILEGES: [(&str, Privilege); 2] =
     [("user", Privilege::User), ("admin", Privilege::Admin)];
-pub const STATES: [(&str, State); 5] = [
+pub const STATES: [(&str, State); 7] = [
     ("access", State::Access),
     ("user", State::User),
     ("admin", State::Admin),
     ("control", State::Control),
     ("possessed", State::Possessed),
+    ("contacted", State::Contacted),
+    ("deceived", State::Deceived),
 ];
 pub const SWITCHES: [(&str, Switch); 3] = [
     ("unknown", Switch::Unknown),
@@ -61,9 +68,10 @@ pub const EVIDENCE: [(&str, Evidence); 4] = [
     ("calibrated", Evidence::Calibrated),
 ];
 /// The fields an association may carry beside kind/from/to/description.
-const EXTRAS: [&str; 3] = ["privilege", "allowed", "factor"];
+const EXTRAS: [&str; 4] = ["privilege", "allowed", "factor", "shell"];
+pub const BOOLS: [(&str, bool); 2] = [("true", true), ("false", false)];
 pub const FACTORS: [(&str, Factor); 2] = [("first", Factor::First), ("second", Factor::Second)];
-pub const SLOTS: [(&str, Slot); 10] = [
+pub const SLOTS: [(&str, Slot); 14] = [
     ("connect", Slot::Connect),
     ("find-exploit", Slot::FindExploit),
     ("find-exploit-patched", Slot::FindExploitPatched),
@@ -74,11 +82,17 @@ pub const SLOTS: [(&str, Slot); 10] = [
     ("admin-login", Slot::AdminLogin),
     ("escape", Slot::Escape),
     ("mfa-bypass", Slot::MfaBypass),
+    ("phish", Slot::Phish),
+    ("phish-trained", Slot::PhishTrained),
+    ("inject", Slot::Inject),
+    ("inject-guarded", Slot::InjectGuarded),
 ];
-pub const DEFENSES: [(&str, Defense); 3] = [
+pub const DEFENSES: [(&str, Defense); 5] = [
     ("patched", Defense::Patched),
     ("protected", Defense::Protected),
     ("mfa", Defense::Mfa),
+    ("trained", Defense::Trained),
+    ("guarded", Defense::Guarded),
 ];
 
 pub fn document(cx: &mut Cx, root: &Node) -> Option<Architecture> {
@@ -269,6 +283,7 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
             "privilege",
             "allowed",
             "factor",
+            "shell",
             "description",
         ],
     )?;
@@ -315,6 +330,13 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
         }
         _ => Some(Factor::First),
     };
+    // Said for an agent's hosting; the validator decides where it belongs.
+    let shell = match f.get("shell") {
+        Some(e) if kind == RelationKind::Hosts => {
+            cx.word(&e.value, &f.path("shell"), &BOOLS).map(Some)
+        }
+        _ => Some(None),
+    };
     let relation = match kind {
         RelationKind::Permits => Relation::Permits {
             from: from?,
@@ -330,6 +352,7 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
                     from,
                     to,
                     privilege: privilege?,
+                    shell: shell?,
                 },
                 RelationKind::Filters => Relation::Filters { from, to },
                 RelationKind::Stores => Relation::Stores {
@@ -356,6 +379,9 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
                     privilege: privilege?,
                 },
                 RelationKind::Assumes => Relation::Assumes { from, to },
+                RelationKind::Knows => Relation::Knows { from, to },
+                RelationKind::Operates => Relation::Operates { from, to },
+                RelationKind::Delivers => Relation::Delivers { from, to },
                 RelationKind::Permits => unreachable!("handled above"),
             }
         }

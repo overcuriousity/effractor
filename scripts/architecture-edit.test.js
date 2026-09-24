@@ -135,6 +135,8 @@ test('a description is set, trimmed, and removed when emptied', () => {
 
 test('the kinds are grouped by family for the Add menu', () => {
   assert.deepEqual(E.GROUPS.map((g) => g[0]), ['Network', 'Compute', 'Identity']);
-  assert.deepEqual(E.GROUPS.flatMap((g) => g[1]), E.KINDS);
+  assert.deepEqual(E.GROUPS.flatMap((g) => g[1]).sort(), E.KINDS.slice().sort());
   assert.ok(E.GROUPS[1][1].includes('product'));
+  assert.ok(E.GROUPS[1][1].includes('agent'));
+  assert.ok(E.GROUPS[2][1].includes('person'));
 });

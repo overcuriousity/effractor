@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 26] = [
+pub const RULES: [Rule; 33] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -82,7 +82,7 @@ pub const RULES: [Rule; 26] = [
         prerequisites: "the hosting machine at the executable's declared privilege (admin also satisfies user)",
         output: "executable.control",
         duration: D::Logical,
-        scope: "one per hosts association",
+        scope: "one per hosts association naming an executable or agent",
         assumptions: &[
             "Controlling a machine at the privilege software runs with is controlling that software.",
             "Router-hosted executables run as admin: this library has no router user state.",
@@ -96,7 +96,7 @@ pub const RULES: [Rule; 26] = [
         prerequisites: "executable.control",
         output: "the hosting machine at the executable's declared privilege",
         duration: D::Logical,
-        scope: "one per hosts association",
+        scope: "one per hosts association naming an application or service",
         assumptions: &[
             "Controlling software yields the privilege it runs with and no more: user software never alone grants admin.",
         ],
@@ -366,6 +366,101 @@ pub const RULES: [Rule; 26] = [
         ],
     },
     Rule {
+        id: "content-from-zone",
+        title: "Content from a zone reaches a reader",
+        version: 1,
+        bindings: &["delivers"],
+        prerequisites: "network.access",
+        output: "person or agent .contacted",
+        duration: D::Logical,
+        scope: "one per delivers association",
+        assumptions: &[
+            "Anyone who can send traffic in the zone can put content in front of the reader: mail from the internet, a public ticket queue.",
+        ],
+    },
+    Rule {
+        id: "content-from-service",
+        title: "A controlled service reaches its readers",
+        version: 1,
+        bindings: &["flow"],
+        prerequisites: "control of the service a reader's flow targets: an agent's own flows, a person's through the applications they operate",
+        output: "person or agent .contacted",
+        duration: D::Logical,
+        scope: "one per flow from an agent, or per flow from an application a person operates",
+        assumptions: &[
+            "Watering holes, poisoned retrieval stores and compromised tool servers are this rule.",
+        ],
+    },
+    Rule {
+        id: "phish",
+        title: "Deceive a person",
+        version: 1,
+        bindings: &["person"],
+        prerequisites: "person.contacted",
+        output: "person.deceived",
+        duration: D::Slot {
+            slot: Slot::Phish,
+            replaced_by: Some((Defense::Trained, Slot::PhishTrained)),
+        },
+        scope: "one per person",
+        assumptions: &[
+            "Training selects the authored replacement distribution; it does not make a person undeceivable.",
+        ],
+    },
+    Rule {
+        id: "person-disclose",
+        title: "A deceived person discloses what they know",
+        version: 1,
+        bindings: &["knows"],
+        prerequisites: "person.deceived",
+        output: "credential.possessed",
+        duration: D::Logical,
+        scope: "one per knows association",
+        assumptions: &["What a person knows is what they could type into a convincing fake login."],
+    },
+    Rule {
+        id: "person-run",
+        title: "A deceived person runs what they are sent",
+        version: 1,
+        bindings: &["operates"],
+        prerequisites: "person.deceived",
+        output: "application.control",
+        duration: D::Logical,
+        scope: "one per operates association",
+        assumptions: &[
+            "Which consequences of deceit exist — disclosure, running something — is the author's choice of associations.",
+        ],
+    },
+    Rule {
+        id: "inject",
+        title: "Instruct an agent through its content",
+        version: 1,
+        bindings: &["agent"],
+        prerequisites: "agent.contacted",
+        output: "agent.control",
+        duration: D::Slot {
+            slot: Slot::Inject,
+            replaced_by: Some((Defense::Guarded, Slot::InjectGuarded)),
+        },
+        scope: "one per agent",
+        assumptions: &[
+            "Guardrails or human approval of tool calls select the authored replacement distribution, not a guarantee.",
+        ],
+    },
+    Rule {
+        id: "agent-shell",
+        title: "An agent with a shell controls its machine",
+        version: 1,
+        bindings: &["hosts"],
+        prerequisites: "agent.control, for an agent hosted with `shell: true`",
+        output: "the hosting machine at the agent's declared privilege",
+        duration: D::Logical,
+        scope: "one per hosts association naming an agent with a shell",
+        assumptions: &[
+            "Without a shell among its tools, controlling an agent does not control its machine; its flows and identity still do their part.",
+        ],
+    },
+    Rule {
         id: "service-login",
         title: "Log in to a service",
         version: 1,
@@ -427,6 +522,12 @@ fn kind_description(kind: EntityKind) -> &'static str {
         EntityKind::Service => {
             "A reachable service running on a host or router, with exploit and login routes."
         }
+        EntityKind::Agent => {
+            "Software that reads content and acts on its own with tools: a coding agent, a support bot. Hosted like an application; `shell` says whether its tools run commands."
+        }
+        EntityKind::Person => {
+            "A human user who reads content and can be deceived. `knows` and `operates` say what deceit gives away."
+        }
         EntityKind::Product => {
             "One software version, e.g. OpenSSH 9.6. Its services share one exploit discovery; patching is set here."
         }
@@ -445,7 +546,7 @@ fn relation_description(kind: RelationKind) -> &'static str {
             "Membership of a network; a machine can be attached to several. Implies no flow permission."
         }
         RelationKind::Hosts => {
-            "The machine an executable, a router or a guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host."
+            "The machine an executable, agent, router or guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host. For an agent, `shell: true | false` says whether its tools run commands there."
         }
         RelationKind::Filters => "The firewall a router manages: one each way.",
         RelationKind::Stores => {
@@ -466,9 +567,16 @@ fn relation_description(kind: RelationKind) -> &'static str {
         }
         RelationKind::InstanceOf => "The software version a service runs: exactly one product.",
         RelationKind::RunsAs => {
-            "The identity a workload runs as: a host at `privilege: user | admin`, software as `user`. Code in it can use the identity without credentials."
+            "The identity a workload runs as: a host at `privilege: user | admin`, software or an agent as `user`. Code in it can use the identity without credentials."
         }
         RelationKind::Assumes => "An account that may become another, e.g. a role it can assume.",
+        RelationKind::Knows => "A credential a person could disclose when deceived.",
+        RelationKind::Operates => {
+            "Software a person uses; deceived, they run what they are sent in it."
+        }
+        RelationKind::Delivers => {
+            "Content from anyone in this network reaches the person or agent: mail, a public queue."
+        }
     }
 }
 
@@ -489,6 +597,10 @@ fn kind_meaning(kind: EntityKind) -> &'static str {
         EntityKind::Service => {
             "Software that accepts connections, e.g. a web server or SSH. Exploited or logged into over the network."
         }
+        EntityKind::Agent => {
+            "An AI agent or automation that reads content and acts with real permissions."
+        }
+        EntityKind::Person => "A person who reads mail or pages and can be deceived into acting.",
         EntityKind::Product => {
             "A software version. Every service that is an instance of it shares its vulnerabilities."
         }
@@ -507,6 +619,8 @@ pub(crate) fn state_word(state: State) -> &'static str {
         State::Admin => "admin control",
         State::Control => "controlled",
         State::Possessed => "held",
+        State::Contacted => "reached by content",
+        State::Deceived => "deceived",
     }
 }
 
@@ -523,6 +637,10 @@ fn slot_name(slot: Slot) -> &'static str {
         Slot::AdminLogin => "Admin login",
         Slot::Escape => "Escape to the host",
         Slot::MfaBypass => "Get past multi-factor login",
+        Slot::Phish => "Deceive",
+        Slot::PhishTrained => "Deceive (trained)",
+        Slot::Inject => "Inject instructions",
+        Slot::InjectGuarded => "Inject instructions (guarded)",
     }
 }
 
@@ -533,6 +651,8 @@ fn state_description(state: State) -> &'static str {
         State::Admin => "Administrative control of this machine.",
         State::Control => "This software does what the attacker says.",
         State::Possessed => "The attacker holds this credential.",
+        State::Contacted => "Content the attacker controls is in front of this reader.",
+        State::Deceived => "This person acts on what the attacker sent.",
     }
 }
 
@@ -570,6 +690,22 @@ fn slot_description(slot: Slot) -> (&'static str, &'static str) {
             "account",
             "Time to authenticate to a machine's management from an administering network.",
         ),
+        Slot::Phish => (
+            "person",
+            "Time until the person acts on a lure once content reaches them.",
+        ),
+        Slot::PhishTrained => (
+            "person",
+            "The same, once the person is trained; selected by `defenses.trained`.",
+        ),
+        Slot::Inject => (
+            "agent",
+            "Time to get an agent to follow instructions hidden in content it reads.",
+        ),
+        Slot::InjectGuarded => (
+            "agent",
+            "The same, with guardrails or human approval; selected by `defenses.guarded`.",
+        ),
         Slot::MfaBypass => (
             "account",
             "Time to get past the second factor once a first factor is held: push fatigue, a proxy, a SIM swap — the note says which.",
@@ -595,6 +731,14 @@ fn defense_word(defense: Defense) -> (&'static str, &'static str) {
         Defense::Mfa => (
             "Multi-factor login",
             "The account needs a second factor: a first factor alone no longer logs in.",
+        ),
+        Defense::Trained => (
+            "Trained",
+            "The person is trained against deception: `phish-trained` stands in for `phish`.",
+        ),
+        Defense::Guarded => (
+            "Guarded",
+            "Guardrails or human approval of tool calls: `inject-guarded` stands in for `inject`.",
         ),
     }
 }
