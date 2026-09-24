@@ -190,7 +190,10 @@
     state.parentChosen = parents.indexOf(parent) >= 0;
     state.parent = state.parentChosen ? parent : parents[0] || null;
     // An open cluster selected lights its members too, so they move together.
-    renderer.highlight(window.effractorClusters.lit(state.doc, state.picked).map(shown), "selected");
+    // A line inside a merged one lights the merged line.
+    renderer.highlight(window.effractorClusters.lit(state.doc, state.picked).map(shown).map(function (id) {
+      return window.effractorClusters.drawnLine(state.bundles, id);
+    }), "selected");
     // A selected flow shows where it goes: the networks and routers on its
     // route, which its line from end to end does not.
     var flow = arch && state.selected && state.selected.indexOf("flow/") === 0 ? state.selected.slice(5) : null;
@@ -372,10 +375,9 @@
     });
     return out;
   }
+  // {id: {x, y}}, or null to forget one; one write.
   function putPositions(map) {
-    Object.keys(map).forEach(function (id) {
-      positions.move(state.doc.name, id, map[id].x, map[id].y);
-    });
+    positions.moveAll(state.doc.name, map);
   }
   // A firewall's permissions on the canvas, shown or not; this browser
   // remembers which.
@@ -470,6 +472,17 @@
       // The same document glides to its new drawing; another one just appears.
       var motion = painted && painted.name === state.doc.name ? window.effractorClusters.transitions(painted.hidden, state.hidden) : null;
       painted = { name: state.doc.name, hidden: state.hidden };
+      // Clusters closing or opening, by an edit, an undo or the source: in
+      // place, from where things stood when last drawn.
+      if (motion && state.placed) {
+        var stored = positions.load(state.doc.name);
+        var prev = {};
+        state.placed.nodes.forEach(function (n) {
+          prev[n.id] = Object.prototype.hasOwnProperty.call(stored, n.id) ? stored[n.id] : { x: n.x, y: n.y };
+        });
+        var kept = window.effractorClusters.inPlace(motion, prev, stored);
+        if (Object.keys(kept).length) positions.moveAll(state.doc.name, kept);
+      }
       var options = { permits: showPermits, outlines: showOutlines };
       state.placed = window.effractorPositions.place(state.laid, positions.load(state.doc.name), options);
       // A cluster that just opened pushes what it now covers out of its way,
@@ -536,12 +549,13 @@
       state.stepCount = null;
       described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc, stateWord) : window.effractorGraph.describe(state.doc);
     }
-    // Where each member of a closed cluster is drawn, and what merged lines hold.
-    state.hidden = !shown && described.hidden ? described.hidden : null;
-    state.bundles = !shown && described.bundles ? described.bundles : null;
     return layout(described).then(function (laid) {
       if (!gate.accept(token)) return;
       state.laid = laid;
+      // Where each member of a closed cluster is drawn, and what merged lines
+      // hold: this layout's, set with it.
+      state.hidden = !shown && described.hidden ? described.hidden : null;
+      state.bundles = !shown && described.bundles ? described.bundles : null;
       state.laidView = shown ? "attack" : "document";
       paint();
       if (fitOwed) renderer.fit();

@@ -221,6 +221,20 @@
         /* kept for this page only */
       }
     }
+    // Several at once, one write: {id: {x, y}}, or null to forget one.
+    function moveAll(name, places) {
+      var all = load(name);
+      Object.keys(places).forEach(function (id) {
+        var p = places[id];
+        if (p) all[id] = { x: Math.round(p.x), y: Math.round(p.y) };
+        else delete all[id];
+      });
+      try {
+        if (storage) storage.setItem(PREFIX + name, JSON.stringify(all));
+      } catch (e) {
+        /* kept for this page only */
+      }
+    }
     function clear(name) {
       try {
         if (storage) storage.removeItem(PREFIX + name);
@@ -228,7 +242,7 @@
         /* nothing to clear */
       }
     }
-    return { load: load, move: move, clear: clear };
+    return { load: load, move: move, moveAll: moveAll, clear: clear };
   }
 
   var api = { place: place, route: route, attach: attach, along: along, outline: outline, createStore: createStore };

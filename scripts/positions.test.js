@@ -166,3 +166,14 @@ test('cluster outlines can be switched off', () => {
   assert.deepEqual(off.outlines, []);
   assert.equal(off.x0, 0, 'nothing drawn, nothing measured');
 });
+
+test('review: many positions are written, and forgotten, in one go', () => {
+  const saved = [];
+  const storage = { data: {}, getItem(k) { return this.data[k] || null; }, setItem(k, v) { saved.push(k); this.data[k] = v; }, removeItem(k) { delete this.data[k]; } };
+  const store = Pos.createStore(storage);
+  store.move('doc', 'entity/a', 1, 2);
+  saved.length = 0;
+  store.moveAll('doc', { 'entity/b': { x: 3.4, y: 4 }, 'entity/c': { x: 5, y: 6 }, 'entity/a': null });
+  assert.equal(saved.length, 1, 'one write');
+  assert.deepEqual(store.load('doc'), { 'entity/b': { x: 3, y: 4 }, 'entity/c': { x: 5, y: 6 } });
+});

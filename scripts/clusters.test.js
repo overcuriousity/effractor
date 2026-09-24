@@ -314,3 +314,38 @@ test('review: only components and clusters can be picked together', () => {
 test('review: K on a line says what K takes', () => {
   assert.match(C.pressK(IMPORTED, ['flow/whatever']).refusal, /component or a cluster/);
 });
+
+test('review: places kept in place are worked out from the glide, for any change', () => {
+  const prev = { 'entity/a': { x: 0, y: 0 }, 'entity/b': { x: 100, y: 50 }, 'cluster/k': { x: 500, y: 500 } };
+  // Closing k: members' places kept, the stack amid them.
+  const closing = C.transitions({}, { a: 'cluster/k', b: 'cluster/k' });
+  assert.deepEqual(C.inPlace(closing, prev, {}), { 'entity/a': { x: 0, y: 0 }, 'entity/b': { x: 100, y: 50 }, 'cluster/k': { x: 50, y: 25 } });
+  // Opening k: its members round where it stood, spaced as they were.
+  const opening = C.transitions({ a: 'cluster/k', b: 'cluster/k' }, {});
+  assert.deepEqual(C.inPlace(opening, prev, { 'entity/a': { x: 0, y: 0 }, 'entity/b': { x: 100, y: 50 } }), { 'entity/a': { x: 450, y: 475 }, 'entity/b': { x: 550, y: 525 } });
+  assert.deepEqual(C.inPlace(null, prev, {}), {});
+});
+
+test('review: a closed cluster merged into another glides into it', () => {
+  const t = C.transitions({ a: 'cluster/p', b: 'cluster/p', c: 'cluster/q', d: 'cluster/q' }, { a: 'cluster/q', b: 'cluster/q', c: 'cluster/q', d: 'cluster/q' });
+  assert.equal(t.exits['cluster/p'], 'cluster/q');
+  assert.deepEqual(t.opened, [], 'p did not open: it went into q');
+});
+
+test('review: a cluster dropped on an open member merges into that member’s cluster', () => {
+  const doc = C.setClosed(C.build(IMPORTED).doc, 'srv', false).doc;
+  const m = C.merge(doc, 'cluster/printer', 'entity/sshd');
+  assert.equal('printer' in m.doc.clusters, false);
+  assert.equal(C.clusterOf(m.doc, 'ssh'), 'srv');
+  assert.deepEqual(m.doc.clusters.srv.members.includes('sshd'), true, 'sshd stays where it was');
+  // A move that dissolves a cluster says so.
+  const two = C.build(IMPORTED).doc;
+  assert.match(C.moveTo(two, 'ssh', 'srv').notice, /dissolved “/);
+});
+
+test('review: a line chosen from a merged line lights the line it is drawn in', () => {
+  const bundles = { 'links/cluster/a>entity/b': ['association/x', 'association/y'] };
+  assert.equal(C.drawnLine(bundles, 'association/y'), 'links/cluster/a>entity/b');
+  assert.equal(C.drawnLine(bundles, 'association/z'), 'association/z');
+  assert.equal(C.drawnLine(null, 'association/z'), 'association/z');
+});

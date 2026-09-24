@@ -279,10 +279,12 @@
     var next = clone(doc);
     var gone = Object.create(null);
     gone[entity] = true;
-    forget(next, gone);
+    var dissolved = forget(next, gone);
     // `cid` keeps its members: it does not hold `entity`, so forget left it.
     next.clusters[cid].members.push(entity);
-    return { doc: next, select: "cluster/" + cid, notice: "moved “" + nameOf(doc, entity) + "” into “" + label(doc, cid) + "”" };
+    var said = "moved “" + nameOf(doc, entity) + "” into “" + label(doc, cid) + "”";
+    if (dissolved.length) said += ", dissolved “" + dissolved.join("”, “") + "” · Ctrl+Z undoes";
+    return { doc: next, select: "cluster/" + cid, notice: said };
   }
 
   function dissolve(doc, cid) {
@@ -363,16 +365,23 @@
       if ((c.shown || []).indexOf(d.id) >= 0) return unpeel(doc, t.id, d.id);
       return moveTo(doc, d.id, t.id);
     }
-    if (t.kind === "cluster") {
-      var from = doc.clusters[d.id].members.filter(function (m) {
+    // A cluster dropped on a cluster, or on a member of an open one: the
+    // target cluster takes its members and keeps its name.
+    function absorb(from, into) {
+      if (from === into) return null;
+      var members = doc.clusters[from].members.filter(function (m) {
         return has(doc.entities, m);
       });
       var next = clone(doc);
-      delete next.clusters[d.id];
-      next.clusters[t.id].members = next.clusters[t.id].members.concat(from);
-      return { doc: next, select: "cluster/" + t.id, notice: "merged “" + label(doc, d.id) + "” into “" + label(doc, t.id) + "” · Ctrl+Z undoes" };
+      delete next.clusters[from];
+      next.clusters[into].members = next.clusters[into].members.concat(members);
+      return { doc: next, select: "cluster/" + into, notice: "merged “" + label(doc, from) + "” into “" + label(doc, into) + "” · Ctrl+Z undoes" };
     }
-    if (d.kind === "cluster") return moveTo(doc, t.id, d.id);
+    if (t.kind === "cluster") return absorb(d.id, t.id);
+    if (d.kind === "cluster") {
+      var home = clusterOf(doc, t.id);
+      return home ? absorb(d.id, home) : moveTo(doc, t.id, d.id);
+    }
     var into = clusterOf(doc, t.id);
     if (into && into === clusterOf(doc, d.id)) return stack(doc, into, [t.id, d.id]);
     if (into) return moveTo(doc, d.id, into);
@@ -530,7 +539,13 @@
     var was = Object.create(null), now = Object.create(null);
     Object.keys(before).forEach(function (e) { was[before[e]] = true; });
     Object.keys(after).forEach(function (e) { now[after[e]] = true; });
-    var gone = Object.keys(was).filter(function (c) { return !now[c]; });
+    // Opened: no longer drawn, and a member of it drawn on its own now (one
+    // merged into another cluster did not open).
+    var gone = Object.keys(was).filter(function (c) {
+      return !now[c] && Object.keys(before).some(function (e) {
+        return before[e] === c && !has(after, e);
+      });
+    });
     function from(id, source) {
       var list = (origins[id] = origins[id] || []);
       if (list.indexOf(source) < 0) list.push(source);
@@ -540,7 +555,11 @@
     });
     Object.keys(after).forEach(function (e) {
       var into = after[e];
-      if (was[into]) return;
+      if (was[into]) {
+        // A whole cluster taken into one that was there: it glides into it.
+        if (has(before, e) && before[e] !== into && !now[before[e]]) exits[before[e]] = into;
+        return;
+      }
       if (!has(before, e)) {
         exits["entity/" + e] = into;
         from(into, "entity/" + e);
@@ -550,6 +569,42 @@
       }
     });
     return { origins: origins, exits: exits, opened: gone };
+  }
+
+  // Places kept in place when clusters close or open (spec §4.3), for any
+  // change — an edit, undo, the source: a closing cluster's members keep
+  // their last places (`prev`, drawn ids) for opening, and it stands amid
+  // them; an opening one's members come round where it stood, spaced as
+  // their stored places (`stored`) say. Returns places to write.
+  function inPlace(motion, prev, stored) {
+    var out = {};
+    if (!motion) return out;
+    Object.keys(motion.origins || {}).forEach(function (id) {
+      if (id.indexOf("cluster/") !== 0) return;
+      var from = motion.origins[id].filter(function (s) {
+        return s.indexOf("entity/") === 0 && prev[s];
+      });
+      if (!from.length) return;
+      from.forEach(function (s) {
+        out[s] = { x: prev[s].x, y: prev[s].y };
+      });
+      out[id] = closeAt(from.map(function (s) { return prev[s]; }));
+    });
+    (motion.opened || []).forEach(function (c) {
+      if (!prev[c]) return;
+      var members = Object.keys(motion.origins || {}).filter(function (id) {
+        return id.indexOf("entity/") === 0 && motion.origins[id].indexOf(c) >= 0;
+      });
+      var mine = {};
+      members.forEach(function (m) {
+        if (has(stored, m)) mine[m] = stored[m];
+      });
+      var moved = reopen(prev[c], members, mine);
+      Object.keys(moved).forEach(function (m) {
+        out[m] = moved[m];
+      });
+    });
+    return out;
   }
 
   // The clusters a glide opens: drawn as a stack before, not after (a
@@ -621,6 +676,13 @@
     return out;
   }
 
+  // The line `id` is drawn in: its merged line if it is in one.
+  function drawnLine(bundles, id) {
+    var keys = Object.keys(bundles || {});
+    for (var i = 0; i < keys.length; i++) if (bundles[keys[i]].indexOf(id) >= 0) return keys[i];
+    return id;
+  }
+
   // Only components and clusters are picked together.
   function pickable(ids) {
     return ids.filter(function (id) {
@@ -631,8 +693,10 @@
   var api = {
     SPECIFIC: SPECIFIC,
     opened: opened,
+    inPlace: inPlace,
     spread: spread,
     pickable: pickable,
+    drawnLine: drawnLine,
     transitions: transitions,
     clusterOf: clusterOf,
     label: label,

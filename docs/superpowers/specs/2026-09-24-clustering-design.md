@@ -241,8 +241,9 @@ component or cluster is dragged on the canvas, what it is over lights up as
 the target and draws it a little towards itself (12 % of the way, at most
 12 px). Let go there: a component joins a cluster (or the cluster of an
 open member) it is dropped on; a cluster dropped on a cluster gives it its
-members, the target keeping its name; a cluster takes in a component it is
-dropped on; two loose components become a closed cluster named after the
+members, the target keeping its name (so does a cluster dropped on a member
+of an open cluster: it merges into that cluster); a cluster takes in a loose
+component it is dropped on; two loose components become a closed cluster named after the
 target. Two members of one cluster dragged together go into its one stack
 (owner, 2026-09-25): an open cluster closes round them, the rest drawn
 beside the stack inside its outline; a closed one takes them from beside

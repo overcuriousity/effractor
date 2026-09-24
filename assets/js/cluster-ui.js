@@ -62,51 +62,13 @@
     return map && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null;
   }
 
-  // Before an edit lands: a cluster closing stands amid its members, which
-  // keep their places for opening; a cluster opening puts them round where
-  // it stands (spec §4.3).
-  function inPlace(before, after) {
-    var was = before.clusters || {}, now = after.clusters || {};
-    Object.keys(now).forEach(function (cid) {
-      var c = now[cid];
-      var old = own(was, cid);
-      var entity = function (m) { return "entity/" + m; };
-      if (c.closed && (!old || !old.closed)) {
-        var at = app.positionsOf(c.members.map(entity));
-        app.putPositions(at);
-        // The stack stands amid what went into it; the rest stay put.
-        var stacked = c.members.filter(function (m) {
-          return (c.shown || []).indexOf(m) < 0;
-        }).map(entity);
-        var centre = C.closeAt(stacked.filter(function (k) { return at[k]; }).map(function (k) { return at[k]; }));
-        if (centre) {
-          var put = {};
-          put["cluster/" + cid] = centre;
-          app.putPositions(put);
-        }
-      } else if (!c.closed && old && old.closed) {
-        var here = app.positionsOf(["cluster/" + cid])["cluster/" + cid];
-        if (!here) return;
-        var stored = app.storedPositions();
-        var mine = {};
-        c.members.forEach(function (m) {
-          if (own(stored, "entity/" + m)) mine[m] = stored["entity/" + m];
-        });
-        var moved = C.reopen(here, c.members, mine);
-        var put2 = {};
-        Object.keys(moved).forEach(function (m) { put2["entity/" + m] = moved[m]; });
-        app.putPositions(put2);
-      }
-    });
-  }
-
   // Every cluster edit: `select: undefined` keeps what is selected.
+  // Places kept in place are app.js's, drawn from the glide.
   function act(build) {
     return U.apply(function () {
       var edit = build();
       if (!edit) return null;
       if (edit.select === undefined) edit.select = app.state.selected;
-      inPlace(doc(), edit.doc);
       return edit;
     }, null, true);
   }
@@ -291,7 +253,7 @@
       if (ev.key === "Escape") label.value = c.label || "";
       label.blur();
     });
-    var shown = U.field(form, "prop-cluster-closed", "Shown", window.effractorMenu.dropdown([["closed", "Closed"], ["open", "Open"]], c.closed ? "closed" : "open"));
+    var shown = U.field(form, "prop-cluster-closed", "State", window.effractorMenu.dropdown([["closed", "Closed"], ["open", "Open"]], c.closed ? "closed" : "open"));
     shown.addEventListener("change", function () {
       act(function () { return C.setClosed(doc(), cid, shown.value === "closed"); });
     });
@@ -373,11 +335,18 @@
     // Onto the canvas (owner, 2026-09-25): out of the stack, still a member,
     // standing where it was dropped inside the cluster's outline.
     var p = app.renderer.pointAt(e.clientX, e.clientY);
+    var key = "entity/" + d.member;
+    var was = own(app.storedPositions(), key);
     var put = {};
-    put["entity/" + d.member] = { x: Math.round(p.x - SIZE.width / 2), y: Math.round(p.y - SIZE.plate / 2) };
+    put[key] = { x: Math.round(p.x - SIZE.width / 2), y: Math.round(p.y - SIZE.plate / 2) };
     app.putPositions(put);
-    if (doc().clusters[d.cid].closed) return act(function () { return C.peel(doc(), d.cid, d.member); });
-    app.redraw();
+    if (!doc().clusters[d.cid].closed) return app.redraw();
+    // Refused, it goes back where it was.
+    act(function () { return C.peel(doc(), d.cid, d.member); }).then(function (applied) {
+      if (applied) return;
+      put[key] = was;
+      app.putPositions(put);
+    });
   });
 
   // A member's row dropped on a cluster: see merge.

@@ -749,7 +749,8 @@
     // edge, pan left just enough to show it — smoothly where the browser can
     // animate, and never past the left edge. A visible node does not move.
     function reveal(id, inset) {
-      var b = free && free.at[id] ? free.at[id] : boxes[id];
+      // While gliding, where it is going (`boxes`, as rendered), not where it is.
+      var b = glideFrame && boxes[id] ? boxes[id] : free && free.at[id] ? free.at[id] : boxes[id];
       if (!b || !svg) return;
       var width = svg.getBoundingClientRect().width;
       var margin = 16;

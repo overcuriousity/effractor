@@ -49,8 +49,10 @@ each of the owner's decisions with its date; read it before changing any.
   outline —, selection, background incl. *Hide cluster outlines*), the
   cluster inspector (label, shown, members: click selects, right-click is
   the member's menu without leaving, × takes out, drag out peels it beside
-  the stack), merging by dragging one onto another, and positions kept in
-  place on open/close. The bottom bar's *cluster outline* switch hides
+  the stack), and merging by dragging one onto another. Places kept in place
+  on open/close are `app.js` `paint`'s (`clusters.inPlace` from the glide's
+  transitions), so undo, redo and source edits get them too, and only
+  accepted edits write them (`positions.moveAll`, one write). The bottom bar's *cluster outline* switch hides
   outlines (`effractor.outlines`). Pins dropped on a cluster ask which member.
 - **nmap import:** clusters what it brought in by host, open (`gather`), and
   arranges a drawing nobody arranged by hand.

@@ -125,7 +125,7 @@ function racePage(kept = 'original', legacy = null) {
     effractorGraphResults: require('../assets/js/graph-results.js'),
     effractorProblems: require('../assets/js/problems.js'),
     // Positions pass the layout through: these tests follow which layout is drawn.
-    effractorPositions: { createStore: () => ({ load: () => ({}), move() {}, clear() {} }), place: laid => laid },
+    effractorPositions: { createStore: () => ({ load: () => ({}), move() {}, moveAll() {}, clear() {} }), place: laid => laid },
     effractorClusters: require('../assets/js/clusters.js'),
     effractorEdit: require('../assets/js/edit.js'),
     effractorResults: require('../assets/js/results-view.js'),
