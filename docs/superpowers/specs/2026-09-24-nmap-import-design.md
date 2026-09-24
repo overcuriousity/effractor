@@ -26,8 +26,9 @@ vantage point feeds the attack graph directly.
 * **Only ever add.** An import never changes or removes what the graph already
   holds, except filling an empty `addresses` on a host the author chose to
   merge with (§4.1). A service no longer seen stays until deleted by hand.
-* **Assumptions are said.** What nmap cannot know and the model requires (the
-  privilege a service runs at) is set pessimistically and marked as assumed.
+* **What nmap cannot know is unknown.** The privilege a service runs at is
+  written `unknown` (owner, 2026-09-24, replacing a pessimistic `admin`): the
+  steps that depend on it are unknown inputs until the author sets it.
 * **Unknown stays unknown.** Every imported input is `unknown`; incomplete
   routes are `unfinished` and do not block the attack graph.
 * **Local-first.** The scan runs on the owner's machines; the page reads the
@@ -154,8 +155,10 @@ Read replaces the paste with the preview; **Back** returns to the text.
   selectable) or saying what ticking adds (service, product, flow).
   Unticking a host unticks its ports.
 * A network row when §4.2 proposes a new network.
-* One line of notes, only when they apply: *Services are assumed to run as
-  admin.* · *12 UDP ports gave no answer (open|filtered); not added.*
+* One line of notes, only when they apply: *Services run at an unknown
+  privilege until you set it on their link.* · *12 UDP ports gave no answer
+  (open|filtered); not added.* · *3 ports closed at once (tcpwrapped); not
+  added.*
 * Summary and actions: *Adds 4 hosts, 11 services, 6 products, 11 flows.*
   When the ticked rows would take the document past the library's limits
   (500 components; 2000 associations and flows), the summary says by how
@@ -210,15 +213,18 @@ import; when nmap's host is left unticked, its flows have no route.
 ### 4.3 Services and products
 
 Each port with `<state state="open">` is a candidate; `open|filtered`,
-`filtered` and `closed` are not (UDP ones are counted for the note). On a
+`filtered` and `closed` are not (UDP ones are counted for the note), nor is
+an open port nmap calls `tcpwrapped` (opened and closed at once, nothing
+identified; counted for the note, owner 2026-09-24). On a
 known or merged host the port is **known** when a service that host hosts is
 already the target of a flow with the same protocol string; a known port adds
 only a missing flow (§4.4). A service drawn without a flow is not recognised
 and shows as new; the author unticks it.
 
 A new service is labelled with nmap's `<service name>`, else `tcp/8443`. It
-is hosted by its host at **admin**, the pessimistic assumption, with the
-association's description *Privilege assumed by the nmap import.*
+is hosted by its host at `privilege: unknown` (lecture design §4): nmap
+cannot see the account it runs as, and the canvas says `hosts · unknown`
+until the author sets `user` or `admin` in the link's form.
 
 Every new service gets a product, linked `instance-of`: a service without
 one is `incomplete`, which would block the attack graph. When

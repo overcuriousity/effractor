@@ -593,3 +593,18 @@ test('deleting data takes its holdings, access, key and readers along', () => {
     }, flows: {} };
   assert.deepEqual(L.remove(doc, 'entities', 'd').doc.associations, {});
 });
+
+test('a host\'s software may be set to an unknown privilege in its form, never offered as a way to link', () => {
+  const doc = lecture();
+  const privilege = (from, to) => L.fieldsOf('hosts', from, to).find((f) => f.name === 'privilege').values;
+  assert.deepEqual(privilege('host', 'service'), ['user', 'admin', 'unknown']);
+  assert.deepEqual(privilege('host', 'application'), ['user', 'admin', 'unknown']);
+  assert.deepEqual(privilege('host', 'router'), ['user', 'admin'], 'a router on a box needs its privilege');
+  assert.deepEqual(privilege('host', 'host'), ['user', 'admin']);
+  assert.deepEqual(privilege('router', 'service'), ['admin']);
+  assert.deepEqual(L.variants(doc, 'hosts', 'server', 'sshd').map((v) => v.privilege), ['user', 'admin']);
+  const ways = L.addChoices(doc, CATALOG, 'server').filter((c) => c.kind === 'service')[0].options.map((o) => o.privilege);
+  assert.ok(ways.indexOf('unknown') < 0, ways.join());
+  assert.equal(L.phrase('hosts', 'out', 'unknown'), 'runs here at an unknown privilege');
+  assert.equal(L.phrase('hosts', 'in', 'unknown'), L.phrase('hosts', 'in', 'admin').replace(/ as admin$/, '') + ' at an unknown privilege');
+});

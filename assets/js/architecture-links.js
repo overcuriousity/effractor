@@ -415,6 +415,9 @@
   function fieldsOf(kind, fromKind, toKind) {
     var out = [];
     var p = privilegesOf(kind, fromKind, toKind);
+    // A host's software may run at a privilege nobody knows (an nmap
+    // import says so); it is set in the form, never a way to link.
+    if (p && kind === "hosts" && fromKind === "host" && SOFTWARE.indexOf(toKind) >= 0) p = p.concat("unknown");
     if (p) out.push({ name: "privilege", values: p });
     if (kind === "authenticates") out.push({ name: "factor", values: ["first", "second"] });
     if (kind === "hosts" && SOFTWARE.indexOf(toKind) >= 0) out.push({ name: "contained", values: [false, true], setting: true });
@@ -430,7 +433,7 @@
     }).reduce(function (acc, f) {
       var out = [];
       acc.forEach(function (v) {
-        f.values.forEach(function (value) {
+        f.values.filter(function (value) { return value !== "unknown"; }).forEach(function (value) {
           var next = Object.assign({}, v);
           next[f.name] = value;
           out.push(next);
@@ -480,7 +483,7 @@
   function privilegeWords(relation, direction, privilege) {
     var words = WORDS[relation] ? WORDS[relation][direction] : relation;
     if (!privilege) return words;
-    if (relation === "hosts") return words + " as " + privilege;
+    if (relation === "hosts") return words + (privilege === "unknown" ? " at an unknown privilege" : " as " + privilege);
     if (relation === "stores") return words + ", " + (privilege === "admin" ? "admin-only" : "user-readable");
     if (relation === "grants") return direction === "in" ? "is " + privilege + " here" : words + " " + privilege;
     if (relation === "holds" && privilege === "admin") return words + ", admin-only";

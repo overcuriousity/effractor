@@ -124,6 +124,15 @@ kind-specific parameters below. There are eight kinds:
 | `account` | An identity with explicit authentication and grants; no implicit global root privileges. |
 | `credential` | A model of authentication material; `possessed`. Store descriptions, never actual secrets. |
 
+A host's software whose account nobody knows (owner, 2026-09-24; what the
+nmap import writes) says `privilege: unknown`. What holds either way stays
+certain: admin on the host controls it, and controlling it is at least user
+on the host. The two steps that hold at one privilege only — user on the host
+controls it, controlling it is admin on the host — are generated as steps of
+unknown time whose missing input is `associations.<id>.privilege`, so nothing
+resting on them shows a number until the author says `user` or `admin`.
+Routers and guests on a box need a known privilege.
+
 Two optional fields describe what a scan sees (owner, 2026-09-24; see the
 [nmap import design](2026-09-24-nmap-import-design.md) §2): a `host` or
 `network` may carry `addresses` (IP addresses, CIDR ranges), and an
@@ -135,7 +144,7 @@ Associations are maps keyed by ID. Each has `kind`, `from`, `to`, optional
 | Kind | From → to | Additional field and meaning |
 |---|---|---|
 | `attached` | host/router → network | Membership/interface; can have several. Does not imply flow permission. |
-| `hosts` | host/router → application/service; host → router | Required `privilege: user\|admin`. Each executable, and each router, has one host; a router runs only on a host (an appliance's box, a VM). Owner request 2026-09-23. |
+| `hosts` | host/router → application/service; host → router | Required `privilege: user\|admin`; a host's application or service may say `unknown` (see below). Each executable, and each router, has one host; a router runs only on a host (an appliance's box, a VM). Owner request 2026-09-23. |
 | `filters` | router → firewall | At most one firewall per router, exactly one router per firewall. A router without a firewall filters nothing: its flows cross it with no permission (owner, 2026-09-24). |
 | `stores` | host/application → credential | Required `privilege: user\|admin` for a host; applications use `user`. Possession still requires an extraction action. |
 | `authenticates` | credential → account | Any one associated credential suffices; multi-factor authentication is outside this library. |

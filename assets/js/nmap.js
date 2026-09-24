@@ -428,20 +428,31 @@
         roleOffered: offered,
         device: suggested.device,
         route: shared.length ? [shared[0]] : [],
-        ports: h.ports.filter(function (p) { return p.state === "open"; }).map(function (p) {
+        ports: h.ports.filter(function (p) { return p.state === "open" && !wrapped(p); }).map(function (p) {
           return portRow(doc, appId, target, r.key, label, p, products);
         }),
       };
     });
 
+    var tcpwrapped = 0;
+    scan.hosts.forEach(function (h) {
+      h.ports.forEach(function (p) { if (p.state === "open" && wrapped(p)) tcpwrapped++; });
+    });
     return {
       app: appId,
+      tcpwrapped: tcpwrapped,
       appHost: appHost,
       network: usedNew ? proposed : null,
       candidates: candidates,
       silentUdp: scan.silentUdp || 0,
       hosts: planned,
     };
+  }
+
+  // nmap's "tcpwrapped": the connection opened and was closed at once, so
+  // nothing was identified — not a service to add (spec §4.3).
+  function wrapped(p) {
+    return !!p.service && p.service.name === "tcpwrapped";
   }
 
   function portRow(doc, appId, target, hostKey, hostLabel, p, products) {
@@ -535,7 +546,6 @@
 
   // ---- applying (spec §4) ----
 
-  var ASSUMED = "Privilege assumed by the nmap import.";
   var STAMP = /^Last nmap import: .*$/m;
 
   function stampLine(stamp) {
@@ -605,7 +615,8 @@
         var service = r.known;
         if (!service) {
           service = step(A.addEntity(next, "service", r.label, specOf("service"))).entity;
-          link("hosts", host, service, { privilege: "admin", description: ASSUMED });
+          // nmap cannot see the account it runs as: unknown, not a guess.
+          link("hosts", host, service, { privilege: "unknown" });
           var product = r.product.existing || madeProducts[r.product.label];
           if (!product) {
             product = step(A.addEntity(next, "product", r.product.label, specOf("product"))).entity;
@@ -644,7 +655,7 @@
     return hosted ? { doc: hosted.doc, select: added.select, entity: added.entity } : null;
   }
 
-  var api = { LEVELS: LEVELS, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, apply: apply, addNmap: addNmap, stampLine: stampLine, stampFor: stampFor, ASSUMED: ASSUMED };
+  var api = { LEVELS: LEVELS, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, apply: apply, addNmap: addNmap, stampLine: stampLine, stampFor: stampFor };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmap = api;
 })();

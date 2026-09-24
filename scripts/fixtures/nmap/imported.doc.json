@@ -179,8 +179,7 @@
       "kind": "hosts",
       "from": "srv",
       "to": "tcp-8443",
-      "privilege": "admin",
-      "description": "Privilege assumed by the nmap import."
+      "privilege": "unknown"
     },
     "tcp-8443-instance-of-unidentified-tcp-8443-on-server": {
       "kind": "instance-of",
@@ -191,8 +190,7 @@
       "kind": "hosts",
       "from": "srv",
       "to": "domain",
-      "privilege": "admin",
-      "description": "Privilege assumed by the nmap import."
+      "privilege": "unknown"
     },
     "domain-instance-of-dnsmasq-2-90": {
       "kind": "instance-of",
@@ -208,8 +206,7 @@
       "kind": "hosts",
       "from": "printer",
       "to": "ssh",
-      "privilege": "admin",
-      "description": "Privilege assumed by the nmap import."
+      "privilege": "unknown"
     },
     "ssh-instance-of-openssh": {
       "kind": "instance-of",

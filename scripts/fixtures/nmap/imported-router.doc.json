@@ -259,8 +259,7 @@
       "kind": "hosts",
       "from": "fritz-box",
       "to": "http",
-      "privilege": "admin",
-      "description": "Privilege assumed by the nmap import."
+      "privilege": "unknown"
     },
     "http-instance-of-fritz-box-http-config": {
       "kind": "instance-of",
@@ -271,8 +270,7 @@
       "kind": "hosts",
       "from": "fritz-box",
       "to": "domain",
-      "privilege": "admin",
-      "description": "Privilege assumed by the nmap import."
+      "privilege": "unknown"
     },
     "domain-instance-of-dnsmasq-2-90": {
       "kind": "instance-of",
@@ -304,8 +302,7 @@
       "kind": "hosts",
       "from": "opnsense-lab",
       "to": "https",
-      "privilege": "admin",
-      "description": "Privilege assumed by the nmap import."
+      "privilege": "unknown"
     },
     "https-instance-of-lighttpd": {
       "kind": "instance-of",
@@ -321,8 +318,7 @@
       "kind": "hosts",
       "from": "printer-fritz-box",
       "to": "ipp",
-      "privilege": "admin",
-      "description": "Privilege assumed by the nmap import."
+      "privilege": "unknown"
     },
     "ipp-instance-of-cups-2-4": {
       "kind": "instance-of",

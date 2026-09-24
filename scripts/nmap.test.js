@@ -257,8 +257,10 @@ test('applying adds exactly what was ticked, once, and leaves the rest alone', (
   assert.deepEqual(out.entities[host].addresses, ['10.0.1.7']);
   assert.equal(out.entities[host].kind, 'host');
   assert.ok(Object.values(out.associations).some(a => a.kind === 'attached' && a.from === host && a.to === 'lan'));
-  const hosting = Object.values(out.associations).filter(a => a.kind === 'hosts' && a.privilege === 'admin' && a.description === 'Privilege assumed by the nmap import.');
-  assert.equal(hosting.length, 3);
+  // nmap cannot see the account a service runs as: unknown, not a guess.
+  const imported = Object.values(out.associations).filter(a => a.kind === 'hosts' && out.entities[a.to].kind === 'service' && a.to !== 'sshd');
+  assert.equal(imported.length, 3);
+  assert.ok(imported.every(a => a.privilege === 'unknown' && a.description === undefined), JSON.stringify(imported));
   const openssh = Object.values(out.associations).filter(a => a.kind === 'instance-of' && a.to === 'openssh');
   assert.equal(openssh.length, 2, 'the known product is shared');
   const flows = Object.values(out.flows).filter(f => f.source === 'nmap');
@@ -554,4 +556,15 @@ test('an old scan pasted without a range still names its network, from what nmap
   const named = Object.assign({}, deep(), { args: 'nmap -sT -sV -oX - srv-01.lab 10.0.1.7' });
   assert.deepEqual(N.plan(d, 'nmap', named, '10.0.1.0/24', {}).network, { label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
   assert.equal(N.plan(d, 'nmap', named, '', {}).network, null);
+});
+
+test('a tcpwrapped port is no service: counted in a note, never a row', () => {
+  const xml = fixture('deep-lab.xml').replace('<port protocol="tcp" portid="8443"><state state="open" reason="syn-ack" reason_ttl="64"/></port>',
+    '<port protocol="tcp" portid="8443"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="tcpwrapped" method="probed" conf="8"/></port>');
+  const scan = N.read(xml).scan;
+  assert.equal(scan.hosts[0].ports[1].service.name, 'tcpwrapped', 'read as nmap says');
+  const p = N.plan(lab(), 'nmap', scan, '10.0.1.0/24', {});
+  assert.deepEqual(p.hosts[0].ports.map(r => r.proto), ['tcp/22', 'udp/53']);
+  assert.equal(p.tcpwrapped, 1);
+  assert.equal(N.plan(lab(), 'nmap', deep(), '10.0.1.0/24', {}).tcpwrapped, 0);
 });

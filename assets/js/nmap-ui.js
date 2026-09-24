@@ -145,8 +145,9 @@
       rows.appendChild(li);
     });
     var notes = [];
-    if (at.plan.hosts.some(function (h) { return h.ports.some(function (r) { return !r.known; }); })) notes.push("Services are assumed to run as admin.");
+    if (at.plan.hosts.some(function (h) { return h.ports.some(function (r) { return !r.known; }); })) notes.push("Services run at an unknown privilege until you set it on their link.");
     if (at.plan.silentUdp) notes.push(at.plan.silentUdp + " UDP ports gave no answer (open|filtered); not added.");
+    if (at.plan.tcpwrapped) notes.push(at.plan.tcpwrapped + (at.plan.tcpwrapped === 1 ? " port" : " ports") + " closed at once (tcpwrapped); not added.");
     $("nmap-notes").textContent = notes.join(" ");
     $("nmap-ask").hidden = true;
     $("nmap-preview").hidden = false;
