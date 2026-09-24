@@ -147,6 +147,9 @@
           return [optionWord(o), "", function () { addLinked(id, choice.kind, o); }, { title: optionTitle(o) }];
         }), { icon: icon(choice.kind) }];
       });
+      linkedExtras.forEach(function (more) {
+        items = items.concat(more(id));
+      });
       if (!items.length) return [[L.emptyLink(doc(), c, id) || "nothing can be linked to “" + doc().entities[id].label + "”", "", null]];
       L.notes(doc(), id).forEach(function (n) {
         items.push([word(n.kind), "", null, { hint: n.hint, icon: icon(n.kind) }]);
@@ -170,11 +173,18 @@
     else addLinkedMenu(id, box.left + box.width / 2, box.top + box.height / 2);
   }
 
+  // Filled in by nmap-ui.js: more ways to add a kind, and more to add
+  // linked to a component. A kind with extras becomes a submenu.
+  var kindExtras = {};
+  var linkedExtras = [];
+
   // The kinds, grouped by the families the canvas colours.
   function kindMenu() {
     return A.GROUPS.map(function (g) {
       return [g[0], "", g[1].map(function (kind) {
-        return [word(kind), "", function () { create(kind); }, { icon: icon(kind), title: W.meaning(catalog, kind) }];
+        var plain = [word(kind), "", function () { create(kind); }, { icon: icon(kind), title: W.meaning(catalog, kind) }];
+        if (!kindExtras[kind]) return plain;
+        return [word(kind), "", [plain].concat(kindExtras[kind]()), { icon: icon(kind) }];
       })];
     });
   }
@@ -628,6 +638,16 @@
     parameters(form, { entity: id }, e);
     if (sections.entity) sections.entity(form, id);
 
+    if (e.kind === "host" || e.kind === "network") {
+      var addresses = field(form, "prop-addresses", e.kind === "host" ? "Addresses" : "Ranges", input("text", (e.addresses || []).join(", ")));
+      addresses.placeholder = e.kind === "host" ? "10.0.1.5" : "10.0.1.0/24";
+      addresses.spellcheck = false;
+      addresses.addEventListener("change", function () {
+        apply(function () {
+          return A.setAddresses(doc(), id, addresses.value);
+        }, null, true);
+      });
+    }
     var note = field(form, "prop-description", "Note", input("textarea", e.description));
     note.addEventListener("change", function () {
       apply(function () {
@@ -719,6 +739,8 @@
     render: renderProperties,
     sections: sections,
     menuItems: extraItems,
+    kindExtras: kindExtras,
+    linkedExtras: linkedExtras,
     keyList: KEYS,
     loadCatalog: loadCatalog,
     // The catalog if it has arrived, else null: words fall back to ids.

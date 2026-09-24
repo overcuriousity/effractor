@@ -140,3 +140,21 @@ test('the kinds are grouped by family for the Add menu', () => {
   assert.ok(E.GROUPS[1][1].includes('product'));
   assert.ok(E.GROUPS[2][1].includes('person'));
 });
+
+test('hosts and networks take addresses as one line; others do not', () => {
+  const doc = E.empty();
+  doc.entities.srv = { kind: 'host', label: 'Server' };
+  doc.entities.lan = { kind: 'network', label: 'LAN' };
+  doc.entities.app = { kind: 'application', label: 'App' };
+  const set = E.setAddresses(doc, 'srv', ' 10.0.1.5,  fd00::5 ,,');
+  assert.deepEqual(set.doc.entities.srv.addresses, ['10.0.1.5', 'fd00::5']);
+  assert.equal(set.select, 'entity/srv');
+  assert.equal(doc.entities.srv.addresses, undefined, 'pure');
+  assert.equal(E.setAddresses(set.doc, 'srv', '10.0.1.5 fd00::5'), null, 'unchanged');
+  assert.equal(E.setAddresses(set.doc, 'srv', '  ').doc.entities.srv.addresses, undefined);
+  assert.deepEqual(E.setAddresses(doc, 'lan', '10.0.1.0/24').doc.entities.lan.addresses, ['10.0.1.0/24']);
+  assert.equal(E.setAddresses(doc, 'app', '10.0.1.5'), null);
+  assert.equal(E.setAddresses(doc, 'nowhere', '10.0.1.5'), null);
+  // Not checked here: wasm says whether an address is one.
+  assert.deepEqual(E.setAddresses(doc, 'srv', 'nonsense').doc.entities.srv.addresses, ['nonsense']);
+});

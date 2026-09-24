@@ -93,6 +93,19 @@
     return { doc: next, select: "entity/" + id };
   }
 
+  // A host's IP addresses or a network's CIDR ranges, typed as one line.
+  function setAddresses(doc, id, text) {
+    if (!has(doc.entities, id)) return null;
+    var kind = doc.entities[id].kind;
+    if (kind !== "host" && kind !== "network") return null;
+    var list = String(text == null ? "" : text).split(/[\s,]+/).filter(Boolean);
+    if (JSON.stringify(doc.entities[id].addresses || []) === JSON.stringify(list)) return null;
+    var next = clone(doc);
+    if (list.length) next.entities[id].addresses = list;
+    else delete next.entities[id].addresses;
+    return { doc: next, select: "entity/" + id };
+  }
+
   function ownerOf(doc, owner) {
     if (owner && has(owner, "entity")) return has(doc.entities, owner.entity) ? { record: doc.entities[owner.entity], select: "entity/" + owner.entity } : null;
     if (owner && has(owner, "flow")) return has(doc.flows, owner.flow) ? { record: doc.flows[owner.flow], select: "flow/" + owner.flow } : null;
@@ -135,7 +148,7 @@
     return { doc: next, select: "entity/" + id };
   }
 
-  var api = { KINDS: KINDS, GROUPS: GROUPS, STATUSES: STATUSES, empty: empty, addEntity: addEntity, renameEntity: renameEntity, setDescription: setDescription, setParameter: setParameter, setDefense: setDefense };
+  var api = { KINDS: KINDS, GROUPS: GROUPS, STATUSES: STATUSES, empty: empty, addEntity: addEntity, renameEntity: renameEntity, setDescription: setDescription, setAddresses: setAddresses, setParameter: setParameter, setDefense: setDefense };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureEdit = api;
 })();
