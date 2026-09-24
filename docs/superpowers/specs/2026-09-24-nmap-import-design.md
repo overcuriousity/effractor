@@ -116,6 +116,23 @@ gets `-6` after `nmap`, a range mixing both is refused with a note (one scan
 per kind), and an IPv6 prefix wider than /112 is noted as too wide to finish.
 An empty range says what to give (amended after review, 2026-09-24).
 
+**Checks** (owner, 2026-09-24, roadmap `nmap-scripts`), one choice beside
+the level, not offered for Discover (no ports): **none** (preselected) ·
+**safe** · **all**. They add nmap's vulnerability scripts after the level's
+options:
+
+| Checks | Adds |
+|---|---|
+| safe | `--script 'vuln and safe and not external'` |
+| all | `--script 'vuln and not external'` |
+
+*all* carries one line: *Runs exploits and denial-of-service checks.*
+Nothing else is left out: users are responsible adults. `not external` is
+always there: nothing the dialog offers asks a third party (the `vuln`
+category holds `vulners`, which sends every product version to
+vulners.com). The stamp names the checks: `Standard scan with safe checks
+of 10.0.1.0/24`.
+
 If the nmap application is not on a host, the dialog says once: *nmap is
 not on a host; the flows will have no route until you place it.*
 
@@ -155,11 +172,19 @@ Read replaces the paste with the preview; **Back** returns to the text.
   selectable) or saying what ticking adds (service, product, flow).
   Unticking a host unticks its ports.
 * A network row when §4.2 proposes a new network.
+* Under a port, one row per finding (§4.6), ticked:
+  `ssl-heartbleed · CVE-2014-0160 · marks OpenSSL 1.0.1f unpatched`, or
+  *marked patched by you; not changed*. Unticking the port unticks them.
+  A script the import does not read is a row without a checkbox:
+  `http-git · not read · <its first output line>`; a check that could not
+  test says *could not test*. Host-level findings that have no port to go to
+  sit under the host, *not applied: no SMB service*.
 * One line of notes, only when they apply: *Services run at an unknown
   privilege until you set it on their link.* · *12 UDP ports gave no answer
   (open|filtered); not added.* · *3 ports closed at once (tcpwrapped); not
   added.*
-* Summary and actions: *Adds 4 hosts, 11 services, 6 products, 11 flows.*
+* Summary and actions: *Adds 4 hosts, 11 services, 6 products, 11 flows,
+  marks 2 products unpatched.*
   When the ticked rows would take the document past the library's limits
   (500 components; 2000 associations and flows), the summary says by how
   much and Add stays disabled until enough is unticked.
@@ -268,6 +293,35 @@ it back.
 Flows the import makes stay within one network, so they cross no router.
 The summary counts routers and firewalls, and the limits include them.
 
+### 4.6 Findings of the checks
+
+Owner decision, 2026-09-24 (roadmap `nmap-scripts`). Only nmap's structured
+vulnerability report is read: a script's `<table>` holding
+`<elem key="state">`.
+
+| What the script said | What it does |
+|---|---|
+| `state` VULNERABLE, LIKELY VULNERABLE, VULNERABLE (DoS), VULNERABLE (Exploitable) | a **finding** |
+| `state` UNKNOWN (unable to test) | shown: *could not test* |
+| `state` NOT VULNERABLE | nothing |
+| a script `-sV` runs by itself (nmap's `version` category, such as `http-server-header`) | left out: it only refines the version shown |
+| anything else, including exploit output | shown: *not read* |
+
+A finding on a port belongs to the product of that port's service: the new
+one the import makes, or the one a known service is an `instance-of`. It sets
+the product's `defenses.patched` to `false` and adds one line to the note of
+its `find-exploit` parameter, whose status and time stay as they are (an
+imported one stays `unknown`): `nmap ssl-heartbleed: VULNERABLE,
+CVE-2014-0160 (The Heartbleed Bug).` The id is the finding's first CVE, else
+its first id, else nmap's key. A line already in the note is not added
+again. A product the author set `patched: true` is not changed (only ever
+add). A product shared by several services is marked once.
+
+nmap's host-level checks (`<hostscript>`: `smb-vuln-ms17-010`,
+`smb-double-pulsar-backdoor`, `smb2-vuln-uptime`) all talk SMB: their
+findings go to the host's port tcp/445, else tcp/139, the port they used. A
+host with neither imported shows them, not applied.
+
 ## 5. Units and tests
 
 * `effractor-core`, `effractor-format`: `addresses` and `tool` — model,
@@ -291,7 +345,7 @@ The summary counts routers and firewalls, and the limits include them.
 
 ## 6. Not in this item
 
-NSE scripts (vulnerability detection and the like) are the roadmap item
-`nmap-scripts`. Routers inferred from `--traceroute` or the gateway, firewall rules from
+NSE scripts other than the vulnerability checks of §4.6 are shown, never
+read. Routers inferred from `--traceroute` or the gateway, firewall rules from
 filtered/closed differences, and inventory from commands run on a host
 (`ss`, `ip`) are not planned.

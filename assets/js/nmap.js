@@ -23,10 +23,21 @@
     return LEVELS.filter(function (l) { return l.id === id; })[0] || null;
   }
 
+  // nmap's vulnerability checks (spec §3.2, §4.6). `not external` always:
+  // nothing offered here asks a third party (the vuln category holds vulners).
+  var CHECKS = [
+    { id: "none", name: "none" },
+    { id: "safe", name: "safe", script: "vuln and safe and not external" },
+    { id: "all", name: "all", script: "vuln and not external", warning: "Runs exploits and denial-of-service checks." },
+  ];
+  function checksOffered(levelId) {
+    return levelId !== "discover" && !!level(levelId);
+  }
+
   // Addresses, names, ranges and CIDR only; no word may start with "-",
   // which nmap would take as an option.
   var RANGE_CHARS = /^[0-9A-Za-z.:\/,\- ]+$/;
-  function command(levelId, range) {
+  function command(levelId, range, checksId) {
     var l = level(levelId);
     if (!l) return null;
     var words = String(range == null ? "" : range).trim().split(/\s+/).filter(Boolean);
@@ -40,7 +51,9 @@
     if (six.length && six.length < words.length) {
       return { problem: "IPv4 and IPv6 need separate scans; keep one kind in the range." };
     }
-    var out = { text: (l.root ? "sudo " : "") + "nmap " + (six.length ? "-6 " : "") + l.args + " -oX - " + text };
+    var c = checksOffered(levelId) ? CHECKS.filter(function (x) { return x.id === checksId && x.script; })[0] : null;
+    var script = c ? " --script '" + c.script + "'" : "";
+    var out = { text: (l.root ? "sudo " : "") + "nmap " + (six.length ? "-6 " : "") + l.args + script + " -oX - " + text };
     var wide = six.filter(function (w) { return /\/(\d{1,3})$/.test(w) && Number(w.split("/")[1]) < 112; });
     if (wide.length) out.note = wide[0] + " is too wide to scan in useful time; give addresses or a /112 or narrower.";
     return out;
@@ -76,16 +89,17 @@
     return -1;
   }
 
-  // Elements and their attributes; text between tags is not needed. Returns
-  // the document's root holder, or {error: "not-xml" | "truncated"}.
+  // Elements, their attributes and their text (a script's <elem> values).
+  // Returns the document's root holder, or {error: "not-xml" | "truncated"}.
   var NAME = /^[A-Za-z_][-A-Za-z0-9_:.]*/;
   function parseXml(text) {
-    var root = { name: "", attrs: {}, children: [] };
+    var root = { name: "", attrs: {}, children: [], text: "" };
     var stack = [root];
     var i = 0;
     for (;;) {
       var lt = text.indexOf("<", i);
       if (lt < 0) break;
+      if (lt > i) stack[stack.length - 1].text += decode(text.slice(i, lt));
       var skip = text.startsWith("<!--", lt) ? "-->" : text.startsWith("<?", lt) ? "?>" : text.startsWith("<!", lt) ? ">" : null;
       if (skip) {
         var end = text.indexOf(skip, lt + 2);
@@ -105,7 +119,7 @@
         if (selfClosing) tag = tag.slice(0, -1);
         var m = NAME.exec(tag);
         if (!m) return { error: "not-xml" };
-        var el = { name: m[0], attrs: {}, children: [] };
+        var el = { name: m[0], attrs: {}, children: [], text: "" };
         var ATTR = /([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
         ATTR.lastIndex = m[0].length;
         var a;
@@ -143,6 +157,28 @@
     return { name: s.attrs.name || null, product: s.attrs.product || null, version: s.attrs.version || null };
   }
 
+  // A script's output and, when it wrote nmap's vulnerability report, each
+  // entry of it: a <table> holding <elem key="state">.
+  function elemOf(table, key) {
+    var e = kids(table, "elem").filter(function (x) { return x.attrs.key === key; })[0];
+    return e ? e.text.trim() : null;
+  }
+  function scriptOf(el) {
+    return {
+      id: el.attrs.id || "",
+      output: el.attrs.output || "",
+      vulns: kids(el, "table").filter(function (t) { return elemOf(t, "state") != null; }).map(function (t) {
+        var ids = kids(t, "table").filter(function (x) { return x.attrs.key === "ids"; })[0];
+        return {
+          key: t.attrs.key || "",
+          title: elemOf(t, "title") || "",
+          state: elemOf(t, "state"),
+          ids: kids(ids, "elem").map(function (x) { return x.text.trim(); }).filter(Boolean),
+        };
+      }),
+    };
+  }
+
   function hostOf(h) {
     var names = kids(kid(h, "hostnames"), "hostname");
     var match = kids(kid(h, "os"), "osmatch")[0];
@@ -158,8 +194,9 @@
       device: kids(match, "osclass").map(function (c) { return c.attrs.type; }).filter(Boolean),
       ports: kids(kid(h, "ports"), "port").map(function (p) {
         var state = kid(p, "state");
-        return { protocol: p.attrs.protocol, port: Number(p.attrs.portid), state: state ? state.attrs.state : "", service: serviceOf(p) };
+        return { protocol: p.attrs.protocol, port: Number(p.attrs.portid), state: state ? state.attrs.state : "", service: serviceOf(p), scripts: kids(p, "script").map(scriptOf) };
       }),
+      scripts: kids(kid(h, "hostscript"), "script").map(scriptOf),
     };
   }
 
@@ -171,7 +208,7 @@
       var same = null;
       h.addresses.forEach(function (a) { if (!same && byKey[addressKey(a)]) same = byKey[addressKey(a)]; });
       if (!same) {
-        same = { addresses: [], hostname: h.hostname, os: h.os, device: h.device || [], self: false, ports: [] };
+        same = { addresses: [], hostname: h.hostname, os: h.os, device: h.device || [], self: false, ports: [], scripts: [] };
         out.push(same);
       }
       h.addresses.forEach(function (a) {
@@ -184,6 +221,9 @@
       same.os = same.os || h.os;
       if (!same.device.length) same.device = h.device || [];
       same.self = same.self || h.self;
+      (h.scripts || []).forEach(function (s) {
+        if (!same.scripts.some(function (t) { return t.id === s.id; })) same.scripts.push(s);
+      });
       h.ports.forEach(function (p) {
         var there = same.ports.filter(function (q) { return q.protocol === p.protocol && q.port === p.port; })[0];
         if (!there) same.ports.push(p);
@@ -414,6 +454,22 @@
       var shared = appNets.filter(function (n) { return r.on.indexOf(n) >= 0; });
       var offered = !(target && runsRouter(doc, target));
       var suggested = roleOf(h.device);
+      var hostChecks = readScripts(h.scripts);
+      var ports = h.ports.filter(function (p) { return p.state === "open" && !wrapped(p); }).map(function (p) {
+        var row = portRow(doc, appId, target, r.key, label, p, products);
+        var own = readScripts(p.scripts);
+        row.found = own.found;
+        row.unread = own.unread;
+        return row;
+      });
+      var smb = SMB_PORTS.map(function (proto) { return ports.filter(function (x) { return x.proto === proto; })[0]; }).filter(Boolean)[0];
+      var unplaced = [];
+      if (smb && !(smb.known && !productOfService(doc, smb.known))) smb.found = smb.found.concat(hostChecks.found);
+      else unplaced = hostChecks.found;
+      ports.forEach(function (row) {
+        row.findings = findingsFor(doc, row, row.found);
+        delete row.found;
+      });
       return {
         key: r.key,
         label: label,
@@ -428,9 +484,9 @@
         roleOffered: offered,
         device: suggested.device,
         route: shared.length ? [shared[0]] : [],
-        ports: h.ports.filter(function (p) { return p.state === "open" && !wrapped(p); }).map(function (p) {
-          return portRow(doc, appId, target, r.key, label, p, products);
-        }),
+        ports: ports,
+        unplaced: unplaced.map(function (f) { return { script: f.script, id: findingId(f.vuln), state: f.vuln.state }; }),
+        unread: hostChecks.unread,
       };
     });
 
@@ -447,6 +503,74 @@
       silentUdp: scan.silentUdp || 0,
       hosts: planned,
     };
+  }
+
+  // ---- findings of the checks (spec §4.6) ----
+
+  // Scripts -sV runs by itself (nmap's "version" category): they refine the
+  // version already shown, so they are left out.
+  var VERSION_SCRIPTS = ["allseeingeye-info", "amqp-info", "bacnet-info", "cccam-version", "db2-das-info", "docker-version", "drda-info", "enip-info", "fingerprint-strings", "fox-info", "freelancer-info", "http-server-header", "http-trane-info", "https-redirect", "iax2-version", "ike-version", "jdwp-version", "maxdb-info", "mcafee-epo-agent", "mqtt-subscribe", "murmur-version", "ndmp-version", "netbus-version", "omron-info", "openlookup-info", "oracle-tns-version", "ovs-agent-version", "pptp-version", "quake1-info", "quake3-info", "rfc868-time", "rpc-grind", "rpcinfo", "s7-info", "skypev2-version", "snmp-info", "stun-version", "teamspeak2-version", "ubiquiti-discovery", "ventrilo-info", "vmware-version", "wdb-version", "weblogic-t3-info", "xmpp-info"];
+  // VULNERABLE, LIKELY VULNERABLE, VULNERABLE (DoS), VULNERABLE (Exploitable)
+  var FOUND = /^(LIKELY )?VULNERABLE/;
+  // nmap's host checks all talk SMB: the port they used.
+  var SMB_PORTS = ["tcp/445", "tcp/139"];
+
+  // What a list of scripts says: findings, and what is shown unread.
+  function readScripts(scripts) {
+    var out = { found: [], unread: [] };
+    (scripts || []).forEach(function (s) {
+      if (VERSION_SCRIPTS.indexOf(s.id) >= 0) return;
+      if (!s.vulns.length) {
+        var first = s.output.split("\n").map(function (l) { return l.trim(); }).filter(Boolean)[0] || "";
+        out.unread.push({ script: s.id, text: "not read" + (first ? " · " + first.slice(0, 80) : "") });
+        return;
+      }
+      var untested = false;
+      s.vulns.forEach(function (v) {
+        if (FOUND.test(v.state)) out.found.push({ script: s.id, vuln: v });
+        else if (/^UNKNOWN/.test(v.state)) untested = true;
+      });
+      if (untested) out.unread.push({ script: s.id, text: "could not test" });
+    });
+    return out;
+  }
+  // The finding's first CVE, else its first id, else nmap's key.
+  function findingId(v) {
+    var id = v.ids.filter(function (x) { return /^CVE:/.test(x); })[0] || v.ids[0];
+    return id ? id.slice(id.indexOf(":") + 1) : v.key;
+  }
+  function findingLine(script, v) {
+    var title = String(v.title).trim();
+    var stop = title.search(/\.(\s|$)/);
+    if (stop >= 0) title = title.slice(0, stop);
+    return "nmap " + script + ": " + v.state + ", " + findingId(v) + (title ? " (" + title + ")" : "") + ".";
+  }
+  function noteLines(e) {
+    var p = e && e.parameters && e.parameters["find-exploit"];
+    return p && p.note ? p.note.split("\n") : [];
+  }
+  function productOfService(doc, service) {
+    var a = links(doc, "instance-of").filter(function (x) { return x.from === service; })[0];
+    return a && doc.entities[a.to] ? a.to : null;
+  }
+  // A port's findings, against the product they would mark.
+  function findingsFor(doc, row, found) {
+    var product = row.known ? productOfService(doc, row.known) : row.product.existing;
+    var e = product ? doc.entities[product] : null;
+    return found.map(function (f) {
+      var line = findingLine(f.script, f.vuln);
+      return {
+        key: row.key + "/" + f.script + "/" + f.vuln.key,
+        script: f.script,
+        id: findingId(f.vuln),
+        state: f.vuln.state,
+        line: line,
+        product: product,
+        productLabel: e ? e.label : row.product.label,
+        patchedByAuthor: !!e && !!e.defenses && e.defenses.patched === true,
+        known: !!e && !!e.defenses && e.defenses.patched === false && noteLines(e).indexOf(line) >= 0,
+      };
+    });
   }
 
   // nmap's "tcpwrapped": the connection opened and was closed at once, so
@@ -481,11 +605,14 @@
   }
 
   function defaults(p) {
-    var t = { hosts: {}, ports: {}, roles: {}, network: true };
+    var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true };
     p.hosts.forEach(function (h) {
       t.hosts[h.key] = true;
       t.roles[h.key] = h.role;
-      h.ports.forEach(function (r) { if (!r.known || r.addsFlow) t.ports[r.key] = true; });
+      h.ports.forEach(function (r) {
+        if (!r.known || r.addsFlow) t.ports[r.key] = true;
+        r.findings.forEach(function (f) { t.findings[f.key] = !f.known && !f.patchedByAuthor; });
+      });
     });
     return t;
   }
@@ -498,9 +625,18 @@
   // What the ticked rows add, and whether the result stays in the limits.
   // A new host whose only network is an unticked proposed one is added
   // unattached, as apply does.
+  // The findings that mark a product: ticked, new, on a port that is there.
+  function marking(r, ticks) {
+    if (!r.known && !ticks.ports[r.key]) return [];
+    return r.findings.filter(function (f) { return ticks.findings && ticks.findings[f.key] && !f.known && !f.patchedByAuthor; });
+  }
+  function markKey(r, f) {
+    return f.product ? "id:" + f.product : r.product.identified ? "new:" + r.product.label : "port:" + r.key;
+  }
+
   function summary(doc, p, ticks, limits) {
-    var s = { hosts: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0 };
-    var rel = 0, newProducts = Object.create(null);
+    var s = { hosts: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0 };
+    var rel = 0, newProducts = Object.create(null), marked = Object.create(null);
     var network = !!(p.network && ticks.network);
     p.hosts.forEach(function (h) {
       if (!ticks.hosts[h.key]) return;
@@ -523,6 +659,7 @@
         }
       }
       h.ports.forEach(function (r) {
+        marking(r, ticks).forEach(function (f) { marked[markKey(r, f)] = true; });
         if (!ticks.ports[r.key]) return;
         if (!r.known) {
           s.services++;
@@ -536,6 +673,7 @@
       });
     });
     rel += s.flows;
+    s.unpatched = Object.keys(marked).length;
     s.entities = Object.keys(doc.entities || {}).length + s.hosts + s.networks + s.routers + s.firewalls + s.services + s.products;
     s.relationships = Object.keys(doc.associations || {}).length + Object.keys(doc.flows || {}).length + rel;
     s.tooMany = null;
@@ -549,7 +687,8 @@
   var STAMP = /^Last nmap import: .*$/m;
 
   function stampLine(stamp) {
-    return "Last nmap import: " + stamp.date + ", " + (stamp.level ? stamp.level + " scan" : "scan") + (stamp.range ? " of " + stamp.range : "") + ".";
+    var level = stamp.level ? stamp.level + " scan" + (stamp.checks ? " with " + stamp.checks + " checks" : "") : "scan";
+    return "Last nmap import: " + stamp.date + ", " + level + (stamp.range ? " of " + stamp.range : "") + ".";
   }
 
   // What nmap says it ran (its args), not what the dialog shows now: the
@@ -557,16 +696,22 @@
   // nmap does not say.
   function stampFor(scan, range, date) {
     var args = String((scan && scan.args) || "").replace(/ -6 /, " ");
+    // nmap writes a script expression with spaces in double quotes.
+    var script = / --script ("[^"]*"|'[^']*'|\S+)/.exec(args);
+    var c = script ? CHECKS.filter(function (x) { return x.script && x.script === script[1].replace(/^["']|["']$/g, ""); })[0] : null;
+    if (c) args = args.replace(script[0], "");
     var l = LEVELS.filter(function (x) { return args.indexOf("nmap " + x.args + " -oX - ") >= 0; })[0];
     var targets = targetsOf(scan);
-    return { date: date, level: l ? l.name : null, range: targets || String(range == null ? "" : range).trim().replace(/\s+/g, " ") };
+    var out = { date: date, level: l ? l.name : null, range: targets || String(range == null ? "" : range).trim().replace(/\s+/g, " ") };
+    if (c && l) out.checks = c.id;
+    return out;
   }
 
   // `specOf(kind)`: the catalog entry of a kind, for its parameter slots.
   function apply(doc, p, ticks, specOf, stamp) {
     var s = summary(doc, p, ticks, null);
     var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged; });
-    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.attached && !s.routers && !merging) return null;
+    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.attached && !s.routers && !s.unpatched && !merging) return null;
     var next = JSON.parse(JSON.stringify(doc));
     function step(edit) {
       if (!edit) throw new Error("the nmap import could not be applied");
@@ -582,7 +727,7 @@
       next.entities[network].addresses = p.network.addresses.slice();
     }
     var madeProducts = Object.create(null);
-    var flows = [];
+    var flows = [], marks = [];
     p.hosts.forEach(function (h) {
       if (!ticks.hosts[h.key]) return;
       var host = h.known || h.merged;
@@ -611,7 +756,12 @@
         }
       }
       h.ports.forEach(function (r) {
-        if (!ticks.ports[r.key]) return;
+        // A known port with nothing to add is unticked, and its product still
+        // takes the finding.
+        if (!ticks.ports[r.key]) {
+          if (r.known) marking(r, ticks).forEach(function (f) { marks.push({ product: productOfService(next, r.known), line: f.line }); });
+          return;
+        }
         var service = r.known;
         if (!service) {
           service = step(A.addEntity(next, "service", r.label, specOf("service"))).entity;
@@ -624,6 +774,7 @@
           }
           link("instance-of", service, product);
         }
+        marking(r, ticks).forEach(function (f) { marks.push({ product: productOfService(next, service), line: f.line }); });
         if (r.addsFlow) flows.push({ label: r.label + " on " + h.label, target: service, host: host, route: h.route, protocol: r.proto });
       });
     });
@@ -633,6 +784,18 @@
       var net = f.route[0] === "new" ? network : f.route[0];
       var ok = net && p.appHost && isAttached(next, p.appHost, net) && isAttached(next, f.host, net);
       step(L.putFlow(next, null, { label: f.label, source: p.app, target: f.target, route: ok ? [net] : [], protocol: f.protocol }));
+    });
+    // A finding marks its product unpatched and says why; its time stays as
+    // it is. The author's "patched" stands.
+    marks.forEach(function (m) {
+      var e = m.product && next.entities[m.product];
+      if (!e || (e.defenses && e.defenses.patched === true)) return;
+      e.defenses = e.defenses || {};
+      e.defenses.patched = false;
+      e.parameters = e.parameters || {};
+      var fe = e.parameters["find-exploit"] = e.parameters["find-exploit"] || { status: "unknown" };
+      var lines = noteLines(e);
+      if (lines.indexOf(m.line) < 0) fe.note = lines.concat([m.line]).join("\n");
     });
     var old = next.entities[p.app].description || "";
     var line = stampLine(stamp);
@@ -663,7 +826,7 @@
     return !Object.keys(entities).some(function (id) { return entities[id].tool === "nmap"; });
   }
 
-  var api = { LEVELS: LEVELS, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, apply: apply, addNmap: addNmap, stampLine: stampLine, stampFor: stampFor, hintWanted: hintWanted };
+  var api = { LEVELS: LEVELS, CHECKS: CHECKS, checksOffered: checksOffered, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, apply: apply, addNmap: addNmap, stampLine: stampLine, stampFor: stampFor, hintWanted: hintWanted };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmap = api;
 })();

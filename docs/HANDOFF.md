@@ -5,6 +5,26 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — nmap checks (2026-09-24)
+
+`nmap-scripts` (nmap design §3.2, §3.4, §4.6; owner's design in
+conversation): a **Checks** choice beside the level, none · safe · all
+(`N.CHECKS`, not for Discover), adds `--script 'vuln and safe and not
+external'` or `'vuln and not external'`. The owner: nothing may ask a third
+party (so never `vulners`, and `not external` always), and users are
+responsible adults (*all* runs exploits and DoS checks; one warning line, no
+filtering). `read` keeps `<elem>` text; ports and hosts carry `scripts`
+(`{id, output, vulns}`). A `state` of (LIKELY) VULNERABLE is a finding:
+`patched: false` on the port's product and one line on its `find-exploit`
+note (`nmap ssl-heartbleed: VULNERABLE, CVE-2014-0160 (…).`), status and time
+untouched; an author's `patched: true` stands. Host checks (SMB) go to
+tcp/445, else tcp/139, else show *not applied*. UNKNOWN shows *could not
+test*; `version`-category scripts are left out; anything else shows *not
+read*. `summary.unpatched` counts products. Fixtures: `checks-lab.xml`
+(hand-written in nmap's shape; findings need a vulnerable target),
+`imported-checks.doc.json` (pinned by Node, `tests/json.rs`,
+`check-nmap-wasm.js`). The roadmap's infrastructure section is empty now.
+
 ## Continuation — nmap hint (2026-09-24)
 
 Owner request: a light bulb in the canvas's bottom-right corner

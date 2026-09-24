@@ -72,21 +72,6 @@ agreement in CI, and the workflow by the owner's browser walkthrough. Numerical
 agreement with the lecture's screenshots is not an acceptance criterion without
 the underlying rules and calibrated inputs.
 
-## Infrastructure import
-
-Owner decision, 2026-09-24: build the network from nmap results pasted from
-hosts the owner can reach, ready now, beside the lecture milestone. Spec:
-[`2026-09-24-nmap-import-design.md`](docs/superpowers/specs/2026-09-24-nmap-import-design.md).
-
-### nmap-scripts — Read nmap script results into the model
-needs: —            cost: 2   benefit: 3
-Offer commands with NSE scripts (such as `vuln`, `vulners`) and read their
-findings into the preview: a reported vulnerability marks the product
-unpatched with the finding as its note, never inventing a duration. Needs its
-own short design of which scripts are read and what each finding sets. Done
-when the chosen scripts' fixtures import as designed and unknown script
-output is shown, not guessed at.
-
 ## Compatibility after the lecture milestone
 
 ### mal-securicad-compatibility — Reuse existing models and libraries
