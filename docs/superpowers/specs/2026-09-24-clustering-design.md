@@ -109,7 +109,12 @@ One node, `cluster/<id>`:
   arc per state, sized by how many members have it. The tooltip lists each
   vulnerable member's reasons, as a single component's does.
 * **Unknowns.** The members' unknown counts, summed, as a component's count.
-* **Pins.** The members' foothold and target pins.
+* **Pins.** The members' foothold and target pins; each still belongs to
+  its member (picked up, it moves that member's pin). A pin dropped on a
+  closed cluster (owner, 2026-09-24) opens a menu at the drop, *foothold
+  on …* and the members that take one, each with its states as a submenu
+  where it has several; a cluster none of whose members takes a pin says
+  so.
 * **Position.** Where it was last put in this browser (kept under
   `cluster/<id>` with the positions), else the centre of its members.
 
@@ -187,6 +192,14 @@ each with its icon, selecting itself on click, and a × that takes it out.
 Selecting a member of a closed cluster opens that member's form and lights
 the cluster node; the cluster stays closed, so looking never edits the file.
 
+**Dragging a member out** (owner, 2026-09-24): a member's row can be picked
+up and dropped on the canvas, as a pin is from its tray. Dropped on the
+canvas, it is taken out of the cluster (one edit) and stands where it was
+dropped (its position stored in this browser); every line it has is kept,
+since a cluster never touches a link: its own lines are drawn to it again,
+and those to members still inside end at the cluster. Dropped on another
+closed cluster, it moves into that one. Esc during the drag cancels it.
+
 ## 6. Units and tests
 
 * **Rust (`effractor-core`, `effractor-format`).** `Architecture::clusters`;
@@ -201,7 +214,7 @@ the cluster node; the cluster stays closed, so looking never edits the file.
   `remove` of a member); the drawn image of a cluster: icon precedence, ring
   sectors, summed unknowns, pins, merged and hidden lines with counts, the
   permission rules; the rectangle hit test; group drag offsets and
-  open/close in place.
+  open/close in place; `moveTo` (a member dropped on another cluster).
 * **The page** is checked by eye in a preview on 8081.
 
 ## 7. Not in this item
