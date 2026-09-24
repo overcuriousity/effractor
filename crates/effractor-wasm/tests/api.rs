@@ -183,7 +183,10 @@ fn the_component_catalog_is_an_ok_answer() {
     let out = call(api::component_catalog());
     assert_eq!(out["diagnostics"], json!([]));
     assert_eq!(out["ok"]["library"]["version"], 1);
-    assert_eq!(out["ok"]["rules"].as_array().unwrap().len(), 16);
+    assert_eq!(
+        out["ok"]["rules"].as_array().unwrap().len(),
+        effractor_components::RULES.len()
+    );
     assert_eq!(out["ok"]["entities"][5]["kind"], "service");
 }
 

@@ -3,12 +3,15 @@
 use effractor_components::{RULES, catalog};
 use serde_json::Value;
 
-const RULE_IDS: [&str; 16] = [
+const RULE_IDS: [&str; 19] = [
     "foothold",
     "admin-implies-user",
     "host-execution",
     "execution-privilege",
     "hosted-router",
+    "hosted-host",
+    "guest-escape",
+    "router-escape",
     "zone-access",
     "flow-permission",
     "flow-connect",
@@ -52,7 +55,7 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
     );
     assert_eq!(ids(&c["associations"], "kind").len(), 9);
     assert_eq!(ids(&c["states"], "id").len(), 5);
-    assert_eq!(ids(&c["parameters"], "slot").len(), 8);
+    assert_eq!(ids(&c["parameters"], "slot").len(), 9);
     let rules = ids(&c["rules"], "id");
     assert_eq!(rules, RULE_IDS);
     for rule in &RULES {
@@ -63,7 +66,12 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
     assert_eq!(c["limits"]["entities"], 500);
     assert_eq!(c["limits"]["generated_nodes"], 5000);
     // A service's exploit rule is the one patching replaces.
-    let find = &c["rules"][9];
+    let find = c["rules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == "service-find-exploit")
+        .unwrap();
     assert_eq!(find["duration"]["slot"], "find-exploit");
     assert_eq!(find["duration"]["replaced_by"]["defense"], "patched");
     assert_eq!(

@@ -9,9 +9,12 @@ use effractor_components::{
     Binding, GeneratedGraph, GeneratedKind, RULES, ResolvedTtc, generate, resolve,
 };
 use effractor_core::architecture::{
-    Architecture, Association, Entity, EntityKind, Privilege, Relation,
+    Architecture, Association, Entity, EntityKind, Privilege, Relation, Slot,
 };
 use effractor_core::{AssociationId, Code, Document, FlowId, ScenarioId};
+
+/// Rules no shipped example uses yet; emptied when the cloud example lands.
+const NOT_YET_IN_AN_EXAMPLE: &[&str] = &["hosted-host", "guest-escape", "router-escape"];
 
 const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
 
@@ -308,7 +311,7 @@ fn every_rule_is_used_by_the_lecture_and_names_what_it_bound() {
     let all: BTreeSet<&str> = RULES
         .iter()
         .map(|r| r.id)
-        .filter(|r| *r != "hosted-router")
+        .filter(|r| *r != "hosted-router" && !NOT_YET_IN_AN_EXAMPLE.contains(r))
         .collect();
     assert_eq!(used, all);
 
@@ -579,7 +582,7 @@ fn user_software_never_grants_admin_and_root_software_does() {
 }
 
 #[test]
-fn a_router_on_a_host_is_controlled_from_it_and_not_the_reverse() {
+fn a_router_on_a_host_is_controlled_from_it_and_left_by_an_escape() {
     let mut m = lecture();
     add(&mut m, "hypervisor", EntityKind::Host);
     relate(
@@ -614,11 +617,13 @@ fn a_router_on_a_host_is_controlled_from_it_and_not_the_reverse() {
         .unwrap();
     let names: Vec<&str> = origin.associations.iter().map(|a| a.as_str()).collect();
     assert_eq!(names, ["router-vm"]);
-    // The router's admin is not the hypervisor's: a way out of the VM would
-    // be its own step.
+    // The router's admin is not the hypervisor's: the way out of the VM is
+    // its own timed step.
+    let out = inputs(&graph, "state/host/hypervisor/admin");
+    assert!(!out.contains(&"state/router/bridge/admin".to_owned()));
     assert!(
-        !inputs(&graph, "state/host/hypervisor/admin")
-            .contains(&"state/router/bridge/admin".to_owned())
+        out.contains(&"action/router-escape/bridge".to_owned()),
+        "{out:?}"
     );
     assert!(
         !graph
@@ -815,4 +820,64 @@ fn a_hosting_cycle_is_finite_and_stays_a_cycle() {
     let reached = possible(&generate(&m).unwrap());
     assert!(!reached.contains("state/host/workstation/user"));
     assert!(!reached.contains("state/host/server/admin"));
+}
+
+#[test]
+fn a_hypervisor_controls_its_guests_and_a_guest_escapes_by_a_timed_step() {
+    let mut m = lecture();
+    add(&mut m, "hv", EntityKind::Host);
+    relate(
+        &mut m,
+        "hv-server",
+        Relation::Hosts {
+            from: id("hv"),
+            to: id("server"),
+            privilege: Privilege::User,
+        },
+    );
+    let g = generate(&m).unwrap();
+    // Host control at the guest's privilege is guest admin, logically.
+    assert!(inputs(&g, "state/host/server/admin").contains(&"state/host/hv/user".to_owned()));
+    // Back out: guest admin, then the escape, then the host at that privilege.
+    assert_eq!(
+        inputs(&g, "action/guest-escape/server"),
+        vec!["state/host/server/admin"]
+    );
+    assert!(inputs(&g, "state/host/hv/user").contains(&"action/guest-escape/server".to_owned()));
+    assert!(matches!(
+        node(&g, "action/guest-escape/server").duration,
+        Binding::Parameter {
+            base: Slot::Escape,
+            replacement: None,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn a_router_on_a_host_escapes_to_it_by_a_timed_step() {
+    let mut m = lecture();
+    add(&mut m, "box", EntityKind::Host);
+    relate(
+        &mut m,
+        "box-bridge",
+        Relation::Hosts {
+            from: id("box"),
+            to: id("bridge"),
+            privilege: Privilege::Admin,
+        },
+    );
+    let g = generate(&m).unwrap();
+    assert!(inputs(&g, "state/router/bridge/admin").contains(&"state/host/box/admin".to_owned()));
+    assert_eq!(
+        inputs(&g, "action/router-escape/bridge"),
+        vec!["state/router/bridge/admin"]
+    );
+    assert!(inputs(&g, "state/host/box/admin").contains(&"action/router-escape/bridge".to_owned()));
+}
+
+#[test]
+fn an_unhosted_host_has_no_escape_step() {
+    let g = generate(&lecture()).unwrap();
+    assert!(g.nodes.iter().all(|n| !n.id.contains("escape")));
 }

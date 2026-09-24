@@ -324,10 +324,10 @@
     });
   }
 
-  // What the catalog's kind lists cannot say: a router runs on a host, not
-  // on another router. The file's validator says the same.
+  // What the catalog's kind lists cannot say: a router or a guest host runs
+  // on a host, not on a router. The file's validator says the same.
   function endsAllowed(relation, fromKind, toKind) {
-    return !(relation === "hosts" && toKind === "router" && fromKind !== "host");
+    return !(relation === "hosts" && (toKind === "router" || toKind === "host") && fromKind !== "host");
   }
 
   // The association kinds `id` can stand in, each with its direction and the

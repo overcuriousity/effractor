@@ -148,6 +148,7 @@ impl EntityKind {
             ],
             Self::Credential => &[Slot::Extract, Slot::ExtractProtected],
             Self::Account => &[Slot::AdminLogin],
+            Self::Host | Self::Router => &[Slot::Escape],
             _ => &[],
         }
     }
@@ -287,10 +288,11 @@ pub enum Slot {
     Extract,
     ExtractProtected,
     AdminLogin,
+    Escape,
 }
 
 impl Slot {
-    pub const ALL: [Slot; 8] = [
+    pub const ALL: [Slot; 9] = [
         Self::Connect,
         Self::FindExploit,
         Self::FindExploitPatched,
@@ -299,6 +301,7 @@ impl Slot {
         Self::Extract,
         Self::ExtractProtected,
         Self::AdminLogin,
+        Self::Escape,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -311,6 +314,7 @@ impl Slot {
             Self::Extract => "extract",
             Self::ExtractProtected => "extract-protected",
             Self::AdminLogin => "admin-login",
+            Self::Escape => "escape",
         }
     }
 }
@@ -507,8 +511,8 @@ impl RelationKind {
         use EntityKind as K;
         match self {
             Self::Attached => &[K::Network],
-            // A router runs on a host too: an appliance's box, a VM.
-            Self::Hosts => &[K::Application, K::Service, K::Router],
+            // A router or a guest host runs on a host too: an appliance's box, a VM, a container.
+            Self::Hosts => &[K::Application, K::Service, K::Router, K::Host],
             Self::Filters => &[K::Firewall],
             Self::Stores => &[K::Credential],
             Self::Authenticates => &[K::Account],

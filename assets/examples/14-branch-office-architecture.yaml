@@ -16,15 +16,26 @@ entities:
     kind: host
     label: Firewall appliance
     description: The box the gateway runs on; its management SSH listens on the office network
+    parameters:
+      escape:
+        status: unknown
   gateway:
     kind: router
     label: Gateway
+    parameters:
+      escape:
+        status: illustrative
+        ttc: "Exponential(mean 20)"
+        note: "Teaching input: leaving the gateway VM for its appliance takes weeks"
   gateway-rules:
     kind: firewall
     label: Gateway rules
   laptop:
     kind: host
     label: Staff laptop
+    parameters:
+      escape:
+        status: unknown
   smb-client:
     kind: application
     label: File share client
@@ -34,6 +45,9 @@ entities:
   files:
     kind: host
     label: File server
+    parameters:
+      escape:
+        status: unknown
   smb:
     kind: service
     label: File share

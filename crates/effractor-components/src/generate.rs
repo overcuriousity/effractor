@@ -374,16 +374,58 @@ impl<'a> Builder<'a> {
                 associations: vec![aid.clone()],
                 ..origin(rule)
             };
-            // A router on a host: the box controls it, and nothing more.
-            if self.kind(to) == EntityKind::Router {
-                let admin = self.state_id(to, State::Admin.as_str());
-                self.produce(&machine, &admin, bound("hosted-router"));
-                continue;
+            match self.kind(to) {
+                // A router on a host: the box controls it; leaving it is an escape.
+                EntityKind::Router => {
+                    let admin = self.state_id(to, State::Admin.as_str());
+                    self.produce(&machine, &admin, bound("hosted-router"));
+                    self.escape("router-escape", to, from, *privilege, aid);
+                }
+                // A guest on its host: the same, as the guest's admin.
+                EntityKind::Host => {
+                    let admin = self.state_id(to, State::Admin.as_str());
+                    self.produce(&machine, &admin, bound("hosted-host"));
+                    self.escape("guest-escape", to, from, *privilege, aid);
+                }
+                _ => {
+                    let control = self.state_id(to, State::Control.as_str());
+                    self.produce(&machine, &control, bound("host-execution"));
+                    self.produce(&control, &machine, bound("execution-privilege"));
+                }
             }
-            let control = self.state_id(to, State::Control.as_str());
-            self.produce(&machine, &control, bound("host-execution"));
-            self.produce(&control, &machine, bound("execution-privilege"));
         }
+    }
+
+    /// Out of a guest or a hosted router to its host, as the host's privilege.
+    fn escape(
+        &mut self,
+        rule: &str,
+        guest: &'a EntityId,
+        host: &'a EntityId,
+        privilege: Privilege,
+        hosts: &'a AssociationId,
+    ) {
+        let owner = Owner::Entity(guest.clone());
+        let o = Origin {
+            entities: vec![guest.clone(), host.clone()],
+            associations: vec![hosts.clone()],
+            paths: vec![owner.slot_path(Slot::Escape)],
+            ..origin(rule)
+        };
+        let admin = self.state_id(guest, State::Admin.as_str());
+        let machine = self.machine_id(host, privilege);
+        self.action(
+            format!("action/{rule}/{guest}"),
+            format!("Escape · {} to {}", self.label(guest), self.label(host)),
+            Binding::Parameter {
+                owner,
+                base: Slot::Escape,
+                replacement: None,
+            },
+            &[admin],
+            &machine,
+            o,
+        );
     }
 
     fn zone_access(&mut self) {

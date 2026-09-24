@@ -18,24 +18,36 @@ entities:
   edge:
     kind: router
     label: Edge router
+    parameters:
+      escape:
+        status: unknown
   edge-rules:
     kind: firewall
     label: Edge rules
   inner:
     kind: router
     label: Inner router
+    parameters:
+      escape:
+        status: unknown
   inner-rules:
     kind: firewall
     label: Inner rules
   attacker-box:
     kind: host
     label: Attacker machine
+    parameters:
+      escape:
+        status: unknown
   browser:
     kind: application
     label: Browser
   web:
     kind: host
     label: Web server
+    parameters:
+      escape:
+        status: unknown
   shop:
     kind: service
     label: Shop application
@@ -62,6 +74,9 @@ entities:
   db-host:
     kind: host
     label: Database server
+    parameters:
+      escape:
+        status: unknown
   db:
     kind: service
     label: Database

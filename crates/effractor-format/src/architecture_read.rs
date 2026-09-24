@@ -56,7 +56,7 @@ pub const EVIDENCE: [(&str, Evidence); 4] = [
     ("assumed", Evidence::Assumed),
     ("calibrated", Evidence::Calibrated),
 ];
-pub const SLOTS: [(&str, Slot); 8] = [
+pub const SLOTS: [(&str, Slot); 9] = [
     ("connect", Slot::Connect),
     ("find-exploit", Slot::FindExploit),
     ("find-exploit-patched", Slot::FindExploitPatched),
@@ -65,6 +65,7 @@ pub const SLOTS: [(&str, Slot); 8] = [
     ("extract", Slot::Extract),
     ("extract-protected", Slot::ExtractProtected),
     ("admin-login", Slot::AdminLogin),
+    ("escape", Slot::Escape),
 ];
 pub const DEFENSES: [(&str, Defense); 2] = [
     ("patched", Defense::Patched),

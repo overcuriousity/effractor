@@ -21,7 +21,9 @@
       "states": [
         "admin"
       ],
-      "parameters": [],
+      "parameters": [
+        "escape"
+      ],
       "defense": null
     },
     {
@@ -35,12 +37,14 @@
     {
       "kind": "host",
       "description": "A workstation or server. `user` and `admin` control are distinct.",
-      "meaning": "A machine: a workstation, a server or a virtual machine.",
+      "meaning": "A machine: a workstation, a server, a virtual machine or a container. It may run on another host.",
       "states": [
         "user",
         "admin"
       ],
-      "parameters": [],
+      "parameters": [
+        "escape"
+      ],
       "defense": null
     },
     {
@@ -114,10 +118,11 @@
       "to": [
         "application",
         "service",
-        "router"
+        "router",
+        "host"
       ],
       "field": "privilege",
-      "description": "The machine an executable or a router runs on, at `privilege: user | admin`. Each has one host; a router runs only on a host."
+      "description": "The machine an executable, a router or a guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host."
     },
     {
       "kind": "filters",
@@ -275,6 +280,12 @@
       "name": "Admin login",
       "owner": "account",
       "description": "Time to authenticate to a machine's management from an administering network."
+    },
+    {
+      "slot": "escape",
+      "name": "Escape to the host",
+      "owner": "host or router",
+      "description": "Time to break out of a virtual machine, container or appliance to the host it runs on, once in admin control of it."
     }
   ],
   "rules": [
@@ -363,7 +374,62 @@
       "scope": "one per hosts association naming a router",
       "assumptions": [
         "Whoever controls the machine a router runs on, at the privilege it runs with, controls the router.",
-        "The reverse is not assumed: administering a router on a host does not reach the host, since leaving a VM or appliance is its own step."
+        "Leaving the router for its host is its own timed step, the router's escape."
+      ]
+    },
+    {
+      "id": "hosted-host",
+      "title": "Controlling the host controls its guests",
+      "version": 1,
+      "bindings": [
+        "hosts"
+      ],
+      "prerequisites": "the hosting host at the guest's declared privilege (admin also satisfies user)",
+      "output": "guest host.admin",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per hosts association naming a host",
+      "assumptions": [
+        "Whoever controls a hypervisor or container host at the privilege a guest runs with controls the guest."
+      ]
+    },
+    {
+      "id": "guest-escape",
+      "title": "Escape to the host",
+      "version": 1,
+      "bindings": [
+        "hosts"
+      ],
+      "prerequisites": "guest host.admin",
+      "output": "the hosting host at the guest's declared privilege",
+      "duration": {
+        "kind": "slot",
+        "slot": "escape",
+        "replaced_by": null
+      },
+      "scope": "one per guest host",
+      "assumptions": [
+        "Breaking out of a virtual machine or container is one timed step; hardening it is an edit of that time."
+      ]
+    },
+    {
+      "id": "router-escape",
+      "title": "Escape from the router to its host",
+      "version": 1,
+      "bindings": [
+        "hosts"
+      ],
+      "prerequisites": "router.admin, for a router that runs on a host",
+      "output": "the hosting host at the router's declared privilege",
+      "duration": {
+        "kind": "slot",
+        "slot": "escape",
+        "replaced_by": null
+      },
+      "scope": "one per hosted router",
+      "assumptions": [
+        "Leaving a router VM or appliance for its host is one timed step."
       ]
     },
     {

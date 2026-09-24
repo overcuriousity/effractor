@@ -297,6 +297,15 @@ impl Cx<'_> {
                         "a router runs on a host, not on another router",
                     )
                 }
+                (Relation::Hosts { .. }, Some(from), Some(EntityKind::Host))
+                    if from != EntityKind::Host =>
+                {
+                    self.error(
+                        Code::AssociationType,
+                        format!("{at}.from"),
+                        "a host runs on a host, not on a router",
+                    )
+                }
                 (
                     Relation::Stores {
                         privilege: Privilege::Admin,
@@ -338,7 +347,11 @@ impl Cx<'_> {
         }
 
         for (what, by, one) in [
-            ("an executable or router has one host", hosts_of, "hosts"),
+            (
+                "an executable, router or guest host has one host",
+                hosts_of,
+                "hosts",
+            ),
             ("a router manages one firewall", filters_from, "filters"),
             ("a firewall is managed by one router", filters_to, "filters"),
         ] {
@@ -399,6 +412,49 @@ impl Cx<'_> {
                     format!("\"{id}\" belongs to no router yet: no `filters` association names it"),
                 ),
                 _ => {}
+            }
+        }
+        self.hosting_cycles();
+    }
+
+    /// Guest hosts follow their host upwards; returning to the start is a cycle,
+    /// reported once, at the association that closes it from its first member.
+    fn hosting_cycles(&mut self) {
+        let m = self.m;
+        let mut up: HashMap<&EntityId, (&EntityId, &AssociationId)> = HashMap::new();
+        for (id, a) in &m.associations {
+            if let Relation::Hosts { from, to, .. } = &a.relation
+                && self.kind_of(to) == Some(EntityKind::Host)
+            {
+                up.entry(to).or_insert((from, id));
+            }
+        }
+        let mut guests: Vec<&EntityId> = up.keys().copied().collect();
+        guests.sort();
+        let mut reported: HashSet<&EntityId> = HashSet::new();
+        for start in guests {
+            if reported.contains(start) {
+                continue;
+            }
+            let mut chain = vec![start];
+            let mut at = start;
+            while let Some(&(host, _)) = up.get(at) {
+                if host == start {
+                    let names: Vec<&str> = chain.iter().map(|e| e.as_str()).collect();
+                    let association = up[start].1;
+                    self.error(
+                        Code::Cycle,
+                        format!("associations.{association}"),
+                        format!("hosting runs in a circle: {} → {start}", names.join(" → ")),
+                    );
+                    reported.extend(chain.iter().copied());
+                    break;
+                }
+                if chain.contains(&host) {
+                    break;
+                }
+                chain.push(host);
+                at = host;
             }
         }
     }

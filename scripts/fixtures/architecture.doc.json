@@ -24,7 +24,12 @@
     },
     "bridge": {
       "kind": "router",
-      "label": "Router"
+      "label": "Router",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      }
     },
     "filter": {
       "kind": "firewall",
@@ -32,11 +37,21 @@
     },
     "workstation": {
       "kind": "host",
-      "label": "Workstation"
+      "label": "Workstation",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      }
     },
     "server": {
       "kind": "host",
-      "label": "Server"
+      "label": "Server",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      }
     },
     "ssh-client": {
       "kind": "application",

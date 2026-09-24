@@ -81,7 +81,8 @@ in a later release. The numbers are teaching inputs, marked `illustrative`
 - 14: the gateway `hosts`-runs on the appliance. Denying the file share at the
   gateway (`deny-smb`) still leaves exploiting the appliance's management SSH,
   whose control is control of the gateway and so of its rules. Patching the
-  appliance as well leaves nothing.
+  appliance as well leaves nothing. The way back, from the gateway out to the
+  appliance, is its own timed step: the gateway's escape.
 - 15: updating the shop leaves the stolen password route, vaulting the
   password leaves the shop exploit; together they leave little. The
   database's discovery time is `assumed` with no note: allowed, and shown as

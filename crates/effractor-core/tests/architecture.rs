@@ -218,3 +218,90 @@ fn only_a_calibrated_value_must_say_what_it_rests_on() {
         assert_eq!(missing, refused, "{status:?}");
     }
 }
+
+fn vm_model() -> Architecture {
+    let mut m = Architecture::new("VMs");
+    for (id, kind) in [
+        ("hv", EntityKind::Host),
+        ("vm", EntityKind::Host),
+        ("ct", EntityKind::Host),
+    ] {
+        m.entities
+            .insert(id.parse().unwrap(), Entity::new(kind, id));
+    }
+    let hosts = |from: &str, to: &str| Association {
+        relation: Relation::Hosts {
+            from: from.parse().unwrap(),
+            to: to.parse().unwrap(),
+            privilege: Privilege::User,
+        },
+        description: None,
+    };
+    m.associations
+        .insert("hv-vm".parse().unwrap(), hosts("hv", "vm"));
+    m.associations
+        .insert("vm-ct".parse().unwrap(), hosts("vm", "ct"));
+    m
+}
+
+#[test]
+fn a_host_may_run_on_a_host_and_nest() {
+    let d = validate_architecture(&vm_model());
+    assert!(
+        d.iter()
+            .all(|d| d.code != Code::AssociationType && d.code != Code::Cycle),
+        "{d:?}"
+    );
+}
+
+#[test]
+fn every_host_and_router_carries_an_escape_slot() {
+    assert_eq!(EntityKind::Host.slots(), &[Slot::Escape]);
+    assert_eq!(EntityKind::Router.slots(), &[Slot::Escape]);
+}
+
+#[test]
+fn a_hosting_cycle_is_an_error() {
+    let mut m = vm_model();
+    m.associations.insert(
+        "ct-hv".parse().unwrap(),
+        Association {
+            relation: Relation::Hosts {
+                from: "ct".parse().unwrap(),
+                to: "hv".parse().unwrap(),
+                privilege: Privilege::User,
+            },
+            description: None,
+        },
+    );
+    let cycles: Vec<_> = validate_architecture(&m)
+        .into_iter()
+        .filter(|d| d.code == Code::Cycle)
+        .collect();
+    assert_eq!(cycles.len(), 1, "{cycles:?}");
+    assert!(cycles[0].message.contains("hv") && cycles[0].message.contains("ct"));
+}
+
+#[test]
+fn a_router_cannot_host_a_host() {
+    let mut m = vm_model();
+    m.entities
+        .insert("r".parse().unwrap(), Entity::new(EntityKind::Router, "R"));
+    m.associations.insert(
+        "r-vm2".parse().unwrap(),
+        Association {
+            relation: Relation::Hosts {
+                from: "r".parse().unwrap(),
+                to: "hv".parse().unwrap(),
+                privilege: Privilege::Admin,
+            },
+            description: None,
+        },
+    );
+    let d = validate_architecture(&m);
+    assert!(
+        d.iter()
+            .any(|d| d.code == Code::AssociationType && d.path == "associations.r-vm2.from"),
+        "{d:?}"
+    );
+}

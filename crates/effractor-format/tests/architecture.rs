@@ -166,7 +166,7 @@ fn ids_need_a_letter_but_tree_nodes_do_not() {
 fn endpoint_kinds_are_checked_for_every_association() {
     let (right, wrong): (Vec<_>, Vec<_>) = [
         ("attached", "workstation", "client-net", "sshd", "server"),
-        ("hosts", "server", "sshd", "client-net", "workstation"),
+        ("hosts", "server", "sshd", "client-net", "server-account"),
         ("filters", "bridge", "bridge-fw", "workstation", "sshd"),
         (
             "stores",

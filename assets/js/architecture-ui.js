@@ -218,7 +218,7 @@
   function menuFor(id, x, y) {
     app.select("entity/" + id);
     var items = [["Add linked", "Tab", { items: function () { return addLinkedItems(id); } }], ["Rename", "F2", focusLabel]];
-    if (Object.keys(doc().entities[id].parameters || {}).length) items.push(["Edit parameters", "P", firstParameter]);
+    if (window.effractorArchitectureView.shownSlots(doc(), id).length) items.push(["Edit parameters", "P", firstParameter]);
     extraItems.forEach(function (more) {
       items = items.concat(more(id));
     });
@@ -427,8 +427,8 @@
 
   function firstParameter() {
     var e = entity();
-    var slots = e ? Object.keys(e.parameters || {}) : [];
-    if (!slots.length) return app.say("no parameters for a " + (e ? e.kind : "selection"));
+    var slots = e ? window.effractorArchitectureView.shownSlots(doc(), entityId()) : [];
+    if (!slots.length) return app.say("no parameters for a " + (e ? e.kind : "selection") + (e && e.parameters && e.parameters.escape ? " that runs on no host" : ""));
     var unknown = slots.filter(function (s) { return e.parameters[s].status === "unknown"; })[0];
     openSlot = slotKey({ entity: entityId() }, unknown || slots[0]);
     renderProperties();
@@ -509,8 +509,10 @@
     return form;
   }
 
+  // An entity's slots as the view shows them (an escape only where hosted);
+  // a flow's all.
   function parameters(form, owner, e) {
-    var slots = Object.keys(e.parameters || {});
+    var slots = owner.entity ? window.effractorArchitectureView.shownSlots(doc(), owner.entity) : Object.keys(e.parameters || {});
     if (!slots.length) return;
     var list = document.createElement("ul");
     list.className = "parameters";

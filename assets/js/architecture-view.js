@@ -8,9 +8,21 @@
     return !!o && Object.prototype.hasOwnProperty.call(o, k);
   }
 
-  function unknowns(entity) {
-    var parameters = entity.parameters || {};
-    return Object.keys(parameters).filter(function (slot) {
+  // The slots worth showing: an escape only where there is a host to escape to.
+  function shownSlots(doc, id) {
+    var e = doc.entities[id];
+    var hosted = Object.keys(doc.associations || {}).some(function (k) {
+      var a = doc.associations[k];
+      return a.kind === "hosts" && a.to === id;
+    });
+    return Object.keys((e && e.parameters) || {}).filter(function (slot) {
+      return slot !== "escape" || hosted;
+    });
+  }
+
+  function unknowns(doc, id) {
+    var parameters = doc.entities[id].parameters || {};
+    return shownSlots(doc, id).filter(function (slot) {
       return parameters[slot] && parameters[slot].status === "unknown";
     }).length;
   }
@@ -96,7 +108,7 @@
     var nodes = Object.keys(entities).map(function (id) {
       var e = entities[id];
       var label = String(e.label == null ? id : e.label);
-      var open = unknowns(e);
+      var open = unknowns(doc, id);
       return {
         id: "entity/" + id,
         label: label,
@@ -118,7 +130,7 @@
     return { profile: "architecture", nodes: nodes, edges: edges, permits: permits };
   }
 
-  var api = { describe: describe, route: route };
+  var api = { describe: describe, route: route, shownSlots: shownSlots };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureView = api;
 })();

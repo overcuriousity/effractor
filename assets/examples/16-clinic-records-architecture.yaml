@@ -15,18 +15,27 @@ entities:
   core:
     kind: router
     label: Core router
+    parameters:
+      escape:
+        status: unknown
   core-rules:
     kind: firewall
     label: Core rules
   workstation:
     kind: host
     label: Lab workstation
+    parameters:
+      escape:
+        status: unknown
   viewer:
     kind: application
     label: Records viewer
   records-host:
     kind: host
     label: Records server
+    parameters:
+      escape:
+        status: unknown
   records:
     kind: service
     label: Records service

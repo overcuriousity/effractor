@@ -18,15 +18,24 @@ entities:
   bridge:
     kind: router
     label: Router
+    parameters:
+      escape:
+        status: unknown
   bridge-fw:
     kind: firewall
     label: Firewall
   workstation:
     kind: host
     label: Workstation
+    parameters:
+      escape:
+        status: unknown
   server:
     kind: host
     label: Server
+    parameters:
+      escape:
+        status: unknown
   ssh-client:
     kind: application
     label: SSH client

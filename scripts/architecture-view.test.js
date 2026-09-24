@@ -126,3 +126,21 @@ test('a flow\'s route is the networks and routers it passes through', () => {
   assert.deepEqual(V.route(doc, 'ssh'), ['entity/lan']);
   assert.deepEqual(V.route(doc, 'none'), []);
 });
+
+test('an escape is shown only on a hosted host or router', () => {
+  const doc = {
+    profile: 'architecture',
+    entities: {
+      hv: { kind: 'host', label: 'HV', parameters: { escape: { status: 'unknown' } } },
+      vm: { kind: 'host', label: 'VM', parameters: { escape: { status: 'unknown' } } },
+    },
+    associations: { 'hv-vm': { kind: 'hosts', from: 'hv', to: 'vm', privilege: 'user' } },
+    flows: {},
+    attacker: { footholds: [] },
+  };
+  assert.deepEqual(V.shownSlots(doc, 'hv'), []);
+  assert.deepEqual(V.shownSlots(doc, 'vm'), ['escape']);
+  const nodes = V.describe(doc).nodes;
+  assert.equal(nodes.find((n) => n.id === 'entity/hv').unknown, 0);
+  assert.equal(nodes.find((n) => n.id === 'entity/vm').unknown, 1);
+});

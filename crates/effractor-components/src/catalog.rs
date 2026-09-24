@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 16] = [
+pub const RULES: [Rule; 19] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -112,8 +112,51 @@ pub const RULES: [Rule; 16] = [
         scope: "one per hosts association naming a router",
         assumptions: &[
             "Whoever controls the machine a router runs on, at the privilege it runs with, controls the router.",
-            "The reverse is not assumed: administering a router on a host does not reach the host, since leaving a VM or appliance is its own step.",
+            "Leaving the router for its host is its own timed step, the router's escape.",
         ],
+    },
+    Rule {
+        id: "hosted-host",
+        title: "Controlling the host controls its guests",
+        version: 1,
+        bindings: &["hosts"],
+        prerequisites: "the hosting host at the guest's declared privilege (admin also satisfies user)",
+        output: "guest host.admin",
+        duration: D::Logical,
+        scope: "one per hosts association naming a host",
+        assumptions: &[
+            "Whoever controls a hypervisor or container host at the privilege a guest runs with controls the guest.",
+        ],
+    },
+    Rule {
+        id: "guest-escape",
+        title: "Escape to the host",
+        version: 1,
+        bindings: &["hosts"],
+        prerequisites: "guest host.admin",
+        output: "the hosting host at the guest's declared privilege",
+        duration: D::Slot {
+            slot: Slot::Escape,
+            replaced_by: None,
+        },
+        scope: "one per guest host",
+        assumptions: &[
+            "Breaking out of a virtual machine or container is one timed step; hardening it is an edit of that time.",
+        ],
+    },
+    Rule {
+        id: "router-escape",
+        title: "Escape from the router to its host",
+        version: 1,
+        bindings: &["hosts"],
+        prerequisites: "router.admin, for a router that runs on a host",
+        output: "the hosting host at the router's declared privilege",
+        duration: D::Slot {
+            slot: Slot::Escape,
+            replaced_by: None,
+        },
+        scope: "one per hosted router",
+        assumptions: &["Leaving a router VM or appliance for its host is one timed step."],
     },
     Rule {
         id: "zone-access",
@@ -310,7 +353,7 @@ fn relation_description(kind: RelationKind) -> &'static str {
             "Membership of a network; a machine can be attached to several. Implies no flow permission."
         }
         RelationKind::Hosts => {
-            "The machine an executable or a router runs on, at `privilege: user | admin`. Each has one host; a router runs only on a host."
+            "The machine an executable, a router or a guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host."
         }
         RelationKind::Filters => "The firewall a router manages: one each way.",
         RelationKind::Stores => {
@@ -340,7 +383,9 @@ fn kind_meaning(kind: EntityKind) -> &'static str {
         }
         EntityKind::Router => "Forwards traffic between networks and can be administered.",
         EntityKind::Firewall => "A router's filter: which flows it lets through.",
-        EntityKind::Host => "A machine: a workstation, a server or a virtual machine.",
+        EntityKind::Host => {
+            "A machine: a workstation, a server, a virtual machine or a container. It may run on another host."
+        }
         EntityKind::Application => {
             "Software that makes connections, e.g. a browser or mail client. Reached only through what it opens."
         }
@@ -376,6 +421,7 @@ fn slot_name(slot: Slot) -> &'static str {
         Slot::Extract => "Extract",
         Slot::ExtractProtected => "Extract (protected)",
         Slot::AdminLogin => "Admin login",
+        Slot::Escape => "Escape to the host",
     }
 }
 
@@ -422,6 +468,10 @@ fn slot_description(slot: Slot) -> (&'static str, &'static str) {
         Slot::AdminLogin => (
             "account",
             "Time to authenticate to a machine's management from an administering network.",
+        ),
+        Slot::Escape => (
+            "host or router",
+            "Time to break out of a virtual machine, container or appliance to the host it runs on, once in admin control of it.",
         ),
     }
 }
