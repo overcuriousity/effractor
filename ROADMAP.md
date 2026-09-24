@@ -87,7 +87,7 @@ with a count, lines inside are hidden. A cluster is a way of looking, not a
 change to the model: generation, results and ids ignore it. Clusters are
 kept in the file as a list of groups (the owner leaned that way: an
 appliance is the author's statement), so a shared link looks the same.
-Needs a short design first (the file field, multi-select, undo). Done in one
+Design: [`2026-09-24-clustering-design.md`](docs/superpowers/specs/2026-09-24-clustering-design.md). Done in one
 PR when an nmap import can be collapsed by host in one step, a rectangle
 makes a cluster, a member can be taken out, and the attack graph and results
 are unchanged by clustering (tested).
