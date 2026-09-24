@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 19] = [
+pub const RULES: [Rule; 20] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -213,20 +213,31 @@ pub const RULES: [Rule; 19] = [
         assumptions: &["Reaching a service is not controlling it."],
     },
     Rule {
-        id: "service-find-exploit",
+        id: "product-reachable",
+        title: "An instance is reachable",
+        version: 1,
+        bindings: &["instance-of"],
+        prerequisites: "service.reachable, for any instance of the product",
+        output: "product.reachable",
+        duration: D::Logical,
+        scope: "one per instance-of association",
+        assumptions: &["Any one reachable instance is enough to study the software version."],
+    },
+    Rule {
+        id: "product-find-exploit",
         title: "Find an exploit",
         version: 1,
-        bindings: &["service"],
-        prerequisites: "service.reachable",
-        output: "service.exploit-ready",
+        bindings: &["product"],
+        prerequisites: "product.reachable",
+        output: "product.exploit-ready",
         duration: D::Slot {
             slot: Slot::FindExploit,
             replaced_by: Some((Defense::Patched, Slot::FindExploitPatched)),
         },
-        scope: "one per service",
+        scope: "one per product",
         assumptions: &[
             "Patching selects the authored replacement distribution; it does not by itself eliminate every exploit.",
-            "Exploit research is not reused across services.",
+            "An exploit found through one instance works on every instance of the same version; a partly patched fleet is two products.",
         ],
     },
     Rule {
@@ -234,7 +245,7 @@ pub const RULES: [Rule; 19] = [
         title: "Use the exploit",
         version: 1,
         bindings: &["service"],
-        prerequisites: "service.exploit-ready",
+        prerequisites: "product.exploit-ready and the service's own reachable",
         output: "service.control",
         duration: D::Slot {
             slot: Slot::DeployExploit,
@@ -338,6 +349,9 @@ fn kind_description(kind: EntityKind) -> &'static str {
         EntityKind::Service => {
             "A reachable service running on a host or router, with exploit and login routes."
         }
+        EntityKind::Product => {
+            "One software version, e.g. OpenSSH 9.6. Its services share one exploit discovery; patching is set here."
+        }
         EntityKind::Account => {
             "An identity with explicit authentication and grants; no implicit global privileges."
         }
@@ -372,6 +386,7 @@ fn relation_description(kind: RelationKind) -> &'static str {
         RelationKind::Permits => {
             "A firewall's named permission for a flow: `allowed: true | false | unknown`."
         }
+        RelationKind::InstanceOf => "The software version a service runs: exactly one product.",
     }
 }
 
@@ -391,6 +406,9 @@ fn kind_meaning(kind: EntityKind) -> &'static str {
         }
         EntityKind::Service => {
             "Software that accepts connections, e.g. a web server or SSH. Exploited or logged into over the network."
+        }
+        EntityKind::Product => {
+            "A software version. Every service that is an instance of it shares its vulnerabilities."
         }
         EntityKind::Account => "An identity that services accept and that has rights on machines.",
         EntityKind::Credential => {
@@ -442,12 +460,12 @@ fn slot_description(slot: Slot) -> (&'static str, &'static str) {
             "Time to establish the flow once its source is controlled and its route permitted.",
         ),
         Slot::FindExploit => (
-            "service",
-            "Time to find a usable exploit for a reachable service.",
+            "product",
+            "Time to find a usable exploit for a software version, once an instance is reachable.",
         ),
         Slot::FindExploitPatched => (
-            "service",
-            "The same, once the service is patched; selected by `defenses.patched`.",
+            "product",
+            "The same, once the product is patched; selected by `defenses.patched`.",
         ),
         Slot::DeployExploit => (
             "service",

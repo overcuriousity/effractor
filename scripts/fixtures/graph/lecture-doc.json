@@ -61,16 +61,6 @@
    "kind": "service",
    "label": "SSH server",
    "parameters": {
-    "find-exploit": {
-     "status": "illustrative",
-     "ttc": "Exponential(mean 10)",
-     "note": "Exercise assumption; not calibrated to the lecture"
-    },
-    "find-exploit-patched": {
-     "status": "illustrative",
-     "ttc": "Never",
-     "note": "Exercise assumption: perfect blocking, a patched service has no exploit to find"
-    },
     "deploy-exploit": {
      "status": "illustrative",
      "ttc": "Exponential(mean 2)",
@@ -80,6 +70,22 @@
      "status": "illustrative",
      "ttc": "Exponential(mean 1)",
      "note": "Exercise assumption; not calibrated to the lecture"
+    }
+   }
+  },
+  "openssh": {
+   "kind": "product",
+   "label": "OpenSSH",
+   "parameters": {
+    "find-exploit": {
+     "status": "illustrative",
+     "ttc": "Exponential(mean 10)",
+     "note": "Exercise assumption; not calibrated to the lecture"
+    },
+    "find-exploit-patched": {
+     "status": "illustrative",
+     "ttc": "Never",
+     "note": "Exercise assumption: perfect blocking, a patched service has no exploit to find"
     }
    },
    "defenses": {
@@ -179,6 +185,11 @@
    "to": "sshd",
    "privilege": "admin"
   },
+  "sshd-instance": {
+   "kind": "instance-of",
+   "from": "sshd",
+   "to": "openssh"
+  },
   "bridge-filter": {
    "kind": "filters",
    "from": "bridge",
@@ -272,7 +283,7 @@
    "label": "Patch the SSH server",
    "changes": [
     {
-     "entity": "sshd",
+     "entity": "openssh",
      "defense": "patched",
      "value": true
     }
@@ -292,7 +303,7 @@
    "label": "Patch and protect",
    "changes": [
     {
-     "entity": "sshd",
+     "entity": "openssh",
      "defense": "patched",
      "value": true
     },

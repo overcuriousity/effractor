@@ -50,11 +50,11 @@ test('a renamed label changes what a step says, not what is selected', () => {
 test('each source field leads to the place in the architecture that sets it', () => {
   const at = path => V.sourceTarget(doc, path);
   // Patching: the switch and both discovery slots.
-  const find = V.sourcesForStep(graph, 'action/service-find-exploit/sshd')[0];
+  const find = V.sourcesForStep(graph, 'action/product-find-exploit/openssh')[0];
   assert.deepEqual(find.paths.map(at), [
-    { select: 'entity/sshd', slot: 'find-exploit', path: 'entities.sshd.parameters.find-exploit' },
-    { select: 'entity/sshd', slot: 'find-exploit-patched', path: 'entities.sshd.parameters.find-exploit-patched' },
-    { select: 'entity/sshd', field: 'defense', path: 'entities.sshd.defenses.patched' },
+    { select: 'entity/openssh', slot: 'find-exploit', path: 'entities.openssh.parameters.find-exploit' },
+    { select: 'entity/openssh', slot: 'find-exploit-patched', path: 'entities.openssh.parameters.find-exploit-patched' },
+    { select: 'entity/openssh', field: 'defense', path: 'entities.openssh.defenses.patched' },
   ]);
   // Extraction: the credential's slot.
   assert.deepEqual(at('entities.server-key.parameters.extract'), { select: 'entity/server-key', slot: 'extract', path: 'entities.server-key.parameters.extract' });
@@ -82,12 +82,12 @@ test('each source field leads to the place in the architecture that sets it', ()
 });
 
 test('a step inspected says its rule, its time and its state, blocked ones included', () => {
-  const find = V.inspect(graph, support, 'action/service-find-exploit/sshd');
+  const find = V.inspect(graph, support, 'action/product-find-exploit/openssh');
   assert.equal(find.status, 'possible');
   assert.equal(find.kind, 'action');
-  assert.deepEqual(find.timing, { status: 'illustrative', expression: 'Exponential(mean 10)', note: graph.nodes.find(n => n.id === 'action/service-find-exploit/sshd').timing.note });
-  assert.deepEqual(find.rules, ['service-find-exploit']);
-  assert.ok(find.components.includes('sshd'));
+  assert.deepEqual(find.timing, { status: 'illustrative', expression: 'Exponential(mean 10)', note: graph.nodes.find(n => n.id === 'action/product-find-exploit/openssh').timing.note });
+  assert.deepEqual(find.rules, ['product-find-exploit']);
+  assert.ok(find.components.includes('openssh'));
 
   const admin = V.inspect(graph, support, 'state/network/admin-net/access');
   assert.equal(admin.status, 'unreachable');
@@ -146,13 +146,13 @@ test('junctions, badges and states are said in symbols and words, not colour alo
   const variant = clone(fixture);
   const i = variant.graph.nodes.findIndex(n => n.id === 'input/flow-permission/filter/ssh');
   variant.support.nodes[i].status = 'blocked';
-  const j = variant.graph.nodes.findIndex(n => n.id === 'action/service-find-exploit/sshd');
-  variant.graph.nodes[j].timing = { status: 'unknown', expression: null, note: null, paths: ['entities.sshd.parameters.find-exploit'], missing: ['entities.sshd.parameters.find-exploit'] };
+  const j = variant.graph.nodes.findIndex(n => n.id === 'action/product-find-exploit/openssh');
+  variant.graph.nodes[j].timing = { status: 'unknown', expression: null, note: null, paths: ['entities.openssh.parameters.find-exploit'], missing: ['entities.openssh.parameters.find-exploit'] };
   const again = V.describe(variant.graph, variant.support, null).graph.nodes;
   const blocked = again.find(n => n.id === 'step/input/flow-permission/filter/ssh');
   assert.equal(blocked.tag, 'blocked');
   assert.ok(blocked.classes.includes('is-blocked'));
-  const unknown = again.find(n => n.id === 'step/action/service-find-exploit/sshd');
+  const unknown = again.find(n => n.id === 'step/action/product-find-exploit/openssh');
   assert.equal(unknown.tag, 'unknown');
   assert.equal(unknown.unquantified, true);
   assert.ok(unknown.classes.includes('is-unknown'));

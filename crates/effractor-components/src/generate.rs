@@ -71,6 +71,7 @@ fn generate_within(
     b.zone_access();
     b.permissions();
     b.flows();
+    b.products();
     b.services();
     b.credentials();
     b.logins();
@@ -114,6 +115,8 @@ struct Builder<'a> {
     grant: HashMap<(&'a EntityId, &'a EntityId), (Privilege, &'a AssociationId)>,
     /// machine → [(account, privilege, grants association)], in document order
     grants_on: HashMap<&'a EntityId, Vec<(&'a EntityId, Privilege, &'a AssociationId)>>,
+    /// service → (product, instance-of association)
+    product_of: HashMap<&'a EntityId, (&'a EntityId, &'a AssociationId)>,
     /// flow → the route paths the validator marked `unfinished`
     unfinished: HashMap<&'a FlowId, Vec<String>>,
 }
@@ -133,6 +136,7 @@ impl<'a> Builder<'a> {
             permit: HashMap::new(),
             grant: HashMap::new(),
             grants_on: HashMap::new(),
+            product_of: HashMap::new(),
             unfinished: HashMap::new(),
         };
         for (id, a) in &m.associations {
@@ -143,6 +147,9 @@ impl<'a> Builder<'a> {
                     privilege,
                 } => {
                     b.host_of.insert(to, (from, *privilege, id));
+                }
+                Relation::InstanceOf { from, to } => {
+                    b.product_of.insert(from, (to, id));
                 }
                 Relation::Filters { from, to } => {
                     b.router_of.insert(to, (from, id));
@@ -303,6 +310,10 @@ impl<'a> Builder<'a> {
             }
             match entity.kind {
                 EntityKind::Service => {
+                    let fid = self.state_id(id, "reachable");
+                    self.fact(fid, format!("{} · reachable", entity.label));
+                }
+                EntityKind::Product => {
                     for (state, word) in [
                         ("reachable", "reachable"),
                         ("exploit-ready", "exploit ready"),
@@ -406,8 +417,9 @@ impl<'a> Builder<'a> {
         hosts: &'a AssociationId,
     ) {
         let owner = Owner::Entity(guest.clone());
+        // The step is the guest's: its escape time, last as an action's object.
         let o = Origin {
-            entities: vec![guest.clone(), host.clone()],
+            entities: vec![host.clone(), guest.clone()],
             associations: vec![hosts.clone()],
             paths: vec![owner.slot_path(Slot::Escape)],
             ..origin(rule)
@@ -545,41 +557,65 @@ impl<'a> Builder<'a> {
         }
     }
 
-    fn services(&mut self) {
-        for (sid, entity) in &self.m.entities {
-            if entity.kind != EntityKind::Service {
+    fn products(&mut self) {
+        for (pid, entity) in &self.m.entities {
+            if entity.kind != EntityKind::Product {
                 continue;
             }
-            let owner = Owner::Entity(sid.clone());
-            let find = Origin {
-                entities: vec![sid.clone()],
+            let owner = Owner::Entity(pid.clone());
+            let o = Origin {
+                entities: vec![pid.clone()],
                 paths: vec![
                     owner.slot_path(Slot::FindExploit),
                     owner.slot_path(Slot::FindExploitPatched),
-                    format!("entities.{sid}.defenses.patched"),
+                    format!("entities.{pid}.defenses.patched"),
                 ],
-                ..origin("service-find-exploit")
+                ..origin("product-find-exploit")
             };
-            let reachable = self.state_id(sid, "reachable");
-            let ready = self.state_id(sid, "exploit-ready");
-            let control = self.state_id(sid, State::Control.as_str());
+            let reachable = self.state_id(pid, "reachable");
+            let ready = self.state_id(pid, "exploit-ready");
             self.action(
-                format!("action/service-find-exploit/{sid}"),
+                format!("action/product-find-exploit/{pid}"),
                 format!("Find an exploit · {}", entity.label),
                 Binding::Parameter {
-                    owner: owner.clone(),
+                    owner,
                     base: Slot::FindExploit,
                     replacement: Some((Defense::Patched, Slot::FindExploitPatched)),
                 },
                 &[reachable],
                 &ready,
-                find,
+                o,
             );
+        }
+    }
+
+    /// Each instance makes its product reachable; the product's exploit is
+    /// deployed on each instance the attacker reaches.
+    fn services(&mut self) {
+        for (sid, entity) in &self.m.entities {
+            if entity.kind != EntityKind::Service {
+                continue;
+            }
+            // Generation refuses a service without a product: it is incomplete.
+            let (pid, instance) = self.product_of[sid];
+            let reachable = self.state_id(sid, "reachable");
+            let product_reachable = self.state_id(pid, "reachable");
+            let r = Origin {
+                entities: vec![sid.clone(), pid.clone()],
+                associations: vec![instance.clone()],
+                ..origin("product-reachable")
+            };
+            self.produce(&reachable, &product_reachable, r);
+            let owner = Owner::Entity(sid.clone());
+            // The step is the service's: the product's exploit, used on it.
             let deploy = Origin {
-                entities: vec![sid.clone()],
+                entities: vec![pid.clone(), sid.clone()],
+                associations: vec![instance.clone()],
                 paths: vec![owner.slot_path(Slot::DeployExploit)],
                 ..origin("service-deploy-exploit")
             };
+            let ready = self.state_id(pid, "exploit-ready");
+            let control = self.state_id(sid, State::Control.as_str());
             self.action(
                 format!("action/service-deploy-exploit/{sid}"),
                 format!("Use the exploit · {}", entity.label),
@@ -588,7 +624,7 @@ impl<'a> Builder<'a> {
                     base: Slot::DeployExploit,
                     replacement: None,
                 },
-                &[ready],
+                &[ready, reachable],
                 &control,
                 deploy,
             );

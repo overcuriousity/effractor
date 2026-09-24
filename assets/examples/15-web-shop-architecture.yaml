@@ -53,6 +53,16 @@ entities:
     label: Shop application
     description: Runs as an unprivileged user on the web server
     parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: Teaching input
+      login:
+        status: unknown
+  shop-software:
+    kind: product
+    label: Shop application software
+    parameters:
       find-exploit:
         status: illustrative
         ttc: "Exponential(mean 10)"
@@ -61,12 +71,6 @@ entities:
         status: illustrative
         ttc: "Exponential(mean 100)"
         note: "Teaching input: an update leaves harder flaws"
-      deploy-exploit:
-        status: illustrative
-        ttc: "Exponential(mean 1)"
-        note: Teaching input
-      login:
-        status: unknown
     defenses: {patched: false}
   db-client:
     kind: application
@@ -81,13 +85,6 @@ entities:
     kind: service
     label: Database
     parameters:
-      find-exploit:
-        status: assumed
-        ttc: "Exponential(mean 50)"
-      find-exploit-patched:
-        status: illustrative
-        ttc: "Never"
-        note: "Teaching input: patching is taken as perfect"
       deploy-exploit:
         status: illustrative
         ttc: "Exponential(mean 2)"
@@ -96,6 +93,17 @@ entities:
         status: illustrative
         ttc: "Exponential(mean 0.2)"
         note: "Teaching input: the password is in hand"
+  db-software:
+    kind: product
+    label: Database software
+    parameters:
+      find-exploit:
+        status: assumed
+        ttc: "Exponential(mean 50)"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: patching is taken as perfect"
     defenses: {patched: false}
   shop-db:
     kind: account
@@ -164,6 +172,10 @@ associations:
     from: web
     to: shop
     privilege: user
+  shop-instance:
+    kind: instance-of
+    from: shop
+    to: shop-software
   web-db-client:
     kind: hosts
     from: web
@@ -174,6 +186,10 @@ associations:
     from: db-host
     to: db
     privilege: admin
+  db-instance:
+    kind: instance-of
+    from: db
+    to: db-software
   password-store:
     kind: stores
     from: web
@@ -236,7 +252,7 @@ scenarios:
   update-shop:
     label: Update the shop
     changes:
-      - {entity: shop, defense: patched, value: true}
+      - {entity: shop-software, defense: patched, value: true}
   vault-password:
     label: Move the password to a vault
     changes:
@@ -244,7 +260,7 @@ scenarios:
   both:
     label: Update and vault
     changes:
-      - {entity: shop, defense: patched, value: true}
+      - {entity: shop-software, defense: patched, value: true}
       - {entity: db-password, defense: protected, value: true}
 
 analysis:

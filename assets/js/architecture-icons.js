@@ -33,6 +33,8 @@
       ["circle", { cx: 12, cy: 12, r: 2.5 }],
       ["path", { d: "M18.5 12H21M16.6 16.6l1.76 1.76M12 18.5V21M7.4 16.6l-1.76 1.76M5.5 12H3M7.4 7.4 5.64 5.64M12 5.5V3M16.6 7.4l1.76-1.76" }],
     ],
+    // A box: a packaged software version.
+    product: [["path", { d: "M12 3 20 7.5v9L12 21l-8-4.5v-9z" }], ["path", { d: "M4 7.5 12 12l8-4.5M12 12v9" }]],
     // A person.
     account: [
       ["circle", { cx: 12, cy: 8, r: 4 }],
@@ -46,7 +48,7 @@
   };
   var FAMILY = {
     network: "network", router: "network", firewall: "network",
-    host: "compute", application: "compute", service: "compute",
+    host: "compute", application: "compute", service: "compute", product: "compute",
     account: "identity", credential: "identity",
   };
   var DOT = [["circle", { cx: 12, cy: 12, r: 3 }]];

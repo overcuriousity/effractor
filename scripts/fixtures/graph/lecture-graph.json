@@ -174,20 +174,62 @@
     }
    },
    {
+    "id": "action/product-find-exploit/openssh",
+    "label": "Find an exploit · OpenSSH",
+    "kind": "all",
+    "inputs": [
+     "state/product/openssh/reachable"
+    ],
+    "origins": [
+     {
+      "rule": "product-find-exploit",
+      "version": 1,
+      "entities": [
+       "openssh"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [
+       "entities.openssh.parameters.find-exploit",
+       "entities.openssh.parameters.find-exploit-patched",
+       "entities.openssh.defenses.patched"
+      ],
+      "assumptions": [
+       "Patching selects the authored replacement distribution; it does not by itself eliminate every exploit.",
+       "An exploit found through one instance works on every instance of the same version; a partly patched fleet is two products."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "illustrative",
+     "expression": "Exponential(mean 10)",
+     "note": "Exercise assumption; not calibrated to the lecture",
+     "paths": [
+      "entities.openssh.parameters.find-exploit",
+      "entities.openssh.defenses.patched"
+     ],
+     "missing": []
+    }
+   },
+   {
     "id": "action/service-deploy-exploit/sshd",
     "label": "Use the exploit · SSH server",
     "kind": "all",
     "inputs": [
-     "state/service/sshd/exploit-ready"
+     "state/product/openssh/exploit-ready",
+     "state/service/sshd/reachable"
     ],
     "origins": [
      {
       "rule": "service-deploy-exploit",
       "version": 1,
       "entities": [
+       "openssh",
        "sshd"
       ],
-      "associations": [],
+      "associations": [
+       "sshd-instance"
+      ],
       "flows": [],
       "paths": [
        "entities.sshd.parameters.deploy-exploit"
@@ -203,44 +245,6 @@
      "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately",
      "paths": [
       "entities.sshd.parameters.deploy-exploit"
-     ],
-     "missing": []
-    }
-   },
-   {
-    "id": "action/service-find-exploit/sshd",
-    "label": "Find an exploit · SSH server",
-    "kind": "all",
-    "inputs": [
-     "state/service/sshd/reachable"
-    ],
-    "origins": [
-     {
-      "rule": "service-find-exploit",
-      "version": 1,
-      "entities": [
-       "sshd"
-      ],
-      "associations": [],
-      "flows": [],
-      "paths": [
-       "entities.sshd.parameters.find-exploit",
-       "entities.sshd.parameters.find-exploit-patched",
-       "entities.sshd.defenses.patched"
-      ],
-      "assumptions": [
-       "Patching selects the authored replacement distribution; it does not by itself eliminate every exploit.",
-       "Exploit research is not reused across services."
-      ]
-     }
-    ],
-    "timing": {
-     "status": "illustrative",
-     "expression": "Exponential(mean 10)",
-     "note": "Exercise assumption; not calibrated to the lecture",
-     "paths": [
-      "entities.sshd.parameters.find-exploit",
-      "entities.sshd.defenses.patched"
      ],
      "missing": []
     }
@@ -894,6 +898,70 @@
     }
    },
    {
+    "id": "state/product/openssh/exploit-ready",
+    "label": "OpenSSH · exploit ready",
+    "kind": "any",
+    "inputs": [
+     "action/product-find-exploit/openssh"
+    ],
+    "origins": [
+     {
+      "rule": "product-find-exploit",
+      "version": 1,
+      "entities": [
+       "openssh"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Patching selects the authored replacement distribution; it does not by itself eliminate every exploit.",
+       "An exploit found through one instance works on every instance of the same version; a partly patched fleet is two products."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/product/openssh/reachable",
+    "label": "OpenSSH · reachable",
+    "kind": "any",
+    "inputs": [
+     "state/service/sshd/reachable"
+    ],
+    "origins": [
+     {
+      "rule": "product-reachable",
+      "version": 1,
+      "entities": [
+       "sshd",
+       "openssh"
+      ],
+      "associations": [
+       "sshd-instance"
+      ],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Any one reachable instance is enough to study the software version."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
     "id": "state/router/bridge/admin",
     "label": "Router · admin control",
     "kind": "any",
@@ -959,44 +1027,16 @@
       "rule": "service-deploy-exploit",
       "version": 1,
       "entities": [
+       "openssh",
        "sshd"
       ],
-      "associations": [],
+      "associations": [
+       "sshd-instance"
+      ],
       "flows": [],
       "paths": [],
       "assumptions": [
        "Deployment includes whatever bypass of detection or protection the author assumed in its note; there is no unreported extra success factor."
-      ]
-     }
-    ],
-    "timing": {
-     "status": "logical",
-     "expression": null,
-     "note": null,
-     "paths": [],
-     "missing": []
-    }
-   },
-   {
-    "id": "state/service/sshd/exploit-ready",
-    "label": "SSH server · exploit ready",
-    "kind": "any",
-    "inputs": [
-     "action/service-find-exploit/sshd"
-    ],
-    "origins": [
-     {
-      "rule": "service-find-exploit",
-      "version": 1,
-      "entities": [
-       "sshd"
-      ],
-      "associations": [],
-      "flows": [],
-      "paths": [],
-      "assumptions": [
-       "Patching selects the authored replacement distribution; it does not by itself eliminate every exploit.",
-       "Exploit research is not reused across services."
       ]
      }
     ],
@@ -1098,12 +1138,12 @@
     "missing": []
    },
    {
-    "id": "action/service-deploy-exploit/sshd",
+    "id": "action/product-find-exploit/openssh",
     "status": "possible",
     "missing": []
    },
    {
-    "id": "action/service-find-exploit/sshd",
+    "id": "action/service-deploy-exploit/sshd",
     "status": "possible",
     "missing": []
    },
@@ -1193,17 +1233,22 @@
     "missing": []
    },
    {
+    "id": "state/product/openssh/exploit-ready",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/product/openssh/reachable",
+    "status": "possible",
+    "missing": []
+   },
+   {
     "id": "state/router/bridge/admin",
     "status": "unreachable",
     "missing": []
    },
    {
     "id": "state/service/sshd/control",
-    "status": "possible",
-    "missing": []
-   },
-   {
-    "id": "state/service/sshd/exploit-ready",
     "status": "possible",
     "missing": []
    },
@@ -1221,8 +1266,8 @@
   "target_support": [
    "action/credential-extract/workstation/server-key",
    "action/flow-connect/ssh",
+   "action/product-find-exploit/openssh",
    "action/service-deploy-exploit/sshd",
-   "action/service-find-exploit/sshd",
    "action/service-login/server-account/sshd",
    "state/account/server-account/material",
    "state/application/ssh-client/control",
@@ -1231,8 +1276,9 @@
    "state/host/server/admin",
    "state/host/workstation/user",
    "state/permission/filter/ssh",
+   "state/product/openssh/exploit-ready",
+   "state/product/openssh/reachable",
    "state/service/sshd/control",
-   "state/service/sshd/exploit-ready",
    "state/service/sshd/reachable",
    "state/session/server-account/sshd"
   ]

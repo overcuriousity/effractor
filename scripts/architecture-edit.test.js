@@ -132,3 +132,9 @@ test('a description is set, trimmed, and removed when emptied', () => {
   assert.equal(E.setDescription(doc, 'server', ''), null, 'nothing to remove');
   assert.equal(E.setDescription(doc, 'nowhere', 'x'), null);
 });
+
+test('the kinds are grouped by family for the Add menu', () => {
+  assert.deepEqual(E.GROUPS.map((g) => g[0]), ['Network', 'Compute', 'Identity']);
+  assert.deepEqual(E.GROUPS.flatMap((g) => g[1]), E.KINDS);
+  assert.ok(E.GROUPS[1][1].includes('product'));
+});

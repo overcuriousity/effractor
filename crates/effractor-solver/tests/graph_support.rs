@@ -12,7 +12,7 @@ const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.ya
 const UNKNOWN: &str =
     include_str!("../../effractor-components/tests/fixtures/lecture-unknown.yaml");
 const TARGET: &str = "state/host/server/admin";
-const FIND: &str = "entities.sshd.parameters.find-exploit";
+const FIND: &str = "entities.openssh.parameters.find-exploit";
 
 fn architecture(text: &str) -> Architecture {
     match effractor_format::load_document(text) {
@@ -68,7 +68,7 @@ fn the_lecture_target_is_possible_on_known_inputs_only() {
     assert_eq!(a.status(TARGET), Status::Possible);
     assert!(a.missing(TARGET).is_empty());
     assert!(a.in_support("action/service-login/server-account/sshd"));
-    assert!(a.in_support("action/service-find-exploit/sshd"));
+    assert!(a.in_support("action/product-find-exploit/openssh"));
     // The foothold and everything it gives at once are seeded.
     assert_eq!(a.status("state/host/workstation/user"), Status::Seeded);
     assert!(a.support.zero[a.index("state/network/client-net/access")]);
@@ -91,11 +91,11 @@ fn an_unknown_on_a_possible_alternative_costs_the_target_its_number() {
             .is_empty()
     );
     assert!(a.missing("state/session/server-account/sshd").is_empty());
-    assert_eq!(a.missing("action/service-find-exploit/sshd"), [FIND]);
-    assert_eq!(a.missing("state/service/sshd/exploit-ready"), [FIND]);
+    assert_eq!(a.missing("action/product-find-exploit/openssh"), [FIND]);
+    assert_eq!(a.missing("state/product/openssh/exploit-ready"), [FIND]);
     // The unknown step itself is still possible: qualitative, not a number.
     assert_eq!(
-        a.status("action/service-find-exploit/sshd"),
+        a.status("action/product-find-exploit/openssh"),
         Status::Possible
     );
 }
@@ -109,7 +109,7 @@ fn a_denied_flow_makes_the_target_unreachable_not_unknown() {
     );
     assert_eq!(a.status(TARGET), Status::Unreachable);
     assert!(a.missing(TARGET).is_empty());
-    assert!(a.missing("action/service-find-exploit/sshd").is_empty());
+    assert!(a.missing("action/product-find-exploit/openssh").is_empty());
     assert!(a.support.target_support.is_empty());
 }
 
@@ -117,11 +117,11 @@ fn a_denied_flow_makes_the_target_unreachable_not_unknown() {
 fn a_known_perfect_defence_blocks_its_step_and_leaves_the_rest() {
     let a = Analyzed::of(LECTURE, Some("patch"));
     assert_eq!(
-        a.status("action/service-find-exploit/sshd"),
+        a.status("action/product-find-exploit/openssh"),
         Status::Blocked
     );
     assert_eq!(
-        a.status("state/service/sshd/exploit-ready"),
+        a.status("state/product/openssh/exploit-ready"),
         Status::Unreachable
     );
     assert_eq!(a.status(TARGET), Status::Possible);
@@ -145,10 +145,14 @@ fn an_unknown_service_elsewhere_does_not_cost_the_known_target() {
     kind: service
     label: Database
     parameters:
-      find-exploit: {status: unknown}
-      find-exploit-patched: {status: unknown}
       deploy-exploit: {status: unknown}
       login: {status: unknown}
+  db-software:
+    kind: product
+    label: Database software
+    parameters:
+      find-exploit: {status: unknown}
+      find-exploit-patched: {status: unknown}
     defenses: {patched: false}
 ",
     );
@@ -164,6 +168,10 @@ fn an_unknown_service_elsewhere_does_not_cost_the_known_target() {
     from: db-host
     to: db
     privilege: admin
+  db-instance:
+    kind: instance-of
+    from: db
+    to: db-software
   allow-db:
     kind: permits
     from: filter
@@ -187,8 +195,8 @@ fn an_unknown_service_elsewhere_does_not_cost_the_known_target() {
     assert_eq!(a.status("state/service/db/reachable"), Status::Possible);
     assert!(a.missing("state/service/db/reachable").is_empty());
     assert_eq!(
-        a.missing("action/service-find-exploit/db"),
-        ["entities.db.parameters.find-exploit"]
+        a.missing("action/product-find-exploit/db-software"),
+        ["entities.db-software.parameters.find-exploit"]
     );
     assert_eq!(a.status("state/host/db-host/admin"), Status::Possible);
     assert!(!a.missing("state/host/db-host/admin").is_empty());
@@ -203,7 +211,10 @@ fn an_unknown_service_elsewhere_does_not_cost_the_known_target() {
     let b = Analyzed::of(&known, None);
     assert!(b.missing(TARGET).is_empty());
     assert!(!b.in_support("state/service/db/reachable"));
-    assert!(!b.missing("action/service-find-exploit/db").is_empty());
+    assert!(
+        !b.missing("action/product-find-exploit/db-software")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -281,17 +292,17 @@ fn an_unknown_on_a_route_a_known_step_blocks_costs_the_target_nothing() {
     );
     let a = Analyzed::of(&text, None);
     assert_eq!(
-        a.status("action/service-find-exploit/sshd"),
+        a.status("action/product-find-exploit/openssh"),
         Status::Possible
     );
-    assert_eq!(a.missing("action/service-find-exploit/sshd"), [FIND]);
+    assert_eq!(a.missing("action/product-find-exploit/openssh"), [FIND]);
     assert_eq!(
         a.status("action/service-deploy-exploit/sshd"),
         Status::Blocked
     );
     assert_eq!(a.status(TARGET), Status::Possible);
     assert!(a.missing(TARGET).is_empty());
-    assert!(!a.in_support("action/service-find-exploit/sshd"));
+    assert!(!a.in_support("action/product-find-exploit/openssh"));
 
     // Deployment unknown behind a known-never discovery: the same.
     let text = LECTURE

@@ -17,10 +17,14 @@ entities:
     kind: service
     label: SSH server
     parameters:
-      find-exploit: {status: illustrative, ttc: "Exponential(mean 10)", note: "Exercise assumption; not calibrated to the lecture"}
-      find-exploit-patched: {status: illustrative, ttc: Never, note: "Exercise assumption: a patched service has no exploit to find"}
       deploy-exploit: {status: illustrative, ttc: "Exponential(mean 2)", note: "Exercise assumption; includes any bypass of protection on the server"}
       login: {status: illustrative, ttc: "Exponential(mean 1)", note: "Exercise assumption; not calibrated to the lecture"}
+  openssh:
+    kind: product
+    label: OpenSSH
+    parameters:
+      find-exploit: {status: illustrative, ttc: "Exponential(mean 10)", note: "Exercise assumption; not calibrated to the lecture"}
+      find-exploit-patched: {status: illustrative, ttc: Never, note: "Exercise assumption: a patched service has no exploit to find"}
     defenses: {patched: false}
   server-account: {kind: account, label: Server user account}
   server-credential:
@@ -51,6 +55,7 @@ associations:
   bridge-filters: {kind: filters, from: bridge, to: bridge-fw}
   workstation-runs-client: {kind: hosts, from: workstation, to: ssh-client, privilege: user}
   server-runs-sshd: {kind: hosts, from: server, to: sshd, privilege: admin}
+  sshd-instance: {kind: instance-of, from: sshd, to: openssh}
   workstation-stores-password: {kind: stores, from: workstation, to: server-credential, privilege: user}
   password-authenticates: {kind: authenticates, from: server-credential, to: server-account}
   account-authorized: {kind: authorizes, from: server-account, to: sshd}
@@ -75,14 +80,14 @@ attacker:
 scenarios:
   patch-server:
     label: Patch the SSH server
-    changes: [{entity: sshd, defense: patched, value: true}]
+    changes: [{entity: openssh, defense: patched, value: true}]
   protect-password:
     label: Protect the stored password
     changes: [{entity: server-credential, defense: protected, value: true}]
   patch-and-protect:
     label: Patch and protect
     changes:
-      - {entity: sshd, defense: patched, value: true}
+      - {entity: openssh, defense: patched, value: true}
       - {entity: server-credential, defense: protected, value: true}
   deny-ssh:
     label: Deny SSH at the router

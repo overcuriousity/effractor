@@ -9,7 +9,7 @@ use effractor_components::{
     Binding, GeneratedGraph, GeneratedKind, RULES, ResolvedTtc, generate, resolve,
 };
 use effractor_core::architecture::{
-    Architecture, Association, Entity, EntityKind, Privilege, Relation, Slot,
+    Architecture, Association, Defense, Entity, EntityKind, Privilege, Relation, Slot,
 };
 use effractor_core::{AssociationId, Code, Document, FlowId, ScenarioId};
 
@@ -196,12 +196,15 @@ fn every_lecture_step_has_exactly_its_prerequisites() {
             ],
         ),
         (
-            "action/service-deploy-exploit/sshd",
-            &["state/service/sshd/exploit-ready"],
+            "action/product-find-exploit/openssh",
+            &["state/product/openssh/reachable"],
         ),
         (
-            "action/service-find-exploit/sshd",
-            &["state/service/sshd/reachable"],
+            "action/service-deploy-exploit/sshd",
+            &[
+                "state/product/openssh/exploit-ready",
+                "state/service/sshd/reachable",
+            ],
         ),
         (
             "action/service-login/server-account/sshd",
@@ -280,8 +283,12 @@ fn every_lecture_step_has_exactly_its_prerequisites() {
             ],
         ),
         (
-            "state/service/sshd/exploit-ready",
-            &["action/service-find-exploit/sshd"],
+            "state/product/openssh/exploit-ready",
+            &["action/product-find-exploit/openssh"],
+        ),
+        (
+            "state/product/openssh/reachable",
+            &["state/service/sshd/reachable"],
         ),
         (
             "state/service/sshd/reachable",
@@ -654,6 +661,15 @@ fn a_router_on_a_host_is_controlled_from_it_and_left_by_an_escape() {
 fn router_software_runs_as_admin() {
     let mut m = lecture();
     add(&mut m, "router-web", EntityKind::Service);
+    add(&mut m, "router-web-software", EntityKind::Product);
+    relate(
+        &mut m,
+        "router-web-instance",
+        Relation::InstanceOf {
+            from: id("router-web"),
+            to: id("router-web-software"),
+        },
+    );
     relate(
         &mut m,
         "router-hosts-web",
@@ -714,7 +730,7 @@ fn an_administrator_foothold_opens_the_management_route() {
 }
 
 #[test]
-fn extraction_is_per_store_and_discovery_per_service() {
+fn extraction_is_per_store_and_discovery_per_product() {
     let mut m = lecture();
     // The same key kept in a second place: two extractions, one possession.
     add(&mut m, "laptop", EntityKind::Host);
@@ -781,7 +797,7 @@ fn extraction_is_per_store_and_discovery_per_service() {
             .filter(|n| n.id.starts_with(prefix))
             .count()
     };
-    assert_eq!(count("action/service-find-exploit/"), 1);
+    assert_eq!(count("action/product-find-exploit/"), 1);
     assert_eq!(count("action/service-deploy-exploit/"), 1);
     assert_eq!(count("action/service-login/"), 2);
     assert_eq!(count("action/flow-connect/"), 2);
@@ -880,4 +896,86 @@ fn a_router_on_a_host_escapes_to_it_by_a_timed_step() {
 fn an_unhosted_host_has_no_escape_step() {
     let g = generate(&lecture()).unwrap();
     assert!(g.nodes.iter().all(|n| !n.id.contains("escape")));
+}
+
+#[test]
+fn two_instances_share_one_discovery_and_deploy_separately() {
+    let mut m = lecture();
+    add(&mut m, "sshd2", EntityKind::Service);
+    relate(
+        &mut m,
+        "sshd2-hosting",
+        Relation::Hosts {
+            from: id("server"),
+            to: id("sshd2"),
+            privilege: Privilege::User,
+        },
+    );
+    relate(
+        &mut m,
+        "sshd2-openssh",
+        Relation::InstanceOf {
+            from: id("sshd2"),
+            to: id("openssh"),
+        },
+    );
+    let g = generate(&m).unwrap();
+    let mut reach = inputs(&g, "state/product/openssh/reachable");
+    reach.sort();
+    assert_eq!(
+        reach,
+        vec![
+            "state/service/sshd/reachable",
+            "state/service/sshd2/reachable"
+        ]
+    );
+    assert_eq!(
+        inputs(&g, "action/product-find-exploit/openssh"),
+        vec!["state/product/openssh/reachable"]
+    );
+    assert_eq!(
+        inputs(&g, "action/service-deploy-exploit/sshd2"),
+        vec![
+            "state/product/openssh/exploit-ready",
+            "state/service/sshd2/reachable"
+        ]
+    );
+    assert!(
+        g.nodes
+            .iter()
+            .all(|n| n.id != "action/service-find-exploit/sshd")
+    );
+    assert!(matches!(
+        node(&g, "action/product-find-exploit/openssh").duration,
+        Binding::Parameter {
+            base: Slot::FindExploit,
+            replacement: Some((Defense::Patched, Slot::FindExploitPatched)),
+            ..
+        }
+    ));
+}
+
+#[test]
+fn an_action_names_the_component_whose_time_it_takes_last() {
+    let mut m = lecture();
+    add(&mut m, "hv", EntityKind::Host);
+    relate(
+        &mut m,
+        "hv-server",
+        Relation::Hosts {
+            from: id("hv"),
+            to: id("server"),
+            privilege: Privilege::User,
+        },
+    );
+    let g = generate(&m).unwrap();
+    let last = |step: &str| {
+        node(&g, step).origins[0]
+            .entities
+            .last()
+            .unwrap()
+            .to_string()
+    };
+    assert_eq!(last("action/service-deploy-exploit/sshd"), "sshd");
+    assert_eq!(last("action/guest-escape/server"), "server");
 }

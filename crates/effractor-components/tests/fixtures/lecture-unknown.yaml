@@ -44,12 +44,6 @@ entities:
     kind: service
     label: SSH server
     parameters:
-      find-exploit:
-        status: unknown
-      find-exploit-patched:
-        status: illustrative
-        ttc: "Never"
-        note: "Exercise assumption: perfect blocking, a patched service has no exploit to find"
       deploy-exploit:
         status: illustrative
         ttc: "Exponential(mean 2)"
@@ -58,6 +52,16 @@ entities:
         status: illustrative
         ttc: "Exponential(mean 1)"
         note: Exercise assumption; not calibrated to the lecture
+  openssh:
+    kind: product
+    label: OpenSSH
+    parameters:
+      find-exploit:
+        status: unknown
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Exercise assumption: perfect blocking, a patched service has no exploit to find"
     defenses: {patched: false}
   server-account:
     kind: account
@@ -128,6 +132,10 @@ associations:
     from: server
     to: sshd
     privilege: admin
+  sshd-instance:
+    kind: instance-of
+    from: sshd
+    to: openssh
   bridge-filter:
     kind: filters
     from: bridge
@@ -196,7 +204,7 @@ scenarios:
   patch:
     label: Patch the SSH server
     changes:
-      - {entity: sshd, defense: patched, value: true}
+      - {entity: openssh, defense: patched, value: true}
   protect:
     label: Protect the stored key
     changes:
@@ -204,7 +212,7 @@ scenarios:
   both:
     label: Patch and protect
     changes:
-      - {entity: sshd, defense: patched, value: true}
+      - {entity: openssh, defense: patched, value: true}
       - {entity: server-key, defense: protected, value: true}
   deny:
     label: Deny SSH at the router

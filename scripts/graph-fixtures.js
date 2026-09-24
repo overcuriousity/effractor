@@ -42,7 +42,7 @@ function build(api) {
     'results-unknown': solved(api, unknown),
     'results-scenario-unknown': solved(
       api,
-      replaced(lecture, '  deny:\n', '  doubt:\n    label: Patch state unknown\n    changes:\n      - {entity: sshd, defense: patched, value: unknown}\n  deny:\n'),
+      replaced(lecture, '  deny:\n', '  doubt:\n    label: Patch state unknown\n    changes:\n      - {entity: openssh, defense: patched, value: unknown}\n  deny:\n'),
       'doubt',
     ),
   };

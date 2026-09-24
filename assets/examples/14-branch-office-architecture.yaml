@@ -52,14 +52,6 @@ entities:
     kind: service
     label: File share
     parameters:
-      find-exploit:
-        status: illustrative
-        ttc: "Exponential(mean 20)"
-        note: "Teaching input: an unpatched file share, found in weeks"
-      find-exploit-patched:
-        status: illustrative
-        ttc: "Never"
-        note: "Teaching input: patching is taken as perfect"
       deploy-exploit:
         status: illustrative
         ttc: "Exponential(mean 2)"
@@ -68,10 +60,34 @@ entities:
         status: illustrative
         ttc: "Exponential(mean 0.5)"
         note: "Teaching input: a password is quickly tried"
+  smb-software:
+    kind: product
+    label: File share software
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 20)"
+        note: "Teaching input: an unpatched file share, found in weeks"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: patching is taken as perfect"
     defenses: {patched: false}
   appliance-ssh:
     kind: service
     label: Appliance management SSH
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 2)"
+        note: Teaching input
+      login:
+        status: illustrative
+        ttc: "Exponential(mean 0.5)"
+        note: Teaching input
+  appliance-ssh-software:
+    kind: product
+    label: Appliance management SSH software
     parameters:
       find-exploit:
         status: illustrative
@@ -81,14 +97,6 @@ entities:
         status: illustrative
         ttc: "Never"
         note: "Teaching input: patching is taken as perfect"
-      deploy-exploit:
-        status: illustrative
-        ttc: "Exponential(mean 2)"
-        note: Teaching input
-      login:
-        status: illustrative
-        ttc: "Exponential(mean 0.5)"
-        note: Teaching input
     defenses: {patched: false}
   staff:
     kind: account
@@ -174,11 +182,19 @@ associations:
     from: files
     to: smb
     privilege: admin
+  smb-instance:
+    kind: instance-of
+    from: smb
+    to: smb-software
   appliance-ssh-hosting:
     kind: hosts
     from: appliance
     to: appliance-ssh
     privilege: admin
+  appliance-ssh-instance:
+    kind: instance-of
+    from: appliance-ssh
+    to: appliance-ssh-software
   staff-password-store:
     kind: stores
     from: laptop
@@ -254,7 +270,7 @@ scenarios:
   patch-files:
     label: Patch the file server
     changes:
-      - {entity: smb, defense: patched, value: true}
+      - {entity: smb-software, defense: patched, value: true}
   deny-smb:
     label: Deny the file share at the gateway
     changes:
@@ -263,7 +279,7 @@ scenarios:
     label: Deny the file share and patch the appliance
     changes:
       - {association: allow-smb, field: allowed, value: false}
-      - {entity: appliance-ssh, defense: patched, value: true}
+      - {entity: appliance-ssh-software, defense: patched, value: true}
 
 analysis:
   seed: 14

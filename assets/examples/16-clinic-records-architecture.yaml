@@ -39,14 +39,7 @@ entities:
   records:
     kind: service
     label: Records service
-    description: The vendor has not said how exposed it is; exploit discovery stays unknown
     parameters:
-      find-exploit:
-        status: unknown
-      find-exploit-patched:
-        status: illustrative
-        ttc: "Never"
-        note: "Teaching input: the vendor patch is taken as perfect"
       deploy-exploit:
         status: illustrative
         ttc: "Exponential(mean 2)"
@@ -55,6 +48,17 @@ entities:
         status: illustrative
         ttc: "Exponential(mean 0.333)"
         note: "Teaching input: a stolen session token is replayed"
+  records-software:
+    kind: product
+    label: Records service software
+    description: The vendor has not said how exposed it is; exploit discovery stays unknown
+    parameters:
+      find-exploit:
+        status: unknown
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: the vendor patch is taken as perfect"
     defenses: {patched: false}
   clinician:
     kind: account
@@ -107,6 +111,10 @@ associations:
     from: records-host
     to: records
     privilege: admin
+  records-instance:
+    kind: instance-of
+    from: records
+    to: records-software
   token-store:
     kind: stores
     from: viewer
@@ -153,7 +161,7 @@ scenarios:
   vendor-patch:
     label: Apply the vendor patch
     changes:
-      - {entity: records, defense: patched, value: true}
+      - {entity: records-software, defense: patched, value: true}
   short-tokens:
     label: Short-lived tokens
     changes:

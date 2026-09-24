@@ -17,7 +17,7 @@
    "unavailable": {
     "reason": "rests on unknown inputs",
     "missing": [
-     "entities.sshd.parameters.find-exploit"
+     "entities.openssh.parameters.find-exploit"
     ]
    }
   },
@@ -75,25 +75,25 @@
     }
    },
    {
+    "id": "action/product-find-exploit/openssh",
+    "status": "possible",
+    "outcome": {
+     "unavailable": {
+      "reason": "rests on unknown inputs",
+      "missing": [
+       "entities.openssh.parameters.find-exploit"
+      ]
+     }
+    }
+   },
+   {
     "id": "action/service-deploy-exploit/sshd",
     "status": "possible",
     "outcome": {
      "unavailable": {
       "reason": "rests on unknown inputs",
       "missing": [
-       "entities.sshd.parameters.find-exploit"
-      ]
-     }
-    }
-   },
-   {
-    "id": "action/service-find-exploit/sshd",
-    "status": "possible",
-    "outcome": {
-     "unavailable": {
-      "reason": "rests on unknown inputs",
-      "missing": [
-       "entities.sshd.parameters.find-exploit"
+       "entities.openssh.parameters.find-exploit"
       ]
      }
     }
@@ -222,7 +222,7 @@
      "unavailable": {
       "reason": "rests on unknown inputs",
       "missing": [
-       "entities.sshd.parameters.find-exploit"
+       "entities.openssh.parameters.find-exploit"
       ]
      }
     }
@@ -234,7 +234,7 @@
      "unavailable": {
       "reason": "rests on unknown inputs",
       "missing": [
-       "entities.sshd.parameters.find-exploit"
+       "entities.openssh.parameters.find-exploit"
       ]
      }
     }
@@ -298,7 +298,7 @@
      "unavailable": {
       "reason": "rests on unknown inputs",
       "missing": [
-       "entities.sshd.parameters.find-exploit"
+       "entities.openssh.parameters.find-exploit"
       ]
      }
     }
@@ -311,6 +311,31 @@
       "p": 1,
       "ci": {
        "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/product/openssh/exploit-ready",
+    "status": "possible",
+    "outcome": {
+     "unavailable": {
+      "reason": "rests on unknown inputs",
+      "missing": [
+       "entities.openssh.parameters.find-exploit"
+      ]
+     }
+    }
+   },
+   {
+    "id": "state/product/openssh/reachable",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
        "hi": 1
       }
      }
@@ -336,19 +361,7 @@
      "unavailable": {
       "reason": "rests on unknown inputs",
       "missing": [
-       "entities.sshd.parameters.find-exploit"
-      ]
-     }
-    }
-   },
-   {
-    "id": "state/service/sshd/exploit-ready",
-    "status": "possible",
-    "outcome": {
-     "unavailable": {
-      "reason": "rests on unknown inputs",
-      "missing": [
-       "entities.sshd.parameters.find-exploit"
+       "entities.openssh.parameters.find-exploit"
       ]
      }
     }
@@ -391,6 +404,16 @@
     "note": null
    },
    {
+    "path": "entities.openssh.parameters.find-exploit",
+    "paths": [
+     "entities.openssh.parameters.find-exploit",
+     "entities.openssh.defenses.patched"
+    ],
+    "status": "unknown",
+    "expression": null,
+    "note": null
+   },
+   {
     "path": "entities.server-key.parameters.extract",
     "paths": [
      "entities.server-key.parameters.extract",
@@ -408,16 +431,6 @@
     "status": "illustrative",
     "expression": "Exponential(mean 2)",
     "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
-   },
-   {
-    "path": "entities.sshd.parameters.find-exploit",
-    "paths": [
-     "entities.sshd.parameters.find-exploit",
-     "entities.sshd.defenses.patched"
-    ],
-    "status": "unknown",
-    "expression": null,
-    "note": null
    },
    {
     "path": "entities.sshd.parameters.login",

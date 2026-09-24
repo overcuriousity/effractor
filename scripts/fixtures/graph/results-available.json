@@ -32,111 +32,111 @@
      ],
      [
       1.5625,
-      0.137,
-      0.13039995958322761,
-      0.1438788232338836
+      0.1364,
+      0.1298126167025602,
+      0.1432666269125958
      ],
      [
       3.125,
-      0.4055,
-      0.3959148686145858,
-      0.415157707077472
+      0.4038,
+      0.39422199044064493,
+      0.41345189084587314
      ],
      [
       4.6875,
-      0.62,
-      0.6104422358294463,
-      0.6294656045615912
+      0.6083,
+      0.5986929831638528,
+      0.6178238427890586
      ],
      [
       6.25,
-      0.7532,
-      0.7446534628642038,
-      0.7615520803608856
+      0.7448,
+      0.7361621957336849,
+      0.7532497986640317
      ],
      [
       7.8125,
-      0.8397,
-      0.8323789578765206,
-      0.8467601536304417
+      0.8367,
+      0.8293261506119043,
+      0.8438152648852821
      ],
      [
       9.375,
-      0.8967,
-      0.8905817117283228,
-      0.9025136239643825
+      0.8969,
+      0.8907867431552386,
+      0.9027084389381183
      ],
      [
       10.9375,
-      0.9362,
-      0.9312404116392846,
-      0.9408245881821372
+      0.9363,
+      0.9313438689192319,
+      0.9409210541025157
      ],
      [
       12.5,
-      0.9612,
-      0.9572344418610992,
-      0.9648113580417887
+      0.961,
+      0.9570251863191388,
+      0.9646207671830973
      ],
      [
       14.0625,
-      0.977,
-      0.9738736410370883,
-      0.9797600245172862
+      0.9745,
+      0.9712233682732674,
+      0.9774122172729605
      ],
      [
       15.625,
-      0.986,
-      0.9835034976325358,
-      0.9881232559511665
+      0.984,
+      0.9813483360961877,
+      0.9862799534809974
      ],
      [
       17.1875,
-      0.9921,
-      0.9901659470723597,
-      0.9936561217312202
+      0.9888,
+      0.9865415906830627,
+      0.9906830125097638
      ],
      [
       18.75,
-      0.9955,
-      0.9939844289062514,
-      0.9966350287084083
+      0.9928,
+      0.9909432250635823,
+      0.9942783061422789
      ],
      [
       20.3125,
-      0.9971,
-      0.9958382254534343,
-      0.9979800033664389
+      0.9957,
+      0.9942133784168481,
+      0.9968059255984631
      ],
      [
       21.875,
-      0.9981,
-      0.9970342049827606,
-      0.9987832558403712
+      0.9973,
+      0.9960744058463006,
+      0.9981436693742244
      ],
      [
       23.4375,
-      0.999,
-      0.9981600556125619,
-      0.9994567140135028
+      0.9985,
+      0.9975264154500286,
+      0.9990907381744069
      ],
      [
       25,
-      0.9992,
-      0.9984220497466133,
-      0.999594566280103
+      0.9993,
+      0.9985556655587302,
+      0.9996608736683119
      ],
      [
       26.5625,
-      0.9994,
-      0.9986914759036991,
-      0.999724986523669
-     ],
-     [
-      28.125,
       0.9996,
       0.9989718716646431,
       0.9998444371633769
+     ],
+     [
+      28.125,
+      0.9997,
+      0.9991182642277636,
+      0.9998979678005822
      ],
      [
       29.6875,
@@ -146,9 +146,9 @@
      ],
      [
       31.25,
-      1,
-      0.9996160016293234,
-      1
+      0.9999,
+      0.9994337311025987,
+      0.9999823473263989
      ],
      [
       32.8125,
@@ -471,20 +471,20 @@
     }
    },
    {
-    "id": "action/service-deploy-exploit/sshd",
+    "id": "action/product-find-exploit/openssh",
     "status": "possible",
     "outcome": {
      "available": {
-      "p": 0.9999,
+      "p": 1,
       "ci": {
-       "lo": 0.9994337311025987,
-       "hi": 0.9999823473263989
+       "lo": 0.9996160016293234,
+       "hi": 1
       }
      }
     }
    },
    {
-    "id": "action/service-find-exploit/sshd",
+    "id": "action/service-deploy-exploit/sshd",
     "status": "possible",
     "outcome": {
      "available": {
@@ -718,6 +718,32 @@
     }
    },
    {
+    "id": "state/product/openssh/exploit-ready",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/product/openssh/reachable",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
     "id": "state/router/bridge/admin",
     "status": "unreachable",
     "outcome": {
@@ -732,19 +758,6 @@
    },
    {
     "id": "state/service/sshd/control",
-    "status": "possible",
-    "outcome": {
-     "available": {
-      "p": 1,
-      "ci": {
-       "lo": 0.9996160016293234,
-       "hi": 1
-      }
-     }
-    }
-   },
-   {
-    "id": "state/service/sshd/exploit-ready",
     "status": "possible",
     "outcome": {
      "available": {
@@ -794,6 +807,16 @@
     "note": null
    },
    {
+    "path": "entities.openssh.parameters.find-exploit",
+    "paths": [
+     "entities.openssh.parameters.find-exploit",
+     "entities.openssh.defenses.patched"
+    ],
+    "status": "illustrative",
+    "expression": "Exponential(mean 10)",
+    "note": "Exercise assumption; not calibrated to the lecture"
+   },
+   {
     "path": "entities.server-key.parameters.extract",
     "paths": [
      "entities.server-key.parameters.extract",
@@ -811,16 +834,6 @@
     "status": "illustrative",
     "expression": "Exponential(mean 2)",
     "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
-   },
-   {
-    "path": "entities.sshd.parameters.find-exploit",
-    "paths": [
-     "entities.sshd.parameters.find-exploit",
-     "entities.sshd.defenses.patched"
-    ],
-    "status": "illustrative",
-    "expression": "Exponential(mean 10)",
-    "note": "Exercise assumption; not calibrated to the lecture"
    },
    {
     "path": "entities.sshd.parameters.login",
@@ -843,7 +856,7 @@
   ],
   "witness": {
    "sample": 0,
-   "target_time": 6.910393058726657,
+   "target_time": 9.869109204942117,
    "nodes": [
     {
      "id": "input/flow-permission/filter/ssh",
@@ -882,38 +895,42 @@
      "time": 0.20426056628550843
     },
     {
-     "id": "action/service-find-exploit/sshd",
-     "time": 5.0771776876610115
+     "id": "action/credential-extract/workstation/server-key",
+     "time": 9.379000546000169
     },
     {
-     "id": "state/service/sshd/exploit-ready",
-     "time": 5.0771776876610115
+     "id": "state/account/server-account/material",
+     "time": 9.379000546000169
     },
     {
-     "id": "action/service-deploy-exploit/sshd",
-     "time": 6.910393058726657
+     "id": "state/credential/server-key/possessed",
+     "time": 9.379000546000169
+    },
+    {
+     "id": "action/service-login/server-account/sshd",
+     "time": 9.869109204942117
     },
     {
      "id": "state/host/server/admin",
-     "time": 6.910393058726657
+     "time": 9.869109204942117
     },
     {
-     "id": "state/service/sshd/control",
-     "time": 6.910393058726657
+     "id": "state/session/server-account/sshd",
+     "time": 9.869109204942117
     }
    ],
    "edges": [
+    {
+     "prerequisite": "action/credential-extract/workstation/server-key",
+     "dependent": "state/credential/server-key/possessed"
+    },
     {
      "prerequisite": "action/flow-connect/ssh",
      "dependent": "state/flow/ssh/connected"
     },
     {
-     "prerequisite": "action/service-deploy-exploit/sshd",
-     "dependent": "state/service/sshd/control"
-    },
-    {
-     "prerequisite": "action/service-find-exploit/sshd",
-     "dependent": "state/service/sshd/exploit-ready"
+     "prerequisite": "action/service-login/server-account/sshd",
+     "dependent": "state/session/server-account/sshd"
     },
     {
      "prerequisite": "input/flow-permission/filter/ssh",
@@ -924,8 +941,16 @@
      "dependent": "state/host/workstation/admin"
     },
     {
+     "prerequisite": "state/account/server-account/material",
+     "dependent": "action/service-login/server-account/sshd"
+    },
+    {
      "prerequisite": "state/application/ssh-client/control",
      "dependent": "action/flow-connect/ssh"
+    },
+    {
+     "prerequisite": "state/credential/server-key/possessed",
+     "dependent": "state/account/server-account/material"
     },
     {
      "prerequisite": "state/flow/ssh/connected",
@@ -937,6 +962,10 @@
     },
     {
      "prerequisite": "state/host/workstation/user",
+     "dependent": "action/credential-extract/workstation/server-key"
+    },
+    {
+     "prerequisite": "state/host/workstation/user",
      "dependent": "state/application/ssh-client/control"
     },
     {
@@ -944,16 +973,12 @@
      "dependent": "action/flow-connect/ssh"
     },
     {
-     "prerequisite": "state/service/sshd/control",
-     "dependent": "state/host/server/admin"
-    },
-    {
-     "prerequisite": "state/service/sshd/exploit-ready",
-     "dependent": "action/service-deploy-exploit/sshd"
-    },
-    {
      "prerequisite": "state/service/sshd/reachable",
-     "dependent": "action/service-find-exploit/sshd"
+     "dependent": "action/service-login/server-account/sshd"
+    },
+    {
+     "prerequisite": "state/session/server-account/sshd",
+     "dependent": "state/host/server/admin"
     }
    ]
   }

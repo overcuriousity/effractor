@@ -43,14 +43,6 @@ entities:
     kind: service
     label: SSH server
     parameters:
-      find-exploit:
-        status: illustrative
-        ttc: "Exponential(mean 10)"
-        note: Exercise assumption; not calibrated to the lecture
-      find-exploit-patched:
-        status: illustrative
-        ttc: "Never"
-        note: "Exercise assumption: a patched service has no exploit to find"
       deploy-exploit:
         status: illustrative
         ttc: "Exponential(mean 2)"
@@ -59,6 +51,18 @@ entities:
         status: illustrative
         ttc: "Exponential(mean 1)"
         note: Exercise assumption; not calibrated to the lecture
+  openssh:
+    kind: product
+    label: OpenSSH
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 10)"
+        note: Exercise assumption; not calibrated to the lecture
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Exercise assumption: a patched service has no exploit to find"
     defenses: {patched: false}
   server-account:
     kind: account
@@ -133,6 +137,10 @@ associations:
     from: server
     to: sshd
     privilege: admin
+  sshd-instance:
+    kind: instance-of
+    from: sshd
+    to: openssh
   workstation-stores-password:
     kind: stores
     from: workstation
@@ -197,7 +205,7 @@ scenarios:
   patch-server:
     label: Patch the SSH server
     changes:
-      - {entity: sshd, defense: patched, value: true}
+      - {entity: openssh, defense: patched, value: true}
   protect-password:
     label: Protect the stored password
     changes:
@@ -205,7 +213,7 @@ scenarios:
   patch-and-protect:
     label: Patch and protect
     changes:
-      - {entity: sshd, defense: patched, value: true}
+      - {entity: openssh, defense: patched, value: true}
       - {entity: server-credential, defense: protected, value: true}
   deny-ssh:
     label: Deny SSH at the router

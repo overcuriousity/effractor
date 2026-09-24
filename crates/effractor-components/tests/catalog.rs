@@ -3,7 +3,7 @@
 use effractor_components::{RULES, catalog};
 use serde_json::Value;
 
-const RULE_IDS: [&str; 19] = [
+const RULE_IDS: [&str; 20] = [
     "foothold",
     "admin-implies-user",
     "host-execution",
@@ -16,7 +16,8 @@ const RULE_IDS: [&str; 19] = [
     "flow-permission",
     "flow-connect",
     "service-reachable",
-    "service-find-exploit",
+    "product-reachable",
+    "product-find-exploit",
     "service-deploy-exploit",
     "credential-extract",
     "account-material",
@@ -49,11 +50,12 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
             "host",
             "application",
             "service",
+            "product",
             "account",
             "credential"
         ]
     );
-    assert_eq!(ids(&c["associations"], "kind").len(), 9);
+    assert_eq!(ids(&c["associations"], "kind").len(), 10);
     assert_eq!(ids(&c["states"], "id").len(), 5);
     assert_eq!(ids(&c["parameters"], "slot").len(), 9);
     let rules = ids(&c["rules"], "id");
@@ -65,12 +67,12 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
     }
     assert_eq!(c["limits"]["entities"], 500);
     assert_eq!(c["limits"]["generated_nodes"], 5000);
-    // A service's exploit rule is the one patching replaces.
+    // A product's exploit rule is the one patching replaces.
     let find = c["rules"]
         .as_array()
         .unwrap()
         .iter()
-        .find(|r| r["id"] == "service-find-exploit")
+        .find(|r| r["id"] == "product-find-exploit")
         .unwrap();
     assert_eq!(find["duration"]["slot"], "find-exploit");
     assert_eq!(find["duration"]["replaced_by"]["defense"], "patched");

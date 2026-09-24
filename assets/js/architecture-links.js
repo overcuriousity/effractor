@@ -6,7 +6,7 @@
 // named what it deletes — so a document never points at nothing.
 (function () {
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
-  var KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits"];
+  var KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of"];
   var PRIVILEGED = ["hosts", "stores", "grants"];
   var COLLECTIONS = ["entities", "associations", "flows"];
 
@@ -218,6 +218,15 @@
     return { doc: next, select: SELECT[collection] + id };
   }
 
+  // The product a service is an instance of, or null.
+  function productOf(doc, service) {
+    var link = Object.keys(doc.associations || {}).filter(function (k) {
+      var a = doc.associations[k];
+      return a.kind === "instance-of" && a.from === service;
+    })[0];
+    return link ? doc.associations[link].to : null;
+  }
+
   function hostOf(doc, executable) {
     var hosting = Object.keys(doc.associations || {}).filter(function (k) {
       var a = doc.associations[k];
@@ -349,6 +358,8 @@
             if (other === id || spec.to.indexOf(kindOf(doc, other)) < 0) return false;
             if (!endsAllowed(spec.kind, kind, kindOf(doc, other))) return false;
             if (spec.kind === "hosts" && hostOf(doc, other)) return false;
+            // One product per service.
+            if (spec.kind === "instance-of" && productOf(doc, id)) return false;
             // One firewall per router, one router per firewall.
             if (spec.kind === "filters" && (hasFilters(doc, "from", id) || hasFilters(doc, "to", other))) return false;
             return !linked(doc, spec.kind, id, other);
@@ -397,6 +408,7 @@
     authorizes: { out: "accepts this account", in: "may log in" },
     grants: { out: "grants it", in: "has rights here" },
     administration: { out: "managed from here", in: "managed from there" },
+    "instance-of": { out: "is a version of", in: "runs this version" },
     flow: { out: "flow to it", in: "flow from it" },
   };
   function phrase(relation, direction, privilege) {
@@ -408,7 +420,7 @@
     return words;
   }
 
-  var ENTITY_KINDS = ["network", "router", "firewall", "host", "application", "service", "account", "credential"];
+  var ENTITY_KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential"];
 
   function hasFilters(doc, end, id) {
     return Object.keys(doc.associations || {}).some(function (k) {
@@ -442,7 +454,7 @@
     }
     (catalog.associations || []).forEach(function (spec) {
       if (spec.kind === "permits") return;
-      if (spec.from.indexOf(kind) >= 0 && !(spec.kind === "filters" && hasFilters(doc, "from", id))) {
+      if (spec.from.indexOf(kind) >= 0 && !(spec.kind === "filters" && hasFilters(doc, "from", id)) && !(spec.kind === "instance-of" && productOf(doc, id))) {
         spec.to.forEach(function (k) { offer(k, spec.kind, "out"); });
       }
       if (spec.to.indexOf(kind) >= 0) {

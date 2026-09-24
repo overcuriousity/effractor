@@ -157,7 +157,7 @@ fn the_lecture_baseline_is_sampled_with_its_curve_and_route() {
     let assumptions = base["assumptions"].as_array().unwrap();
     let find = assumptions
         .iter()
-        .find(|a| a["path"] == "entities.sshd.parameters.find-exploit")
+        .find(|a| a["path"] == "entities.openssh.parameters.find-exploit")
         .unwrap();
     assert_eq!(find["status"], "illustrative");
     assert_eq!(find["expression"], "Exponential(mean 10)");
@@ -223,11 +223,11 @@ fn unknown_inputs_cost_exactly_the_numbers_that_rest_on_them() {
     let target = &base["outcome"]["unavailable"];
     assert_eq!(
         target["missing"],
-        serde_json::json!(["entities.sshd.parameters.find-exploit"])
+        serde_json::json!(["entities.openssh.parameters.find-exploit"])
     );
     assert!(!target["reason"].as_str().unwrap().is_empty());
     assert!(base["witness"].is_null());
-    let find = node(base, "action/service-find-exploit/sshd");
+    let find = node(base, "action/product-find-exploit/openssh");
     assert_eq!(find["status"], "possible");
     assert!(find["outcome"]["unavailable"].is_object());
     // The login route knows everything it needs.
@@ -237,7 +237,7 @@ fn unknown_inputs_cost_exactly_the_numbers_that_rest_on_them() {
         .as_array()
         .unwrap()
         .iter()
-        .find(|a| a["path"] == "entities.sshd.parameters.find-exploit")
+        .find(|a| a["path"] == "entities.openssh.parameters.find-exploit")
         .unwrap();
     assert_eq!(unknown["status"], "unknown");
     assert!(unknown["expression"].is_null());
@@ -334,7 +334,7 @@ fn p_target(report: &Value) -> f64 {
 fn a_scenario_that_changes_nothing_differs_by_exactly_nothing() {
     let text = with_scenario(
         LECTURE,
-        "  noop:\n    label: Nothing\n    changes:\n      - {entity: sshd, defense: patched, value: false}",
+        "  noop:\n    label: Nothing\n    changes:\n      - {entity: openssh, defense: patched, value: false}",
     );
     let r = solve(&text, Some("noop"), 10_000);
     assert_eq!(r["scenario"]["id"], "noop");
@@ -351,7 +351,7 @@ fn each_defence_leaves_the_other_route_and_both_leave_none() {
     let patch = solve(LECTURE, Some("patch"), 10_000);
     let s = &patch["scenario"];
     assert_eq!(
-        node(s, "action/service-find-exploit/sshd")["status"],
+        node(s, "action/product-find-exploit/openssh")["status"],
         "blocked"
     );
     assert_eq!(
@@ -472,7 +472,7 @@ fn an_unknown_replacement_costs_the_comparison_not_the_baseline() {
     );
     let r = solve(&text, Some("patch"), 4096);
     assert!(p_target(&r["baseline"]) > 0.5);
-    let missing = serde_json::json!(["entities.sshd.parameters.find-exploit-patched"]);
+    let missing = serde_json::json!(["entities.openssh.parameters.find-exploit-patched"]);
     assert_eq!(r["scenario"]["outcome"]["unavailable"]["missing"], missing);
     assert_eq!(r["delta"]["unavailable"]["missing"], missing);
 }
@@ -508,7 +508,7 @@ fn a_blocked_result_lists_the_inputs_that_block_it() {
     let r = solve(LECTURE, Some("patch"), 4096);
     let patched = assumption(
         &r["scenario"],
-        "entities.sshd.parameters.find-exploit-patched",
+        "entities.openssh.parameters.find-exploit-patched",
     )
     .unwrap_or_else(|| panic!("{}", r["scenario"]["assumptions"]));
     assert_eq!(patched["status"], "illustrative");
@@ -520,11 +520,11 @@ fn a_blocked_result_lists_the_inputs_that_block_it() {
             .contains(&serde_json::json!("scenarios.patch.changes[0]"))
     );
     // The baseline's exploit rests on the switch as written.
-    let found = assumption(&r["baseline"], "entities.sshd.parameters.find-exploit").unwrap();
+    let found = assumption(&r["baseline"], "entities.openssh.parameters.find-exploit").unwrap();
     assert!(
         found["paths"]
             .as_array()
             .unwrap()
-            .contains(&serde_json::json!("entities.sshd.defenses.patched"))
+            .contains(&serde_json::json!("entities.openssh.defenses.patched"))
     );
 }

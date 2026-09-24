@@ -29,25 +29,19 @@ fn architecture_ids_keep_the_grammar_and_need_a_non_digit() {
 
 #[test]
 fn a_new_entity_carries_every_slot_and_switch_of_its_kind_as_unknown() {
-    let service = Entity::new(EntityKind::Service, "S");
-    let slots: Vec<Slot> = service.parameters.keys().copied().collect();
-    assert_eq!(
-        slots,
-        [
-            Slot::FindExploit,
-            Slot::FindExploitPatched,
-            Slot::DeployExploit,
-            Slot::Login
-        ]
-    );
+    let product = Entity::new(EntityKind::Product, "P");
+    let slots: Vec<Slot> = product.parameters.keys().copied().collect();
+    assert_eq!(slots, [Slot::FindExploit, Slot::FindExploitPatched]);
     assert!(
-        service
+        product
             .parameters
             .values()
             .all(|p| *p == Parameter::unknown())
     );
-    assert_eq!(service.defenses.patched, Some(Switch::Unknown));
-    assert_eq!(service.defenses.protected, None);
+    assert_eq!(product.defenses.patched, Some(Switch::Unknown));
+    assert_eq!(product.defenses.protected, None);
+    let service = Entity::new(EntityKind::Service, "S");
+    assert_eq!(service.defenses.patched, None);
     let network = Entity::new(EntityKind::Network, "N");
     assert!(network.parameters.is_empty());
     assert_eq!(network.defenses.patched, None);
@@ -85,6 +79,8 @@ fn validation_names_the_field_that_is_wrong() {
     );
     sshd.parameters.insert(Slot::Extract, Parameter::unknown());
     m.entities.insert(id("sshd"), sshd);
+    m.entities
+        .insert(id("openssh"), Entity::new(EntityKind::Product, "OpenSSH"));
     m.associations.insert(
         "runs".parse().unwrap(),
         Association {
@@ -112,12 +108,12 @@ fn validation_names_the_field_that_is_wrong() {
             label: "S".into(),
             changes: vec![
                 Change::EntityDefense {
-                    entity: id("sshd"),
+                    entity: id("openssh"),
                     defense: Defense::Patched,
                     value: Switch::On,
                 },
                 Change::EntityDefense {
-                    entity: id("sshd"),
+                    entity: id("openssh"),
                     defense: Defense::Patched,
                     value: Switch::Off,
                 },
@@ -303,5 +299,53 @@ fn a_router_cannot_host_a_host() {
         d.iter()
             .any(|d| d.code == Code::AssociationType && d.path == "associations.r-vm2.from"),
         "{d:?}"
+    );
+}
+
+#[test]
+fn a_service_without_a_product_is_incomplete_and_two_are_an_error() {
+    let mut m = Architecture::new("P");
+    m.entities
+        .insert("s".parse().unwrap(), Entity::new(EntityKind::Service, "S"));
+    let d = validate_architecture(&m);
+    assert!(
+        d.iter().any(|d| d.code == Code::Incomplete
+            && d.path == "entities.s"
+            && d.message.contains("product")),
+        "{d:?}"
+    );
+    for p in ["p1", "p2"] {
+        m.entities
+            .insert(p.parse().unwrap(), Entity::new(EntityKind::Product, p));
+        m.associations.insert(
+            format!("s-{p}").parse().unwrap(),
+            Association {
+                relation: Relation::InstanceOf {
+                    from: "s".parse().unwrap(),
+                    to: p.parse().unwrap(),
+                },
+                description: None,
+            },
+        );
+    }
+    let d = validate_architecture(&m);
+    assert!(
+        d.iter()
+            .any(|d| d.code == Code::Cardinality && d.path == "associations.s-p2"),
+        "{d:?}"
+    );
+}
+
+#[test]
+fn patching_belongs_to_the_product() {
+    assert_eq!(EntityKind::Product.defense(), Some(Defense::Patched));
+    assert_eq!(EntityKind::Service.defense(), None);
+    assert_eq!(
+        EntityKind::Product.slots(),
+        &[Slot::FindExploit, Slot::FindExploitPatched]
+    );
+    assert_eq!(
+        EntityKind::Service.slots(),
+        &[Slot::DeployExploit, Slot::Login]
     );
 }

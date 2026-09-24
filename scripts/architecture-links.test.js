@@ -147,17 +147,18 @@ test('deleting a service removes what named it and nothing else', () => {
   const d = edit.doc;
   assert.equal('sshd' in d.entities, false);
   assert.deepEqual(Object.keys(d.entities), Object.keys(doc.entities).filter((k) => k !== 'sshd'));
-  // hosting, authorization, the flow to it and the flow's permission
-  for (const gone of ['service-hosting', 'ssh-authorizes', 'allow-ssh']) assert.equal(gone in d.associations, false, gone);
+  // hosting, its product link, authorization, the flow to it and the flow's permission
+  for (const gone of ['service-hosting', 'sshd-instance', 'ssh-authorizes', 'allow-ssh']) assert.equal(gone in d.associations, false, gone);
+  assert.equal('openssh' in d.entities, true, 'the product stays');
   assert.equal('ssh' in d.flows, false);
   assert.equal('server-grant' in d.associations, true);
   // Scenario changes on removed things go; the scenarios stay, an empty one too.
   assert.deepEqual(Object.keys(d.scenarios), ['patch', 'protect', 'both', 'deny']);
-  assert.deepEqual(d.scenarios.patch.changes, []);
-  assert.deepEqual(d.scenarios.both.changes, [{ entity: 'server-key', defense: 'protected', value: true }]);
+  assert.deepEqual(d.scenarios.patch.changes, [{ entity: 'openssh', defense: 'patched', value: true }]);
+  assert.deepEqual(d.scenarios.both.changes, [{ entity: 'openssh', defense: 'patched', value: true }, { entity: 'server-key', defense: 'protected', value: true }]);
   assert.deepEqual(d.scenarios.deny.changes, []);
   assert.equal(edit.select, null);
-  assert.match(edit.notice, /^deleted “SSH server” and 4 links · Ctrl\+Z undoes$/);
+  assert.match(edit.notice, /^deleted “SSH server” and 5 links · Ctrl\+Z undoes$/);
   assert.deepEqual(doc, lecture(), 'the input is not changed');
 });
 
@@ -242,9 +243,12 @@ test('renaming an id rewrites every reference and keeps map order', () => {
 
   const net = L.renameId(doc, 'entities', 'server-net', 'backend').doc;
   assert.deepEqual(net.flows.ssh.route, ['client-net', 'bridge', 'backend']);
-  const key = L.renameId(doc, 'entities', 'sshd', 'openssh').doc;
-  assert.equal(key.flows.ssh.target, 'openssh');
-  assert.deepEqual(key.scenarios.patch.changes[0], { entity: 'openssh', defense: 'patched', value: true });
+  const key = L.renameId(doc, 'entities', 'sshd', 'ssh-server').doc;
+  assert.equal(key.flows.ssh.target, 'ssh-server');
+  assert.equal(key.associations['sshd-instance'].from, 'ssh-server');
+  const version = L.renameId(doc, 'entities', 'openssh', 'openssh-9').doc;
+  assert.equal(version.associations['sshd-instance'].to, 'openssh-9');
+  assert.deepEqual(version.scenarios.patch.changes[0], { entity: 'openssh-9', defense: 'patched', value: true });
 
   const flow = L.renameId(doc, 'flows', 'ssh', 'admin-ssh').doc;
   assert.equal(flow.associations['allow-ssh'].to, 'admin-ssh');
@@ -360,6 +364,7 @@ test('a component lists its links and flows, outgoing and incoming', () => {
   const doc = lecture();
   assert.deepEqual(L.linksOf(doc, 'sshd').map((l) => [l.id, l.direction, l.other]), [
     ['service-hosting', 'in', 'server'],
+    ['sshd-instance', 'out', 'openssh'],
     ['ssh-authorizes', 'in', 'server-account'],
   ]);
   assert.deepEqual(L.flowsOf(doc, 'sshd'), [{ id: 'ssh', direction: 'in', other: 'ssh-client' }]);
@@ -394,7 +399,7 @@ test('adding a linked component is one edit: the component, its link, the select
   const edit = L.addLinked(doc, E, 'server', 'service', 'Service', CATALOG.entities.find((e) => e.kind === 'service'), option);
   assert.equal(edit.select, 'entity/service');
   assert.equal(edit.doc.entities.service.kind, 'service');
-  assert.deepEqual(edit.doc.entities.service.defenses, { patched: 'unknown' });
+  assert.equal(edit.doc.entities.service.defenses, undefined, 'patching is the product\'s');
   assert.deepEqual(edit.doc.associations['server-hosts-service'], { kind: 'hosts', from: 'server', to: 'service', privilege: 'admin' });
   const back = L.addLinked(doc, E, 'server', 'account', 'Account', CATALOG.entities.find((e) => e.kind === 'account'), { relation: 'grants', direction: 'in', privilege: 'user' });
   assert.deepEqual(back.doc.associations['account-grants-server'], { kind: 'grants', from: 'account', to: 'server', privilege: 'user' });
@@ -436,7 +441,12 @@ test('software is offered a flow to or from a new service', () => {
   const doc = lecture();
   const kinds = (id) => L.addChoices(doc, CATALOG, id).map((c) => c.kind + ': ' + c.options.map((o) => o.relation + ':' + o.direction).join(', '));
   assert.deepEqual(kinds('ssh-client'), ['service: flow:out', 'credential: stores:out']);
-  assert.deepEqual(kinds('sshd'), ['application: flow:in', 'service: flow:out, flow:in', 'account: authorizes:in']);
+  assert.deepEqual(kinds('sshd'), ['application: flow:in', 'service: flow:out, flow:in', 'account: authorizes:in'], 'it runs its product already');
+  doc.entities.web = { kind: 'service', label: 'Web' };
+  assert.deepEqual(kinds('web'), ['router: hosts:in', 'host: hosts:in, hosts:in', 'application: flow:in', 'service: flow:out, flow:in', 'product: instance-of:out', 'account: authorizes:in']);
+  const version = L.linkChoices(doc, CATALOG, 'web').find((c) => c.kind === 'instance-of');
+  assert.deepEqual(version.candidates, ['openssh']);
+  assert.deepEqual(L.linkChoices(doc, CATALOG, 'sshd').find((c) => c.kind === 'instance-of').candidates, []);
 });
 
 test('adding a flow partner makes the component and a flow with an empty route', () => {
@@ -490,4 +500,11 @@ test('a host can be linked to run on a host, a router cannot host one', () => {
   const runsOn = choices.find((c) => c.kind === 'hosts' && c.direction === 'in');
   assert.deepEqual(runsOn.candidates, ['a']);
   assert.deepEqual(L.privileges(doc, 'hosts', 'a', 'b'), ['user', 'admin']);
+});
+
+test('deleting a product takes its instance-of links along', () => {
+  const doc = { entities: { s: { kind: 'service', label: 'S' }, p: { kind: 'product', label: 'P' } },
+    associations: { 's-p': { kind: 'instance-of', from: 's', to: 'p' } }, flows: {} };
+  const out = L.remove(doc, 'entities', 'p');
+  assert.deepEqual(out.doc.associations, {});
 });

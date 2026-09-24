@@ -240,6 +240,7 @@ impl Cx<'_> {
         // Semantic duplicates: same kind, same ends.
         let mut seen: HashMap<(RelationKind, &EntityId, String), &AssociationId> = HashMap::new();
         let mut hosts_of: HashMap<&EntityId, Vec<&AssociationId>> = HashMap::new();
+        let mut instances_of: HashMap<&EntityId, Vec<&AssociationId>> = HashMap::new();
         let mut filters_from: HashMap<&EntityId, Vec<&AssociationId>> = HashMap::new();
         let mut filters_to: HashMap<&EntityId, Vec<&AssociationId>> = HashMap::new();
 
@@ -338,6 +339,7 @@ impl Cx<'_> {
             }
             match r {
                 Relation::Hosts { to, .. } => hosts_of.entry(to).or_default().push(id),
+                Relation::InstanceOf { from, .. } => instances_of.entry(from).or_default().push(id),
                 Relation::Filters { from, to } => {
                     filters_from.entry(from).or_default().push(id);
                     filters_to.entry(to).or_default().push(id);
@@ -354,6 +356,11 @@ impl Cx<'_> {
             ),
             ("a router manages one firewall", filters_from, "filters"),
             ("a firewall is managed by one router", filters_to, "filters"),
+            (
+                "a service is an instance of one product",
+                instances_of,
+                "instance-of",
+            ),
         ] {
             let mut by: Vec<_> = by.into_iter().filter(|(_, ids)| ids.len() > 1).collect();
             by.sort_by_key(|(entity, _)| (*entity).clone());
@@ -380,6 +387,14 @@ impl Cx<'_> {
                 _ => None,
             })
             .collect();
+        let instances: HashSet<&EntityId> = m
+            .associations
+            .values()
+            .filter_map(|a| match &a.relation {
+                Relation::InstanceOf { from, .. } => Some(from),
+                _ => None,
+            })
+            .collect();
         let filtering: HashSet<&EntityId> = m
             .associations
             .values()
@@ -398,6 +413,15 @@ impl Cx<'_> {
             .collect();
         for (id, entity) in &m.entities {
             let at = format!("entities.{id}");
+            // A service may lack its host and its product at once: both are said.
+            if entity.kind == EntityKind::Service && !instances.contains(id) {
+                self.incomplete(
+                    at.clone(),
+                    format!(
+                        "\"{id}\" is an instance of no product yet: no `instance-of` association names the software it runs"
+                    ),
+                );
+            }
             match entity.kind {
                 k if k.is_executable() && !hosted.contains(id) => self.incomplete(
                     at,

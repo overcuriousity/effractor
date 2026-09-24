@@ -92,18 +92,20 @@ pub enum EntityKind {
     Host,
     Application,
     Service,
+    Product,
     Account,
     Credential,
 }
 
 impl EntityKind {
-    pub const ALL: [EntityKind; 8] = [
+    pub const ALL: [EntityKind; 9] = [
         Self::Network,
         Self::Router,
         Self::Firewall,
         Self::Host,
         Self::Application,
         Self::Service,
+        Self::Product,
         Self::Account,
         Self::Credential,
     ];
@@ -117,6 +119,7 @@ impl EntityKind {
             Self::Host => "host",
             Self::Application => "application",
             Self::Service => "service",
+            Self::Product => "product",
             Self::Account => "account",
             Self::Credential => "credential",
         }
@@ -129,7 +132,7 @@ impl EntityKind {
         match self {
             Self::Network => &[State::Access],
             Self::Router => &[State::Admin],
-            Self::Firewall | Self::Account => &[],
+            Self::Firewall | Self::Account | Self::Product => &[],
             Self::Host => &[State::User, State::Admin],
             Self::Application | Self::Service => &[State::Control],
             Self::Credential => &[State::Possessed],
@@ -140,12 +143,8 @@ impl EntityKind {
     /// written on a save, as `unknown` when the author has not said.
     pub fn slots(self) -> &'static [Slot] {
         match self {
-            Self::Service => &[
-                Slot::FindExploit,
-                Slot::FindExploitPatched,
-                Slot::DeployExploit,
-                Slot::Login,
-            ],
+            Self::Service => &[Slot::DeployExploit, Slot::Login],
+            Self::Product => &[Slot::FindExploit, Slot::FindExploitPatched],
             Self::Credential => &[Slot::Extract, Slot::ExtractProtected],
             Self::Account => &[Slot::AdminLogin],
             Self::Host | Self::Router => &[Slot::Escape],
@@ -156,7 +155,7 @@ impl EntityKind {
     /// The defence switch this kind carries, if any.
     pub fn defense(self) -> Option<Defense> {
         match self {
-            Self::Service => Some(Defense::Patched),
+            Self::Product => Some(Defense::Patched),
             Self::Credential => Some(Defense::Protected),
             _ => None,
         }
@@ -346,7 +345,7 @@ impl Default for Parameter {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Defenses {
-    /// A service: `find-exploit-patched` stands in for `find-exploit`.
+    /// A product: `find-exploit-patched` stands in for `find-exploit`.
     pub patched: Option<Switch>,
     /// A credential: `extract-protected` stands in for `extract`.
     pub protected: Option<Switch>,
@@ -449,6 +448,8 @@ pub enum Relation {
         to: FlowId,
         allowed: Switch,
     },
+    /// service → product: which software version it runs; exactly one.
+    InstanceOf { from: EntityId, to: EntityId },
 }
 
 /// The nine association kinds, as a document spells them.
@@ -463,10 +464,11 @@ pub enum RelationKind {
     Grants,
     Administration,
     Permits,
+    InstanceOf,
 }
 
 impl RelationKind {
-    pub const ALL: [RelationKind; 9] = [
+    pub const ALL: [RelationKind; 10] = [
         Self::Attached,
         Self::Hosts,
         Self::Filters,
@@ -476,6 +478,7 @@ impl RelationKind {
         Self::Grants,
         Self::Administration,
         Self::Permits,
+        Self::InstanceOf,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -489,6 +492,7 @@ impl RelationKind {
             Self::Grants => "grants",
             Self::Administration => "administration",
             Self::Permits => "permits",
+            Self::InstanceOf => "instance-of",
         }
     }
 
@@ -503,6 +507,7 @@ impl RelationKind {
             Self::Authorizes | Self::Grants => &[K::Account],
             Self::Administration => &[K::Network],
             Self::Permits => &[K::Firewall],
+            Self::InstanceOf => &[K::Service],
         }
     }
 
@@ -519,6 +524,7 @@ impl RelationKind {
             Self::Authorizes => &[K::Service],
             Self::Grants | Self::Administration => &[K::Host, K::Router],
             Self::Permits => &[],
+            Self::InstanceOf => &[K::Product],
         }
     }
 
@@ -539,6 +545,7 @@ impl Relation {
             Self::Grants { .. } => RelationKind::Grants,
             Self::Administration { .. } => RelationKind::Administration,
             Self::Permits { .. } => RelationKind::Permits,
+            Self::InstanceOf { .. } => RelationKind::InstanceOf,
         }
     }
 
@@ -552,7 +559,8 @@ impl Relation {
             | Self::Authorizes { from, .. }
             | Self::Grants { from, .. }
             | Self::Administration { from, .. }
-            | Self::Permits { from, .. } => from,
+            | Self::Permits { from, .. }
+            | Self::InstanceOf { from, .. } => from,
         }
     }
 
@@ -566,7 +574,8 @@ impl Relation {
             | Self::Authenticates { to, .. }
             | Self::Authorizes { to, .. }
             | Self::Grants { to, .. }
-            | Self::Administration { to, .. } => Some(to),
+            | Self::Administration { to, .. }
+            | Self::InstanceOf { to, .. } => Some(to),
             Self::Permits { .. } => None,
         }
     }

@@ -58,17 +58,17 @@ test('a target resting on an unknown input has no number and says which', () => 
   const h = R.headline(unknown);
   assert.equal(h.p, null);
   assert.match(h.qualifier, /unknown/);
-  assert.deepEqual(h.missing, ['entities.sshd.parameters.find-exploit']);
+  assert.deepEqual(h.missing, ['entities.openssh.parameters.find-exploit']);
   const c = R.cdf(unknown.baseline.outcome);
   assert.deepEqual(c.rows, []);
   assert.equal(c.reason, 'rests on unknown inputs');
-  assert.deepEqual(c.missing, ['entities.sshd.parameters.find-exploit']);
+  assert.deepEqual(c.missing, ['entities.openssh.parameters.find-exploit']);
   assert.equal(R.timeTo(unknown, 0.5), null);
   // A step on that route has no number either; one off it keeps its own.
-  assert.deepEqual(R.nodeFacts(unknown, 'action/service-find-exploit/sshd'), [
+  assert.deepEqual(R.nodeFacts(unknown, 'action/product-find-exploit/openssh'), [
     ['State', 'possible'],
     ['P(step)', 'unknown'],
-    ['Unknown inputs', 'entities.sshd.parameters.find-exploit'],
+    ['Unknown inputs', 'entities.openssh.parameters.find-exploit'],
   ]);
   const extract = R.nodeFacts(unknown, 'action/credential-extract/workstation/server-key');
   assert.equal(extract[1][0], 'P(step)');
@@ -99,7 +99,8 @@ test('assumptions are listed with their evidence status, expression and note', (
   assert.deepEqual(rows.map(a => a.status), ['policy', 'illustrative', 'illustrative', 'illustrative', 'illustrative', 'illustrative']);
   assert.equal(rows[0].path, 'associations.allow-ssh.allowed');
   assert.equal(rows[0].expression, 'allowed');
-  assert.ok(rows[1].paths.includes('entities.server-key.defenses.protected'));
+  const extract = rows.find(a => a.path === 'entities.server-key.parameters.extract');
+  assert.ok(extract.paths.includes('entities.server-key.defenses.protected'));
 });
 
 test('the sample route is one real sample, whole: every prerequisite of every action on it', () => {

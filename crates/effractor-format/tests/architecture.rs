@@ -96,8 +96,8 @@ fn the_reference_architecture_is_canonical_and_complete() {
     let Document::Architecture(a) = doc.unwrap() else {
         panic!("an architecture")
     };
-    assert_eq!(a.entities.len(), 13);
-    assert_eq!(a.associations.len(), 16);
+    assert_eq!(a.entities.len(), 14);
+    assert_eq!(a.associations.len(), 17);
     assert_eq!(a.flows.len(), 1);
     assert_eq!(a.scenarios.len(), 4);
     // Authored order survives.
@@ -116,6 +116,7 @@ fn the_reference_architecture_is_canonical_and_complete() {
 fn partial_authoring_saves_with_unknowns_and_incomplete_warnings() {
     let mut image = image(EMPTY);
     image["entities"]["sshd"] = serde_json::json!({"kind": "service", "label": "SSH"});
+    image["entities"]["openssh"] = serde_json::json!({"kind": "product", "label": "OpenSSH"});
     let text = from_document(&image).unwrap();
     assert!(
         text.contains("      find-exploit:\n        status: unknown\n"),
@@ -135,7 +136,13 @@ fn partial_authoring_saves_with_unknowns_and_incomplete_warnings() {
         .collect();
     assert_eq!(
         incomplete,
-        vec!["entities.sshd", "attacker.target", "attacker.footholds"]
+        // No host and no product yet: both are said.
+        vec![
+            "entities.sshd",
+            "entities.sshd",
+            "attacker.target",
+            "attacker.footholds"
+        ]
     );
     assert!(diagnostics.iter().all(|d| d.severity == Severity::Warning));
     assert!(diagnostics.iter().all(|d| d.pos.is_some()));
@@ -627,9 +634,9 @@ fn states_footholds_targets_and_scenarios_are_typed() {
 #[test]
 fn parameters_say_where_their_numbers_come_from() {
     let mut image = image(LECTURE);
-    let sshd = &mut image["entities"]["sshd"]["parameters"];
-    sshd["find-exploit"] =
+    image["entities"]["openssh"]["parameters"]["find-exploit"] =
         serde_json::json!({"status": "illustrative", "ttc": "Exponential(mean 10)"});
+    let sshd = &mut image["entities"]["sshd"]["parameters"];
     sshd["login"] = serde_json::json!({"status": "unknown", "ttc": "Exponential(mean 1)"});
     sshd["deploy-exploit"] = serde_json::json!({"status": "assumed", "note": "no number"});
     image["flows"]["ssh"]["parameters"]["connect"] =
@@ -639,7 +646,7 @@ fn parameters_say_where_their_numbers_come_from() {
     assert!(!has(
         &errors,
         "missing-key",
-        "entities.sshd.parameters.find-exploit.note"
+        "entities.openssh.parameters.find-exploit.note"
     ));
     for want in [
         ("param-domain", "entities.sshd.parameters.login.ttc"),
@@ -721,7 +728,7 @@ fn extension_keys_ride_along_at_every_level() {
     image["entities"]["sshd"]["x-cpe"] = serde_json::json!("cpe:/a:openbsd:openssh");
     image["entities"]["sshd"]["parameters"]["login"]["x-source"] = serde_json::json!("slide 12");
     image["entities"]["sshd"]["parameters"]["x-reviewed"] = serde_json::json!(true);
-    image["entities"]["sshd"]["defenses"]["x-since"] = serde_json::json!("2026-01");
+    image["entities"]["openssh"]["defenses"]["x-since"] = serde_json::json!("2026-01");
     image["associations"]["allow-ssh"]["x-rule"] = serde_json::json!(17);
     image["flows"]["ssh"]["x-port"] = serde_json::json!(22);
     image["flows"]["ssh"]["parameters"]["connect"]["x-note"] = serde_json::json!("lan");
@@ -750,7 +757,7 @@ fn extension_keys_ride_along_at_every_level() {
             serde_json::json!(true),
         ),
         (
-            "entities.sshd.defenses.x-since",
+            "entities.openssh.defenses.x-since",
             serde_json::json!("2026-01"),
         ),
         ("associations.allow-ssh.x-rule", serde_json::json!(17)),
@@ -871,4 +878,83 @@ fn a_long_route_goes_block_and_stays_there() {
     assert_eq!(canonicalize(&text).unwrap(), text);
     let (_, diagnostics) = effractor_format::diagnose_document(&text);
     assert_eq!(diagnostics, vec![]);
+}
+
+#[test]
+fn a_product_and_its_instances_round_trip() {
+    let text = CANONICAL
+        .replace(
+            "entities: {}",
+            r#"entities:
+  box:
+    kind: host
+    label: Box
+    parameters:
+      escape:
+        status: unknown
+  sshd:
+    kind: service
+    label: SSH server
+    parameters:
+      deploy-exploit:
+        status: unknown
+      login:
+        status: unknown
+  openssh:
+    kind: product
+    label: OpenSSH
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 10)"
+        note: Exercise assumption
+      find-exploit-patched:
+        status: unknown
+    defenses: {patched: false}"#,
+        )
+        .replace(
+            "associations: {}",
+            r#"associations:
+  sshd-hosting:
+    kind: hosts
+    from: box
+    to: sshd
+    privilege: admin
+  sshd-instance:
+    kind: instance-of
+    from: sshd
+    to: openssh"#,
+        )
+        .replace(
+            "scenarios: {}",
+            r#"scenarios:
+  patch:
+    label: Patch
+    changes:
+      - {entity: openssh, defense: patched, value: true}"#,
+        );
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    let Document::Architecture(m) = load_document(&text).unwrap() else {
+        panic!("not an architecture");
+    };
+    assert!(matches!(
+        m.associations[&"sshd-instance"
+            .parse::<effractor_core::AssociationId>()
+            .unwrap()]
+            .relation,
+        effractor_core::architecture::Relation::InstanceOf { .. }
+    ));
+    // Patching a service is no longer a thing: its switch is the product's.
+    let service_patch = text.replace(
+        "{entity: openssh, defense: patched",
+        "{entity: sshd, defense: patched",
+    );
+    let (_, diagnostics) = effractor_format::diagnose_document(&service_patch);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.code == effractor_core::Code::UnknownState
+                && d.path == "scenarios.patch.changes[0].defense"),
+        "{diagnostics:?}"
+    );
 }

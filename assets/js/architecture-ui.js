@@ -170,23 +170,27 @@
     else addLinkedMenu(id, box.left + box.width / 2, box.top + box.height / 2);
   }
 
-  // The type picker: one menu of the eight kinds.
+  // The kinds, grouped by the families the canvas colours.
+  function kindMenu() {
+    return A.GROUPS.map(function (g) {
+      return [g[0], "", g[1].map(function (kind) {
+        return [word(kind), "", function () { create(kind); }, { icon: icon(kind), title: W.meaning(catalog, kind) }];
+      })];
+    });
+  }
+
+  // The type picker: the kinds by family.
   function pickKind(x, y) {
     loadCatalog().catch(function () {}).then(function () {
-      app.showMenu(A.KINDS.map(function (kind) {
-        return [word(kind), "", function () { create(kind); }, { icon: icon(kind), title: W.meaning(catalog, kind) }];
-      }), x, y);
+      app.showMenu(kindMenu(), x, y);
     });
   }
   // The background's menu: add a component, put every one back where the
   // automatic layout wants it, show or hide the firewalls' permissions.
   function backgroundMenu(x, y) {
-    var add = A.KINDS.map(function (kind) {
-      return [word(kind), "", function () { create(kind); }, { icon: icon(kind), title: W.meaning(catalog, kind) }];
-    });
     var shown = app.permits();
     app.showMenu([
-      ["Add", "A", add],
+      ["Add", "A", kindMenu()],
       ["Arrange automatically", "", app.arrange],
       [shown ? "Hide firewall permissions" : "Show firewall permissions", "", function () { app.setPermits(!shown); }],
     ], x, y);

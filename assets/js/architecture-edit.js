@@ -8,7 +8,13 @@
 // Links, renames of ids and deletion are in architecture-links.js.
 (function () {
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
-  var KINDS = ["network", "router", "firewall", "host", "application", "service", "account", "credential"];
+  var KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential"];
+  // The Add menu's groups: the families the canvas colours.
+  var GROUPS = [
+    ["Network", ["network", "router", "firewall"]],
+    ["Compute", ["host", "application", "service", "product"]],
+    ["Identity", ["account", "credential"]],
+  ];
   var STATUSES = ["unknown", "illustrative", "assumed", "calibrated"];
 
   function has(o, k) {
@@ -128,7 +134,7 @@
     return { doc: next, select: "entity/" + id };
   }
 
-  var api = { KINDS: KINDS, STATUSES: STATUSES, empty: empty, addEntity: addEntity, renameEntity: renameEntity, setDescription: setDescription, setParameter: setParameter, setDefense: setDefense };
+  var api = { KINDS: KINDS, GROUPS: GROUPS, STATUSES: STATUSES, empty: empty, addEntity: addEntity, renameEntity: renameEntity, setDescription: setDescription, setParameter: setParameter, setDefense: setDefense };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureEdit = api;
 })();

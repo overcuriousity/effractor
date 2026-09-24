@@ -84,7 +84,7 @@ fn web_shop_each_defence_leaves_the_other_route() {
         .as_array()
         .unwrap()
         .iter()
-        .find(|a| a["path"] == "entities.db.parameters.find-exploit")
+        .find(|a| a["path"] == "entities.db-software.parameters.find-exploit")
         .unwrap();
     assert_eq!(db["status"], "assumed");
     assert!(db["note"].is_null());
@@ -96,7 +96,7 @@ fn clinic_records_an_unknown_alternative_costs_the_number_until_patched() {
     let base = solve(&m, None);
     assert_eq!(
         base["baseline"]["outcome"]["unavailable"]["missing"],
-        serde_json::json!(["entities.records.parameters.find-exploit"])
+        serde_json::json!(["entities.records-software.parameters.find-exploit"])
     );
     let patched = solve(&m, Some("vendor-patch"));
     assert!(p(&patched["scenario"]["outcome"]) > 0.0);

@@ -471,20 +471,20 @@
     }
    },
    {
-    "id": "action/service-deploy-exploit/sshd",
+    "id": "action/product-find-exploit/openssh",
     "status": "possible",
     "outcome": {
      "available": {
-      "p": 0.9999,
+      "p": 1,
       "ci": {
-       "lo": 0.9994337311025987,
-       "hi": 0.9999823473263989
+       "lo": 0.9996160016293234,
+       "hi": 1
       }
      }
     }
    },
    {
-    "id": "action/service-find-exploit/sshd",
+    "id": "action/service-deploy-exploit/sshd",
     "status": "possible",
     "outcome": {
      "available": {
@@ -718,6 +718,32 @@
     }
    },
    {
+    "id": "state/product/openssh/exploit-ready",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/product/openssh/reachable",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
     "id": "state/router/bridge/admin",
     "status": "unreachable",
     "outcome": {
@@ -732,19 +758,6 @@
    },
    {
     "id": "state/service/sshd/control",
-    "status": "possible",
-    "outcome": {
-     "available": {
-      "p": 1,
-      "ci": {
-       "lo": 0.9996160016293234,
-       "hi": 1
-      }
-     }
-    }
-   },
-   {
-    "id": "state/service/sshd/exploit-ready",
     "status": "possible",
     "outcome": {
      "available": {

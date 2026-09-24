@@ -15,17 +15,18 @@ use indexmap::IndexMap;
 use crate::lower::{Cx, TIME_UNITS};
 use crate::tree::{Entry, Node};
 
-pub const KINDS: [(&str, EntityKind); 8] = [
+pub const KINDS: [(&str, EntityKind); 9] = [
     ("network", EntityKind::Network),
     ("router", EntityKind::Router),
     ("firewall", EntityKind::Firewall),
     ("host", EntityKind::Host),
     ("application", EntityKind::Application),
     ("service", EntityKind::Service),
+    ("product", EntityKind::Product),
     ("account", EntityKind::Account),
     ("credential", EntityKind::Credential),
 ];
-pub const RELATIONS: [(&str, RelationKind); 9] = [
+pub const RELATIONS: [(&str, RelationKind); 10] = [
     ("attached", RelationKind::Attached),
     ("hosts", RelationKind::Hosts),
     ("filters", RelationKind::Filters),
@@ -35,6 +36,7 @@ pub const RELATIONS: [(&str, RelationKind); 9] = [
     ("grants", RelationKind::Grants),
     ("administration", RelationKind::Administration),
     ("permits", RelationKind::Permits),
+    ("instance-of", RelationKind::InstanceOf),
 ];
 pub const PRIVILEGES: [(&str, Privilege); 2] =
     [("user", Privilege::User), ("admin", Privilege::Admin)];
@@ -328,6 +330,7 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
                     privilege: privilege?,
                 },
                 RelationKind::Administration => Relation::Administration { from, to },
+                RelationKind::InstanceOf => Relation::InstanceOf { from, to },
                 RelationKind::Permits => unreachable!("handled above"),
             }
         }

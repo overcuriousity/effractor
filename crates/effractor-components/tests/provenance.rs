@@ -127,7 +127,9 @@ fn switches_change_no_identity() {
         );
     }
     let mut unknown = model.clone();
-    unknown.entities[&id::<EntityId>("sshd")].defenses.patched = Some(Switch::Unknown);
+    unknown.entities[&id::<EntityId>("openssh")]
+        .defenses
+        .patched = Some(Switch::Unknown);
     assert_eq!(shape(&generate(&unknown).unwrap()), baseline);
 }
 
@@ -146,7 +148,7 @@ fn each_scenario_changes_only_what_it_names() {
     let base = resolve(&model, &graph, None).unwrap();
     let under = |s: &str| resolve(&model, &graph, Some(&id(s))).unwrap();
 
-    let find = index(&graph, "action/service-find-exploit/sshd");
+    let find = index(&graph, "action/product-find-exploit/openssh");
     let login = index(&graph, "action/service-login/server-account/sshd");
     let extract = index(&graph, "action/credential-extract/workstation/server-key");
     let policy = index(&graph, "input/flow-permission/filter/ssh");
@@ -158,8 +160,8 @@ fn each_scenario_changes_only_what_it_names() {
     assert_eq!(
         base.paths[find],
         [
-            "entities.sshd.parameters.find-exploit",
-            "entities.sshd.defenses.patched"
+            "entities.openssh.parameters.find-exploit",
+            "entities.openssh.defenses.patched"
         ]
     );
     assert_eq!(base.ttc[policy], ResolvedTtc::Known(Distribution::Zero));
@@ -167,13 +169,13 @@ fn each_scenario_changes_only_what_it_names() {
     let patch = under("patch");
     assert_eq!(
         changed(&graph, &base, &patch),
-        ["action/service-find-exploit/sshd"]
+        ["action/product-find-exploit/openssh"]
     );
     assert_eq!(patch.ttc[find], ResolvedTtc::Known(Distribution::Infinity));
     assert_eq!(
         patch.paths[find],
         [
-            "entities.sshd.parameters.find-exploit-patched",
+            "entities.openssh.parameters.find-exploit-patched",
             "scenarios.patch.changes[0]"
         ]
     );
@@ -195,7 +197,7 @@ fn each_scenario_changes_only_what_it_names() {
         changed(&graph, &base, &both),
         [
             "action/credential-extract/workstation/server-key",
-            "action/service-find-exploit/sshd"
+            "action/product-find-exploit/openssh"
         ]
     );
 
@@ -219,11 +221,11 @@ fn what_is_not_known_resolves_to_the_fields_to_fill_in() {
     // The fixture that leaves discovery unknown.
     let model = architecture(UNKNOWN);
     let graph = generate(&model).unwrap();
-    let find = index(&graph, "action/service-find-exploit/sshd");
+    let find = index(&graph, "action/product-find-exploit/openssh");
     let base = resolve(&model, &graph, None).unwrap();
     assert_eq!(
         base.ttc[find],
-        ResolvedTtc::Unknown(vec!["entities.sshd.parameters.find-exploit".into()])
+        ResolvedTtc::Unknown(vec!["entities.openssh.parameters.find-exploit".into()])
     );
     // Patching selects the replacement, which is known.
     let patch = resolve(&model, &graph, Some(&id("patch"))).unwrap();
@@ -231,27 +233,29 @@ fn what_is_not_known_resolves_to_the_fields_to_fill_in() {
 
     // A missing replacement makes only the scenario unknown.
     let mut m = architecture(LECTURE);
-    m.entities[&id::<EntityId>("sshd")]
+    m.entities[&id::<EntityId>("openssh")]
         .parameters
         .insert(Slot::FindExploitPatched, Parameter::unknown());
     let graph = generate(&m).unwrap();
-    let find = index(&graph, "action/service-find-exploit/sshd");
+    let find = index(&graph, "action/product-find-exploit/openssh");
     assert!(matches!(
         resolve(&m, &graph, None).unwrap().ttc[find],
         ResolvedTtc::Known(_)
     ));
     assert_eq!(
         resolve(&m, &graph, Some(&id("patch"))).unwrap().ttc[find],
-        ResolvedTtc::Unknown(vec!["entities.sshd.parameters.find-exploit-patched".into()])
+        ResolvedTtc::Unknown(vec![
+            "entities.openssh.parameters.find-exploit-patched".into()
+        ])
     );
 
     // An unknown switch is not a default of either value.
     let mut m = architecture(LECTURE);
-    m.entities[&id::<EntityId>("sshd")].defenses.patched = Some(Switch::Unknown);
+    m.entities[&id::<EntityId>("openssh")].defenses.patched = Some(Switch::Unknown);
     let r = resolve(&m, &graph, None).unwrap();
     assert_eq!(
         r.ttc[find],
-        ResolvedTtc::Unknown(vec!["entities.sshd.defenses.patched".into()])
+        ResolvedTtc::Unknown(vec!["entities.openssh.defenses.patched".into()])
     );
     assert!(r.evidence[find].is_empty());
 
@@ -405,13 +409,13 @@ fn the_graph_image_carries_timing_and_provenance() {
         .as_array()
         .unwrap()
         .iter()
-        .find(|n| n["id"] == "action/service-find-exploit/sshd")
+        .find(|n| n["id"] == "action/product-find-exploit/openssh")
         .unwrap();
     assert_eq!(find["timing"]["status"], "unknown");
     assert_eq!(find["timing"]["expression"], Value::Null);
     assert_eq!(
         find["timing"]["missing"],
-        serde_json::json!(["entities.sshd.parameters.find-exploit"])
+        serde_json::json!(["entities.openssh.parameters.find-exploit"])
     );
 }
 
