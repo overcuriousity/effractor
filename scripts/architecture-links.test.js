@@ -608,3 +608,26 @@ test('a host\'s software may be set to an unknown privilege in its form, never o
   assert.equal(L.phrase('hosts', 'out', 'unknown'), 'runs here at an unknown privilege');
   assert.equal(L.phrase('hosts', 'in', 'unknown'), L.phrase('hosts', 'in', 'admin').replace(/ as admin$/, '') + ' at an unknown privilege');
 });
+
+const Clusters = require('../assets/js/clusters.js');
+
+test('deleting members keeps clusters valid', () => {
+  const doc = Clusters.build(require('./fixtures/nmap/imported.doc.json')).doc;
+  let edit = L.remove(doc, 'entities', 'ssh');
+  assert.equal('printer' in edit.doc.clusters, false, 'one member left: dissolved');
+  assert.equal(typeof edit.links, 'number');
+  edit = L.remove(doc, 'entities', 'domain');
+  assert.equal(edit.doc.clusters.srv.members.includes('domain'), false);
+  const all = L.removeAll(doc, ['srv', 'sshd', 'printer']);
+  assert.match(all.notice, /^deleted 3 components and \d+ links · Ctrl\+Z undoes$/);
+  assert.equal(all.select, null);
+  assert.equal(L.removeAll(doc, ['nowhere']), null);
+  assert.equal(L.removeAll(doc, ['srv']).notice, L.remove(doc, 'entities', 'srv').notice, 'one: said as one');
+});
+
+test('renaming an id renames it in its cluster', () => {
+  const doc = Clusters.build(require('./fixtures/nmap/imported.doc.json')).doc;
+  const edit = L.renameId(doc, 'entities', 'sshd', 'openssh-server');
+  assert.ok(edit.doc.clusters.srv.members.includes('openssh-server'));
+  assert.equal(edit.doc.clusters.srv.members.includes('sshd'), false);
+});

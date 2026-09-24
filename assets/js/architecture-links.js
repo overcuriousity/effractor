@@ -6,6 +6,7 @@
 // named what it deletes — so a document never points at nothing.
 (function () {
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
+  var C = typeof module !== "undefined" ? require("./clusters.js") : window.effractorClusters;
   var KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of", "runs-as", "assumes", "knows", "operates", "delivers", "holds", "accesses", "encrypted-with", "reads"];
   var PRIVILEGED = ["hosts", "stores", "grants", "runs-as", "holds"];
   // The fields a link carries beside kind/from/to, in the file's order.
@@ -211,6 +212,7 @@
         s.entity = swap(s.entity);
       });
       if (attacker.target) attacker.target.entity = swap(attacker.target.entity);
+      C.rekey(next, old, id);
     }
     if (collection === "flows") {
       Object.keys(next.associations || {}).forEach(function (k) {
@@ -323,9 +325,29 @@
         return !(has(c, "entity") && has(gone.entities, c.entity)) && !(has(c, "association") && has(gone.associations, c.association));
       });
     });
+    // A cluster left with fewer than two members goes with them.
+    C.forget(next, gone.entities);
     var notice = "deleted “" + title(doc, collection, id) + "”";
     if (links) notice += " and " + links + (links === 1 ? " link" : " links");
     if (was.length) notice += ", " + was.join(" and ");
+    return { doc: next, select: null, notice: notice + " · Ctrl+Z undoes", links: links };
+  }
+
+  // Several components in one edit (clustering spec §3): each with what
+  // named it.
+  function removeAll(doc, entityIds) {
+    var next = doc, n = 0, links = 0, single = null;
+    entityIds.forEach(function (id) {
+      if (!has(next.entities, id)) return;
+      var r = remove(next, "entities", id);
+      next = r.doc;
+      n++;
+      links += r.links;
+      single = r;
+    });
+    if (!n) return null;
+    if (n === 1) return single;
+    var notice = "deleted " + n + " components" + (links ? " and " + links + (links === 1 ? " link" : " links") : "");
     return { doc: next, select: null, notice: notice + " · Ctrl+Z undoes" };
   }
 
@@ -694,7 +716,7 @@
     return want === "router" ? "no router yet · add one with A, then connect it to both networks" : "no network yet · add one with A";
   }
 
-  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, fieldsOf: fieldsOf, variants: variants, fieldWord: fieldWord, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, renameId: renameId, remove: remove };
+  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, fieldsOf: fieldsOf, variants: variants, fieldWord: fieldWord, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, renameId: renameId, remove: remove, removeAll: removeAll };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
 })();

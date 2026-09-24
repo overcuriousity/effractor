@@ -16,7 +16,7 @@
     return at > 0 ? { kind: id.slice(0, at), id: id.slice(at + 1) } : null;
   }
 
-  var MAPS = { entity: "entities", flow: "flows", association: "associations" };
+  var MAPS = { entity: "entities", flow: "flows", association: "associations", cluster: "clusters" };
 
   // `graph`: the generated attack graph, once there is one, its nodes in an
   // array as the module hands them over.

@@ -51,6 +51,7 @@ mod tests {
             "revisions.js",
             "vocabulary.js",
             "architecture-edit.js",
+            "clusters.js",
             "architecture-links.js",
             "problems.js",
             "architecture-view.js",
@@ -60,6 +61,9 @@ mod tests {
             assert!(at(pure) < at("app.js"), "{pure} loads before app.js");
         }
         assert!(at("graph.js") < at("architecture-view.js"));
+        assert!(at("clusters.js") < at("architecture-view.js"));
+        assert!(at("clusters.js") < at("renderer-svg.js"));
+        assert!(at("clusters.js") < at("architecture-links.js"));
         assert!(at("positions.js") < at("renderer-svg.js"));
         assert!(at("architecture-icons.js") < at("renderer-svg.js"));
         assert!(at("edit.js") < at("architecture-edit.js"));

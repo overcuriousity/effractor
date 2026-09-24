@@ -55,3 +55,10 @@ test('an attack tree says goal and step; a fault tree keeps top event', () => {
   assert.equal(P.words({ profile: 'architecture' }).p, 'P(target)');
   assert.equal(P.words(null).top, 'top event');
 });
+
+test('a cluster is a selection of its own', () => {
+  const doc = { profile: 'architecture', entities: {}, clusters: { rack: { members: [], closed: true } } };
+  assert.equal(P.selectionExists(doc, 'cluster/rack', null), true);
+  assert.equal(P.selectionExists(doc, 'cluster/other', null), false);
+  assert.equal(P.selectionExists({ profile: 'architecture', entities: {} }, 'cluster/rack', null), false);
+});
