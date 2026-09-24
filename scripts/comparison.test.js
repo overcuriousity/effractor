@@ -176,13 +176,17 @@ test('changed steps are the ones reading a switch the scenario sets', () => {
 
 test('routes: blocked by the scenario, changed by it, and still open, from the solver’s states', () => {
   const deny = C.routes(lecture.graph, R('deny'), doc, 'deny');
-  // Denying the only flow blocks the target and everything that needed it.
-  assert.ok(deny.blocked.includes(R('deny').target));
+  // Denying the only flow blocks the target and everything that needed it;
+  // the target is said once, not among the steps.
+  assert.equal(deny.targetBlocked, true);
+  assert.equal(deny.blocked.includes(R('deny').target), false);
+  assert.ok(deny.blocked.includes('action/flow-connect/ssh'));
   assert.equal(deny.remaining.length, 0);
   const patch = C.routes(lecture.graph, R('patch'), doc, 'patch');
   // Patched with Never: the exploit is blocked; the login route remains.
   assert.ok(patch.blocked.includes('action/product-find-exploit/openssh'));
   assert.ok(patch.remaining.some((id) => /login/.test(id)), patch.remaining.join(', '));
+  assert.equal(patch.targetBlocked, false);
   assert.equal(patch.remaining.includes('action/product-find-exploit/openssh'), false);
   // States are the solver's: a remaining step is possible under the scenario,
   // however few samples reached it.
@@ -217,4 +221,21 @@ test('a comparison is current only for the scenario chosen and the text on the p
   assert.equal(C.state(r, 'patch', 7, 7), 'none', 'another scenario');
   assert.equal(C.state(R('available'), 'deny', 7, 7), 'none', 'baseline only');
   assert.equal(C.state(null, 'deny', 7, 7), 'none');
+});
+
+test('probabilities and intervals as the comparison table says them', () => {
+  assert.equal(C.probability(0), '0.00');
+  assert.equal(C.probability(1), '1.00');
+  assert.equal(C.probability(0.0123), '0.0123');
+  assert.equal(C.probability(null), 'unknown');
+  // An interval that is one number is no interval.
+  assert.equal(C.interval({ lo: 1, hi: 1 }), '—');
+  assert.equal(C.interval({ lo: 0.99996, hi: 1 }), '—');
+  assert.equal(C.interval({ lo: 0.25, hi: 0.3 }), '0.250–0.300');
+  assert.equal(C.interval(null), '—');
+  // A change in probability carries its sign, a true minus.
+  assert.equal(C.signed(-1), '−1.00');
+  assert.equal(C.signed(0.2667), '+0.267');
+  assert.equal(C.signed(0), '0.00');
+  assert.equal(C.interval({ lo: -0.3, hi: -0.25 }, true), '−0.300 to −0.250');
 });

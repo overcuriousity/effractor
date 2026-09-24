@@ -155,9 +155,9 @@
     speed.type = "text";
     speed.inputMode = "decimal";
     speed.className = "compare-speed num";
-    speed.placeholder = "as written";
+    speed.placeholder = "1";
     speed.value = set.speed === null ? "" : String(set.speed);
-    speed.title = "2 is twice as fast, 0.5 half · empty: as the times are written";
+    speed.title = "2: twice as fast · 0.5: half · empty: as written";
     speed.addEventListener("change", function () {
       var text = speed.value.trim();
       if (!text) return apply(C.setSpeed(doc(), id, null));
@@ -172,7 +172,7 @@
       if (e.key === "Enter") speed.blur();
     });
     speedRow.appendChild(speed);
-    speedRow.appendChild(el("span", "×", "hint"));
+    speedRow.appendChild(el("span", "× as written", "compare-unit"));
     form.appendChild(speedRow);
 
     var head = el("h3", "Changes");
@@ -220,17 +220,12 @@
     form.appendChild(
       button("Remove scenario", "Remove “" + set.label + "” from the document · Ctrl+Z undoes", function () {
         apply(C.removeScenario(doc(), id));
-      })
+      }, "compare-remove-scenario")
     );
     box.appendChild(form);
   }
 
   // ---- the comparison ----
-
-  function said(side) {
-    if (side.p === null) return "unknown";
-    return R.number(side.p) + (side.ci && side.ci.lo !== side.ci.hi ? " [" + R.number(side.ci.lo) + ", " + R.number(side.ci.hi) + "]" : "");
-  }
 
   function stepList(box, title, ids, graph, empty) {
     var h = el("h3", title);
@@ -269,24 +264,44 @@
     }
     var s = C.summary(results);
     var by = results.horizon + " " + results.time_unit;
-    var t = el("dl", null, "compare-facts");
-    function row(term, value, title) {
-      var dt = el("dt", term);
-      var dd = el("dd", value, "num");
-      if (title) dd.title = title;
-      t.append(dt, dd);
+    var level = Math.round(results.confidence * 100) + "%";
+    box.appendChild(el("h3", "P(target) by " + by));
+    // Three columns: what, its probability, its interval; numbers aligned.
+    var t = el("table", null, "compare-table");
+    var head = el("tr");
+    [["", ""], ["P", "num"], [level + " interval", "num"]].forEach(function (c) {
+      var th = el("th", c[0], c[1]);
+      th.scope = "col";
+      head.appendChild(th);
+    });
+    t.appendChild(el("thead")).appendChild(head);
+    var body = el("tbody");
+    function row(name, p, ci, title) {
+      var tr = el("tr");
+      var th = el("th", name);
+      th.scope = "row";
+      th.title = name;
+      tr.append(th, el("td", p, "num"), el("td", ci, "num"));
+      if (title) tr.title = title;
+      body.appendChild(tr);
     }
-    row("Baseline", said(s.baseline) + (s.illustrative.baseline ? " · illustrative" : ""), "P(target) by " + by);
-    row(d.scenarios[id].label, said(s.scenario) + (s.illustrative.scenario ? " · illustrative" : ""), "P(target) by " + by);
-    if (s.benefit === null) {
-      row("Difference", "unknown", s.reason || "");
-    } else {
-      var v = s.verdict === "same" ? "no change" : (s.verdict === "lower" ? "−" : "+") + R.number(Math.abs(s.benefit));
-      var ci = s.ci ? " [" + R.number(-s.ci.hi) + ", " + R.number(-s.ci.lo) + "]" : "";
-      row("Difference", v + ci, s.ci ? Math.round(results.confidence * 100) + "% paired interval, scenario minus baseline" : s.ciReason || "");
+    row("Baseline", C.probability(s.baseline.p), C.interval(s.baseline.ci));
+    row(d.scenarios[id].label, C.probability(s.scenario.p), C.interval(s.scenario.ci));
+    if (s.benefit === null) row("Change", "unknown", "\u2014", s.reason || "");
+    else {
+      // The solver's benefit is baseline minus scenario; the page says the
+      // change the scenario makes, so both ends turn round.
+      var ci = s.ci ? { lo: -s.ci.hi, hi: -s.ci.lo } : null;
+      row("Change", C.signed(-s.benefit), C.interval(ci, true), s.ci ? "paired, scenario minus baseline" : s.ciReason || "");
     }
+    t.appendChild(body);
     box.appendChild(t);
-    box.appendChild(el("p", "P(target) by " + by + (s.ci === null && s.ciReason ? " · " + s.ciReason : ""), "hint num"));
+    var notes = [];
+    if (s.illustrative.baseline || s.illustrative.scenario) {
+      notes.push("illustrative inputs" + (s.illustrative.baseline && s.illustrative.scenario ? "" : s.illustrative.baseline ? " · baseline" : " · scenario"));
+    }
+    if (s.ci === null && s.ciReason) notes.push(s.ciReason);
+    if (notes.length) box.appendChild(el("p", notes.join(" · "), "hint"));
     if (s.missing.length) {
       var h = el("h3", "Unknown inputs");
       box.appendChild(h);
@@ -310,7 +325,8 @@
     }
     var r = C.routes(g.graph, results, d, id);
     var changed = C.changedSteps(g.graph, d, id);
-    if (changed.speed !== null) box.appendChild(el("p", "every timed step " + R.number(changed.speed) + " × as fast", "hint num"));
+    if (changed.speed !== null) box.appendChild(el("p", "every timed step at " + R.number(changed.speed) + " × speed", "hint"));
+    if (r.targetBlocked) box.appendChild(el("p", "the target is blocked", "hint"));
     stepList(box, "Blocked", r.blocked, g.graph, "nothing blocked that was open");
     stepList(box, "Changed, still open", r.changed, g.graph, "no changed step stays open");
     stepList(box, "Still open to the target", r.remaining, g.graph, "no way to the target is left");

@@ -272,7 +272,7 @@
     });
     var blocked = graph.nodes
       .filter(function (n) {
-        return (isStep(n.id) || n.id === target) && open(base[n.id]) && !open(scen[n.id]);
+        return isStep(n.id) && open(base[n.id]) && !open(scen[n.id]);
       })
       .map(function (n) {
         return n.id;
@@ -298,6 +298,7 @@
         return n.id;
       });
     return {
+      targetBlocked: open(base[target]) && !open(scen[target]),
       blocked: blocked,
       changed: changed.filter(function (c) {
         return open(scen[c]);
@@ -313,7 +314,38 @@
     return solvedRevision === revision ? "current" : "stale";
   }
 
+  // ---- how the comparison table says its numbers ----
+
+  var MINUS = "\u2212";
+
+  function digits(v) {
+    if (v === 0) return "0.00";
+    return Math.abs(v) < 1e-4 ? v.toExponential(2) : v.toPrecision(3);
+  }
+
+  function probability(p) {
+    return typeof p === "number" ? digits(p) : "unknown";
+  }
+
+  function signed(v) {
+    if (v === 0) return digits(0);
+    return (v < 0 ? MINUS : "+") + digits(Math.abs(v));
+  }
+
+  // "lo–hi", or "—" when the interval is one number as printed. `withSign`
+  // for a difference: each end keeps its sign, joined by "to".
+  function interval(ci, withSign) {
+    if (!ci) return "\u2014";
+    var lo = withSign ? signed(ci.lo) : digits(ci.lo);
+    var hi = withSign ? signed(ci.hi) : digits(ci.hi);
+    if (lo === hi) return "\u2014";
+    return withSign ? lo + " to " + hi : lo + "\u2013" + hi;
+  }
+
   var api = {
+    probability: probability,
+    signed: signed,
+    interval: interval,
     state: state,
     ids: ids,
     freshId: freshId,
