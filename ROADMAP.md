@@ -72,6 +72,31 @@ agreement in CI, and the workflow by the owner's browser walkthrough. Numerical
 agreement with the lecture's screenshots is not an acceptance criterion without
 the underlying rules and calibrated inputs.
 
+## Infrastructure import
+
+Owner decision, 2026-09-24: build the network from nmap results pasted from
+hosts the owner can reach, ready now, beside the lecture milestone. Spec:
+[`2026-09-24-nmap-import-design.md`](docs/superpowers/specs/2026-09-24-nmap-import-design.md).
+
+### nmap-import — Add what nmap sees from a host to the architecture
+needs: —            cost: 3   benefit: 4
+An nmap application (`tool: nmap`) on a host offers scan commands at four
+levels, TCP and UDP, reads the pasted XML, previews the hosts, services,
+products and flows it saw, and adds the ticked ones in one edit, never
+changing or removing what is there. Hosts and networks gain `addresses`.
+Done when the file fields round-trip with validation, `nmap.js` passes its
+tests against real nmap output of every level, an imported document validates
+in wasm, and the owner builds a network from repeated scans in the browser.
+
+### nmap-scripts — Read nmap script results into the model
+needs: nmap-import            cost: 2   benefit: 3
+Offer commands with NSE scripts (such as `vuln`, `vulners`) and read their
+findings into the preview: a reported vulnerability marks the product
+unpatched with the finding as its note, never inventing a duration. Needs its
+own short design of which scripts are read and what each finding sets. Done
+when the chosen scripts' fixtures import as designed and unknown script
+output is shown, not guessed at.
+
 ## Compatibility after the lecture milestone
 
 ### mal-securicad-compatibility — Reuse existing models and libraries
