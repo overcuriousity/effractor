@@ -231,7 +231,14 @@ the target and draws it a little towards itself (12 % of the way, at most
 open member) it is dropped on; a cluster dropped on a cluster gives it its
 members, the target keeping its name; a cluster takes in a component it is
 dropped on; two loose components become a closed cluster named after the
-target. Already together, it only moved.
+target. Two members of one cluster dragged together go into its one stack
+(owner, 2026-09-25): an open cluster closes round them, the rest drawn
+beside the stack inside its outline; a closed one takes them from beside
+its stack.
+
+**Outlines can be switched off** (owner, 2026-09-25): the bottom bar's
+*cluster outline* switch, beside *permission*, and the background menu hide
+them; this browser remembers it (`effractor.outlines`).
 
 ## 6. Units and tests
 

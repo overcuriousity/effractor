@@ -351,9 +351,27 @@
     }
     if (d.kind === "cluster") return moveTo(doc, t.id, d.id);
     var into = clusterOf(doc, t.id);
-    if (into && into === clusterOf(doc, d.id)) return null;
+    if (into && into === clusterOf(doc, d.id)) return stack(doc, into, [t.id, d.id]);
     if (into) return moveTo(doc, d.id, into);
     return make(doc, [t.id, d.id]);
+  }
+
+  // Two members of one cluster dragged together (owner, 2026-09-25): they
+  // go into its one stack, the rest drawn beside it — an open cluster
+  // closes round them; a closed one takes them from beside its stack.
+  function stack(doc, cid, entities) {
+    var c = doc.clusters[cid];
+    var beside = c.closed ? (c.shown || []).slice() : c.members.filter(function (m) { return has(doc.entities, m); });
+    var left = beside.filter(function (m) {
+      return entities.indexOf(m) < 0;
+    });
+    if (left.length === beside.length) return null;
+    var next = clone(doc);
+    var n = next.clusters[cid];
+    n.closed = true;
+    if (left.length) n.shown = left;
+    else delete n.shown;
+    return { doc: next, select: "cluster/" + cid };
   }
 
   // K (owner, 2026-09-25): nothing selected, the rail's toggle; one

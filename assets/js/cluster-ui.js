@@ -74,7 +74,11 @@
       if (c.closed && (!old || !old.closed)) {
         var at = app.positionsOf(c.members.map(entity));
         app.putPositions(at);
-        var centre = C.closeAt(Object.keys(at).map(function (k) { return at[k]; }));
+        // The stack stands amid what went into it; the rest stay put.
+        var stacked = c.members.filter(function (m) {
+          return (c.shown || []).indexOf(m) < 0;
+        }).map(entity);
+        var centre = C.closeAt(stacked.filter(function (k) { return at[k]; }).map(function (k) { return at[k]; }));
         if (centre) {
           var put = {};
           put["cluster/" + cid] = centre;

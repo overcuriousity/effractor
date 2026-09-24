@@ -226,6 +226,17 @@ test('dragging one onto another merges them', () => {
   const peeled = C.peel(doc, 'srv', 'domain').doc;
   assert.equal('shown' in C.merge(peeled, 'entity/domain', 'cluster/srv').doc.clusters.srv, false);
   assert.equal(C.merge(doc, 'entity/sshd', 'cluster/srv'), null);
-  assert.equal(C.merge(open, 'entity/sshd', 'entity/domain'), null, 'already together');
+  // Two members of an open cluster: they become its stack, the rest beside it.
+  const stacked = C.merge(open, 'entity/sshd', 'entity/domain');
+  assert.equal(stacked.select, 'cluster/srv');
+  assert.equal(stacked.doc.clusters.srv.closed, true);
+  assert.deepEqual(stacked.doc.clusters.srv.shown, ['srv', 'tcp-8443', 'unidentified-tcp-8443-on-server', 'dnsmasq-2-90']);
+  // Two more beside the stack: into the stack too, the one stack there is.
+  const more = C.merge(stacked.doc, 'entity/tcp-8443', 'entity/srv').doc;
+  assert.deepEqual(more.clusters.srv.shown, ['unidentified-tcp-8443-on-server', 'dnsmasq-2-90']);
+  // The last two beside it: everyone stacked, a plain closed cluster.
+  const all = C.merge(more, 'entity/dnsmasq-2-90', 'entity/unidentified-tcp-8443-on-server').doc.clusters.srv;
+  assert.equal(all.closed, true);
+  assert.equal('shown' in all, false);
   assert.equal(C.merge(doc, 'cluster/srv', 'cluster/srv'), null);
 });
