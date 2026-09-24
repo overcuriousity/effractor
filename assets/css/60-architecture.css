@@ -26,6 +26,10 @@
 .node-component .halo { fill: var(--viz-canvas); stroke: transparent; stroke-width: 2; }
 .node-component:hover .halo { stroke: var(--viz-outline); }
 .node-component.is-unquantified .halo { stroke: var(--viz-outline); stroke-dasharray: 3 2.5; }
+/* A ring outside the halo per state a component is in (after Reactor's
+   exposure ring): vulnerable, an unpatched product and what runs it. */
+.node-component .ring { fill: none; stroke-width: 3; }
+.node-component .ring-vulnerable { stroke: var(--color-danger); }
 .node-component.hl-selected .halo { stroke: var(--color-accent); stroke-width: 2.5; stroke-dasharray: none; }
 /* A selected flow's route: the networks and routers it passes through. */
 .node-component.hl-route .halo { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 2 2.5; }
@@ -67,6 +71,7 @@
 .line-sample { display: inline-block; width: 18px; height: 0; margin-right: 5px; border-top: 1.5px solid var(--viz-edge); vertical-align: middle; }
 .line-flow { border-top-style: dashed; }
 .line-permit { border-top: 2px dotted var(--viz-family-network); }
+.ring-sample { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; border: 2.5px solid var(--color-danger); vertical-align: middle; }
 .legend-toggle, .legend-kinds { padding: 1px 6px; font-size: var(--text-xs); }
 .legend-kinds { display: inline-flex; align-items: center; gap: 5px; }
 .legend-toggle[aria-pressed="false"] { color: var(--color-fg-muted); text-decoration: line-through; }

@@ -5,7 +5,7 @@
   // stem, and its symbol under it; an attack-tree leaf adds a strip for cost
   // and detection between box and stem. A shared node is drawn once; its
   // incoming edges are what say it is shared.
-  var SIZE = { width: 148, box: 44, stem: 10, symbol: 40, strip: 18, plate: 48, halo: 4, reach: 190, clear: 20 };
+  var SIZE = { width: 148, box: 44, stem: 10, symbol: 40, strip: 18, plate: 48, halo: 4, ring: 5, reach: 190, clear: 20 };
   SIZE.gate = SIZE.box + SIZE.stem + SIZE.symbol;
   SIZE.leaf = SIZE.gate;
   // An architecture's component: its plate, and two lines of name under it.
@@ -402,6 +402,8 @@
   function fromStress(graph, result, described) {
     var grouped = blocks(graph);
     var hub = { x: SIZE.width / 2, y: SIZE.plate / 2, r: SIZE.plate / 2 + SIZE.halo };
+    // A ringed component's lines end outside its ring.
+    var ringed = { x: hub.x, y: hub.y, r: hub.r + SIZE.ring + 2 };
     // Blocks and single components pushed clear of each other as wholes,
     // then each block filled in round its host.
     var placed = separate(
@@ -417,7 +419,7 @@
         var off = block ? block.at[id] : { x: 0, y: 0 };
         var n = described[id];
         // Whole pixels: crisp, and a block's shape exact (the gap absorbs it).
-        nodes.push({ id: id, x: Math.round(p.x) + off.x, y: Math.round(p.y) + off.y, width: SIZE.width, height: height(n), node: n, hub: hub });
+        nodes.push({ id: id, x: Math.round(p.x) + off.x, y: Math.round(p.y) + off.y, width: SIZE.width, height: height(n), node: n, hub: n && n.rings && n.rings.length ? ringed : hub });
       });
     });
     var right = 0, bottom = 0;

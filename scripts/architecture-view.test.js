@@ -227,3 +227,37 @@ test('software that reads data processes content; data links read in plain words
   assert.equal(label('a'), 'may read');
   assert.equal(label('k'), 'encrypted with');
 });
+
+test('an unpatched product rings red, and so do the software running it and its host', () => {
+  const doc = {
+    profile: 'architecture',
+    entities: {
+      web: { kind: 'host', label: 'web-01' },
+      https: { kind: 'service', label: 'https' },
+      admin: { kind: 'application', label: 'admin panel' },
+      nginx: { kind: 'product', label: 'nginx 1.4.6', parameters: { 'find-exploit': { status: 'unknown', note: 'nmap ssl-heartbleed: VULNERABLE, CVE-2014-0160 (The Heartbleed Bug).' } }, defenses: { patched: false } },
+      php: { kind: 'product', label: 'PHP 5.3', parameters: { 'find-exploit': { status: 'unknown' } }, defenses: { patched: false } },
+      other: { kind: 'host', label: 'other' },
+      ssh: { kind: 'service', label: 'ssh' },
+      openssh: { kind: 'product', label: 'OpenSSH 9.6p1', defenses: { patched: 'unknown' } },
+      fixed: { kind: 'product', label: 'fixed', defenses: { patched: true } },
+    },
+    associations: {
+      h1: { kind: 'hosts', from: 'web', to: 'https', privilege: 'unknown' },
+      h2: { kind: 'hosts', from: 'web', to: 'admin', privilege: 'user' },
+      h3: { kind: 'hosts', from: 'other', to: 'ssh', privilege: 'unknown' },
+      i1: { kind: 'instance-of', from: 'https', to: 'nginx' },
+      i2: { kind: 'instance-of', from: 'admin', to: 'php' },
+      i3: { kind: 'instance-of', from: 'ssh', to: 'openssh' },
+    },
+    flows: {},
+    attacker: { footholds: [] },
+    scenarios: {},
+  };
+  const rings = Object.fromEntries(V.describe(doc).nodes.map(n => [n.id.slice(7), n.rings]));
+  const nginx = 'vulnerable: nginx 1.4.6 unpatched\nnmap ssl-heartbleed: VULNERABLE, CVE-2014-0160 (The Heartbleed Bug).';
+  assert.deepEqual(rings.nginx, [{ state: 'vulnerable', why: nginx }]);
+  assert.deepEqual(rings.https, [{ state: 'vulnerable', why: nginx }]);
+  assert.deepEqual(rings.web, [{ state: 'vulnerable', why: nginx + '\nvulnerable: PHP 5.3 unpatched' }]);
+  for (const id of ['other', 'ssh', 'openssh', 'fixed']) assert.deepEqual(rings[id], [], id);
+});
