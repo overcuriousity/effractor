@@ -103,6 +103,7 @@
   </nav>
 
   <aside class="panel panel-left" id="panel-left" aria-label="Model">
+    <button class="panel-close" type="button" data-close="left" title="Close the model panel" aria-label="Close the model panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
     <div id="view-model">
     <section class="panel-section">
       <h2 class="label">Model <button class="label-action architecture-only" id="component-add" type="button" title="Add a component (A)" aria-label="Add a component">+</button></h2>
@@ -153,6 +154,7 @@
       <button class="tab tree-only" type="button" role="tab" id="tab-btn-loss" data-tab="loss" aria-selected="false" aria-controls="tab-loss">Loss</button>
       <button class="tab tree-only" type="button" role="tab" id="tab-btn-pareto" data-tab="pareto" aria-selected="false" aria-controls="tab-pareto" hidden>Pareto</button>
       <button class="tab tree-only" type="button" role="tab" id="tab-btn-controls" data-tab="controls" aria-selected="false" aria-controls="tab-controls">Controls <span class="count num" id="controls-count"></span></button>
+      <button class="panel-close" type="button" data-close="right" title="Close the results panel" aria-label="Close the results panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
     </div>
     <div id="tab-results" role="tabpanel" aria-labelledby="tab-btn-results">
     <section class="panel-section architecture-only attack-results" id="attack-results"><p class="empty">Calculate to see the target's probability.</p></section>

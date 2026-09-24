@@ -69,6 +69,14 @@
     });
   });
 
+  // The × in a panel's corner: closed as if its rail button had been pressed.
+  document.querySelectorAll("[data-close]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      state[button.getAttribute("data-close") + "Open"] = false;
+      change();
+    });
+  });
+
   // For the actions that need a panel: a solve, the controls tool, the source.
   window.effractorWorkspace = {
     open: function (side) {

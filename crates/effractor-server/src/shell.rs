@@ -75,6 +75,9 @@ mod tests {
         assert!(at("nmap.js") < at("app.js"), "nmap.js loads before app.js");
         assert!(at("architecture-links-ui.js") < at("nmap-ui.js"));
         assert!(html.contains("id=\"nmap-dialog\""));
+        for side in ["left", "right"] {
+            assert!(html.contains(&format!("data-close=\"{side}\"")), "{side} panel closes");
+        }
         assert!(at("graph.js") < at("attack-view.js"));
         assert!(at("results-view.js") < at("graph-results.js"));
         assert!(at("graph-results.js") < at("charts-ui.js"));

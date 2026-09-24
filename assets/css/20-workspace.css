@@ -197,6 +197,17 @@
 .panel-right { grid-area: right; }
 .workspace[data-left="closed"]  .panel-left,
 .workspace[data-right="closed"] .panel-right { visibility: hidden; }
+/* A small × in the corner that closes the panel, as its rail button does. */
+.panel-close {
+  width: 20px; height: 20px; flex: none;
+  display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: var(--radius-sm); background: none;
+  color: var(--color-fg-muted); cursor: pointer;
+}
+.panel-close:hover { background: var(--color-bg-hover); color: var(--color-fg-primary); }
+.panel-close svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+.panel-left > .panel-close { position: sticky; top: 6px; z-index: 1; float: right; margin: 6px 6px -26px 0; }
+.tabs > .panel-close { margin: 0 0 4px auto; align-self: center; }
 .panel-section { padding: 11px; border-bottom: 1px solid var(--color-border-subtle); }
 .empty { margin: 0; color: var(--color-fg-muted); }
 
