@@ -177,7 +177,13 @@ the software row), any other in rows of five in member order.
 * **A router without a box:** the router and its firewall.
 
 A component already in a cluster stays where it is and is left out; a group
-of fewer than two is not made. Each group's id and label come from its host
+of fewer than two is not made.
+
+**After an nmap import** (owner, 2026-09-25, replacing the first answer that
+the import leaves clustering to K): what runs together and holds something
+the import added becomes a cluster, open (`gather`); what the author
+clustered stays. A drawing with no position stored in this browser is then
+arranged afresh; one arranged by hand keeps its places. Each group's id and label come from its host
 or router (id made unique against existing clusters).
 
 ### 5.2 Where the actions are

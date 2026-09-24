@@ -293,7 +293,13 @@
     }
     dialog.close();
     if (!edit) return app.say("nothing new to add");
-    U.apply(function () { return edit; });
+    // What came in is clustered by host, open; a drawing nobody arranged by
+    // hand yet is arranged afresh (owner, 2026-09-25).
+    edit.doc = window.effractorClusters.gather(doc(), edit.doc);
+    var untouched = !Object.keys(app.storedPositions()).length;
+    U.apply(function () { return edit; }).then(function (applied) {
+      if (applied && untouched) app.arrange();
+    });
   }
 
   // ---- menus ----

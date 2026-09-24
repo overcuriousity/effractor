@@ -257,3 +257,16 @@ test('a cluster just opened pushes what it now overlaps away, and stays', () => 
   assert.ok(clear, 'c is clear of the outline: ' + JSON.stringify(c));
   assert.deepEqual(C.opened({ origins: { 'entity/a': ['cluster/k'], 'cluster/q': ['entity/x'] }, exits: {} }), ['cluster/k']);
 });
+
+test('after an import, what runs together and came in is clustered, open', () => {
+  const before = JSON.parse(JSON.stringify(IMPORTED));
+  for (const id of Object.keys(before.entities)) if (id !== 'admin-box' && id !== 'nmap') delete before.entities[id];
+  const after = C.gather(before, IMPORTED);
+  assert.deepEqual(Object.keys(after.clusters), ['srv', 'printer'], 'the scanner’s own box was there before');
+  assert.ok(Object.values(after.clusters).every((c) => c.closed === false));
+  assert.equal(C.gather(IMPORTED, IMPORTED), IMPORTED, 'nothing new: unchanged');
+  // What the author clustered stays as it is.
+  const mine = C.make(IMPORTED, ['srv', 'sshd']).doc;
+  const again = C.gather(before, mine);
+  assert.deepEqual(again.clusters.srv.members, ['srv', 'sshd']);
+});

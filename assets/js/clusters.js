@@ -222,6 +222,24 @@
     return { doc: next, select: undefined, notice: "clustered " + groups.length + (groups.length === 1 ? " group" : " groups") + " · Ctrl+Z undoes" };
   }
 
+  // After an import (owner, 2026-09-25): in `after`, what runs together and
+  // holds something `before` did not have becomes a cluster, open. What the
+  // author clustered stays. Returns the document, `after` itself if nothing.
+  function gather(before, after) {
+    var groups = together(after).filter(function (g) {
+      return g.members.some(function (m) {
+        return !has(before.entities, m);
+      });
+    });
+    if (!groups.length) return after;
+    var next = clone(after);
+    next.clusters = next.clusters || {};
+    groups.forEach(function (g) {
+      next.clusters[freeId(next, g.id)] = { label: g.label, members: g.members, closed: false };
+    });
+    return next;
+  }
+
   // The rail's one button (spec §5.2): make, else open all, else close all.
   function toggleAll(doc) {
     var all = ids(doc);
@@ -605,6 +623,7 @@
     rekey: rekey,
     make: make,
     build: build,
+    gather: gather,
     toggleAll: toggleAll,
     takeOut: takeOut,
     moveTo: moveTo,
