@@ -655,7 +655,15 @@
     return hosted ? { doc: hosted.doc, select: added.select, entity: added.entity } : null;
   }
 
-  var api = { LEVELS: LEVELS, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, apply: apply, addNmap: addNmap, stampLine: stampLine, stampFor: stampFor };
+  // The canvas's light bulb (owner, 2026-09-24): on an architecture without
+  // an nmap yet, until the visitor dismisses it.
+  function hintWanted(doc, dismissed) {
+    if (dismissed || !doc || doc.profile !== "architecture") return false;
+    var entities = doc.entities || {};
+    return !Object.keys(entities).some(function (id) { return entities[id].tool === "nmap"; });
+  }
+
+  var api = { LEVELS: LEVELS, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, apply: apply, addNmap: addNmap, stampLine: stampLine, stampFor: stampFor, hintWanted: hintWanted };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmap = api;
 })();

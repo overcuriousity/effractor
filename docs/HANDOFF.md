@@ -5,6 +5,15 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — nmap hint (2026-09-24)
+
+Owner request: a light bulb in the canvas's bottom-right corner
+(`#nmap-hint`, architecture view only) says *Scan a network with nmap*
+while the architecture has no nmap application (`nmap.hintWanted`); a click
+adds nmap as the Add menu does (on the selected host, if one is) and opens
+its dialog; × dismisses it for good on this browser (`effractor.hint.nmap`
+in localStorage, a convenience: storage that fails only shows it again).
+
 ## Continuation — grouped layout (2026-09-24)
 
 Owner, after an nmap import made a tangle: "Arrange automatically" now lays

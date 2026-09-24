@@ -237,3 +237,21 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .nmap-role { display: flex; gap: 8px; align-items: baseline; margin-left: auto; flex: none; }
 .nmap-role .pick.nmap-merge { margin-left: 0; }
 .nmap-role + .nmap-merge, .nmap-role + .nmap-merge-state, .nmap-role + .hint { margin-left: 0; }
+
+/* The light bulb in the canvas's corner: a suggestion, quiet, dismissable. */
+.hud-bottom-right { right: 10px; bottom: 10px; }
+.hud-hint {
+  align-items: center; gap: 2px; padding: 2px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  font-size: var(--text-sm);
+}
+.hud-hint button {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--color-fg-secondary); font: inherit; cursor: pointer;
+}
+.hud-hint button:hover { background: var(--color-bg-hover); color: var(--color-fg-primary); }
+.hud-hint .hint-go svg { width: 16px; height: 16px; fill: none; stroke: var(--color-warning); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.hud-hint .hint-close { padding: 4px; }
+.hud-hint .hint-close svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }

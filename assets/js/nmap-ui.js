@@ -260,6 +260,36 @@
     return e && e.tool === "nmap" ? [["Paste nmap result…", "", function () { open(id); }]] : [];
   });
 
+  // ---- the light bulb (owner, 2026-09-24) ----
+
+  // Dismissed once, gone on this browser; a convenience, so storage that
+  // fails only means it shows again.
+  var HINT = "effractor.hint.nmap";
+  function dismissed() {
+    try {
+      return localStorage.getItem(HINT) === "dismissed";
+    } catch (e) {
+      return false;
+    }
+  }
+  function showHint() {
+    $("nmap-hint").hidden = !N.hintWanted(doc(), dismissed());
+  }
+  $("nmap-hint-go").addEventListener("click", function () {
+    // On the selected host when one is selected, as Tab would.
+    var q = window.effractorProfiles.qualified(app.state.selected);
+    var e = q && q.kind === "entity" ? doc().entities[q.id] : null;
+    createNmap(e && e.kind === "host" ? q.id : null);
+  });
+  $("nmap-hint-close").addEventListener("click", function () {
+    try {
+      localStorage.setItem(HINT, "dismissed");
+    } catch (e) {}
+    showHint();
+  });
+  app.onChange(showHint);
+  showHint();
+
   // ---- wiring ----
 
   $("nmap-range").addEventListener("input", showCommand);

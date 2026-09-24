@@ -568,3 +568,14 @@ test('a tcpwrapped port is no service: counted in a note, never a row', () => {
   assert.equal(p.tcpwrapped, 1);
   assert.equal(N.plan(lab(), 'nmap', deep(), '10.0.1.0/24', {}).tcpwrapped, 0);
 });
+
+test('the nmap hint shows on an architecture until it has an nmap, never once dismissed', () => {
+  const d = lab();
+  assert.equal(N.hintWanted(d, false), false, 'it has an nmap already');
+  delete d.entities.nmap;
+  assert.equal(N.hintWanted(d, false), true);
+  assert.equal(N.hintWanted(E.empty(), false), true, 'an empty architecture too');
+  assert.equal(N.hintWanted(d, true), false, 'dismissed');
+  assert.equal(N.hintWanted({ profile: 'attack-tree', nodes: {} }, false), false);
+  assert.equal(N.hintWanted(null, false), false);
+});
