@@ -29,28 +29,90 @@
   color: var(--color-fg-muted);
 }
 
-/* ---- top bar ---- */
+/* ---- top bar ----
+   Left, what is being worked on: the mode, then the document (its name is
+   its file menu). Right, what is done with it: horizon, state, calculate.
+   Narrow, the status and the name give way first, then the modes' words
+   (their icons and tooltips stay). */
 .topbar {
   grid-area: top;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   padding: 0 12px;
   background: var(--color-bg-elevated);
   border-bottom: 1px solid var(--color-border);
   min-width: 0;
 }
-.brand { display: flex; align-items: center; gap: 7px; font-weight: 600; }
+.topbar .spacer { flex: 1; min-width: 0; }
+.brand { display: flex; flex: none; align-items: center; gap: 7px; font-weight: 600; }
 .brand-mark { width: 9px; height: 9px; border-radius: var(--radius-sm); background: var(--color-accent); }
-/* Narrow, the chips give way before the file menu: they shorten to an
-   ellipsis, the crumb keeps its ▾ and a few letters of the name. */
-.crumb { display: flex; align-items: baseline; flex: 0 1 auto; min-width: 9em; color: var(--color-fg-muted); font-size: var(--text-sm); white-space: nowrap; }
-.crumb-name { display: inline-flex; align-items: baseline; min-width: 0; }
-.crumb-name b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.crumb-name span { flex: none; }
-.topbar > .chip { flex: 0 100 auto; min-width: 3em; overflow: hidden; text-overflow: ellipsis; }
-.topbar > .brand, .topbar > .view-switch, .topbar > .btn { flex: none; }
-.crumb b { color: var(--color-fg-primary); font-weight: 500; }
+
+/* The three modes: one of them, always. */
+.modes {
+  display: flex; flex: none; gap: 2px; padding: 2px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+}
+.mode {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px;
+  border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--color-fg-secondary);
+  font: 500 var(--text-sm)/1 var(--font-sans);
+  cursor: pointer; white-space: nowrap;
+}
+.mode svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.mode:hover { background: var(--color-bg-hover); color: var(--color-fg-primary); }
+.mode[aria-checked="true"] {
+  background: var(--color-bg-elevated); color: var(--color-accent); font-weight: 600;
+  box-shadow: 0 0 0 1px var(--color-accent-muted);
+}
+.mode:focus-visible, .doc-name:focus-visible, .icon-button:focus-visible, .quiet:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+@media (max-width: 860px) {
+  .mode { padding: 5px 8px; font-size: 0; gap: 0; }
+}
+
+/* The document's name is its file menu. */
+.doc-name {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 4em; flex: 0 1 auto;
+  padding: 5px 8px; border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--color-fg-primary); font: 500 var(--text-base)/1 var(--font-sans);
+  cursor: pointer; white-space: nowrap;
+}
+.doc-name:hover { background: var(--color-bg-hover); }
+.doc-name b { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.doc-name span { flex: none; color: var(--color-fg-muted); font-size: var(--text-xs); }
+
+/* Horizon and state: quiet words beside Calculate, not boxes. */
+.quiet {
+  flex: none; padding: 5px 7px; border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--color-fg-secondary); font: 500 var(--text-xs)/1 var(--font-sans);
+  white-space: nowrap;
+}
+.quiet:hover:not(:disabled) { background: var(--color-bg-hover); color: var(--color-fg-primary); }
+.quiet:disabled { color: var(--color-fg-muted); }
+.status {
+  flex: 0 100 auto; min-width: 2em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--color-fg-muted); font: 400 var(--text-xs)/1 var(--font-mono);
+}
+
+.icon-button {
+  display: inline-grid; place-items: center; flex: none;
+  width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--color-fg-secondary); cursor: pointer;
+}
+.icon-button:hover { background: var(--color-bg-hover); color: var(--color-fg-primary); }
+.icon-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+/* The theme button shows the theme in use: sun, moon, or half a disc (system). */
+#theme-switch :is(.theme-disc, .theme-rays, .theme-moon, .theme-half, .theme-ring) { display: none; }
+#theme-switch[data-state="light"] :is(.theme-disc, .theme-rays),
+#theme-switch[data-state="dark"] .theme-moon,
+#theme-switch[data-state="system"] :is(.theme-half, .theme-ring) { display: inline; }
+#theme-switch .theme-half { fill: currentColor; }
+.topbar > .btn { flex: none; }
 
 .chip {
   font: 500 0.6875rem/1 var(--font-mono);
@@ -222,10 +284,6 @@
   font-size: var(--text-sm);
 }
 
-/* The document's name is its file menu. */
-.crumb-name { padding: 1px 4px; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; font: inherit; cursor: pointer; }
-.crumb-name:hover { background: var(--color-bg-hover); }
-.crumb-name span { color: var(--color-fg-muted); font-size: var(--text-xs); }
 
 /* ---- the inspector: the selected node's form, floating at the canvas edge ----
    Over the graph, not beside it: selecting never resizes the canvas, so

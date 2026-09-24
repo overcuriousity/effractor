@@ -6,22 +6,25 @@ const { fakeIndexedDB } = require("./fixtures/fake-idb.js");
 test("the working text survives: saved, loaded, replaced, cleared", async () => {
   const idb = fakeIndexedDB();
   const store = createStore(idb);
-  assert.equal(await store.load(), null, "nothing yet");
-  await store.save("effractor: 1\n");
-  assert.equal(await store.load(), "effractor: 1\n");
-  await store.save("effractor: 1\nname: Two\n");
+  assert.equal(await store.load("fault-tree"), null, "nothing yet");
+  await store.save("effractor: 1\n", "fault-tree");
+  assert.equal(await store.load("fault-tree"), "effractor: 1\n");
+  await store.save("effractor: 1\nname: Two\n", "fault-tree");
   // A second page over the same database sees what the first one left.
-  assert.equal(await createStore(idb).load(), "effractor: 1\nname: Two\n");
-  await store.clear();
-  assert.equal(await store.load(), null);
+  assert.equal(await createStore(idb).load("fault-tree"), "effractor: 1\nname: Two\n");
+  await store.clear("fault-tree");
+  assert.equal(await store.load("fault-tree"), null);
 });
 
 test("without IndexedDB nothing is kept and nothing fails", async () => {
   for (const idb of [undefined, fakeIndexedDB({ refuses: true })]) {
     const store = createStore(idb);
-    await store.save("text");
-    assert.equal(await store.load(), null);
-    await store.clear();
+    await store.save("text", "fault-tree");
+    await store.setMode("fault-tree");
+    assert.equal(await store.load("fault-tree"), null);
+    assert.equal(await store.mode(), null);
+    assert.equal(await store.legacy(), null);
+    await store.clear("fault-tree");
   }
 });
 
@@ -37,7 +40,7 @@ test("a document's name becomes a file name a file system will take", () => {
 test("upgrading a working database preserves text and persists independent share records", async () => {
   const idb = fakeIndexedDB({ version: 1, working: 'my existing document' });
   const store = createStore(idb);
-  assert.equal(await store.load(), 'my existing document');
+  assert.equal(await store.legacy(), 'my existing document');
   const a = { id: 'a', delete_token: 'token-a', expires_at: null, url: '/s/a#key', name: 'A' };
   const b = { id: 'b', delete_token: 'token-b', expires_at: 123, url: '/s/b#key', name: 'B' };
   assert.equal(await store.saveShare(a), true);
@@ -45,7 +48,7 @@ test("upgrading a working database preserves text and persists independent share
   assert.deepEqual(await createStore(idb).shares(), [a, b]);
   assert.equal(await store.removeShare('a'), true);
   assert.deepEqual(await store.shares(), [b]);
-  assert.equal(await store.load(), 'my existing document');
+  assert.equal(await store.legacy(), 'my existing document');
 });
 
 test("share storage reports refused or aborted writes instead of losing deletion tokens silently", async () => {
@@ -53,4 +56,29 @@ test("share storage reports refused or aborted writes instead of losing deletion
     const store = createStore(idb);
     assert.equal(await store.saveShare({ id: 'a', delete_token: 'token' }), false);
   }
+});
+
+test("each mode keeps its own text, and the page remembers the mode last used", async () => {
+  const idb = fakeIndexedDB();
+  const store = createStore(idb);
+  assert.equal(await store.mode(), null, "no mode yet");
+  await store.save("tree text", "fault-tree");
+  await store.save("architecture text", "architecture");
+  await store.setMode("architecture");
+  const again = createStore(idb);
+  assert.equal(await again.load("fault-tree"), "tree text");
+  assert.equal(await again.load("architecture"), "architecture text");
+  assert.equal(await again.load("attack-tree"), null);
+  assert.equal(await again.mode(), "architecture");
+  await again.clear("fault-tree");
+  assert.equal(await again.load("fault-tree"), null);
+  assert.equal(await again.load("architecture"), "architecture text");
+});
+
+test("the one text kept before modes existed is handed over once, then gone", async () => {
+  const idb = fakeIndexedDB({ version: 1, working: "my existing document" });
+  const store = createStore(idb);
+  assert.equal(await store.legacy(), "my existing document");
+  await store.dropLegacy();
+  assert.equal(await createStore(idb).legacy(), null);
 });

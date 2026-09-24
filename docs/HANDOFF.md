@@ -5,6 +5,29 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — top bar and modes (2026-09-24)
+
+The owner found the top bar dense and the three modes hard to see and to
+switch (chose "each mode keeps its own document"). Committed straight to
+master at the owner's word.
+
+- **Mode tabs** (`#mode-fault-tree`, `#mode-attack-tree`, `#mode-architecture`,
+  `role="radio"`), keys 1/2/3, replace the profile chip. `app.switchMode(p)`
+  goes to the text last worked on in that mode, or its template; the latest
+  choice wins (`gate` channel `mode`; a `replaceDocument` cancels a pending
+  switch).
+- **Per mode**: `store.js` keeps `document:<profile>` and `mode` (the last
+  used); the old single `document` entry is filed once under its profile
+  (`legacy`/`dropLegacy`). `app.js` keeps one undo history per profile
+  (`historyOf`) and the last text per profile (`slots`, set in `loaded`). A
+  document opened from anywhere lands in its own mode; what it replaces there
+  is one Ctrl+Z away. File → New is one item: an empty document of the mode
+  on the page.
+- **Bar**: brand · modes · name ▾ · … · horizon · status · theme icon (sun,
+  moon, half disc for System; name in the tooltip) · Share · Calculate. Below
+  860 px the tabs show icons only. The architecture's view switch moved to the
+  canvas, top left (`.hud-top-left`).
+
 ## Continuation — defense comparison (2026-09-24)
 
 Plan Task 7 (`defense-comparison`) is done; the owner accepted it in the 8081

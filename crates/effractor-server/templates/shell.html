@@ -65,14 +65,17 @@
 
   <header class="topbar">
     <span class="brand"><span class="brand-mark" aria-hidden="true"></span>effractor</span>
-    <span class="crumb">Models / <button class="crumb-name" id="file" type="button" aria-haspopup="menu" aria-controls="file-menu" title="New, open, save"><b id="model-name">Untitled</b><span aria-hidden="true"> ▾</span></button></span>
+    <span class="modes" role="radiogroup" aria-label="Mode">
+      <button class="mode" id="mode-fault-tree" type="button" role="radio" aria-checked="false" title="Fault tree (1)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v3M5 11V8.500h6V11M5.500 5.500h5v3h-5zM3.500 11h3v2.500h-3zM9.500 11h3v2.500h-3z"/></svg>Fault tree</button>
+      <button class="mode" id="mode-attack-tree" type="button" role="radio" aria-checked="false" title="Attack tree (2)"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4" r="2.2"/><circle cx="8" cy="4" r="0.4"/><path d="M8 6.200V9M4 13.500V9h8v4.500"/></svg>Attack tree</button>
+      <button class="mode" id="mode-architecture" type="button" role="radio" aria-checked="false" title="Architecture (3)"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.500" cy="8" r="1.800"/><circle cx="12.500" cy="3.500" r="1.800"/><circle cx="12.500" cy="12.500" r="1.800"/><path d="M5.100 7.200l5.800-2.900M5.100 8.800l5.800 2.900"/></svg>Architecture</button>
+    </span>
+    <button class="doc-name" id="file" type="button" aria-haspopup="menu" aria-controls="file-menu" title="New, open, save"><b id="model-name">Untitled</b><span aria-hidden="true">▾</span></button>
     <input id="open-file" type="file" accept=".yaml,.yml,text/yaml" hidden>
-    <span class="chip" id="profile-chip">no profile</span>
-    <span class="view-switch architecture-only" role="group" aria-label="View"><button class="btn btn-ghost" id="view-architecture" type="button" aria-pressed="true" title="Architecture (G)">Architecture</button><button class="btn btn-ghost" id="view-attack" type="button" aria-pressed="false" title="Build the attack graph (G)">Attack graph</button></span>
-    <button class="chip horizon-chip" id="horizon" type="button" title="Edit analysis horizon" disabled>Horizon —</button>
-    <span class="chip" id="analysis-chip">not calculated</span>
     <span class="spacer"></span>
-    <button class="btn btn-ghost" id="theme-switch" type="button" aria-label="Theme">Light</button>
+    <button class="quiet horizon-chip" id="horizon" type="button" title="Analysis horizon" disabled>Horizon —</button>
+    <span class="status" id="analysis-chip" role="status">not calculated</span>
+    <button class="icon-button" id="theme-switch" type="button" aria-label="Theme"><svg viewBox="0 0 16 16" aria-hidden="true"><circle class="theme-disc" cx="8" cy="8" r="3.2"/><path class="theme-rays" d="M8 1.500v1.600M8 12.900v1.600M1.500 8h1.600M12.900 8h1.600M3.400 3.400l1.100 1.100M11.500 11.500l1.100 1.100M3.400 12.600l1.100-1.100M11.500 4.500l1.100-1.100"/><path class="theme-moon" d="M12.500 10A5 5 0 016 3.500a5 5 0 106.500 6.500z"/><path class="theme-half" d="M8 3a5 5 0 000 10z"/><circle class="theme-ring" cx="8" cy="8" r="5"/></svg></button>
     <button class="btn btn-ghost" id="share" type="button" disabled>Share</button>
     <button class="btn" id="solve" type="button" disabled>Calculate</button>
   </header>
@@ -122,6 +125,7 @@
   <main class="canvas" id="canvas" aria-label="Graph">
     <div class="stage" id="stage">
       <div class="canvas-grid" aria-hidden="true"></div>
+      <span class="hud hud-top-left view-switch architecture-only" role="group" aria-label="View"><button class="btn btn-ghost" id="view-architecture" type="button" aria-pressed="true" title="Architecture (G)">Architecture</button><button class="btn btn-ghost" id="view-attack" type="button" aria-pressed="false" title="Build the attack graph (G)">Attack graph</button></span>
       <div class="hud hud-bottom-left"><button class="btn btn-ghost" id="fit" type="button" title="Fit to view (F)">Fit</button><button class="btn btn-ghost" id="zoom-out" type="button" title="Zoom out (−)" aria-label="Zoom out">−</button><button class="btn btn-ghost" id="zoom-in" type="button" title="Zoom in (+)" aria-label="Zoom in">+</button><span class="pin-tray architecture-only architecture-view-only" aria-label="Attacker pins"><span class="pin-source pin-foothold" data-pin-role="foothold" title="Drag onto a component: the attacker starts there"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 14V2.5M4 3h8l-2 3 2 3H4"/></svg>Foothold</span><span class="pin-source pin-target" data-pin-role="target" title="Drag onto a component: what the attacker is after"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/></svg>Target</span></span></div>
       <p class="hud hud-note" id="note" role="status" hidden></p>
       <div class="hud hud-top-right" id="hud-stats" hidden>
@@ -234,9 +238,7 @@
   <button class="btn btn-ghost" id="help-close" type="button">Close <kbd>Esc</kbd></button>
 </dialog>
 <div class="menu" id="file-menu" role="menu" hidden>
-  <button type="button" role="menuitem" data-file="new">New fault tree</button>
-  <button type="button" role="menuitem" data-file="new-attack">New attack tree</button>
-  <button type="button" role="menuitem" data-file="new-architecture">New architecture</button>
+  <button type="button" role="menuitem" data-file="new">New</button>
   <button type="button" role="menuitem" data-file="open">Open a .yaml file…<kbd>Ctrl+O</kbd></button>
   <button type="button" role="menuitem" data-file="save">Save as .yaml<kbd>Ctrl+S</kbd></button>
 </div>

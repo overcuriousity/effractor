@@ -77,7 +77,9 @@ mod tests {
         assert!(html.contains("id=\"view-attack\""));
         assert!(html.contains("id=\"attack-results\""));
         assert!(html.contains(&format!("href=\"{prefix}assets/css/60-architecture.css\"")));
-        assert!(html.contains("data-file=\"new-architecture\""));
+        for mode in ["fault-tree", "attack-tree", "architecture"] {
+            assert!(html.contains(&format!("id=\"mode-{mode}\"")), "{mode} tab");
+        }
     }
 
     #[test]

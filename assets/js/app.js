@@ -32,23 +32,33 @@
     return n >= 1 && Number.isSafeInteger(n) ? n : null;
   }
 
-  // The page opens on an empty document: a fault tree, or with
-  // ?new=attack-tree an attack tree, ?new=architecture an architecture. No
-  // example ships.
-  function templateName(search) {
+  // The three modes, in the order of their tabs, and the empty document each
+  // starts from. No example ships.
+  var MODES = ["fault-tree", "attack-tree", "architecture"];
+  var TEMPLATES = { "fault-tree": "new", "attack-tree": "new-attack", architecture: "new-architecture" };
+  var MODE_NAMES = { "fault-tree": "Fault tree", "attack-tree": "Attack tree", architecture: "Architecture" };
+
+  // ?new=attack-tree opens an empty attack tree, ?new=architecture an empty
+  // architecture, ?new=fault-tree an empty fault tree; anything else, null.
+  function newProfile(search) {
     var m = /[?&]new=([a-z-]+)(&|$)/.exec(search);
-    if (m && m[1] === "attack-tree") return "new-attack";
-    return m && m[1] === "architecture" ? "new-architecture" : "new";
+    return m && TEMPLATES[m[1]] && Object.prototype.hasOwnProperty.call(TEMPLATES, m[1]) ? m[1] : null;
+  }
+
+  function templateName(search) {
+    return TEMPLATES[newProfile(search) || "fault-tree"];
   }
 
   if (typeof module !== "undefined") {
-    module.exports = { templateName: templateName, grouped: grouped, probability: probability, money: money, analysisLabel: analysisLabel, samplesOverride: samplesOverride };
+    module.exports = { MODES: MODES, newProfile: newProfile, templateName: templateName, grouped: grouped, probability: probability, money: money, analysisLabel: analysisLabel, samplesOverride: samplesOverride };
   }
   if (typeof document === "undefined") return;
 
   // Resolve from this script, including on /s/id and repository Pages URLs.
   var assets = new URL("../", document.currentScript.src);
-  var TEMPLATE = new URL("templates/" + templateName(location.search) + ".yaml", assets).href;
+  function templateOf(profile) {
+    return new URL("templates/" + TEMPLATES[profile] + ".yaml", assets).href;
+  }
   var $ = function (id) {
     return document.getElementById(id);
   };
@@ -447,6 +457,7 @@
     }
     state.text = text;
     state.doc = doc;
+    slots[doc.profile] = text;
     state.sourceValid = true;
     // The comparison is workspace state: it lasts while the document names it.
     if (!hasScenario(doc, state.scenario)) state.scenario = "";
@@ -458,7 +469,9 @@
     if (!P.isArchitecture(doc)) state.mode = "architecture";
     $("app").setAttribute("data-profile", doc.profile);
     $("model-name").textContent = doc.name;
-    $("profile-chip").textContent = doc.profile;
+    MODES.forEach(function (mode) {
+      $("mode-" + mode).setAttribute("aria-checked", String(mode === doc.profile));
+    });
     $("hud-p-label").textContent = P.words(doc).p;
     chip(P.capabilities(doc).solve ? analysisLabel(doc.analysis) : "not calculated");
     solvable();
@@ -606,6 +619,8 @@
       // A newer text was sent for adoption meanwhile, or the source changed.
       if (!gate.accept(token)) return false;
       if (beforeCommit && !beforeCommit()) return false;
+      // Each mode has its own undo history.
+      undoStack = historyOf(parsed.ok.profile);
       invalidate();
       state.diagnostics = parsed.diagnostics || [];
       // Another profile is another document, and is fitted as one.
@@ -620,7 +635,8 @@
       } else if (state.exactResults || state.results) {
         mark("updating");
       }
-      store.save(text);
+      store.save(text, parsed.ok.profile);
+      store.setMode(parsed.ok.profile);
       return loaded(text, parsed.ok, !!fit).then(function (outcome) {
         // A newer text overtook this one's attack graph: the selection, and
         // what is solved, are that text's to settle.
@@ -701,7 +717,14 @@
     });
   }
 
-  var undoStack = window.effractorEdit.createHistory();
+  // One undo history per mode, and the text last seen in each: switching
+  // modes goes back to that text, and Ctrl+Z works on it as before.
+  var histories = Object.create(null);
+  var slots = Object.create(null);
+  function historyOf(profile) {
+    return histories[profile] || (histories[profile] = window.effractorEdit.createHistory());
+  }
+  var undoStack = historyOf("fault-tree");
   // One step at a time: a Ctrl+Z repeated while the last is still on its
   // way is ignored, and a step that is overtaken goes back into the history.
   var travelling = false;
@@ -727,22 +750,23 @@
     });
   }
 
-  // What was being worked on in this browser, or else an empty document.
+  // What was being worked on in this browser, in the mode last used, or else
+  // an empty document. ?new= opens an empty one of its kind.
   function load() {
-    return store
-      .load()
-      .then(function (kept) {
-        if (kept === null || /[?&]new=/.test(location.search)) return template(TEMPLATE);
-        // Kept text that no longer parses (an older version's, say), or that
-        // this page cannot show, must not lock the page out of itself.
-        return solver.parse(kept).then(function (parsed) {
-          return parsed.ok ? kept : template(TEMPLATE);
+    var wanted = newProfile(location.search);
+    return lastMode()
+      .then(function (mode) {
+        var active = wanted || mode || "fault-tree";
+        if (wanted) return template(templateOf(active));
+        return keptText(active).then(function (kept) {
+          return kept === null ? template(templateOf(active)) : kept;
         });
       })
       .then(function (text) {
         return solver.parse(text).then(function (parsed) {
           if (!parsed.ok) throw new Error(describe(parsed.diagnostics[0]));
           state.diagnostics = parsed.diagnostics || [];
+          undoStack = historyOf(parsed.ok.profile);
           var samples = samplesOverride(location.search);
           if (samples === null) return loaded(text, parsed.ok, true);
           // The edit goes the way every edit will: through the document and
@@ -753,6 +777,61 @@
             return loaded(written.ok, parsed.ok, true);
           });
         });
+      });
+  }
+
+  // The mode last used. Before there were modes the browser kept one text:
+  // it is filed once under its own mode, which becomes the last used.
+  function lastMode() {
+    return store.mode().then(function (mode) {
+      if (mode !== null) return mode;
+      return store.legacy().then(function (old) {
+        if (old === null) return null;
+        return solver.parse(old).then(function (parsed) {
+          if (!parsed.ok) return null;
+          var profile = parsed.ok.profile;
+          return Promise.all([store.save(old, profile), store.setMode(profile)]).then(function () {
+            store.dropLegacy();
+            return profile;
+          });
+        });
+      });
+    });
+  }
+
+  // A mode's kept text, or null. Kept text that no longer parses (an older
+  // version's, say), or is not of that mode, must not lock the page out of
+  // itself.
+  function keptText(profile) {
+    return store.load(profile).then(function (kept) {
+      if (kept === null) return null;
+      return solver.parse(kept).then(function (parsed) {
+        return parsed.ok && parsed.ok.profile === profile ? kept : null;
+      });
+    });
+  }
+
+  // To another mode: the text last worked on there, or its empty document.
+  // What is on the page stays kept in its own mode. The latest choice wins.
+  function switchMode(profile) {
+    if (!state.doc || !Object.prototype.hasOwnProperty.call(TEMPLATES, profile)) return Promise.resolve(false);
+    var intent = gate.issue("mode");
+    if (state.doc.profile === profile) return Promise.resolve(true);
+    var text = slots[profile] !== undefined ? Promise.resolve(slots[profile]) : keptText(profile);
+    return text
+      .then(function (kept) {
+        return kept === null ? template(templateOf(profile)) : kept;
+      })
+      .then(function (text) {
+        if (!gate.accept(intent)) return false;
+        return adopt(text, null, null, true, function () {
+          return gate.accept(intent);
+        });
+      })
+      .catch(function (e) {
+        console.error(e);
+        say("could not switch · " + e.message);
+        return false;
       });
   }
 
@@ -973,6 +1052,7 @@
   // it replaces is a Ctrl+Z away, so nothing is asked and nothing is lost.
 
   function replaceDocument(text, said, isCurrent) {
+    gate.issue("mode"); // a mode switch on its way gives way to this document
     return solver.parse(text).then(function (parsed) {
       if (isCurrent && !isCurrent()) return false;
       if (!parsed.ok) return notOpened(text, parsed.diagnostics);
@@ -984,7 +1064,10 @@
           // Link navigation may have changed during the worker round trips.
           // Check before touching either the document or its undo history.
           if (isCurrent && !isCurrent()) return false;
-          if (state.text !== null) undoStack.push(state.text);
+          // Opened into its own mode: what it replaces there is one Ctrl+Z away.
+          var into = parsed.ok.profile;
+          var before = state.doc && state.doc.profile === into ? state.text : slots[into];
+          if (before !== undefined && before !== null) historyOf(into).push(before);
           return true;
         }).then(function (applied) {
           if (!applied || (isCurrent && !isCurrent())) return false;
@@ -1027,19 +1110,11 @@
   }
 
   var fileActions = {
+    // An empty document in the mode on the page.
     new: function () {
-      template(new URL("templates/new.yaml", assets).href).then(function (text) {
-        replaceDocument(text, "new fault tree");
-      });
-    },
-    "new-attack": function () {
-      template(new URL("templates/new-attack.yaml", assets).href).then(function (text) {
-        replaceDocument(text, "new attack tree");
-      });
-    },
-    "new-architecture": function () {
-      template(new URL("templates/new-architecture.yaml", assets).href).then(function (text) {
-        replaceDocument(text, "new architecture");
+      var profile = state.doc ? state.doc.profile : "fault-tree";
+      template(templateOf(profile)).then(function (text) {
+        replaceDocument(text, "new " + MODE_NAMES[profile].toLowerCase());
       });
     },
     open: function () {
@@ -1080,8 +1155,13 @@
     if (!$("file-menu").contains(e.target) && !$("file").contains(e.target)) closeFileMenu();
   });
 
-  window.effractor.canUndo = undoStack.canUndo;
-  window.effractor.canRedo = undoStack.canRedo;
+  window.effractor.canUndo = function () {
+    return undoStack.canUndo();
+  };
+  window.effractor.canRedo = function () {
+    return undoStack.canRedo();
+  };
+  window.effractor.switchMode = switchMode;
   window.effractor.solve = solve;
   window.effractor.onChange = function (f) {
     listeners.push(f);
@@ -1128,7 +1208,16 @@
       renderer.fit();
     } else if ((e.key === "+" || e.key === "-") && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
       renderer.zoomBy(e.key === "+" ? 1.25 : 0.8);
+    } else if (/^[123]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey && !e.defaultPrevented && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && !e.target.closest(".menu") && !document.querySelector("dialog[open]")) {
+      // Before the editor's keys, which would start a rename with the digit.
+      e.preventDefault();
+      switchMode(MODES[Number(e.key) - 1]);
     }
+  });
+  MODES.forEach(function (mode) {
+    $("mode-" + mode).addEventListener("click", function () {
+      switchMode(mode);
+    });
   });
 
   window.effractor.replaceDocument = replaceDocument;

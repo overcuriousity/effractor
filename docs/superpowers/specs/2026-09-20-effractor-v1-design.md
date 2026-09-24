@@ -306,8 +306,12 @@ current laptop for the reference tree; first exact results under 100 ms.
 Docked-panel investigative workspace (Chainalysis Reactor / GraphSense idiom),
 per the approved mockups:
 
-- **Top bar**: name, breadcrumb, profile chip, analysis chip
-  (`10 000 samples · seed 42`), Share, Solve, theme switch.
+- **Top bar**: the three modes as tabs (Fault tree · Attack tree ·
+  Architecture, keys 1–3; each keeps its own working document and undo
+  history in the browser), the document's name as its file menu; on the
+  right horizon, analysis state (`10 000 samples · seed 42`), theme icon,
+  Share, Calculate. An architecture's Architecture | Attack graph switch
+  sits on the canvas, top left.
 - **Tool rail** (left, 40 px): select, add, link, source, controls, results
   views.
 - **Left panel**: model tree (outline of the DAG; repeated nodes appear under

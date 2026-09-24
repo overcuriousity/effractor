@@ -1,12 +1,18 @@
 // Working state (spec 7.2): the text being edited, kept in this browser across
-// reloads, and the name a document is saved under. One document, one key —
-// IndexedDB because the spec says so and a share list will join it there.
+// reloads, and the name a document is saved under. One text per mode (fault
+// tree, attack tree, architecture) and the mode last used — IndexedDB
+// because the spec says so and a share list will join it there.
 // Where there is no IndexedDB (a private window may refuse it) nothing is
 // kept and nothing fails.
 (function () {
   var DB = "effractor";
   var STORE = "working";
-  var KEY = "document";
+  // Before modes there was one text for all of them: it is handed over once.
+  var LEGACY = "document";
+  var MODE = "mode";
+  function keyOf(profile) {
+    return "document:" + profile;
+  }
 
   function createStore(idb) {
     var opened = null;
@@ -53,6 +59,24 @@
       });
     }
 
+    function get(key) {
+      return request("readonly", function (s) {
+        return s.get(key);
+      }).then(function (value) {
+        return typeof value === "string" ? value : null;
+      });
+    }
+    function put(value, key) {
+      return request("readwrite", function (s) {
+        return s.put(value, key);
+      });
+    }
+    function remove(key) {
+      return request("readwrite", function (s) {
+        return s.delete(key);
+      });
+    }
+
     return {
       shares: function () {
         return request("readonly", function (s) { return s.getAll(); }, "shares").then(function (rows) { return rows || []; });
@@ -63,23 +87,28 @@
       removeShare: function (id) {
         return request("readwrite", function (s) { return s.delete(id); }, "shares", true);
       },
-      // The text last saved, or null.
-      load: function () {
-        return request("readonly", function (s) {
-          return s.get(KEY);
-        }).then(function (text) {
-          return typeof text === "string" ? text : null;
-        });
+      // The text last saved in that mode, or null.
+      load: function (profile) {
+        return get(keyOf(profile));
       },
-      save: function (text) {
-        return request("readwrite", function (s) {
-          return s.put(text, KEY);
-        });
+      save: function (text, profile) {
+        return put(text, keyOf(profile));
       },
-      clear: function () {
-        return request("readwrite", function (s) {
-          return s.delete(KEY);
-        });
+      clear: function (profile) {
+        return remove(keyOf(profile));
+      },
+      // The mode last used, or null.
+      mode: function () {
+        return get(MODE);
+      },
+      setMode: function (profile) {
+        return put(profile, MODE);
+      },
+      legacy: function () {
+        return get(LEGACY);
+      },
+      dropLegacy: function () {
+        return remove(LEGACY);
       },
     };
   }

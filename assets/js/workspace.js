@@ -114,8 +114,12 @@
 
   var themeButton = document.getElementById("theme-switch");
   var NAMES = { light: "Light", dark: "Dark", system: "System" };
+  // An icon for the theme in use; its name and what a click does in the tooltip.
+  var NEXT = { light: "dark", dark: "system", system: "light" };
   function labelTheme() {
-    themeButton.textContent = NAMES[window.effractorTheme.get()];
+    var current = window.effractorTheme.get();
+    themeButton.setAttribute("data-state", current);
+    themeButton.title = "Theme: " + NAMES[current] + " · click for " + NAMES[NEXT[current]];
   }
   themeButton.addEventListener("click", function () {
     window.effractorTheme.cycle();

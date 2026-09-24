@@ -211,6 +211,7 @@
     ["Ctrl+Shift+Z", "Redo"],
     ["Ctrl+S", "Save as a .yaml file"],
     ["Ctrl+O", "Open a .yaml file"],
+    ["1  2  3", "Fault tree, attack tree, architecture"],
     ["F", "Fit to view"],
     ["+  −", "Zoom in, zoom out"],
     ["?", "This list"],

@@ -30,7 +30,7 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
       createElement: element, querySelectorAll: () => [], addEventListener() {},
     };
     const window = {
-      effractorStore: { createStore: () => ({ load: async () => 'original', save: text => writes.push(text) }) },
+      effractorStore: { createStore: () => ({ load: async profile => (profile === 'fault-tree' ? 'original' : null), save: text => writes.push(text), mode: async () => null, setMode() {}, legacy: async () => null, dropLegacy() {} }) },
       createSolver: () => solver,
       effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, reveal() {}, on() {}, fit() {} }) },
       effractorLayout: { createLayout: () => async () => ({}) },
@@ -68,7 +68,7 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
 // A page whose worker and layout answer when a test says so: texts listed in
 // `slow` are parsed only on release, and so are layouts while `holdLayout`.
 // Everything else answers at once. Nothing here is a browser.
-function racePage(kept = 'original') {
+function racePage(kept = 'original', legacy = null) {
   const nodes = new Map(), writes = [], held = [], renders = [], runs = [], timers = [], reveals = [], layouts = [];
   const slow = new Set();
   const generated = [];
@@ -77,6 +77,9 @@ function racePage(kept = 'original') {
   const docOf = text => text.startsWith('arch')
     ? { name: text, profile: 'architecture', entities: { web: { kind: 'service', label: 'Web' } }, associations: {}, flows: {}, attacker: { footholds: [] }, scenarios: text.includes('scen') ? { deny: { label: 'Deny', changes: [] } } : {}, analysis: { seed: 1, samples: 10 } }
     : { name: text, profile: 'fault-tree', nodes: { top: { label: 'Top', leaf: 'basic' } }, analysis: { seed: 1, samples: 10 } };
+  // What the browser keeps: the one text in its mode, or the text from before modes.
+  const kept_ = kept === null ? {} : { [docOf(kept).profile]: kept };
+  let mode_ = kept === null ? null : docOf(kept).profile;
   const later = (what, value) => new Promise(resolve => held.push({ what, release: () => resolve(value) }));
   const solver = {
     parse(text) {
@@ -109,7 +112,7 @@ function racePage(kept = 'original') {
     createElement: element, querySelectorAll: () => [], addEventListener() {},
   };
   const window = {
-    effractorStore: { createStore: () => ({ load: async () => kept, save: text => writes.push(text) }) },
+    effractorStore: { createStore: () => ({ load: async profile => kept_[profile] ?? null, save(text, profile) { writes.push(text); kept_[profile] = text; }, mode: async () => mode_, setMode(p) { mode_ = p; }, legacy: async () => legacy, dropLegacy() { legacy = null; } }) },
     createSolver: () => solver,
     effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render(laid) { renders.push(laid.name); }, highlight() {}, reveal(id) { reveals.push(id); }, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => described => (layouts.push(described), holdLayout ? later('layout ' + described.name, described) : Promise.resolve(described)) },
@@ -168,12 +171,63 @@ test('an architecture opens as the document: a profile on the page, solved as a 
   assert.equal(h.nodes.get('inspector').hidden, false);
   h.app.select('web');
   assert.equal(h.app.state.selected, null);
-  // Undo brings the tree back, and it is solved again.
-  h.app.undo(); await h.settle(); await h.settle();
+  // The tree was not replaced: it stays in its own mode, and switching back
+  // brings it, solvable again. The architecture has no undo into the tree.
+  assert.equal(h.app.canUndo(), false);
+  assert.equal(await h.app.switchMode('fault-tree'), true); await h.settle();
   assert.equal(h.app.state.text, 'original');
   assert.equal(h.attr('data-profile'), 'fault-tree');
+  assert.equal(h.nodes.get('mode-fault-tree').getAttribute('aria-checked'), 'true');
+  assert.equal(h.nodes.get('mode-architecture').getAttribute('aria-checked'), 'false');
   assert.equal(h.nodes.get('hud-p-label').textContent, 'P(top)');
   assert.equal(h.nodes.get('solve').disabled, false);
+  assert.equal(await h.app.switchMode('architecture'), true); await h.settle();
+  assert.equal(h.app.state.text, 'arch', 'and the architecture is where it was left');
+});
+
+test('each mode keeps its own document and undo history; a first visit to a mode opens its empty document', async () => {
+  const h = racePage();
+  await h.app.ready; await h.settle();
+  // An edit in the tree: one undo step, in the tree's history.
+  assert.equal(await h.app.applyEdit({ doc: h.docOf('tree two'), select: null }), true);
+  assert.equal(h.app.canUndo(), true);
+  // The architecture mode was never used: its empty document, no undo.
+  assert.equal(await h.app.switchMode('architecture'), true); await h.settle();
+  assert.equal(h.app.state.text, 'arch-template');
+  assert.equal(h.app.canUndo(), false);
+  assert.deepEqual(h.writes.slice(-1), ['arch-template'], 'kept for this mode');
+  // Back in the tree, its history is still there.
+  assert.equal(await h.app.switchMode('fault-tree'), true); await h.settle();
+  assert.equal(h.app.state.text, 'tree two');
+  h.app.undo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'original');
+  // Switching to the mode on the page, or to no mode, changes nothing.
+  const before = h.writes.length;
+  assert.equal(await h.app.switchMode('fault-tree'), true);
+  assert.equal(await h.app.switchMode('spreadsheet'), false);
+  assert.equal(h.writes.length, before);
+});
+
+test('the one text a browser kept before modes opens in its own mode, and is kept there', async () => {
+  const h = racePage(null, 'arch kept');
+  await h.app.ready; await h.settle();
+  assert.equal(h.app.state.text, 'arch kept');
+  assert.equal(h.attr('data-profile'), 'architecture');
+  assert.deepEqual(h.writes, ['arch kept']);
+});
+
+test('the latest mode chosen wins over one still on its way', async () => {
+  const h = racePage();
+  await h.app.ready; await h.settle();
+  h.slow.add('arch-template');
+  const first = h.app.switchMode('architecture');
+  await h.settle();
+  const second = h.app.switchMode('fault-tree');
+  h.release('parse arch-template'); await h.settle();
+  assert.equal(await first, false);
+  assert.equal(await second, true);
+  assert.equal(h.app.state.text, 'original');
+  assert.equal(h.attr('data-profile'), 'fault-tree');
 });
 
 const graphResult = (text, revision, p) => ({ result: { ok: { revision, source: text, result: {
@@ -518,7 +572,7 @@ test("the inspector follows the selection", async () => {
     createElement: element, querySelectorAll: () => [], addEventListener() {},
   };
   const window = {
-    effractorStore: { createStore: () => ({ load: async () => 'text', save() {} }) },
+    effractorStore: { createStore: () => ({ load: async profile => (profile === 'fault-tree' ? 'text' : null), save() {}, mode: async () => null, setMode() {}, legacy: async () => null, dropLegacy() {} }) },
     createSolver: () => ({ async parse() { return { ok: doc }; }, async serialize() { return { ok: 'text' }; } }),
     effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, reveal() {}, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => async () => ({}) },
@@ -559,7 +613,7 @@ test("the HUD is hidden while nothing is solved", async () => {
     createElement: element, querySelectorAll: () => [], addEventListener() {},
   };
   const window = {
-    effractorStore: { createStore: () => ({ load: async () => 'text', save() {} }) },
+    effractorStore: { createStore: () => ({ load: async profile => (profile === 'fault-tree' ? 'text' : null), save() {}, mode: async () => null, setMode() {}, legacy: async () => null, dropLegacy() {} }) },
     createSolver: () => ({ async parse() { return { ok: doc }; }, async serialize() { return { ok: 'text' }; } }),
     effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, reveal() {}, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => async () => ({}) },
@@ -593,7 +647,7 @@ function autoHarness() {
     createElement: element, querySelectorAll: () => [], addEventListener() {},
   };
   const window = {
-    effractorStore: { createStore: () => ({ load: async () => 'original', save() {} }) },
+    effractorStore: { createStore: () => ({ load: async profile => (profile === 'fault-tree' ? 'original' : null), save() {}, mode: async () => null, setMode() {}, legacy: async () => null, dropLegacy() {} }) },
     createSolver: () => ({
       async parse(text) { return { ok: doc(text) }; },
       async serialize(value) { return { ok: value.name }; },

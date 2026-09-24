@@ -136,9 +136,11 @@
 .line-unknown { border-top: 1.5px dashed var(--viz-outline); }
 
 /* Architecture or attack graph: two words, the one shown pressed. */
-.view-switch { display: inline-flex; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
-.view-switch .btn { border: 0; border-radius: 0; padding: 1px 8px; font-size: var(--text-xs); }
-.view-switch .btn[aria-pressed="true"] { background: var(--color-bg-active); color: var(--color-fg-primary); }
+/* An architecture's two views, on the canvas they switch: top left. */
+.hud-top-left { top: 10px; left: 10px; }
+.view-switch { gap: 0; padding: 2px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); }
+.view-switch .btn { border: 0; border-radius: var(--radius-sm); background: none; padding: 5px 10px; font-size: var(--text-xs); }
+.view-switch .btn[aria-pressed="true"] { background: var(--color-accent-dim); color: var(--color-accent); }
 
 /* A step in the inspector, and the attack results: a few words and values,
    each source a link back into the architecture. */
@@ -189,4 +191,4 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .node-component.hl-pin-drop .halo { stroke: var(--color-accent); stroke-width: 3; stroke-dasharray: none; }
 /* No attack graph yet: the button and the chip open what to finish. */
 .view-switch #view-attack.is-blocked { text-decoration: underline dotted var(--color-warning); text-underline-offset: 3px; }
-.topbar > .chip.is-blocked { color: var(--color-warning); border-color: var(--color-warning); cursor: pointer; }
+.topbar > .status.is-blocked { color: var(--color-warning); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
