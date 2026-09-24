@@ -67,7 +67,7 @@
     var c = N.command(at.level, $("nmap-range").value);
     $("nmap-command").textContent = c && c.text ? c.text : "";
     $("nmap-copy").disabled = !(c && c.text);
-    $("nmap-problem").textContent = c && c.problem && $("nmap-range").value.trim() ? c.problem : "";
+    $("nmap-problem").textContent = c ? c.problem || c.note || "" : "";
   }
 
   // ---- open ----
@@ -169,7 +169,10 @@
   // Known, or new with a choice to merge it into a hand-drawn host.
   function state(h) {
     if (h.known) return el("span", "known as “" + doc().entities[h.known].label + "”", "hint");
-    var options = [["", "new"]].concat(at.plan.candidates.map(function (id) {
+    // A drawn host another row has taken is not offered again.
+    var taken = at.plan.hosts.filter(function (o) { return o.key !== h.key && o.merged; }).map(function (o) { return o.merged; });
+    var free = at.plan.candidates.filter(function (id) { return taken.indexOf(id) < 0; });
+    var options = [["", "new"]].concat(free.map(function (id) {
       return [id, "same as “" + doc().entities[id].label + "”"];
     }));
     var menu = window.effractorMenu.dropdown(options, h.merged || "");
@@ -192,8 +195,7 @@
   }
 
   function add() {
-    var level = N.level(at.level);
-    var stamp = { date: new Date().toISOString().slice(0, 10), level: level.name, range: $("nmap-range").value.trim().replace(/\s+/g, " ") };
+    var stamp = N.stampFor(at.scan, $("nmap-range").value, new Date().toISOString().slice(0, 10));
     var edit;
     try {
       edit = N.apply(doc(), at.plan, at.ticks, specOf, stamp);
@@ -239,11 +241,16 @@
 
   $("nmap-range").addEventListener("input", showCommand);
   $("nmap-copy").addEventListener("click", function () {
-    navigator.clipboard.writeText($("nmap-command").textContent).then(function () {
-      app.say("command copied");
-    }, function () {
+    function failed() {
       app.say("copy failed; select the command instead");
-    });
+    }
+    try {
+      navigator.clipboard.writeText($("nmap-command").textContent).then(function () {
+        app.say("command copied");
+      }, failed);
+    } catch (e) {
+      failed(); // no clipboard on a plain-http page
+    }
   });
   $("nmap-read").addEventListener("click", read);
   $("nmap-back").addEventListener("click", function () {

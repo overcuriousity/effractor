@@ -63,7 +63,9 @@ an application like any other, and taking over its host takes it over.
 The scan text itself is not stored: it would bloat files and share links.
 After an import the nmap application's description carries one line,
 `Last nmap import: 2026-09-24, Standard scan of 10.0.1.0/24.`; the next import
-replaces that line and keeps the rest of the description.
+replaces that line and keeps the rest of the description. The level and
+targets are what nmap's own `args` say it ran; a command of the user's own
+reads `scan of <targets>`, and no targets leaves out "of".
 
 Real internal addresses end up in the file and in any link shared from it.
 The dialog says so once, beside the range field.
@@ -107,6 +109,11 @@ from the remote host. A range with characters outside
 option), is refused with a note, so the copied command never carries shell
 syntax or options.
 
+nmap scans IPv6 only with `-6`, and then no IPv4: a range of IPv6 addresses
+gets `-6` after `nmap`, a range mixing both is refused with a note (one scan
+per kind), and an IPv6 prefix wider than /112 is noted as too wide to finish.
+An empty range says what to give (amended after review, 2026-09-24).
+
 If the nmap application is not on a host, the dialog says once: *nmap is
 not on a host; the flows will have no route until you place it.*
 
@@ -123,11 +130,15 @@ text does not read, the dialog keeps it and says why in one line:
   <its errormsg>.*
 * no host up: *No host answered. Check the range, or try from another host.*
 
-* the text ends early (a partial copy, an interrupted run): *The result
-  ends early; copy the whole output, from `<?xml` to `</nmaprun>`.*
+* the text is cut off at either end (a partial copy, an interrupted run):
+  *The result is cut off; copy the whole output, from `<?xml` to
+  `</nmaprun>`.* Text before `<?xml` or `<nmaprun>` (a shell prompt, sudo's
+  password line) is skipped.
 
 Only `<host>` elements count; nmap also prints each address in a
-`<hosthint>`, which is not a second host. A result without `-sV` (no service
+`<hosthint>`, which is not a second host. A host nmap lists twice (the
+range named it twice, as an address and a name) is one host with each port
+once. A result without `-sV` (no service
 names) is read; ports then get `tcp/…` labels and unidentified products.
 
 ### 3.4 The preview
@@ -136,7 +147,7 @@ Read replaces the paste with the preview; **Back** returns to the text.
 
 * One row per host that is up, with a checkbox, its label and addresses,
   and a state: **known as "Server"**, or **new ▾**. The menu lists the hosts
-  without `addresses`; choosing one merges the scanned host into it (§4.1).
+  without `addresses`; choosing one merges the scanned host into it (§4.1). A drawn host one row has taken is not offered to the others.
 * Under a host, one row per open port with a checkbox:
   `ssh · tcp/22 · OpenSSH 9.6p1`, marked *known* (adds nothing, not
   selectable) or saying what ticking adds (service, product, flow).

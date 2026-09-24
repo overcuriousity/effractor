@@ -35,7 +35,15 @@
     if (!RANGE_CHARS.test(text) || words.some(function (w) { return w[0] === "-"; })) {
       return { problem: "The range may hold only addresses, names, ranges and CIDR, such as 10.0.1.0/24." };
     }
-    return { text: (l.root ? "sudo " : "") + "nmap " + l.args + " -oX - " + text };
+    // nmap scans IPv6 only with -6, and then nothing else.
+    var six = words.filter(function (w) { return w.indexOf(":") >= 0; });
+    if (six.length && six.length < words.length) {
+      return { problem: "IPv4 and IPv6 need separate scans; keep one kind in the range." };
+    }
+    var out = { text: (l.root ? "sudo " : "") + "nmap " + (six.length ? "-6 " : "") + l.args + " -oX - " + text };
+    var wide = six.filter(function (w) { return /\/(\d{1,3})$/.test(w) && Number(w.split("/")[1]) < 112; });
+    if (wide.length) out.note = wide[0] + " is too wide to scan in useful time; give addresses or a /112 or narrower.";
+    return out;
   }
 
   // ---- reading (spec §3.3) ----
@@ -122,7 +130,7 @@
     "not-xml": "This is not XML. The command writes XML with -oX -.",
     "normal-output": "This is nmap's normal output; run the command with -oX -.",
     "not-nmap": "This is not an nmap result.",
-    "truncated": "The result ends early; copy the whole output, from <?xml to </nmaprun>.",
+    "truncated": "The result is cut off; copy the whole output, from <?xml to </nmaprun>.",
     "no-host-up": "No host answered. Check the range, or try from another host.",
   };
   function problem(code, detail) {
@@ -151,10 +159,45 @@
     };
   }
 
+  // nmap lists a host once per time the range names it (an address and its
+  // name): one host, with every port once.
+  function fold(hosts) {
+    var out = [], byKey = Object.create(null);
+    hosts.forEach(function (h) {
+      var same = null;
+      h.addresses.forEach(function (a) { if (!same && byKey[addressKey(a)]) same = byKey[addressKey(a)]; });
+      if (!same) {
+        same = { addresses: [], hostname: h.hostname, os: h.os, ports: [] };
+        out.push(same);
+      }
+      h.addresses.forEach(function (a) {
+        if (!byKey[addressKey(a)]) {
+          byKey[addressKey(a)] = same;
+          same.addresses.push(a);
+        }
+      });
+      same.hostname = same.hostname || h.hostname;
+      same.os = same.os || h.os;
+      h.ports.forEach(function (p) {
+        var there = same.ports.filter(function (q) { return q.protocol === p.protocol && q.port === p.port; })[0];
+        if (!there) same.ports.push(p);
+        else if (there.state !== "open" && p.state === "open") same.ports[same.ports.indexOf(there)] = p;
+      });
+    });
+    return out;
+  }
+
   function read(text) {
     var t = String(text == null ? "" : text).replace(/^﻿/, "").replace(/\r\n?/g, "\n").trim();
     if (!t) return problem("empty");
-    if (t[0] !== "<") return problem(/Nmap scan report for|^# Nmap|^Host: /m.test(t) ? "normal-output" : "not-xml");
+    // A terminal copy often starts at the prompt, or a sudo password line.
+    var start = t.search(/<\?xml|<nmaprun[\s>]/);
+    if (start > 0) t = t.slice(start);
+    else if (start < 0) {
+      if (/Nmap scan report for|^# Nmap|^Host: /m.test(t)) return problem("normal-output");
+      if (/<host[\s>]|<port[\s>]|<\/host>|<\/nmaprun>/.test(t)) return problem("truncated");
+      if (t[0] !== "<") return problem("not-xml");
+    }
     var doc = parseXml(t);
     if (doc.error) return problem(doc.error);
     var run = kid(doc, "nmaprun");
@@ -166,6 +209,7 @@
       var s = kid(h, "status");
       return s && s.attrs.state === "up";
     }).map(hostOf).filter(function (h) { return h.addresses.length; });
+    hosts = fold(hosts);
     if (!hosts.length) return problem("no-host-up");
     var silentUdp = 0;
     hosts.forEach(function (h) {
@@ -261,12 +305,14 @@
     var products = Object.create(null);
     ids(doc, "product").forEach(function (p) { products[doc.entities[p].label] = products[doc.entities[p].label] || p; });
     var usedNew = false;
+    var takenBy = Object.create(null);
 
     var planned = scan.hosts.map(function (h, i) {
       var key = "h" + i;
       var known = null;
       h.addresses.forEach(function (a) { if (!known && byAddress[addressKey(a)]) known = byAddress[addressKey(a)]; });
-      var merged = !known && candidates.indexOf(merges[key]) >= 0 ? merges[key] : null;
+      var merged = !known && candidates.indexOf(merges[key]) >= 0 && !takenBy[merges[key]] ? merges[key] : null;
+      if (merged) takenBy[merged] = key;
       var target = known || merged;
       var label = target ? doc.entities[target].label : h.hostname || h.addresses[0];
       var nets = [];
@@ -389,7 +435,18 @@
   var STAMP = /^Last nmap import: .*$/m;
 
   function stampLine(stamp) {
-    return "Last nmap import: " + stamp.date + ", " + stamp.level + " scan of " + stamp.range + ".";
+    return "Last nmap import: " + stamp.date + ", " + (stamp.level ? stamp.level + " scan" : "scan") + (stamp.range ? " of " + stamp.range : "") + ".";
+  }
+
+  // What nmap says it ran (its args), not what the dialog shows now: the
+  // level whose options it used, and its targets; the range field only when
+  // nmap does not say.
+  function stampFor(scan, range, date) {
+    var args = String((scan && scan.args) || "").replace(/ -6 /, " ");
+    var l = LEVELS.filter(function (x) { return args.indexOf("nmap " + x.args + " -oX - ") >= 0; })[0];
+    var at = args.indexOf(" -oX - ");
+    var targets = at >= 0 ? args.slice(at + 7).trim() : "";
+    return { date: date, level: l ? l.name : null, range: targets || String(range == null ? "" : range).trim().replace(/\s+/g, " ") };
   }
 
   // `specOf(kind)`: the catalog entry of a kind, for its parameter slots.
@@ -461,7 +518,7 @@
     return hosted ? { doc: hosted.doc, select: added.select, entity: added.entity } : null;
   }
 
-  var api = { LEVELS: LEVELS, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, apply: apply, addNmap: addNmap, stampLine: stampLine, ASSUMED: ASSUMED };
+  var api = { LEVELS: LEVELS, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, apply: apply, addNmap: addNmap, stampLine: stampLine, stampFor: stampFor, ASSUMED: ASSUMED };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmap = api;
 })();

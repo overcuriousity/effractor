@@ -15,7 +15,7 @@ test('each level prints XML to the terminal for the range', () => {
   assert.equal(N.command('standard', r).text, 'nmap -sT -sV -oX - 10.0.1.0/24');
   assert.equal(N.command('deep', r).text, 'sudo nmap -sS -sU -sV -O --top-ports 1000 -oX - 10.0.1.0/24');
   assert.equal(N.command('complete', r).text, 'sudo nmap -sS -sU -sV -O -p T:1-65535,U:1-1024 -oX - 10.0.1.0/24');
-  assert.equal(N.command('standard', '  10.0.1.0/24   fd00::/64 ').text, 'nmap -sT -sV -oX - 10.0.1.0/24 fd00::/64');
+  assert.equal(N.command('standard', '  10.0.1.0/24   10.0.2.0/24 ').text, 'nmap -sT -sV -oX - 10.0.1.0/24 10.0.2.0/24');
   assert.equal(N.command('standard', 'srv-01.lab,10.0.2.1-20').text, 'nmap -sT -sV -oX - srv-01.lab,10.0.2.1-20');
 });
 
@@ -328,4 +328,58 @@ test('the imported lab document is the one the Rust test validates', () => {
   const text = JSON.stringify(out, null, 2) + '\n';
   if (process.env.NMAP_FIXTURE === 'write') fs.writeFileSync(file, text);
   assert.equal(fs.readFileSync(file, 'utf8'), text);
+});
+
+// ---- review fixes ----
+
+test('a host nmap lists twice (named twice in the range) is one host with every port once', () => {
+  const { scan } = N.read(fixture('duplicate-no-sv.xml'));
+  assert.equal(scan.hosts.length, 1);
+  assert.equal(scan.hosts[0].hostname, 'localhost');
+  const open = scan.hosts[0].ports.map(p => p.protocol + '/' + p.port);
+  assert.deepEqual(open, [...new Set(open)], 'no port twice');
+  assert.ok(open.length >= 1);
+  const p = N.plan(E.empty(), 'nmap', scan, '127.0.0.1 localhost', {});
+  assert.equal(p.hosts.length, 1);
+});
+
+test('two rows cannot become the same hand-drawn host; the first choice wins', () => {
+  const scan = { args: '', silentUdp: 0, hosts: [
+    { addresses: ['10.0.1.20'], hostname: null, os: null, ports: [] },
+    { addresses: ['10.0.1.21'], hostname: null, os: null, ports: [] },
+  ] };
+  const p = N.plan(lab(), 'nmap', scan, '10.0.1.0/24', { h0: 'printer', h1: 'printer' });
+  assert.deepEqual([p.hosts[0].merged, p.hosts[1].merged], ['printer', null]);
+});
+
+test('IPv6 ranges get -6; IPv4 and IPv6 are never mixed in one command', () => {
+  assert.equal(N.command('standard', 'fd00::/120').text, 'nmap -6 -sT -sV -oX - fd00::/120');
+  assert.equal(N.command('deep', 'fd00::5 fd00::6').text, 'sudo nmap -6 -sS -sU -sV -O --top-ports 1000 -oX - fd00::5 fd00::6');
+  const mixed = N.command('standard', '10.0.1.0/24 fd00::/64');
+  assert.equal(mixed.text, undefined);
+  assert.match(mixed.problem, /IPv4 and IPv6/);
+  assert.match(N.command('standard', 'fd00::/64').note, /\/64/, 'a wide IPv6 range is said to be slow');
+  assert.equal(N.command('standard', '10.0.1.0/24').note, undefined);
+});
+
+test('text around the XML is skipped; a result missing its start is cut off, not "not XML"', () => {
+  const xml = fixture('deep-lab.xml');
+  const bare = N.read(xml);
+  assert.deepEqual(N.read('user@box:~$ sudo nmap -sS -oX - 10.0.1.0/24\n[sudo] password for user: \n' + xml), bare);
+  assert.deepEqual(N.read(xml.replace(/^[\s\S]*?(<nmaprun)/, '$1')), bare, 'from <nmaprun> on');
+  const tail = xml.slice(xml.indexOf('<host>'));
+  assert.equal(N.read(tail).problem.code, 'truncated');
+  assert.match(N.read(tail).problem.message, /cut off/);
+  assert.equal(N.read('user@box:~$ nmap -sT 10.0.1.0/24\nhello').problem.code, 'not-xml');
+});
+
+test('the stamp says what nmap says it ran, and never "of ."', () => {
+  const deepScan = N.read(fixture('deep-lab.xml')).scan;
+  assert.deepEqual(N.stampFor(deepScan, '', '2026-09-24'), { date: '2026-09-24', level: 'Deep', range: '10.0.1.0/24' });
+  const own = { args: 'nmap -sT --top-ports 100 -oX - 127.0.0.1 localhost', hosts: [], silentUdp: 0 };
+  assert.deepEqual(N.stampFor(own, '', '2026-09-24'), { date: '2026-09-24', level: null, range: '127.0.0.1 localhost' });
+  assert.equal(N.stampLine({ date: '2026-09-24', level: null, range: '127.0.0.1 localhost' }), 'Last nmap import: 2026-09-24, scan of 127.0.0.1 localhost.');
+  assert.equal(N.stampLine({ date: '2026-09-24', level: 'Deep', range: '' }), 'Last nmap import: 2026-09-24, Deep scan.');
+  const noArgs = { args: '', hosts: [], silentUdp: 0 };
+  assert.deepEqual(N.stampFor(noArgs, ' 10.0.1.0/24 ', '2026-09-24'), { date: '2026-09-24', level: null, range: '10.0.1.0/24' });
 });
