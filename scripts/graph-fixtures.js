@@ -4,6 +4,9 @@
 // (check-graph-agreement.js) regenerates them and fails if one is stale.
 //
 //   node scripts/graph-fixtures.js --write    after scripts/build-wasm.sh
+//
+// --write also rewrites the component catalog and the lecture's JSON image in
+// scripts/fixtures/, which Rust tests pin to the real module the same way.
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -76,6 +79,15 @@ if (require.main === module) {
       fs.writeFileSync(path.join(DIR, name + '.json'), text(all[name]));
     });
     console.log('wrote ' + Object.keys(all).length + ' fixtures to ' + path.relative(root, DIR));
+    const answer = function (json) {
+      const out = JSON.parse(json);
+      if (!out.ok) throw new Error(JSON.stringify(out.diagnostics));
+      return out.ok;
+    };
+    const fixtures = path.join(root, 'scripts/fixtures');
+    fs.writeFileSync(path.join(fixtures, 'catalog.json'), JSON.stringify(answer(api.component_catalog()), null, 2) + '\n');
+    fs.writeFileSync(path.join(fixtures, 'architecture.doc.json'), JSON.stringify(answer(api.parse(lecture)), null, 2) + '\n');
+    console.log('wrote catalog.json and architecture.doc.json to ' + path.relative(root, fixtures));
   } else {
     const names = stale(api);
     names.forEach(function (name) {
