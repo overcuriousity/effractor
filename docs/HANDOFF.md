@@ -20,7 +20,10 @@ classes), `plan` gives `role`/`roleOffered`/`device`/`on`, ticks carry
 `roles`, `summary` counts `routers`/`firewalls` (exact against the limits).
 Fixtures: `router-lab.xml` (hand-written Deep shape, needs root to record),
 `imported-router.doc.json` (pinned by Node, `tests/json.rs`,
-`check-nmap-wasm.js`).
+`check-nmap-wasm.js`). Also on this branch (owner): the proposed network
+comes from the targets in nmap's own `args` (`targetsOf`), so an old scan
+pasted without a range still names its network; the range field decides only
+when the args name no single CIDR.
 
 ## Continuation — nmap import (2026-09-24)
 
