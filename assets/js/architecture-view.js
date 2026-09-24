@@ -165,6 +165,7 @@
     });
 
     var pinned = pins(doc, word);
+    var exposed = vulnerable(doc);
     var nodes = Object.keys(entities).map(function (id) {
       var e = entities[id];
       var label = String(e.label == null ? id : e.label);
@@ -181,6 +182,7 @@
         unknown: open,
         badge: null,
         pins: pinned[id] || [],
+        rings: exposed[id] ? [{ state: "vulnerable", why: exposed[id].join("\n") }] : [],
         parents: incoming[id] || 0,
         unquantified: open > 0,
         top: false,
@@ -188,6 +190,39 @@
       };
     });
     return { profile: "architecture", nodes: nodes, edges: edges, permits: permits };
+  }
+
+  // Why each component is vulnerable (owner, 2026-09-24, after Reactor's
+  // exposure ring): a product whose patch is off, with the reason given for
+  // finding an exploit (an nmap finding); the software running it; and the
+  // host running that software.
+  function vulnerable(doc) {
+    var entities = doc.entities || {};
+    var out = Object.create(null);
+    function add(id, lines) {
+      out[id] = out[id] || [];
+      lines.forEach(function (l) { if (out[id].indexOf(l) < 0) out[id].push(l); });
+    }
+    var own = Object.create(null);
+    Object.keys(entities).forEach(function (id) {
+      var e = entities[id];
+      if (e.kind !== "product" || !e.defenses || e.defenses.patched !== false) return;
+      var p = e.parameters && e.parameters["find-exploit"];
+      own[id] = ["vulnerable: " + String(e.label == null ? id : e.label) + " unpatched"].concat(p && p.note ? [p.note] : []);
+      add(id, own[id]);
+    });
+    var associations = Object.keys(doc.associations || {}).map(function (k) { return doc.associations[k]; });
+    var software = Object.create(null);
+    associations.forEach(function (a) {
+      if (a.kind === "instance-of" && own[a.to] && has(entities, a.from)) {
+        add(a.from, own[a.to]);
+        software[a.from] = true;
+      }
+    });
+    associations.forEach(function (a) {
+      if (a.kind === "hosts" && software[a.to] && has(entities, a.from) && entities[a.from].kind === "host") add(a.from, out[a.to]);
+    });
+    return out;
   }
 
   var api = { describe: describe, route: route, shownSlots: shownSlots, shownDefense: shownDefense };

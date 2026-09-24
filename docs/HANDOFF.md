@@ -25,6 +25,17 @@ read*. `summary.unpatched` counts products. Fixtures: `checks-lab.xml`
 `imported-checks.doc.json` (pinned by Node, `tests/json.rs`,
 `check-nmap-wasm.js`). The roadmap's infrastructure section is empty now.
 
+**Vulnerable ring** (owner, after Chainalysis Reactor's exposure ring, from
+the look: a finding was invisible from the host). `architecture-view.describe`
+gives each node `rings: [{state, why}]`; the one state so far is
+`vulnerable`: a product with `patched: false`, the software that is an
+`instance-of` it, and the host that `hosts` that software. The renderer draws
+a red (`--color-danger`) ring outside the halo; lines of a ringed component
+end outside it (`graph.js` `ringed` hub); the tooltip carries each product's
+"unpatched" line and its `find-exploit` note, which is where the CVE shows.
+The bottom bar's legend has *vulnerable*. More states (foothold, target,
+reached) could become further rings; none is asked for yet.
+
 ## Continuation — nmap hint (2026-09-24)
 
 Owner request: a light bulb in the canvas's bottom-right corner

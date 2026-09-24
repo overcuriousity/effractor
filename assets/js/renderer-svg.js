@@ -199,6 +199,10 @@
       var cx = geometry.width / 2;
       var r = geometry.plate / 2;
       el("circle", { cx: cx, cy: r, r: r + geometry.halo }, ["halo"], g);
+      // Outside the halo, a ring per state it is in (so far: vulnerable).
+      (n.rings || []).forEach(function (ring) {
+        el("circle", { cx: cx, cy: r, r: r + geometry.halo + geometry.ring }, ["ring", "ring-" + ring.state], g);
+      });
       el("circle", { cx: cx, cy: r, r: r }, ["plate"], g);
       var scale = 26 / 24;
       var glyph = el("g", { transform: "translate(" + (cx - 13) + " " + (r - 13) + ") scale(" + scale + ")" }, ["glyph"], g);
@@ -243,7 +247,7 @@
       var tip = el("title", {}, [], g);
       tip.textContent = n.label;
       if (n.symbol === "component") {
-        tip.textContent = n.label + " — " + n.component + (n.unknown ? " · " + n.unknown + " unknown" : "");
+        tip.textContent = n.label + " — " + n.component + (n.unknown ? " · " + n.unknown + " unknown" : "") + (n.rings || []).map(function (ring) { return "\n" + ring.why; }).join("");
         return drawComponent(g, n);
       }
 
