@@ -193,17 +193,42 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .view-switch #view-attack.is-blocked { text-decoration: underline dotted var(--color-warning); text-underline-offset: 3px; }
 .topbar > .status.is-blocked { color: var(--color-warning); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
 
-/* The nmap dialog: level, range, command, paste; then the preview. */
-.nmap-dialog { width: min(44rem, 94vw); }
-.nmap-levels { border: 0; padding: 0; margin: 0 0 12px; display: grid; gap: 4px; }
-.nmap-level { display: grid; grid-template-columns: auto 6rem 1fr; gap: 8px; align-items: baseline; }
-.nmap-dialog input[type="text"], .nmap-dialog textarea { width: 100%; font-family: var(--font-mono); }
-.nmap-command { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
-.nmap-command code { flex: 1; font-family: var(--font-mono); overflow-wrap: anywhere; user-select: all; }
+/* The nmap dialog: level, range, command, paste; then the preview. Inputs
+   look like the inspector's, words are the app's sizes, hints are muted. */
+.nmap-dialog { width: min(40rem, 94vw); font-size: var(--text-sm); }
+.nmap-dialog p { margin: 0 0 8px; }
+.nmap-dialog label { color: var(--color-fg-muted); }
+.nmap-dialog .hint { color: var(--color-fg-muted); font-size: var(--text-xs); line-height: 1.35; }
+.nmap-dialog .hint:empty { display: none; }
+.nmap-dialog input[type="text"], .nmap-dialog textarea {
+  display: block; width: 100%; min-width: 0; margin-top: 4px;
+  padding: 3px 5px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  background: var(--color-bg-base); color: var(--color-fg-primary);
+  font: var(--text-xs)/1.4 var(--font-mono);
+}
+.nmap-dialog textarea { resize: vertical; min-height: 7em; }
+.nmap-dialog input[type="radio"], .nmap-dialog input[type="checkbox"] { margin: 0; accent-color: var(--color-accent); }
+.nmap-dialog :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 0; }
+.nmap-levels { border: 0; padding: 0; margin: 10px 0 12px; display: grid; gap: 2px; }
+.nmap-levels legend { padding: 0; margin-bottom: 4px; }
+.nmap-level { display: grid; grid-template-columns: auto 5.5rem 1fr; gap: 8px; align-items: baseline; padding: 2px 0; cursor: pointer; }
+.nmap-level > span:nth-child(2) { color: var(--color-fg-primary); }
+.nmap-command {
+  display: flex; gap: 8px; align-items: center; margin: 4px 0 12px;
+  padding: 4px 4px 4px 8px;
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm);
+  background: var(--color-bg-base);
+}
+.nmap-command code { flex: 1; min-width: 0; font: var(--text-xs)/1.4 var(--font-mono); overflow-wrap: anywhere; user-select: all; }
+.nmap-command code:empty::before { content: "—"; color: var(--color-fg-muted); }
+.nmap-actions { display: flex; gap: 8px; margin-top: 12px; }
 .nmap-rows, .nmap-ports { list-style: none; margin: 0; padding: 0; }
-.nmap-rows { max-height: 50vh; overflow: auto; margin: 12px 0; }
-.nmap-host { margin: 0 0 8px; }
-.nmap-ports { padding-left: 24px; }
-.nmap-row { display: flex; gap: 8px; align-items: baseline; font-size: var(--text-sm); }
-.nmap-row span { overflow-wrap: anywhere; }
-.nmap-row .pick.nmap-merge { width: auto; margin-left: auto; }
+.nmap-rows { max-height: 50vh; overflow: auto; margin: 4px 0 10px; }
+.nmap-host { padding: 6px 0; border-bottom: 1px solid var(--color-border-subtle); }
+.nmap-ports { padding-left: 22px; font-size: var(--text-xs); }
+.nmap-row { display: flex; gap: 8px; align-items: baseline; padding: 1px 0; color: var(--color-fg-primary); }
+.nmap-ports .nmap-row { color: var(--color-fg-secondary); }
+#nmap-problem { color: var(--color-warning); font-size: var(--text-xs); margin-top: 6px; }
+.nmap-row span { overflow-wrap: anywhere; min-width: 0; }
+.nmap-row .pick.nmap-merge { width: auto; margin-left: auto; flex: none; }
