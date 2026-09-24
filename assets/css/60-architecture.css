@@ -296,3 +296,6 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .cluster-members .member-out:hover { color: var(--color-fg-primary); }
 .member-ghost { font-family: var(--font-sans); letter-spacing: 0; }
 .node-component.is-cluster.hl-pin-drop .halo { stroke: var(--color-accent); stroke-width: 3; stroke-dasharray: none; }
+/* A component in hand lets the pointer see what it is dropped on. */
+.node.is-in-hand { pointer-events: none; }
+.cluster-outline.hl-pin-drop .outline { stroke: var(--color-accent); stroke-width: 2.5; stroke-dasharray: none; }

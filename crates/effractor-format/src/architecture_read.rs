@@ -9,7 +9,7 @@ use effractor_core::architecture::{
     Entity, EntityKind, Evidence, Factor, Flow, LibraryPin, Mode, Parameter, Privilege, Relation,
     RelationKind, Scenario, Slot, State, StateRef, Switch, Tool,
 };
-use effractor_core::{Code, Pos};
+use effractor_core::{Code, EntityId, Pos};
 use indexmap::IndexMap;
 
 use crate::lower::{Cx, TIME_UNITS};
@@ -586,27 +586,35 @@ fn cluster(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Cluster> {
         &entry.value,
         path,
         entry.key_pos,
-        &["label", "members", "closed"],
+        &["label", "members", "shown", "closed"],
     )?;
     let label = cx.optional_string(&f, "label");
-    let members = cx.required(&f, "members").and_then(|e| {
-        let path = f.path("members");
-        let items = cx.list(&e.value, &path)?;
-        let ids: Vec<_> = items
-            .iter()
-            .enumerate()
-            .map(|(i, item)| cx.id_value(item, &format!("{path}[{i}]")))
-            .collect();
-        ids.into_iter().collect::<Option<Vec<_>>>()
-    });
+    let members = cx
+        .required(&f, "members")
+        .and_then(|e| id_list(cx, e, &f.path("members")));
+    let shown = match f.get("shown") {
+        Some(e) => id_list(cx, e, &f.path("shown")),
+        None => Some(Vec::new()),
+    };
     let closed = cx
         .required(&f, "closed")
         .and_then(|e| cx.boolean(&e.value, &f.path("closed")));
     Some(Cluster {
         label: label?,
         members: members?,
+        shown: shown?,
         closed: closed?,
     })
+}
+
+fn id_list(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Vec<EntityId>> {
+    let items = cx.list(&entry.value, path)?;
+    let ids: Vec<_> = items
+        .iter()
+        .enumerate()
+        .map(|(i, item)| cx.id_value(item, &format!("{path}[{i}]")))
+        .collect();
+    ids.into_iter().collect()
 }
 
 fn state_ref(cx: &mut Cx, node: &Node, path: &str, at: Pos) -> Option<StateRef> {

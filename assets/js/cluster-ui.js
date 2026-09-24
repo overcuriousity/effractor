@@ -195,6 +195,7 @@
     var cid = C.clusterOf(doc(), id);
     if (cid) {
       var name = C.label(doc(), cid);
+      if ((doc().clusters[cid].shown || []).indexOf(id) >= 0) items.push(["Back into “" + name + "”", "", function () { act(function () { return C.unpeel(doc(), cid, id); }); }]);
       items.push(["Take out of “" + name + "”", "", function () { takeOut(cid, id); }]);
       if (!doc().clusters[cid].closed) items.push(["Close “" + name + "”", "", function () { openClose(cid); }]);
     }
@@ -208,11 +209,11 @@
     var members = c.members.filter(function (m) { return own(doc().entities, m); });
     app.showMenu([
       [c.closed ? "Open" : "Close", "C", function () { openClose(cid); }],
+      ["Dissolve", "", function () { act(function () { return C.dissolve(doc(), cid); }); }],
       ["Rename", "F2", focusName],
       ["Take out", "", members.map(function (m) {
         return [doc().entities[m].label, "", function () { takeOut(cid, m); }];
       })],
-      ["Dissolve", "", function () { act(function () { return C.dissolve(doc(), cid); }); }],
       ["Show in source", "", function () { app.showSourcePath("clusters." + cid); }],
       ["Delete “" + name + "” and " + members.length + " components", "Del", function () {
         U.apply(function () { return L.removeAll(doc(), members); }, null, true);
@@ -309,7 +310,7 @@
     var hit = document.elementFromPoint(x, y);
     var node = hit && hit.closest ? hit.closest("#canvas .node") : null;
     var q = node ? P.qualified(node.getAttribute("data-id")) : null;
-    return q && q.kind === "cluster" && own(doc().clusters, q.id) && doc().clusters[q.id].closed ? q.id : null;
+    return q && q.kind === "cluster" && own(doc().clusters, q.id) ? q.id : null;
   }
   function overCanvas(x, y) {
     var hit = document.elementFromPoint(x, y);
@@ -341,7 +342,7 @@
     var over = clusterAt(e.clientX, e.clientY);
     if (over !== drag.over) {
       drag.over = over;
-      app.renderer.highlight(over && over !== drag.cid ? ["cluster/" + over] : [], "pin-drop");
+      app.renderer.highlight(over ? ["cluster/" + over] : [], "pin-drop");
     }
   });
   document.addEventListener("pointerup", function (e) {
@@ -350,13 +351,32 @@
     endDrag();
     if (!d.moved) return; // a click: the row's own click selects it
     var into = clusterAt(e.clientX, e.clientY);
-    if (into && into !== d.cid) return act(function () { return C.moveTo(doc(), d.member, into); });
+    if (into) return dropInto(d.member, into);
     if (!overCanvas(e.clientX, e.clientY)) return;
+    // Onto the canvas (owner, 2026-09-25): out of the stack, still a member,
+    // standing where it was dropped inside the cluster's outline.
     var p = app.renderer.pointAt(e.clientX, e.clientY);
     var put = {};
     put["entity/" + d.member] = { x: Math.round(p.x - SIZE.width / 2), y: Math.round(p.y - SIZE.plate / 2) };
     app.putPositions(put);
-    takeOut(d.cid, d.member);
+    if (doc().clusters[d.cid].closed) return act(function () { return C.peel(doc(), d.cid, d.member); });
+    app.redraw();
+  });
+
+  // A component dropped on a cluster: back into its stack if it is a member
+  // drawn beside it; a member of another, or of none, moves in.
+  function dropInto(entity, cid) {
+    var c = own(doc().clusters, cid);
+    if (!c) return;
+    if ((c.shown || []).indexOf(entity) >= 0) return act(function () { return C.unpeel(doc(), cid, entity); });
+    if (c.members.indexOf(entity) >= 0) return;
+    act(function () { return C.moveTo(doc(), entity, cid); });
+  }
+  // A component dragged on the canvas onto a cluster's node or outline.
+  app.renderer.on("drop", function (e) {
+    if (!arch()) return;
+    var q = P.qualified(e.id), t = P.qualified(e.target);
+    if (q && q.kind === "entity" && t && t.kind === "cluster") dropInto(q.id, t.id);
   });
   document.addEventListener("pointercancel", endDrag);
   document.addEventListener("keydown", function (e) {

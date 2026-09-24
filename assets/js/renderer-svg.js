@@ -85,6 +85,24 @@
       return { x: (cx - box.left - view.x) / view.k, y: (cy - box.top - view.y) / view.k };
     }
 
+    // The outline an element belongs to, as drawn, or null.
+    function outlineOf(target) {
+      var el = target && target.closest ? target.closest(".cluster-outline") : null;
+      return el ? drawn.outlines.filter(function (d) { return d.el === el; })[0] || null : null;
+    }
+
+    // The id of the smallest outline round a point on screen, or null.
+    function outlineAround(cx, cy) {
+      if (!free) return null;
+      var p = pointAt(cx, cy), best = null;
+      drawn.outlines.forEach(function (d) {
+        var o = routes.outline(free.at, d.group);
+        if (!o || p.x < o.x || p.y < o.y || p.x > o.x + o.width || p.y > o.y + o.height) return;
+        if (!best || o.width * o.height < best.area) best = { id: d.group.id, area: o.width * o.height };
+      });
+      return best ? best.id : null;
+    }
+
     function dropMarquee() {
       if (marquee) marquee.remove();
       marquee = null;
@@ -116,7 +134,9 @@
       svg.addEventListener("contextmenu", function (e) {
         e.preventDefault();
         var edge = edgeAt(e.target);
-        emit("context", { id: edge ? edge.to : idAt(e.target), parent: edge ? edge.from : undefined, edge: edge ? edge.id : undefined, x: e.clientX, y: e.clientY });
+        // Inside a cluster's outline, not on anything: the cluster's.
+        var id = edge ? edge.to : idAt(e.target) || outlineAround(e.clientX, e.clientY);
+        emit("context", { id: id, parent: edge ? edge.from : undefined, edge: edge ? edge.id : undefined, x: e.clientX, y: e.clientY });
       });
 
       svg.addEventListener("pointerdown", function (e) {
@@ -126,22 +146,21 @@
         gesture = { id: idAt(e.target), edge: edgeAt(e.target), x: e.clientX, y: e.clientY, moved: false };
         // Shift + drag on empty canvas: a selection rectangle (a free layout only).
         if (free && e.shiftKey && !gesture.id && !gesture.edge) gesture.rect = pointAt(e.clientX, e.clientY);
+        // A cluster's outline carries what is inside it.
+        var ring = outlineOf(e.target);
+        if (free && ring) {
+          gesture.group = ring.group.members.filter(function (id) {
+            return free.at[id];
+          });
+        }
         // A selected component among several carries the others along.
         var lit = highlights.selected || {};
-        if (free && gesture.id && lit[gesture.id] && Object.keys(lit).length > 1) {
+        if (free && !gesture.group && gesture.id && lit[gesture.id] && Object.keys(lit).length > 1) {
           gesture.group = Object.keys(lit).filter(function (id) {
             return free.at[id];
           });
         }
-        // An open cluster's outline carries its members.
-        if (free && gesture.id && !gesture.group && !free.at[gesture.id]) {
-          drawn.outlines.forEach(function (d) {
-            if (d.group.id !== gesture.id) return;
-            gesture.group = d.group.members.filter(function (id) {
-              return free.at[id];
-            });
-          });
-        }
+        if (free && gesture.id && !gesture.group && free.at[gesture.id]) gesture.alone = true;
         if (svg.focus) svg.focus();
       });
       svg.addEventListener("pointermove", function (e) {
@@ -166,6 +185,8 @@
         }
         svg.classList.add(gesture.id ? (free ? "is-moving" : "is-dragging") : "is-panning");
         if (gesture.id && free) {
+          // In hand, it lets the pointer see what it is over.
+          if (gesture.alone && drawn.nodes[gesture.id]) drawn.nodes[gesture.id].classList.add("is-in-hand");
           // A free layout's node goes where the pointer takes it, lines and
           // all; several selected ones go together.
           (gesture.group || [gesture.id]).forEach(function (id) {
@@ -205,6 +226,13 @@
             var p = free.at[id];
             if (p) emit("move", { id: id, x: p.x, y: p.y });
           });
+          // One component let go over a cluster: dropped on it (it takes the
+          // component in). Anything else in a free layout is only a move.
+          if (g.alone && drawn.nodes[g.id]) {
+            drawn.nodes[g.id].classList.remove("is-in-hand");
+            var over = idAt(dropTarget(e));
+            if (over && over !== g.id && over.indexOf("cluster/") === 0) emit("drop", { id: g.id, target: over, ctrl: ctrl });
+          }
           return;
         }
         var target = idAt(dropTarget(e));
@@ -484,6 +512,9 @@
         drawn.edges.forEach(function (e) {
           e.el.classList.toggle(cls, !!((ids[e.from] && ids[e.to]) || (e.id && ids[e.id])));
         });
+        (drawn.outlines || []).forEach(function (d) {
+          d.el.classList.toggle(cls, !!ids[d.group.id]);
+        });
       });
     }
 
@@ -527,6 +558,7 @@
           // The line, and a wide unseen band along it to take the pointer.
           var d = {
             group: o,
+            el: group,
             box: el("rect", { rx: 16 }, ["outline"], group),
             hit: el("rect", { rx: 16 }, ["outline-hit"], group),
             tab: el("rect", { height: 18, rx: 9 }, ["outline-tab"], group),
@@ -536,7 +568,6 @@
           el("title", {}, [], group).textContent = o.label + " — open cluster";
           placeOutline(d, o);
           drawn.outlines.push(d);
-          drawn.nodes[o.id] = group;
         });
         (layout.attachments || []).forEach(function (a) {
           var parts = drawAttachment(a);

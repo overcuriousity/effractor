@@ -90,7 +90,15 @@
       if (kept.length < 2) {
         dissolved.push(label(next, cid));
         delete next.clusters[cid];
-      } else c.members = kept;
+        return;
+      }
+      c.members = kept;
+      if (c.shown) {
+        c.shown = c.shown.filter(function (m) {
+          return !has(gone, m);
+        });
+        if (!c.shown.length) delete c.shown;
+      }
     });
     tidy(next);
     return dissolved;
@@ -99,9 +107,12 @@
   // On a copy: entity `old` is now called `id`.
   function rekey(next, old, id) {
     ids(next).forEach(function (cid) {
-      next.clusters[cid].members = (next.clusters[cid].members || []).map(function (m) {
+      var c = next.clusters[cid];
+      var swap = function (m) {
         return m === old ? id : m;
-      });
+      };
+      c.members = (c.members || []).map(swap);
+      if (c.shown) c.shown = c.shown.map(swap);
     });
   }
 
@@ -225,6 +236,7 @@
     var next = clone(doc);
     all.forEach(function (cid) {
       next.clusters[cid].closed = !anyClosed;
+      delete next.clusters[cid].shown;
     });
     return { doc: next, select: undefined, notice: (anyClosed ? "opened " : "closed ") + all.length + (all.length === 1 ? " cluster" : " clusters") };
   }
@@ -272,6 +284,37 @@
     if (!has(doc.clusters, cid) || doc.clusters[cid].closed === !!closed) return null;
     var next = clone(doc);
     next.clusters[cid].closed = !!closed;
+    // Opened or closed, everyone is together again.
+    delete next.clusters[cid].shown;
+    return { doc: next, select: "cluster/" + cid };
+  }
+
+  // A member dragged out of a closed cluster (owner, 2026-09-25): still a
+  // member, drawn beside the stack inside the cluster's outline. The last
+  // one in the stack dragged out just opens the cluster.
+  function peel(doc, cid, entity) {
+    var c = has(doc.clusters, cid) ? doc.clusters[cid] : null;
+    if (!c || !c.closed || (c.members || []).indexOf(entity) < 0 || (c.shown || []).indexOf(entity) >= 0) return null;
+    var next = clone(doc);
+    var n = next.clusters[cid];
+    n.shown = (n.shown || []).concat([entity]);
+    if (n.shown.length >= n.members.length) {
+      n.closed = false;
+      delete n.shown;
+    }
+    return { doc: next, select: "entity/" + entity };
+  }
+
+  // Back onto its cluster: in the stack again.
+  function unpeel(doc, cid, entity) {
+    var c = has(doc.clusters, cid) ? doc.clusters[cid] : null;
+    if (!c || (c.shown || []).indexOf(entity) < 0) return null;
+    var next = clone(doc);
+    var n = next.clusters[cid];
+    n.shown = n.shown.filter(function (m) {
+      return m !== entity;
+    });
+    if (!n.shown.length) delete n.shown;
     return { doc: next, select: "cluster/" + cid };
   }
 
@@ -293,14 +336,15 @@
     return make(doc, entitiesOf(doc, picked)) || { refusal: "select two or more to cluster" };
   }
 
-  // What lights up for a selection: an open cluster with all its members.
+  // What lights up for a selection: an open cluster with all its members, a
+  // closed one with those drawn beside it.
   function lit(doc, picked) {
     var out = [];
     picked.forEach(function (q) {
       if (out.indexOf(q) < 0) out.push(q);
       var c = q.indexOf("cluster/") === 0 && has(doc.clusters, q.slice(8)) ? doc.clusters[q.slice(8)] : null;
-      if (!c || c.closed) return;
-      (c.members || []).forEach(function (m) {
+      if (!c) return;
+      (c.closed ? c.shown || [] : c.members || []).forEach(function (m) {
         if (has(doc.entities, m) && out.indexOf("entity/" + m) < 0) out.push("entity/" + m);
       });
     });
@@ -445,6 +489,8 @@
     dissolve: dissolve,
     rename: rename,
     setClosed: setClosed,
+    peel: peel,
+    unpeel: unpeel,
     pressK: pressK,
     lit: lit,
     segments: segments,

@@ -867,6 +867,8 @@ pub struct Flow {
 pub struct Cluster {
     pub label: Option<String>,
     pub members: Vec<EntityId>,
+    /// Members of a closed cluster drawn beside it, inside its outline.
+    pub shown: Vec<EntityId>,
     pub closed: bool,
 }
 

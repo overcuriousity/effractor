@@ -47,6 +47,8 @@ clusters:
   and "+n". The page writes one when it makes a cluster (§5.1).
 * `members` lists entity ids, in the author's order. The first is not
   special in the file.
+* `shown` (optional, owner 2026-09-25): members of a closed cluster drawn
+  beside its stack, inside its outline (§5.3); left out when empty.
 * `closed` is `true` or `false`, always written.
 * Unknown keys are errors, except `x-`.
 
@@ -54,6 +56,7 @@ The validator's errors, each at its path:
 
 * a member that is not an entity (`unknown-reference`);
 * an entity in two clusters, or twice in one;
+* a `shown` entry that is not a member, or is listed twice;
 * a cluster with fewer than two members;
 * `closed` missing or not a boolean.
 
@@ -205,13 +208,19 @@ a × that takes it out.
 Selecting a member of a closed cluster opens that member's form and lights
 the cluster node; the cluster stays closed, so looking never edits the file.
 
-**Dragging a member out** (owner, 2026-09-24): a member's row can be picked
-up and dropped on the canvas, as a pin is from its tray. Dropped on the
-canvas, it is taken out of the cluster (one edit) and stands where it was
-dropped (its position stored in this browser); every line it has is kept,
-since a cluster never touches a link: its own lines are drawn to it again,
-and those to members still inside end at the cluster. Dropped on another
-closed cluster, it moves into that one. Esc during the drag cancels it.
+**Dragging a member out** (owner, 2026-09-24; amended 2026-09-25): a
+member's row can be picked up and dropped on the canvas, as a pin is from
+its tray. Dropped on the canvas, it stays a member: a closed cluster draws
+it beside its stack (`shown`), one outline round both, the stack's count
+the rest; it stands where it was dropped (stored in this browser); its lines
+are drawn to it again, those to members still stacked end at the stack.
+The last stacked member dragged out opens the cluster. Dropped (from the
+row, or dragged on the canvas) back onto its cluster, it goes back into the
+stack; a component of another cluster or of none dropped onto a cluster
+moves in. Opening or closing puts everyone together again. The ×, *Take
+out* and *Dissolve* remove membership. Esc during the drag cancels it.
+A right-click anywhere inside a cluster's outline, not on a component, is
+the cluster's menu; *Dissolve* follows *Open*/*Close* in it.
 
 ## 6. Units and tests
 

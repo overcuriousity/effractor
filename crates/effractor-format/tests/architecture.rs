@@ -1612,3 +1612,31 @@ fn clusters_are_refused_where_they_do_not_hold() {
     image["clusters"] = serde_json::json!({"c": {"members": ["workstation", "server"], "closed": true, "open": false}});
     assert!(has(&errors_of(&image), "unknown-key", "clusters.c.open"));
 }
+
+#[test]
+fn a_closed_cluster_may_show_members_beside_it() {
+    let mut image = image(LECTURE);
+    image["clusters"] = serde_json::json!({
+        "box": {"members": ["workstation", "ssh-client", "server"], "shown": ["ssh-client"], "closed": true}
+    });
+    let text = from_document(&image).unwrap();
+    assert!(
+        text.contains("    members: [workstation, ssh-client, server]\n    shown: [ssh-client]\n    closed: true\n"),
+        "{text}"
+    );
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    assert_eq!(self::image(&text)["clusters"], image["clusters"]);
+    // Only members, once each.
+    for (shown, path) in [
+        (serde_json::json!(["sshd"]), "clusters.box.shown[0]"),
+        (
+            serde_json::json!(["server", "server"]),
+            "clusters.box.shown[1]",
+        ),
+    ] {
+        let mut image = image.clone();
+        image["clusters"]["box"]["shown"] = shown;
+        let errors = errors_of(&image);
+        assert!(has(&errors, "cardinality", path), "{path}: {errors:?}");
+    }
+}

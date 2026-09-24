@@ -284,6 +284,18 @@ test("in a free layout a dragged node moves, its lines follow, and the move is r
   assert.deepEqual(selects, []);
 });
 
+test("in a free layout a component let go over a cluster is dropped on it", () => {
+  const { r, node } = mounted();
+  const box = (id, x, y) => ({ id, x, y, width: 148, height: 62, node: { id, label: id, lines: [id], symbol: "component", component: "host", attributes: "host", parents: 0 } });
+  r.render(Pos.place({ nodes: [box("cluster/k", 0, 0), box("entity/b", 300, 0)], edges: [] }, {}), {});
+  const drops = [];
+  r.on("drop", (e) => drops.push(e));
+  node("entity/b").dispatch("pointerdown", { clientX: 10, clientY: 10, button: 0, pointerId: 1 });
+  node("entity/b").dispatch("pointermove", { clientX: 30, clientY: 110, pointerId: 1 });
+  node("cluster/k").dispatch("pointerup", { clientX: 30, clientY: 110, pointerId: 1 });
+  assert.deepEqual(drops, [{ id: "entity/b", target: "cluster/k", ctrl: false }]);
+});
+
 test("a free layout that starts left of or above zero is fitted whole", () => {
   const { r, host } = mounted();
   const l = freeLayout();

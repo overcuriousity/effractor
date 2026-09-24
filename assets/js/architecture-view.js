@@ -204,11 +204,20 @@
         return has(doc.entities, m);
       });
       if (members.length < 2) return; // the validator says so; drawn as components meanwhile
-      if (doc.clusters[cid].closed === true) {
-        members.forEach(function (m) {
+      // A closed cluster stacks its members but those drawn beside it, all
+      // inside one outline with the stack.
+      var beside = (doc.clusters[cid].shown || []).filter(function (m) {
+        return members.indexOf(m) >= 0;
+      });
+      var stacked = members.filter(function (m) {
+        return beside.indexOf(m) < 0;
+      });
+      if (doc.clusters[cid].closed === true && stacked.length) {
+        stacked.forEach(function (m) {
           hidden[m] = "cluster/" + cid;
         });
-        closed.push({ cid: cid, members: members });
+        closed.push({ cid: cid, members: stacked });
+        if (beside.length) groups.push({ id: "cluster/" + cid, label: C.label(doc, cid), members: ["cluster/" + cid].concat(beside.map(function (m) { return "entity/" + m; })) });
       } else {
         groups.push({ id: "cluster/" + cid, label: C.label(doc, cid), members: members.map(function (m) { return "entity/" + m; }) });
       }

@@ -340,3 +340,16 @@ test('permissions start at the firewall’s cluster and end at a cluster holding
   doc.clusters = { all: { members: ['bridge', 'filter', 'ssh-client', 'sshd', 'workstation', 'server'], closed: true } };
   assert.deepEqual(V.describe(doc).permits, []);
 });
+
+test('a closed cluster with a member beside it: both inside one outline', () => {
+  const doc = Clusters.peel(Clusters.build(IMPORTED).doc, 'srv', 'domain').doc;
+  const d = V.describe(doc);
+  const ids = d.nodes.map((n) => n.id);
+  assert.ok(ids.includes('cluster/srv') && ids.includes('entity/domain'));
+  assert.equal(d.hidden.domain, undefined);
+  assert.equal(d.hidden.sshd, 'cluster/srv');
+  assert.equal(d.nodes.find((n) => n.id === 'cluster/srv').cluster.count, 5, 'the stack holds the rest');
+  assert.deepEqual(d.groups, [{ id: 'cluster/srv', label: Clusters.label(doc, 'srv'), members: ['cluster/srv', 'entity/domain'] }]);
+  // Its line to the stack shows; nothing is drawn from a node to itself.
+  assert.ok(d.edges.some((e) => e.from === 'cluster/srv' && e.to === 'entity/domain'));
+});

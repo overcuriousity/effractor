@@ -39,6 +39,20 @@ fn ids(ids: &[EntityId]) -> Vec<&str> {
     ids.iter().map(|id| id.as_str()).collect()
 }
 
+/// A cluster's list of ids: on one line where it fits, else one per line.
+fn id_list(w: &mut Writer, key: &str, list: &[EntityId]) {
+    let items = ids(list);
+    let inline = format!("[{}]", items.join(", "));
+    if 4 + key.len() + 2 + inline.len() <= WIDTH {
+        w.line(4, key, &inline);
+    } else {
+        w.open(4, key);
+        for id in items {
+            let _ = writeln!(w.out, "      - {id}");
+        }
+    }
+}
+
 fn document(w: &mut Writer, m: &Architecture) {
     w.line(0, "effractor", &CURRENT_VERSION.to_string());
     w.line(0, "profile", ARCHITECTURE);
@@ -201,15 +215,9 @@ fn document(w: &mut Writer, m: &Architecture) {
         if let Some(label) = &cluster.label {
             w.line(4, "label", &string(label, Context::Block));
         }
-        let members = ids(&cluster.members);
-        let inline = format!("[{}]", members.join(", "));
-        if "    members: ".len() + inline.len() <= WIDTH {
-            w.line(4, "members", &inline);
-        } else {
-            w.open(4, "members");
-            for id in members {
-                let _ = writeln!(w.out, "      - {id}");
-            }
+        id_list(w, "members", &cluster.members);
+        if !cluster.shown.is_empty() {
+            id_list(w, "shown", &cluster.shown);
         }
         w.line(4, "closed", word(&BOOLS, &cluster.closed));
         w.extension_lines(4, &path);

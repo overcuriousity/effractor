@@ -169,3 +169,32 @@ test('an open cluster selected lights its members', () => {
   assert.deepEqual(C.lit(doc, ['cluster/srv']), ['cluster/srv'].concat(doc.clusters.srv.members.map((m) => 'entity/' + m)));
   assert.deepEqual(C.lit(doc, ['cluster/printer', 'entity/openssh']), ['cluster/printer', 'entity/openssh'], 'a closed one is its node');
 });
+
+test('a member dragged out of a closed cluster stays in it, drawn beside it', () => {
+  const doc = C.build(IMPORTED).doc;
+  const out = C.peel(doc, 'srv', 'domain');
+  assert.equal(out.select, 'entity/domain');
+  assert.deepEqual(out.doc.clusters.srv.shown, ['domain']);
+  assert.equal(out.doc.clusters.srv.closed, true);
+  assert.equal(C.clusterOf(out.doc, 'domain'), 'srv', 'still a member');
+  assert.equal(C.peel(out.doc, 'srv', 'domain'), null, 'already out');
+  // Back onto the cluster: stacked again.
+  const back = C.unpeel(out.doc, 'srv', 'domain');
+  assert.equal('shown' in back.doc.clusters.srv, false);
+  // The last one stacked, dragged out: the cluster just opens.
+  let d = C.build(IMPORTED).doc;
+  d = C.peel(d, 'printer', 'ssh').doc;
+  const last = C.peel(d, 'printer', 'printer').doc.clusters.printer;
+  assert.equal(last.closed, false);
+  assert.equal('shown' in last, false);
+  // Closing or opening puts everyone together again.
+  assert.equal('shown' in C.setClosed(out.doc, 'srv', false).doc.clusters.srv, false);
+  assert.equal('shown' in C.toggleAll(out.doc).doc.clusters.srv, false);
+  // Taking out, or deleting, forgets it; renaming renames it.
+  assert.equal('shown' in C.takeOut(out.doc, 'srv', 'domain').doc.clusters.srv, false);
+  const renamed = JSON.parse(JSON.stringify(out.doc));
+  C.rekey(renamed, 'domain', 'dns');
+  assert.deepEqual(renamed.clusters.srv.shown, ['dns']);
+  // Selected, the cluster lights what is drawn beside it.
+  assert.deepEqual(C.lit(out.doc, ['cluster/srv']), ['cluster/srv', 'entity/domain']);
+});

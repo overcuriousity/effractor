@@ -790,6 +790,23 @@ impl Cx<'_> {
                     self.error(Code::Cardinality, path, message);
                 }
             }
+            let mut seen = HashSet::new();
+            for (i, member) in cluster.shown.iter().enumerate() {
+                let path = format!("{at}.shown[{i}]");
+                if !cluster.members.contains(member) {
+                    self.error(
+                        Code::Cardinality,
+                        path,
+                        format!("\"{member}\" is not a member of this cluster"),
+                    );
+                } else if !seen.insert(member) {
+                    self.error(
+                        Code::Cardinality,
+                        path,
+                        format!("\"{member}\" is listed twice"),
+                    );
+                }
+            }
         }
     }
 
