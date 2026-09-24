@@ -431,11 +431,30 @@ impl Defenses {
     }
 }
 
+/// What a special application is (nmap import spec §2.2). It changes nothing
+/// in generation; it says which menus the application offers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tool {
+    Nmap,
+}
+
+impl Tool {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Nmap => "nmap",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entity {
     pub kind: EntityKind,
     pub label: String,
     pub description: Option<String>,
+    /// IP addresses of a host, CIDR ranges of a network; empty elsewhere.
+    pub addresses: Vec<String>,
+    /// Only on an application.
+    pub tool: Option<Tool>,
     pub parameters: IndexMap<Slot, Parameter>,
     pub defenses: Defenses,
 }
@@ -447,6 +466,8 @@ impl Entity {
             kind,
             label: label.into(),
             description: None,
+            addresses: Vec::new(),
+            tool: None,
             parameters: IndexMap::new(),
             defenses: Defenses::default(),
         };

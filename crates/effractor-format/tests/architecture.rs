@@ -1378,3 +1378,100 @@ fn a_scenario_may_speed_the_attacker_up() {
         "scenarios.fast.attacker.speed"
     ));
 }
+
+#[test]
+fn hosts_and_networks_carry_addresses_and_an_application_may_be_nmap() {
+    let mut image = image(LECTURE);
+    image["entities"]["server"]["addresses"] = serde_json::json!(["10.0.1.5", "fd00::5"]);
+    image["entities"]["server-net"]["addresses"] = serde_json::json!(["10.0.1.0/24", "fd00::/64"]);
+    image["entities"]["ssh-client"]["tool"] = serde_json::json!("nmap");
+    let text = from_document(&image).unwrap();
+    assert!(
+        text.contains("    label: Server\n    addresses: ["),
+        "{text}"
+    );
+    assert!(
+        text.contains("    label: SSH client\n    tool: nmap\n"),
+        "{text}"
+    );
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    let back = self::image(&text);
+    assert_eq!(
+        back["entities"]["server"]["addresses"],
+        serde_json::json!(["10.0.1.5", "fd00::5"])
+    );
+    assert_eq!(
+        back["entities"]["server-net"]["addresses"],
+        serde_json::json!(["10.0.1.0/24", "fd00::/64"])
+    );
+    assert_eq!(
+        back["entities"]["ssh-client"]["tool"],
+        serde_json::json!("nmap")
+    );
+    // Absent is absent: the reference file does not change.
+    assert_eq!(canonicalize(LECTURE).unwrap(), LECTURE);
+}
+
+#[test]
+fn addresses_and_tool_are_refused_where_they_do_not_belong() {
+    let cases: [(&str, &str, serde_json::Value, &str, &str); 7] = [
+        (
+            "sshd",
+            "addresses",
+            serde_json::json!(["10.0.1.5"]),
+            "misplaced-key",
+            "entities.sshd.addresses",
+        ),
+        (
+            "server",
+            "tool",
+            serde_json::json!("nmap"),
+            "misplaced-key",
+            "entities.server.tool",
+        ),
+        (
+            "ssh-client",
+            "tool",
+            serde_json::json!("wireshark"),
+            "wrong-type",
+            "entities.ssh-client.tool",
+        ),
+        (
+            "server",
+            "addresses",
+            serde_json::json!(["10.0.1.0/24"]),
+            "wrong-type",
+            "entities.server.addresses[0]",
+        ),
+        (
+            "server",
+            "addresses",
+            serde_json::json!(["10.0.1.5", "srv-01"]),
+            "wrong-type",
+            "entities.server.addresses[1]",
+        ),
+        (
+            "server-net",
+            "addresses",
+            serde_json::json!(["10.0.1.5"]),
+            "wrong-type",
+            "entities.server-net.addresses[0]",
+        ),
+        (
+            "server-net",
+            "addresses",
+            serde_json::json!(["10.0.1.0/33"]),
+            "wrong-type",
+            "entities.server-net.addresses[0]",
+        ),
+    ];
+    for (entity, key, value, code, path) in cases {
+        let mut image = image(LECTURE);
+        image["entities"][entity][key] = value;
+        let errors = errors_of(&image);
+        assert!(has(&errors, code, path), "{entity}.{key}: {errors:?}");
+    }
+    let mut image = image(LECTURE);
+    image["entities"]["server"]["addresses"] = serde_json::json!("10.0.1.5");
+    assert!(!errors_of(&image).is_empty(), "a list, not one text");
+}

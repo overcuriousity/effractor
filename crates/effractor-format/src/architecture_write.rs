@@ -12,6 +12,7 @@ use effractor_core::architecture::{Architecture, Change, Factor, Parameter, Rela
 use crate::CURRENT_VERSION;
 use crate::architecture_read::{
     BOOLS, DEFENSES, EVIDENCE, FACTORS, KINDS, MODES, PRIVILEGES, RELATIONS, STATES, SWITCHES,
+    TOOLS,
 };
 use crate::lower::{ARCHITECTURE, Extras, TIME_UNITS};
 use crate::write::{Context, WIDTH, Writer, expression, string, word};
@@ -64,6 +65,17 @@ fn document(w: &mut Writer, m: &Architecture) {
         w.line(4, "label", &string(&entity.label, Context::Block));
         if let Some(d) = &entity.description {
             w.line(4, "description", &string(d, Context::Block));
+        }
+        if !entity.addresses.is_empty() {
+            let items: Vec<String> = entity
+                .addresses
+                .iter()
+                .map(|a| string(a, Context::FlowValue))
+                .collect();
+            w.line(4, "addresses", &format!("[{}]", items.join(", ")));
+        }
+        if let Some(tool) = &entity.tool {
+            w.line(4, "tool", word(&TOOLS, tool));
         }
         let slots = entity.kind.slots();
         if !slots.is_empty() {

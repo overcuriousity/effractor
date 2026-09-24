@@ -7,7 +7,7 @@
 use effractor_core::architecture::{
     Architecture, Association, Attacker, AttackerProfile, Change, Defense, Defenses, Entity,
     EntityKind, Evidence, Factor, Flow, LibraryPin, Mode, Parameter, Privilege, Relation,
-    RelationKind, Scenario, Slot, State, StateRef, Switch,
+    RelationKind, Scenario, Slot, State, StateRef, Switch, Tool,
 };
 use effractor_core::{Code, Pos};
 use indexmap::IndexMap;
@@ -28,6 +28,7 @@ pub const KINDS: [(&str, EntityKind); 11] = [
     ("person", EntityKind::Person),
     ("data", EntityKind::Data),
 ];
+pub const TOOLS: [(&str, Tool); 1] = [("nmap", Tool::Nmap)];
 pub const RELATIONS: [(&str, RelationKind); 19] = [
     ("attached", RelationKind::Attached),
     ("hosts", RelationKind::Hosts),
@@ -196,7 +197,15 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
         &entry.value,
         path,
         entry.key_pos,
-        &["kind", "label", "description", "parameters", "defenses"],
+        &[
+            "kind",
+            "label",
+            "description",
+            "addresses",
+            "tool",
+            "parameters",
+            "defenses",
+        ],
     )?;
     let kind = cx
         .required(&f, "kind")
@@ -206,6 +215,14 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
         .and_then(|e| cx.string(&e.value, &f.path("label")));
     let description = cx.optional_string(&f, "description");
     let kind = kind?;
+    let addresses = match f.get("addresses") {
+        Some(e) => addresses(cx, e, &f.path("addresses"), kind),
+        None => Some(Vec::new()),
+    };
+    let tool = match f.get("tool") {
+        Some(e) => tool(cx, e, &f.path("tool"), kind),
+        None => Some(None),
+    };
     let parameters = match f.get("parameters") {
         Some(e) => parameters(cx, e, &f.path("parameters"), kind.slots()),
         None => Some(IndexMap::new()),
@@ -218,11 +235,77 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
         kind,
         label: label?,
         description: description?,
+        addresses: addresses?,
+        tool: tool?,
         parameters: parameters?,
         defenses: defenses?,
     };
     entity.materialize();
     Some(entity)
+}
+
+/// A host's IP addresses or a network's CIDR ranges (nmap import spec §2.1).
+fn addresses(cx: &mut Cx, entry: &Entry, path: &str, kind: EntityKind) -> Option<Vec<String>> {
+    let cidr = match kind {
+        EntityKind::Host => false,
+        EntityKind::Network => true,
+        _ => {
+            let message = format!("`addresses` is not a field of a `{}`", kind.as_str());
+            cx.error(Code::MisplacedKey, path, entry.key_pos, message);
+            return None;
+        }
+    };
+    let items = cx.list(&entry.value, path)?;
+    let mut out = Vec::new();
+    let mut ok = true;
+    for (i, item) in items.iter().enumerate() {
+        let at = format!("{path}[{i}]");
+        let Some(text) = cx.string(item, &at) else {
+            ok = false;
+            continue;
+        };
+        let valid = if cidr {
+            is_cidr(&text)
+        } else {
+            text.parse::<std::net::IpAddr>().is_ok()
+        };
+        if valid {
+            out.push(text);
+        } else {
+            let want = if cidr {
+                "a CIDR range such as 10.0.0.0/24"
+            } else {
+                "an IP address such as 10.0.0.5"
+            };
+            let message = format!("expected {want}, found {text:?}");
+            cx.error(Code::WrongType, at, item.pos, message);
+            ok = false;
+        }
+    }
+    ok.then_some(out)
+}
+
+fn is_cidr(text: &str) -> bool {
+    let Some((ip, bits)) = text.split_once('/') else {
+        return false;
+    };
+    let Ok(ip) = ip.parse::<std::net::IpAddr>() else {
+        return false;
+    };
+    let max = if ip.is_ipv4() { 32 } else { 128 };
+    (1..=3).contains(&bits.len())
+        && bits.bytes().all(|b| b.is_ascii_digit())
+        && bits.parse::<u8>().is_ok_and(|b| b <= max)
+}
+
+/// Only an application names a tool.
+fn tool(cx: &mut Cx, entry: &Entry, path: &str, kind: EntityKind) -> Option<Option<Tool>> {
+    if kind != EntityKind::Application {
+        let message = format!("`tool` is not a field of a `{}`", kind.as_str());
+        cx.error(Code::MisplacedKey, path, entry.key_pos, message);
+        return None;
+    }
+    cx.word(&entry.value, path, &TOOLS).map(Some)
 }
 
 /// The slots of one owner. What is written must be one of `allowed`; what is

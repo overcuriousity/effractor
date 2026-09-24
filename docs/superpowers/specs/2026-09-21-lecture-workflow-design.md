@@ -124,6 +124,11 @@ kind-specific parameters below. There are eight kinds:
 | `account` | An identity with explicit authentication and grants; no implicit global root privileges. |
 | `credential` | A model of authentication material; `possessed`. Store descriptions, never actual secrets. |
 
+Two optional fields describe what a scan sees (owner, 2026-09-24; see the
+[nmap import design](2026-09-24-nmap-import-design.md) §2): a `host` or
+`network` may carry `addresses` (IP addresses, CIDR ranges), and an
+`application` may carry `tool: nmap`. Neither changes generation.
+
 Associations are maps keyed by ID. Each has `kind`, `from`, `to`, optional
 `description`, and only the extra fields allowed for its kind:
 
