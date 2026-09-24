@@ -155,14 +155,15 @@
   // `ids` qualified components or clusters; `add` keeps what was picked.
   function pick(ids, add) {
     if (!P.isArchitecture(state.doc) || attackShown()) return;
-    var next = add ? state.picked.slice() : [];
+    var next = add ? window.effractorClusters.pickable(state.picked) : [];
     ids.forEach(function (id) {
       if (/^(entity|cluster)\//.test(id) && P.selectionExists(state.doc, id, null) && next.indexOf(id) < 0) next.push(id);
     });
     setPicked(next);
   }
   function togglePick(id) {
-    var next = state.picked.slice();
+    // A line selected before is not one of several.
+    var next = window.effractorClusters.pickable(state.picked);
     var at = next.indexOf(id);
     if (at >= 0) next.splice(at, 1);
     else if (P.selectionExists(state.doc, id, null)) next.push(id);

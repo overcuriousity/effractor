@@ -285,7 +285,12 @@
         if (line) permits.push(Object.assign({}, p, { firewall: firewall, flow: line }));
         return;
       }
-      if (node === firewall) return;
+      if (node === firewall) {
+        // Firewall and one end in one cluster: the flow still leaves it, on
+        // its line; firewall and the whole flow inside: nothing to draw.
+        if (s !== t && lineOf[p.flow]) permits.push(Object.assign({}, p, { firewall: firewall, flow: lineOf[p.flow] }));
+        return;
+      }
       var key = "permits/" + firewall + ">" + node;
       if (!toNode[key]) {
         toNode[key] = { id: p.id, firewall: firewall, node: node, allowed: p.allowed, members: [] };

@@ -236,6 +236,11 @@
   }
 
   U.contextHooks.push(function (e) {
+    // A merged line, right-clicked as left-clicked: which of its lines.
+    if (e.edge && /^(links|flows|permits)\//.test(e.edge) && app.state.bundles) {
+      bundleMenu(e.edge, e.x, e.y);
+      return true;
+    }
     if (e.edge) return false;
     var q = P.qualified(e.id);
     if (q && q.kind === "cluster" && own(doc().clusters, q.id)) {
@@ -260,12 +265,15 @@
   });
 
   // A merged line: which of its lines.
-  app.renderer.on("select", function (e) {
-    if (!e.edge || !/^(links|flows|permits)\//.test(e.edge) || !app.state.bundles) return;
-    var held = app.state.bundles[e.edge] || [];
+  function bundleMenu(edge, x, y) {
+    var held = app.state.bundles[edge] || [];
     app.showMenu(held.map(function (id) {
       return [app.labelOf(id), "", function () { app.select(id); }];
-    }), e.x, e.y);
+    }), x, y);
+  }
+  app.renderer.on("select", function (e) {
+    if (!e.edge || !/^(links|flows|permits)\//.test(e.edge) || !app.state.bundles) return;
+    bundleMenu(e.edge, e.x, e.y);
   });
 
   // ---- the cluster's inspector ----

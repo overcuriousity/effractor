@@ -390,3 +390,13 @@ test("an attack graph's step says its junction, badge and state in words, and it
   r.render(layout(), {});
   dom.byClass(host, "edge").forEach((l) => assert.equal(l.getAttribute("marker-end"), null));
 });
+
+test("review: a drag the browser cancels leaves the node clickable", () => {
+  const { r, node } = mounted();
+  r.render(freeLayout(), {});
+  node("entity/b").dispatch("pointerdown", { clientX: 10, clientY: 10, button: 0, pointerId: 1 });
+  node("entity/b").dispatch("pointermove", { clientX: 30, clientY: 110, pointerId: 1 });
+  assert.ok(node("entity/b").classList.contains("is-in-hand"));
+  node("entity/b").dispatch("pointercancel", { pointerId: 1 });
+  assert.equal(node("entity/b").classList.contains("is-in-hand"), false);
+});

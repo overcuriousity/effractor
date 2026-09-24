@@ -353,3 +353,12 @@ test('a closed cluster with a member beside it: both inside one outline', () => 
   // Its line to the stack shows; nothing is drawn from a node to itself.
   assert.ok(d.edges.some((e) => e.from === 'cluster/srv' && e.to === 'entity/domain'));
 });
+
+test('review: a permission stays on the flow line when the firewall shares a cluster with one end only', () => {
+  const doc = JSON.parse(JSON.stringify(require('./fixtures/architecture.doc.json')));
+  doc.clusters = { edge: { members: ['bridge', 'filter', 'ssh-client', 'workstation'], closed: true } };
+  const d = V.describe(doc);
+  assert.equal(d.permits.length, 1, 'the flow leaves the cluster: its permission is drawn');
+  assert.equal(d.permits[0].firewall, 'cluster/edge');
+  assert.ok(d.permits[0].flow, 'on the flow line');
+});

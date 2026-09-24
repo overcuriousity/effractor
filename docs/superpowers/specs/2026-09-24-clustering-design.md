@@ -149,8 +149,10 @@ keeping their offsets from their centre; closing puts the cluster at the
 members' centre. Both write the moved positions to this browser's store.
 An opened cluster then pushes what it covers out of its way (owner,
 2026-09-25: readable, not piled): each outline with its contents is one
-box, everything overlapping it gives way until 24 px clear, the opened
-cluster itself stays, and the new places are kept.
+box; what it covers gives way until 24 px clear, and what that pushes gives
+way in turn; clusters opened together share the push; the rest of the
+drawing stays; the new places are kept. A member dragged out beside its
+stack opens nothing and pushes nothing.
 
 **Animated** (owner, 2026-09-24): closing, members glide into the cluster
 and fade; opening, they glide out from it to their places; a node whose

@@ -98,6 +98,11 @@
           return !has(gone, m);
         });
         if (!c.shown.length) delete c.shown;
+        // Everyone left beside an empty stack: it is simply open.
+        else if (c.shown.length >= kept.length) {
+          c.closed = false;
+          delete c.shown;
+        }
       }
     });
     tidy(next);
@@ -399,6 +404,7 @@
     if (!picked.length) return toggleAll(doc) || { refusal: "nothing runs together here · select two or more and press K" };
     if (picked.length === 1) {
       var q = picked[0];
+      if (!pickable([q]).length) return { refusal: "K takes a component or a cluster · or nothing, for all" };
       var cid = q.indexOf("cluster/") === 0 ? q.slice(8) : q.indexOf("entity/") === 0 ? clusterOf(doc, q.slice(7)) : null;
       if (cid && has(doc.clusters, cid)) {
         var turned = setClosed(doc, cid, !doc.clusters[cid].closed);
@@ -524,6 +530,7 @@
     var was = Object.create(null), now = Object.create(null);
     Object.keys(before).forEach(function (e) { was[before[e]] = true; });
     Object.keys(after).forEach(function (e) { now[after[e]] = true; });
+    var gone = Object.keys(was).filter(function (c) { return !now[c]; });
     function from(id, source) {
       var list = (origins[id] = origins[id] || []);
       if (list.indexOf(source) < 0) list.push(source);
@@ -542,34 +549,30 @@
         if (!now[before[e]]) exits[before[e]] = into;
       }
     });
-    return { origins: origins, exits: exits };
+    return { origins: origins, exits: exits, opened: gone };
   }
 
-  // The clusters a glide opens: those members come out of.
+  // The clusters a glide opens: drawn as a stack before, not after (a
+  // member dragged out beside its stack does not open it).
   function opened(motion) {
-    var out = [];
-    Object.keys((motion && motion.origins) || {}).forEach(function (id) {
-      if (id.indexOf("entity/") !== 0) return;
-      motion.origins[id].forEach(function (from) {
-        if (from.indexOf("cluster/") === 0 && out.indexOf(from) < 0) out.push(from);
-      });
-    });
-    return out;
+    return ((motion && motion.opened) || []).slice();
   }
 
   // After clusters open in place (owner, 2026-09-25: readable, not piled):
-  // each outline with what is in it is one box, every other node its own;
-  // what overlaps is pushed apart until all stand `gap` clear. The opened
-  // ones (`fixed`, outline ids) stay; the rest give way — half each between
-  // two that may both move. Returns new places {node id: {x, y}} of what moved.
+  // each outline with what is in it is one box, every other node its own.
+  // What an opened one (`fixed`, outline ids) covers gives way, and what
+  // that pushes gives way in turn, until all stand `gap` clear; two opened
+  // ones, or two already pushed, share the push half each. What nothing
+  // pushes stays where it is. Returns new places {node id: {x, y}}.
   function spread(placed, fixed, gap) {
     var inside = Object.create(null);
     var units = (placed.outlines || []).map(function (o) {
       o.members.forEach(function (m) { inside[m] = true; });
-      return { id: o.id, x: o.x, y: o.y, width: o.width, height: o.height, nodes: o.members, fixed: fixed.indexOf(o.id) >= 0, dx: 0, dy: 0 };
+      var opened = fixed.indexOf(o.id) >= 0;
+      return { id: o.id, x: o.x, y: o.y, width: o.width, height: o.height, nodes: o.members, opened: opened, pushing: opened, dx: 0, dy: 0 };
     });
     (placed.nodes || []).forEach(function (n) {
-      if (!inside[n.id]) units.push({ id: n.id, x: n.x, y: n.y, width: n.width, height: n.height, nodes: [n.id], fixed: false, dx: 0, dy: 0 });
+      if (!inside[n.id]) units.push({ id: n.id, x: n.x, y: n.y, width: n.width, height: n.height, nodes: [n.id], opened: false, pushing: false, dx: 0, dy: 0 });
     });
     function shift(u, dx, dy) {
       u.x += dx;
@@ -582,7 +585,7 @@
       for (var i = 0; i < units.length; i++) {
         for (var j = i + 1; j < units.length; j++) {
           var a = units[i], b = units[j];
-          if (a.fixed && b.fixed) continue;
+          if (!a.pushing && !b.pushing) continue; // nothing pushed them: they stay
           var ox = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) + gap;
           var oy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) + gap;
           if (ox <= 0 || oy <= 0) continue;
@@ -590,9 +593,18 @@
           var alongX = ox <= oy;
           var sign = alongX ? (b.x + b.width / 2 >= a.x + a.width / 2 ? 1 : -1) : (b.y + b.height / 2 >= a.y + a.height / 2 ? 1 : -1);
           var d = alongX ? ox : oy;
-          var ka = a.fixed ? 0 : b.fixed ? 1 : 0.5, kb = 1 - ka;
-          shift(a, alongX ? -sign * d * ka : 0, alongX ? 0 : -sign * d * ka);
-          shift(b, alongX ? sign * d * kb : 0, alongX ? 0 : sign * d * kb);
+          // Who gives way: the one not pushing; between two pushing, the
+          // opened stand and the pushed give way, else half each.
+          var ka = !a.pushing ? 1 : !b.pushing ? 0 : a.opened === b.opened ? 0.5 : a.opened ? 0 : 1;
+          var kb = 1 - ka;
+          if (ka) {
+            shift(a, alongX ? -sign * d * ka : 0, alongX ? 0 : -sign * d * ka);
+            a.pushing = true;
+          }
+          if (kb) {
+            shift(b, alongX ? sign * d * kb : 0, alongX ? 0 : sign * d * kb);
+            b.pushing = true;
+          }
         }
       }
       if (!any) break;
@@ -609,10 +621,18 @@
     return out;
   }
 
+  // Only components and clusters are picked together.
+  function pickable(ids) {
+    return ids.filter(function (id) {
+      return /^(entity|cluster)\//.test(id);
+    });
+  }
+
   var api = {
     SPECIFIC: SPECIFIC,
     opened: opened,
     spread: spread,
+    pickable: pickable,
     transitions: transitions,
     clusterOf: clusterOf,
     label: label,

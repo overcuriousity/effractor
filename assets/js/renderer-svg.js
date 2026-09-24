@@ -275,7 +275,10 @@
         if (g.id && target && target !== g.id) emit("drop", { id: g.id, target: target, ctrl: !!(e.ctrlKey || e.metaKey) });
       });
       svg.addEventListener("pointercancel", function () {
-        if (gesture && gesture.alone) aim(gesture, null);
+        if (gesture && gesture.alone) {
+          aim(gesture, null);
+          if (drawn.nodes[gesture.id]) drawn.nodes[gesture.id].classList.remove("is-in-hand");
+        }
         gesture = null;
         dropMarquee();
         svg.classList.remove("is-dragging", "is-moving", "is-panning", "is-picking");

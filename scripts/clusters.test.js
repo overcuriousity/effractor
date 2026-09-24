@@ -137,7 +137,7 @@ test('what glides from where when clusters open and close', () => {
   // m became n (renamed or remade): n comes from where m was.
   assert.deepEqual(t.origins['cluster/n'], ['cluster/m']);
   assert.equal(t.exits['cluster/m'], 'cluster/n');
-  assert.deepEqual(C.transitions(null, null), { origins: {}, exits: {} });
+  assert.deepEqual(C.transitions(null, null), { origins: {}, exits: {}, opened: [] });
 });
 
 test('K: nothing selected toggles all; one opens or closes its cluster; several merge', () => {
@@ -255,7 +255,7 @@ test('a cluster just opened pushes what it now overlaps away, and stays', () => 
   assert.ok(c, 'c moved');
   const clear = c.x >= 318 + 20 || c.y >= 94 + 20;
   assert.ok(clear, 'c is clear of the outline: ' + JSON.stringify(c));
-  assert.deepEqual(C.opened({ origins: { 'entity/a': ['cluster/k'], 'cluster/q': ['entity/x'] }, exits: {} }), ['cluster/k']);
+  assert.deepEqual(C.opened(C.transitions({ a: 'cluster/k', x: 'cluster/q' }, { x: 'cluster/q' })), ['cluster/k']);
 });
 
 test('after an import, what runs together and came in is clustered, open', () => {
@@ -269,4 +269,48 @@ test('after an import, what runs together and came in is clustered, open', () =>
   const mine = C.make(IMPORTED, ['srv', 'sshd']).doc;
   const again = C.gather(before, mine);
   assert.deepEqual(again.clusters.srv.members, ['srv', 'sshd']);
+});
+
+test('review: push-aside touches only what an opened cluster covers, and opened ones come apart', () => {
+  const n = (id, x, y) => ({ id, x, y, width: 148, height: 84 });
+  // An unrelated tight pair far away stays put.
+  const far = C.spread({ nodes: [n('entity/a', 0, 0), n('entity/b', 160, 0), n('entity/m1', 1000, 1000), n('entity/m2', 1160, 1000)],
+    outlines: [{ id: 'cluster/c', x: 990, y: 990, width: 328, height: 104, members: ['entity/m1', 'entity/m2'] }] }, ['cluster/c'], 24);
+  assert.deepEqual(far, {});
+  // What an opened cluster pushes, pushes on in turn.
+  const chain = C.spread({ nodes: [n('entity/m', 0, 0), n('entity/x', 100, 0), n('entity/y', 270, 0)],
+    outlines: [{ id: 'cluster/c', x: -10, y: -10, width: 168, height: 104, members: ['entity/m'] }] }, ['cluster/c'], 24);
+  assert.ok(chain['entity/x'] && chain['entity/y'], 'x pushed, and y by x: ' + JSON.stringify(chain));
+  // Two opened together, overlapping: both give way, half each.
+  const both = C.spread({ nodes: [n('entity/p', 0, 0), n('entity/q', 50, 0)],
+    outlines: [
+      { id: 'cluster/p', x: -10, y: -10, width: 168, height: 104, members: ['entity/p'] },
+      { id: 'cluster/q', x: 40, y: -10, width: 168, height: 104, members: ['entity/q'] },
+    ] }, ['cluster/p', 'cluster/q'], 24);
+  assert.ok(both['entity/p'] && both['entity/q'], JSON.stringify(both));
+  const apart = Math.abs(both['entity/q'].x - both['entity/p'].x) >= 168 + 24 - 1 || Math.abs(both['entity/q'].y - both['entity/p'].y) >= 104 + 24 - 1;
+  assert.ok(apart, 'clear of each other: ' + JSON.stringify(both));
+});
+
+test('review: only a cluster that really opened counts as opened; a peel does not', () => {
+  const opened = C.transitions({ a: 'cluster/k', b: 'cluster/k' }, {});
+  assert.deepEqual(C.opened(opened), ['cluster/k']);
+  const peeled = C.transitions({ a: 'cluster/k', b: 'cluster/k', c: 'cluster/k' }, { b: 'cluster/k', c: 'cluster/k' });
+  assert.deepEqual(C.opened(peeled), [], 'the stack is still there');
+});
+
+test('review: a closed cluster never keeps an empty stack', () => {
+  const doc = JSON.parse(JSON.stringify(IMPORTED));
+  doc.clusters = { c: { members: ['srv', 'sshd', 'domain'], shown: ['srv', 'sshd'], closed: true } };
+  const after = C.takeOut(doc, 'c', 'domain').doc.clusters.c;
+  assert.equal(after.closed, false);
+  assert.equal('shown' in after, false);
+});
+
+test('review: only components and clusters can be picked together', () => {
+  assert.deepEqual(C.pickable(['flow/f', 'entity/a', 'association/x', 'cluster/c']), ['entity/a', 'cluster/c']);
+});
+
+test('review: K on a line says what K takes', () => {
+  assert.match(C.pressK(IMPORTED, ['flow/whatever']).refusal, /component or a cluster/);
 });
