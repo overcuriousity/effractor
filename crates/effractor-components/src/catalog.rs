@@ -614,7 +614,9 @@ fn relation_description(kind: RelationKind) -> &'static str {
         RelationKind::Hosts => {
             "The machine an executable, a router or a guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host. `contained: true` says controlled software does not reach the machine."
         }
-        RelationKind::Filters => "The firewall a router manages: one each way.",
+        RelationKind::Filters => {
+            "The firewall a router manages, if it has one; one router per firewall."
+        }
         RelationKind::Stores => {
             "Where a credential is kept: a host at `privilege: user | admin`, an application as `user`. Possession still takes an extraction."
         }

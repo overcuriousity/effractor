@@ -488,7 +488,8 @@ pub enum Relation {
         /// sandbox, a locked-down container). False unless said.
         contained: bool,
     },
-    /// router → firewall: one each way.
+    /// router → firewall: a router has at most one, a firewall exactly one
+    /// router. A router without one filters nothing.
     Filters { from: EntityId, to: EntityId },
     /// host/application → credential; a host at this privilege, an
     /// application always as user.

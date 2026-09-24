@@ -560,8 +560,9 @@ impl<'a> Builder<'a> {
             let mut prerequisites = vec![self.state_id(&flow.source, State::Control.as_str())];
             let mut entities = vec![flow.source.clone(), flow.target.clone()];
             let mut associations = Vec::new();
-            // An unfinished route may cross a router with no firewall or no
-            // permission yet: that hop is part of what is unknown.
+            // A router with no firewall lets the flow through. An unfinished
+            // route may cross one with no permission yet: that hop is part
+            // of what is unknown.
             for router in flow.route.iter().skip(1).step_by(2) {
                 let Some(&firewall) = self.firewall_of.get(router) else {
                     continue;

@@ -38,9 +38,6 @@ test('a router on the route without a permission says where to set it', () => {
   const doc = lecture();
   delete doc.associations['allow-ssh'];
   assert.equal(P.hint(doc, warning('unfinished', 'flows.ssh.route[1]', '')), 'allow or block it in this flow');
-  const filters = Object.keys(doc.associations).find((k) => doc.associations[k].kind === 'filters');
-  delete doc.associations[filters];
-  assert.equal(P.hint(doc, warning('unfinished', 'flows.ssh.route[1]', '')), 'Tab on “' + doc.entities.bridge.label + '” adds a firewall');
 });
 
 test('what stops the graph says where to put it right', () => {
@@ -49,7 +46,7 @@ test('what stops the graph says where to put it right', () => {
   assert.equal(hint('attacker.target'), 'select a component · Target');
   assert.equal(hint('attacker.footholds'), 'select a component · Foothold');
   assert.equal(hint('entities.sshd'), 'Tab adds its host');
-  assert.equal(hint('entities.bridge'), 'Tab adds its firewall');
+  assert.equal(hint('entities.bridge'), null);
   assert.equal(hint('entities.filter'), 'Tab on a router adds one');
   assert.equal(hint('entities.server'), null);
 });

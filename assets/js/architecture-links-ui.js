@@ -432,12 +432,13 @@
       putFlow(id, { protocol: protocol.value });
     });
 
-    // One permission per router crossed: given, or visibly missing.
+    // One permission per router crossed with a firewall: given, or visibly
+    // missing. A router without one lets the flow through.
     L.flowPermissions(doc(), id).forEach(function (p, i) {
       var fieldId = "prop-permit-" + i;
       if (!p.firewall) {
-        var missing = U.field(form, fieldId, name(p.router), el("span", "? no firewall", "empty"));
-        missing.title = "“" + name(p.router) + "” has no firewall yet · Tab on it → Firewall";
+        var open = U.field(form, fieldId, name(p.router), el("span", "no firewall · lets it through", "empty"));
+        open.title = "“" + name(p.router) + "” filters nothing · Tab on it → Firewall to add one";
         return;
       }
       var options = [["none", "? none"], ["true", "Allowed"], ["false", "Denied"], ["unknown", "Unknown"]];

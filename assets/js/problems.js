@@ -33,15 +33,8 @@
     return words.length < 2 ? words.join("") : words.slice(0, -1).join(", ") + " or " + words[words.length - 1];
   }
 
-  function filtersOf(doc, router) {
-    return Object.keys(doc.associations || {}).some(function (k) {
-      var a = doc.associations[k];
-      return a.kind === "filters" && a.from === router;
-    });
-  }
-
   // What is missing, by the kind of the component it is missing from.
-  var MISSING = { application: "Tab adds its host", service: "Tab adds its host", router: "Tab adds its firewall", firewall: "Tab on a router adds one" };
+  var MISSING = { application: "Tab adds its host", service: "Tab adds its host", firewall: "Tab on a router adds one" };
 
   // What would put a problem right, in a few words; null when there is
   // nothing to add to what the message says.
@@ -57,11 +50,8 @@
     var flow = doc.flows[m[1]];
     var route = flow.route || [];
     var at = m[2] === undefined ? null : Number(m[2]);
-    // A router on the route with no firewall or no permission for the flow.
-    if (at !== null && at % 2 === 1 && route[at]) {
-      if (!filtersOf(doc, route[at])) return "Tab on “" + label(doc, route[at]) + "” adds a firewall";
-      return "allow or block it in this flow";
-    }
+    // A router on the route whose firewall has no permission for the flow.
+    if (at !== null && at % 2 === 1 && route[at]) return "allow or block it in this flow";
     var near = L.nearHops(doc, flow).slice(0, 3).map(function (id) {
       return label(doc, id);
     });

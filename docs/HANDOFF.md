@@ -13,13 +13,17 @@ and for unknowns not to block. One PR, `feature/unfinished-flows`:
 
 - **`unfinished` (new code) no longer blocks generation.** A route that is
   empty, ends at a router, has not reached the target's network, or crosses a
-  router with no firewall or permission for the flow is `unfinished`, not
+  router whose firewall has no permission for the flow is `unfinished`, not
   `incomplete`. The flow's connect step binds `Binding::Unfinished {flow,
   missing}`; `resolve` makes it Unknown with those route paths (plus the
   connect slot if that is unknown too). It keeps the permissions of routers
   already on the route. Complete models generate exactly as before; no
   fingerprint moved. `incomplete` (hosting, filters, target, foothold) and
   errors still block. Spec §4 of the lecture design says so.
+- **A router's firewall is optional** (owner, 2026-09-24): a router without
+  one filters nothing, so a flow crosses it with no permission and a known
+  time; a firewall still needs its router. The flow panel says "no firewall ·
+  lets it through" for such a hop.
 - **`problems.js` (pure):** `blocks`, `named` (quoted ids → canvas labels),
   `hint` (next hops via `architecture-links.nearHops`, where a permission or
   firewall goes, where a target/foothold/host is set), `items`, `headline`.

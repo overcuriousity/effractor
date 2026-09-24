@@ -176,7 +176,7 @@
         "firewall"
       ],
       "fields": [],
-      "description": "The firewall a router manages: one each way."
+      "description": "The firewall a router manages, if it has one; one router per firewall."
     },
     {
       "kind": "stores",

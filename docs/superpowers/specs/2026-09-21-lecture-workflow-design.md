@@ -131,7 +131,7 @@ Associations are maps keyed by ID. Each has `kind`, `from`, `to`, optional
 |---|---|---|
 | `attached` | host/router → network | Membership/interface; can have several. Does not imply flow permission. |
 | `hosts` | host/router → application/service; host → router | Required `privilege: user\|admin`. Each executable, and each router, has one host; a router runs only on a host (an appliance's box, a VM). Owner request 2026-09-23. |
-| `filters` | router → firewall | Exactly one firewall per complete router, one router per firewall. |
+| `filters` | router → firewall | At most one firewall per router, exactly one router per firewall. A router without a firewall filters nothing: its flows cross it with no permission (owner, 2026-09-24). |
 | `stores` | host/application → credential | Required `privilege: user\|admin` for a host; applications use `user`. Possession still requires an extraction action. |
 | `authenticates` | credential → account | Any one associated credential suffices; multi-factor authentication is outside this library. |
 | `authorizes` | account → service | The service accepts this account for login. |
@@ -153,17 +153,18 @@ One flow means one direction; replies do not create a reverse attack route.
 
 `route` is an odd-length list alternating networks and routers, for example
 `[client-net, bridge, server-net]`. Its first/last networks must contain the
-source/target hosts. Every hop must match `attached`; each traversed router's
-firewall must have one `permits` association to the flow. A same-zone route
+source/target hosts. Every hop must match `attached`; a traversed router with a
+firewall must have one `permits` association to the flow, and one without lets
+it through. A same-zone route
 is `[zone]`. Repeated route entities are rejected; distinct alternative network
 routes are represented by distinct flow IDs. There is no implicit discovery of
 IP routes, transitive zone trust, wildcard ACL, NAT or packet-level simulation.
 
 An empty/partially constructed architecture is saveable. Missing hosting,
-filters or target produce an `incomplete` diagnostic and disable
+a firewall's router or the target produce an `incomplete` diagnostic and disable
 generation/solving; they never become permissive defaults. A flow still being
 drawn — a route that is empty, ends at a router, has not reached the target's
-network, or crosses a router with no firewall or no permission for it — is
+network, or crosses a router whose firewall has no permission for it — is
 `unfinished` instead (owner, 2026-09-24): the graph is generated, and the
 flow's connection is an unknown input whose missing fields are those route
 paths. Its step keeps the permissions of the routers already on the route and

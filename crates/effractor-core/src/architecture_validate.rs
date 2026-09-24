@@ -435,8 +435,8 @@ impl Cx<'_> {
             }
         }
 
-        // What is missing, once: the executable without a host, the router
-        // without a firewall, the firewall without a router.
+        // What is missing, once: the executable without a host, the firewall
+        // without a router. A router without a firewall filters nothing.
         let hosted: HashSet<&EntityId> = m
             .associations
             .values()
@@ -450,14 +450,6 @@ impl Cx<'_> {
             .values()
             .filter_map(|a| match &a.relation {
                 Relation::InstanceOf { from, .. } => Some(from),
-                _ => None,
-            })
-            .collect();
-        let filtering: HashSet<&EntityId> = m
-            .associations
-            .values()
-            .filter_map(|a| match &a.relation {
-                Relation::Filters { from, .. } => Some(from),
                 _ => None,
             })
             .collect();
@@ -484,10 +476,6 @@ impl Cx<'_> {
                 k if k.is_executable() && !hosted.contains(id) => self.incomplete(
                     at,
                     format!("\"{id}\" runs nowhere yet: no `hosts` association names it"),
-                ),
-                EntityKind::Router if !filtering.contains(id) => self.incomplete(
-                    at,
-                    format!("\"{id}\" has no firewall yet: no `filters` association starts at it"),
                 ),
                 EntityKind::Firewall if !filtered.contains(id) => self.incomplete(
                     at,
@@ -701,8 +689,8 @@ impl Cx<'_> {
         }
 
         // Every router on the route sits on both networks around it (the one
-        // after it, once there is one) and has a firewall with a permission
-        // for this flow.
+        // after it, once there is one); one with a firewall has a permission
+        // for this flow, one without lets it through.
         for i in (1..route.len()).step_by(2) {
             let router = &route[i];
             for side in [i - 1, i + 1] {
@@ -718,17 +706,13 @@ impl Cx<'_> {
                 }
             }
             match self.firewall_of(router) {
-                None => self.unfinished(
-                    format!("{path}[{i}]"),
-                    format!("\"{router}\" has no firewall yet, so this flow has no permission to pass it"),
-                ),
                 Some(firewall) if !self.permits(firewall, id) => self.unfinished(
                     format!("{path}[{i}]"),
                     format!(
                         "\"{firewall}\" has no `permits` association for this flow; it is neither allowed nor denied"
                     ),
                 ),
-                Some(_) => {}
+                _ => {}
             }
         }
     }

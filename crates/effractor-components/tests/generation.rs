@@ -575,8 +575,32 @@ fn an_unfinished_route_generates_with_an_unknown_connection() {
     assert_eq!(generate(&m).unwrap(), complete);
 }
 
+/// A router with no firewall filters nothing: the graph is generated, and a
+/// flow crosses it with no permission and a known time to connect.
+#[test]
+fn a_router_without_a_firewall_lets_its_flows_through() {
+    let mut m = lecture();
+    m.scenarios.shift_remove(&id::<ScenarioId>("deny"));
+    unrelate(&mut m, "allow-ssh");
+    unrelate(&mut m, "bridge-filter");
+    m.entities
+        .shift_remove(&id::<effractor_core::EntityId>("filter"));
+    let diagnostics = effractor_core::validate_architecture(&m);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let graph = generate(&m).unwrap();
+    assert_eq!(
+        inputs(&graph, "action/flow-connect/ssh"),
+        ["state/application/ssh-client/control"]
+    );
+    assert!(
+        !matches!(connect_ttc(&m, &graph), ResolvedTtc::Unknown(_)),
+        "{:?}",
+        connect_ttc(&m, &graph)
+    );
+}
+
 /// What the rest of the model leaves out still stops generation: a flow from
-/// software that runs nowhere, a router with no firewall.
+/// software that runs nowhere.
 #[test]
 fn missing_hosting_still_blocks_generation() {
     let mut m = lecture();
