@@ -232,3 +232,5 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 #nmap-problem { color: var(--color-warning); font-size: var(--text-xs); margin-top: 6px; }
 .nmap-row span { overflow-wrap: anywhere; min-width: 0; }
 .nmap-row .pick.nmap-merge { width: auto; margin-left: auto; flex: none; }
+.nmap-merge-state { display: flex; gap: 8px; align-items: baseline; margin-left: auto; flex: none; }
+.nmap-merge-state .pick.nmap-merge { margin-left: 0; }

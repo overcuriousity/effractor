@@ -178,16 +178,20 @@
     var menu = window.effractorMenu.dropdown(options, h.merged || "");
     menu.classList.add("nmap-merge");
     menu.addEventListener("change", function () {
-      if (menu.value) at.merges[h.key] = menu.value;
-      else delete at.merges[h.key];
+      at.merges[h.key] = menu.value; // "" is a chosen "new": no guess returns
       preview();
     });
-    return menu;
+    if (!h.guessed) return menu;
+    // nmap's own host, by its name in the scan: said, and one click to undo.
+    var both = el("span", null, "nmap-merge-state");
+    both.appendChild(el("span", "nmap runs here?", "hint"));
+    both.appendChild(menu);
+    return both;
   }
   function count() {
     var c = U.catalog();
     var s = N.summary(doc(), at.plan, at.ticks, c ? c.limits : null);
-    var parts = [[s.hosts, "host"], [s.networks, "network"], [s.services, "service"], [s.products, "product"], [s.flows, "flow"]].filter(function (x) { return x[0]; }).map(function (x) {
+    var parts = [[s.hosts, "host"], [s.networks, "network"], [s.attached, "attachment"], [s.services, "service"], [s.products, "product"], [s.flows, "flow"]].filter(function (x) { return x[0]; }).map(function (x) {
       return x[0] + " " + x[1] + (x[0] === 1 ? "" : "s");
     });
     $("nmap-summary").textContent = s.tooMany || (parts.length ? "Adds " + parts.join(", ") + "." : "Nothing new to add.");

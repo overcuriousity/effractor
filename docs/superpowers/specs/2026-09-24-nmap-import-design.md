@@ -178,16 +178,29 @@ else its address; `addresses` are its IP addresses. Deep and Complete add
 nmap's best OS match to its description: `nmap OS guess: Linux 5.4 (96%).`
 
 **Merge** (the *new ▾* choice): the scanned host becomes that existing host,
-whose empty `addresses` are filled. Nothing else on it changes. This is how a
-hand-drawn host, including the one nmap runs on, is recognised from then on.
+whose empty `addresses` are filled, and which is attached as §4.2 says; nothing
+else on it changes. This is how a hand-drawn host, including the one nmap runs
+on, is recognised from then on.
+
+**nmap's own host** (owner, 2026-09-24): when the host nmap runs on has no
+`addresses`, the preview preselects the merge into it for the scanned host
+nmap marks as itself (`reason="localhost-response"`, root scans only) or,
+failing that, the one whose first `<hostname>` is its label or starts with its
+label and a dot (`altiera.fritz.box` for "altiera"). The row says *nmap runs
+here?*; choosing *new* keeps it new. Without root nmap marks nothing, so the
+name is the only sign.
 
 ### 4.2 Networks
 
-A new host is attached to every network whose `addresses` contain one of its
-addresses. When none does and the dialog's range is one CIDR, the preview
-proposes one new network labelled with the range, `addresses: [<range>]`,
-and new hosts in it are attached to it. Otherwise new hosts stay unattached.
-Known and merged hosts keep their links.
+Every scanned host, new, known or merged, is attached to every network whose
+`addresses` contain one of its addresses and that it is not attached to yet:
+an address in a network's range is an interface in it (owner, 2026-09-24).
+When no network holds it and the dialog's range is one CIDR, the preview
+proposes one new network, written from its own address (`192.168.2.138/24`
+proposes `192.168.2.0/24`), and hosts in it are attached to it. Otherwise
+they stay where they are. The summary counts these attachments. A flow's
+route is the first network nmap's host and the target share after the
+import; when nmap's host is left unticked, its flows have no route.
 
 ### 4.3 Services and products
 

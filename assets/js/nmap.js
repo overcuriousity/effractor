@@ -151,6 +151,8 @@
         return a.attrs.addrtype === "ipv4" || a.attrs.addrtype === "ipv6";
       }).map(function (a) { return a.attrs.addr; }),
       hostname: names.length ? names[0].attrs.name || null : null,
+      // A root scan marks nmap's own addresses.
+      self: !!kid(h, "status") && kid(h, "status").attrs.reason === "localhost-response",
       os: match ? { name: match.attrs.name, accuracy: Number(match.attrs.accuracy) } : null,
       ports: kids(kid(h, "ports"), "port").map(function (p) {
         var state = kid(p, "state");
@@ -167,7 +169,7 @@
       var same = null;
       h.addresses.forEach(function (a) { if (!same && byKey[addressKey(a)]) same = byKey[addressKey(a)]; });
       if (!same) {
-        same = { addresses: [], hostname: h.hostname, os: h.os, ports: [] };
+        same = { addresses: [], hostname: h.hostname, os: h.os, self: false, ports: [] };
         out.push(same);
       }
       h.addresses.forEach(function (a) {
@@ -178,6 +180,7 @@
       });
       same.hostname = same.hostname || h.hostname;
       same.os = same.os || h.os;
+      same.self = same.self || h.self;
       h.ports.forEach(function (p) {
         var there = same.ports.filter(function (q) { return q.protocol === p.protocol && q.port === p.port; })[0];
         if (!there) same.ports.push(p);
@@ -280,9 +283,39 @@
     var mine = links(doc, "attached").filter(function (a) { return a.from === machine; }).map(function (a) { return a.to; });
     return ids(doc, "network").filter(function (n) { return mine.indexOf(n) >= 0; });
   }
+  // The network a CIDR range names, written from its own address:
+  // 192.168.2.138/24 is 192.168.2.0/24.
+  function networkOf(cidr) {
+    var parts = String(cidr).split("/");
+    var b = bytes(parts[0]), bits = Number(parts[1]);
+    if (!b || parts.length !== 2 || !/^\d{1,3}$/.test(parts[1]) || bits > b.length * 8) return null;
+    var masked = b.map(function (x, i) {
+      var take = Math.max(0, Math.min(8, bits - i * 8));
+      return take ? x & ((0xff << (8 - take)) & 0xff) : 0;
+    });
+    if (masked.length === 4) return masked.join(".") + "/" + bits;
+    var groups = [];
+    for (var i = 0; i < 16; i += 2) groups.push(((masked[i] << 8) | masked[i + 1]).toString(16));
+    // The longest run of zero groups, if two or more, becomes "::".
+    var best = -1, len = 0;
+    for (var j = 0; j < 8; j++) {
+      var k = j;
+      while (k < 8 && groups[k] === "0") k++;
+      if (k - j > len && k - j > 1) { best = j; len = k - j; }
+      if (k > j) j = k;
+    }
+    var text = best < 0 ? groups.join(":") : groups.slice(0, best).join(":") + "::" + groups.slice(best + len).join(":");
+    return text + "/" + bits;
+  }
   function onlyCidr(range) {
     var words = String(range == null ? "" : range).trim().split(/\s+/).filter(Boolean);
-    return words.length === 1 && /\/\d{1,3}$/.test(words[0]) && inCidr(words[0].split("/")[0], words[0]) ? words[0] : null;
+    return words.length === 1 ? networkOf(words[0]) : null;
+  }
+  // The drawn host nmap runs on, named by the scan: "altiera.fritz.box" or
+  // "altiera" for a host labelled "altiera".
+  function sameName(hostname, label) {
+    var n = String(hostname || "").toLowerCase(), l = String(label || "").trim().toLowerCase();
+    return !!n && !!l && (n === l || n.split(".")[0] === l);
   }
 
   function plan(doc, appId, scan, range, merges) {
@@ -300,46 +333,71 @@
     var appHost = hostingOf(doc, appId);
     var appNets = appHost ? attachedNetworks(doc, appHost) : [];
     var cidr = onlyCidr(range);
-    var proposed = cidr && !networks.some(function (n) { return (doc.entities[n].addresses || []).indexOf(cidr) >= 0; })
-      ? { label: cidr, addresses: [cidr] } : null;
+    var proposed = cidr && !networks.some(function (n) {
+      return (doc.entities[n].addresses || []).some(function (c) { return networkOf(c) === cidr; });
+    }) ? { label: cidr, addresses: [cidr] } : null;
     var products = Object.create(null);
     ids(doc, "product").forEach(function (p) { products[doc.entities[p].label] = products[doc.entities[p].label] || p; });
-    var usedNew = false;
-    var takenBy = Object.create(null);
 
-    var planned = scan.hosts.map(function (h, i) {
+    // Who each scanned host is: known by address, merged as chosen (the
+    // first choice of a drawn host wins; "" is a chosen "new"), or else
+    // nmap's own host when the scan names it so.
+    var takenBy = Object.create(null);
+    var rows = scan.hosts.map(function (h, i) {
       var key = "h" + i;
       var known = null;
       h.addresses.forEach(function (a) { if (!known && byAddress[addressKey(a)]) known = byAddress[addressKey(a)]; });
       var merged = !known && candidates.indexOf(merges[key]) >= 0 && !takenBy[merges[key]] ? merges[key] : null;
       if (merged) takenBy[merged] = key;
-      var target = known || merged;
-      var label = target ? doc.entities[target].label : h.hostname || h.addresses[0];
-      var nets = [];
-      if (!target) {
-        nets = networks.filter(function (n) {
-          return (doc.entities[n].addresses || []).some(function (c) {
-            return h.addresses.some(function (a) { return inCidr(a, c); });
-          });
-        });
-        if (!nets.length && proposed && h.addresses.some(function (a) { return inCidr(a, cidr); })) {
-          nets = ["new"];
-          usedNew = true;
-        }
+      return { key: key, scan: h, known: known, merged: merged, guessed: false };
+    });
+    if (appHost && candidates.indexOf(appHost) >= 0 && !takenBy[appHost]) {
+      var own = rows.filter(function (r) {
+        return !r.known && !r.merged && !has(merges, r.key) && (r.scan.self || sameName(r.scan.hostname, doc.entities[appHost].label));
+      })[0];
+      if (own) {
+        own.merged = appHost;
+        own.guessed = true;
       }
-      var theirs = target ? attachedNetworks(doc, target) : nets;
-      var shared = appNets.filter(function (n) { return theirs.indexOf(n) >= 0; });
+    }
+
+    // Where each one is attached that it is not yet: every network whose
+    // range holds one of its addresses, else the proposed one.
+    var usedNew = false;
+    rows.forEach(function (r) {
+      var target = r.known || r.merged;
+      var have = target ? attachedNetworks(doc, target) : [];
+      var nets = networks.filter(function (n) {
+        return (doc.entities[n].addresses || []).some(function (c) {
+          return r.scan.addresses.some(function (a) { return inCidr(a, c); });
+        });
+      });
+      if (!nets.length && proposed && r.scan.addresses.some(function (a) { return inCidr(a, cidr); })) nets = ["new"];
+      r.networks = nets.filter(function (n) { return have.indexOf(n) < 0; });
+      r.on = have.concat(r.networks);
+      if (r.networks.indexOf("new") >= 0) usedNew = true;
+    });
+    var appNets = appHost ? attachedNetworks(doc, appHost) : [];
+    rows.forEach(function (r) {
+      if (appHost && (r.known || r.merged) === appHost) appNets = appNets.concat(r.networks);
+    });
+
+    var planned = rows.map(function (r) {
+      var h = r.scan, target = r.known || r.merged;
+      var label = target ? doc.entities[target].label : h.hostname || h.addresses[0];
+      var shared = appNets.filter(function (n) { return r.on.indexOf(n) >= 0; });
       return {
-        key: key,
+        key: r.key,
         label: label,
         addresses: h.addresses.slice(),
         os: h.os ? "nmap OS guess: " + h.os.name + " (" + h.os.accuracy + "%)." : null,
-        known: known,
-        merged: merged,
-        networks: nets,
+        known: r.known,
+        merged: r.merged,
+        guessed: r.guessed,
+        networks: r.networks,
         route: shared.length ? [shared[0]] : [],
         ports: h.ports.filter(function (p) { return p.state === "open"; }).map(function (p) {
-          return portRow(doc, appId, target, key, label, p, products);
+          return portRow(doc, appId, target, r.key, label, p, products);
         }),
       };
     });
@@ -392,21 +450,19 @@
   // A new host whose only network is an unticked proposed one is added
   // unattached, as apply does.
   function summary(doc, p, ticks, limits) {
-    var s = { hosts: 0, networks: 0, services: 0, products: 0, flows: 0 };
+    var s = { hosts: 0, networks: 0, attached: 0, services: 0, products: 0, flows: 0 };
     var rel = 0, newProducts = Object.create(null);
     var network = !!(p.network && ticks.network);
     p.hosts.forEach(function (h) {
       if (!ticks.hosts[h.key]) return;
-      if (!h.known && !h.merged) {
-        s.hosts++;
-        h.networks.forEach(function (n) {
-          if (n !== "new") rel++;
-          else if (network) {
-            rel++;
-            s.networks = 1;
-          }
-        });
-      }
+      var added = !h.known && !h.merged;
+      if (added) s.hosts++;
+      h.networks.forEach(function (n) {
+        if (n === "new" && !network) return;
+        rel++;
+        if (n === "new") s.networks = 1;
+        if (!added) s.attached++;
+      });
       h.ports.forEach(function (r) {
         if (!ticks.ports[r.key]) return;
         if (!r.known) {
@@ -453,7 +509,7 @@
   function apply(doc, p, ticks, specOf, stamp) {
     var s = summary(doc, p, ticks, null);
     var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged; });
-    if (!s.hosts && !s.services && !s.flows && !s.networks && !merging) return null;
+    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.attached && !merging) return null;
     var next = JSON.parse(JSON.stringify(doc));
     function step(edit) {
       if (!edit) throw new Error("the nmap import could not be applied");
@@ -469,6 +525,7 @@
       next.entities[network].addresses = p.network.addresses.slice();
     }
     var madeProducts = Object.create(null);
+    var flows = [];
     p.hosts.forEach(function (h) {
       if (!ticks.hosts[h.key]) return;
       var host = h.known || h.merged;
@@ -476,13 +533,13 @@
         host = step(A.addEntity(next, "host", h.label, specOf("host"))).entity;
         next.entities[host].addresses = h.addresses.slice();
         if (h.os) next.entities[host].description = h.os;
-        h.networks.forEach(function (n) {
-          var to = n === "new" ? network : n;
-          if (to) link("attached", host, to);
-        });
       } else if (h.merged) {
         next.entities[host].addresses = h.addresses.slice();
       }
+      h.networks.forEach(function (n) {
+        var to = n === "new" ? network : n;
+        if (to) link("attached", host, to);
+      });
       h.ports.forEach(function (r) {
         if (!ticks.ports[r.key]) return;
         var service = r.known;
@@ -496,16 +553,25 @@
           }
           link("instance-of", service, product);
         }
-        if (r.addsFlow) {
-          step(L.putFlow(next, null, { label: r.label + " on " + h.label, source: p.app, target: service, route: h.route.slice(), protocol: r.proto }));
-        }
+        if (r.addsFlow) flows.push({ label: r.label + " on " + h.label, target: service, host: host, route: h.route, protocol: r.proto });
       });
+    });
+    // After every attachment: a route is kept only where both ends are now
+    // on its network (nmap's host may have been left unticked).
+    flows.forEach(function (f) {
+      var net = f.route[0] === "new" ? network : f.route[0];
+      var ok = net && p.appHost && isAttached(next, p.appHost, net) && isAttached(next, f.host, net);
+      step(L.putFlow(next, null, { label: f.label, source: p.app, target: f.target, route: ok ? [net] : [], protocol: f.protocol }));
     });
     var old = next.entities[p.app].description || "";
     var line = stampLine(stamp);
     var described = A.setDescription(next, p.app, STAMP.test(old) ? old.replace(STAMP, line) : (old ? old + "\n" : "") + line);
     if (described) next = described.doc;
     return { doc: next, select: "entity/" + p.app };
+  }
+
+  function isAttached(doc, machine, net) {
+    return links(doc, "attached").some(function (a) { return a.from === machine && a.to === net; });
   }
 
   // An application that is nmap, run by `hostId` as user when given.

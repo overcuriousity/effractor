@@ -172,8 +172,8 @@ test('merging a scanned host into a hand-drawn one makes it that host', () => {
   const p = N.plan(lab(), 'nmap', deep(), '10.0.1.0/24', { h1: 'printer' });
   assert.equal(p.hosts[1].merged, 'printer');
   assert.equal(p.hosts[1].label, 'Printer');
-  assert.deepEqual(p.hosts[1].networks, [], 'a merged host keeps its own links');
-  assert.deepEqual(p.hosts[1].route, [], 'Printer is attached nowhere yet');
+  assert.deepEqual(p.hosts[1].networks, ['lan'], 'its address is in the lab network: it is attached there');
+  assert.deepEqual(p.hosts[1].route, ['lan']);
   // A merge into a host that has addresses, or into a known one, is ignored.
   assert.equal(N.plan(lab(), 'nmap', deep(), '10.0.1.0/24', { h1: 'srv' }).hosts[1].merged, null);
   assert.equal(N.plan(lab(), 'nmap', deep(), '10.0.1.0/24', { h0: 'printer' }).hosts[0].merged, null);
@@ -382,4 +382,80 @@ test('the stamp says what nmap says it ran, and never "of ."', () => {
   assert.equal(N.stampLine({ date: '2026-09-24', level: 'Deep', range: '' }), 'Last nmap import: 2026-09-24, Deep scan.');
   const noArgs = { args: '', hosts: [], silentUdp: 0 };
   assert.deepEqual(N.stampFor(noArgs, ' 10.0.1.0/24 ', '2026-09-24'), { date: '2026-09-24', level: null, range: '10.0.1.0/24' });
+});
+
+// ---- the scanning host, and attachment by address (owner, 2026-09-24) ----
+
+// The owner's case: nmap on a drawn "altiera" without addresses or network;
+// the scan of 192.168.2.138/24 finds altiera.fritz.box at .138 and a box.
+function laptop() {
+  const d = E.empty();
+  d.entities = {
+    altiera: { kind: 'host', label: 'altiera' },
+    nmap: { kind: 'application', label: 'nmap', tool: 'nmap' },
+  };
+  d.associations = { a1: { kind: 'hosts', from: 'altiera', to: 'nmap', privilege: 'admin' } };
+  return d;
+}
+const home = () => ({ args: 'nmap -sT -sV -oX - 192.168.2.138/24', silentUdp: 0, hosts: [
+  { addresses: ['192.168.2.1'], hostname: 'fritz.box', os: null, self: false, ports: [
+    { protocol: 'tcp', port: 80, state: 'open', service: { name: 'http', product: null, version: null } }] },
+  { addresses: ['192.168.2.138'], hostname: 'altiera.fritz.box', os: null, self: false, ports: [] },
+] });
+
+test('the host nmap runs on is recognised by name and offered as the merge', () => {
+  const p = N.plan(laptop(), 'nmap', home(), '192.168.2.138/24', {});
+  assert.deepEqual([p.hosts[0].merged, p.hosts[1].merged], [null, 'altiera']);
+  assert.equal(p.hosts[1].guessed, true);
+  assert.equal(p.hosts[1].label, 'altiera');
+  // Choosing "new" in the preview is kept: the guess does not come back.
+  assert.equal(N.plan(laptop(), 'nmap', home(), '192.168.2.138/24', { h1: '' }).hosts[1].merged, null);
+  // A root scan marks nmap's own address; the name does not matter then.
+  const marked = home();
+  marked.hosts[1].hostname = 'something-else';
+  marked.hosts[1].self = true;
+  assert.equal(N.plan(laptop(), 'nmap', marked, '192.168.2.138/24', {}).hosts[1].merged, 'altiera');
+  // Only nmap's own host is guessed, and only when it has no addresses.
+  const d = laptop();
+  d.entities.altiera.addresses = ['10.9.9.9'];
+  assert.equal(N.plan(d, 'nmap', home(), '192.168.2.138/24', {}).hosts[1].merged, null);
+});
+
+test('a root scan says which address is nmap itself', () => {
+  const xml = fixture('deep-lab.xml').replace('<status state="up" reason="arp-response" reason_ttl="0"/>\n<address addr="10.0.1.7"', '<status state="up" reason="localhost-response" reason_ttl="0"/>\n<address addr="10.0.1.7"');
+  const { scan } = N.read(xml);
+  assert.deepEqual(scan.hosts.map(h => h.self), [false, true]);
+});
+
+test('the scanning host joins the network its address is in, and the flows get their route', () => {
+  const d = laptop();
+  const p = N.plan(d, 'nmap', home(), '192.168.2.138/24', {});
+  assert.deepEqual(p.network, { label: '192.168.2.0/24', addresses: ['192.168.2.0/24'] }, 'the network, not the address typed');
+  assert.deepEqual(p.hosts[1].networks, ['new']);
+  assert.deepEqual(p.hosts[0].route, ['new']);
+  const s = N.summary(d, p, N.defaults(p), null);
+  assert.deepEqual([s.hosts, s.networks, s.attached, s.services, s.flows], [1, 1, 1, 1, 1]);
+  const out = N.apply(d, p, N.defaults(p), specOf, STAMP).doc;
+  const net = Object.keys(out.entities).find(id => out.entities[id].kind === 'network');
+  assert.deepEqual(out.entities.altiera.addresses, ['192.168.2.138']);
+  assert.ok(Object.values(out.associations).some(a => a.kind === 'attached' && a.from === 'altiera' && a.to === net));
+  assert.deepEqual(Object.values(out.flows).map(f => f.route), [[net]]);
+  // Unticking the scanning host leaves it off the network: the flow has no route.
+  const t = N.defaults(p);
+  t.hosts.h1 = false;
+  assert.deepEqual(Object.values(N.apply(d, p, t, specOf, STAMP).doc.flows).map(f => f.route), [[]]);
+});
+
+test('a known host is attached where its address says, once', () => {
+  const d = lab();
+  delete d.associations.a2; // Server lost its attachment to the lab network
+  const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', {});
+  assert.deepEqual(p.hosts[0].networks, ['lan']);
+  const out = N.apply(d, p, N.defaults(p), specOf, STAMP).doc;
+  assert.equal(Object.values(out.associations).filter(a => a.kind === 'attached' && a.from === 'srv' && a.to === 'lan').length, 1);
+  const again = N.plan(out, 'nmap', deep(), '10.0.1.0/24', {});
+  assert.deepEqual(again.hosts[0].networks, []);
+  // Only attaching is still an edit.
+  const only = N.plan(d, 'nmap', { args: '', silentUdp: 0, hosts: [{ addresses: ['10.0.1.5'], hostname: null, os: null, self: false, ports: [] }] }, '10.0.1.0/24', {});
+  assert.ok(N.apply(d, only, N.defaults(only), specOf, STAMP));
 });

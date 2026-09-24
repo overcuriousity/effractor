@@ -199,6 +199,11 @@
       "from": "domain",
       "to": "dnsmasq-2-90"
     },
+    "printer-attached-lan": {
+      "kind": "attached",
+      "from": "printer",
+      "to": "lan"
+    },
     "printer-hosts-ssh": {
       "kind": "hosts",
       "from": "printer",
@@ -259,7 +264,9 @@
       "label": "ssh on Printer",
       "source": "nmap",
       "target": "ssh",
-      "route": [],
+      "route": [
+        "lan"
+      ],
       "protocol": "tcp/22",
       "parameters": {
         "connect": {
