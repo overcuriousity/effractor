@@ -39,10 +39,14 @@
 .edge[data-id^="flows/"] { stroke-dasharray: 5 3; }
 /* An open cluster: a quiet outline round its members, taking the pointer
    on its line and its name only. */
-.cluster-outline .outline { fill: none; stroke: var(--color-border-strong); stroke-width: 1.5; stroke-dasharray: 6 4; pointer-events: stroke; cursor: pointer; }
-.cluster-outline .outline-label { font-size: 11px; fill: var(--color-fg-muted); cursor: pointer; }
+.cluster-outline .outline { fill: none; stroke: var(--color-border-strong); stroke-width: 1.5; stroke-dasharray: 6 4; pointer-events: none; }
+.cluster-outline .outline-hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
+.cluster-outline .outline-tab { fill: var(--color-bg-surface); stroke: var(--color-border-strong); stroke-width: 1; cursor: pointer; }
+.cluster-outline .outline-label { font-size: 11px; fill: var(--color-fg-secondary); pointer-events: none; }
 .cluster-outline:hover .outline { stroke: var(--color-fg-muted); }
+.cluster-outline:hover .outline-tab { stroke: var(--color-fg-muted); }
 .cluster-outline.hl-selected .outline { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: none; }
+.cluster-outline.hl-selected .outline-tab { stroke: var(--color-accent); }
 .cluster-outline.hl-selected .outline-label { fill: var(--color-accent); }
 .node-component.hl-selected .halo { stroke: var(--color-accent); stroke-width: 2.5; stroke-dasharray: none; }
 /* A selected flow's route: the networks and routers it passes through. */

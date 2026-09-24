@@ -91,8 +91,9 @@
       var marker = el("marker", { id: "edge-arrow", viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" }, [], defs);
       el("path", { d: "M0 0L10 5L0 10z" }, ["arrow-head"], marker);
       viewport = el("g", {}, ["viewport"], svg);
-      groupLayer = el("g", {}, ["groups"], viewport);
       edgeLayer = el("g", {}, ["edges"], viewport);
+      // Over the lines, so an outline's edge and name take the pointer.
+      groupLayer = el("g", {}, ["groups"], viewport);
       ghostLayer = el("g", {}, ["ghosts"], viewport);
       nodeLayer = el("g", {}, ["nodes"], viewport);
 
@@ -393,13 +394,7 @@
       drawn.outlines.forEach(function (d) {
         if (d.group.members.indexOf(id) < 0) return;
         var o = routes.outline(free.at, d.group);
-        if (!o) return;
-        d.box.setAttribute("x", o.x);
-        d.box.setAttribute("y", o.y);
-        d.box.setAttribute("width", o.width);
-        d.box.setAttribute("height", o.height);
-        d.name.setAttribute("x", o.x + 12);
-        d.name.setAttribute("y", o.y - 6);
+        if (o) placeOutline(d, o);
       });
     }
 
@@ -474,11 +469,18 @@
           // Selected by its edge or its name, never by its inside: a press
           // within it is on the members, or pans.
           var group = el("g", { "data-id": o.id }, ["node", "cluster-outline"], groupLayer);
-          var box = el("rect", { x: o.x, y: o.y, width: o.width, height: o.height, rx: 16 }, ["outline"], group);
-          var name = el("text", { x: o.x + 12, y: o.y - 6 }, ["outline-label"], group);
-          name.textContent = o.label;
+          // The line, and a wide unseen band along it to take the pointer.
+          var d = {
+            group: o,
+            box: el("rect", { rx: 16 }, ["outline"], group),
+            hit: el("rect", { rx: 16 }, ["outline-hit"], group),
+            tab: el("rect", { height: 18, rx: 9 }, ["outline-tab"], group),
+            name: el("text", {}, ["outline-label"], group),
+          };
+          d.name.textContent = o.label;
           el("title", {}, [], group).textContent = o.label + " — open cluster";
-          drawn.outlines.push({ group: o, box: box, name: name });
+          placeOutline(d, o);
+          drawn.outlines.push(d);
           drawn.nodes[o.id] = group;
         });
         (layout.attachments || []).forEach(function (a) {
@@ -507,6 +509,24 @@
       drawn.nodes[id].setAttribute("transform", "translate(" + x + " " + y + ")");
     }
 
+    // An open cluster's outline where `o` says, its name on a tab on the
+    // top edge: a target the size of a button, not of its letters.
+    function placeOutline(d, o) {
+      [d.box, d.hit].forEach(function (r) {
+        r.setAttribute("x", o.x);
+        r.setAttribute("y", o.y);
+        r.setAttribute("width", o.width);
+        r.setAttribute("height", o.height);
+      });
+      var w = String(o.label).length * 6.2 + 20;
+      d.tab.setAttribute("x", o.x + 12);
+      d.tab.setAttribute("y", o.y - 9);
+      d.tab.setAttribute("width", w);
+      d.name.setAttribute("x", o.x + 12 + w / 2);
+      d.name.setAttribute("y", o.y + 4);
+      d.name.setAttribute("text-anchor", "middle");
+    }
+
     // Every line, permission and outline as the nodes now stand.
     function rerouteAll() {
       var flows = Object.create(null);
@@ -526,13 +546,7 @@
       });
       drawn.outlines.forEach(function (d) {
         var o = routes.outline(free.at, d.group);
-        if (!o) return;
-        d.box.setAttribute("x", o.x);
-        d.box.setAttribute("y", o.y);
-        d.box.setAttribute("width", o.width);
-        d.box.setAttribute("height", o.height);
-        d.name.setAttribute("x", o.x + 12);
-        d.name.setAttribute("y", o.y - 6);
+        if (o) placeOutline(d, o);
       });
     }
 
