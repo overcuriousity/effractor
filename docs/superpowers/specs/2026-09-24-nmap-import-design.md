@@ -20,8 +20,9 @@ vantage point feeds the attack graph directly.
 
 * **nmap sees the skeleton, not the identities.** Hosts, networks, services,
   products and reachability come from the scan. Accounts, credentials,
-  permissions, firewalls and routers stay the author's; the import never
-  guesses them.
+  permissions and firewall rules stay the author's; the import never
+  guesses them. A router or firewall is added only where the author picks
+  it in the preview, preselected only from nmap's own device class (§4.5).
 * **Only ever add.** An import never changes or removes what the graph already
   holds, except filling an empty `addresses` on a host the author chose to
   merge with (§4.1). A service no longer seen stays until deleted by hand.
@@ -234,6 +235,29 @@ and the target host share a network (the first such, in document order);
 otherwise it is empty and the flow is `unfinished`, completed in the route
 editor.
 
+### 4.5 Routers and firewalls
+
+Owner decision, 2026-09-24 (roadmap `nmap-routers`). Each host row whose
+host does not already run a router has a role choice: **host** (default) ·
+**router** · **router with firewall**. It is preselected from the device
+class of nmap's best OS match (`<osmatch><osclass type>`, Deep and Complete
+only): `router`, `broadband router` or `WAP` preselect *router* (home routers
+are classed WAP as often as router); `firewall` preselects *router with
+firewall*; anything else, or no OS detection, stays *host*. The row says what
+nmap called it (*nmap: WAP*). A pure access point is a host: the author sets
+it back.
+
+* *Router* adds, beside the host as §4.1–§4.4 make it (the box, with its
+  addresses and services), a router labelled `<host label> router`, run by
+  the host at `admin` (`hosts`, an appliance's box) and attached to every
+  network the host is on after the import.
+* *Router with firewall* also adds a firewall `<host label> firewall` that the
+  router filters. Its permissions stay the author's: a flow routed through
+  that router later is `unfinished` until one is set.
+
+Flows the import makes stay within one network, so they cross no router.
+The summary counts routers and firewalls, and the limits include them.
+
 ## 5. Units and tests
 
 * `effractor-core`, `effractor-format`: `addresses` and `tool` — model,
@@ -258,6 +282,6 @@ editor.
 ## 6. Not in this item
 
 NSE scripts (vulnerability detection and the like) are the roadmap item
-`nmap-scripts`. Routers from `--traceroute`, firewall rules from
+`nmap-scripts`. Routers inferred from `--traceroute` or the gateway, firewall rules from
 filtered/closed differences, and inventory from commands run on a host
 (`ss`, `ip`) are not planned.

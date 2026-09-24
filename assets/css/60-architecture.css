@@ -234,3 +234,6 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .nmap-row .pick.nmap-merge { width: auto; margin-left: auto; flex: none; }
 .nmap-merge-state { display: flex; gap: 8px; align-items: baseline; margin-left: auto; flex: none; }
 .nmap-merge-state .pick.nmap-merge { margin-left: 0; }
+.nmap-role { display: flex; gap: 8px; align-items: baseline; margin-left: auto; flex: none; }
+.nmap-role .pick.nmap-merge { margin-left: 0; }
+.nmap-role + .nmap-merge, .nmap-role + .nmap-merge-state, .nmap-role + .hint { margin-left: 0; }

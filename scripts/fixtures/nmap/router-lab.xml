@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sS -sU -sV -O -&#45;top-ports 1000 -oX - 192.168.2.0/24" start="1790260000" version="7.92" xmloutputversion="1.05">
+<host><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.2.1" addrtype="ipv4"/>
+<address addr="3C:A6:2F:00:00:01" addrtype="mac" vendor="AVM GmbH"/>
+<hostnames><hostname name="fritz.box" type="PTR"/></hostnames>
+<ports><port protocol="tcp" portid="80"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="http" product="FRITZ!Box http config" method="probed" conf="10"/></port>
+<port protocol="udp" portid="53"><state state="open" reason="udp-response" reason_ttl="64"/><service name="domain" product="dnsmasq" version="2.90" method="probed" conf="10"/></port>
+</ports>
+<os><osmatch name="AVM FRITZ!Box (FritzOS 6.X)" accuracy="98" line="5100"><osclass type="WAP" vendor="AVM" osfamily="FritzOS" osgen="6.X" accuracy="98"><cpe>cpe:/o:avm:fritz%21_os:6</cpe></osclass><osclass type="broadband router" vendor="AVM" osfamily="embedded" accuracy="98"/></osmatch></os>
+</host>
+<host><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.2.2" addrtype="ipv4"/>
+<hostnames><hostname name="opnsense.lab" type="PTR"/></hostnames>
+<ports><port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="https" product="lighttpd" method="probed" conf="10"/></port></ports>
+<os><osmatch name="pfSense 2.4 (FreeBSD 11.2)" accuracy="95" line="31000"><osclass type="firewall" vendor="pfSense" osfamily="pfSense" osgen="2.X" accuracy="95"/><osclass type="general purpose" vendor="FreeBSD" osfamily="FreeBSD" osgen="11.X" accuracy="95"/></osmatch></os>
+</host>
+<host><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.2.30" addrtype="ipv4"/>
+<hostnames><hostname name="printer.fritz.box" type="PTR"/></hostnames>
+<ports><port protocol="tcp" portid="631"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="ipp" product="CUPS" version="2.4" method="probed" conf="10"/></port></ports>
+<os><osmatch name="HP LaserJet printer" accuracy="93" line="40000"><osclass type="printer" vendor="HP" osfamily="embedded" accuracy="93"/></osmatch></os>
+</host>
+<runstats><finished time="1790261000" elapsed="1000.00" exit="success"/><hosts up="3" down="253" total="256"/>
+</runstats>
+</nmaprun>

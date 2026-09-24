@@ -459,3 +459,83 @@ test('a known host is attached where its address says, once', () => {
   const only = N.plan(d, 'nmap', { args: '', silentUdp: 0, hosts: [{ addresses: ['10.0.1.5'], hostname: null, os: null, self: false, ports: [] }] }, '10.0.1.0/24', {});
   assert.ok(N.apply(d, only, N.defaults(only), specOf, STAMP));
 });
+
+// ---- routers and firewalls (roadmap nmap-routers, spec §4.5) ----
+
+const routers = () => N.read(fixture('router-lab.xml')).scan;
+
+test("nmap's device class is read from its best OS match", () => {
+  assert.deepEqual(routers().hosts.map(h => h.device), [['WAP', 'broadband router'], ['firewall', 'general purpose'], ['printer']]);
+  assert.deepEqual(N.read(fixture('standard-localhost.xml')).scan.hosts[0].device, [], 'no OS detection, no class');
+});
+
+test('the role is preselected from the class only: router, router with firewall, host', () => {
+  const p = N.plan(laptop(), 'nmap', routers(), '192.168.2.0/24', {});
+  assert.deepEqual(p.hosts.map(h => [h.role, h.roleOffered, h.device]), [
+    ['router', true, 'WAP'], ['firewall', true, 'firewall'], ['host', true, 'printer'],
+  ]);
+  assert.deepEqual(N.defaults(p).roles, { h0: 'router', h1: 'firewall', h2: 'host' });
+  // No OS detection: every row is a host, still offered.
+  const plain = N.plan(laptop(), 'nmap', home(), '192.168.2.138/24', {});
+  assert.deepEqual(plain.hosts.map(h => [h.role, h.roleOffered, h.device]), [['host', true, null], ['host', true, null]]);
+});
+
+test('a host that already runs a router is offered no role', () => {
+  const d = laptop();
+  d.entities.gw = { kind: 'host', label: 'Gateway', addresses: ['192.168.2.1'] };
+  d.entities['gw-router'] = { kind: 'router', label: 'Gateway router' };
+  d.associations.a2 = { kind: 'hosts', from: 'gw', to: 'gw-router', privilege: 'admin' };
+  const p = N.plan(d, 'nmap', routers(), '192.168.2.0/24', {});
+  assert.deepEqual([p.hosts[0].known, p.hosts[0].role, p.hosts[0].roleOffered], ['gw', 'host', false]);
+});
+
+test('router adds the router on its box, on every network the box is on; firewall adds its filter', () => {
+  const d = laptop();
+  const p = N.plan(d, 'nmap', routers(), '192.168.2.0/24', {});
+  const t = N.defaults(p);
+  const s = N.summary(d, p, t, null);
+  assert.deepEqual([s.hosts, s.networks, s.routers, s.firewalls], [3, 1, 2, 1]);
+  const out = N.apply(d, p, t, specOf, STAMP).doc;
+  const byLabel = l => Object.keys(out.entities).find(id => out.entities[id].label === l);
+  const box = byLabel('fritz.box'), router = byLabel('fritz.box router'), net = byLabel('192.168.2.0/24');
+  assert.equal(out.entities[router].kind, 'router');
+  const as = Object.values(out.associations);
+  assert.ok(as.some(a => a.kind === 'hosts' && a.from === box && a.to === router && a.privilege === 'admin'));
+  assert.ok(as.some(a => a.kind === 'attached' && a.from === router && a.to === net));
+  assert.ok(as.some(a => a.kind === 'attached' && a.from === box && a.to === net), 'the box stays on the network');
+  assert.ok(as.some(a => a.kind === 'hosts' && a.from === box && out.entities[a.to].label === 'http'), 'services run on the box');
+  const fw = byLabel('opnsense.lab firewall');
+  assert.equal(out.entities[fw].kind, 'firewall');
+  assert.ok(as.some(a => a.kind === 'filters' && a.from === byLabel('opnsense.lab router') && a.to === fw));
+  assert.equal(byLabel('printer.fritz.box router'), undefined);
+  // Counts match what was made.
+  assert.equal(Object.keys(out.entities).length, s.entities);
+  assert.equal(Object.keys(out.associations).length + Object.keys(out.flows).length, s.relationships);
+  // Importing again adds no second router.
+  const again = N.plan(out, 'nmap', routers(), '192.168.2.0/24', {});
+  assert.deepEqual(again.hosts.map(h => h.roleOffered), [false, false, true]);
+  const s2 = N.summary(out, again, N.defaults(again), null);
+  assert.deepEqual([s2.routers, s2.firewalls, s2.hosts], [0, 0, 0]);
+});
+
+test('the author decides: a class can be set back to host, a plain host made a router', () => {
+  const d = laptop();
+  const p = N.plan(d, 'nmap', routers(), '192.168.2.0/24', {});
+  const t = N.defaults(p);
+  t.roles = { h0: 'host', h1: 'host', h2: 'router' };
+  const out = N.apply(d, p, t, specOf, STAMP).doc;
+  const kinds = Object.values(out.entities).map(e => e.kind);
+  assert.equal(kinds.filter(k => k === 'router').length, 1);
+  assert.equal(kinds.filter(k => k === 'firewall').length, 0);
+  assert.ok(Object.values(out.entities).some(e => e.label === 'printer.fritz.box router'));
+});
+
+test('the router import is the document the Rust and wasm checks validate', () => {
+  const d = laptop();
+  const p = N.plan(d, 'nmap', routers(), '192.168.2.0/24', {});
+  const out = N.apply(d, p, N.defaults(p), specOf, STAMP).doc;
+  const file = 'scripts/fixtures/nmap/imported-router.doc.json';
+  const text = JSON.stringify(out, null, 2) + '\n';
+  if (process.env.NMAP_FIXTURE === 'write') fs.writeFileSync(file, text);
+  assert.equal(fs.readFileSync(file, 'utf8'), text);
+});

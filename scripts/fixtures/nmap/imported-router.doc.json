@@ -1,0 +1,392 @@
+{
+  "effractor": 2,
+  "profile": "architecture",
+  "name": "Untitled",
+  "time_unit": "d",
+  "horizon": 100,
+  "library": {
+    "id": "core-components",
+    "version": 1
+  },
+  "entities": {
+    "altiera": {
+      "kind": "host",
+      "label": "altiera"
+    },
+    "nmap": {
+      "kind": "application",
+      "label": "nmap",
+      "tool": "nmap",
+      "description": "Last nmap import: 2026-09-24, Deep scan of 10.0.1.0/24."
+    },
+    "192-168-2-0-24": {
+      "kind": "network",
+      "label": "192.168.2.0/24",
+      "addresses": [
+        "192.168.2.0/24"
+      ]
+    },
+    "fritz-box": {
+      "kind": "host",
+      "label": "fritz.box",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "192.168.2.1"
+      ],
+      "description": "nmap OS guess: AVM FRITZ!Box (FritzOS 6.X) (98%)."
+    },
+    "fritz-box-router": {
+      "kind": "router",
+      "label": "fritz.box router",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http": {
+      "kind": "service",
+      "label": "http",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "fritz-box-http-config": {
+      "kind": "product",
+      "label": "FRITZ!Box http config",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "domain": {
+      "kind": "service",
+      "label": "domain",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "dnsmasq-2-90": {
+      "kind": "product",
+      "label": "dnsmasq 2.90",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "opnsense-lab": {
+      "kind": "host",
+      "label": "opnsense.lab",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "192.168.2.2"
+      ],
+      "description": "nmap OS guess: pfSense 2.4 (FreeBSD 11.2) (95%)."
+    },
+    "opnsense-lab-router": {
+      "kind": "router",
+      "label": "opnsense.lab router",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      }
+    },
+    "opnsense-lab-firewall": {
+      "kind": "firewall",
+      "label": "opnsense.lab firewall"
+    },
+    "https": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "lighttpd": {
+      "kind": "product",
+      "label": "lighttpd",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "printer-fritz-box": {
+      "kind": "host",
+      "label": "printer.fritz.box",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "192.168.2.30"
+      ],
+      "description": "nmap OS guess: HP LaserJet printer (93%)."
+    },
+    "ipp": {
+      "kind": "service",
+      "label": "ipp",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "cups-2-4": {
+      "kind": "product",
+      "label": "CUPS 2.4",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    }
+  },
+  "associations": {
+    "a1": {
+      "kind": "hosts",
+      "from": "altiera",
+      "to": "nmap",
+      "privilege": "admin"
+    },
+    "fritz-box-attached-192-168-2-0-24": {
+      "kind": "attached",
+      "from": "fritz-box",
+      "to": "192-168-2-0-24"
+    },
+    "fritz-box-hosts-fritz-box-router": {
+      "kind": "hosts",
+      "from": "fritz-box",
+      "to": "fritz-box-router",
+      "privilege": "admin"
+    },
+    "fritz-box-router-attached-192-168-2-0-24": {
+      "kind": "attached",
+      "from": "fritz-box-router",
+      "to": "192-168-2-0-24"
+    },
+    "fritz-box-hosts-http": {
+      "kind": "hosts",
+      "from": "fritz-box",
+      "to": "http",
+      "privilege": "admin",
+      "description": "Privilege assumed by the nmap import."
+    },
+    "http-instance-of-fritz-box-http-config": {
+      "kind": "instance-of",
+      "from": "http",
+      "to": "fritz-box-http-config"
+    },
+    "fritz-box-hosts-domain": {
+      "kind": "hosts",
+      "from": "fritz-box",
+      "to": "domain",
+      "privilege": "admin",
+      "description": "Privilege assumed by the nmap import."
+    },
+    "domain-instance-of-dnsmasq-2-90": {
+      "kind": "instance-of",
+      "from": "domain",
+      "to": "dnsmasq-2-90"
+    },
+    "opnsense-lab-attached-192-168-2-0-24": {
+      "kind": "attached",
+      "from": "opnsense-lab",
+      "to": "192-168-2-0-24"
+    },
+    "opnsense-lab-hosts-opnsense-lab-router": {
+      "kind": "hosts",
+      "from": "opnsense-lab",
+      "to": "opnsense-lab-router",
+      "privilege": "admin"
+    },
+    "opnsense-lab-router-attached-192-168-2-0-24": {
+      "kind": "attached",
+      "from": "opnsense-lab-router",
+      "to": "192-168-2-0-24"
+    },
+    "opnsense-lab-router-filters-opnsense-lab-firewall": {
+      "kind": "filters",
+      "from": "opnsense-lab-router",
+      "to": "opnsense-lab-firewall"
+    },
+    "opnsense-lab-hosts-https": {
+      "kind": "hosts",
+      "from": "opnsense-lab",
+      "to": "https",
+      "privilege": "admin",
+      "description": "Privilege assumed by the nmap import."
+    },
+    "https-instance-of-lighttpd": {
+      "kind": "instance-of",
+      "from": "https",
+      "to": "lighttpd"
+    },
+    "printer-fritz-box-attached-192-168-2-0-24": {
+      "kind": "attached",
+      "from": "printer-fritz-box",
+      "to": "192-168-2-0-24"
+    },
+    "printer-fritz-box-hosts-ipp": {
+      "kind": "hosts",
+      "from": "printer-fritz-box",
+      "to": "ipp",
+      "privilege": "admin",
+      "description": "Privilege assumed by the nmap import."
+    },
+    "ipp-instance-of-cups-2-4": {
+      "kind": "instance-of",
+      "from": "ipp",
+      "to": "cups-2-4"
+    }
+  },
+  "flows": {
+    "http-on-fritz-box": {
+      "label": "http on fritz.box",
+      "source": "nmap",
+      "target": "http",
+      "route": [],
+      "protocol": "tcp/80",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "domain-on-fritz-box": {
+      "label": "domain on fritz.box",
+      "source": "nmap",
+      "target": "domain",
+      "route": [],
+      "protocol": "udp/53",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-opnsense-lab": {
+      "label": "https on opnsense.lab",
+      "source": "nmap",
+      "target": "https",
+      "route": [],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "ipp-on-printer-fritz-box": {
+      "label": "ipp on printer.fritz.box",
+      "source": "nmap",
+      "target": "ipp",
+      "route": [],
+      "protocol": "tcp/631",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    }
+  },
+  "attacker": {
+    "footholds": []
+  },
+  "scenarios": {},
+  "analysis": {
+    "seed": 42,
+    "samples": 10000,
+    "confidence": 0.95
+  }
+}

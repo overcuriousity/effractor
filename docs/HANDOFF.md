@@ -5,6 +5,23 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — routers from nmap (2026-09-24)
+
+`nmap-routers` (spec §4.5 of the nmap design, owner's design in
+conversation): each host row of the preview has a role, **host** ·
+**router** · **router with firewall**, preselected only from nmap's device
+class of its best OS match (`router`, `broadband router`, `WAP` → router;
+`firewall` → router with firewall; Deep/Complete only), said as *nmap: WAP*.
+FRITZ!Boxes are classed WAP more often than router, hence WAP. *Router* adds
+`<host> router` run by the box at admin and attached to every network the box
+is on; *router with firewall* adds `<host> firewall` filtered by it. A host
+that already runs a router is offered no role. `read` gives `device` (the
+classes), `plan` gives `role`/`roleOffered`/`device`/`on`, ticks carry
+`roles`, `summary` counts `routers`/`firewalls` (exact against the limits).
+Fixtures: `router-lab.xml` (hand-written Deep shape, needs root to record),
+`imported-router.doc.json` (pinned by Node, `tests/json.rs`,
+`check-nmap-wasm.js`).
+
 ## Continuation — nmap import (2026-09-24)
 
 `nmap-import` is done (spec

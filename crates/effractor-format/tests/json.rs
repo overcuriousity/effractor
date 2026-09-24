@@ -161,9 +161,22 @@ fn the_javascript_architecture_fixture_is_the_real_image() {
 /// worse than `incomplete` (the lab has no target yet).
 #[test]
 fn the_nmap_import_fixture_is_a_valid_architecture() {
+    nmap_fixture_is_valid("imported.doc.json");
+}
+
+/// The same for an import that made a router on its box and one with a
+/// firewall (spec §4.5).
+#[test]
+fn the_nmap_router_import_fixture_is_a_valid_architecture() {
+    let text = nmap_fixture_is_valid("imported-router.doc.json");
+    assert!(text.contains("kind: router"), "{text}");
+    assert!(text.contains("kind: firewall"), "{text}");
+    assert!(text.contains("kind: filters"), "{text}");
+}
+
+fn nmap_fixture_is_valid(name: &str) -> String {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let fixture =
-        std::fs::read_to_string(root.join("scripts/fixtures/nmap/imported.doc.json")).unwrap();
+    let fixture = std::fs::read_to_string(root.join("scripts/fixtures/nmap").join(name)).unwrap();
     let fixture: Value = serde_json::from_str(&fixture).unwrap();
     let text = from_document(&fixture).unwrap_or_else(|d| panic!("{d:?}"));
     assert!(text.contains("tool: nmap"), "{text}");
@@ -179,7 +192,10 @@ fn the_nmap_import_fixture_is_a_valid_architecture() {
         !diagnostics
             .iter()
             .any(|d| d.code == effractor_core::Code::Incomplete
-                && (d.message.contains("product") || d.message.contains("runs nowhere"))),
+                && (d.message.contains("product")
+                    || d.message.contains("runs nowhere")
+                    || d.message.contains("belongs to no router"))),
         "{diagnostics:?}"
     );
+    text
 }

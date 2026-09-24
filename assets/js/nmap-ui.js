@@ -107,7 +107,7 @@
     var old = at.ticks;
     at.plan = N.plan(doc(), at.app, at.scan, $("nmap-range").value, at.merges);
     var fresh = N.defaults(at.plan);
-    at.ticks = old ? { hosts: keep(old.hosts, fresh.hosts), ports: keep(old.ports, fresh.ports), network: old.network } : fresh;
+    at.ticks = old ? { hosts: keep(old.hosts, fresh.hosts), ports: keep(old.ports, fresh.ports), roles: keep(old.roles, fresh.roles), network: old.network } : fresh;
     var rows = $("nmap-rows");
     rows.textContent = "";
     if (at.plan.network) {
@@ -125,6 +125,7 @@
         h.ports.forEach(function (r) { at.ticks.ports[r.key] = on && (!r.known || r.addsFlow); });
         preview();
       });
+      head.appendChild(role(h));
       head.appendChild(state(h));
       li.appendChild(head);
       var ports = el("ul", null, "nmap-ports");
@@ -166,6 +167,23 @@
     label.appendChild(el("span", text));
     return label;
   }
+  // Spec §4.5: host, router on its box, or router with its firewall;
+  // preselected only from what nmap called the device, which is said.
+  var ROLES = [["host", "host"], ["router", "router"], ["firewall", "router with firewall"]];
+  function role(h) {
+    var box = el("span", null, "nmap-role");
+    if (h.device) box.appendChild(el("span", "nmap: " + h.device, "hint"));
+    if (!h.roleOffered) return box;
+    var menu = window.effractorMenu.dropdown(ROLES, at.ticks.roles[h.key] || "host");
+    menu.classList.add("nmap-merge");
+    menu.addEventListener("change", function () {
+      at.ticks.roles[h.key] = menu.value;
+      count();
+    });
+    box.appendChild(menu);
+    return box;
+  }
+
   // Known, or new with a choice to merge it into a hand-drawn host.
   function state(h) {
     if (h.known) return el("span", "known as “" + doc().entities[h.known].label + "”", "hint");
@@ -191,7 +209,7 @@
   function count() {
     var c = U.catalog();
     var s = N.summary(doc(), at.plan, at.ticks, c ? c.limits : null);
-    var parts = [[s.hosts, "host"], [s.networks, "network"], [s.attached, "attachment"], [s.services, "service"], [s.products, "product"], [s.flows, "flow"]].filter(function (x) { return x[0]; }).map(function (x) {
+    var parts = [[s.hosts, "host"], [s.networks, "network"], [s.attached, "attachment"], [s.routers, "router"], [s.firewalls, "firewall"], [s.services, "service"], [s.products, "product"], [s.flows, "flow"]].filter(function (x) { return x[0]; }).map(function (x) {
       return x[0] + " " + x[1] + (x[0] === 1 ? "" : "s");
     });
     $("nmap-summary").textContent = s.tooMany || (parts.length ? "Adds " + parts.join(", ") + "." : "Nothing new to add.");

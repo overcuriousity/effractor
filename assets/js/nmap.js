@@ -154,6 +154,8 @@
       // A root scan marks nmap's own addresses.
       self: !!kid(h, "status") && kid(h, "status").attrs.reason === "localhost-response",
       os: match ? { name: match.attrs.name, accuracy: Number(match.attrs.accuracy) } : null,
+      // nmap's device classes for its best match: "WAP", "broadband router"…
+      device: kids(match, "osclass").map(function (c) { return c.attrs.type; }).filter(Boolean),
       ports: kids(kid(h, "ports"), "port").map(function (p) {
         var state = kid(p, "state");
         return { protocol: p.attrs.protocol, port: Number(p.attrs.portid), state: state ? state.attrs.state : "", service: serviceOf(p) };
@@ -169,7 +171,7 @@
       var same = null;
       h.addresses.forEach(function (a) { if (!same && byKey[addressKey(a)]) same = byKey[addressKey(a)]; });
       if (!same) {
-        same = { addresses: [], hostname: h.hostname, os: h.os, self: false, ports: [] };
+        same = { addresses: [], hostname: h.hostname, os: h.os, device: h.device || [], self: false, ports: [] };
         out.push(same);
       }
       h.addresses.forEach(function (a) {
@@ -180,6 +182,7 @@
       });
       same.hostname = same.hostname || h.hostname;
       same.os = same.os || h.os;
+      if (!same.device.length) same.device = h.device || [];
       same.self = same.self || h.self;
       h.ports.forEach(function (p) {
         var there = same.ports.filter(function (q) { return q.protocol === p.protocol && q.port === p.port; })[0];
@@ -311,6 +314,19 @@
     var words = String(range == null ? "" : range).trim().split(/\s+/).filter(Boolean);
     return words.length === 1 ? networkOf(words[0]) : null;
   }
+  // Spec §4.5: the role nmap's device class suggests, and the class that said so.
+  var ROUTERS = ["router", "broadband router", "WAP"];
+  function roleOf(device) {
+    var classes = device || [];
+    if (classes.indexOf("firewall") >= 0) return { role: "firewall", device: "firewall" };
+    var r = classes.filter(function (c) { return ROUTERS.indexOf(c) >= 0; })[0];
+    if (r) return { role: "router", device: r };
+    return { role: "host", device: classes[0] || null };
+  }
+  function runsRouter(doc, host) {
+    return links(doc, "hosts").some(function (a) { return a.from === host && doc.entities[a.to] && doc.entities[a.to].kind === "router"; });
+  }
+
   // The drawn host nmap runs on, named by the scan: "altiera.fritz.box" or
   // "altiera" for a host labelled "altiera".
   function sameName(hostname, label) {
@@ -386,6 +402,8 @@
       var h = r.scan, target = r.known || r.merged;
       var label = target ? doc.entities[target].label : h.hostname || h.addresses[0];
       var shared = appNets.filter(function (n) { return r.on.indexOf(n) >= 0; });
+      var offered = !(target && runsRouter(doc, target));
+      var suggested = roleOf(h.device);
       return {
         key: r.key,
         label: label,
@@ -395,6 +413,10 @@
         merged: r.merged,
         guessed: r.guessed,
         networks: r.networks,
+        on: r.on,
+        role: offered ? suggested.role : "host",
+        roleOffered: offered,
+        device: suggested.device,
         route: shared.length ? [shared[0]] : [],
         ports: h.ports.filter(function (p) { return p.state === "open"; }).map(function (p) {
           return portRow(doc, appId, target, r.key, label, p, products);
@@ -438,19 +460,25 @@
   }
 
   function defaults(p) {
-    var t = { hosts: {}, ports: {}, network: true };
+    var t = { hosts: {}, ports: {}, roles: {}, network: true };
     p.hosts.forEach(function (h) {
       t.hosts[h.key] = true;
+      t.roles[h.key] = h.role;
       h.ports.forEach(function (r) { if (!r.known || r.addsFlow) t.ports[r.key] = true; });
     });
     return t;
+  }
+
+  function roleChosen(h, ticks) {
+    var role = ticks.roles && has(ticks.roles, h.key) ? ticks.roles[h.key] : "host";
+    return h.roleOffered && (role === "router" || role === "firewall") ? role : "host";
   }
 
   // What the ticked rows add, and whether the result stays in the limits.
   // A new host whose only network is an unticked proposed one is added
   // unattached, as apply does.
   function summary(doc, p, ticks, limits) {
-    var s = { hosts: 0, networks: 0, attached: 0, services: 0, products: 0, flows: 0 };
+    var s = { hosts: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0 };
     var rel = 0, newProducts = Object.create(null);
     var network = !!(p.network && ticks.network);
     p.hosts.forEach(function (h) {
@@ -463,6 +491,16 @@
         if (n === "new") s.networks = 1;
         if (!added) s.attached++;
       });
+      var role = roleChosen(h, ticks);
+      if (role !== "host") {
+        s.routers++;
+        // hosts, and one attachment per network the box is on afterwards
+        rel += 1 + h.on.filter(function (n) { return n !== "new" || network; }).length;
+        if (role === "firewall") {
+          s.firewalls++;
+          rel++; // filters
+        }
+      }
       h.ports.forEach(function (r) {
         if (!ticks.ports[r.key]) return;
         if (!r.known) {
@@ -477,7 +515,7 @@
       });
     });
     rel += s.flows;
-    s.entities = Object.keys(doc.entities || {}).length + s.hosts + s.networks + s.services + s.products;
+    s.entities = Object.keys(doc.entities || {}).length + s.hosts + s.networks + s.routers + s.firewalls + s.services + s.products;
     s.relationships = Object.keys(doc.associations || {}).length + Object.keys(doc.flows || {}).length + rel;
     s.tooMany = null;
     if (limits && s.entities > limits.entities) s.tooMany = "That makes " + s.entities + " components; the limit is " + limits.entities + ". Untick some hosts.";
@@ -509,7 +547,7 @@
   function apply(doc, p, ticks, specOf, stamp) {
     var s = summary(doc, p, ticks, null);
     var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged; });
-    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.attached && !merging) return null;
+    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.attached && !s.routers && !merging) return null;
     var next = JSON.parse(JSON.stringify(doc));
     function step(edit) {
       if (!edit) throw new Error("the nmap import could not be applied");
@@ -540,6 +578,19 @@
         var to = n === "new" ? network : n;
         if (to) link("attached", host, to);
       });
+      var role = roleChosen(h, ticks);
+      if (role !== "host") {
+        // The router on its box (an appliance), on every network the box is on.
+        var router = step(A.addEntity(next, "router", h.label + " router", specOf("router"))).entity;
+        link("hosts", host, router, { privilege: "admin" });
+        links(next, "attached").filter(function (a) { return a.from === host; }).forEach(function (a) {
+          link("attached", router, a.to);
+        });
+        if (role === "firewall") {
+          var firewall = step(A.addEntity(next, "firewall", h.label + " firewall", specOf("firewall"))).entity;
+          link("filters", router, firewall);
+        }
+      }
       h.ports.forEach(function (r) {
         if (!ticks.ports[r.key]) return;
         var service = r.known;

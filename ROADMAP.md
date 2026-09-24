@@ -87,21 +87,6 @@ own short design of which scripts are read and what each finding sets. Done
 when the chosen scripts' fixtures import as designed and unknown script
 output is shown, not guessed at.
 
-### nmap-routers — Import a scanned device as a router or firewall
-needs: —            cost: 2   benefit: 4
-Owner decision, 2026-09-24. Each host row of the nmap preview gets a kind
-choice: **host** (default) · **router** · **router with firewall**, preselected
-only where nmap's OS detection classes the device as a router, broadband
-router, WAP or firewall (`<osclass type>`, Deep and Complete), never guessed
-otherwise. *Router* adds the box as a host with its addresses and services
-plus a router running on it at admin, both attached to the network; *router
-with firewall* adds the router's firewall too, whose permissions stay for
-the author (flows through it are `unfinished` until set). An access point is
-a host. Amends the nmap design §1 and §6 (routers were the author's only);
-needs a short spec section first. Done when fixtures with each `osclass`
-type plan and apply as designed, the result validates in wasm, and the owner
-imports the home router in the browser.
-
 ## Compatibility after the lecture milestone
 
 ### mal-securicad-compatibility — Reuse existing models and libraries
