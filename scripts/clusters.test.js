@@ -198,3 +198,34 @@ test('a member dragged out of a closed cluster stays in it, drawn beside it', ()
   // Selected, the cluster lights what is drawn beside it.
   assert.deepEqual(C.lit(out.doc, ['cluster/srv']), ['cluster/srv', 'entity/domain']);
 });
+
+test('dragging one onto another merges them', () => {
+  const doc = C.build(IMPORTED).doc;
+  // A component onto a cluster: it joins.
+  let m = C.merge(doc, 'entity/openssh', 'cluster/srv');
+  assert.equal(C.clusterOf(m.doc, 'openssh'), 'srv');
+  // A cluster onto a cluster: the target takes the members, keeps its name.
+  m = C.merge(doc, 'cluster/printer', 'cluster/srv');
+  assert.equal('printer' in m.doc.clusters, false);
+  assert.deepEqual(m.doc.clusters.srv.members.slice(-2), ['printer', 'ssh']);
+  assert.equal(m.doc.clusters.srv.label, doc.clusters.srv.label);
+  assert.equal(m.select, 'cluster/srv');
+  // A cluster onto a component: the cluster takes it in.
+  m = C.merge(doc, 'cluster/printer', 'entity/openssh');
+  assert.equal(C.clusterOf(m.doc, 'openssh'), 'printer');
+  // Two loose components: a new cluster, named after the target, first.
+  const loose = JSON.parse(JSON.stringify(IMPORTED));
+  m = C.merge(loose, 'entity/openssh', 'entity/lan');
+  const [cid] = Object.keys(m.doc.clusters);
+  assert.deepEqual(m.doc.clusters[cid].members, ['lan', 'openssh']);
+  assert.equal(m.doc.clusters[cid].label, IMPORTED.entities.lan.label + ' +1');
+  // Onto a member of an open cluster: it joins that one.
+  const open = C.setClosed(doc, 'srv', false).doc;
+  assert.equal(C.clusterOf(C.merge(open, 'entity/openssh', 'entity/sshd').doc, 'openssh'), 'srv');
+  // Back onto its own cluster from beside it: stacked again; else nothing.
+  const peeled = C.peel(doc, 'srv', 'domain').doc;
+  assert.equal('shown' in C.merge(peeled, 'entity/domain', 'cluster/srv').doc.clusters.srv, false);
+  assert.equal(C.merge(doc, 'entity/sshd', 'cluster/srv'), null);
+  assert.equal(C.merge(open, 'entity/sshd', 'entity/domain'), null, 'already together');
+  assert.equal(C.merge(doc, 'cluster/srv', 'cluster/srv'), null);
+});

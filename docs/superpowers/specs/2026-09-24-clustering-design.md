@@ -154,7 +154,9 @@ place changes otherwise (arranging, a re-layout) glides there too, about a
 quarter second. Nothing moves for a browser that asks for reduced motion.
 
 **Arrange automatically.** A closed cluster is one node for the stress
-layout. An open cluster is laid out as a block: a host's cluster in the
+layout. An open cluster (or a closed one with members beside it) is laid out
+as a block, with room round it for its outline and above it for its name
+(owner, 2026-09-25: arranging respects opened clusters): a host's cluster in the
 existing host-block arrangement (`graph.blocks`: host on top, software in
 rows of five, products under their user; a router or firewall of the box in
 the software row), any other in rows of five in member order.
@@ -221,6 +223,15 @@ moves in. Opening or closing puts everyone together again. The ×, *Take
 out* and *Dissolve* remove membership. Esc during the drag cancels it.
 A right-click anywhere inside a cluster's outline, not on a component, is
 the cluster's menu; *Dissolve* follows *Open*/*Close* in it.
+
+**Dragging one onto another merges them** (owner, 2026-09-25). While a single
+component or cluster is dragged on the canvas, what it is over lights up as
+the target and draws it a little towards itself (12 % of the way, at most
+12 px). Let go there: a component joins a cluster (or the cluster of an
+open member) it is dropped on; a cluster dropped on a cluster gives it its
+members, the target keeping its name; a cluster takes in a component it is
+dropped on; two loose components become a closed cluster named after the
+target. Already together, it only moved.
 
 ## 6. Units and tests
 

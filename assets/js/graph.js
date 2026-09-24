@@ -207,6 +207,18 @@
     return { members: members, at: at, width: width, height: y - BLOCK.gap };
   }
 
+  // Room round a cluster's block for its outline, and above it for the
+  // name on its tab (positions.js draws them 10 px out, the tab 9 px above).
+  var FRAME = { side: 12, top: 22 };
+  function framed(block) {
+    Object.keys(block.at).forEach(function (id) {
+      block.at[id] = { x: block.at[id].x + FRAME.side, y: block.at[id].y + FRAME.top };
+    });
+    block.width += 2 * FRAME.side;
+    block.height += FRAME.top + FRAME.side;
+    return block;
+  }
+
   function blocks(graph) {
     var node = dict(), order = dict();
     graph.nodes.forEach(function (n, i) {
@@ -267,7 +279,7 @@
         placed[p] = true;
       });
       var row = members.filter(function (m) { return m !== top && !placed[m]; });
-      var block = arrange(top, row, under2);
+      var block = framed(arrange(top, row, under2));
       block.members.forEach(function (m) { out.of[m] = top; });
       out.blocks[top] = block;
     });

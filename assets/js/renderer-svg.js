@@ -85,6 +85,40 @@
       return { x: (cx - box.left - view.x) / view.k, y: (cy - box.top - view.y) / view.k };
     }
 
+    var PULL = { share: 0.12, most: 12 }; // how far a target draws what is over it
+
+    // What a single dragged node is over (`over`, a drawn id, or null): lit
+    // as the target of a merge, and the node drawn a little towards it.
+    // `keep`: let go — the pull stays where it is, only the light goes.
+    function aim(g, over, keep) {
+      if (over === g.id) over = null;
+      if (over !== g.over) {
+        lightTarget(g.over, false);
+        lightTarget(over, true);
+        g.over = over;
+      }
+      if (keep) return lightTarget(g.over, false);
+      var pull = { x: 0, y: 0 };
+      var me = free.at[g.id], to = over ? free.at[over] : null;
+      if (me && to) {
+        var dx = to.x + to.width / 2 - (me.x + me.width / 2) + (g.pull ? g.pull.x : 0);
+        var dy = to.y + to.height / 2 - (me.y + me.height / 2) + (g.pull ? g.pull.y : 0);
+        var len = Math.sqrt(dx * dx + dy * dy) || 1;
+        var k = Math.min(PULL.share * len, PULL.most) / len;
+        pull = { x: dx * k, y: dy * k };
+      }
+      var was = g.pull || { x: 0, y: 0 };
+      if (pull.x !== was.x || pull.y !== was.y) moveBy(g.id, pull.x - was.x, pull.y - was.y);
+      g.pull = pull;
+    }
+    function lightTarget(id, on) {
+      if (!id) return;
+      if (drawn.nodes[id]) drawn.nodes[id].classList.toggle("is-merge-target", on);
+      (drawn.outlines || []).forEach(function (d) {
+        if (d.group.id === id) d.el.classList.toggle("is-merge-target", on);
+      });
+    }
+
     // The outline an element belongs to, as drawn, or null.
     function outlineOf(target) {
       var el = target && target.closest ? target.closest(".cluster-outline") : null;
@@ -194,6 +228,7 @@
           });
           gesture.x = e.clientX;
           gesture.y = e.clientY;
+          if (gesture.alone) aim(gesture, idAt(dropTarget(e)));
           return;
         }
         if (gesture.id) return; // a node in hand: nothing moves until it is dropped
@@ -226,12 +261,13 @@
             var p = free.at[id];
             if (p) emit("move", { id: id, x: p.x, y: p.y });
           });
-          // One component let go over a cluster: dropped on it (it takes the
-          // component in). Anything else in a free layout is only a move.
+          // One component or cluster let go over another: dropped on it,
+          // to merge them (owner, 2026-09-25).
           if (g.alone && drawn.nodes[g.id]) {
             drawn.nodes[g.id].classList.remove("is-in-hand");
-            var over = idAt(dropTarget(e));
-            if (over && over !== g.id && over.indexOf("cluster/") === 0) emit("drop", { id: g.id, target: over, ctrl: ctrl });
+            var over = g.over;
+            aim(g, null, true);
+            if (over) emit("drop", { id: g.id, target: over, ctrl: ctrl });
           }
           return;
         }
@@ -239,6 +275,7 @@
         if (g.id && target && target !== g.id) emit("drop", { id: g.id, target: target, ctrl: !!(e.ctrlKey || e.metaKey) });
       });
       svg.addEventListener("pointercancel", function () {
+        if (gesture && gesture.alone) aim(gesture, null);
         gesture = null;
         dropMarquee();
         svg.classList.remove("is-dragging", "is-moving", "is-panning", "is-picking");

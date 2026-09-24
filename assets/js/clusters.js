@@ -318,6 +318,44 @@
     return { doc: next, select: "cluster/" + cid };
   }
 
+  // One dragged onto another (owner, 2026-09-25), each `entity/…` or
+  // `cluster/…`: a component joins a cluster it is dropped on, or the
+  // cluster of an open member it is dropped on; a cluster onto a cluster
+  // gives the target its members; a cluster takes in a component it is
+  // dropped on; two loose components become a cluster, the target first.
+  // A member beside its own stack dropped onto it goes back in.
+  function merge(doc, dragged, target) {
+    function split(q) {
+      var at = q.indexOf("/");
+      return { kind: q.slice(0, at), id: q.slice(at + 1) };
+    }
+    var d = split(dragged), t = split(target);
+    if (dragged === target) return null;
+    if (d.kind === "entity" && !has(doc.entities, d.id)) return null;
+    if (t.kind === "entity" && !has(doc.entities, t.id)) return null;
+    if (d.kind === "cluster" && !has(doc.clusters, d.id)) return null;
+    if (t.kind === "cluster" && !has(doc.clusters, t.id)) return null;
+    if (t.kind === "cluster" && d.kind === "entity") {
+      var c = doc.clusters[t.id];
+      if ((c.shown || []).indexOf(d.id) >= 0) return unpeel(doc, t.id, d.id);
+      return moveTo(doc, d.id, t.id);
+    }
+    if (t.kind === "cluster") {
+      var from = doc.clusters[d.id].members.filter(function (m) {
+        return has(doc.entities, m);
+      });
+      var next = clone(doc);
+      delete next.clusters[d.id];
+      next.clusters[t.id].members = next.clusters[t.id].members.concat(from);
+      return { doc: next, select: "cluster/" + t.id, notice: "merged “" + label(doc, d.id) + "” into “" + label(doc, t.id) + "” · Ctrl+Z undoes" };
+    }
+    if (d.kind === "cluster") return moveTo(doc, t.id, d.id);
+    var into = clusterOf(doc, t.id);
+    if (into && into === clusterOf(doc, d.id)) return null;
+    if (into) return moveTo(doc, d.id, into);
+    return make(doc, [t.id, d.id]);
+  }
+
   // K (owner, 2026-09-25): nothing selected, the rail's toggle; one
   // cluster, or a member of one, opens or closes it; several, clusters among
   // them, become one cluster. `picked`: qualified ids. An edit, or {refusal}.
@@ -490,6 +528,7 @@
     rename: rename,
     setClosed: setClosed,
     peel: peel,
+    merge: merge,
     unpeel: unpeel,
     pressK: pressK,
     lit: lit,

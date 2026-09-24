@@ -378,9 +378,24 @@ test("an open cluster is laid out as a block, its first member on top", () => {
   assert.deepStrictEqual(Object.keys(b.blocks), ["entity/box"]);
   const block = b.blocks["entity/box"];
   assert.deepStrictEqual(block.members, ["entity/box", "entity/r", "entity/a", "entity/p"]);
-  assert.strictEqual(block.at["entity/box"].y, 0);
+  assert.strictEqual(block.at["entity/box"].y, Math.min(...Object.values(block.at).map((p) => p.y)), "the first member on top");
   assert.strictEqual(block.at["entity/r"].y, block.at["entity/a"].y, "router in the software row");
   assert.strictEqual(block.at["entity/p"].x, block.at["entity/a"].x, "product under its user");
   assert.ok(block.at["entity/p"].y > block.at["entity/a"].y);
   assert.strictEqual(b.of["entity/x"], undefined);
+});
+
+test("an open cluster's block keeps room for its outline and name", () => {
+  const G = require("../assets/js/graph.js");
+  const node = (id, component) => ({ id: "entity/" + id, component, symbol: "component", lines: [id] });
+  const graph = {
+    nodes: [node("a", "host"), node("b", "service")],
+    edges: [],
+    groups: [{ id: "cluster/c", label: "c", members: ["entity/a", "entity/b"] }],
+  };
+  const block = G.blocks(graph).blocks["entity/a"];
+  assert.ok(block.at["entity/a"].y >= 20, "room above for the name tab");
+  assert.ok(block.at["entity/b"].x >= 10, "room at the side for the outline");
+  const right = Math.max(...Object.values(block.at).map((p) => p.x)) + G.SIZE.width;
+  assert.ok(block.width >= right + 10, "room at the other side");
 });

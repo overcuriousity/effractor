@@ -280,11 +280,11 @@ test("in a free layout a dragged node moves, its lines follow, and the move is r
   assert.notEqual(line.getAttribute("d"), before, "the line follows while dragging");
   node("entity/a").dispatch("pointerup", { clientX: 30, clientY: 110, pointerId: 1 });
   assert.deepEqual(moves, [{ id: "entity/b", x: 320, y: 100 }]);
-  assert.deepEqual(drops, [], "a free layout has no drops");
+  assert.deepEqual(drops, [], "let go over nothing: only a move");
   assert.deepEqual(selects, []);
 });
 
-test("in a free layout a component let go over a cluster is dropped on it", () => {
+test("in a free layout a node let go over another is dropped on it, to merge", () => {
   const { r, node } = mounted();
   const box = (id, x, y) => ({ id, x, y, width: 148, height: 62, node: { id, label: id, lines: [id], symbol: "component", component: "host", attributes: "host", parents: 0 } });
   r.render(Pos.place({ nodes: [box("cluster/k", 0, 0), box("entity/b", 300, 0)], edges: [] }, {}), {});
@@ -292,8 +292,12 @@ test("in a free layout a component let go over a cluster is dropped on it", () =
   r.on("drop", (e) => drops.push(e));
   node("entity/b").dispatch("pointerdown", { clientX: 10, clientY: 10, button: 0, pointerId: 1 });
   node("entity/b").dispatch("pointermove", { clientX: 30, clientY: 110, pointerId: 1 });
-  node("cluster/k").dispatch("pointerup", { clientX: 30, clientY: 110, pointerId: 1 });
+  // Over the cluster: it lights as the target, and draws the node a little.
+  node("cluster/k").dispatch("pointermove", { clientX: 40, clientY: 110, pointerId: 1 });
+  assert.ok(node("cluster/k").classList.contains("is-merge-target"));
+  node("cluster/k").dispatch("pointerup", { clientX: 40, clientY: 110, pointerId: 1 });
   assert.deepEqual(drops, [{ id: "entity/b", target: "cluster/k", ctrl: false }]);
+  assert.equal(node("cluster/k").classList.contains("is-merge-target"), false, "the light goes when let go");
 });
 
 test("a free layout that starts left of or above zero is fitted whole", () => {

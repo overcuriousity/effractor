@@ -363,20 +363,17 @@
     app.redraw();
   });
 
-  // A component dropped on a cluster: back into its stack if it is a member
-  // drawn beside it; a member of another, or of none, moves in.
+  // A member's row dropped on a cluster: see merge.
   function dropInto(entity, cid) {
-    var c = own(doc().clusters, cid);
-    if (!c) return;
-    if ((c.shown || []).indexOf(entity) >= 0) return act(function () { return C.unpeel(doc(), cid, entity); });
-    if (c.members.indexOf(entity) >= 0) return;
-    act(function () { return C.moveTo(doc(), entity, cid); });
+    if (!C.merge(doc(), "entity/" + entity, "cluster/" + cid)) return;
+    act(function () { return C.merge(doc(), "entity/" + entity, "cluster/" + cid); });
   }
-  // A component dragged on the canvas onto a cluster's node or outline.
+  // One component or cluster dragged on the canvas onto another: merged
+  // (owner, 2026-09-25); already together, it only moved.
   app.renderer.on("drop", function (e) {
-    if (!arch()) return;
-    var q = P.qualified(e.id), t = P.qualified(e.target);
-    if (q && q.kind === "entity" && t && t.kind === "cluster") dropInto(q.id, t.id);
+    if (!arch() || !/^(entity|cluster)\//.test(e.id) || !/^(entity|cluster)\//.test(e.target)) return;
+    if (!C.merge(doc(), e.id, e.target)) return;
+    act(function () { return C.merge(doc(), e.id, e.target); });
   });
   document.addEventListener("pointercancel", endDrag);
   document.addEventListener("keydown", function (e) {
