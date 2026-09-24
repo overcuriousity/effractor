@@ -462,7 +462,7 @@
         var off = block ? block.at[id] : { x: 0, y: 0 };
         var n = described[id];
         // Whole pixels: crisp, and a block's shape exact (the gap absorbs it).
-        nodes.push({ id: id, x: Math.round(p.x) + off.x, y: Math.round(p.y) + off.y, width: SIZE.width, height: height(n), node: n, hub: n && n.rings && n.rings.length ? ringed : hub });
+        nodes.push({ id: id, x: Math.round(p.x) + off.x, y: Math.round(p.y) + off.y, width: SIZE.width, height: height(n), node: n, hub: n && ((n.rings && n.rings.length) || (n.cluster && n.cluster.states.some(Boolean))) ? ringed : hub });
       });
     });
     var right = 0, bottom = 0;

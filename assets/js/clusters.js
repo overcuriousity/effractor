@@ -363,8 +363,41 @@
     return out;
   }
 
+  // What glides from where when clusters open and close (spec §4.3), from
+  // where each member of a closed cluster was drawn before and is now
+  // ({entity: "cluster/…"}): `origins` — a node new on the canvas starts
+  // amid these drawn ids; `exits` — a node gone from it glides into this one.
+  function transitions(before, after) {
+    before = before || {};
+    after = after || {};
+    var origins = {}, exits = {};
+    var was = Object.create(null), now = Object.create(null);
+    Object.keys(before).forEach(function (e) { was[before[e]] = true; });
+    Object.keys(after).forEach(function (e) { now[after[e]] = true; });
+    function from(id, source) {
+      var list = (origins[id] = origins[id] || []);
+      if (list.indexOf(source) < 0) list.push(source);
+    }
+    Object.keys(before).forEach(function (e) {
+      if (!has(after, e)) from("entity/" + e, before[e]);
+    });
+    Object.keys(after).forEach(function (e) {
+      var into = after[e];
+      if (was[into]) return;
+      if (!has(before, e)) {
+        exits["entity/" + e] = into;
+        from(into, "entity/" + e);
+      } else {
+        from(into, before[e]);
+        if (!now[before[e]]) exits[before[e]] = into;
+      }
+    });
+    return { origins: origins, exits: exits };
+  }
+
   var api = {
     SPECIFIC: SPECIFIC,
+    transitions: transitions,
     clusterOf: clusterOf,
     label: label,
     lead: lead,

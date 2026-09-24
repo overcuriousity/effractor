@@ -30,6 +30,20 @@
    exposure ring): vulnerable, an unpatched product and what runs it. */
 .node-component .ring { fill: none; stroke-width: 3; }
 .node-component .ring-vulnerable { stroke: var(--color-danger); }
+/* A cluster (clustering spec §4.1): a plate behind its plate, and its ring
+   in sectors, one per member: vulnerable, unknown inputs, or neither. */
+.node-component .plate-behind { opacity: 0.5; }
+.node-component .sector-vulnerable { stroke: var(--color-danger); }
+.node-component .sector-unknown { stroke: var(--color-warning); }
+.node-component .sector-none { stroke: var(--color-border-strong); }
+.edge[data-id^="flows/"] { stroke-dasharray: 5 3; }
+/* An open cluster: a quiet outline round its members, taking the pointer
+   on its line and its name only. */
+.cluster-outline .outline { fill: none; stroke: var(--color-border-strong); stroke-width: 1.5; stroke-dasharray: 6 4; pointer-events: stroke; cursor: pointer; }
+.cluster-outline .outline-label { font-size: 11px; fill: var(--color-fg-muted); cursor: pointer; }
+.cluster-outline:hover .outline { stroke: var(--color-fg-muted); }
+.cluster-outline.hl-selected .outline { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: none; }
+.cluster-outline.hl-selected .outline-label { fill: var(--color-accent); }
 .node-component.hl-selected .halo { stroke: var(--color-accent); stroke-width: 2.5; stroke-dasharray: none; }
 /* A selected flow's route: the networks and routers it passes through. */
 .node-component.hl-route .halo { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 2 2.5; }
@@ -72,6 +86,7 @@
 .line-flow { border-top-style: dashed; }
 .line-permit { border-top: 2px dotted var(--viz-family-network); }
 .ring-sample { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; border: 2.5px solid var(--color-danger); vertical-align: middle; }
+.ring-sample.is-unknown { border-color: var(--color-warning); }
 .legend-toggle, .legend-kinds { padding: 1px 6px; font-size: var(--text-xs); }
 .legend-kinds { display: inline-flex; align-items: center; gap: 5px; }
 .legend-toggle[aria-pressed="false"] { color: var(--color-fg-muted); text-decoration: line-through; }
@@ -263,3 +278,5 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .hud-hint .hint-go svg { width: 16px; height: 16px; fill: none; stroke: var(--color-warning); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 .hud-hint .hint-close { padding: 4px; }
 .hud-hint .hint-close svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+/* A node gliding into a cluster as it closes. */
+.ghosts .is-leaving { pointer-events: none; }

@@ -122,3 +122,20 @@ test('closing and opening in place', () => {
   assert.deepEqual(moved, { a: { x: 950, y: 475 }, b: { x: 1050, y: 525 } });
   assert.deepEqual(C.reopen({ x: 0, y: 0 }, ['a'], {}), {});
 });
+
+test('what glides from where when clusters open and close', () => {
+  const before = { a: 'cluster/k', b: 'cluster/k', c: 'cluster/m', d: 'cluster/m' };
+  const after = { c: 'cluster/n', d: 'cluster/n', e: 'cluster/q', f: 'cluster/q' };
+  const t = C.transitions(before, after);
+  // k opened: its members come out of it.
+  assert.deepEqual(t.origins['entity/a'], ['cluster/k']);
+  assert.deepEqual(t.origins['entity/b'], ['cluster/k']);
+  // q closed: it grows from its members, which go into it.
+  assert.deepEqual(t.origins['cluster/q'], ['entity/e', 'entity/f']);
+  assert.equal(t.exits['entity/e'], 'cluster/q');
+  assert.equal(t.exits['entity/f'], 'cluster/q');
+  // m became n (renamed or remade): n comes from where m was.
+  assert.deepEqual(t.origins['cluster/n'], ['cluster/m']);
+  assert.equal(t.exits['cluster/m'], 'cluster/n');
+  assert.deepEqual(C.transitions(null, null), { origins: {}, exits: {} });
+});

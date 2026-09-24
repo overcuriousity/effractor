@@ -143,6 +143,11 @@ label at its top left. A click on the outline selects the cluster.
 keeping their offsets from their centre; closing puts the cluster at the
 members' centre. Both write the moved positions to this browser's store.
 
+**Animated** (owner, 2026-09-24): closing, members glide into the cluster
+and fade; opening, they glide out from it to their places; a node whose
+place changes otherwise (arranging, a re-layout) glides there too, about a
+quarter second. Nothing moves for a browser that asks for reduced motion.
+
 **Arrange automatically.** A closed cluster is one node for the stress
 layout. An open cluster is laid out as a block: a host's cluster in the
 existing host-block arrangement (`graph.blocks`: host on top, software in

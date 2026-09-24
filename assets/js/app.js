@@ -78,7 +78,7 @@
   // `mode` is the architecture's view: "architecture" or "attack", its
   // generated graph. `generated`: {graph, support, revision} of the text on
   // the page, or null. `sourceValid`: the source view's text is the document's.
-  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastSampledMs: null, revision: gate.current(), sourceValid: true, mode: "architecture", generated: null, blockers: null, diagnostics: [], documents: 0, scenario: "" };
+  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastSampledMs: null, revision: gate.current(), sourceValid: true, mode: "architecture", generated: null, blockers: null, diagnostics: [], documents: 0, scenario: "", hidden: null, bundles: null };
   var view = window.effractorResults;
   var AV = window.effractorAttackView;
   var GR = window.effractorGraphResults;
@@ -151,6 +151,12 @@
     return typeof id === "string" && id.indexOf("step/") === 0 ? id.slice(5) : null;
   }
 
+  // Where `id` is drawn: a member of a closed cluster is drawn as the cluster.
+  function shown(id) {
+    var q = P.qualified(id);
+    return q && q.kind === "entity" && state.hidden && Object.prototype.hasOwnProperty.call(state.hidden, q.id) ? state.hidden[q.id] : id;
+  }
+
   function select(id, parent) {
     var arch = P.isArchitecture(state.doc);
     state.selected = P.selectionExists(state.doc, id, graphOf()) ? id : null;
@@ -158,11 +164,11 @@
     // `parentChosen`: the edge was named (a tree row, an arrow key), not guessed.
     state.parentChosen = parents.indexOf(parent) >= 0;
     state.parent = state.parentChosen ? parent : parents[0] || null;
-    renderer.highlight(state.selected ? [state.selected] : [], "selected");
+    renderer.highlight(state.selected ? [shown(state.selected)] : [], "selected");
     // A selected flow shows where it goes: the networks and routers on its
     // route, which its line from end to end does not.
     var flow = arch && state.selected && state.selected.indexOf("flow/") === 0 ? state.selected.slice(5) : null;
-    renderer.highlight(flow && !attackShown() ? window.effractorArchitectureView.route(state.doc, flow) : [], "route");
+    renderer.highlight(flow && !attackShown() ? window.effractorArchitectureView.route(state.doc, flow).map(shown) : [], "route");
     // In the attack graph a component lights the steps its rules produced.
     var lit = attackShown() && state.selected && !stepOf(state.selected) ? AV.stepsFor(graphOf(), state.selected) : [];
     renderer.highlight(lit.map(function (s) {
@@ -192,7 +198,7 @@
     $("inspector").hidden = !state.selected;
     // The inspector floats over the canvas: what it would cover is panned
     // into view, and nothing else moves.
-    if (state.selected) renderer.reveal(state.selected, $("inspector").getBoundingClientRect().width + 8);
+    if (state.selected) renderer.reveal(shown(state.selected), $("inspector").getBoundingClientRect().width + 8);
     $("inspector-name").textContent = state.selected ? labelOf(state.selected) : "";
     notify();
     // A step's state is the inspector's own line; its numbers are listed here.
@@ -238,6 +244,7 @@
         var a = own(state.doc.associations, q.id);
         if (a) return a.kind + " · " + name(a.from) + " → " + (a.kind === "permits" ? labelOf("flow/" + a.to) : name(a.to));
       }
+      if (q && q.kind === "cluster" && own(state.doc.clusters, q.id)) return window.effractorClusters.label(state.doc, q.id);
       var record = !q ? null : q.kind === "entity" ? own(state.doc.entities, q.id) : q.kind === "flow" ? own(state.doc.flows, q.id) : null;
       return record && record.label ? record.label : q ? q.id : id;
     }
@@ -363,10 +370,23 @@
     renderer.fit();
   }
 
+  // The architecture last painted, for the glide from it: its name and
+  // where its clustered members were drawn.
+  var painted = null;
   function paint() {
     if (!state.laid) return;
-    if (state.laidView === "attack") return renderer.render(state.laid, {});
-    if (P.isArchitecture(state.doc)) return renderer.render(window.effractorPositions.place(state.laid, positions.load(state.doc.name), { permits: showPermits }), {});
+    if (state.laidView === "attack") {
+      painted = null;
+      return renderer.render(state.laid, {});
+    }
+    if (P.isArchitecture(state.doc)) {
+      // The same document glides to its new drawing; another one just appears.
+      var motion = painted && painted.name === state.doc.name ? window.effractorClusters.transitions(painted.hidden, state.hidden) : null;
+      painted = { name: state.doc.name, hidden: state.hidden };
+      state.placed = window.effractorPositions.place(state.laid, positions.load(state.doc.name), { permits: showPermits });
+      return renderer.render(state.placed, {}, motion);
+    }
+    painted = null;
     var known = state.exactResults || state.results;
     renderer.render(state.laid, known ? view.leafStyles(known, state.measure) : {});
   }
@@ -385,6 +405,8 @@
   }
 
   renderer.on("select", function (e) {
+    // A merged line holds several: cluster-ui.js asks which.
+    if (e.edge && /^(links|flows|permits)\//.test(e.edge)) return;
     // An architecture's edge is a relationship or a flow of its own.
     if (e.edge && P.isArchitecture(state.doc) && P.selectionExists(state.doc, e.edge, graphOf())) return select(e.edge);
     select(e.id, e.parent);
@@ -413,6 +435,9 @@
       state.stepCount = null;
       described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc, stateWord) : window.effractorGraph.describe(state.doc);
     }
+    // Where each member of a closed cluster is drawn, and what merged lines hold.
+    state.hidden = !shown && described.hidden ? described.hidden : null;
+    state.bundles = !shown && described.bundles ? described.bundles : null;
     return layout(described).then(function (laid) {
       if (!gate.accept(token)) return;
       state.laid = laid;
@@ -1024,6 +1049,7 @@
   window.effractor.renderer = renderer;
   window.effractor.select = select;
   window.effractor.labelOf = labelOf;
+  window.effractor.shown = shown;
   window.effractor.arrange = arrange;
   window.effractor.permits = function () {
     return showPermits;

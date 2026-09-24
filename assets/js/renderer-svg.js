@@ -27,6 +27,10 @@
     var viewport = null;
     var edgeLayer = null;
     var nodeLayer = null;
+    var groupLayer = null;
+    var ghostLayer = null;
+    var glideFrame = null; // a glide in flight: {finish}
+    var GLIDE_MS = 260;
     // Keyed by node id, which may be any word (`constructor`…): no prototype.
     var drawn = { nodes: Object.create(null), edges: [] };
     var size = { width: 0, height: 0 };
@@ -87,7 +91,9 @@
       var marker = el("marker", { id: "edge-arrow", viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" }, [], defs);
       el("path", { d: "M0 0L10 5L0 10z" }, ["arrow-head"], marker);
       viewport = el("g", {}, ["viewport"], svg);
+      groupLayer = el("g", {}, ["groups"], viewport);
       edgeLayer = el("g", {}, ["edges"], viewport);
+      ghostLayer = el("g", {}, ["ghosts"], viewport);
       nodeLayer = el("g", {}, ["nodes"], viewport);
 
       svg.addEventListener("dblclick", function (e) {
@@ -102,6 +108,7 @@
 
       svg.addEventListener("pointerdown", function (e) {
         stopReveal(); // the author's hand wins over an animation
+        stopGlide();
         if (e.button !== 0) return;
         gesture = { id: idAt(e.target), edge: edgeAt(e.target), x: e.clientX, y: e.clientY, moved: false };
         if (svg.focus) svg.focus();
@@ -137,7 +144,8 @@
         svg.classList.remove("is-dragging", "is-moving", "is-panning");
         // A press and release in place is the selection: of the node the press
         // landed on, whatever the browser makes the target of its click.
-        if (!g.moved) return emit("select", g.edge ? { id: g.edge.to, parent: g.edge.from, edge: g.edge.id } : { id: g.id, parent: undefined });
+        var ctrl = !!(e.ctrlKey || e.metaKey);
+        if (!g.moved) return emit("select", g.edge ? { id: g.edge.to, parent: g.edge.from, edge: g.edge.id, x: e.clientX, y: e.clientY, ctrl: ctrl } : { id: g.id, parent: undefined, x: e.clientX, y: e.clientY, ctrl: ctrl });
         svg.releasePointerCapture(e.pointerId);
         if (free && g.id) {
           var p = free.at[g.id];
@@ -198,11 +206,24 @@
     function drawComponent(g, n) {
       var cx = geometry.width / 2;
       var r = geometry.plate / 2;
+      // A cluster: a second plate peeks out behind, so it reads as a stack.
+      if (n.cluster) el("circle", { cx: cx + 6, cy: r - 6, r: r }, ["plate", "plate-behind"], g);
       el("circle", { cx: cx, cy: r, r: r + geometry.halo }, ["halo"], g);
-      // Outside the halo, a ring per state it is in (so far: vulnerable).
-      (n.rings || []).forEach(function (ring) {
-        el("circle", { cx: cx, cy: r, r: r + geometry.halo + geometry.ring }, ["ring", "ring-" + ring.state], g);
-      });
+      var ringR = r + geometry.halo + geometry.ring;
+      if (n.cluster) {
+        // A sector per member (or per state, when many): how many are what.
+        var C = typeof module !== "undefined" ? require("./clusters.js") : window.effractorClusters;
+        C.segments(n.cluster.states).forEach(function (s) {
+          var cls = ["ring", "sector", "sector-" + (s.state || "none")];
+          if (s.full) el("circle", { cx: cx, cy: r, r: ringR }, cls, g);
+          else el("path", { d: C.arc(cx, r, ringR, s.from, s.to) }, cls, g);
+        });
+      } else {
+        // Outside the halo, a ring per state it is in (so far: vulnerable).
+        (n.rings || []).forEach(function (ring) {
+          el("circle", { cx: cx, cy: r, r: ringR }, ["ring", "ring-" + ring.state], g);
+        });
+      }
       el("circle", { cx: cx, cy: r, r: r }, ["plate"], g);
       var scale = 26 / 24;
       var glyph = el("g", { transform: "translate(" + (cx - 13) + " " + (r - 13) + ") scale(" + scale + ")" }, ["glyph"], g);
@@ -223,7 +244,7 @@
         var words = p.role + " · " + (p.word || p.state);
         var pw = words.length * 5.6 + 12;
         var y = r - 8 + (i - ((n.pins.length - 1) / 2)) * 20;
-        var pin = el("g", { "data-pin-role": p.role, "data-pin-state": p.state }, ["pin", "pin-" + p.role], g);
+        var pin = el("g", { "data-pin-role": p.role, "data-pin-state": p.state, "data-pin-entity": p.entity || "" }, ["pin", "pin-" + p.role], g);
         el("rect", { x: cx + r + 6, y: y, width: pw, height: 16, rx: 3 }, ["tag", "badge"], pin);
         text(pin, cx + r + 6 + pw / 2, y + 11.5, words, "tag-text");
       });
@@ -243,11 +264,12 @@
         classes.push(c);
       });
       if (n.symbol === "component") classes.push("family-" + (icons.family(n.component) || "none"));
+      if (n.cluster) classes.push("is-cluster");
       var g = el("g", { "data-id": n.id, transform: "translate(" + item.x + " " + item.y + ")" }, classes, nodeLayer);
       var tip = el("title", {}, [], g);
       tip.textContent = n.label;
       if (n.symbol === "component") {
-        tip.textContent = n.label + " — " + n.component + (n.unknown ? " · " + n.unknown + " unknown" : "") + (n.rings || []).map(function (ring) { return "\n" + ring.why; }).join("");
+        tip.textContent = n.label + " — " + (n.cluster ? n.cluster.count + " components" : n.component) + (n.unknown ? " · " + n.unknown + " unknown" : "") + (n.rings || []).map(function (ring) { return "\n" + ring.why; }).join("");
         return drawComponent(g, n);
       }
 
@@ -325,8 +347,9 @@
     // A firewall's permission: a dotted line from the firewall to the middle
     // of the flow it rules on, with a word — allows, blocks, ?.
     function drawAttachment(a) {
-      var line = el("path", { d: straight(a), "data-id": a.id, "data-from": a.firewall, "data-to": a.flow }, ["edge", "permit", "permit-" + a.label.replace("?", "unknown")], edgeLayer);
-      var hit = el("path", { d: straight(a), "data-id": a.id, "data-from": a.firewall, "data-to": a.flow }, ["edge-hit"], edgeLayer);
+      var word = { allows: "allows", blocks: "blocks", "?": "unknown" }[a.label] || "many";
+      var line = el("path", { d: straight(a), "data-id": a.id, "data-from": a.firewall, "data-to": a.node || a.flow }, ["edge", "permit", "permit-" + word], edgeLayer);
+      var hit = el("path", { d: straight(a), "data-id": a.id, "data-from": a.firewall, "data-to": a.node || a.flow }, ["edge-hit"], edgeLayer);
       var label = el("text", { x: a.mid.x, y: a.mid.y - 4, "data-id": a.id }, ["edge-label", "permit-label"], edgeLayer);
       label.textContent = a.label;
       // Where the rule applies: a dot on the flow.
@@ -362,9 +385,21 @@
       });
       drawn.attachments.forEach(function (a) {
         var flow = flows[a.permit.flow];
-        if (a.permit.firewall !== id && !(flow && (flow.from === id || flow.to === id))) return;
+        if (a.permit.firewall !== id && a.permit.node !== id && !(flow && (flow.from === id || flow.to === id))) return;
         var again = routes.attach(free.at, flow ? flow.now : null, a.permit);
         if (again) redrawAttachment(a.parts, again);
+      });
+      // An open cluster's outline follows its members.
+      drawn.outlines.forEach(function (d) {
+        if (d.group.members.indexOf(id) < 0) return;
+        var o = routes.outline(free.at, d.group);
+        if (!o) return;
+        d.box.setAttribute("x", o.x);
+        d.box.setAttribute("y", o.y);
+        d.box.setAttribute("width", o.width);
+        d.box.setAttribute("height", o.height);
+        d.name.setAttribute("x", o.x + 12);
+        d.name.setAttribute("y", o.y - 6);
       });
     }
 
@@ -402,11 +437,24 @@
       });
     }
 
-    function render(layout, styles) {
+    // `motion` ({origins, exits}, clusters.js transitions), when given, makes
+    // the nodes glide from where they stood (spec §4.3); without it the
+    // drawing just changes.
+    function render(layout, styles, motion) {
       styles = styles || {};
+      stopGlide();
+      var previous = free && motion ? free.at : null;
+      var leaving = [];
+      if (previous) {
+        Object.keys(motion.exits || {}).forEach(function (id) {
+          if (drawn.nodes[id] && previous[id]) leaving.push({ el: drawn.nodes[id], at: previous[id], into: motion.exits[id] });
+        });
+      }
+      ghostLayer.replaceChildren();
+      groupLayer.replaceChildren();
       edgeLayer.replaceChildren();
       nodeLayer.replaceChildren();
-      drawn = { nodes: Object.create(null), edges: [], attachments: [] };
+      drawn = { nodes: Object.create(null), edges: [], attachments: [], outlines: [] };
       size = { width: layout.width, height: layout.height, x0: layout.x0 || 0, y0: layout.y0 || 0 };
       free = null;
       boxes = Object.create(null);
@@ -421,6 +469,17 @@
         layout.edges.forEach(function (e) {
           var parts = drawLink(e);
           drawn.edges.push({ el: parts.line, parts: parts, route: e, now: e, id: e.id, from: e.from, to: e.to });
+        });
+        (layout.outlines || []).forEach(function (o) {
+          // Selected by its edge or its name, never by its inside: a press
+          // within it is on the members, or pans.
+          var group = el("g", { "data-id": o.id }, ["node", "cluster-outline"], groupLayer);
+          var box = el("rect", { x: o.x, y: o.y, width: o.width, height: o.height, rx: 16 }, ["outline"], group);
+          var name = el("text", { x: o.x + 12, y: o.y - 6 }, ["outline-label"], group);
+          name.textContent = o.label;
+          el("title", {}, [], group).textContent = o.label + " — open cluster";
+          drawn.outlines.push({ group: o, box: box, name: name });
+          drawn.nodes[o.id] = group;
         });
         (layout.attachments || []).forEach(function (a) {
           var parts = drawAttachment(a);
@@ -438,6 +497,112 @@
         drawn.nodes[item.id] = drawNode(item, style);
       });
       applyHighlights();
+      if (previous) glide(previous, motion, leaving);
+    }
+
+    function setAt(id, x, y) {
+      var p = free.at[id];
+      p.x = x;
+      p.y = y;
+      drawn.nodes[id].setAttribute("transform", "translate(" + x + " " + y + ")");
+    }
+
+    // Every line, permission and outline as the nodes now stand.
+    function rerouteAll() {
+      var flows = Object.create(null);
+      drawn.edges.forEach(function (e) {
+        if (!e.route) return;
+        var r = routes.route(free.at, e.route);
+        if (r) {
+          e.now = r;
+          redrawLink(e.parts, r);
+        }
+        flows[e.id] = e;
+      });
+      drawn.attachments.forEach(function (a) {
+        var flow = flows[a.permit.flow];
+        var again = routes.attach(free.at, flow ? flow.now : null, a.permit);
+        if (again) redrawAttachment(a.parts, again);
+      });
+      drawn.outlines.forEach(function (d) {
+        var o = routes.outline(free.at, d.group);
+        if (!o) return;
+        d.box.setAttribute("x", o.x);
+        d.box.setAttribute("y", o.y);
+        d.box.setAttribute("width", o.width);
+        d.box.setAttribute("height", o.height);
+        d.name.setAttribute("x", o.x + 12);
+        d.name.setAttribute("y", o.y - 6);
+      });
+    }
+
+    function reducedMotion() {
+      return typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    }
+
+    // Nodes glide from where they stood: a node new on the canvas from amid
+    // its origins, a node gone from it into what took it in, fading.
+    function glide(previous, motion, leaving) {
+      var raf = typeof window !== "undefined" && window.requestAnimationFrame;
+      if (!raf || reducedMotion()) return;
+      function amid(ids) {
+        var pts = ids.map(function (id) { return previous[id]; }).filter(Boolean);
+        if (!pts.length) return null;
+        var x = 0, y = 0;
+        pts.forEach(function (p) {
+          x += p.x;
+          y += p.y;
+        });
+        return { x: x / pts.length, y: y / pts.length };
+      }
+      var moves = [];
+      Object.keys(free.at).forEach(function (id) {
+        var to = free.at[id];
+        var start = previous[id] || (motion.origins && motion.origins[id] ? amid(motion.origins[id]) : null);
+        if (!start || (Math.abs(start.x - to.x) < 1 && Math.abs(start.y - to.y) < 1)) return;
+        moves.push({ id: id, from: { x: start.x, y: start.y }, to: { x: to.x, y: to.y } });
+      });
+      leaving.forEach(function (l) {
+        var target = free.at[l.into];
+        l.to = target ? { x: target.x, y: target.y } : { x: l.at.x, y: l.at.y };
+        l.el.classList.add("is-leaving");
+        ghostLayer.appendChild(l.el);
+      });
+      if (!moves.length && !leaving.length) return;
+      function show(k) {
+        moves.forEach(function (m) {
+          setAt(m.id, m.from.x + (m.to.x - m.from.x) * k, m.from.y + (m.to.y - m.from.y) * k);
+        });
+        leaving.forEach(function (l) {
+          l.el.setAttribute("transform", "translate(" + (l.at.x + (l.to.x - l.at.x) * k) + " " + (l.at.y + (l.to.y - l.at.y) * k) + ")");
+          l.el.style.opacity = String(1 - k);
+        });
+        rerouteAll();
+      }
+      var start = null;
+      var step = function (t) {
+        if (start === null) start = t;
+        var u = Math.min(1, (t - start) / GLIDE_MS);
+        show(u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+        if (u < 1) glideFrame.id = raf(step);
+        else glideFrame.finish();
+      };
+      glideFrame = {
+        id: null,
+        finish: function () {
+          if (glideFrame && glideFrame.id && window.cancelAnimationFrame) window.cancelAnimationFrame(glideFrame.id);
+          glideFrame = null;
+          show(1);
+          ghostLayer.replaceChildren();
+        },
+      };
+      show(0);
+      glideFrame.id = raf(step);
+    }
+
+    // A glide in flight lands at once: the author's hand, or a new drawing, wins.
+    function stopGlide() {
+      if (glideFrame) glideFrame.finish();
     }
 
     // If node `id` would sit under an overlay `inset` px wide at the right
