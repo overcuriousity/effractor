@@ -52,6 +52,13 @@ pub const RELATIONS: [(&str, RelationKind); 19] = [
 ];
 pub const PRIVILEGES: [(&str, Privilege); 2] =
     [("user", Privilege::User), ("admin", Privilege::Admin)];
+/// A `hosts` link may also not know its privilege (nmap import spec §4.3);
+/// the validator says where. Every privilege the writer may meet.
+pub const HOSTING_PRIVILEGES: [(&str, Privilege); 3] = [
+    ("user", Privilege::User),
+    ("admin", Privilege::Admin),
+    ("unknown", Privilege::Unknown),
+];
 pub const STATES: [(&str, State); 9] = [
     ("access", State::Access),
     ("user", State::User),
@@ -412,8 +419,13 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
         }
     }
     let privilege = if kind.has_privilege() {
+        let words: &[(&str, Privilege)] = if kind == RelationKind::Hosts {
+            &HOSTING_PRIVILEGES
+        } else {
+            &PRIVILEGES
+        };
         cx.required(&f, "privilege")
-            .and_then(|e| cx.word(&e.value, &f.path("privilege"), &PRIVILEGES))
+            .and_then(|e| cx.word(&e.value, &f.path("privilege"), words))
     } else {
         None
     };

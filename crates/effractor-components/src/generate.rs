@@ -431,7 +431,11 @@ impl<'a> Builder<'a> {
             else {
                 continue;
             };
-            let machine = self.machine_id(from, *privilege);
+            let machine = match privilege {
+                // Only software may say it (the validator); never a node.
+                Privilege::Unknown => String::new(),
+                known => self.machine_id(from, *known),
+            };
             let bound = |rule| Origin {
                 entities: vec![from.clone(), to.clone()],
                 associations: vec![aid.clone()],
@@ -449,6 +453,44 @@ impl<'a> Builder<'a> {
                     let admin = self.state_id(to, State::Admin.as_str());
                     self.produce(&machine, &admin, bound("hosted-host"));
                     self.escape("guest-escape", to, from, *privilege, aid);
+                }
+                // Software whose privilege is unknown: admin on the host runs
+                // it and it is at least user there, for certain; user to it
+                // and it to admin hold only at one privilege each, so they
+                // are steps of unknown time, pointing at the link.
+                _ if *privilege == Privilege::Unknown => {
+                    let control = self.state_id(to, State::Control.as_str());
+                    let user = self.machine_id(from, Privilege::User);
+                    let admin = self.machine_id(from, Privilege::Admin);
+                    let path = format!("associations.{aid}.privilege");
+                    let unknown = |rule| Origin {
+                        paths: vec![path.clone()],
+                        ..bound(rule)
+                    };
+                    self.produce(&admin, &control, bound("host-execution"));
+                    self.action(
+                        format!("action/host-execution/{from}/{to}"),
+                        format!("Runs as user? · {} on {}", self.label(to), self.label(from)),
+                        Binding::UnknownPrivilege(aid.clone()),
+                        std::slice::from_ref(&user),
+                        &control,
+                        unknown("host-execution"),
+                    );
+                    if !*contained {
+                        self.produce(&control, &user, bound("execution-privilege"));
+                        self.action(
+                            format!("action/execution-privilege/{to}/{from}"),
+                            format!(
+                                "Runs as admin? · {} on {}",
+                                self.label(to),
+                                self.label(from)
+                            ),
+                            Binding::UnknownPrivilege(aid.clone()),
+                            std::slice::from_ref(&control),
+                            &admin,
+                            unknown("execution-privilege"),
+                        );
+                    }
                 }
                 // Software; contained software does not reach its machine.
                 _ => {

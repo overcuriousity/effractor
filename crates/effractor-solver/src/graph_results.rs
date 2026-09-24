@@ -558,7 +558,9 @@ impl GraphSolve {
                         Binding::Permission(_) | Binding::Policy { .. } | Binding::Parameter { .. },
                         ResolvedTtc::Unknown(_),
                     )
-                    | (Binding::Unfinished { .. }, _) => ("unknown", None),
+                    | (Binding::Unfinished { .. } | Binding::UnknownPrivilege(_), _) => {
+                        ("unknown", None)
+                    }
                     (Binding::Logical | Binding::Foothold(_), _) => return None,
                 };
                 Some(Assumption {

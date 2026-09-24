@@ -104,6 +104,10 @@ pub fn resolve(
                 };
                 (ttc, Vec::new(), vec![path])
             }
+            Binding::UnknownPrivilege(aid) => {
+                let path = vec![format!("associations.{aid}.privilege")];
+                (ResolvedTtc::Unknown(path.clone()), Vec::new(), path)
+            }
             Binding::Unfinished { flow, missing } => {
                 let mut paths = missing.clone();
                 let connect = parameter(model, &Owner::Flow(flow.clone()), Slot::Connect);

@@ -87,6 +87,9 @@ pub enum Binding {
     /// Unknown under every scenario: a flow whose route is still being drawn.
     /// `missing` holds the route paths the validator marked `unfinished`.
     Unfinished { flow: FlowId, missing: Vec<String> },
+    /// Unknown under every scenario: a step that holds only if the software
+    /// runs at the privilege its `hosts` link does not say.
+    UnknownPrivilege(AssociationId),
 }
 
 /// One rule application that produced a node.

@@ -195,6 +195,9 @@ impl EntityKind {
 pub enum Privilege {
     User,
     Admin,
+    /// Not known: only a host's `hosts` link to software may say so (what an
+    /// nmap import writes). The steps that depend on it are unknown inputs.
+    Unknown,
 }
 
 impl Privilege {
@@ -202,6 +205,7 @@ impl Privilege {
         match self {
             Self::User => "user",
             Self::Admin => "admin",
+            Self::Unknown => "unknown",
         }
     }
 }

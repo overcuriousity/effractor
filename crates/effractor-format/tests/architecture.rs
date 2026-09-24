@@ -1475,3 +1475,47 @@ fn addresses_and_tool_are_refused_where_they_do_not_belong() {
     image["entities"]["server"]["addresses"] = serde_json::json!("10.0.1.5");
     assert!(!errors_of(&image).is_empty(), "a list, not one text");
 }
+
+#[test]
+fn a_hosting_privilege_may_be_unknown_only_where_a_host_runs_software() {
+    let mut doc = image(LECTURE);
+    doc["associations"]["server-runs-sshd"]["privilege"] = serde_json::json!("unknown");
+    let text = from_document(&doc).unwrap_or_else(|d| panic!("{d:?}"));
+    assert!(text.contains("    privilege: unknown\n"), "{text}");
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    assert_eq!(
+        image(&text)["associations"]["server-runs-sshd"]["privilege"],
+        serde_json::json!("unknown")
+    );
+    // Anywhere else it is refused: other relations, and a router or guest
+    // on a box, whose escape needs a known privilege.
+    let mut grants = image(LECTURE);
+    let key = grants["associations"]
+        .as_object()
+        .unwrap()
+        .iter()
+        .find(|(_, a)| a["kind"] == "grants")
+        .map(|(k, _)| k.clone())
+        .unwrap();
+    grants["associations"][&key]["privilege"] = serde_json::json!("unknown");
+    let path = format!("associations.{key}.privilege");
+    assert!(
+        has(&errors_of(&grants), "wrong-type", &path),
+        "{:?}",
+        errors_of(&grants)
+    );
+    let mut router = image(LECTURE);
+    router["entities"]["box"] = serde_json::json!({"kind": "host", "label": "Box"});
+    router["associations"]["box-runs-router"] = serde_json::json!({
+        "kind": "hosts", "from": "box", "to": "bridge", "privilege": "unknown"
+    });
+    assert!(
+        has(
+            &errors_of(&router),
+            "association-type",
+            "associations.box-runs-router.privilege"
+        ),
+        "{:?}",
+        errors_of(&router)
+    );
+}

@@ -66,7 +66,8 @@ fn timing(binding: &Binding, resolved: &ResolvedGraph, i: usize) -> Value {
     let ttc = &resolved.ttc[i];
     let (status, expression, note) = match (binding, ttc) {
         (Binding::Logical, _) => ("logical", None, None),
-        (_, ResolvedTtc::Unknown(_)) | (Binding::Unfinished { .. }, _) => ("unknown", None, None),
+        (_, ResolvedTtc::Unknown(_))
+        | (Binding::Unfinished { .. } | Binding::UnknownPrivilege(_), _) => ("unknown", None, None),
         (Binding::Foothold(_), _) => ("foothold", None, None),
         (Binding::Permission(_), ResolvedTtc::Known(d)) => {
             let allowed = !matches!(d, effractor_core::Distribution::Infinity);

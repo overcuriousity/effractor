@@ -1572,3 +1572,62 @@ fn data_can_be_the_target() {
     let g = generate(&m).unwrap();
     assert_eq!(g.nodes[g.target].id, "state/data/table/read");
 }
+
+/// A hosting whose privilege nobody knows (what an nmap import writes):
+/// what holds either way stays certain — admin on the host runs the service,
+/// the service is at least user on it — and the two steps that depend on the
+/// privilege are unknown inputs pointing at it, never a guess.
+#[test]
+fn an_unknown_hosting_privilege_is_an_unknown_step_not_a_guess() {
+    let mut m = lecture();
+    let a = m
+        .associations
+        .get_mut(&id::<AssociationId>("service-hosting"))
+        .unwrap();
+    a.relation = Relation::Hosts {
+        from: id("server"),
+        to: id("sshd"),
+        privilege: Privilege::Unknown,
+        contained: false,
+    };
+    let graph = generate(&m).unwrap_or_else(|e| panic!("{e:?}"));
+    let has = |node: &str, input: &str| inputs(&graph, node).iter().any(|i| i == input);
+    // Certain either way.
+    assert!(has("state/service/sshd/control", "state/host/server/admin"));
+    assert!(has("state/host/server/user", "state/service/sshd/control"));
+    // Unknown: the service's control to the host's admin, and the host's
+    // user to the service's control.
+    assert_eq!(
+        inputs(&graph, "action/execution-privilege/sshd/server"),
+        ["state/service/sshd/control"]
+    );
+    assert!(has(
+        "state/host/server/admin",
+        "action/execution-privilege/sshd/server"
+    ));
+    assert!(!has(
+        "state/host/server/admin",
+        "state/service/sshd/control"
+    ));
+    assert_eq!(
+        inputs(&graph, "action/host-execution/server/sshd"),
+        ["state/host/server/user"]
+    );
+    assert!(has(
+        "state/service/sshd/control",
+        "action/host-execution/server/sshd"
+    ));
+    assert!(!has("state/service/sshd/control", "state/host/server/user"));
+    let resolved = resolve(&m, &graph, None).unwrap();
+    for step in [
+        "action/execution-privilege/sshd/server",
+        "action/host-execution/server/sshd",
+    ] {
+        let at = graph.nodes.iter().position(|n| n.id == step).unwrap();
+        assert_eq!(
+            resolved.ttc[at],
+            ResolvedTtc::Unknown(vec!["associations.service-hosting.privilege".to_owned()]),
+            "{step}"
+        );
+    }
+}

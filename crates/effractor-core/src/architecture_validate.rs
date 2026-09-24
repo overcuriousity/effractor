@@ -265,6 +265,24 @@ impl Cx<'_> {
                     .and_then(|to| self.entity_of(to, &format!("{at}.to"), kind.to_kinds())),
             };
             match (r, from, to) {
+                // Unknown only where a host runs software: a router's or a
+                // guest's escape needs the privilege it lands at.
+                (
+                    Relation::Hosts {
+                        privilege: Privilege::Unknown,
+                        ..
+                    },
+                    Some(from),
+                    Some(to),
+                ) if from != EntityKind::Host
+                    || !matches!(to, EntityKind::Application | EntityKind::Service) =>
+                {
+                    self.error(
+                        Code::AssociationType,
+                        format!("{at}.privilege"),
+                        "only a host's software may run at an unknown privilege; say `user` or `admin`",
+                    )
+                }
                 (
                     Relation::Grants {
                         privilege: Privilege::User,
