@@ -5,8 +5,8 @@
 //! ask for and a save writes them out.
 
 use effractor_core::architecture::{
-    Architecture, Association, Attacker, AttackerProfile, Change, Defense, Defenses, Entity,
-    EntityKind, Evidence, Factor, Flow, LibraryPin, Mode, Parameter, Privilege, Relation,
+    Architecture, Association, Attacker, AttackerProfile, Change, Cluster, Defense, Defenses,
+    Entity, EntityKind, Evidence, Factor, Flow, LibraryPin, Mode, Parameter, Privilege, Relation,
     RelationKind, Scenario, Slot, State, StateRef, Switch, Tool,
 };
 use effractor_core::{Code, Pos};
@@ -133,6 +133,7 @@ pub fn document(cx: &mut Cx, root: &Node) -> Option<Architecture> {
             "entities",
             "associations",
             "flows",
+            "clusters",
             "attacker",
             "scenarios",
             "analysis",
@@ -145,6 +146,7 @@ pub fn document(cx: &mut Cx, root: &Node) -> Option<Architecture> {
     let entities = cx.id_map(f.get("entities"), "entities", entity);
     let associations = cx.id_map(f.get("associations"), "associations", association);
     let flows = cx.id_map(f.get("flows"), "flows", flow);
+    let clusters = cx.id_map(f.get("clusters"), "clusters", cluster);
     let attacker = match f.get("attacker") {
         Some(e) => attacker(cx, e),
         None => Some(Attacker::default()),
@@ -171,6 +173,7 @@ pub fn document(cx: &mut Cx, root: &Node) -> Option<Architecture> {
     m.entities = entities?;
     m.associations = associations?;
     m.flows = flows?;
+    m.clusters = clusters?;
     m.attacker = attacker?;
     m.scenarios = scenarios?;
     Some(m)
@@ -578,6 +581,34 @@ fn flow(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Flow> {
     })
 }
 
+fn cluster(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Cluster> {
+    let f = cx.fields(
+        &entry.value,
+        path,
+        entry.key_pos,
+        &["label", "members", "closed"],
+    )?;
+    let label = cx.optional_string(&f, "label");
+    let members = cx.required(&f, "members").and_then(|e| {
+        let path = f.path("members");
+        let items = cx.list(&e.value, &path)?;
+        let ids: Vec<_> = items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| cx.id_value(item, &format!("{path}[{i}]")))
+            .collect();
+        ids.into_iter().collect::<Option<Vec<_>>>()
+    });
+    let closed = cx
+        .required(&f, "closed")
+        .and_then(|e| cx.boolean(&e.value, &f.path("closed")));
+    Some(Cluster {
+        label: label?,
+        members: members?,
+        closed: closed?,
+    })
+}
+
 fn state_ref(cx: &mut Cx, node: &Node, path: &str, at: Pos) -> Option<StateRef> {
     let f = cx.fields(node, path, at, &["entity", "state"])?;
     let entity = cx
@@ -733,11 +764,12 @@ fn change(cx: &mut Cx, node: &Node, path: &str) -> Option<Change> {
 
 /// The keys only an architecture has: what version 1, which had no
 /// architecture profile, may not contain.
-pub const ONLY_KEYS: [&str; 6] = [
+pub const ONLY_KEYS: [&str; 7] = [
     "library",
     "entities",
     "associations",
     "flows",
+    "clusters",
     "attacker",
     "scenarios",
 ];

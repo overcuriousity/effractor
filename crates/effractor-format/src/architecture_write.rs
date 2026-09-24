@@ -190,6 +190,31 @@ fn document(w: &mut Writer, m: &Architecture) {
         w.extension_lines(4, &path);
     }
 
+    // Left out when empty: a file without clusters does not change.
+    if !m.clusters.is_empty() {
+        w.out.push('\n');
+        w.open(0, "clusters");
+    }
+    for (id, cluster) in &m.clusters {
+        let path = format!("clusters.{id}");
+        w.open(2, id.as_str());
+        if let Some(label) = &cluster.label {
+            w.line(4, "label", &string(label, Context::Block));
+        }
+        let members = ids(&cluster.members);
+        let inline = format!("[{}]", members.join(", "));
+        if "    members: ".len() + inline.len() <= WIDTH {
+            w.line(4, "members", &inline);
+        } else {
+            w.open(4, "members");
+            for id in members {
+                let _ = writeln!(w.out, "      - {id}");
+            }
+        }
+        w.line(4, "closed", word(&BOOLS, &cluster.closed));
+        w.extension_lines(4, &path);
+    }
+
     w.out.push('\n');
     w.open(0, "attacker");
     if m.attacker.footholds.is_empty() {

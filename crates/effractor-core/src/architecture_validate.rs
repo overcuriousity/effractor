@@ -10,7 +10,7 @@ use crate::architecture::{
     MAX_RELATIONSHIPS, MAX_SAMPLES, MAX_SCENARIOS, Parameter, Privilege, Relation, RelationKind,
     StateRef,
 };
-use crate::{AssociationId, Code, Diagnostic, EntityId, FlowId};
+use crate::{AssociationId, ClusterId, Code, Diagnostic, EntityId, FlowId};
 
 pub fn validate_architecture(model: &Architecture) -> Vec<Diagnostic> {
     let mut cx = Cx {
@@ -22,6 +22,7 @@ pub fn validate_architecture(model: &Architecture) -> Vec<Diagnostic> {
     cx.entities();
     cx.associations();
     cx.flows();
+    cx.clusters();
     cx.attacker();
     cx.scenarios();
     cx.out
@@ -759,6 +760,36 @@ impl Cx<'_> {
                     r.state.as_str()
                 ),
             );
+        }
+    }
+
+    /// Every member an entity, in one cluster only, two or more a cluster.
+    fn clusters(&mut self) {
+        let m = self.m;
+        let mut owner: HashMap<&EntityId, &ClusterId> = HashMap::new();
+        for (id, cluster) in &m.clusters {
+            let at = format!("clusters.{id}");
+            if cluster.members.len() < 2 {
+                self.error(
+                    Code::Cardinality,
+                    format!("{at}.members"),
+                    "a cluster needs two members or more",
+                );
+            }
+            for (i, member) in cluster.members.iter().enumerate() {
+                let path = format!("{at}.members[{i}]");
+                if self.entity(member, &path).is_none() {
+                    continue;
+                }
+                if let Some(first) = owner.insert(member, id) {
+                    let message = if first == id {
+                        format!("\"{member}\" is listed twice")
+                    } else {
+                        format!("\"{member}\" is already in cluster \"{first}\"")
+                    };
+                    self.error(Code::Cardinality, path, message);
+                }
+            }
         }
     }
 

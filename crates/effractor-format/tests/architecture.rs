@@ -43,6 +43,10 @@ fn version_one_trees_migrate_by_version_alone_and_cannot_hold_an_architecture() 
     let errors = load_document(&tree_with_entities).unwrap_err();
     assert_eq!(errors[0].code, effractor_core::Code::Version);
     assert_eq!(errors[0].path, "entities");
+    let tree_with_clusters = format!("{old}clusters: {{}}\n");
+    let errors = load_document(&tree_with_clusters).unwrap_err();
+    assert_eq!(errors[0].code, effractor_core::Code::Version);
+    assert_eq!(errors[0].path, "clusters");
 
     // The tree-only readers say what an architecture is, not that it is wrong.
     let errors = effractor_format::load(EMPTY).unwrap_err();
@@ -1518,4 +1522,93 @@ fn a_hosting_privilege_may_be_unknown_only_where_a_host_runs_software() {
         "{:?}",
         errors_of(&router)
     );
+}
+
+fn clustered(image: &mut serde_json::Value) {
+    image["clusters"] = serde_json::json!({
+        "client-box": {
+            "label": "Client box",
+            "members": ["workstation", "ssh-client"],
+            "closed": true,
+            "x-note": "kept"
+        },
+        "servers": {"members": ["server", "sshd"], "closed": false}
+    });
+}
+
+#[test]
+fn clusters_are_written_after_flows_and_read_back() {
+    let mut image = image(LECTURE);
+    clustered(&mut image);
+    let text = from_document(&image).unwrap();
+    assert!(
+        text.contains(
+            "\nclusters:\n  client-box:\n    label: Client box\n    members: [workstation, ssh-client]\n    closed: true\n    x-note: kept\n  servers:\n    members: [server, sshd]\n    closed: false\n\nattacker:\n"
+        ),
+        "{text}"
+    );
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    let back = self::image(&text);
+    assert_eq!(back["clusters"], image["clusters"]);
+    let Document::Architecture(a) = load_document(&text).unwrap() else {
+        panic!("an architecture")
+    };
+    assert_eq!(a.clusters.len(), 2);
+    // The model holds no `x-` keys; the text does, and keeps them.
+    assert_eq!(
+        effractor_format::save_document(&Document::Architecture(a)),
+        text.replace("    x-note: kept\n", "")
+    );
+    // Absent is absent: a file without clusters does not change.
+    assert_eq!(canonicalize(LECTURE).unwrap(), LECTURE);
+    assert!(self::image(LECTURE).get("clusters").is_none());
+}
+
+#[test]
+fn clusters_are_refused_where_they_do_not_hold() {
+    let cases: [(serde_json::Value, &str, &str); 6] = [
+        (
+            serde_json::json!({"c": {"members": ["workstation", "nowhere"], "closed": true}}),
+            "unknown-reference",
+            "clusters.c.members[1]",
+        ),
+        (
+            serde_json::json!({"c": {"members": ["workstation"], "closed": true}}),
+            "cardinality",
+            "clusters.c.members",
+        ),
+        (
+            serde_json::json!({"c": {"members": ["workstation", "workstation"], "closed": true}}),
+            "cardinality",
+            "clusters.c.members[1]",
+        ),
+        (
+            serde_json::json!({
+                "c": {"members": ["workstation", "server"], "closed": true},
+                "d": {"members": ["sshd", "server"], "closed": true}
+            }),
+            "cardinality",
+            "clusters.d.members[1]",
+        ),
+        (
+            serde_json::json!({"c": {"members": ["workstation", "server"]}}),
+            "missing-key",
+            "clusters.c.closed",
+        ),
+        (
+            serde_json::json!({"c": {"members": ["workstation", "server"], "closed": "yes"}}),
+            "wrong-type",
+            "clusters.c.closed",
+        ),
+    ];
+    for (clusters, code, path) in cases {
+        let mut image = image(LECTURE);
+        image["clusters"] = clusters;
+        let errors = errors_of(&image);
+        assert!(has(&errors, code, path), "{code} at {path}: {errors:?}");
+    }
+    // An unknown key in a cluster is an error like anywhere else.
+    let mut image = image(LECTURE);
+    image["clusters"] = serde_json::json!({"c": {"members": ["workstation", "server"], "closed": true, "open": false}});
+    assert!(has(&errors_of(&image), "unknown-key", "clusters.c.open"));
 }

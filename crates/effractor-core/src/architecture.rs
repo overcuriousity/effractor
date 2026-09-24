@@ -10,7 +10,9 @@
 
 use indexmap::IndexMap;
 
-use crate::{Analysis, AssociationId, Distribution, EntityId, FlowId, Model, ScenarioId, TimeUnit};
+use crate::{
+    Analysis, AssociationId, ClusterId, Distribution, EntityId, FlowId, Model, ScenarioId, TimeUnit,
+};
 
 /// One or the other; a text says which with `profile`.
 #[derive(Debug, Clone, PartialEq)]
@@ -42,6 +44,9 @@ pub struct Architecture {
     pub entities: IndexMap<EntityId, Entity>,
     pub associations: IndexMap<AssociationId, Association>,
     pub flows: IndexMap<FlowId, Flow>,
+    /// Components shown as one node (clustering spec §2). A way of looking:
+    /// nothing generated reads it.
+    pub clusters: IndexMap<ClusterId, Cluster>,
     pub attacker: Attacker,
     pub scenarios: IndexMap<ScenarioId, Scenario>,
     pub analysis: Analysis,
@@ -58,6 +63,7 @@ impl Architecture {
             entities: IndexMap::new(),
             associations: IndexMap::new(),
             flows: IndexMap::new(),
+            clusters: IndexMap::new(),
             attacker: Attacker::default(),
             scenarios: IndexMap::new(),
             analysis: Analysis::default(),
@@ -853,6 +859,15 @@ pub struct Flow {
     /// Descriptive only, such as `tcp/22`: it infers nothing.
     pub protocol: Option<String>,
     pub connect: Parameter,
+}
+
+/// Components drawn as one node, open or closed. Each entity is in at most
+/// one cluster; a cluster has two members or more.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Cluster {
+    pub label: Option<String>,
+    pub members: Vec<EntityId>,
+    pub closed: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]

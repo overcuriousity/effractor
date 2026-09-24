@@ -22,8 +22,8 @@ pub use architecture_validate::validate_architecture;
 pub use diagnostic::{Code, Diagnostic, Pos, Severity};
 pub use distribution::{Distribution, Shorthand};
 pub use id::{
-    ArchitectureIdError, AssetId, AssociationId, ControlId, DigitsOnly, EntityId, FlowId, IdError,
-    NodeId, ScenarioId,
+    ArchitectureIdError, AssetId, AssociationId, ClusterId, ControlId, DigitsOnly, EntityId,
+    FlowId, IdError, NodeId, ScenarioId,
 };
 pub use model::{
     Analysis, Asset, Consequence, Control, Dim, Effect, Gate, Leaf, LeafKind, Loss, Model, Node,

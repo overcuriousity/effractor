@@ -138,6 +138,11 @@ Two optional fields describe what a scan sees (owner, 2026-09-24; see the
 `network` may carry `addresses` (IP addresses, CIDR ranges), and an
 `application` may carry `tool: nmap`. Neither changes generation.
 
+An optional top-level `clusters` map (owner, 2026-09-24; see the
+[clustering design](2026-09-24-clustering-design.md) §2) groups entities to
+be drawn as one node, each `{label?, members, closed}`. It is for drawing
+only; generation ignores it.
+
 Associations are maps keyed by ID. Each has `kind`, `from`, `to`, optional
 `description`, and only the extra fields allowed for its kind:
 

@@ -134,3 +134,4 @@ architecture_id_type!(EntityId);
 architecture_id_type!(AssociationId);
 architecture_id_type!(FlowId);
 architecture_id_type!(ScenarioId);
+architecture_id_type!(ClusterId);
