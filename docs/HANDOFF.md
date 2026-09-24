@@ -5,6 +5,47 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — nmap import (2026-09-24)
+
+`nmap-import` is done (spec
+[`2026-09-24-nmap-import-design.md`](superpowers/specs/2026-09-24-nmap-import-design.md),
+plan [`2026-09-24-nmap-import.md`](superpowers/plans/2026-09-24-nmap-import.md));
+the owner accepted it in the 8082 preview. Three stacked PRs:
+`feature/nmap-fields` (#87), `feature/nmap-module` (#88),
+`feature/nmap-dialog`; master fast-forwards to the dialog branch's tip.
+
+- **File:** `addresses` on host (IPs) and network (CIDR), `tool: nmap` on an
+  application; in place, no version change. Lecture design §4 names them.
+- **`assets/js/nmap.js` (pure):** `LEVELS`, `command` (a range with shell
+  syntax or a leading `-` is refused; IPv6 gets `-6`, mixed IPv4/IPv6 is
+  refused, wider than /112 gets a note), `read` (own small XML reader; text
+  before `<?xml`/`<nmaprun>` is skipped, a cut-off paste says so, a host nmap
+  lists twice is folded, `self` from `localhost-response`), `plan`, `defaults`,
+  `summary` (exact against the catalog's limits), `apply` (one edit),
+  `addNmap`, `stampFor`/`stampLine` (from nmap's own `args`).
+- **Owner decisions in the look:** every scanned host is attached to each
+  network whose range holds its address (known and merged ones too, only
+  adding); the host nmap runs on is preselected as the merge when the scan
+  names it (`altiera.fritz.box` for "altiera") or a root scan marks it, shown
+  as *nmap runs here?*; a proposed network is written from its own address
+  (`192.168.2.0/24`). Spec §3–§4 amended. Routers from a scan are the next
+  item, `nmap-routers` (roadmap), designed with the owner.
+- **Also on this branch at the owner's word:** a small × closes each side
+  panel (`data-close`, `workspace.js`); the nmap dialog uses the inspector's
+  input style.
+- **Checks:** `scripts/nmap.test.js` (31) against fixtures in
+  `scripts/fixtures/nmap/` (Standard, Discover, normal output and a
+  duplicate-target scan recorded on localhost; Deep, error, down, hostile
+  hand-written in nmap's shape: Deep needs root); `imported.doc.json` is
+  pinned by the Node test, `tests/json.rs` and `scripts/check-nmap-wasm.js`
+  (new CI step, browser wasm).
+- **Deferred minors** (from the fresh review): a stale read error survives
+  Back; a merge-only choice is summarised as "Nothing new to add"; for a /16
+  the dialog says "Untick some hosts" (no untick-all, no smaller-range hint);
+  a dropped file that fails to read is not said; a drawn network without
+  addresses makes the import propose a second one; Deep/Complete fixtures are
+  hand-written, not recorded; `slug()` keeps accents as separate letters.
+
 ## Continuation — top bar and modes (2026-09-24)
 
 The owner found the top bar dense and the three modes hard to see and to

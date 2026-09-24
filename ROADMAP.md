@@ -78,24 +78,29 @@ Owner decision, 2026-09-24: build the network from nmap results pasted from
 hosts the owner can reach, ready now, beside the lecture milestone. Spec:
 [`2026-09-24-nmap-import-design.md`](docs/superpowers/specs/2026-09-24-nmap-import-design.md).
 
-### nmap-import — Add what nmap sees from a host to the architecture
-needs: —            cost: 3   benefit: 4
-An nmap application (`tool: nmap`) on a host offers scan commands at four
-levels, TCP and UDP, reads the pasted XML, previews the hosts, services,
-products and flows it saw, and adds the ticked ones in one edit, never
-changing or removing what is there. Hosts and networks gain `addresses`.
-Done when the file fields round-trip with validation, `nmap.js` passes its
-tests against real nmap output of every level, an imported document validates
-in wasm, and the owner builds a network from repeated scans in the browser.
-
 ### nmap-scripts — Read nmap script results into the model
-needs: nmap-import            cost: 2   benefit: 3
+needs: —            cost: 2   benefit: 3
 Offer commands with NSE scripts (such as `vuln`, `vulners`) and read their
 findings into the preview: a reported vulnerability marks the product
 unpatched with the finding as its note, never inventing a duration. Needs its
 own short design of which scripts are read and what each finding sets. Done
 when the chosen scripts' fixtures import as designed and unknown script
 output is shown, not guessed at.
+
+### nmap-routers — Import a scanned device as a router or firewall
+needs: —            cost: 2   benefit: 4
+Owner decision, 2026-09-24. Each host row of the nmap preview gets a kind
+choice: **host** (default) · **router** · **router with firewall**, preselected
+only where nmap's OS detection classes the device as a router, broadband
+router, WAP or firewall (`<osclass type>`, Deep and Complete), never guessed
+otherwise. *Router* adds the box as a host with its addresses and services
+plus a router running on it at admin, both attached to the network; *router
+with firewall* adds the router's firewall too, whose permissions stay for
+the author (flows through it are `unfinished` until set). An access point is
+a host. Amends the nmap design §1 and §6 (routers were the author's only);
+needs a short spec section first. Done when fixtures with each `osclass`
+type plan and apply as designed, the result validates in wasm, and the owner
+imports the home router in the browser.
 
 ## Compatibility after the lecture milestone
 
