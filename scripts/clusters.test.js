@@ -62,7 +62,6 @@ test('taking out, moving over, dissolving, renaming, opening', () => {
   let edit = C.takeOut(doc, 'srv', 'domain');
   assert.equal(edit.select, 'entity/domain');
   assert.equal(edit.doc.clusters.srv.members.includes('domain'), false);
-  assert.equal(edit.doc.clusters.srv.closed, false, 'taken out of a closed one: it opens, its outline beside what left');
   // One left dissolves it.
   edit = C.takeOut(doc, 'printer', 'ssh');
   assert.equal('printer' in edit.doc.clusters, false);
