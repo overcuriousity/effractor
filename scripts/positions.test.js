@@ -157,3 +157,12 @@ test('an open cluster’s outline wraps its members; a permission may end on a n
   assert.equal(placed.outlines.length, 1);
   assert.equal(placed.x0, -10);
 });
+
+test('cluster outlines can be switched off', () => {
+  const at = [{ id: 'entity/a', x: 0, y: 0, width: 148, height: 84 }, { id: 'entity/b', x: 200, y: 100, width: 148, height: 84 }];
+  const laid = { nodes: at, edges: [], permits: [], groups: [{ id: 'cluster/c', label: 'C', members: ['entity/a', 'entity/b'] }] };
+  assert.equal(Pos.place(laid, {}, {}).outlines.length, 1);
+  const off = Pos.place(laid, {}, { outlines: false });
+  assert.deepEqual(off.outlines, []);
+  assert.equal(off.x0, 0, 'nothing drawn, nothing measured');
+});

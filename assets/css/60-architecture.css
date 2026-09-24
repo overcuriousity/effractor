@@ -89,6 +89,7 @@
 .line-sample { display: inline-block; width: 18px; height: 0; margin-right: 5px; border-top: 1.5px solid var(--viz-edge); vertical-align: middle; }
 .line-flow { border-top-style: dashed; }
 .line-permit { border-top: 2px dotted var(--viz-family-network); }
+.outline-sample { display: inline-block; width: 14px; height: 9px; margin-right: 5px; border: 1.5px dashed var(--color-border-strong); border-radius: 4px; vertical-align: middle; }
 .ring-sample { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; border: 2.5px solid var(--color-danger); vertical-align: middle; }
 .ring-sample.is-unknown { border-color: var(--color-warning); }
 .legend-toggle, .legend-kinds { padding: 1px 6px; font-size: var(--text-xs); }
@@ -303,3 +304,4 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .node-component.is-merge-target .halo { stroke: var(--color-accent); stroke-width: 4; stroke-dasharray: none; }
 .node-component.is-merge-target .plate { filter: brightness(1.08); }
 .cluster-outline.is-merge-target .outline { stroke: var(--color-accent); stroke-width: 2.5; stroke-dasharray: none; }
+.legend-toggle[aria-pressed="false"] .outline-sample { opacity: 0.4; }

@@ -154,7 +154,8 @@
   // The layout with the stored positions laid over it, its size and origin
   // measured from what is on it, every edge routed as a line, and — unless
   // `options.permits` is false — every firewall's permissions drawn to the
-  // flows they rule on.
+  // flows they rule on; unless `options.outlines` is false, an outline round
+  // each open cluster.
   function place(laid, stored, options) {
     var nodes = (laid.nodes || []).map(function (n) {
       var p = has(stored, n.id) ? stored[n.id] : null;
@@ -184,7 +185,7 @@
         return attach(at, routed[p.flow], p);
       })
       .filter(Boolean);
-    var outlines = (laid.groups || []).map(function (g) {
+    var outlines = (options && options.outlines === false ? [] : laid.groups || []).map(function (g) {
       return outline(at, g);
     }).filter(Boolean);
     var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;

@@ -412,6 +412,42 @@
     });
   }
 
+  // Open clusters' outlines on the canvas, shown or not (owner, 2026-09-25);
+  // this browser remembers which, as it does for permissions.
+  var OUTLINES = "effractor.outlines";
+  var showOutlines = (function () {
+    try {
+      var s = browserStorage();
+      return !s || s.getItem(OUTLINES) !== "hidden";
+    } catch (e) {
+      return true;
+    }
+  })();
+  function setOutlines(on) {
+    showOutlines = !!on;
+    try {
+      var s = browserStorage();
+      if (s && showOutlines) s.removeItem(OUTLINES);
+      else if (s) s.setItem(OUTLINES, "hidden");
+    } catch (e) {
+      /* kept for this page only */
+    }
+    markOutlines();
+    paint();
+  }
+  function markOutlines() {
+    var b = $("outlines");
+    if (!b) return;
+    b.setAttribute("aria-pressed", String(showOutlines));
+    b.title = "Outlines of open clusters · click to " + (showOutlines ? "hide" : "show");
+  }
+  if ($("outlines")) {
+    markOutlines();
+    $("outlines").addEventListener("click", function () {
+      setOutlines(!showOutlines);
+    });
+  }
+
   function arrange() {
     positions.clear(state.doc.name);
     paint();
@@ -431,7 +467,7 @@
       // The same document glides to its new drawing; another one just appears.
       var motion = painted && painted.name === state.doc.name ? window.effractorClusters.transitions(painted.hidden, state.hidden) : null;
       painted = { name: state.doc.name, hidden: state.hidden };
-      state.placed = window.effractorPositions.place(state.laid, positions.load(state.doc.name), { permits: showPermits });
+      state.placed = window.effractorPositions.place(state.laid, positions.load(state.doc.name), { permits: showPermits, outlines: showOutlines });
       return renderer.render(state.placed, {}, motion);
     }
     painted = null;
@@ -1111,6 +1147,10 @@
     return showPermits;
   };
   window.effractor.setPermits = setPermits;
+  window.effractor.outlines = function () {
+    return showOutlines;
+  };
+  window.effractor.setOutlines = setOutlines;
   // The architecture drawn again as it is: its pins' words have arrived.
   window.effractor.redraw = function () {
     return attackShown() ? Promise.resolve() : draw(false);

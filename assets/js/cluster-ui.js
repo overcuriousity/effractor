@@ -247,7 +247,12 @@
   });
 
   U.backgroundItems.push(function () {
-    return [["Cluster · uncluster all", "K", toggleAll], ["Cluster what runs together", "", buildMissing]];
+    var outlined = app.outlines();
+    return [
+      ["Cluster · uncluster all", "K", toggleAll],
+      ["Cluster what runs together", "", buildMissing],
+      [outlined ? "Hide cluster outlines" : "Show cluster outlines", "", function () { app.setOutlines(!outlined); }],
+    ];
   });
 
   // A merged line: which of its lines.
