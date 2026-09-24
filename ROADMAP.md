@@ -12,9 +12,10 @@ one feature branch per task, a pause for the owner at each task boundary. The
 items below are its delivery decomposition. Plan tasks 1
 (`architecture-document`), 2 (`component-generation`), 3
 (`sequential-simulation`), 4 (`architecture-editor`), 5
-(`architecture-links`) and 6 (`attack-graph-inspection`) are done; the rest map
-as defense-comparison = 7, lecture-workflow = 8. `library-extension`, added by the owner
-on 2026-09-23, is done, so comparisons cover its defenses from the start.
+(`architecture-links`), 6 (`attack-graph-inspection`) and 7
+(`defense-comparison`, with an attacker speed per scenario) are done;
+lecture-workflow = 8 remains. `library-extension`, added by the owner on
+2026-09-23, is done, so comparisons cover its defenses from the start.
 "securiCAD parity" in the owner's words means `lecture-workflow`, not the later
 `mal-securicad-compatibility`.
 
@@ -56,7 +57,7 @@ document-model changes is superseded: generated graphs use explicit
 prerequisite-dependent attack steps with accumulated durations.
 
 ### lecture-workflow — Deliver the first successor milestone
-needs: defense-comparison            cost: 2   benefit: 5
+needs: —            cost: 2   benefit: 5
 Build the lecture's architecture → generated attack graph → simulation → defense
 comparison workflow using a small, transparent component library. Cover
 networks/zones, routers/firewalls, hosts, applications/services,
@@ -70,21 +71,6 @@ sequential timing and graph generation with automated fixtures, native/wasm
 agreement in CI, and the workflow by the owner's browser walkthrough. Numerical
 agreement with the lecture's screenshots is not an acceptance criterion without
 the underlying rules and calibrated inputs.
-
-## Lecture implementation
-
-### defense-comparison — Inspect defense changes and remaining alternatives
-needs: —            cost: 3   benefit: 5
-Add named defense overlay editing, baseline/scenario CDFs, paired probability
-deltas and visible changed/remaining/blocked routes. Surface illustrative
-inputs and missing replacement assumptions; clear comparisons on structural
-edits. Done when comparison view/edit tests pass and the owner verifies
-patch-only, credential-only, combined and denied-flow cases, including finite
-replacement TTCs and an explicit administration alternative. Include an
-attacker profile: a scenario may override durations (an AI-accelerated
-attacker), since that changes timing, not structure (library-extension §1).
-The final
-lecture-workflow item records full acceptance, checks and released delivery.
 
 ## Compatibility after the lecture milestone
 

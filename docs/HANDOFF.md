@@ -5,6 +5,43 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — defense comparison (2026-09-24)
+
+Plan Task 7 (`defense-comparison`) is done; the owner accepted it in the 8081
+preview after two layout rounds. Next is `lecture-workflow` (plan Task 8).
+
+- **Attacker speed** (owner's choice of the "attacker profile"): a scenario may
+  say `attacker: {speed: n}`, n > 0. Every sampled time on that side is
+  divided by n on the same draws (`graph_mc.rs`, one division after the draw),
+  so structure, chances, logical steps and Never/Immediate stay. Speed 2 is
+  bit-identical to the model with every average halved (test); no fingerprint
+  moved; the agreement check has a speed-3 case. The assumption reads
+  "n × speed", status `attacker` ("Attacker speed"). Spec §9 amended.
+- **Compare tab** (right panel, architectures only). `comparison.js` (pure):
+  scenario edits (`putScenario`, `rename`, `removeScenario`, `setChange`,
+  `setSpeed`, keeping x- fields), `switches`, `settings` (with `asWritten`: a
+  switch set to what the file says changes nothing), `rows` (both CDFs on one
+  grid), `summary` (the solver's paired delta, never a difference of Wilson
+  ends), `changedSteps`, `routes` ({targetBlocked, blocked, changed,
+  remaining} from the solver's per-side states), `state` (current / stale /
+  none), and the table's number words. `comparison-ui.js` is the DOM.
+- **App:** `state.scenario` is workspace state, set by `app.setScenario`; the
+  solve sends it; an answer for another choice is dropped; a scenario the
+  document loses falls back to the baseline. `state.solvedRevision` says
+  which text a graph result belongs to; the tab fades an outdated one and
+  reads no routes from it. The route lists need the attack graph, built on
+  request by a button (a build of its own would overtake a view switch).
+- **Time tab:** baseline dashed, scenario dotted, each in its band, a table
+  with both. **Results tab:** assumptions are a plain-word list
+  (`effractorWords.path`), a CI that prints as one number is left out.
+- Only baseline vs one scenario, by design (spec §9). The owner asked about
+  comparing two scenarios directly and was fine without it for now; a paired
+  A-vs-B solve would need the reference side to be a scenario in Rust.
+- Deferred minors: the comparison chart draws a structural baseline dashed;
+  the Results tab lists only the baseline's assumptions; the wasm refusal of
+  duplicate/wrong-kind scenario changes is checked by Rust format tests, not
+  through wasm.
+
 ## Continuation — unfinished flows and plain problems (2026-09-24)
 
 The owner could not get an attack graph from a model that used the removed
