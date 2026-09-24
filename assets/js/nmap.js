@@ -172,7 +172,216 @@
     return { scan: { args: run.attrs.args || "", hosts: hosts, silentUdp: silentUdp } };
   }
 
-  var api = { LEVELS: LEVELS, level: level, command: command, read: read };
+  // ---- addresses ----
+
+  function bytes(ip) {
+    var s = String(ip);
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(s)) {
+      var four = s.split(".").map(Number);
+      return four.every(function (n) { return n <= 255; }) ? four : null;
+    }
+    if (!/^[0-9A-Fa-f:]+$/.test(s) || s.indexOf(":") < 0) return null;
+    var halves = s.split("::");
+    if (halves.length > 2) return null;
+    function groups(part) {
+      return part ? part.split(":") : [];
+    }
+    var head = groups(halves[0]), tail = halves.length === 2 ? groups(halves[1]) : [];
+    var fill = 8 - head.length - tail.length;
+    if (halves.length === 1 ? fill !== 0 : fill < 1) return null;
+    var all = head.concat(Array(halves.length === 2 ? fill : 0).fill("0"), tail);
+    var out = [];
+    for (var i = 0; i < all.length; i++) {
+      if (!/^[0-9A-Fa-f]{1,4}$/.test(all[i])) return null;
+      var n = parseInt(all[i], 16);
+      out.push(n >> 8, n & 255);
+    }
+    return out;
+  }
+
+  // One spelling per address, so fd00::5 and fd00:0::5 are the same host.
+  function addressKey(ip) {
+    var b = bytes(ip);
+    return b ? b.join(".") : String(ip);
+  }
+
+  function inCidr(ip, cidr) {
+    var parts = String(cidr).split("/");
+    if (parts.length !== 2 || !/^\d{1,3}$/.test(parts[1])) return false;
+    var a = bytes(ip), net = bytes(parts[0]), bits = Number(parts[1]);
+    if (!a || !net || a.length !== net.length || bits > a.length * 8) return false;
+    for (var i = 0; i < a.length; i++) {
+      var take = Math.max(0, Math.min(8, bits - i * 8));
+      var mask = take ? (0xff << (8 - take)) & 0xff : 0;
+      if ((a[i] & mask) !== (net[i] & mask)) return false;
+    }
+    return true;
+  }
+
+  // ---- planning (spec §3.4, §4) ----
+
+  function ids(doc, kind) {
+    return Object.keys(doc.entities || {}).filter(function (id) { return doc.entities[id].kind === kind; });
+  }
+  function links(doc, kind) {
+    return Object.keys(doc.associations || {}).map(function (k) { return doc.associations[k]; }).filter(function (a) { return a.kind === kind; });
+  }
+  function hostingOf(doc, executable) {
+    var a = links(doc, "hosts").filter(function (x) { return x.to === executable; })[0];
+    return a ? a.from : null;
+  }
+  function attachedNetworks(doc, machine) {
+    var mine = links(doc, "attached").filter(function (a) { return a.from === machine; }).map(function (a) { return a.to; });
+    return ids(doc, "network").filter(function (n) { return mine.indexOf(n) >= 0; });
+  }
+  function onlyCidr(range) {
+    var words = String(range == null ? "" : range).trim().split(/\s+/).filter(Boolean);
+    return words.length === 1 && /\/\d{1,3}$/.test(words[0]) && inCidr(words[0].split("/")[0], words[0]) ? words[0] : null;
+  }
+
+  function plan(doc, appId, scan, range, merges) {
+    merges = merges || {};
+    var hosts = ids(doc, "host");
+    var byAddress = Object.create(null);
+    hosts.forEach(function (h) {
+      (doc.entities[h].addresses || []).forEach(function (a) {
+        var k = addressKey(a);
+        byAddress[k] = byAddress[k] || h;
+      });
+    });
+    var candidates = hosts.filter(function (h) { return !(doc.entities[h].addresses || []).length; });
+    var networks = ids(doc, "network");
+    var appHost = hostingOf(doc, appId);
+    var appNets = appHost ? attachedNetworks(doc, appHost) : [];
+    var cidr = onlyCidr(range);
+    var proposed = cidr && !networks.some(function (n) { return (doc.entities[n].addresses || []).indexOf(cidr) >= 0; })
+      ? { label: cidr, addresses: [cidr] } : null;
+    var products = Object.create(null);
+    ids(doc, "product").forEach(function (p) { products[doc.entities[p].label] = products[doc.entities[p].label] || p; });
+    var usedNew = false;
+
+    var planned = scan.hosts.map(function (h, i) {
+      var key = "h" + i;
+      var known = null;
+      h.addresses.forEach(function (a) { if (!known && byAddress[addressKey(a)]) known = byAddress[addressKey(a)]; });
+      var merged = !known && candidates.indexOf(merges[key]) >= 0 ? merges[key] : null;
+      var target = known || merged;
+      var label = target ? doc.entities[target].label : h.hostname || h.addresses[0];
+      var nets = [];
+      if (!target) {
+        nets = networks.filter(function (n) {
+          return (doc.entities[n].addresses || []).some(function (c) {
+            return h.addresses.some(function (a) { return inCidr(a, c); });
+          });
+        });
+        if (!nets.length && proposed && h.addresses.some(function (a) { return inCidr(a, cidr); })) {
+          nets = ["new"];
+          usedNew = true;
+        }
+      }
+      var theirs = target ? attachedNetworks(doc, target) : nets;
+      var shared = appNets.filter(function (n) { return theirs.indexOf(n) >= 0; });
+      return {
+        key: key,
+        label: label,
+        addresses: h.addresses.slice(),
+        os: h.os ? "nmap OS guess: " + h.os.name + " (" + h.os.accuracy + "%)." : null,
+        known: known,
+        merged: merged,
+        networks: nets,
+        route: shared.length ? [shared[0]] : [],
+        ports: h.ports.filter(function (p) { return p.state === "open"; }).map(function (p) {
+          return portRow(doc, appId, target, key, label, p, products);
+        }),
+      };
+    });
+
+    return {
+      app: appId,
+      appHost: appHost,
+      network: usedNew ? proposed : null,
+      candidates: candidates,
+      silentUdp: scan.silentUdp || 0,
+      hosts: planned,
+    };
+  }
+
+  function portRow(doc, appId, target, hostKey, hostLabel, p, products) {
+    var proto = p.protocol + "/" + p.port;
+    var s = p.service || {};
+    var label = s.name || proto;
+    var known = null;
+    if (target) {
+      var hosted = links(doc, "hosts").filter(function (a) {
+        return a.from === target && doc.entities[a.to] && doc.entities[a.to].kind === "service";
+      }).map(function (a) { return a.to; });
+      Object.keys(doc.flows || {}).forEach(function (k) {
+        var f = doc.flows[k];
+        if (!known && f.protocol === proto && hosted.indexOf(f.target) >= 0) known = f.target;
+      });
+    }
+    var addsFlow = !(known && Object.keys(doc.flows || {}).some(function (k) {
+      var f = doc.flows[k];
+      return f.source === appId && f.target === known && f.protocol === proto;
+    }));
+    var product = s.product
+      ? { label: s.product + (s.version ? " " + s.version : ""), existing: null, identified: true }
+      : { label: "unidentified " + label + " on " + hostLabel, existing: null, identified: false };
+    if (product.identified && products[product.label]) product.existing = products[product.label];
+    return { key: hostKey + "/" + proto, proto: proto, label: label, product: product, known: known, addsFlow: addsFlow };
+  }
+
+  function defaults(p) {
+    var t = { hosts: {}, ports: {}, network: true };
+    p.hosts.forEach(function (h) {
+      t.hosts[h.key] = true;
+      h.ports.forEach(function (r) { if (!r.known || r.addsFlow) t.ports[r.key] = true; });
+    });
+    return t;
+  }
+
+  // What the ticked rows add, and whether the result stays in the limits.
+  // A new host whose only network is an unticked proposed one is added
+  // unattached, as apply does.
+  function summary(doc, p, ticks, limits) {
+    var s = { hosts: 0, networks: 0, services: 0, products: 0, flows: 0 };
+    var rel = 0, newProducts = Object.create(null);
+    var network = !!(p.network && ticks.network);
+    p.hosts.forEach(function (h) {
+      if (!ticks.hosts[h.key]) return;
+      if (!h.known && !h.merged) {
+        s.hosts++;
+        h.networks.forEach(function (n) {
+          if (n !== "new") rel++;
+          else if (network) {
+            rel++;
+            s.networks = 1;
+          }
+        });
+      }
+      h.ports.forEach(function (r) {
+        if (!ticks.ports[r.key]) return;
+        if (!r.known) {
+          s.services++;
+          rel += 2; // hosts, instance-of
+          if (!r.product.existing && !(r.product.identified && newProducts[r.product.label])) {
+            newProducts[r.product.label] = true;
+            s.products++;
+          }
+        }
+        if (r.addsFlow) s.flows++;
+      });
+    });
+    rel += s.flows;
+    s.entities = Object.keys(doc.entities || {}).length + s.hosts + s.networks + s.services + s.products;
+    s.relationships = Object.keys(doc.associations || {}).length + Object.keys(doc.flows || {}).length + rel;
+    s.tooMany = null;
+    if (limits && s.entities > limits.entities) s.tooMany = "That makes " + s.entities + " components; the limit is " + limits.entities + ". Untick some hosts.";
+    else if (limits && s.relationships > limits.relationships) s.tooMany = "That makes " + s.relationships + " links and flows; the limit is " + limits.relationships + ". Untick some hosts.";
+    return s;
+  }
+
+  var api = { LEVELS: LEVELS, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmap = api;
 })();
