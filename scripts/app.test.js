@@ -75,7 +75,7 @@ function racePage(kept = 'original') {
   let holdLayout = false;
   let holdGenerate = false;
   const docOf = text => text.startsWith('arch')
-    ? { name: text, profile: 'architecture', entities: { web: { kind: 'service', label: 'Web' } }, associations: {}, flows: {}, attacker: { footholds: [] }, scenarios: {}, analysis: { seed: 1, samples: 10 } }
+    ? { name: text, profile: 'architecture', entities: { web: { kind: 'service', label: 'Web' } }, associations: {}, flows: {}, attacker: { footholds: [] }, scenarios: text.includes('scen') ? { deny: { label: 'Deny', changes: [] } } : {}, analysis: { seed: 1, samples: 10 } }
     : { name: text, profile: 'fault-tree', nodes: { top: { label: 'Top', leaf: 'basic' } }, analysis: { seed: 1, samples: 10 } };
   const later = (what, value) => new Promise(resolve => held.push({ what, release: () => resolve(value) }));
   const solver = {
@@ -773,4 +773,32 @@ test('a tree selection is gone the moment an architecture is committed, before i
   await h.settle(); await h.settle(); await h.settle();
   assert.equal(h.app.state.doc.profile, 'architecture');
   assert.equal(h.app.state.selected, null);
+});
+
+test('a chosen scenario is solved with the baseline, and one the document no longer has falls back to the baseline', async () => {
+  const h = racePage('arch-scen');
+  await h.app.ready; await h.tick();
+  assert.deepEqual(h.runs[0].options, { scenario: '', revision: h.app.state.revision });
+  h.runs[0].resolve({ cancelled: true }); await h.settle();
+  assert.equal(h.app.setScenario('nobody'), false, 'not a scenario of this document');
+  assert.equal(h.app.state.scenario, '');
+  assert.equal(h.app.setScenario('deny'), true);
+  assert.equal(h.app.state.scenario, 'deny');
+  await h.tick();
+  const run = h.runs[h.runs.length - 1];
+  assert.equal(run.options.scenario, 'deny', 'solved together with the baseline');
+  // Back to the baseline alone before the answer: the answer is not shown.
+  h.app.setScenario('');
+  const r = graphResult('arch-scen', h.app.state.revision, 0.5);
+  r.result.ok.result.scenario = { id: 'deny', outcome: { available: { method: 'structural', samples: 0, confidence: 0.95, p_target: 0, ci: { lo: 0, hi: 0 }, ttc_cdf: [] } }, nodes: [], assumptions: [], witness: null };
+  run.resolve(r); await h.settle();
+  assert.equal(h.app.state.results, null, 'an answer about another comparison');
+  // An edit that drops the scenario drops the choice.
+  h.app.setScenario('deny');
+  await h.tick();
+  h.runs[h.runs.length - 1].resolve({ cancelled: true }); await h.settle();
+  await h.app.applyEdit({ doc: h.docOf('arch-plain') });
+  assert.equal(h.app.state.scenario, '');
+  await h.tick();
+  assert.equal(h.runs[h.runs.length - 1].options.scenario, '');
 });

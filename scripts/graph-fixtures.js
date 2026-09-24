@@ -43,6 +43,18 @@ function build(api) {
     'results-unreachable': solved(api, replaced(lecture, '    to: ssh\n    allowed: true', '    to: ssh\n    allowed: false')),
     'results-seeded': solved(api, replaced(lecture, 'target: {entity: server, state: admin}', 'target: {entity: workstation, state: admin}')),
     'results-unknown': solved(api, unknown),
+    'results-patch': solved(api, lecture, 'patch'),
+    'results-deny': solved(api, lecture, 'deny'),
+    'results-deny-one': solved(api, replaced(lecture, '  samples: 10000\n', '  samples: 1\n'), 'deny'),
+    'results-fast': solved(
+      api,
+      replaced(
+        replaced(lecture, 'horizon: 100\n', 'horizon: 5\n'),
+        '  deny:\n',
+        '  fast:\n    label: Twice as fast\n    attacker: {speed: 2}\n    changes: []\n  deny:\n',
+      ),
+      'fast',
+    ),
     'results-scenario-unknown': solved(
       api,
       replaced(lecture, '  deny:\n', '  doubt:\n    label: Patch state unknown\n    changes:\n      - {entity: openssh, defense: patched, value: unknown}\n  deny:\n'),

@@ -68,7 +68,7 @@
   // `mode` is the architecture's view: "architecture" or "attack", its
   // generated graph. `generated`: {graph, support, revision} of the text on
   // the page, or null. `sourceValid`: the source view's text is the document's.
-  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastSampledMs: null, revision: gate.current(), sourceValid: true, mode: "architecture", generated: null, blockers: null, diagnostics: [], documents: 0 };
+  var state = { text: null, doc: null, running: false, selected: null, parent: null, parentChosen: false, laid: null, results: null, ranked: [], measure: "fussell_vesely", activeRow: null, lastSampledMs: null, revision: gate.current(), sourceValid: true, mode: "architecture", generated: null, blockers: null, diagnostics: [], documents: 0, scenario: "" };
   var view = window.effractorResults;
   var AV = window.effractorAttackView;
   var GR = window.effractorGraphResults;
@@ -448,6 +448,8 @@
     state.text = text;
     state.doc = doc;
     state.sourceValid = true;
+    // The comparison is workspace state: it lasts while the document names it.
+    if (!hasScenario(doc, state.scenario)) state.scenario = "";
     // The graph of the text before: what a vanished step's selection falls
     // back from. The graph itself is stale the moment the text changes.
     state.lastGraph = graphOf() || state.lastGraph || null;
@@ -835,6 +837,7 @@
     if (!text || !P.capabilities(state.doc).solve || !state.sourceValid) return Promise.resolve();
     var arch = P.isArchitecture(state.doc);
     var revision = state.revision;
+    var scenario = arch ? state.scenario : "";
     var full = explicit || auto.samplesAutomatically(state.lastSampledMs);
     var token = gate.issue("solve");
     var current = function () {
@@ -866,7 +869,7 @@
         onProgress: function (done, total) {
           if (current()) chip("sampling " + grouped(done) + " / " + grouped(total) + " chunks");
         },
-      }, arch ? { scenario: "", revision: revision } : undefined)
+      }, arch ? { scenario: scenario, revision: revision } : undefined)
       .then(function (outcome) {
         finished();
         // A newer text is on its way to being solved: it will say. Typing in
@@ -891,6 +894,8 @@
         // An architecture's answer names the text and revision it is about.
         var answer = outcome.result.ok;
         if (arch && (answer.revision !== revision || answer.source !== text)) return;
+        // …and the comparison it was asked for, which may have changed since.
+        if (arch && scenario !== state.scenario) return;
         if (arch) state.blockers = null;
         state.lastSampledMs = performance.now() - started;
         if (arch) showGraph(answer.result);
@@ -916,7 +921,24 @@
     autosolve.now();
   }
 
+  function hasScenario(doc, id) {
+    return !!id && !!doc && !!doc.scenarios && Object.prototype.hasOwnProperty.call(doc.scenarios, id);
+  }
+
+  // Compare the baseline with one of the document's scenarios, or with
+  // nothing (""): a choice of the workspace, never an edit of the document.
+  function setScenario(id) {
+    id = id || "";
+    if (id && !hasScenario(state.doc, id)) return false;
+    if (id === state.scenario) return true;
+    state.scenario = id;
+    notify();
+    if (P.isArchitecture(state.doc)) autosolve.changed();
+    return true;
+  }
+
   window.effractor.state = state;
+  window.effractor.setScenario = setScenario;
   window.effractor.renderer = renderer;
   window.effractor.select = select;
   window.effractor.labelOf = labelOf;

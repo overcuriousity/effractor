@@ -104,6 +104,8 @@
     });
   }
 
+  window.effractorAttackUi = { showStep: showStep, follow: follow };
+
   function sourceLink(path) {
     return button(path, "Show where this is set", function () {
       follow(path);

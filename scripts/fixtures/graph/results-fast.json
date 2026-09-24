@@ -1,0 +1,2315 @@
+{
+ "effractor-graph-results": 1,
+ "semantics": "sequential-1",
+ "library": {
+  "id": "core-components",
+  "version": 1
+ },
+ "target": "state/host/server/admin",
+ "time_unit": "d",
+ "horizon": 5,
+ "seed": "42",
+ "samples": 10000,
+ "confidence": 0.95,
+ "baseline": {
+  "id": null,
+  "outcome": {
+   "available": {
+    "method": "sampled",
+    "samples": 10000,
+    "confidence": 0.95,
+    "p_target": 0.6547,
+    "ci": {
+     "lo": 0.6453232332715579,
+     "hi": 0.6639579576325545
+    },
+    "ttc_cdf": [
+     [
+      0,
+      0,
+      0,
+      0.0003839983706765956
+     ],
+     [
+      0.078125,
+      0.0003,
+      0.00010203219941781017,
+      0.0008817357722363795
+     ],
+     [
+      0.15625,
+      0.0005,
+      0.00021358842616382582,
+      0.0011700259461420934
+     ],
+     [
+      0.234375,
+      0.0018,
+      0.0011389279915130562,
+      0.0028436879850291027
+     ],
+     [
+      0.3125,
+      0.0034,
+      0.0024341818163000862,
+      0.004747205365455908
+     ],
+     [
+      0.390625,
+      0.0056,
+      0.004315267073552004,
+      0.007264430515373014
+     ],
+     [
+      0.46875,
+      0.009,
+      0.007328320093401381,
+      0.011048766306603034
+     ],
+     [
+      0.546875,
+      0.0137,
+      0.011601223967326633,
+      0.016172252847993424
+     ],
+     [
+      0.625,
+      0.0197,
+      0.017155009930664444,
+      0.02261385890420749
+     ],
+     [
+      0.703125,
+      0.0262,
+      0.02324661275726247,
+      0.029517264098790668
+     ],
+     [
+      0.78125,
+      0.033,
+      0.02967419810234849,
+      0.03668445637586344
+     ],
+     [
+      0.859375,
+      0.0429,
+      0.03910090304217032,
+      0.04705014826830221
+     ],
+     [
+      0.9375,
+      0.0507,
+      0.0465700404698355,
+      0.05517502046605448
+     ],
+     [
+      1.015625,
+      0.0604,
+      0.05589749864483998,
+      0.06524011272265888
+     ],
+     [
+      1.09375,
+      0.0718,
+      0.0669029544182109,
+      0.07702590178643653
+     ],
+     [
+      1.171875,
+      0.0822,
+      0.07697566063788176,
+      0.0877452084006556
+     ],
+     [
+      1.25,
+      0.0938,
+      0.08824066821768085,
+      0.09967129205865681
+     ],
+     [
+      1.328125,
+      0.1052,
+      0.09933746200283383,
+      0.1113657431106524
+     ],
+     [
+      1.40625,
+      0.1189,
+      0.11270204066831718,
+      0.12539064288981253
+     ],
+     [
+      1.484375,
+      0.1313,
+      0.12482198669575993,
+      0.13806117370277698
+     ],
+     [
+      1.5625,
+      0.1462,
+      0.13941117312712134,
+      0.1532605441199694
+     ],
+     [
+      1.640625,
+      0.159,
+      0.15196400376876962,
+      0.1662978831200318
+     ],
+     [
+      1.71875,
+      0.1731,
+      0.1658106859745444,
+      0.18064037216020395
+     ],
+     [
+      1.796875,
+      0.1876,
+      0.18006893903480972,
+      0.19537098314718895
+     ],
+     [
+      1.875,
+      0.1997,
+      0.1919805280177539,
+      0.2076501014036744
+     ],
+     [
+      1.953125,
+      0.2121,
+      0.20419908832898098,
+      0.22022201793285462
+     ],
+     [
+      2.03125,
+      0.2295,
+      0.2213629295507368,
+      0.2378448135677992
+     ],
+     [
+      2.109375,
+      0.2425,
+      0.2341996011665077,
+      0.25099815799439074
+     ],
+     [
+      2.1875,
+      0.2572,
+      0.24872755474444505,
+      0.2658589148643553
+     ],
+     [
+      2.265625,
+      0.2701,
+      0.2614870438122579,
+      0.2788895186385791
+     ],
+     [
+      2.34375,
+      0.2837,
+      0.2749489848887331,
+      0.29261713280642154
+     ],
+     [
+      2.421875,
+      0.297,
+      0.2881235404504861,
+      0.30603236288800845
+     ],
+     [
+      2.5,
+      0.3099,
+      0.3009105489493966,
+      0.31903544723113453
+     ],
+     [
+      2.578125,
+      0.324,
+      0.31489646455048875,
+      0.3332387028759894
+     ],
+     [
+      2.65625,
+      0.3376,
+      0.3283954308437687,
+      0.346929291827027
+     ],
+     [
+      2.734375,
+      0.3504,
+      0.34110817090335066,
+      0.3598067214091557
+     ],
+     [
+      2.8125,
+      0.3631,
+      0.35372889660542567,
+      0.37257624214846546
+     ],
+     [
+      2.890625,
+      0.3769,
+      0.3674508042467174,
+      0.3864437361521431
+     ],
+     [
+      2.96875,
+      0.3912,
+      0.38167852745838665,
+      0.40080503058707245
+     ],
+     [
+      3.046875,
+      0.4038,
+      0.39422199044064493,
+      0.41345189084587314
+     ],
+     [
+      3.125,
+      0.4155,
+      0.4058753882080229,
+      0.4251895075166214
+     ],
+     [
+      3.203125,
+      0.4256,
+      0.4159396665654883,
+      0.4353174723920682
+     ],
+     [
+      3.28125,
+      0.4376,
+      0.42790259485949045,
+      0.4473453281371699
+     ],
+     [
+      3.359375,
+      0.4498,
+      0.4400708269436553,
+      0.45956772649276045
+     ],
+     [
+      3.4375,
+      0.461,
+      0.4512468770719883,
+      0.4707830748009244
+     ],
+     [
+      3.515625,
+      0.4722,
+      0.46242788734512397,
+      0.4819934629642856
+     ],
+     [
+      3.59375,
+      0.4837,
+      0.4739135268009478,
+      0.49349899154593624
+     ],
+     [
+      3.671875,
+      0.4936,
+      0.4838053217767118,
+      0.5033995934024327
+     ],
+     [
+      3.75,
+      0.5053,
+      0.4955005768762873,
+      0.5150953527409835
+     ],
+     [
+      3.828125,
+      0.516,
+      0.506200933743386,
+      0.5257867783087523
+     ],
+     [
+      3.90625,
+      0.5251,
+      0.5153047720953651,
+      0.5348759511864271
+     ],
+     [
+      3.984375,
+      0.5349,
+      0.5251125482004426,
+      0.5446606487132841
+     ],
+     [
+      4.0625,
+      0.5461,
+      0.5363260776661068,
+      0.5558385176841169
+     ],
+     [
+      4.140625,
+      0.5553,
+      0.5455409138940318,
+      0.5650166158861715
+     ],
+     [
+      4.21875,
+      0.5646,
+      0.5548593447263521,
+      0.5742910426841565
+     ],
+     [
+      4.296875,
+      0.5746,
+      0.5648830411282285,
+      0.5842596663148666
+     ],
+     [
+      4.375,
+      0.5837,
+      0.5740081257921226,
+      0.5933275928806261
+     ],
+     [
+      4.453125,
+      0.5924,
+      0.582735273218065,
+      0.601993763883034
+     ],
+     [
+      4.53125,
+      0.6023,
+      0.5926699671775757,
+      0.6118514667557837
+     ],
+     [
+      4.609375,
+      0.6129,
+      0.6033116546239824,
+      0.6224016385439187
+     ],
+     [
+      4.6875,
+      0.6231,
+      0.6135562638478569,
+      0.6325491957532825
+     ],
+     [
+      4.765625,
+      0.6311,
+      0.6215943806432405,
+      0.6405049349839682
+     ],
+     [
+      4.84375,
+      0.6395,
+      0.6300374068854997,
+      0.6488554575690815
+     ],
+     [
+      4.921875,
+      0.6476,
+      0.6381818524719027,
+      0.6569047912090735
+     ],
+     [
+      5,
+      0.6547,
+      0.6453232332715579,
+      0.6639579576325545
+     ]
+    ]
+   }
+  },
+  "nodes": [
+   {
+    "id": "action/account-authenticated/admin-account",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6378,
+      "ci": {
+       "lo": 0.6283284487621557,
+       "hi": 0.647165721286886
+      }
+     }
+    }
+   },
+   {
+    "id": "action/account-authenticated/server-account",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6371,
+      "ci": {
+       "lo": 0.6276247971918447,
+       "hi": 0.6464699104549156
+      }
+     }
+    }
+   },
+   {
+    "id": "action/administration-login/admin-net/admin-account/bridge",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "action/credential-extract/workstation/admin-key",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6378,
+      "ci": {
+       "lo": 0.6283284487621557,
+       "hi": 0.647165721286886
+      }
+     }
+    }
+   },
+   {
+    "id": "action/credential-extract/workstation/server-key",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6371,
+      "ci": {
+       "lo": 0.6276247971918447,
+       "hi": 0.6464699104549156
+      }
+     }
+    }
+   },
+   {
+    "id": "action/flow-connect/ssh",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "action/mfa-bypass/admin-account",
+    "status": "possible",
+    "outcome": {
+     "unavailable": {
+      "reason": "rests on unknown inputs",
+      "missing": [
+       "entities.admin-account.parameters.mfa-bypass"
+      ]
+     }
+    }
+   },
+   {
+    "id": "action/mfa-bypass/server-account",
+    "status": "possible",
+    "outcome": {
+     "unavailable": {
+      "reason": "rests on unknown inputs",
+      "missing": [
+       "entities.server-account.parameters.mfa-bypass"
+      ]
+     }
+    }
+   },
+   {
+    "id": "action/product-find-exploit/openssh",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.3603,
+      "ci": {
+       "lo": 0.3509457583248082,
+       "hi": 0.36976153081995883
+      }
+     }
+    }
+   },
+   {
+    "id": "action/service-deploy-exploit/sshd",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.2322,
+      "ci": {
+       "lo": 0.22402811314009013,
+       "hi": 0.2405775563872442
+      }
+     }
+    }
+   },
+   {
+    "id": "action/service-login/server-account/sshd",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.5448,
+      "ci": {
+       "lo": 0.5350242524873363,
+       "hi": 0.5545413412586511
+      }
+     }
+    }
+   },
+   {
+    "id": "input/flow-permission/filter/ssh",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "input/foothold/workstation/admin",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "input/policy/admin-account/mfa",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "input/policy/server-account/mfa",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/admin-account/authenticated",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6378,
+      "ci": {
+       "lo": 0.6283284487621557,
+       "hi": 0.647165721286886
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/admin-account/material",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6378,
+      "ci": {
+       "lo": 0.6283284487621557,
+       "hi": 0.647165721286886
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/admin-account/mfa-satisfied",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/server-account/authenticated",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6371,
+      "ci": {
+       "lo": 0.6276247971918447,
+       "hi": 0.6464699104549156
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/server-account/material",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6371,
+      "ci": {
+       "lo": 0.6276247971918447,
+       "hi": 0.6464699104549156
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/server-account/mfa-satisfied",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/application/ssh-client/control",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/credential/admin-key/possessed",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6378,
+      "ci": {
+       "lo": 0.6283284487621557,
+       "hi": 0.647165721286886
+      }
+     }
+    }
+   },
+   {
+    "id": "state/credential/server-key/possessed",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6371,
+      "ci": {
+       "lo": 0.6276247971918447,
+       "hi": 0.6464699104549156
+      }
+     }
+    }
+   },
+   {
+    "id": "state/flow/ssh/connected",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/host/server/admin",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6547,
+      "ci": {
+       "lo": 0.6453232332715579,
+       "hi": 0.6639579576325545
+      }
+     }
+    }
+   },
+   {
+    "id": "state/host/server/user",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6547,
+      "ci": {
+       "lo": 0.6453232332715579,
+       "hi": 0.6639579576325545
+      }
+     }
+    }
+   },
+   {
+    "id": "state/host/workstation/admin",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/host/workstation/user",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/network/admin-net/access",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/network/client-net/access",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/network/server-net/access",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6547,
+      "ci": {
+       "lo": 0.6453232332715579,
+       "hi": 0.6639579576325545
+      }
+     }
+    }
+   },
+   {
+    "id": "state/permission/filter/ssh",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/product/openssh/exploit-ready",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.3603,
+      "ci": {
+       "lo": 0.3509457583248082,
+       "hi": 0.36976153081995883
+      }
+     }
+    }
+   },
+   {
+    "id": "state/product/openssh/reachable",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/router/bridge/admin",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/service/sshd/control",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.6547,
+      "ci": {
+       "lo": 0.6453232332715579,
+       "hi": 0.6639579576325545
+      }
+     }
+    }
+   },
+   {
+    "id": "state/service/sshd/reachable",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/session/server-account/sshd",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.5448,
+      "ci": {
+       "lo": 0.5350242524873363,
+       "hi": 0.5545413412586511
+      }
+     }
+    }
+   }
+  ],
+  "assumptions": [
+   {
+    "path": "associations.allow-ssh.allowed",
+    "paths": [
+     "associations.allow-ssh.allowed"
+    ],
+    "status": "policy",
+    "expression": "allowed",
+    "note": null
+   },
+   {
+    "path": "entities.openssh.parameters.find-exploit",
+    "paths": [
+     "entities.openssh.parameters.find-exploit",
+     "entities.openssh.defenses.patched"
+    ],
+    "status": "illustrative",
+    "expression": "Exponential(mean 10)",
+    "note": "Exercise assumption; not calibrated to the lecture"
+   },
+   {
+    "path": "entities.server-account.defenses.mfa",
+    "paths": [
+     "entities.server-account.defenses.mfa"
+    ],
+    "status": "defense",
+    "expression": "off",
+    "note": null
+   },
+   {
+    "path": "entities.server-key.parameters.extract",
+    "paths": [
+     "entities.server-key.parameters.extract",
+     "entities.server-key.defenses.protected"
+    ],
+    "status": "illustrative",
+    "expression": "Exponential(mean 5)",
+    "note": "Exercise assumption; not calibrated to the lecture"
+   },
+   {
+    "path": "entities.sshd.parameters.deploy-exploit",
+    "paths": [
+     "entities.sshd.parameters.deploy-exploit"
+    ],
+    "status": "illustrative",
+    "expression": "Exponential(mean 2)",
+    "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
+   },
+   {
+    "path": "entities.sshd.parameters.login",
+    "paths": [
+     "entities.sshd.parameters.login"
+    ],
+    "status": "illustrative",
+    "expression": "Exponential(mean 1)",
+    "note": "Exercise assumption; not calibrated to the lecture"
+   },
+   {
+    "path": "flows.ssh.parameters.connect",
+    "paths": [
+     "flows.ssh.parameters.connect"
+    ],
+    "status": "illustrative",
+    "expression": "Exponential(mean 0.5)",
+    "note": "Exercise assumption; not calibrated to the lecture"
+   }
+  ],
+  "witness": {
+   "sample": 0,
+   "target_time": 4.641549295373838,
+   "nodes": [
+    {
+     "id": "input/flow-permission/filter/ssh",
+     "time": 0
+    },
+    {
+     "id": "input/foothold/workstation/admin",
+     "time": 0
+    },
+    {
+     "id": "input/policy/server-account/mfa",
+     "time": 0
+    },
+    {
+     "id": "state/account/server-account/mfa-satisfied",
+     "time": 0
+    },
+    {
+     "id": "state/application/ssh-client/control",
+     "time": 0
+    },
+    {
+     "id": "state/host/workstation/admin",
+     "time": 0
+    },
+    {
+     "id": "state/host/workstation/user",
+     "time": 0
+    },
+    {
+     "id": "state/permission/filter/ssh",
+     "time": 0
+    },
+    {
+     "id": "action/flow-connect/ssh",
+     "time": 0.24364585606877515
+    },
+    {
+     "id": "state/flow/ssh/connected",
+     "time": 0.24364585606877515
+    },
+    {
+     "id": "state/service/sshd/reachable",
+     "time": 0.24364585606877515
+    },
+    {
+     "id": "action/account-authenticated/server-account",
+     "time": 4.583038427664114
+    },
+    {
+     "id": "action/credential-extract/workstation/server-key",
+     "time": 4.583038427664114
+    },
+    {
+     "id": "state/account/server-account/authenticated",
+     "time": 4.583038427664114
+    },
+    {
+     "id": "state/account/server-account/material",
+     "time": 4.583038427664114
+    },
+    {
+     "id": "state/credential/server-key/possessed",
+     "time": 4.583038427664114
+    },
+    {
+     "id": "action/service-login/server-account/sshd",
+     "time": 4.641549295373838
+    },
+    {
+     "id": "state/host/server/admin",
+     "time": 4.641549295373838
+    },
+    {
+     "id": "state/session/server-account/sshd",
+     "time": 4.641549295373838
+    }
+   ],
+   "edges": [
+    {
+     "prerequisite": "action/account-authenticated/server-account",
+     "dependent": "state/account/server-account/authenticated"
+    },
+    {
+     "prerequisite": "action/credential-extract/workstation/server-key",
+     "dependent": "state/credential/server-key/possessed"
+    },
+    {
+     "prerequisite": "action/flow-connect/ssh",
+     "dependent": "state/flow/ssh/connected"
+    },
+    {
+     "prerequisite": "action/service-login/server-account/sshd",
+     "dependent": "state/session/server-account/sshd"
+    },
+    {
+     "prerequisite": "input/flow-permission/filter/ssh",
+     "dependent": "state/permission/filter/ssh"
+    },
+    {
+     "prerequisite": "input/foothold/workstation/admin",
+     "dependent": "state/host/workstation/admin"
+    },
+    {
+     "prerequisite": "input/policy/server-account/mfa",
+     "dependent": "state/account/server-account/mfa-satisfied"
+    },
+    {
+     "prerequisite": "state/account/server-account/authenticated",
+     "dependent": "action/service-login/server-account/sshd"
+    },
+    {
+     "prerequisite": "state/account/server-account/material",
+     "dependent": "action/account-authenticated/server-account"
+    },
+    {
+     "prerequisite": "state/account/server-account/mfa-satisfied",
+     "dependent": "action/account-authenticated/server-account"
+    },
+    {
+     "prerequisite": "state/application/ssh-client/control",
+     "dependent": "action/flow-connect/ssh"
+    },
+    {
+     "prerequisite": "state/credential/server-key/possessed",
+     "dependent": "state/account/server-account/material"
+    },
+    {
+     "prerequisite": "state/flow/ssh/connected",
+     "dependent": "state/service/sshd/reachable"
+    },
+    {
+     "prerequisite": "state/host/workstation/admin",
+     "dependent": "state/host/workstation/user"
+    },
+    {
+     "prerequisite": "state/host/workstation/user",
+     "dependent": "action/credential-extract/workstation/server-key"
+    },
+    {
+     "prerequisite": "state/host/workstation/user",
+     "dependent": "state/application/ssh-client/control"
+    },
+    {
+     "prerequisite": "state/permission/filter/ssh",
+     "dependent": "action/flow-connect/ssh"
+    },
+    {
+     "prerequisite": "state/service/sshd/reachable",
+     "dependent": "action/service-login/server-account/sshd"
+    },
+    {
+     "prerequisite": "state/session/server-account/sshd",
+     "dependent": "state/host/server/admin"
+    }
+   ]
+  }
+ },
+ "scenario": {
+  "id": "fast",
+  "outcome": {
+   "available": {
+    "method": "sampled",
+    "samples": 10000,
+    "confidence": 0.95,
+    "p_target": 0.9214,
+    "ci": {
+     "lo": 0.9159621874388979,
+     "hi": 0.9265141787342959
+    },
+    "ttc_cdf": [
+     [
+      0,
+      0,
+      0,
+      0.0003839983706765956
+     ],
+     [
+      0.078125,
+      0.0005,
+      0.00021358842616382582,
+      0.0011700259461420934
+     ],
+     [
+      0.15625,
+      0.0034,
+      0.0024341818163000862,
+      0.004747205365455908
+     ],
+     [
+      0.234375,
+      0.009,
+      0.007328320093401381,
+      0.011048766306603034
+     ],
+     [
+      0.3125,
+      0.0197,
+      0.017155009930664444,
+      0.02261385890420749
+     ],
+     [
+      0.390625,
+      0.033,
+      0.02967419810234849,
+      0.03668445637586344
+     ],
+     [
+      0.46875,
+      0.0507,
+      0.0465700404698355,
+      0.05517502046605448
+     ],
+     [
+      0.546875,
+      0.0718,
+      0.0669029544182109,
+      0.07702590178643653
+     ],
+     [
+      0.625,
+      0.0938,
+      0.08824066821768085,
+      0.09967129205865681
+     ],
+     [
+      0.703125,
+      0.1189,
+      0.11270204066831718,
+      0.12539064288981253
+     ],
+     [
+      0.78125,
+      0.1462,
+      0.13941117312712134,
+      0.1532605441199694
+     ],
+     [
+      0.859375,
+      0.1731,
+      0.1658106859745444,
+      0.18064037216020395
+     ],
+     [
+      0.9375,
+      0.1997,
+      0.1919805280177539,
+      0.2076501014036744
+     ],
+     [
+      1.015625,
+      0.2295,
+      0.2213629295507368,
+      0.2378448135677992
+     ],
+     [
+      1.09375,
+      0.2572,
+      0.24872755474444505,
+      0.2658589148643553
+     ],
+     [
+      1.171875,
+      0.2837,
+      0.2749489848887331,
+      0.29261713280642154
+     ],
+     [
+      1.25,
+      0.3099,
+      0.3009105489493966,
+      0.31903544723113453
+     ],
+     [
+      1.328125,
+      0.3376,
+      0.3283954308437687,
+      0.346929291827027
+     ],
+     [
+      1.40625,
+      0.3631,
+      0.35372889660542567,
+      0.37257624214846546
+     ],
+     [
+      1.484375,
+      0.3912,
+      0.38167852745838665,
+      0.40080503058707245
+     ],
+     [
+      1.5625,
+      0.4155,
+      0.4058753882080229,
+      0.4251895075166214
+     ],
+     [
+      1.640625,
+      0.4376,
+      0.42790259485949045,
+      0.4473453281371699
+     ],
+     [
+      1.71875,
+      0.461,
+      0.4512468770719883,
+      0.4707830748009244
+     ],
+     [
+      1.796875,
+      0.4837,
+      0.4739135268009478,
+      0.49349899154593624
+     ],
+     [
+      1.875,
+      0.5053,
+      0.4955005768762873,
+      0.5150953527409835
+     ],
+     [
+      1.953125,
+      0.5251,
+      0.5153047720953651,
+      0.5348759511864271
+     ],
+     [
+      2.03125,
+      0.5461,
+      0.5363260776661068,
+      0.5558385176841169
+     ],
+     [
+      2.109375,
+      0.5646,
+      0.5548593447263521,
+      0.5742910426841565
+     ],
+     [
+      2.1875,
+      0.5837,
+      0.5740081257921226,
+      0.5933275928806261
+     ],
+     [
+      2.265625,
+      0.6023,
+      0.5926699671775757,
+      0.6118514667557837
+     ],
+     [
+      2.34375,
+      0.6231,
+      0.6135562638478569,
+      0.6325491957532825
+     ],
+     [
+      2.421875,
+      0.6395,
+      0.6300374068854997,
+      0.6488554575690815
+     ],
+     [
+      2.5,
+      0.6547,
+      0.6453232332715579,
+      0.6639579576325545
+     ],
+     [
+      2.578125,
+      0.6709,
+      0.6616263058310048,
+      0.680042443525898
+     ],
+     [
+      2.65625,
+      0.6846,
+      0.6754231244657404,
+      0.6936351033358058
+     ],
+     [
+      2.734375,
+      0.6975,
+      0.6884226600090804,
+      0.7064256606345023
+     ],
+     [
+      2.8125,
+      0.7116,
+      0.7026410865233362,
+      0.7203964053661934
+     ],
+     [
+      2.890625,
+      0.7261,
+      0.7172738033118539,
+      0.734752552624926
+     ],
+     [
+      2.96875,
+      0.7381,
+      0.729392395300459,
+      0.7466247446754247
+     ],
+     [
+      3.046875,
+      0.7489,
+      0.7403062133489644,
+      0.7573026322621128
+     ],
+     [
+      3.125,
+      0.7582,
+      0.7497098259662934,
+      0.7664918772750892
+     ],
+     [
+      3.203125,
+      0.7692,
+      0.7608393618181926,
+      0.7773538934590352
+     ],
+     [
+      3.28125,
+      0.7802,
+      0.7719768214713953,
+      0.7882079858416775
+     ],
+     [
+      3.359375,
+      0.7912,
+      0.783122627737725,
+      0.799053731611193
+     ],
+     [
+      3.4375,
+      0.8001,
+      0.7921470343989868,
+      0.8078224897789331
+     ],
+     [
+      3.515625,
+      0.8104,
+      0.8025986025863309,
+      0.8179630112251531
+     ],
+     [
+      3.59375,
+      0.82,
+      0.8123476279170886,
+      0.8274066131256782
+     ],
+     [
+      3.671875,
+      0.828,
+      0.8204778754881757,
+      0.8352702215806603
+     ],
+     [
+      3.75,
+      0.836,
+      0.8286139551430091,
+      0.8431279979518961
+     ],
+     [
+      3.828125,
+      0.8446,
+      0.8373671376438855,
+      0.8515682106790442
+     ],
+     [
+      3.90625,
+      0.8514,
+      0.844293626304068,
+      0.8582364996410204
+     ],
+     [
+      3.984375,
+      0.8579,
+      0.850919234186373,
+      0.8646058997798965
+     ],
+     [
+      4.0625,
+      0.8637,
+      0.8568354100378722,
+      0.8702852695472977
+     ],
+     [
+      4.140625,
+      0.8719,
+      0.8652066702488592,
+      0.8783077117630316
+     ],
+     [
+      4.21875,
+      0.8779,
+      0.8713375313540458,
+      0.8841722426773969
+     ],
+     [
+      4.296875,
+      0.8843,
+      0.8778826608329335,
+      0.8904221980193643
+     ],
+     [
+      4.375,
+      0.8896,
+      0.8833074659081525,
+      0.8955933225614162
+     ],
+     [
+      4.453125,
+      0.8947,
+      0.8885317763353614,
+      0.9005650953508265
+     ],
+     [
+      4.53125,
+      0.8991,
+      0.8930425521595415,
+      0.9048509403409843
+     ],
+     [
+      4.609375,
+      0.9033,
+      0.8973515249471912,
+      0.9089387419670211
+     ],
+     [
+      4.6875,
+      0.9064,
+      0.9005340913217336,
+      0.9119537948025803
+     ],
+     [
+      4.765625,
+      0.9104,
+      0.904643452774782,
+      0.9158413613625667
+     ],
+     [
+      4.84375,
+      0.9144,
+      0.9087561752547046,
+      0.9197255668956785
+     ],
+     [
+      4.921875,
+      0.9178,
+      0.9122547915993443,
+      0.9230243393621181
+     ],
+     [
+      5,
+      0.9214,
+      0.9159621874388979,
+      0.9265141787342959
+     ]
+    ]
+   }
+  },
+  "nodes": [
+   {
+    "id": "action/account-authenticated/admin-account",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.8703,
+      "ci": {
+       "lo": 0.8635725830966354,
+       "hi": 0.8767430277100414
+      }
+     }
+    }
+   },
+   {
+    "id": "action/account-authenticated/server-account",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.8735,
+      "ci": {
+       "lo": 0.8668410930322824,
+       "hi": 0.8798720601848223
+      }
+     }
+    }
+   },
+   {
+    "id": "action/administration-login/admin-net/admin-account/bridge",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "action/credential-extract/workstation/admin-key",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.8703,
+      "ci": {
+       "lo": 0.8635725830966354,
+       "hi": 0.8767430277100414
+      }
+     }
+    }
+   },
+   {
+    "id": "action/credential-extract/workstation/server-key",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.8735,
+      "ci": {
+       "lo": 0.8668410930322824,
+       "hi": 0.8798720601848223
+      }
+     }
+    }
+   },
+   {
+    "id": "action/flow-connect/ssh",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "action/mfa-bypass/admin-account",
+    "status": "possible",
+    "outcome": {
+     "unavailable": {
+      "reason": "rests on unknown inputs",
+      "missing": [
+       "entities.admin-account.parameters.mfa-bypass"
+      ]
+     }
+    }
+   },
+   {
+    "id": "action/mfa-bypass/server-account",
+    "status": "possible",
+    "outcome": {
+     "unavailable": {
+      "reason": "rests on unknown inputs",
+      "missing": [
+       "entities.server-account.parameters.mfa-bypass"
+      ]
+     }
+    }
+   },
+   {
+    "id": "action/product-find-exploit/openssh",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.619,
+      "ci": {
+       "lo": 0.6094377985406209,
+       "hi": 0.6284708098471582
+      }
+     }
+    }
+   },
+   {
+    "id": "action/service-deploy-exploit/sshd",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.5265,
+      "ci": {
+       "lo": 0.5167056514484484,
+       "hi": 0.5362739966379056
+      }
+     }
+    }
+   },
+   {
+    "id": "action/service-login/server-account/sshd",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.8394,
+      "ci": {
+       "lo": 0.8320736373388928,
+       "hi": 0.846465704567092
+      }
+     }
+    }
+   },
+   {
+    "id": "input/flow-permission/filter/ssh",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "input/foothold/workstation/admin",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "input/policy/admin-account/mfa",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "input/policy/server-account/mfa",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/admin-account/authenticated",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.8703,
+      "ci": {
+       "lo": 0.8635725830966354,
+       "hi": 0.8767430277100414
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/admin-account/material",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.8703,
+      "ci": {
+       "lo": 0.8635725830966354,
+       "hi": 0.8767430277100414
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/admin-account/mfa-satisfied",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/server-account/authenticated",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.8735,
+      "ci": {
+       "lo": 0.8668410930322824,
+       "hi": 0.8798720601848223
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/server-account/material",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.8735,
+      "ci": {
+       "lo": 0.8668410930322824,
+       "hi": 0.8798720601848223
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/server-account/mfa-satisfied",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/application/ssh-client/control",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/credential/admin-key/possessed",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.8703,
+      "ci": {
+       "lo": 0.8635725830966354,
+       "hi": 0.8767430277100414
+      }
+     }
+    }
+   },
+   {
+    "id": "state/credential/server-key/possessed",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.8735,
+      "ci": {
+       "lo": 0.8668410930322824,
+       "hi": 0.8798720601848223
+      }
+     }
+    }
+   },
+   {
+    "id": "state/flow/ssh/connected",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/host/server/admin",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.9214,
+      "ci": {
+       "lo": 0.9159621874388979,
+       "hi": 0.9265141787342959
+      }
+     }
+    }
+   },
+   {
+    "id": "state/host/server/user",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.9214,
+      "ci": {
+       "lo": 0.9159621874388979,
+       "hi": 0.9265141787342959
+      }
+     }
+    }
+   },
+   {
+    "id": "state/host/workstation/admin",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/host/workstation/user",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/network/admin-net/access",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/network/client-net/access",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/network/server-net/access",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.9214,
+      "ci": {
+       "lo": 0.9159621874388979,
+       "hi": 0.9265141787342959
+      }
+     }
+    }
+   },
+   {
+    "id": "state/permission/filter/ssh",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/product/openssh/exploit-ready",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.619,
+      "ci": {
+       "lo": 0.6094377985406209,
+       "hi": 0.6284708098471582
+      }
+     }
+    }
+   },
+   {
+    "id": "state/product/openssh/reachable",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/router/bridge/admin",
+    "status": "unreachable",
+    "outcome": {
+     "available": {
+      "p": 0,
+      "ci": {
+       "lo": 0,
+       "hi": 0
+      }
+     }
+    }
+   },
+   {
+    "id": "state/service/sshd/control",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.9214,
+      "ci": {
+       "lo": 0.9159621874388979,
+       "hi": 0.9265141787342959
+      }
+     }
+    }
+   },
+   {
+    "id": "state/service/sshd/reachable",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/session/server-account/sshd",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 0.8394,
+      "ci": {
+       "lo": 0.8320736373388928,
+       "hi": 0.846465704567092
+      }
+     }
+    }
+   }
+  ],
+  "assumptions": [
+   {
+    "path": "associations.allow-ssh.allowed",
+    "paths": [
+     "associations.allow-ssh.allowed"
+    ],
+    "status": "policy",
+    "expression": "allowed",
+    "note": null
+   },
+   {
+    "path": "entities.openssh.parameters.find-exploit",
+    "paths": [
+     "entities.openssh.parameters.find-exploit",
+     "entities.openssh.defenses.patched"
+    ],
+    "status": "illustrative",
+    "expression": "Exponential(mean 10)",
+    "note": "Exercise assumption; not calibrated to the lecture"
+   },
+   {
+    "path": "entities.server-account.defenses.mfa",
+    "paths": [
+     "entities.server-account.defenses.mfa"
+    ],
+    "status": "defense",
+    "expression": "off",
+    "note": null
+   },
+   {
+    "path": "entities.server-key.parameters.extract",
+    "paths": [
+     "entities.server-key.parameters.extract",
+     "entities.server-key.defenses.protected"
+    ],
+    "status": "illustrative",
+    "expression": "Exponential(mean 5)",
+    "note": "Exercise assumption; not calibrated to the lecture"
+   },
+   {
+    "path": "entities.sshd.parameters.deploy-exploit",
+    "paths": [
+     "entities.sshd.parameters.deploy-exploit"
+    ],
+    "status": "illustrative",
+    "expression": "Exponential(mean 2)",
+    "note": "Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately"
+   },
+   {
+    "path": "entities.sshd.parameters.login",
+    "paths": [
+     "entities.sshd.parameters.login"
+    ],
+    "status": "illustrative",
+    "expression": "Exponential(mean 1)",
+    "note": "Exercise assumption; not calibrated to the lecture"
+   },
+   {
+    "path": "flows.ssh.parameters.connect",
+    "paths": [
+     "flows.ssh.parameters.connect"
+    ],
+    "status": "illustrative",
+    "expression": "Exponential(mean 0.5)",
+    "note": "Exercise assumption; not calibrated to the lecture"
+   },
+   {
+    "path": "scenarios.fast.attacker.speed",
+    "paths": [
+     "scenarios.fast.attacker.speed"
+    ],
+    "status": "attacker",
+    "expression": "2 × faster",
+    "note": null
+   }
+  ],
+  "witness": {
+   "sample": 0,
+   "target_time": 2.320774647686919,
+   "nodes": [
+    {
+     "id": "input/flow-permission/filter/ssh",
+     "time": 0
+    },
+    {
+     "id": "input/foothold/workstation/admin",
+     "time": 0
+    },
+    {
+     "id": "input/policy/server-account/mfa",
+     "time": 0
+    },
+    {
+     "id": "state/account/server-account/mfa-satisfied",
+     "time": 0
+    },
+    {
+     "id": "state/application/ssh-client/control",
+     "time": 0
+    },
+    {
+     "id": "state/host/workstation/admin",
+     "time": 0
+    },
+    {
+     "id": "state/host/workstation/user",
+     "time": 0
+    },
+    {
+     "id": "state/permission/filter/ssh",
+     "time": 0
+    },
+    {
+     "id": "action/flow-connect/ssh",
+     "time": 0.12182292803438757
+    },
+    {
+     "id": "state/flow/ssh/connected",
+     "time": 0.12182292803438757
+    },
+    {
+     "id": "state/service/sshd/reachable",
+     "time": 0.12182292803438757
+    },
+    {
+     "id": "action/account-authenticated/server-account",
+     "time": 2.291519213832057
+    },
+    {
+     "id": "action/credential-extract/workstation/server-key",
+     "time": 2.291519213832057
+    },
+    {
+     "id": "state/account/server-account/authenticated",
+     "time": 2.291519213832057
+    },
+    {
+     "id": "state/account/server-account/material",
+     "time": 2.291519213832057
+    },
+    {
+     "id": "state/credential/server-key/possessed",
+     "time": 2.291519213832057
+    },
+    {
+     "id": "action/service-login/server-account/sshd",
+     "time": 2.320774647686919
+    },
+    {
+     "id": "state/host/server/admin",
+     "time": 2.320774647686919
+    },
+    {
+     "id": "state/session/server-account/sshd",
+     "time": 2.320774647686919
+    }
+   ],
+   "edges": [
+    {
+     "prerequisite": "action/account-authenticated/server-account",
+     "dependent": "state/account/server-account/authenticated"
+    },
+    {
+     "prerequisite": "action/credential-extract/workstation/server-key",
+     "dependent": "state/credential/server-key/possessed"
+    },
+    {
+     "prerequisite": "action/flow-connect/ssh",
+     "dependent": "state/flow/ssh/connected"
+    },
+    {
+     "prerequisite": "action/service-login/server-account/sshd",
+     "dependent": "state/session/server-account/sshd"
+    },
+    {
+     "prerequisite": "input/flow-permission/filter/ssh",
+     "dependent": "state/permission/filter/ssh"
+    },
+    {
+     "prerequisite": "input/foothold/workstation/admin",
+     "dependent": "state/host/workstation/admin"
+    },
+    {
+     "prerequisite": "input/policy/server-account/mfa",
+     "dependent": "state/account/server-account/mfa-satisfied"
+    },
+    {
+     "prerequisite": "state/account/server-account/authenticated",
+     "dependent": "action/service-login/server-account/sshd"
+    },
+    {
+     "prerequisite": "state/account/server-account/material",
+     "dependent": "action/account-authenticated/server-account"
+    },
+    {
+     "prerequisite": "state/account/server-account/mfa-satisfied",
+     "dependent": "action/account-authenticated/server-account"
+    },
+    {
+     "prerequisite": "state/application/ssh-client/control",
+     "dependent": "action/flow-connect/ssh"
+    },
+    {
+     "prerequisite": "state/credential/server-key/possessed",
+     "dependent": "state/account/server-account/material"
+    },
+    {
+     "prerequisite": "state/flow/ssh/connected",
+     "dependent": "state/service/sshd/reachable"
+    },
+    {
+     "prerequisite": "state/host/workstation/admin",
+     "dependent": "state/host/workstation/user"
+    },
+    {
+     "prerequisite": "state/host/workstation/user",
+     "dependent": "action/credential-extract/workstation/server-key"
+    },
+    {
+     "prerequisite": "state/host/workstation/user",
+     "dependent": "state/application/ssh-client/control"
+    },
+    {
+     "prerequisite": "state/permission/filter/ssh",
+     "dependent": "action/flow-connect/ssh"
+    },
+    {
+     "prerequisite": "state/service/sshd/reachable",
+     "dependent": "action/service-login/server-account/sshd"
+    },
+    {
+     "prerequisite": "state/session/server-account/sshd",
+     "dependent": "state/host/server/admin"
+    }
+   ]
+  }
+ },
+ "delta": {
+  "available": {
+   "mean": -0.2667,
+   "ci": {
+    "lo": -0.2753680649566817,
+    "hi": -0.2580319350433183
+   },
+   "ci_reason": null
+  }
+ }
+}

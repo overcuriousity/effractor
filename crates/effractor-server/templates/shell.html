@@ -40,6 +40,7 @@
 <script src="{{ asset_prefix }}assets/js/solver.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/store.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/charts.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/comparison.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/autosolve.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/app.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/menu.js" defer></script>
@@ -55,6 +56,7 @@
 <script src="{{ asset_prefix }}assets/js/pareto.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/pareto-ui.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/charts-ui.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/comparison-ui.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/share.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/share-ui.js" defer></script>
 </head>
@@ -141,6 +143,7 @@
     <div class="tabs" role="tablist" aria-label="Right panel">
       <button class="tab" type="button" role="tab" id="tab-btn-results" data-tab="results" aria-selected="true" aria-controls="tab-results">Results</button>
       <button class="tab" type="button" role="tab" id="tab-btn-ttc" data-tab="ttc" aria-selected="false" aria-controls="tab-ttc" title="Time to compromise">Time</button>
+      <button class="tab architecture-only" type="button" role="tab" id="tab-btn-compare" data-tab="compare" aria-selected="false" aria-controls="tab-compare" title="Baseline against one scenario">Compare</button>
       <button class="tab tree-only" type="button" role="tab" id="tab-btn-loss" data-tab="loss" aria-selected="false" aria-controls="tab-loss">Loss</button>
       <button class="tab tree-only" type="button" role="tab" id="tab-btn-pareto" data-tab="pareto" aria-selected="false" aria-controls="tab-pareto" hidden>Pareto</button>
       <button class="tab tree-only" type="button" role="tab" id="tab-btn-controls" data-tab="controls" aria-selected="false" aria-controls="tab-controls">Controls <span class="count num" id="controls-count"></span></button>
@@ -159,6 +162,7 @@
     </section>
     </div>
     <div id="tab-ttc" role="tabpanel" aria-labelledby="tab-btn-ttc" hidden><section class="panel-section"><h2 class="label" id="ttc-title">Time</h2><div id="ttc-chart"><p class="empty">Calculate to plot</p></div></section></div>
+    <div id="tab-compare" role="tabpanel" aria-labelledby="tab-btn-compare" hidden><section class="panel-section"><h2 class="label">Scenarios <button class="label-action" id="scenario-add" type="button" title="New scenario" aria-label="New scenario">+</button></h2><div id="compare-view"><p class="empty">No scenarios · + adds one</p></div></section></div>
     <div id="tab-loss" role="tabpanel" aria-labelledby="tab-btn-loss" hidden><section class="panel-section"><h2 class="label">Loss exceedance</h2><div id="loss-chart"><p class="empty">Calculate to plot</p></div></section></div>
     <div id="tab-pareto" role="tabpanel" aria-labelledby="tab-btn-pareto" hidden><section class="panel-section"><h2 class="label">Attack paths</h2><div id="pareto-view"><p class="empty">Calculate to compare paths</p></div></section></div>
     <div id="tab-controls" role="tabpanel" aria-labelledby="tab-btn-controls" hidden>
