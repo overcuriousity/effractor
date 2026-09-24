@@ -1,0 +1,651 @@
+{
+  "effractor": 2,
+  "profile": "architecture",
+  "name": "Untitled",
+  "time_unit": "d",
+  "horizon": 100,
+  "library": {
+    "id": "core-components",
+    "version": 1
+  },
+  "entities": {
+    "lan": {
+      "kind": "network",
+      "label": "Lab network",
+      "addresses": [
+        "10.0.1.0/24"
+      ]
+    },
+    "admin-box": {
+      "kind": "host",
+      "label": "Admin box",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      }
+    },
+    "nmap": {
+      "kind": "application",
+      "label": "nmap",
+      "tool": "nmap",
+      "description": "Last nmap import: 2026-09-24, Standard scan with safe checks of 10.0.1.0/24."
+    },
+    "srv": {
+      "kind": "host",
+      "label": "Server"
+    },
+    "sshd": {
+      "kind": "service",
+      "label": "ssh"
+    },
+    "openssh": {
+      "kind": "product",
+      "label": "OpenSSH 9.6p1"
+    },
+    "printer": {
+      "kind": "host",
+      "label": "Printer"
+    },
+    "web-01-lab": {
+      "kind": "host",
+      "label": "web-01.lab",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.5"
+      ]
+    },
+    "ssh": {
+      "kind": "service",
+      "label": "ssh",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "https": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "nginx-1-4-6": {
+      "kind": "product",
+      "label": "nginx 1.4.6",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown",
+          "note": "nmap ssl-heartbleed: VULNERABLE, CVE-2014-0160 (The Heartbleed Bug is a serious vulnerability in the popular OpenSSL cryptographic software library)."
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": false
+      }
+    },
+    "http": {
+      "kind": "service",
+      "label": "http",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "microsoft-iis-httpd-8-5": {
+      "kind": "product",
+      "label": "Microsoft IIS httpd 8.5",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "web-02-lab": {
+      "kind": "host",
+      "label": "web-02.lab",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.7"
+      ]
+    },
+    "https-2": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "win-01-lab": {
+      "kind": "host",
+      "label": "win-01.lab",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.9"
+      ]
+    },
+    "msrpc": {
+      "kind": "service",
+      "label": "msrpc",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "microsoft-windows-rpc": {
+      "kind": "product",
+      "label": "Microsoft Windows RPC",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "netbios-ssn": {
+      "kind": "service",
+      "label": "netbios-ssn",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "microsoft-windows-netbios-ssn": {
+      "kind": "product",
+      "label": "Microsoft Windows netbios-ssn",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "microsoft-ds": {
+      "kind": "service",
+      "label": "microsoft-ds",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "microsoft-windows-7-10-microsoft-ds": {
+      "kind": "product",
+      "label": "Microsoft Windows 7 - 10 microsoft-ds",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown",
+          "note": "nmap smb-vuln-ms17-010: VULNERABLE, CVE-2017-0143 (Remote Code Execution vulnerability in Microsoft SMBv1 servers (ms17-010))."
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": false
+      }
+    },
+    "nas-lab": {
+      "kind": "host",
+      "label": "nas.lab",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.12"
+      ]
+    },
+    "netbios-ssn-2": {
+      "kind": "service",
+      "label": "netbios-ssn",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "samba-smbd-3-x-4-x": {
+      "kind": "product",
+      "label": "Samba smbd 3.X - 4.X",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown",
+          "note": "nmap smb2-vuln-uptime: LIKELY VULNERABLE, ms17-010 (MS17-010: Security update for Windows SMB Server)."
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": false
+      }
+    },
+    "10-0-1-14": {
+      "kind": "host",
+      "label": "10.0.1.14",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.14"
+      ]
+    }
+  },
+  "associations": {
+    "a1": {
+      "kind": "attached",
+      "from": "admin-box",
+      "to": "lan"
+    },
+    "a2": {
+      "kind": "attached",
+      "from": "srv",
+      "to": "lan"
+    },
+    "a3": {
+      "kind": "hosts",
+      "from": "admin-box",
+      "to": "nmap",
+      "privilege": "user"
+    },
+    "a4": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "sshd",
+      "privilege": "admin"
+    },
+    "a5": {
+      "kind": "instance-of",
+      "from": "sshd",
+      "to": "openssh"
+    },
+    "web-01-lab-attached-lan": {
+      "kind": "attached",
+      "from": "web-01-lab",
+      "to": "lan"
+    },
+    "web-01-lab-hosts-ssh": {
+      "kind": "hosts",
+      "from": "web-01-lab",
+      "to": "ssh",
+      "privilege": "unknown"
+    },
+    "ssh-instance-of-openssh": {
+      "kind": "instance-of",
+      "from": "ssh",
+      "to": "openssh"
+    },
+    "web-01-lab-hosts-https": {
+      "kind": "hosts",
+      "from": "web-01-lab",
+      "to": "https",
+      "privilege": "unknown"
+    },
+    "https-instance-of-nginx-1-4-6": {
+      "kind": "instance-of",
+      "from": "https",
+      "to": "nginx-1-4-6"
+    },
+    "web-01-lab-hosts-http": {
+      "kind": "hosts",
+      "from": "web-01-lab",
+      "to": "http",
+      "privilege": "unknown"
+    },
+    "http-instance-of-microsoft-iis-httpd-8-5": {
+      "kind": "instance-of",
+      "from": "http",
+      "to": "microsoft-iis-httpd-8-5"
+    },
+    "web-02-lab-attached-lan": {
+      "kind": "attached",
+      "from": "web-02-lab",
+      "to": "lan"
+    },
+    "web-02-lab-hosts-https-2": {
+      "kind": "hosts",
+      "from": "web-02-lab",
+      "to": "https-2",
+      "privilege": "unknown"
+    },
+    "https-2-instance-of-nginx-1-4-6": {
+      "kind": "instance-of",
+      "from": "https-2",
+      "to": "nginx-1-4-6"
+    },
+    "win-01-lab-attached-lan": {
+      "kind": "attached",
+      "from": "win-01-lab",
+      "to": "lan"
+    },
+    "win-01-lab-hosts-msrpc": {
+      "kind": "hosts",
+      "from": "win-01-lab",
+      "to": "msrpc",
+      "privilege": "unknown"
+    },
+    "msrpc-instance-of-microsoft-windows-rpc": {
+      "kind": "instance-of",
+      "from": "msrpc",
+      "to": "microsoft-windows-rpc"
+    },
+    "win-01-lab-hosts-netbios-ssn": {
+      "kind": "hosts",
+      "from": "win-01-lab",
+      "to": "netbios-ssn",
+      "privilege": "unknown"
+    },
+    "netbios-ssn-instance-of-microsoft-windows-netbios-ssn": {
+      "kind": "instance-of",
+      "from": "netbios-ssn",
+      "to": "microsoft-windows-netbios-ssn"
+    },
+    "win-01-lab-hosts-microsoft-ds": {
+      "kind": "hosts",
+      "from": "win-01-lab",
+      "to": "microsoft-ds",
+      "privilege": "unknown"
+    },
+    "microsoft-ds-instance-of-microsoft-windows-7-10-microsoft-ds": {
+      "kind": "instance-of",
+      "from": "microsoft-ds",
+      "to": "microsoft-windows-7-10-microsoft-ds"
+    },
+    "nas-lab-attached-lan": {
+      "kind": "attached",
+      "from": "nas-lab",
+      "to": "lan"
+    },
+    "nas-lab-hosts-netbios-ssn-2": {
+      "kind": "hosts",
+      "from": "nas-lab",
+      "to": "netbios-ssn-2",
+      "privilege": "unknown"
+    },
+    "netbios-ssn-2-instance-of-samba-smbd-3-x-4-x": {
+      "kind": "instance-of",
+      "from": "netbios-ssn-2",
+      "to": "samba-smbd-3-x-4-x"
+    },
+    "10-0-1-14-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-1-14",
+      "to": "lan"
+    }
+  },
+  "flows": {
+    "f1": {
+      "label": "ssh on Server",
+      "source": "nmap",
+      "target": "sshd",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/22",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "ssh-on-web-01-lab": {
+      "label": "ssh on web-01.lab",
+      "source": "nmap",
+      "target": "ssh",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/22",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-web-01-lab": {
+      "label": "https on web-01.lab",
+      "source": "nmap",
+      "target": "https",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-on-web-01-lab": {
+      "label": "http on web-01.lab",
+      "source": "nmap",
+      "target": "http",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8080",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-web-02-lab": {
+      "label": "https on web-02.lab",
+      "source": "nmap",
+      "target": "https-2",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "msrpc-on-win-01-lab": {
+      "label": "msrpc on win-01.lab",
+      "source": "nmap",
+      "target": "msrpc",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/135",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "netbios-ssn-on-win-01-lab": {
+      "label": "netbios-ssn on win-01.lab",
+      "source": "nmap",
+      "target": "netbios-ssn",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/139",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "microsoft-ds-on-win-01-lab": {
+      "label": "microsoft-ds on win-01.lab",
+      "source": "nmap",
+      "target": "microsoft-ds",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/445",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "netbios-ssn-on-nas-lab": {
+      "label": "netbios-ssn on nas.lab",
+      "source": "nmap",
+      "target": "netbios-ssn-2",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/139",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    }
+  },
+  "attacker": {
+    "footholds": []
+  },
+  "scenarios": {},
+  "analysis": {
+    "seed": 42,
+    "samples": 10000,
+    "confidence": 0.95
+  }
+}

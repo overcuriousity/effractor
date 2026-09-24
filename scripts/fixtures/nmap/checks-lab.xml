@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- Nmap 7.92 scan initiated as: nmap -sT -sV -&#45;script "vuln and safe and not external" -oX - 10.0.1.0/24 -->
+<nmaprun scanner="nmap" args="nmap -sT -sV -&#45;script &quot;vuln and safe and not external&quot; -oX - 10.0.1.0/24" start="1790260000" version="7.92" xmloutputversion="1.05">
+<host><status state="up" reason="conn-refused" reason_ttl="0"/>
+<address addr="10.0.1.5" addrtype="ipv4"/>
+<hostnames>
+<hostname name="web-01.lab" type="PTR"/>
+</hostnames>
+<ports><extraports state="closed" count="996"></extraports>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="ssh" product="OpenSSH" version="9.6p1" method="probed" conf="10"><cpe>cpe:/a:openbsd:openssh:9.6p1</cpe></service></port>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="https" product="nginx" version="1.4.6" tunnel="ssl" method="probed" conf="10"><cpe>cpe:/a:igor_sysoev:nginx:1.4.6</cpe></service><script id="http-server-header" output="nginx/1.4.6 (Ubuntu)"><elem>nginx/1.4.6 (Ubuntu)</elem>
+</script><script id="ssl-heartbleed" output="&#xa;  VULNERABLE:&#xa;  The Heartbleed Bug is a serious vulnerability in the popular OpenSSL cryptographic software library. It allows for stealing information intended to be protected by SSL/TLS encryption.&#xa;    State: VULNERABLE&#xa;    Risk factor: High&#xa;      OpenSSL versions 1.0.1 and 1.0.2-beta releases (including 1.0.1f and 1.0.2-beta1) of OpenSSL are affected by the Heartbleed bug.&#xa;"><table key="CVE-2014-0160">
+<elem key="title">The Heartbleed Bug is a serious vulnerability in the popular OpenSSL cryptographic software library. It allows for stealing information intended to be protected by SSL/TLS encryption.</elem>
+<elem key="state">VULNERABLE</elem>
+<table key="ids">
+<elem>CVE:CVE-2014-0160</elem>
+</table>
+<table key="description">
+<elem>OpenSSL versions 1.0.1 and 1.0.2-beta releases (including 1.0.1f and 1.0.2-beta1) of OpenSSL are affected by the Heartbleed bug.</elem>
+</table>
+<table key="dates">
+<table key="disclosure">
+<elem key="month">04</elem>
+<elem key="year">2014</elem>
+<elem key="day">07</elem>
+</table>
+</table>
+<elem key="disclosure">2014-04-07</elem>
+<table key="refs">
+<elem>https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-0160</elem>
+</table>
+</table>
+</script><script id="ssl-poodle" output="&#xa;  NOT VULNERABLE:&#xa;  SSL POODLE information leak&#xa;"><table key="CVE-2014-3566">
+<elem key="title">SSL POODLE information leak</elem>
+<elem key="state">NOT VULNERABLE</elem>
+<table key="ids">
+<elem>CVE:CVE-2014-3566</elem>
+</table>
+</table>
+</script><script id="http-git" output="&#xa;  10.0.1.5:443/.git/&#xa;    Git repository found!&#xa;    Repository description: Unnamed repository"><table key="10.0.1.5:443/.git/">
+<elem key="files-found">.git/config .git/HEAD</elem>
+</table>
+</script></port>
+<port protocol="tcp" portid="8080"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="http" product="Microsoft IIS httpd" version="8.5" method="probed" conf="10"/><script id="http-vuln-cve2015-1635" output="&#xa;  UNKNOWN (unable to test):&#xa;  Remote Code Execution in HTTP.sys (MS15-034)&#xa;"><table key="CVE-2015-1635">
+<elem key="title">Remote Code Execution in HTTP.sys (MS15-034)</elem>
+<elem key="state">UNKNOWN (unable to test)</elem>
+<table key="ids">
+<elem>CVE:CVE-2015-1635</elem>
+</table>
+</table>
+</script></port>
+</ports>
+</host>
+<host><status state="up" reason="conn-refused" reason_ttl="0"/>
+<address addr="10.0.1.7" addrtype="ipv4"/>
+<hostnames>
+<hostname name="web-02.lab" type="PTR"/>
+</hostnames>
+<ports><extraports state="closed" count="999"></extraports>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="https" product="nginx" version="1.4.6" tunnel="ssl" method="probed" conf="10"/><script id="ssl-heartbleed" output="&#xa;  VULNERABLE:&#xa;  The Heartbleed Bug is a serious vulnerability in the popular OpenSSL cryptographic software library.&#xa;"><table key="CVE-2014-0160">
+<elem key="title">The Heartbleed Bug is a serious vulnerability in the popular OpenSSL cryptographic software library. It allows for stealing information intended to be protected by SSL/TLS encryption.</elem>
+<elem key="state">VULNERABLE</elem>
+<table key="ids">
+<elem>CVE:CVE-2014-0160</elem>
+</table>
+</table>
+</script></port>
+</ports>
+</host>
+<host><status state="up" reason="conn-refused" reason_ttl="0"/>
+<address addr="10.0.1.9" addrtype="ipv4"/>
+<hostnames>
+<hostname name="win-01.lab" type="PTR"/>
+</hostnames>
+<ports><extraports state="closed" count="997"></extraports>
+<port protocol="tcp" portid="135"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="msrpc" product="Microsoft Windows RPC" ostype="Windows" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="139"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="netbios-ssn" product="Microsoft Windows netbios-ssn" ostype="Windows" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="445"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="microsoft-ds" product="Microsoft Windows 7 - 10 microsoft-ds" extrainfo="workgroup: WORKGROUP" ostype="Windows" method="probed" conf="10"/></port>
+</ports>
+<hostscript><script id="smb-vuln-ms17-010" output="&#xa;  VULNERABLE:&#xa;  Remote Code Execution vulnerability in Microsoft SMBv1 servers (ms17-010)&#xa;    State: VULNERABLE&#xa;    IDs:  CVE:CVE-2017-0143&#xa;"><table key="CVE-2017-0143">
+<elem key="title">Remote Code Execution vulnerability in Microsoft SMBv1 servers (ms17-010)</elem>
+<elem key="state">VULNERABLE</elem>
+<table key="ids">
+<elem>CVE:CVE-2017-0143</elem>
+</table>
+<table key="refs">
+<elem>https://technet.microsoft.com/en-us/library/security/ms17-010.aspx</elem>
+</table>
+</table>
+</script></hostscript>
+</host>
+<host><status state="up" reason="conn-refused" reason_ttl="0"/>
+<address addr="10.0.1.12" addrtype="ipv4"/>
+<hostnames>
+<hostname name="nas.lab" type="PTR"/>
+</hostnames>
+<ports><extraports state="closed" count="998"></extraports>
+<port protocol="tcp" portid="139"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="netbios-ssn" product="Samba smbd" version="3.X - 4.X" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="445"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="tcpwrapped" method="probed" conf="8"/></port>
+</ports>
+<hostscript><script id="smb2-vuln-uptime" output="&#xa;  VULNERABLE:&#xa;  MS17-010: Security update for Windows SMB Server&#xa;    State: LIKELY VULNERABLE&#xa;"><table key="ms17-010">
+<elem key="title">MS17-010: Security update for Windows SMB Server</elem>
+<elem key="state">LIKELY VULNERABLE</elem>
+<table key="ids">
+<elem>ms:ms17-010</elem>
+</table>
+</table>
+</script></hostscript>
+</host>
+<host><status state="up" reason="conn-refused" reason_ttl="0"/>
+<address addr="10.0.1.14" addrtype="ipv4"/>
+<hostnames>
+</hostnames>
+<ports><extraports state="closed" count="999"></extraports>
+<port protocol="tcp" portid="445"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="tcpwrapped" method="probed" conf="8"/></port>
+</ports>
+<hostscript><script id="smb-vuln-ms17-010" output="&#xa;  VULNERABLE:&#xa;  Remote Code Execution vulnerability in Microsoft SMBv1 servers (ms17-010)&#xa;"><table key="CVE-2017-0143">
+<elem key="title">Remote Code Execution vulnerability in Microsoft SMBv1 servers (ms17-010)</elem>
+<elem key="state">VULNERABLE</elem>
+<table key="ids">
+<elem>CVE:CVE-2017-0143</elem>
+</table>
+</table>
+</script></hostscript>
+</host>
+<runstats><finished time="1790261000" elapsed="1000.00" exit="success"/><hosts up="5" down="251" total="256"/>
+</runstats>
+</nmaprun>

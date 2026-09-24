@@ -237,6 +237,9 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .nmap-role { display: flex; gap: 8px; align-items: baseline; margin-left: auto; flex: none; }
 .nmap-role .pick.nmap-merge { margin-left: 0; }
 .nmap-role + .nmap-merge, .nmap-role + .nmap-merge-state, .nmap-role + .hint { margin-left: 0; }
+.nmap-level .warning { color: var(--color-warning); }
+.nmap-findings { list-style: none; margin: 0; padding: 0 0 0 22px; }
+.nmap-findings .nmap-row { color: var(--color-fg-muted); }
 
 /* The light bulb in the canvas's corner: a suggestion, quiet, dismissable. */
 .hud-bottom-right { right: 10px; bottom: 10px; }

@@ -174,6 +174,22 @@ fn the_nmap_router_import_fixture_is_a_valid_architecture() {
     assert!(text.contains("kind: filters"), "{text}");
 }
 
+/// The same for an import with vulnerability checks (spec §4.6): a finding
+/// marks its product unpatched and says why on an unknown `find-exploit`.
+#[test]
+fn the_nmap_checks_import_fixture_is_a_valid_architecture() {
+    let text = nmap_fixture_is_valid("imported-checks.doc.json");
+    assert!(text.contains("patched: false"), "{text}");
+    assert!(
+        text.contains("nmap ssl-heartbleed: VULNERABLE, CVE-2014-0160"),
+        "{text}"
+    );
+    assert!(
+        !text.contains("ttc:"),
+        "a finding never writes a time: {text}"
+    );
+}
+
 fn nmap_fixture_is_valid(name: &str) -> String {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let fixture = std::fs::read_to_string(root.join("scripts/fixtures/nmap").join(name)).unwrap();

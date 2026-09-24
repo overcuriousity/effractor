@@ -9,7 +9,7 @@
   var N = window.effractorNmap;
   var $ = function (id) { return document.getElementById(id); };
   var dialog = $("nmap-dialog");
-  var at = { app: null, level: "standard", scan: null, merges: {}, ticks: null, plan: null };
+  var at = { app: null, level: "standard", checks: "none", scan: null, merges: {}, ticks: null, plan: null };
 
   function doc() {
     return app.state.doc;
@@ -63,8 +63,31 @@
       box.appendChild(label);
     });
   }
+  // Spec §3.2: nmap's vulnerability checks; none for Discover (no ports).
+  var CHECK_HINTS = { none: "no scripts", safe: "vulnerability checks that break nothing · slower" };
+  function checks() {
+    var box = $("nmap-checks");
+    while (box.children.length > 1) box.removeChild(box.lastChild);
+    N.CHECKS.forEach(function (c) {
+      var label = el("label", null, "nmap-level");
+      var radio = el("input");
+      radio.type = "radio";
+      radio.name = "nmap-checks";
+      radio.value = c.id;
+      radio.checked = c.id === at.checks;
+      radio.addEventListener("change", function () {
+        at.checks = c.id;
+        showCommand();
+      });
+      label.appendChild(radio);
+      label.appendChild(el("span", c.name));
+      label.appendChild(el("span", c.warning || CHECK_HINTS[c.id], c.warning ? "hint warning" : "hint"));
+      box.appendChild(label);
+    });
+  }
   function showCommand() {
-    var c = N.command(at.level, $("nmap-range").value);
+    $("nmap-checks").hidden = !N.checksOffered(at.level);
+    var c = N.command(at.level, $("nmap-range").value, at.checks);
     $("nmap-command").textContent = c && c.text ? c.text : "";
     $("nmap-copy").disabled = !(c && c.text);
     $("nmap-problem").textContent = c ? c.problem || c.note || "" : "";
@@ -73,7 +96,7 @@
   // ---- open ----
 
   function open(appId) {
-    at = { app: appId, level: at.level, scan: null, merges: {}, ticks: null, plan: null };
+    at = { app: appId, level: at.level, checks: at.checks, scan: null, merges: {}, ticks: null, plan: null };
     var host = hostOf(appId);
     $("nmap-title").textContent = host ? "nmap on " + doc().entities[host].label : "nmap (not on a host)";
     $("nmap-unplaced").hidden = !!host;
@@ -83,6 +106,7 @@
     $("nmap-ask").hidden = false;
     $("nmap-preview").hidden = true;
     levels();
+    checks();
     showCommand();
     U.loadCatalog().catch(function () {}).then(function () {
       if (!dialog.open) dialog.showModal();
@@ -107,7 +131,7 @@
     var old = at.ticks;
     at.plan = N.plan(doc(), at.app, at.scan, $("nmap-range").value, at.merges);
     var fresh = N.defaults(at.plan);
-    at.ticks = old ? { hosts: keep(old.hosts, fresh.hosts), ports: keep(old.ports, fresh.ports), roles: keep(old.roles, fresh.roles), network: old.network } : fresh;
+    at.ticks = old ? { hosts: keep(old.hosts, fresh.hosts), ports: keep(old.ports, fresh.ports), roles: keep(old.roles, fresh.roles), findings: keep(old.findings, fresh.findings), network: old.network } : fresh;
     var rows = $("nmap-rows");
     rows.textContent = "";
     if (at.plan.network) {
@@ -122,7 +146,10 @@
       var li = el("li", null, "nmap-host");
       var head = check(at.ticks.hosts[h.key], h.label + " · " + h.addresses.join(", "), function (on) {
         at.ticks.hosts[h.key] = on;
-        h.ports.forEach(function (r) { at.ticks.ports[r.key] = on && (!r.known || r.addsFlow); });
+        h.ports.forEach(function (r) {
+          at.ticks.ports[r.key] = on && (!r.known || r.addsFlow);
+          r.findings.forEach(function (f) { at.ticks.findings[f.key] = on && !f.known && !f.patchedByAuthor; });
+        });
         preview();
       });
       head.appendChild(role(h));
@@ -134,14 +161,25 @@
         var what = nothing ? "known" : r.known ? "adds the flow" : "adds service, " + (r.product.existing ? "uses " : "") + r.product.label + ", flow";
         var row = check(!!at.ticks.ports[r.key], r.label + " · " + r.proto + " · " + what, function (on) {
           at.ticks.ports[r.key] = on;
+          // A new port unticked takes its findings along.
+          if (!r.known && r.findings.length) {
+            r.findings.forEach(function (f) { at.ticks.findings[f.key] = on && !f.known && !f.patchedByAuthor; });
+            return preview();
+          }
           count();
         });
         row.querySelector("input").disabled = nothing || !at.ticks.hosts[h.key];
         var item = el("li");
         item.appendChild(row);
+        item.appendChild(findings(h, r));
         ports.appendChild(item);
       });
       li.appendChild(ports);
+      // Host checks with no port to go to, and scripts not read.
+      var loose = el("ul", null, "nmap-findings");
+      h.unplaced.forEach(function (f) { loose.appendChild(plain(f.script + " · " + f.id + " · not applied: no SMB service")); });
+      h.unread.forEach(function (u) { loose.appendChild(plain(u.script + " · " + u.text)); });
+      if (loose.children.length) li.appendChild(loose);
       rows.appendChild(li);
     });
     var notes = [];
@@ -152,6 +190,30 @@
     $("nmap-ask").hidden = true;
     $("nmap-preview").hidden = false;
     count();
+  }
+  // Spec §3.4, §4.6: each finding under its port, and what is not read.
+  function findings(h, r) {
+    var list = el("ul", null, "nmap-findings");
+    var present = at.ticks.hosts[h.key] && (r.known || at.ticks.ports[r.key]);
+    r.findings.forEach(function (f) {
+      var what = f.patchedByAuthor ? "marked patched by you; not changed" : f.known ? "already marked" : "marks " + f.productLabel + " unpatched";
+      var row = check(!!at.ticks.findings[f.key], f.script + " · " + f.id + " · " + what, function (on) {
+        at.ticks.findings[f.key] = on;
+        count();
+      });
+      row.title = f.line;
+      row.querySelector("input").disabled = f.known || f.patchedByAuthor || !present;
+      var item = el("li");
+      item.appendChild(row);
+      list.appendChild(item);
+    });
+    r.unread.forEach(function (u) { list.appendChild(plain(u.script + " · " + u.text)); });
+    return list;
+  }
+  function plain(text) {
+    var item = el("li");
+    item.appendChild(el("span", text, "nmap-row"));
+    return item;
   }
   function keep(old, fresh) {
     var out = {};
@@ -213,7 +275,9 @@
     var parts = [[s.hosts, "host"], [s.networks, "network"], [s.attached, "attachment"], [s.routers, "router"], [s.firewalls, "firewall"], [s.services, "service"], [s.products, "product"], [s.flows, "flow"]].filter(function (x) { return x[0]; }).map(function (x) {
       return x[0] + " " + x[1] + (x[0] === 1 ? "" : "s");
     });
-    $("nmap-summary").textContent = s.tooMany || (parts.length ? "Adds " + parts.join(", ") + "." : "Nothing new to add.");
+    var marks = s.unpatched ? "marks " + s.unpatched + " product" + (s.unpatched === 1 ? "" : "s") + " unpatched" : "";
+    var said = parts.length ? "Adds " + parts.join(", ") + (marks ? ", " + marks : "") + "." : marks ? marks[0].toUpperCase() + marks.slice(1) + "." : "Nothing new to add.";
+    $("nmap-summary").textContent = s.tooMany || said;
     $("nmap-add").disabled = !!s.tooMany;
   }
 

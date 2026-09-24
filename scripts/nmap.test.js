@@ -579,3 +579,144 @@ test('the nmap hint shows on an architecture until it has an nmap, never once di
   assert.equal(N.hintWanted({ profile: 'attack-tree', nodes: {} }, false), false);
   assert.equal(N.hintWanted(null, false), false);
 });
+
+// ---- checks (spec §3.2, §4.6) ----
+
+test('checks add nmap\'s vulnerability scripts, never one that asks a third party', () => {
+  assert.deepEqual(N.CHECKS.map(c => c.id), ['none', 'safe', 'all']);
+  assert.ok(N.CHECKS.filter(c => c.script).every(c => / and not external$/.test(c.script)));
+  assert.ok(N.CHECKS.every(c => !!c.warning === (c.id === 'all')));
+  const r = '10.0.1.0/24';
+  assert.equal(N.command('standard', r, 'none').text, 'nmap -sT -sV -oX - 10.0.1.0/24');
+  assert.equal(N.command('standard', r).text, 'nmap -sT -sV -oX - 10.0.1.0/24');
+  assert.equal(N.command('standard', r, 'safe').text, "nmap -sT -sV --script 'vuln and safe and not external' -oX - 10.0.1.0/24");
+  assert.equal(N.command('deep', r, 'all').text, "sudo nmap -sS -sU -sV -O --top-ports 1000 --script 'vuln and not external' -oX - 10.0.1.0/24");
+  assert.equal(N.command('discover', r, 'all').text, 'nmap -sn -oX - 10.0.1.0/24', 'no ports, no checks');
+  assert.equal(N.checksOffered('discover'), false);
+  assert.equal(N.checksOffered('standard'), true);
+});
+
+const checks = () => N.read(fixture('checks-lab.xml')).scan;
+
+test('scripts are read with their structured findings, on ports and on hosts', () => {
+  const scan = checks();
+  const web = scan.hosts[0];
+  const https = web.ports.find(p => p.port === 443);
+  assert.deepEqual(https.scripts.map(s => s.id), ['http-server-header', 'ssl-heartbleed', 'ssl-poodle', 'http-git']);
+  const hb = https.scripts[1];
+  assert.deepEqual(hb.vulns, [{ key: 'CVE-2014-0160', title: 'The Heartbleed Bug is a serious vulnerability in the popular OpenSSL cryptographic software library. It allows for stealing information intended to be protected by SSL/TLS encryption.', state: 'VULNERABLE', ids: ['CVE:CVE-2014-0160'] }]);
+  assert.match(https.scripts[3].output, /^\n {2}10\.0\.1\.5:443\/\.git\/\n/);
+  assert.deepEqual(https.scripts[3].vulns, []);
+  assert.deepEqual(web.ports.find(p => p.port === 22).scripts, []);
+  assert.deepEqual(web.scripts, []);
+  assert.deepEqual(scan.hosts[2].scripts.map(s => [s.id, s.vulns[0].state]), [['smb-vuln-ms17-010', 'VULNERABLE']]);
+});
+
+// A lab for the checks: nmap in 10.0.1.0/24, nginx 1.4.6 already drawn and
+// said to be patched on nothing yet.
+function checksLab() {
+  const d = lab();
+  delete d.entities.srv.addresses;
+  return d;
+}
+
+test('a finding marks the product of its port; a shared product once; what is not read is shown', () => {
+  const d = checksLab();
+  const p = N.plan(d, 'nmap', checks(), '10.0.1.0/24', {});
+  const [web, web2, win, nas, bare] = p.hosts;
+  const https = web.ports.find(r => r.proto === 'tcp/443');
+  assert.deepEqual(https.findings.map(f => [f.script, f.id, f.state, f.product, f.productLabel]), [
+    ['ssl-heartbleed', 'CVE-2014-0160', 'VULNERABLE', null, 'nginx 1.4.6'],
+  ]);
+  assert.equal(https.findings[0].line, 'nmap ssl-heartbleed: VULNERABLE, CVE-2014-0160 (The Heartbleed Bug is a serious vulnerability in the popular OpenSSL cryptographic software library).');
+  // version scripts are left out, NOT VULNERABLE says nothing, others are shown
+  assert.deepEqual(https.unread, [{ script: 'http-git', text: 'not read · 10.0.1.5:443/.git/' }]);
+  assert.deepEqual(web.ports.find(r => r.proto === 'tcp/8080').unread, [{ script: 'http-vuln-cve2015-1635', text: 'could not test' }]);
+  assert.deepEqual(web.ports.find(r => r.proto === 'tcp/8080').findings, []);
+  assert.equal(web2.ports[0].findings.length, 1);
+  // host checks talk SMB: tcp/445, else tcp/139, else not applied
+  assert.deepEqual(win.ports.find(r => r.proto === 'tcp/445').findings.map(f => f.id), ['CVE-2017-0143']);
+  assert.deepEqual(win.ports.find(r => r.proto === 'tcp/139').findings, []);
+  assert.deepEqual(nas.ports.find(r => r.proto === 'tcp/139').findings.map(f => [f.id, f.state]), [['ms17-010', 'LIKELY VULNERABLE']]);
+  assert.deepEqual(bare.ports, []);
+  assert.deepEqual(bare.unplaced.map(f => [f.script, f.id]), [['smb-vuln-ms17-010', 'CVE-2017-0143']]);
+  const t = N.defaults(p);
+  assert.equal(t.findings[https.findings[0].key], true);
+  const s = N.summary(d, p, t, null);
+  assert.equal(s.unpatched, 3, 'nginx once, the Windows share, the Samba one');
+  t.findings[https.findings[0].key] = false;
+  assert.equal(N.summary(d, p, t, null).unpatched, 3, 'the second nginx still marks it');
+  t.findings[web2.ports[0].findings[0].key] = false;
+  assert.equal(N.summary(d, p, t, null).unpatched, 2);
+  const u = N.defaults(p);
+  u.ports[win.ports.find(r => r.proto === 'tcp/445').key] = false;
+  assert.equal(N.summary(d, p, u, null).unpatched, 2, 'an unticked new port takes its findings along');
+});
+
+test('applying a finding marks unpatched and says why, and never writes a time', () => {
+  const d = checksLab();
+  const p = N.plan(d, 'nmap', checks(), '10.0.1.0/24', {});
+  const out = N.apply(d, p, N.defaults(p), specOf, STAMP).doc;
+  const nginx = Object.values(out.entities).filter(e => e.label === 'nginx 1.4.6');
+  assert.equal(nginx.length, 1);
+  assert.equal(nginx[0].defenses.patched, false);
+  assert.deepEqual(nginx[0].parameters['find-exploit'], { status: 'unknown', note: 'nmap ssl-heartbleed: VULNERABLE, CVE-2014-0160 (The Heartbleed Bug is a serious vulnerability in the popular OpenSSL cryptographic software library).' });
+  assert.deepEqual(nginx[0].parameters['find-exploit-patched'], { status: 'unknown' });
+  const samba = Object.values(out.entities).find(e => e.label === 'Samba smbd 3.X - 4.X');
+  assert.equal(samba.parameters['find-exploit'].note, 'nmap smb2-vuln-uptime: LIKELY VULNERABLE, ms17-010 (MS17-010: Security update for Windows SMB Server).');
+  const iis = Object.values(out.entities).find(e => e.label === 'Microsoft IIS httpd 8.5');
+  assert.equal(iis.defenses.patched, 'unknown', 'could not test is no finding');
+  // Scanning again marks nothing new.
+  const again = N.plan(out, 'nmap', checks(), '10.0.1.0/24', {});
+  assert.equal(N.summary(out, again, N.defaults(again), null).unpatched, 0);
+  assert.ok(again.hosts[0].ports.find(r => r.proto === 'tcp/443').findings[0].known);
+});
+
+test('a finding on a known product adds its line; one the author marked patched is left alone', () => {
+  const d = checksLab();
+  d.entities.nginx = { kind: 'product', label: 'nginx 1.4.6', parameters: { 'find-exploit': { status: 'assumed', ttc: 'Exponential(mean 3)', note: 'Old.' } }, defenses: { patched: 'unknown' } };
+  let p = N.plan(d, 'nmap', checks(), '10.0.1.0/24', {});
+  let out = N.apply(d, p, N.defaults(p), specOf, STAMP).doc;
+  assert.equal(out.entities.nginx.defenses.patched, false);
+  assert.deepEqual(out.entities.nginx.parameters['find-exploit'], { status: 'assumed', ttc: 'Exponential(mean 3)', note: 'Old.\nnmap ssl-heartbleed: VULNERABLE, CVE-2014-0160 (The Heartbleed Bug is a serious vulnerability in the popular OpenSSL cryptographic software library).' });
+  d.entities.nginx.defenses.patched = true;
+  p = N.plan(d, 'nmap', checks(), '10.0.1.0/24', {});
+  const f = p.hosts[0].ports.find(r => r.proto === 'tcp/443').findings[0];
+  assert.equal(f.patchedByAuthor, true);
+  assert.equal(N.defaults(p).findings[f.key], false);
+  out = N.apply(d, p, Object.assign(N.defaults(p), { findings: { [f.key]: true } }), specOf, STAMP).doc;
+  assert.deepEqual(out.entities.nginx, d.entities.nginx, 'even ticked, the author\'s word stands');
+});
+
+test('the stamp names the checks nmap ran', () => {
+  assert.deepEqual(N.stampFor(checks(), '', '2026-09-24'), { date: '2026-09-24', level: 'Standard', checks: 'safe', range: '10.0.1.0/24' });
+  assert.equal(N.stampLine(N.stampFor(checks(), '', '2026-09-24')), 'Last nmap import: 2026-09-24, Standard scan with safe checks of 10.0.1.0/24.');
+  const all = { args: 'nmap -sT -sV --script "vuln and not external" -oX - 10.0.1.0/24', hosts: [] };
+  assert.equal(N.stampLine(N.stampFor(all, '', '2026-09-24')), 'Last nmap import: 2026-09-24, Standard scan with all checks of 10.0.1.0/24.');
+  const own = { args: 'nmap -sT -sV --script vulners -oX - 10.0.1.0/24', hosts: [] };
+  assert.equal(N.stampLine(N.stampFor(own, '', '2026-09-24')), 'Last nmap import: 2026-09-24, scan of 10.0.1.0/24.');
+});
+
+test('the checks import is the document the Rust and wasm checks validate', () => {
+  const d = checksLab();
+  const p = N.plan(d, 'nmap', checks(), '10.0.1.0/24', {});
+  const out = N.apply(d, p, N.defaults(p), specOf, { date: '2026-09-24', level: 'Standard', checks: 'safe', range: '10.0.1.0/24' }).doc;
+  const file = 'scripts/fixtures/nmap/imported-checks.doc.json';
+  const text = JSON.stringify(out, null, 2) + '\n';
+  if (process.env.NMAP_FIXTURE === 'write') fs.writeFileSync(file, text);
+  assert.equal(fs.readFileSync(file, 'utf8'), text);
+});
+
+test('a known port with nothing to add still marks its product', () => {
+  const d = lab(); // Server 10.0.1.5 runs ssh on OpenSSH 9.6p1, already reached by nmap
+  const scan = checks();
+  scan.hosts[0].ports.find(p => p.port === 22).scripts = [{ id: 'sshv1', output: '', vulns: [{ key: 'X', title: 'SSHv1 enabled', state: 'VULNERABLE', ids: [] }] }];
+  const p = N.plan(d, 'nmap', scan, '10.0.1.0/24', {});
+  const ssh = p.hosts[0].ports.find(r => r.proto === 'tcp/22');
+  assert.deepEqual([ssh.known, ssh.addsFlow, ssh.findings[0].product], ['sshd', false, 'openssh']);
+  const t = N.defaults(p);
+  assert.equal(t.ports[ssh.key], undefined);
+  const out = N.apply(d, p, t, specOf, STAMP).doc;
+  assert.equal(out.entities.openssh.defenses.patched, false);
+  assert.equal(out.entities.openssh.parameters['find-exploit'].note, 'nmap sshv1: VULNERABLE, X (SSHv1 enabled).');
+});
