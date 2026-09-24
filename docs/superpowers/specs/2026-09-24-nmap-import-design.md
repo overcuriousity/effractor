@@ -82,7 +82,7 @@ The dialog says so once, beside the range field.
   `sudo` for one Deep scan does not make the installed nmap a way to root.
   Plain *Application* stays as it is. A newly added nmap application opens the
   dialog.
-* Right-click an nmap application, or its rail, → **Paste nmap result…**.
+* Right-click an nmap application → **Paste nmap result…**.
 * The dialog is a `<dialog>` like Share and Help, titled `nmap on <host
   label>`, or `nmap (not on a host)`.
 
@@ -103,8 +103,9 @@ nmap application's host is attached to (space-separated), else empty. The
 command box is monospace, updates as the level or range changes, and has
 **Copy**. `-oX -` writes XML to the terminal, so there is no file to fetch
 from the remote host. A range with characters outside
-`[0-9A-Za-z.:/,\- ]` is refused with a note, so the copied command never
-carries shell syntax.
+`[0-9A-Za-z.:/,\- ]`, or a word starting with `-` (it would be an nmap
+option), is refused with a note, so the copied command never carries shell
+syntax or options.
 
 If the nmap application is not on a host, the dialog says once: *nmap is
 not on a host; the flows will have no route until you place it.*
@@ -122,8 +123,12 @@ text does not read, the dialog keeps it and says why in one line:
   <its errormsg>.*
 * no host up: *No host answered. Check the range, or try from another host.*
 
-A result without `-sV` (no service names) is read; ports then get `tcp/…`
-labels and no products.
+* the text ends early (a partial copy, an interrupted run): *The result
+  ends early; copy the whole output, from `<?xml` to `</nmaprun>`.*
+
+Only `<host>` elements count; nmap also prints each address in a
+`<hosthint>`, which is not a second host. A result without `-sV` (no service
+names) is read; ports then get `tcp/…` labels and unidentified products.
 
 ### 3.4 The preview
 
@@ -140,6 +145,9 @@ Read replaces the paste with the preview; **Back** returns to the text.
 * One line of notes, only when they apply: *Services are assumed to run as
   admin.* · *12 UDP ports gave no answer (open|filtered); not added.*
 * Summary and actions: *Adds 4 hosts, 11 services, 6 products, 11 flows.*
+  When the ticked rows would take the document past the library's limits
+  (500 components; 2000 associations and flows), the summary says by how
+  much and Add stays disabled until enough is unticked.
   **Add** · **Cancel**. Add is one edit: one undo removes the whole import.
   Afterwards the canvas selects the nmap application.
 
@@ -183,10 +191,14 @@ A new service is labelled with nmap's `<service name>`, else `tcp/8443`. It
 is hosted by its host at **admin**, the pessimistic assumption, with the
 association's description *Privilege assumed by the nmap import.*
 
-When `<service product>` is present, the service gets a product labelled
-`product` plus ` version` when present (`OpenSSH 9.6p1`), linked
-`instance-of`. An existing product with exactly that label is reused, so one
-product switch covers every host running it.
+Every new service gets a product, linked `instance-of`: a service without
+one is `incomplete`, which would block the attack graph. When
+`<service product>` is present the product is labelled `product` plus
+` version` when present (`OpenSSH 9.6p1`); an existing product with exactly
+that label is reused, so one product switch covers every host running it.
+When nmap names none, the product is `unidentified <service label> on <host
+label>`, one per service and never reused: unknown software on two hosts is
+not known to be the same software.
 
 ### 4.4 Flows
 
@@ -213,6 +225,8 @@ editor.
   guesses, and planning: matching by address, merge, CIDR attachment and the
   proposed network, product reuse, known ports and flows, routes. One test
   serialises an applied document through wasm.
+* Everything read from a scan is untrusted text (a PTR name is whatever its
+  DNS says): the dialog and canvas set it as text, never as markup.
 * `assets/js/nmap-ui.js`: the dialog and preview; menu entries in
   `architecture-ui.js`; the inspector's `addresses` line. Checked by the
   owner's eye in a preview.
