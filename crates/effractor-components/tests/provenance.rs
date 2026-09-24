@@ -559,16 +559,19 @@ fn operator_switches_never_change_the_graph() {
     ] {
         model.entities.insert(id(key), Entity::new(kind, key));
     }
-    model.associations.insert(
-        id("mail-ada"),
-        effractor_core::architecture::Association {
-            relation: Relation::Delivers {
-                from: id("internet"),
-                to: id("ada"),
+    // Ada reads mail, and so does the SSH client: content-processing software.
+    for (key, to) in [("mail-ada", "ada"), ("mail-client", "ssh-client")] {
+        model.associations.insert(
+            id(key),
+            effractor_core::architecture::Association {
+                relation: Relation::Delivers {
+                    from: id("internet"),
+                    to: id(to),
+                },
+                description: None,
             },
-            description: None,
-        },
-    );
+        );
+    }
     let baseline = shape(&generate(&model).unwrap());
     for value in [Switch::On, Switch::Off, Switch::Unknown] {
         let mut m = model.clone();
@@ -580,4 +583,5 @@ fn operator_switches_never_change_the_graph() {
         assert_eq!(shape(&generate(&m).unwrap()), baseline, "{value:?}");
     }
     assert!(baseline.contains_key("action/phish/ada"));
+    assert!(baseline.contains_key("action/take-over/ssh-client"));
 }

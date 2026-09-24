@@ -2030,15 +2030,28 @@ Run the full check list (Task 1, Step 15) with `git commit -S -m "Deceive people
 
 ---
 
-### Task 4b: Content-processing software (spec §10) — to be planned
+### Task 4b: Content-processing software (spec §10)
 
-Not yet written. The next session brainstorms §10's open question (which
-software a controlled service's content reaches), then writes this task with
-superpowers:writing-plans in the style of Tasks 1–3: `delivers` to
-application and service, the generated `contacted` fact for software,
-`take-over` / `take-over-guarded` slots and the `guarded` switch on
-application and service, `hosts.contained`, and the extended
-`content-from-service`. It comes before Task 5.
+Branch: `feature/content-software`. Owner decision (2026-09-24): only software
+that a `delivers` names (in Task 5 also a `reads`) processes content; nothing
+else changes its graph.
+
+**Files:**
+- Modify: core `architecture.rs`, `architecture_validate.rs`; format `architecture_read.rs`, `architecture_write.rs`
+- Modify: components `catalog.rs`, `generate.rs`
+- Modify: `assets/js/architecture-links.js`, `architecture-links-ui.js`, `architecture-view.js`, `architecture-ui.js`
+- Test: core, format, generation, provenance tests; `scripts/architecture-links.test.js`, `architecture-view.test.js`
+- Fixtures: every shipped architecture gains `take-over`/`take-over-guarded` (unknown) and `guarded: unknown` on its software (canonicalize); JS catalog and architecture fixtures; no generated graph moves
+
+**Interfaces:**
+- Produces: `Slot::{TakeOver, TakeOverGuarded}` (`"take-over"`, `"take-over-guarded"`) on application and service; `Defense::Guarded` (`"guarded"`), the defence of application and service; `Relation::Hosts { from, to, privilege, contained: bool }` (written only when true; `true` on a hosted host or router is a `misplaced-key` error); `RelationKind::Delivers` to kinds `[Person, Application, Service]`. Generated, for software a `delivers` names: fact `state/<kind>/<s>/contacted` ("reached by content"), action `action/take-over/<s>` (slot `take-over`, replaced by `take-over-guarded` when `guarded`), `content-from-zone` into it, `content-from-service` from the target of each of its own flows. `contained: true` drops `execution-privilege` for that hosting.
+- JS: `L.fieldsOf("hosts", _, application|service)` adds `{name: "contained", values: [false, true], setting: true}`; `variants` skips settings (the Link menu does not double); `putAssociation` writes `contained: true` only for software; the canvas says "hosts · user · contained". `V.readers(doc)`, `V.shownSlots` hides the take-over slots and `V.shownDefense(doc, id)` the switch on software no content reaches.
+
+- [ ] **Step 1: Failing tests.** Core: slots/defence of software; `contained` on a guest host is an error; `delivers` to a service is valid. Format: `contained: true` and `delivers` to software round-trip; `contained: false` is dropped on save; `contained: maybe` is an error. Generation: a delivered service gets `contacted`, `take-over`, `content-from-zone`, `content-from-service` from its flow's target; an undelivered one gets none of them; `contained: true` removes the control → machine edge. Provenance: `guarded` never changes the graph.
+- [ ] **Step 2: Core, format, catalog, generator** until those pass. Catalog: rule `take-over` ("Take over through content"), `content-from-zone`/`content-from-service` outputs "person or software .contacted", `execution-privilege` notes `contained`; slot names "Take over through content" / "… (guarded)"; switch word "Guarded".
+- [ ] **Step 3: Fixtures.** Canonicalize `docs/course/lecture-architecture.yaml`, `assets/examples/14–16`, the format fixtures; `node scripts/graph-fixtures.js --write`; snapshots; read the diff: only slot/defence lines and the catalog move.
+- [ ] **Step 4: JS** as in Interfaces, test-first.
+- [ ] **Step 5: Checks, commit, owner look (8081):** link a network "reaches" a service; the service shows "Take over through content" and "Guarded"; a hosting link's form has *Contained*; Build and find "Take over through content · …".
 
 ### Task 5: Data — targets, holding, access, encryption; the cloud support agent example
 

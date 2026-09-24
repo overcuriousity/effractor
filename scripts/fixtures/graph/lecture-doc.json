@@ -55,7 +55,18 @@
   },
   "ssh-client": {
    "kind": "application",
-   "label": "SSH client"
+   "label": "SSH client",
+   "parameters": {
+    "take-over": {
+     "status": "unknown"
+    },
+    "take-over-guarded": {
+     "status": "unknown"
+    }
+   },
+   "defenses": {
+    "guarded": "unknown"
+   }
   },
   "sshd": {
    "kind": "service",
@@ -70,7 +81,16 @@
      "status": "illustrative",
      "ttc": "Exponential(mean 1)",
      "note": "Exercise assumption; not calibrated to the lecture"
+    },
+    "take-over": {
+     "status": "unknown"
+    },
+    "take-over-guarded": {
+     "status": "unknown"
     }
+   },
+   "defenses": {
+    "guarded": "unknown"
    }
   },
   "openssh": {

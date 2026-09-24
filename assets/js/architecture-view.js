@@ -8,16 +8,40 @@
     return !!o && Object.prototype.hasOwnProperty.call(o, k);
   }
 
-  // The slots worth showing: an escape only where there is a host to escape to.
+  function linkedTo(doc, kind, id) {
+    return Object.keys(doc.associations || {}).some(function (k) {
+      var a = doc.associations[k];
+      return a.kind === kind && a.to === id;
+    });
+  }
+
+  // Software processes content only where content is said to reach it.
+  function reader(doc, id) {
+    return linkedTo(doc, "delivers", id);
+  }
+
+  var TAKE_OVER = ["take-over", "take-over-guarded"];
+
+  // The slots worth showing: an escape only where there is a host to escape
+  // to, a take-over only where content reaches the software.
   function shownSlots(doc, id) {
     var e = doc.entities[id];
-    var hosted = Object.keys(doc.associations || {}).some(function (k) {
-      var a = doc.associations[k];
-      return a.kind === "hosts" && a.to === id;
-    });
+    var hosted = linkedTo(doc, "hosts", id);
+    var reads = reader(doc, id);
     return Object.keys((e && e.parameters) || {}).filter(function (slot) {
-      return slot !== "escape" || hosted;
+      if (slot === "escape") return hosted;
+      if (TAKE_OVER.indexOf(slot) >= 0) return reads;
+      return true;
     });
+  }
+
+  // The defence switch worth showing, or null: guarding software matters
+  // only where content reaches it.
+  function shownDefense(doc, id) {
+    var e = doc.entities[id];
+    var defense = Object.keys((e && e.defenses) || {})[0] || null;
+    if (defense === "guarded" && !reader(doc, id)) return null;
+    return defense;
   }
 
   function unknowns(doc, id) {
@@ -116,6 +140,7 @@
       // the network it is managed from, so it cannot read "network manages".
       if (a.kind === "administration") return edge("association/" + id, a.to, a.from, a.kind, "managed from", "administration");
       var term = a.privilege ? a.kind + " · " + a.privilege : a.kind;
+      if (a.kind === "hosts" && a.contained === true) term += " · contained";
       edge("association/" + id, a.from, a.to, a.kind, ALONG[a.kind] ? ALONG[a.kind](a) : term, term);
     });
     Object.keys(doc.flows || {}).forEach(function (id) {
@@ -149,7 +174,7 @@
     return { profile: "architecture", nodes: nodes, edges: edges, permits: permits };
   }
 
-  var api = { describe: describe, route: route, shownSlots: shownSlots };
+  var api = { describe: describe, route: route, shownSlots: shownSlots, shownDefense: shownDefense };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureView = api;
 })();

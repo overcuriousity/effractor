@@ -9,10 +9,11 @@
   var KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of", "runs-as", "assumes", "knows", "operates", "delivers"];
   var PRIVILEGED = ["hosts", "stores", "grants", "runs-as"];
   // The fields a link carries beside kind/from/to, in the file's order.
-  var FIELD_ORDER = ["privilege", "factor"];
+  var FIELD_ORDER = ["privilege", "factor", "contained"];
   // What a field's value adds to a link's words; a missing entry adds nothing.
-  var FIELD_WORDS = { factor: { second: "as second factor" } };
+  var FIELD_WORDS = { factor: { second: "as second factor" }, contained: { true: "contained", false: "not contained" } };
   var COLLECTIONS = ["entities", "associations", "flows"];
+  var SOFTWARE = ["application", "service"];
 
   function has(o, k) {
     return !!o && Object.prototype.hasOwnProperty.call(o, k);
@@ -69,6 +70,7 @@
     if (PRIVILEGED.indexOf(value.kind) >= 0) a.privilege = value.privilege;
     if (value.kind === "permits") a.allowed = value.allowed;
     if (value.kind === "authenticates" && value.factor === "second") a.factor = "second";
+    if (value.kind === "hosts" && value.contained === true && SOFTWARE.indexOf(kindOf(next, a.to)) >= 0) a.contained = true;
     var description = String(value.description == null ? "" : value.description).trim();
     if (description) a.description = description;
     Object.assign(a, extensions(has(next.associations, id) ? next.associations[id] : null));
@@ -405,18 +407,22 @@
   }
 
   // The fields a link of `kind` between these kinds carries, each with the
-  // values it may take there.
+  // values it may take there. A `setting` is changed on the link, not
+  // chosen as a way to make it.
   function fieldsOf(kind, fromKind, toKind) {
     var out = [];
     var p = privilegesOf(kind, fromKind, toKind);
     if (p) out.push({ name: "privilege", values: p });
     if (kind === "authenticates") out.push({ name: "factor", values: ["first", "second"] });
+    if (kind === "hosts" && SOFTWARE.indexOf(toKind) >= 0) out.push({ name: "contained", values: [false, true], setting: true });
     return out;
   }
 
   // Every combination of those values: the ways the Link menu offers.
   function variants(doc, kind, from, to) {
-    return fieldsOf(kind, kindOf(doc, from), kindOf(doc, to)).reduce(function (acc, f) {
+    return fieldsOf(kind, kindOf(doc, from), kindOf(doc, to)).filter(function (f) {
+      return !f.setting;
+    }).reduce(function (acc, f) {
       var out = [];
       acc.forEach(function (v) {
         f.values.forEach(function (value) {

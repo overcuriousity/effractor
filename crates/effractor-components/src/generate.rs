@@ -124,6 +124,8 @@ struct Builder<'a> {
     flows_from: HashMap<&'a EntityId, Vec<&'a FlowId>>,
     /// flow → the route paths the validator marked `unfinished`
     unfinished: HashMap<&'a FlowId, Vec<String>>,
+    /// Software that processes content: what a `delivers` names.
+    readers: BTreeSet<&'a EntityId>,
 }
 
 impl<'a> Builder<'a> {
@@ -144,6 +146,7 @@ impl<'a> Builder<'a> {
             product_of: HashMap::new(),
             flows_from: HashMap::new(),
             unfinished: HashMap::new(),
+            readers: BTreeSet::new(),
         };
         for (fid, flow) in &m.flows {
             b.flows_from.entry(&flow.source).or_default().push(fid);
@@ -160,6 +163,9 @@ impl<'a> Builder<'a> {
                 }
                 Relation::InstanceOf { from, to } => {
                     b.product_of.insert(from, (to, id));
+                }
+                Relation::Delivers { to, .. } if m.entities[to].kind.is_executable() => {
+                    b.readers.insert(to);
                 }
                 Relation::Filters { from, to } => {
                     b.router_of.insert(to, (from, id));
@@ -318,6 +324,12 @@ impl<'a> Builder<'a> {
                 let fid = self.state_id(id, state.as_str());
                 self.fact(fid, format!("{} · {}", entity.label, state_word(*state)));
             }
+            // Content reaching software is generated, as `reachable` is.
+            if self.readers.contains(id) {
+                let fid = self.state_id(id, State::Contacted.as_str());
+                let word = state_word(State::Contacted);
+                self.fact(fid, format!("{} · {word}", entity.label));
+            }
             match entity.kind {
                 EntityKind::Service => {
                     let fid = self.state_id(id, "reachable");
@@ -391,6 +403,7 @@ impl<'a> Builder<'a> {
                 from,
                 to,
                 privilege,
+                contained,
             } = &a.relation
             else {
                 continue;
@@ -414,10 +427,13 @@ impl<'a> Builder<'a> {
                     self.produce(&machine, &admin, bound("hosted-host"));
                     self.escape("guest-escape", to, from, *privilege, aid);
                 }
+                // Software; contained software does not reach its machine.
                 _ => {
                     let control = self.state_id(to, State::Control.as_str());
                     self.produce(&machine, &control, bound("host-execution"));
-                    self.produce(&control, &machine, bound("execution-privilege"));
+                    if !*contained {
+                        self.produce(&control, &machine, bound("execution-privilege"));
+                    }
                 }
             }
         }
@@ -573,8 +589,8 @@ impl<'a> Builder<'a> {
         }
     }
 
-    /// Content reaches people from zones and from controlled services; a
-    /// deceived person discloses and runs.
+    /// Content reaches people and software from zones and from controlled
+    /// services; a deceived person discloses and runs, software is taken over.
     fn operators(&mut self) {
         for (aid, a) in &self.m.associations {
             match &a.relation {
@@ -631,6 +647,37 @@ impl<'a> Builder<'a> {
                 },
                 &[contacted],
                 &deceived,
+                o,
+            );
+        }
+        for eid in self.readers.clone() {
+            let contacted = self.state_id(eid, State::Contacted.as_str());
+            for fid in self.flows_from.get(eid).cloned().unwrap_or_default() {
+                let target = &self.m.flows[fid].target;
+                let served = self.state_id(target, State::Control.as_str());
+                let o = bound("content-from-service", &[eid, target], &[], &[fid]);
+                self.produce(&served, &contacted, o);
+            }
+            let owner = Owner::Entity(eid.clone());
+            let o = Origin {
+                paths: vec![
+                    owner.slot_path(Slot::TakeOver),
+                    owner.slot_path(Slot::TakeOverGuarded),
+                    format!("entities.{eid}.defenses.guarded"),
+                ],
+                ..bound("take-over", &[eid], &[], &[])
+            };
+            let control = self.state_id(eid, State::Control.as_str());
+            self.action(
+                format!("action/take-over/{eid}"),
+                format!("Take over through content · {}", self.label(eid)),
+                Binding::Parameter {
+                    owner,
+                    base: Slot::TakeOver,
+                    replacement: Some((Defense::Guarded, Slot::TakeOverGuarded)),
+                },
+                &[contacted],
+                &control,
                 o,
             );
         }

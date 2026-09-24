@@ -935,7 +935,8 @@
             "flows": [],
             "paths": [],
             "assumptions": [
-              "Controlling software yields the privilege it runs with and no more: user software never alone grants admin."
+              "Controlling software yields the privilege it runs with and no more: user software never alone grants admin.",
+              "Contained software (a sandbox, a locked-down container, an agent without a shell) does not reach its machine; its flows and identity still do their part."
             ]
           },
           {
@@ -1063,7 +1064,8 @@
             "flows": [],
             "paths": [],
             "assumptions": [
-              "Controlling software yields the privilege it runs with and no more: user software never alone grants admin."
+              "Controlling software yields the privilege it runs with and no more: user software never alone grants admin.",
+              "Contained software (a sandbox, a locked-down container, an agent without a shell) does not reach its machine; its flows and identity still do their part."
             ]
           }
         ],

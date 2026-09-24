@@ -26,6 +26,7 @@ const NOT_YET_IN_AN_EXAMPLE: &[&str] = &[
     "phish",
     "person-disclose",
     "person-run",
+    "take-over",
 ];
 
 const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
@@ -636,6 +637,7 @@ fn user_software_never_grants_admin_and_root_software_does() {
         from: id("server"),
         to: id("sshd"),
         privilege: Privilege::User,
+        contained: false,
     };
     let graph = generate(&m).unwrap();
     assert_eq!(
@@ -670,6 +672,7 @@ fn a_router_on_a_host_is_controlled_from_it_and_left_by_an_escape() {
             from: id("hypervisor"),
             to: id("bridge"),
             privilege: Privilege::Admin,
+            contained: false,
         },
     );
     let graph = generate(&m).unwrap();
@@ -711,6 +714,7 @@ fn a_router_on_a_host_is_controlled_from_it_and_left_by_an_escape() {
             from: id("hypervisor"),
             to: id("bridge"),
             privilege: Privilege::User,
+            contained: false,
         },
     );
     let graph = generate(&m).unwrap();
@@ -740,6 +744,7 @@ fn router_software_runs_as_admin() {
             from: id("bridge"),
             to: id("router-web"),
             privilege: Privilege::Admin,
+            contained: false,
         },
     );
     let graph = generate(&m).unwrap();
@@ -816,6 +821,7 @@ fn extraction_is_per_store_and_discovery_per_product() {
             from: id("workstation"),
             to: id("backup-client"),
             privilege: Privilege::User,
+            contained: false,
         },
     );
     m.flows.insert(id("backup"), {
@@ -912,6 +918,7 @@ fn a_hypervisor_controls_its_guests_and_a_guest_escapes_by_a_timed_step() {
             from: id("hv"),
             to: id("server"),
             privilege: Privilege::User,
+            contained: false,
         },
     );
     let g = generate(&m).unwrap();
@@ -944,6 +951,7 @@ fn a_router_on_a_host_escapes_to_it_by_a_timed_step() {
             from: id("box"),
             to: id("bridge"),
             privilege: Privilege::Admin,
+            contained: false,
         },
     );
     let g = generate(&m).unwrap();
@@ -972,6 +980,7 @@ fn two_instances_share_one_discovery_and_deploy_separately() {
             from: id("server"),
             to: id("sshd2"),
             privilege: Privilege::User,
+            contained: false,
         },
     );
     relate(
@@ -1029,6 +1038,7 @@ fn an_action_names_the_component_whose_time_it_takes_last() {
             from: id("hv"),
             to: id("server"),
             privilege: Privilege::User,
+            contained: false,
         },
     );
     let g = generate(&m).unwrap();
@@ -1287,5 +1297,100 @@ fn a_controlled_service_reaches_the_people_whose_software_it_serves() {
             "state/network/internet/access",
             "state/service/sshd/control"
         ]
+    );
+}
+
+/// The lecture's SSH client also reads what arrives from the internet: it
+/// processes content.
+fn reader() -> Architecture {
+    let mut m = lecture();
+    add(&mut m, "internet", EntityKind::Network);
+    relate(
+        &mut m,
+        "mail-client",
+        Relation::Delivers {
+            from: id("internet"),
+            to: id("ssh-client"),
+        },
+    );
+    m
+}
+
+#[test]
+fn content_reaches_software_and_takes_it_over_by_a_timed_step() {
+    let g = generate(&reader()).unwrap();
+    let mut contacted = inputs(&g, "state/application/ssh-client/contacted");
+    contacted.sort();
+    // From the zone, and from the service its own flow targets.
+    assert_eq!(
+        contacted,
+        vec![
+            "state/network/internet/access",
+            "state/service/sshd/control"
+        ]
+    );
+    assert_eq!(
+        inputs(&g, "action/take-over/ssh-client"),
+        vec!["state/application/ssh-client/contacted"]
+    );
+    assert!(matches!(
+        node(&g, "action/take-over/ssh-client").duration,
+        Binding::Parameter {
+            base: Slot::TakeOver,
+            replacement: Some((Defense::Guarded, Slot::TakeOverGuarded)),
+            ..
+        }
+    ));
+    assert!(
+        inputs(&g, "state/application/ssh-client/control")
+            .contains(&"action/take-over/ssh-client".to_owned())
+    );
+}
+
+#[test]
+fn software_no_content_reaches_has_no_take_over() {
+    let g = generate(&lecture()).unwrap();
+    assert!(
+        !g.nodes
+            .iter()
+            .any(|n| n.id.ends_with("/contacted") || n.id.starts_with("action/take-over/")),
+        "only software that content is said to reach processes it"
+    );
+}
+
+#[test]
+fn contained_software_does_not_control_its_machine() {
+    let mut m = reader();
+    let hosting = m
+        .associations
+        .get_mut(&id::<AssociationId>("client-hosting"))
+        .unwrap();
+    let Relation::Hosts { contained, .. } = &mut hosting.relation else {
+        panic!("client-hosting hosts");
+    };
+    assert!(!*contained);
+    let open = generate(&m).unwrap();
+    assert!(
+        inputs(&open, "state/host/workstation/user")
+            .contains(&"state/application/ssh-client/control".to_owned())
+    );
+    let Relation::Hosts { contained, .. } = &mut m
+        .associations
+        .get_mut(&id::<AssociationId>("client-hosting"))
+        .unwrap()
+        .relation
+    else {
+        unreachable!()
+    };
+    *contained = true;
+    let closed = generate(&m).unwrap();
+    assert!(
+        !inputs(&closed, "state/host/workstation/user")
+            .contains(&"state/application/ssh-client/control".to_owned())
+    );
+    // The machine still controls the software.
+    assert!(
+        inputs(&closed, "state/application/ssh-client/control")
+            .contains(&"state/host/workstation/user".to_owned())
     );
 }

@@ -344,15 +344,18 @@ vocabulary models the pattern once instead of one kind per case. There is no
   canonical saves write only `contained: true`.
 * **What the software reads.** `reads: application | service → data` (§4.4)
   and `data-poisoning` reach the reading software's `contacted`.
+* **Which software processes content (owner, 2026-09-24).** Only software
+  that content is said to reach: one that some `delivers` names (and, with
+  §4, some `reads` names). Only such software gets the generated `contacted`
+  fact and the take-over step; everything else generates exactly as before,
+  so existing models keep their graphs and numbers. The slots and the
+  `guarded` switch are materialised on every application and service, as
+  `escape` is on every host; the inspector shows them only where content
+  reaches the software.
 * **A controlled service feeding its clients.** `content-from-service` extends
-  to software whose own flows target a controlled service (a compromised tool
-  server, a poisoned retrieval service, a watering hole for a client).
-  **Open for the next session's brainstorming:** whether this applies to every
-  flow source — which would give every existing client a take-over step with
-  an unknown time — or only to software the author marks as processing
-  content (for example: one that some `delivers` or `reads` names, or one
-  whose `take-over` slot is authored). The recommendation is the opt-in form,
-  so existing models keep their numbers.
+  to that software: control of a service that one of its own flows targets →
+  its `contacted` (a compromised tool server, a poisoned retrieval service, a
+  watering hole for a client).
 * **Identity and flows unchanged.** A content-processing service that
   `runs-as` an account and has flows is what the spec's "agent" was: its
   control connects its flows and authenticates its identity through the

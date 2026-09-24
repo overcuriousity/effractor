@@ -39,9 +39,21 @@ entities:
   smb-client:
     kind: application
     label: File share client
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
   ssh-client:
     kind: application
     label: SSH client
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
   files:
     kind: host
     label: File server
@@ -60,6 +72,11 @@ entities:
         status: illustrative
         ttc: "Exponential(mean 0.5)"
         note: "Teaching input: a password is quickly tried"
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
   smb-software:
     kind: product
     label: File share software
@@ -85,6 +102,11 @@ entities:
         status: illustrative
         ttc: "Exponential(mean 0.5)"
         note: Teaching input
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
   appliance-ssh-software:
     kind: product
     label: Appliance management SSH software

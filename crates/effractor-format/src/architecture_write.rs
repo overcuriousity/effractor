@@ -120,6 +120,12 @@ fn document(w: &mut Writer, m: &Architecture) {
                 {
                     w.line(4, "factor", word(&FACTORS, &Factor::Second));
                 }
+                if let Relation::Hosts {
+                    contained: true, ..
+                } = r
+                {
+                    w.line(4, "contained", "true");
+                }
             }
         }
         if let Some(d) = &association.description {

@@ -147,7 +147,13 @@ impl EntityKind {
     /// written on a save, as `unknown` when the author has not said.
     pub fn slots(self) -> &'static [Slot] {
         match self {
-            Self::Service => &[Slot::DeployExploit, Slot::Login],
+            Self::Service => &[
+                Slot::DeployExploit,
+                Slot::Login,
+                Slot::TakeOver,
+                Slot::TakeOverGuarded,
+            ],
+            Self::Application => &[Slot::TakeOver, Slot::TakeOverGuarded],
             Self::Product => &[Slot::FindExploit, Slot::FindExploitPatched],
             Self::Credential => &[Slot::Extract, Slot::ExtractProtected],
             Self::Account => &[Slot::AdminLogin, Slot::MfaBypass],
@@ -164,6 +170,7 @@ impl EntityKind {
             Self::Account => Some(Defense::Mfa),
             Self::Person => Some(Defense::Trained),
             Self::Credential => Some(Defense::Protected),
+            Self::Application | Self::Service => Some(Defense::Guarded),
             _ => None,
         }
     }
@@ -304,10 +311,12 @@ pub enum Slot {
     MfaBypass,
     Phish,
     PhishTrained,
+    TakeOver,
+    TakeOverGuarded,
 }
 
 impl Slot {
-    pub const ALL: [Slot; 12] = [
+    pub const ALL: [Slot; 14] = [
         Self::Connect,
         Self::FindExploit,
         Self::FindExploitPatched,
@@ -320,6 +329,8 @@ impl Slot {
         Self::MfaBypass,
         Self::Phish,
         Self::PhishTrained,
+        Self::TakeOver,
+        Self::TakeOverGuarded,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -336,6 +347,8 @@ impl Slot {
             Self::MfaBypass => "mfa-bypass",
             Self::Phish => "phish",
             Self::PhishTrained => "phish-trained",
+            Self::TakeOver => "take-over",
+            Self::TakeOverGuarded => "take-over-guarded",
         }
     }
 }
@@ -375,6 +388,9 @@ pub struct Defenses {
     pub mfa: Option<Switch>,
     /// A person: `phish-trained` stands in for `phish`.
     pub trained: Option<Switch>,
+    /// Software that processes content: `take-over-guarded` stands in for
+    /// `take-over`.
+    pub guarded: Option<Switch>,
 }
 
 impl Defenses {
@@ -384,6 +400,7 @@ impl Defenses {
             Defense::Protected => self.protected,
             Defense::Mfa => self.mfa,
             Defense::Trained => self.trained,
+            Defense::Guarded => self.guarded,
         }
     }
 
@@ -393,6 +410,7 @@ impl Defenses {
             Defense::Protected => self.protected = value,
             Defense::Mfa => self.mfa = value,
             Defense::Trained => self.trained = value,
+            Defense::Guarded => self.guarded = value,
         }
     }
 }
@@ -450,6 +468,9 @@ pub enum Relation {
         from: EntityId,
         to: EntityId,
         privilege: Privilege,
+        /// Software only: controlling it does not control its machine (a
+        /// sandbox, a locked-down container). False unless said.
+        contained: bool,
     },
     /// router → firewall: one each way.
     Filters { from: EntityId, to: EntityId },
@@ -497,8 +518,8 @@ pub enum Relation {
     Knows { from: EntityId, to: EntityId },
     /// person → application: the software they use.
     Operates { from: EntityId, to: EntityId },
-    /// network → person: content from anyone in the zone reaches this
-    /// reader.
+    /// network → person/software: content from anyone in the zone reaches
+    /// this reader.
     Delivers { from: EntityId, to: EntityId },
 }
 
@@ -614,7 +635,7 @@ impl RelationKind {
             Self::RunsAs | Self::Assumes => &[K::Account],
             Self::Knows => &[K::Credential],
             Self::Operates => &[K::Application],
-            Self::Delivers => &[K::Person],
+            Self::Delivers => &[K::Person, K::Application, K::Service],
         }
     }
 
@@ -623,6 +644,7 @@ impl RelationKind {
         match self {
             Self::Permits => &["allowed"],
             Self::Authenticates => &["factor"],
+            Self::Hosts => &["privilege", "contained"],
             k if k.has_privilege() => &["privilege"],
             _ => &[],
         }
@@ -729,10 +751,17 @@ pub enum Defense {
     Protected,
     Mfa,
     Trained,
+    Guarded,
 }
 
 impl Defense {
-    pub const ALL: [Defense; 4] = [Self::Patched, Self::Protected, Self::Mfa, Self::Trained];
+    pub const ALL: [Defense; 5] = [
+        Self::Patched,
+        Self::Protected,
+        Self::Mfa,
+        Self::Trained,
+        Self::Guarded,
+    ];
 
     pub fn as_str(self) -> &'static str {
         match self {
@@ -740,6 +769,7 @@ impl Defense {
             Self::Protected => "protected",
             Self::Mfa => "mfa",
             Self::Trained => "trained",
+            Self::Guarded => "guarded",
         }
     }
 }

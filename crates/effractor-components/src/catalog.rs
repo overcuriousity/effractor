@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 31] = [
+pub const RULES: [Rule; 32] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -96,9 +96,10 @@ pub const RULES: [Rule; 31] = [
         prerequisites: "executable.control",
         output: "the hosting machine at the executable's declared privilege",
         duration: D::Logical,
-        scope: "one per hosts association naming an application or service",
+        scope: "one per hosts association naming an application or service, unless `contained: true`",
         assumptions: &[
             "Controlling software yields the privilege it runs with and no more: user software never alone grants admin.",
+            "Contained software (a sandbox, a locked-down container, an agent without a shell) does not reach its machine; its flows and identity still do their part.",
         ],
     },
     Rule {
@@ -371,7 +372,7 @@ pub const RULES: [Rule; 31] = [
         version: 1,
         bindings: &["delivers"],
         prerequisites: "network.access",
-        output: "person.contacted",
+        output: "person or software .contacted",
         duration: D::Logical,
         scope: "one per delivers association",
         assumptions: &[
@@ -383,10 +384,10 @@ pub const RULES: [Rule; 31] = [
         title: "A controlled service reaches its readers",
         version: 1,
         bindings: &["flow"],
-        prerequisites: "control of a service that a flow from an application the person operates targets",
-        output: "person.contacted",
+        prerequisites: "control of a service that a reader's flow targets: content-processing software's own flows, a person's through the applications they operate",
+        output: "person or software .contacted",
         duration: D::Logical,
-        scope: "one per flow from an application a person operates",
+        scope: "one per flow from content-processing software, or from an application a person operates",
         assumptions: &[
             "Watering holes, poisoned retrieval stores and compromised tool servers are this rule.",
         ],
@@ -429,6 +430,24 @@ pub const RULES: [Rule; 31] = [
         scope: "one per operates association",
         assumptions: &[
             "Which consequences of deceit exist — disclosure, running something — is the author's choice of associations.",
+        ],
+    },
+    Rule {
+        id: "take-over",
+        title: "Take over through content",
+        version: 1,
+        bindings: &["software"],
+        prerequisites: "software.contacted, for software that a `delivers` names",
+        output: "software.control",
+        duration: D::Slot {
+            slot: Slot::TakeOver,
+            replaced_by: Some((Defense::Guarded, Slot::TakeOverGuarded)),
+        },
+        scope: "one per application or service that content reaches",
+        assumptions: &[
+            "Software that processes content it does not trust can be made to act on it: prompt injection for an AI agent, a malicious file for a parser or a client.",
+            "Only software that content is said to reach processes it; other software has no such step.",
+            "Guarding (input validation, sandboxing, guardrails, human approval of actions) selects the authored replacement distribution, not a guarantee.",
         ],
     },
     Rule {
@@ -489,9 +508,11 @@ fn kind_description(kind: EntityKind) -> &'static str {
             "The filter managed by one router. Its permissions apply to named flows."
         }
         EntityKind::Host => "A workstation or server. `user` and `admin` control are distinct.",
-        EntityKind::Application => "Client-side software running on a host or router.",
+        EntityKind::Application => {
+            "Client-side software running on a host or router. Content reaching it may take it over; `guarded` is its switch."
+        }
         EntityKind::Service => {
-            "A reachable service running on a host or router, with exploit and login routes."
+            "A reachable service running on a host or router, with exploit and login routes. Content reaching it may take it over; `guarded` is its switch."
         }
         EntityKind::Person => {
             "A human user who reads content and can be deceived. `knows` and `operates` say what deceit gives away."
@@ -514,7 +535,7 @@ fn relation_description(kind: RelationKind) -> &'static str {
             "Membership of a network; a machine can be attached to several. Implies no flow permission."
         }
         RelationKind::Hosts => {
-            "The machine an executable, a router or a guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host."
+            "The machine an executable, a router or a guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host. `contained: true` says controlled software does not reach the machine."
         }
         RelationKind::Filters => "The firewall a router manages: one each way.",
         RelationKind::Stores => {
@@ -543,7 +564,7 @@ fn relation_description(kind: RelationKind) -> &'static str {
             "Software a person uses; deceived, they run what they are sent in it."
         }
         RelationKind::Delivers => {
-            "Content from anyone in this network reaches the person: mail, a public web page."
+            "Content from anyone in this network reaches the person or software: mail, a public web page, a ticket queue an agent reads."
         }
     }
 }
@@ -604,6 +625,8 @@ fn slot_name(slot: Slot) -> &'static str {
         Slot::MfaBypass => "Get past multi-factor login",
         Slot::Phish => "Deceive",
         Slot::PhishTrained => "Deceive (trained)",
+        Slot::TakeOver => "Take over through content",
+        Slot::TakeOverGuarded => "Take over through content (guarded)",
     }
 }
 
@@ -661,6 +684,14 @@ fn slot_description(slot: Slot) -> (&'static str, &'static str) {
             "person",
             "The same, once the person is trained; selected by `defenses.trained`.",
         ),
+        Slot::TakeOver => (
+            "application or service",
+            "Time to make the software act on content the attacker put in front of it: an injected prompt, a malicious file — the note says which.",
+        ),
+        Slot::TakeOverGuarded => (
+            "application or service",
+            "The same, once the software is guarded; selected by `defenses.guarded`.",
+        ),
         Slot::MfaBypass => (
             "account",
             "Time to get past the second factor once a first factor is held: push fatigue, a proxy, a SIM swap — the note says which.",
@@ -690,6 +721,10 @@ fn defense_word(defense: Defense) -> (&'static str, &'static str) {
         Defense::Trained => (
             "Trained",
             "The person is trained against deception: `phish-trained` stands in for `phish`.",
+        ),
+        Defense::Guarded => (
+            "Guarded",
+            "The software is guarded against the content it processes: `take-over-guarded` stands in for `take-over`.",
         ),
     }
 }

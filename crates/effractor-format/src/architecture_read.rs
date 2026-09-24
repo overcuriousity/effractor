@@ -67,9 +67,10 @@ pub const EVIDENCE: [(&str, Evidence); 4] = [
     ("calibrated", Evidence::Calibrated),
 ];
 /// The fields an association may carry beside kind/from/to/description.
-const EXTRAS: [&str; 3] = ["privilege", "allowed", "factor"];
+const EXTRAS: [&str; 4] = ["privilege", "allowed", "factor", "contained"];
+pub const BOOLS: [(&str, bool); 2] = [("true", true), ("false", false)];
 pub const FACTORS: [(&str, Factor); 2] = [("first", Factor::First), ("second", Factor::Second)];
-pub const SLOTS: [(&str, Slot); 12] = [
+pub const SLOTS: [(&str, Slot); 14] = [
     ("connect", Slot::Connect),
     ("find-exploit", Slot::FindExploit),
     ("find-exploit-patched", Slot::FindExploitPatched),
@@ -82,12 +83,15 @@ pub const SLOTS: [(&str, Slot); 12] = [
     ("mfa-bypass", Slot::MfaBypass),
     ("phish", Slot::Phish),
     ("phish-trained", Slot::PhishTrained),
+    ("take-over", Slot::TakeOver),
+    ("take-over-guarded", Slot::TakeOverGuarded),
 ];
-pub const DEFENSES: [(&str, Defense); 4] = [
+pub const DEFENSES: [(&str, Defense); 5] = [
     ("patched", Defense::Patched),
     ("protected", Defense::Protected),
     ("mfa", Defense::Mfa),
     ("trained", Defense::Trained),
+    ("guarded", Defense::Guarded),
 ];
 
 pub fn document(cx: &mut Cx, root: &Node) -> Option<Architecture> {
@@ -278,6 +282,7 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
             "privilege",
             "allowed",
             "factor",
+            "contained",
             "description",
         ],
     )?;
@@ -324,6 +329,12 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
         }
         _ => Some(Factor::First),
     };
+    // Absent is not contained; canonical text writes only `true`. The
+    // validator decides whether the hosted kind is software.
+    let contained = match f.get("contained") {
+        Some(e) if kind == RelationKind::Hosts => cx.word(&e.value, &f.path("contained"), &BOOLS),
+        _ => Some(false),
+    };
     let relation = match kind {
         RelationKind::Permits => Relation::Permits {
             from: from?,
@@ -339,6 +350,7 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
                     from,
                     to,
                     privilege: privilege?,
+                    contained: contained?,
                 },
                 RelationKind::Filters => Relation::Filters { from, to },
                 RelationKind::Stores => Relation::Stores {

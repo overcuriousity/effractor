@@ -432,7 +432,8 @@
   function firstParameter() {
     var e = entity();
     var slots = e ? window.effractorArchitectureView.shownSlots(doc(), entityId()) : [];
-    if (!slots.length) return app.say("no parameters for a " + (e ? e.kind : "selection") + (e && e.parameters && e.parameters.escape ? " that runs on no host" : ""));
+    var why = !e || !e.parameters ? "" : e.parameters.escape ? " that runs on no host" : e.parameters["take-over"] ? " no content reaches" : "";
+    if (!slots.length) return app.say("no parameters for a " + (e ? e.kind : "selection") + why);
     var unknown = slots.filter(function (s) { return e.parameters[s].status === "unknown"; })[0];
     openSlot = slotKey({ entity: entityId() }, unknown || slots[0]);
     renderProperties();
@@ -612,7 +613,8 @@
     kind.className = "mono";
     field(form, "prop-kind", "Kind", kind);
 
-    var defense = Object.keys(e.defenses || {})[0];
+    // Shown where it matters: guarding software only where content reaches it.
+    var defense = window.effractorArchitectureView.shownDefense(doc(), id);
     if (defense) {
       var current = e.defenses[defense];
       var toggle = field(form, "prop-defense", catalog ? W.defense(catalog, defense) : word(defense), window.effractorMenu.dropdown(SWITCH, String(current)));
@@ -705,7 +707,7 @@
     },
     // A control of the selected item's form, by what it sets.
     focusField: function (field) {
-      var control = $({ defense: "prop-defense", foothold: "prop-foothold", target: "prop-target", allowed: "prop-allowed", privilege: "prop-privilege", factor: "prop-factor", route: "prop-route-add" }[field] || "");
+      var control = $({ defense: "prop-defense", foothold: "prop-foothold", target: "prop-target", allowed: "prop-allowed", privilege: "prop-privilege", factor: "prop-factor", contained: "prop-contained", route: "prop-route-add" }[field] || "");
       if (control) control.focus();
     },
     // For architecture-links-ui.js: the same edit queue, form parts and hooks.

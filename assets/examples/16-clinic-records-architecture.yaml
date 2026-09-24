@@ -30,6 +30,12 @@ entities:
   viewer:
     kind: application
     label: Records viewer
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
   records-host:
     kind: host
     label: Records server
@@ -48,6 +54,11 @@ entities:
         status: illustrative
         ttc: "Exponential(mean 0.333)"
         note: "Teaching input: a stolen session token is replayed"
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
   records-software:
     kind: product
     label: Records service software

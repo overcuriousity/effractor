@@ -49,26 +49,31 @@
     },
     {
       "kind": "application",
-      "description": "Client-side software running on a host or router.",
+      "description": "Client-side software running on a host or router. Content reaching it may take it over; `guarded` is its switch.",
       "meaning": "Software that makes connections, e.g. a browser or mail client. Reached only through what it opens.",
       "states": [
         "control"
       ],
-      "parameters": [],
-      "defense": null
+      "parameters": [
+        "take-over",
+        "take-over-guarded"
+      ],
+      "defense": "guarded"
     },
     {
       "kind": "service",
-      "description": "A reachable service running on a host or router, with exploit and login routes.",
+      "description": "A reachable service running on a host or router, with exploit and login routes. Content reaching it may take it over; `guarded` is its switch.",
       "meaning": "Software that accepts connections, e.g. a web server or SSH. Exploited or logged into over the network.",
       "states": [
         "control"
       ],
       "parameters": [
         "deploy-exploit",
-        "login"
+        "login",
+        "take-over",
+        "take-over-guarded"
       ],
-      "defense": null
+      "defense": "guarded"
     },
     {
       "kind": "product",
@@ -146,9 +151,10 @@
         "host"
       ],
       "fields": [
-        "privilege"
+        "privilege",
+        "contained"
       ],
-      "description": "The machine an executable, a router or a guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host."
+      "description": "The machine an executable, a router or a guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host. `contained: true` says controlled software does not reach the machine."
     },
     {
       "kind": "filters",
@@ -303,10 +309,12 @@
         "network"
       ],
       "to": [
-        "person"
+        "person",
+        "application",
+        "service"
       ],
       "fields": [],
-      "description": "Content from anyone in this network reaches the person: mail, a public web page."
+      "description": "Content from anyone in this network reaches the person or software: mail, a public web page, a ticket queue an agent reads."
     }
   ],
   "states": [
@@ -366,6 +374,11 @@
       "id": "trained",
       "word": "Trained",
       "description": "The person is trained against deception: `phish-trained` stands in for `phish`."
+    },
+    {
+      "id": "guarded",
+      "word": "Guarded",
+      "description": "The software is guarded against the content it processes: `take-over-guarded` stands in for `take-over`."
     }
   ],
   "parameters": [
@@ -440,6 +453,18 @@
       "name": "Deceive (trained)",
       "owner": "person",
       "description": "The same, once the person is trained; selected by `defenses.trained`."
+    },
+    {
+      "slot": "take-over",
+      "name": "Take over through content",
+      "owner": "application or service",
+      "description": "Time to make the software act on content the attacker put in front of it: an injected prompt, a malicious file — the note says which."
+    },
+    {
+      "slot": "take-over-guarded",
+      "name": "Take over through content (guarded)",
+      "owner": "application or service",
+      "description": "The same, once the software is guarded; selected by `defenses.guarded`."
     }
   ],
   "rules": [
@@ -508,9 +533,10 @@
       "duration": {
         "kind": "logical"
       },
-      "scope": "one per hosts association naming an application or service",
+      "scope": "one per hosts association naming an application or service, unless `contained: true`",
       "assumptions": [
-        "Controlling software yields the privilege it runs with and no more: user software never alone grants admin."
+        "Controlling software yields the privilege it runs with and no more: user software never alone grants admin.",
+        "Contained software (a sandbox, a locked-down container, an agent without a shell) does not reach its machine; its flows and identity still do their part."
       ]
     },
     {
@@ -870,7 +896,7 @@
         "delivers"
       ],
       "prerequisites": "network.access",
-      "output": "person.contacted",
+      "output": "person or software .contacted",
       "duration": {
         "kind": "logical"
       },
@@ -886,12 +912,12 @@
       "bindings": [
         "flow"
       ],
-      "prerequisites": "control of a service that a flow from an application the person operates targets",
-      "output": "person.contacted",
+      "prerequisites": "control of a service that a reader's flow targets: content-processing software's own flows, a person's through the applications they operate",
+      "output": "person or software .contacted",
       "duration": {
         "kind": "logical"
       },
-      "scope": "one per flow from an application a person operates",
+      "scope": "one per flow from content-processing software, or from an application a person operates",
       "assumptions": [
         "Watering holes, poisoned retrieval stores and compromised tool servers are this rule."
       ]
@@ -950,6 +976,30 @@
       "scope": "one per operates association",
       "assumptions": [
         "Which consequences of deceit exist — disclosure, running something — is the author's choice of associations."
+      ]
+    },
+    {
+      "id": "take-over",
+      "title": "Take over through content",
+      "version": 1,
+      "bindings": [
+        "software"
+      ],
+      "prerequisites": "software.contacted, for software that a `delivers` names",
+      "output": "software.control",
+      "duration": {
+        "kind": "slot",
+        "slot": "take-over",
+        "replaced_by": {
+          "defense": "guarded",
+          "slot": "take-over-guarded"
+        }
+      },
+      "scope": "one per application or service that content reaches",
+      "assumptions": [
+        "Software that processes content it does not trust can be made to act on it: prompt injection for an AI agent, a malicious file for a parser or a client.",
+        "Only software that content is said to reach processes it; other software has no such step.",
+        "Guarding (input validation, sandboxing, guardrails, human approval of actions) selects the authored replacement distribution, not a guarantee."
       ]
     },
     {

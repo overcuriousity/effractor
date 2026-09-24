@@ -88,6 +88,7 @@ fn validation_names_the_field_that_is_wrong() {
                 from: id("net"),
                 to: id("sshd"),
                 privilege: Privilege::Admin,
+                contained: false,
             },
             description: None,
         },
@@ -148,6 +149,7 @@ fn a_router_runs_on_one_host_and_only_on_a_host() {
             from: id(from),
             to: id(to),
             privilege: Privilege::Admin,
+            contained: false,
         },
         description: None,
     };
@@ -230,6 +232,7 @@ fn vm_model() -> Architecture {
             from: from.parse().unwrap(),
             to: to.parse().unwrap(),
             privilege: Privilege::User,
+            contained: false,
         },
         description: None,
     };
@@ -266,6 +269,7 @@ fn a_hosting_cycle_is_an_error() {
                 from: "ct".parse().unwrap(),
                 to: "hv".parse().unwrap(),
                 privilege: Privilege::User,
+                contained: false,
             },
             description: None,
         },
@@ -290,6 +294,7 @@ fn a_router_cannot_host_a_host() {
                 from: "r".parse().unwrap(),
                 to: "hv".parse().unwrap(),
                 privilege: Privilege::Admin,
+                contained: false,
             },
             description: None,
         },
@@ -339,14 +344,19 @@ fn a_service_without_a_product_is_incomplete_and_two_are_an_error() {
 #[test]
 fn patching_belongs_to_the_product() {
     assert_eq!(EntityKind::Product.defense(), Some(Defense::Patched));
-    assert_eq!(EntityKind::Service.defense(), None);
+    assert_eq!(EntityKind::Service.defense(), Some(Defense::Guarded));
     assert_eq!(
         EntityKind::Product.slots(),
         &[Slot::FindExploit, Slot::FindExploitPatched]
     );
     assert_eq!(
         EntityKind::Service.slots(),
-        &[Slot::DeployExploit, Slot::Login]
+        &[
+            Slot::DeployExploit,
+            Slot::Login,
+            Slot::TakeOver,
+            Slot::TakeOverGuarded
+        ]
     );
 }
 
@@ -424,5 +434,60 @@ fn a_person_nothing_reaches_is_complete() {
         validate_architecture(&m)
             .iter()
             .all(|d| d.path != "entities.p")
+    );
+}
+
+#[test]
+fn software_carries_its_take_over_and_guard() {
+    for kind in [EntityKind::Application, EntityKind::Service] {
+        assert!(
+            kind.slots()
+                .ends_with(&[Slot::TakeOver, Slot::TakeOverGuarded])
+        );
+        assert_eq!(kind.defense(), Some(Defense::Guarded));
+    }
+    assert_eq!(
+        effractor_core::architecture::RelationKind::Delivers.to_kinds(),
+        &[
+            EntityKind::Person,
+            EntityKind::Application,
+            EntityKind::Service
+        ]
+    );
+}
+
+#[test]
+fn only_software_is_contained() {
+    let mut m = Architecture::new("C");
+    for (key, kind) in [
+        ("hv", EntityKind::Host),
+        ("vm", EntityKind::Host),
+        ("app", EntityKind::Application),
+    ] {
+        m.entities.insert(id(key), Entity::new(kind, key));
+    }
+    for (key, to) in [("hv-vm", "vm"), ("vm-app", "app")] {
+        m.associations.insert(
+            key.parse().unwrap(),
+            Association {
+                relation: Relation::Hosts {
+                    from: id(if to == "vm" { "hv" } else { "vm" }),
+                    to: id(to),
+                    privilege: Privilege::User,
+                    contained: true,
+                },
+                description: None,
+            },
+        );
+    }
+    let d = validate_architecture(&m);
+    assert!(
+        d.iter()
+            .any(|d| d.code == Code::MisplacedKey && d.path == "associations.hv-vm.contained"),
+        "{d:?}"
+    );
+    assert!(
+        d.iter().all(|d| !d.path.starts_with("associations.vm-app")),
+        "{d:?}"
     );
 }

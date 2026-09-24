@@ -42,6 +42,12 @@ entities:
   browser:
     kind: application
     label: Browser
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
   web:
     kind: host
     label: Web server
@@ -59,6 +65,11 @@ entities:
         note: Teaching input
       login:
         status: unknown
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
   shop-software:
     kind: product
     label: Shop application software
@@ -75,6 +86,12 @@ entities:
   db-client:
     kind: application
     label: Database driver
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
   db-host:
     kind: host
     label: Database server
@@ -93,6 +110,11 @@ entities:
         status: illustrative
         ttc: "Exponential(mean 0.2)"
         note: "Teaching input: the password is in hand"
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
   db-software:
     kind: product
     label: Database software

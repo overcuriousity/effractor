@@ -172,3 +172,32 @@ test('the new links are said in plain words along the arrow', () => {
     k2: 'second factor for', kn: 'knows', op: 'uses', d: 'reaches',
   });
 });
+
+test('take-over and its guard are shown only on software content reaches', () => {
+  const software = { parameters: { 'take-over': { status: 'unknown' }, 'take-over-guarded': { status: 'unknown' } }, defenses: { guarded: 'unknown' } };
+  const doc = {
+    entities: {
+      net: { kind: 'network', label: 'Internet' },
+      bot: Object.assign({ kind: 'service', label: 'Bot' }, software),
+      cli: Object.assign({ kind: 'application', label: 'Client' }, software),
+    },
+    associations: { tickets: { kind: 'delivers', from: 'net', to: 'bot' } },
+    flows: {},
+  };
+  assert.deepEqual(V.shownSlots(doc, 'bot'), ['take-over', 'take-over-guarded']);
+  assert.equal(V.shownDefense(doc, 'bot'), 'guarded');
+  assert.deepEqual(V.shownSlots(doc, 'cli'), []);
+  assert.equal(V.shownDefense(doc, 'cli'), null);
+  // What is not shown is not counted as unknown on the canvas.
+  const drawn = V.describe(doc).nodes;
+  assert.equal(drawn.find((n) => n.id === 'entity/cli').unknown, 0);
+  assert.equal(drawn.find((n) => n.id === 'entity/bot').unknown, 2);
+});
+
+test('contained software says so on its hosting line', () => {
+  const doc = lecture();
+  doc.associations.h1.contained = true;
+  const edges = V.describe(doc).edges;
+  assert.equal(edges.find((e) => e.id === 'association/h1').label, 'hosts · user · contained');
+  assert.equal(edges.find((e) => e.id === 'association/h2').label, 'hosts · admin');
+});

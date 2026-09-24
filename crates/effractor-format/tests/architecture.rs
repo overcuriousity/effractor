@@ -900,6 +900,11 @@ fn a_product_and_its_instances_round_trip() {
         status: unknown
       login:
         status: unknown
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
   openssh:
     kind: product
     label: OpenSSH
@@ -1077,6 +1082,12 @@ fn people() -> String {
   mail:
     kind: application
     label: Mail
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: false}
   pw:
     kind: credential
     label: Password
@@ -1106,6 +1117,7 @@ fn people() -> String {
     from: vm
     to: mail
     privilege: user
+    contained: true
   ada-pw:
     kind: knows
     from: ada
@@ -1117,7 +1129,11 @@ fn people() -> String {
   mail-ada:
     kind: delivers
     from: internet
-    to: ada"#,
+    to: ada
+  mail-mail:
+    kind: delivers
+    from: internet
+    to: mail"#,
         )
 }
 
@@ -1141,6 +1157,57 @@ fn people_round_trip() {
         d.iter()
             .any(|d| d.code == effractor_core::Code::MisplacedKey
                 && d.path == "associations.mail-ada.privilege"),
+        "{d:?}"
+    );
+}
+
+#[test]
+fn content_software_and_containment_round_trip() {
+    let text = people();
+    let Document::Architecture(m) = load_document(&text).unwrap() else {
+        panic!("not an architecture");
+    };
+    assert!(matches!(
+        m.associations[&"vm-mail".parse::<effractor_core::AssociationId>().unwrap()].relation,
+        effractor_core::architecture::Relation::Hosts {
+            contained: true,
+            ..
+        }
+    ));
+    // `false` is what an absent key says: a save drops it.
+    let open = text.replace(
+        "    contained: true
+",
+        "    contained: false
+",
+    );
+    assert_eq!(
+        canonicalize(&open).unwrap(),
+        text.replace(
+            "    contained: true
+",
+            ""
+        )
+    );
+    let (_, d) = effractor_format::diagnose_document(&text.replace(
+        "    contained: true
+",
+        "    contained: maybe
+",
+    ));
+    assert!(
+        d.iter()
+            .any(|d| d.path == "associations.vm-mail.contained" && d.severity == Severity::Error),
+        "{d:?}"
+    );
+    let (_, d) = effractor_format::diagnose_document(&text.replace(
+        "    from: internet\n    to: ada\n",
+        "    from: internet\n    to: ada\n    contained: true\n",
+    ));
+    assert!(
+        d.iter()
+            .any(|d| d.code == effractor_core::Code::MisplacedKey
+                && d.path == "associations.mail-ada.contained"),
         "{d:?}"
     );
 }

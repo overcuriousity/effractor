@@ -338,6 +338,20 @@ impl Cx<'_> {
                 ),
                 _ => {}
             }
+            if let (
+                Relation::Hosts {
+                    contained: true, ..
+                },
+                Some(k),
+            ) = (r, to)
+                && !k.is_executable()
+            {
+                self.error(
+                    Code::MisplacedKey,
+                    format!("{at}.contained"),
+                    "`contained` says whether controlled software reaches its machine; this runs no software",
+                );
+            }
 
             let to_key = match r {
                 Relation::Permits { to, .. } => to.to_string(),
