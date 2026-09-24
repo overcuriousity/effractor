@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/bin/../share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- Nmap 7.92 scan initiated Thu Sep 24 16:04:01 2026 as: nmap -sT -sV -&#45;top-ports 100 -oX - 127.0.0.1 -->
+<nmaprun scanner="nmap" args="nmap -sT -sV -&#45;top-ports 100 -oX - 127.0.0.1" start="1790258641" startstr="Thu Sep 24 16:04:01 2026" version="7.92" xmloutputversion="1.05">
+<scaninfo type="connect" protocol="tcp" numservices="100" services="7,9,13,21-23,25-26,37,53,79-81,88,106,110-111,113,119,135,139,143-144,179,199,389,427,443-445,465,513-515,543-544,548,554,587,631,646,873,990,993,995,1025-1029,1110,1433,1720,1723,1755,1900,2000-2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000-6001,6646,7070,8000,8008-8009,8080-8081,8443,8888,9100,9999-10000,32768,49152-49157"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<hosthint><status state="up" reason="unknown-response" reason_ttl="0"/>
+<address addr="127.0.0.1" addrtype="ipv4"/>
+<hostnames>
+</hostnames>
+</hosthint>
+<host starttime="1790258641" endtime="1790258652"><status state="up" reason="conn-refused" reason_ttl="0"/>
+<address addr="127.0.0.1" addrtype="ipv4"/>
+<hostnames>
+<hostname name="localhost" type="PTR"/>
+</hostnames>
+<ports><extraports state="closed" count="98">
+<extrareasons reason="conn-refused" count="98" proto="tcp" ports="7,9,13,21-23,25-26,37,53,79-81,88,106,110-111,113,119,135,139,143-144,179,199,389,427,443-445,465,513-515,543-544,548,554,587,646,873,990,993,995,1025-1029,1110,1433,1720,1723,1755,1900,2000-2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000-6001,6646,7070,8000,8008-8009,8080,8443,8888,9100,9999-10000,32768,49152-49157"/>
+</extraports>
+<port protocol="tcp" portid="631"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="ipp" product="CUPS" version="2.4" method="probed" conf="10"><cpe>cpe:/a:apple:cups:2.4</cpe></service></port>
+<port protocol="tcp" portid="8081"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="blackice-icecap" servicefp="SF-Port8081-TCP:V=7.92%I=7%D=9/24%Time=6AB52DD7%P=x86_64-redhat-linux-gnu%r(GetRequest,5740,&quot;HTTP/1\.0\x20200\x20OK\r\ncontent-type:\x20text/html;\x20charset=utf-8\r\ncontent-security-policy:\x20default-src\x20&apos;none&apos;;\x20script-src\x20&apos;self&apos;\x20&apos;wasm-unsafe-eval&apos;;\x20style-src\x20&apos;self&apos;;\x20font-src\x20&apos;self&apos;;\x20img-src\x20&apos;self&apos;\x20data:;\x20connect-src\x20&apos;self&apos;;\x20worker-src\x20&apos;self&apos;;\x20base-uri\x20&apos;none&apos;;\x20form-action\x20&apos;self&apos;;\x20frame-ancestors\x20&apos;none&apos;\r\nreferrer-policy:\x20no-referrer\r\nx-robots-tag:\x20noindex\r\nx-content-type-options:\x20nosniff\r\ncontent-length:\x2021891\r\ndate:\x20Thu,\x2024\x20Sep\x202026\x2014:04:07\x20GMT\r\n\r\n&lt;!doctype\x20html&gt;\n&lt;html\x20lang=\&quot;en\&quot;&gt;\n&lt;head&gt;\n&lt;meta\x20charset=\&quot;utf-8\&quot;&gt;\n&lt;meta\x20name=\&quot;viewport\&quot;\x20content=\&quot;width=device-width,\x20initial-scale=1\&quot;&gt;\n&lt;meta\x20name=\&quot;robots\&quot;\x20content=\&quot;noindex\&quot;&gt;\n\n&lt;title&gt;effractor&lt;/title&gt;\n&lt;link\x20rel=\&quot;icon\&quot;\x20href=\&quot;/assets/favicon\.svg\&quot;\x20type=\&quot;image/svg\+xml\&quot;&gt;\n&lt;link\x20rel=\&quot;stylesheet\&quot;\x20href=\&quot;/assets/css/00-tokens\.css\&quot;&gt;\n&lt;link\x20rel=\&quot;stylesheet\&quot;\x20href=\&quot;/assets/css/10-base\.css\&quot;&gt;\n&lt;link\x20rel=\&quot;stylesheet\&quot;\x20href=\&quot;/assets/css/20-workspace\.css\&quot;&gt;\n&lt;link\x20rel=\&quot;styleshee&quot;)%r(FourOhFourRequest,198,&quot;HTTP/1\.0\x20404\x20Not\x20Found\r\ncontent-security-policy:\x20default-src\x20&apos;none&apos;;\x20script-src\x20&apos;self&apos;\x20&apos;wasm-unsafe-eval&apos;;\x20style-src\x20&apos;self&apos;;\x20font-src\x20&apos;self&apos;;\x20img-src\x20&apos;self&apos;\x20data:;\x20connect-src\x20&apos;self&apos;;\x20worker-src\x20&apos;self&apos;;\x20base-uri\x20&apos;none&apos;;\x20form-action\x20&apos;self&apos;;\x20frame-ancestors\x20&apos;none&apos;\r\nreferrer-policy:\x20no-referrer\r\nx-robots-tag:\x20noindex\r\nx-content-type-options:\x20nosniff\r\ncontent-length:\x200\r\ndate:\x20Thu,\x2024\x20Sep\x202026\x2014:04:07\x20GMT\r\n\r\n&quot;)%r(SIPOptions,67,&quot;HTTP/1\.1\x20400\x20Bad\x20Request\r\nconnection:\x20close\r\ncontent-length:\x200\r\ndate:\x20Thu,\x2024\x20Sep\x202026\x2014:04:07\x20GMT\r\n\r\n&quot;)%r(WWWOFFLEctrlstat,67,&quot;HTTP/1\.1\x20400\x20Bad\x20Request\r\nconnection:\x20close\r\ncontent-length:\x200\r\ndate:\x20Thu,\x2024\x20Sep\x202026\x2014:04:07\x20GMT\r\n\r\n&quot;);" method="table" conf="3"/></port>
+</ports>
+<times srtt="96" rttvar="92" to="100000"/>
+</host>
+<runstats><finished time="1790258652" timestr="Thu Sep 24 16:04:12 2026" summary="Nmap done at Thu Sep 24 16:04:12 2026; 1 IP address (1 host up) scanned in 11.21 seconds" elapsed="11.21" exit="success"/><hosts up="1" down="0" total="1"/>
+</runstats>
+</nmaprun>

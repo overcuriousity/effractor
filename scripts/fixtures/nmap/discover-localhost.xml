@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/bin/../share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- Nmap 7.92 scan initiated Thu Sep 24 16:04:12 2026 as: nmap -sn -oX - 127.0.0.1 -->
+<nmaprun scanner="nmap" args="nmap -sn -oX - 127.0.0.1" start="1790258652" startstr="Thu Sep 24 16:04:12 2026" version="7.92" xmloutputversion="1.05">
+<verbose level="0"/>
+<debugging level="0"/>
+<host><status state="up" reason="conn-refused" reason_ttl="0"/>
+<address addr="127.0.0.1" addrtype="ipv4"/>
+<hostnames>
+<hostname name="localhost" type="PTR"/>
+</hostnames>
+<times srtt="139" rttvar="5000" to="100000"/>
+</host>
+<runstats><finished time="1790258652" timestr="Thu Sep 24 16:04:12 2026" summary="Nmap done at Thu Sep 24 16:04:12 2026; 1 IP address (1 host up) scanned in 0.01 seconds" elapsed="0.01" exit="success"/><hosts up="1" down="0" total="1"/>
+</runstats>
+</nmaprun>
