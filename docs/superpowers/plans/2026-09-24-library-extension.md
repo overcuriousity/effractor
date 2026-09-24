@@ -2055,14 +2055,19 @@ else changes its graph.
 
 ### Task 5: Data — targets, holding, access, encryption; the cloud support agent example
 
-> **Re-plan before executing (2026-09-24).** Written when agents were a kind.
-> After Task 4b, replace every `EntityKind::Agent`, `agent` in `holds`/`reads`
-> kinds, `shell`, `inject` and `guarded`-on-agent below with the §10 forms
-> (a content-processing service; `reads: application | service → data`;
-> `contained`; `take-over`), including example 17's `support-agent`, its
-> `agent-hosting` (`shell: true` → `contained: false`) and the
-> `guardrails` scenario, and drop `BOOLS` from Task 4's consumes list (Task 4
-> no longer adds it; Task 5 adds it for `decrypts`).
+> **Re-planned after Task 4b (2026-09-24).** Read the steps below with these
+> substitutions: there is no `EntityKind::Agent`; `holds` is from host,
+> application or service; `reads` is `application | service → data`, and a
+> software that some `reads` names processes content exactly as one a
+> `delivers` names (it gets `contacted` and `take-over`); `data-poisoning`
+> gives the reading software `contacted`. `BOOLS` exists (Task 4b). Example 17's
+> `support-agent` is a `service` (instance of a `support-bot` product) hosted
+> `contained: false` on the support VM; its `guardrails` scenario switches
+> `guarded` on it. JS: no agent kind or icon; `fieldsOf` keeps Task 4b's
+> `contained`. After example 17, a second example ships (owner, 2026-09-24):
+> `18-self-hosted-nextcloud-architecture.yaml` — a remote AI agent attacker
+> reaching a file on a Nextcloud VM through an OPNsense VM's HAProxy and the
+> VM's nginx, all guests of one hypervisor.
 
 Branch: `feature/data`.
 

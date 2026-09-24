@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 32] = [
+pub const RULES: [Rule; 38] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -437,7 +437,7 @@ pub const RULES: [Rule; 32] = [
         title: "Take over through content",
         version: 1,
         bindings: &["software"],
-        prerequisites: "software.contacted, for software that a `delivers` names",
+        prerequisites: "software.contacted, for software that a `delivers` or `reads` names",
         output: "software.control",
         duration: D::Slot {
             slot: Slot::TakeOver,
@@ -446,7 +446,7 @@ pub const RULES: [Rule; 32] = [
         scope: "one per application or service that content reaches",
         assumptions: &[
             "Software that processes content it does not trust can be made to act on it: prompt injection for an AI agent, a malicious file for a parser or a client.",
-            "Only software that content is said to reach processes it; other software has no such step.",
+            "Only software that content is said to reach (`delivers`, `reads`) processes it; other software has no such step.",
             "Guarding (input validation, sandboxing, guardrails, human approval of actions) selects the authored replacement distribution, not a guarantee.",
         ],
     },
@@ -494,6 +494,80 @@ pub const RULES: [Rule; 32] = [
             "An isolated administration zone is not reached just because it administers something.",
         ],
     },
+    Rule {
+        id: "holder-modify",
+        title: "Whoever controls a holder can change its data",
+        version: 1,
+        bindings: &["holds"],
+        prerequisites: "the holder under control, or the holding host at the declared privilege",
+        output: "data.modified",
+        duration: D::Logical,
+        scope: "one per holds association",
+        assumptions: &[
+            "Ransomware and deletion count as modification; encryption at rest does not stop it.",
+        ],
+    },
+    Rule {
+        id: "holder-read",
+        title: "Whoever controls a holder can read its data",
+        version: 1,
+        bindings: &["holds"],
+        prerequisites: "the holder under control, or the holding host at the declared privilege; and data.plaintext where the holding says `decrypts: false`",
+        output: "data.read",
+        duration: D::Logical,
+        scope: "one per holds association",
+        assumptions: &[
+            "Encryption at rest does not stop software that serves the data; a holder that does not decrypt (a disk, client-side encryption) gives up ciphertext only.",
+        ],
+    },
+    Rule {
+        id: "account-data",
+        title: "A logged-in account uses its access",
+        version: 1,
+        bindings: &["accesses", "authorizes", "holds"],
+        prerequisites: "a session of the account on a service that holds the data; and data.plaintext where that holding says `decrypts: false`",
+        output: "data.read; with `mode: write` also data.modified",
+        duration: D::Logical,
+        scope: "one per access, service and holding",
+        assumptions: &[
+            "No data rule is timed: how long exfiltration takes is outside this library.",
+        ],
+    },
+    Rule {
+        id: "data-policy",
+        title: "The data is not encrypted",
+        version: 1,
+        bindings: &["data"],
+        prerequisites: "the data's `encrypted` switch is off",
+        output: "data.plaintext",
+        duration: D::Logical,
+        scope: "one per data",
+        assumptions: &["An unknown switch is an unknown branch, not a guess either way."],
+    },
+    Rule {
+        id: "data-key",
+        title: "The key decrypts the data",
+        version: 1,
+        bindings: &["encrypted-with"],
+        prerequisites: "credential.possessed, for a key the data is encrypted with",
+        output: "data.plaintext",
+        duration: D::Logical,
+        scope: "one per encrypted-with association",
+        assumptions: &["Possession of the key still takes an extraction or a disclosure."],
+    },
+    Rule {
+        id: "data-poisoning",
+        title: "Changed content reaches the software that reads it",
+        version: 1,
+        bindings: &["reads"],
+        prerequisites: "data.modified",
+        output: "software.contacted",
+        duration: D::Logical,
+        scope: "one per reads association",
+        assumptions: &[
+            "Changing what software reads — a retrieval corpus, a shared document — puts content in front of it; taking it over is still its own step.",
+        ],
+    },
 ];
 
 fn kind_description(kind: EntityKind) -> &'static str {
@@ -525,6 +599,9 @@ fn kind_description(kind: EntityKind) -> &'static str {
         }
         EntityKind::Credential => {
             "A description of authentication material; `possessed` is the attacker holding it. Never the secret itself."
+        }
+        EntityKind::Data => {
+            "Information worth protecting: a database, a bucket, a vault, a file share, model weights. `read` is confidentiality, `modified` integrity; either can be the target."
         }
     }
 }
@@ -566,6 +643,16 @@ fn relation_description(kind: RelationKind) -> &'static str {
         RelationKind::Delivers => {
             "Content from anyone in this network reaches the person or software: mail, a public web page, a ticket queue an agent reads."
         }
+        RelationKind::Holds => {
+            "Where data lives: a host at `privilege: user | admin`, software as `user`; `decrypts: true | false` says whether this holder sees plaintext."
+        }
+        RelationKind::Accesses => {
+            "What a session of the account may do with the data: `mode: read | write`."
+        }
+        RelationKind::EncryptedWith => "The key the data is encrypted with.",
+        RelationKind::Reads => {
+            "Content software reads, e.g. a retrieval corpus; changing it reaches the software."
+        }
     }
 }
 
@@ -594,6 +681,7 @@ fn kind_meaning(kind: EntityKind) -> &'static str {
         EntityKind::Credential => {
             "What proves an account, e.g. a password or key. Must be extracted from where it is kept."
         }
+        EntityKind::Data => "Information an attacker wants to read or change.",
     }
 }
 
@@ -607,6 +695,8 @@ pub(crate) fn state_word(state: State) -> &'static str {
         State::Possessed => "held",
         State::Contacted => "reached by content",
         State::Deceived => "deceived",
+        State::Read => "read",
+        State::Modified => "modified",
     }
 }
 
@@ -639,6 +729,8 @@ fn state_description(state: State) -> &'static str {
         State::Possessed => "The attacker holds this credential.",
         State::Contacted => "Content the attacker controls is in front of this reader.",
         State::Deceived => "This person acts on what the attacker sent.",
+        State::Read => "The attacker has read this data.",
+        State::Modified => "The attacker has changed, encrypted or deleted this data.",
     }
 }
 
@@ -725,6 +817,10 @@ fn defense_word(defense: Defense) -> (&'static str, &'static str) {
         Defense::Guarded => (
             "Guarded",
             "The software is guarded against the content it processes: `take-over-guarded` stands in for `take-over`.",
+        ),
+        Defense::Encrypted => (
+            "Encrypted",
+            "Encrypted at rest: a holder that does not decrypt gives up plaintext only with the key.",
         ),
     }
 }

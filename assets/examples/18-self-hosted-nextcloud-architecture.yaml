@@ -1,0 +1,369 @@
+effractor: 2
+profile: architecture
+name: Nextcloud behind OPNsense and HAProxy
+time_unit: d
+horizon: 30
+library: {id: core-components, version: 1}
+
+entities:
+  evil-net:
+    kind: network
+    label: Evil Corp network
+    description: An adversary network whose autonomous agent originates the attack
+  internet:
+    kind: network
+    label: Internet
+  cloud-net:
+    kind: network
+    label: Hosting LAN
+    description: The virtual network the hypervisor's guests share
+  evil-gw:
+    kind: router
+    label: Evil Corp gateway
+    parameters:
+      escape:
+        status: unknown
+  evil-rules:
+    kind: firewall
+    label: Evil Corp egress rules
+  opnsense:
+    kind: router
+    label: OPNsense
+    description: A firewall/router guest on the hypervisor; it also runs the HAProxy reverse proxy
+    parameters:
+      escape:
+        status: illustrative
+        ttc: "Exponential(mean 40)"
+        note: "Teaching input: breaking out of the OPNsense guest to the hypervisor takes weeks"
+  opnsense-rules:
+    kind: firewall
+    label: OPNsense rules
+  attacker-host:
+    kind: host
+    label: Adversary workstation
+    parameters:
+      escape:
+        status: unknown
+  hypervisor:
+    kind: host
+    label: Hypervisor
+    description: Runs the OPNsense, web and application guests
+    parameters:
+      escape:
+        status: unknown
+  web-vm:
+    kind: host
+    label: Web VM
+    description: Runs the nginx reverse proxy in front of Nextcloud
+    parameters:
+      escape:
+        status: illustrative
+        ttc: "Exponential(mean 40)"
+        note: "Teaching input: breaking out of the web guest to the hypervisor takes weeks"
+  app-vm:
+    kind: host
+    label: Application VM
+    description: Runs Nextcloud and holds its encrypted volume
+    parameters:
+      escape:
+        status: illustrative
+        ttc: "Exponential(mean 40)"
+        note: "Teaching input: breaking out of the application guest to the hypervisor takes weeks"
+  ai-agent:
+    kind: application
+    label: Adversary AI agent
+    description: An autonomous agent that finds and chains exploits; the attacker controls it
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  haproxy:
+    kind: service
+    label: HAProxy
+    description: The internet-facing reverse proxy on OPNsense; it forwards to the web VM
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: Teaching input
+      login:
+        status: unknown
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  haproxy-sw:
+    kind: product
+    label: HAProxy 2.8
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 12)"
+        note: "Teaching input: a request-smuggling class bug, found in weeks"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: patching is taken as perfect"
+    defenses: {patched: false}
+  nginx:
+    kind: service
+    label: nginx
+    description: The web front on the web VM; it proxies to the Nextcloud application
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: Teaching input
+      login:
+        status: unknown
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  nginx-sw:
+    kind: product
+    label: nginx 1.27
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 15)"
+        note: "Teaching input: a hardened web front, found in weeks"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: patching is taken as perfect"
+    defenses: {patched: false}
+  nextcloud:
+    kind: service
+    label: Nextcloud
+    description: The file-sharing application the adversary is after
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: Teaching input
+      login:
+        status: unknown
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  nextcloud-sw:
+    kind: product
+    label: Nextcloud 30
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 6)"
+        note: "Teaching input: an unpatched app plugin, found in days"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: patching is taken as perfect"
+    defenses: {patched: false}
+  disk-key:
+    kind: credential
+    label: Disk encryption key
+    description: Held by the hypervisor that unlocks the application VM's volume
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: "Teaching input: readable from the hypervisor that mounts the volume"
+      extract-protected:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: a sealed TPM would give nothing up"
+    defenses: {protected: false}
+  the-file:
+    kind: data
+    label: Confidential file
+    description: The document on the Nextcloud share the adversary is after
+    defenses: {encrypted: false}
+
+associations:
+  attacker-evil:
+    kind: attached
+    from: attacker-host
+    to: evil-net
+  evil-gw-evil:
+    kind: attached
+    from: evil-gw
+    to: evil-net
+  evil-gw-internet:
+    kind: attached
+    from: evil-gw
+    to: internet
+  opnsense-internet:
+    kind: attached
+    from: opnsense
+    to: internet
+  opnsense-cloud:
+    kind: attached
+    from: opnsense
+    to: cloud-net
+  hypervisor-cloud:
+    kind: attached
+    from: hypervisor
+    to: cloud-net
+  web-vm-cloud:
+    kind: attached
+    from: web-vm
+    to: cloud-net
+  app-vm-cloud:
+    kind: attached
+    from: app-vm
+    to: cloud-net
+  evil-filters:
+    kind: filters
+    from: evil-gw
+    to: evil-rules
+  opnsense-filters:
+    kind: filters
+    from: opnsense
+    to: opnsense-rules
+  agent-hosting:
+    kind: hosts
+    from: attacker-host
+    to: ai-agent
+    privilege: user
+  opnsense-on-hypervisor:
+    kind: hosts
+    from: hypervisor
+    to: opnsense
+    privilege: user
+  web-vm-on-hypervisor:
+    kind: hosts
+    from: hypervisor
+    to: web-vm
+    privilege: user
+  app-vm-on-hypervisor:
+    kind: hosts
+    from: hypervisor
+    to: app-vm
+    privilege: user
+  haproxy-hosting:
+    kind: hosts
+    from: opnsense
+    to: haproxy
+    privilege: admin
+  haproxy-instance:
+    kind: instance-of
+    from: haproxy
+    to: haproxy-sw
+  nginx-hosting:
+    kind: hosts
+    from: web-vm
+    to: nginx
+    privilege: user
+  nginx-instance:
+    kind: instance-of
+    from: nginx
+    to: nginx-sw
+  nextcloud-hosting:
+    kind: hosts
+    from: app-vm
+    to: nextcloud
+    privilege: user
+  nextcloud-instance:
+    kind: instance-of
+    from: nextcloud
+    to: nextcloud-sw
+  disk-key-store:
+    kind: stores
+    from: hypervisor
+    to: disk-key
+    privilege: admin
+  disk-key-link:
+    kind: encrypted-with
+    from: the-file
+    to: disk-key
+  nextcloud-holds-file:
+    kind: holds
+    from: nextcloud
+    to: the-file
+    privilege: user
+    decrypts: true
+    description: The application serves the file, so it sees plaintext
+  disk-holds-file:
+    kind: holds
+    from: app-vm
+    to: the-file
+    privilege: admin
+    decrypts: false
+    description: On disk the volume is encrypted at rest
+  allow-web:
+    kind: permits
+    from: evil-rules
+    to: web
+    allowed: true
+
+flows:
+  web:
+    label: HTTPS to the reverse proxy
+    source: ai-agent
+    target: haproxy
+    route: [evil-net, evil-gw, internet]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: "Teaching input: reaching a public endpoint is quick"
+  proxy-to-nginx:
+    label: HAProxy forwards to nginx
+    source: haproxy
+    target: nginx
+    route: [cloud-net]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: Teaching input
+  nginx-to-app:
+    label: nginx forwards to Nextcloud
+    source: nginx
+    target: nextcloud
+    route: [cloud-net]
+    protocol: tcp/9000
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: Teaching input
+
+attacker:
+  footholds:
+    - {entity: ai-agent, state: control}
+  target: {entity: the-file, state: read}
+
+scenarios:
+  patch-nextcloud:
+    label: Patch Nextcloud
+    changes:
+      - {entity: nextcloud-sw, defense: patched, value: true}
+  patch-haproxy:
+    label: Patch HAProxy at the edge
+    changes:
+      - {entity: haproxy-sw, defense: patched, value: true}
+  encrypt-at-rest:
+    label: Encrypt the volume at rest
+    changes:
+      - {entity: the-file, defense: encrypted, value: true}
+  patch-web-stack:
+    label: Patch the whole web stack
+    changes:
+      - {entity: haproxy-sw, defense: patched, value: true}
+      - {entity: nginx-sw, defense: patched, value: true}
+      - {entity: nextcloud-sw, defense: patched, value: true}
+
+analysis:
+  seed: 18
+  samples: 10000
+  confidence: 0.95

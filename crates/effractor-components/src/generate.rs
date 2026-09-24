@@ -13,7 +13,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use effractor_core::architecture::{
-    Architecture, Defense, EntityKind, Factor, Privilege, Relation, Slot, State,
+    Architecture, Defense, EntityKind, Factor, Mode, Privilege, Relation, Slot, State,
 };
 use effractor_core::{
     AssociationId, Code, Diagnostic, EntityId, FlowId, Severity, validate_architecture,
@@ -79,6 +79,7 @@ fn generate_within(
     b.identities();
     b.logins();
     b.administration();
+    b.data();
     if let Some(d) = b.overflow.take() {
         return Err(vec![d]);
     }
@@ -124,8 +125,12 @@ struct Builder<'a> {
     flows_from: HashMap<&'a EntityId, Vec<&'a FlowId>>,
     /// flow → the route paths the validator marked `unfinished`
     unfinished: HashMap<&'a FlowId, Vec<String>>,
-    /// Software that processes content: what a `delivers` names.
+    /// Software that processes content: what a `delivers` or `reads` names.
     readers: BTreeSet<&'a EntityId>,
+    /// (holder, data) → (decrypts, holds association)
+    holdings: HashMap<(&'a EntityId, &'a EntityId), (bool, &'a AssociationId)>,
+    /// account → [(service, authorizes association)], in document order
+    authorized: HashMap<&'a EntityId, Vec<(&'a EntityId, &'a AssociationId)>>,
 }
 
 impl<'a> Builder<'a> {
@@ -147,6 +152,8 @@ impl<'a> Builder<'a> {
             flows_from: HashMap::new(),
             unfinished: HashMap::new(),
             readers: BTreeSet::new(),
+            holdings: HashMap::new(),
+            authorized: HashMap::new(),
         };
         for (fid, flow) in &m.flows {
             b.flows_from.entry(&flow.source).or_default().push(fid);
@@ -166,6 +173,18 @@ impl<'a> Builder<'a> {
                 }
                 Relation::Delivers { to, .. } if m.entities[to].kind.is_executable() => {
                     b.readers.insert(to);
+                }
+                Relation::Reads { from, .. } => {
+                    b.readers.insert(from);
+                }
+                // An unsaid `decrypts` is incomplete and never generated.
+                Relation::Holds {
+                    from, to, decrypts, ..
+                } => {
+                    b.holdings.insert((from, to), (*decrypts == Some(true), id));
+                }
+                Relation::Authorizes { from, to } => {
+                    b.authorized.entry(from).or_default().push((to, id));
                 }
                 Relation::Filters { from, to } => {
                     b.router_of.insert(to, (from, id));
@@ -343,6 +362,10 @@ impl<'a> Builder<'a> {
                         let fid = self.state_id(id, state);
                         self.fact(fid, format!("{} · {word}", entity.label));
                     }
+                }
+                EntityKind::Data => {
+                    let fid = self.state_id(id, "plaintext");
+                    self.fact(fid, format!("{} · in plaintext", entity.label));
                 }
                 EntityKind::Account => {
                     for (state, word) in [
@@ -1001,6 +1024,132 @@ impl<'a> Builder<'a> {
                 );
             }
         }
+    }
+
+    /// Holders read and change their data, sessions use their access, keys and
+    /// the switch give plaintext, and changed content reaches its readers.
+    fn data(&mut self) {
+        for (id, entity) in &self.m.entities {
+            if entity.kind != EntityKind::Data {
+                continue;
+            }
+            let input = format!("input/policy/{id}/encrypted");
+            let o = Origin {
+                paths: vec![format!("entities.{id}.defenses.encrypted")],
+                ..bound("data-policy", &[id], &[], &[])
+            };
+            self.insert(
+                input.clone(),
+                format!("Not encrypted · {}", entity.label),
+                DraftKind::Input(Binding::Policy {
+                    entity: id.clone(),
+                    defense: Defense::Encrypted,
+                }),
+            );
+            self.originate(&input, o.clone());
+            let plaintext = self.state_id(id, "plaintext");
+            self.produce(&input, &plaintext, o);
+        }
+        for (aid, a) in &self.m.associations {
+            if self.full() {
+                return;
+            }
+            match &a.relation {
+                Relation::Holds {
+                    from,
+                    to,
+                    privilege,
+                    ..
+                } => {
+                    let holder = match self.kind(from) {
+                        EntityKind::Host => self.machine_id(from, *privilege),
+                        _ => self.state_id(from, State::Control.as_str()),
+                    };
+                    let modified = self.state_id(to, State::Modified.as_str());
+                    let o = bound("holder-modify", &[from, to], &[aid], &[]);
+                    self.produce(&holder, &modified, o);
+                    let decrypts = self.holdings[&(from, to)].0;
+                    self.read(
+                        format!("action/holder-read/{from}/{to}"),
+                        format!("Read · {} · {}", self.label(to), self.label(from)),
+                        &holder,
+                        to,
+                        decrypts,
+                        bound("holder-read", &[from, to], &[aid], &[]),
+                    );
+                }
+                Relation::Accesses { from, to, mode } => {
+                    let services = self.authorized.get(from).cloned().unwrap_or_default();
+                    for (service, authorizes) in services {
+                        let Some(&(decrypts, holds)) = self.holdings.get(&(service, to)) else {
+                            continue;
+                        };
+                        let session = format!("state/session/{from}/{service}");
+                        let o = bound(
+                            "account-data",
+                            &[from, service, to],
+                            &[aid, authorizes, holds],
+                            &[],
+                        );
+                        self.read(
+                            format!("action/account-data/{from}/{service}/{to}"),
+                            format!("Read · {} · as {}", self.label(to), self.label(from)),
+                            &session,
+                            to,
+                            decrypts,
+                            o.clone(),
+                        );
+                        if *mode == Mode::Write {
+                            let modified = self.state_id(to, State::Modified.as_str());
+                            self.produce(&session, &modified, o);
+                        }
+                    }
+                }
+                Relation::EncryptedWith { from, to } => {
+                    let key = self.state_id(to, State::Possessed.as_str());
+                    let plaintext = self.state_id(from, "plaintext");
+                    self.produce(
+                        &key,
+                        &plaintext,
+                        bound("data-key", &[from, to], &[aid], &[]),
+                    );
+                }
+                Relation::Reads { from, to } => {
+                    let modified = self.state_id(to, State::Modified.as_str());
+                    let contacted = self.state_id(from, State::Contacted.as_str());
+                    let o = bound("data-poisoning", &[from, to], &[aid], &[]);
+                    self.produce(&modified, &contacted, o);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// `data.read` from `source`: directly where the holder decrypts, else a
+    /// zero-time join with the data's plaintext.
+    fn read(
+        &mut self,
+        join: String,
+        label: String,
+        source: &str,
+        data: &EntityId,
+        decrypts: bool,
+        o: Origin,
+    ) {
+        let read = self.state_id(data, State::Read.as_str());
+        if decrypts {
+            self.produce(source, &read, o);
+            return;
+        }
+        let plaintext = self.state_id(data, "plaintext");
+        self.action(
+            join,
+            label,
+            Binding::Logical,
+            &[source.to_owned(), plaintext],
+            &read,
+            o,
+        );
     }
 
     /// Ids to indices, once, after expansion: the map is already in id-byte

@@ -201,3 +201,29 @@ test('contained software says so on its hosting line', () => {
   assert.equal(edges.find((e) => e.id === 'association/h1').label, 'hosts · user · contained');
   assert.equal(edges.find((e) => e.id === 'association/h2').label, 'hosts · admin');
 });
+
+test('software that reads data processes content; data links read in plain words', () => {
+  const software = { parameters: { 'take-over': { status: 'unknown' }, 'take-over-guarded': { status: 'unknown' } }, defenses: { guarded: 'unknown' } };
+  const doc = {
+    entities: {
+      bot: Object.assign({ kind: 'service', label: 'Bot' }, software),
+      docs: { kind: 'data', label: 'Docs', defenses: { encrypted: false } },
+      key: { kind: 'credential', label: 'Key' },
+      ops: { kind: 'account', label: 'Ops' },
+    },
+    associations: {
+      r: { kind: 'reads', from: 'bot', to: 'docs' },
+      h: { kind: 'holds', from: 'bot', to: 'docs', privilege: 'user', decrypts: false },
+      a: { kind: 'accesses', from: 'ops', to: 'docs', mode: 'read' },
+      k: { kind: 'encrypted-with', from: 'docs', to: 'key' },
+    },
+    flows: {},
+  };
+  assert.deepEqual(V.shownSlots(doc, 'bot'), ['take-over', 'take-over-guarded']);
+  assert.equal(V.shownDefense(doc, 'bot'), 'guarded');
+  const label = (id) => V.describe(doc).edges.find((e) => e.id === 'association/' + id).label;
+  assert.equal(label('r'), 'reads');
+  assert.equal(label('h'), 'holds · ciphertext only');
+  assert.equal(label('a'), 'may read');
+  assert.equal(label('k'), 'encrypted with');
+});

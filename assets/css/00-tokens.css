@@ -87,6 +87,7 @@
   --viz-family-network: #4f5a9a;
   --viz-family-compute: #2f7667;
   --viz-family-identity: #8a5d1f;
+  --viz-family-data: #7b4d8f;
   --viz-family-ink: #ffffff;
 
   color-scheme: light;
@@ -152,6 +153,7 @@
     --viz-family-network: #5b67b0;
     --viz-family-compute: #2f8a78;
     --viz-family-identity: #9c6c24;
+    --viz-family-data: #8e5ea6;
     --viz-family-ink: #ffffff;
 
     color-scheme: dark;
@@ -206,6 +208,7 @@
     --viz-family-network: #5b67b0;
     --viz-family-compute: #2f8a78;
     --viz-family-identity: #9c6c24;
+    --viz-family-data: #8e5ea6;
     --viz-family-ink: #ffffff;
 
     color-scheme: dark;

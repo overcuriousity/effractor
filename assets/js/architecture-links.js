@@ -6,12 +6,12 @@
 // named what it deletes — so a document never points at nothing.
 (function () {
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
-  var KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of", "runs-as", "assumes", "knows", "operates", "delivers"];
-  var PRIVILEGED = ["hosts", "stores", "grants", "runs-as"];
+  var KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of", "runs-as", "assumes", "knows", "operates", "delivers", "holds", "accesses", "encrypted-with", "reads"];
+  var PRIVILEGED = ["hosts", "stores", "grants", "runs-as", "holds"];
   // The fields a link carries beside kind/from/to, in the file's order.
-  var FIELD_ORDER = ["privilege", "factor", "contained"];
+  var FIELD_ORDER = ["privilege", "factor", "contained", "decrypts", "mode"];
   // What a field's value adds to a link's words; a missing entry adds nothing.
-  var FIELD_WORDS = { factor: { second: "as second factor" }, contained: { true: "contained", false: "not contained" } };
+  var FIELD_WORDS = { factor: { second: "as second factor" }, contained: { true: "contained", false: "not contained" }, decrypts: { true: "sees plaintext", false: "ciphertext only" }, mode: { read: "read only", write: "read and write" } };
   var COLLECTIONS = ["entities", "associations", "flows"];
   var SOFTWARE = ["application", "service"];
 
@@ -70,6 +70,8 @@
     if (PRIVILEGED.indexOf(value.kind) >= 0) a.privilege = value.privilege;
     if (value.kind === "permits") a.allowed = value.allowed;
     if (value.kind === "authenticates" && value.factor === "second") a.factor = "second";
+    if (value.kind === "holds" && typeof value.decrypts === "boolean") a.decrypts = value.decrypts;
+    if (value.kind === "accesses") a.mode = value.mode;
     if (value.kind === "hosts" && value.contained === true && SOFTWARE.indexOf(kindOf(next, a.to)) >= 0) a.contained = true;
     var description = String(value.description == null ? "" : value.description).trim();
     if (description) a.description = description;
@@ -403,6 +405,7 @@
     if (kind === "grants" && toKind === "router") return ["admin"];
     if (kind === "stores" && fromKind === "application") return ["user"];
     if (kind === "runs-as" && fromKind !== "host") return ["user"];
+    if (kind === "holds" && fromKind !== "host") return ["user"];
     return ["user", "admin"];
   }
 
@@ -415,6 +418,8 @@
     if (p) out.push({ name: "privilege", values: p });
     if (kind === "authenticates") out.push({ name: "factor", values: ["first", "second"] });
     if (kind === "hosts" && SOFTWARE.indexOf(toKind) >= 0) out.push({ name: "contained", values: [false, true], setting: true });
+    if (kind === "holds") out.push({ name: "decrypts", values: [true, false] });
+    if (kind === "accesses") out.push({ name: "mode", values: ["read", "write"] });
     return out;
   }
 
@@ -455,6 +460,10 @@
     knows: { out: "knows", in: "known by" },
     operates: { out: "uses", in: "used by" },
     delivers: { out: "reaches", in: "reached from" },
+    holds: { out: "holds", in: "held by" },
+    accesses: { out: "may access", in: "accessible to" },
+    "encrypted-with": { out: "encrypted with", in: "encrypts" },
+    reads: { out: "reads", in: "read by" },
     "instance-of": { out: "is a version of", in: "runs this version" },
     flow: { out: "flow to it", in: "flow from it" },
   };
@@ -474,11 +483,12 @@
     if (relation === "hosts") return words + " as " + privilege;
     if (relation === "stores") return words + ", " + (privilege === "admin" ? "admin-only" : "user-readable");
     if (relation === "grants") return direction === "in" ? "is " + privilege + " here" : words + " " + privilege;
+    if (relation === "holds" && privilege === "admin") return words + ", admin-only";
     return words;
   }
 
 
-  var ENTITY_KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential", "person"];
+  var ENTITY_KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential", "person", "data"];
 
   function hasFilters(doc, end, id) {
     return Object.keys(doc.associations || {}).some(function (k) {

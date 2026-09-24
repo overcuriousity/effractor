@@ -1,0 +1,459 @@
+effractor: 2
+profile: architecture
+name: Cloud support agent
+time_unit: d
+horizon: 5
+library: {id: core-components, version: 1}
+
+entities:
+  internet:
+    kind: network
+    label: Internet
+  office-net:
+    kind: network
+    label: Office network
+  cloud-net:
+    kind: network
+    label: Cloud network
+  edge:
+    kind: router
+    label: Cloud edge
+    parameters:
+      escape:
+        status: unknown
+  edge-filter:
+    kind: firewall
+    label: Edge firewall
+  laptop:
+    kind: host
+    label: Administrator laptop
+    parameters:
+      escape:
+        status: unknown
+  browser:
+    kind: application
+    label: Browser
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  storage-node:
+    kind: host
+    label: Storage platform
+    description: Stands for the provider's storage platform
+    parameters:
+      escape:
+        status: unknown
+  storage-api:
+    kind: service
+    label: Storage API
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 2)"
+        note: Exercise assumption
+      login:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: "Exercise assumption: an API login with a valid token is quick"
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  api-gateway:
+    kind: product
+    label: API gateway 2.4
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 30)"
+        note: Exercise assumption
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Exercise assumption: the patched version has no exploit to find"
+    defenses: {patched: false}
+  hypervisor:
+    kind: host
+    label: Hypervisor
+    parameters:
+      escape:
+        status: unknown
+  support-vm:
+    kind: host
+    label: Support VM
+    parameters:
+      escape:
+        status: illustrative
+        ttc: "Exponential(mean 20)"
+        note: Exercise assumption
+  kms-node:
+    kind: host
+    label: Key service VM
+    parameters:
+      escape:
+        status: illustrative
+        ttc: "Exponential(mean 20)"
+        note: Exercise assumption
+  kms-api:
+    kind: service
+    label: Key service
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 2)"
+        note: Exercise assumption
+      login:
+        status: unknown
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  support-agent:
+    kind: service
+    label: Support agent
+    description: An AI agent that answers tickets with tools; it processes content it does not trust
+    parameters:
+      deploy-exploit:
+        status: unknown
+      login:
+        status: unknown
+      take-over:
+        status: illustrative
+        ttc: "Exponential(mean 3)"
+        note: "Exercise assumption: instructions hidden in a ticket (prompt injection)"
+      take-over-guarded:
+        status: illustrative
+        ttc: "Exponential(mean 60)"
+        note: "Exercise assumption: guardrails slow injection, they do not stop it"
+    defenses: {guarded: false}
+  support-bot:
+    kind: product
+    label: Support agent framework 1.2
+    parameters:
+      find-exploit:
+        status: unknown
+      find-exploit-patched:
+        status: unknown
+    defenses: {patched: false}
+  admin:
+    kind: person
+    label: Cloud administrator
+    parameters:
+      phish:
+        status: illustrative
+        ttc: "Exponential(mean 7)"
+        note: Exercise assumption
+      phish-trained:
+        status: illustrative
+        ttc: "Exponential(mean 40)"
+        note: "Exercise assumption: training slows deception, it does not stop it"
+    defenses: {trained: false}
+  admin-account:
+    kind: account
+    label: Administrator
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: illustrative
+        ttc: "Exponential(mean 5)"
+        note: "Exercise assumption: push fatigue"
+    defenses: {mfa: false}
+  agent-role:
+    kind: account
+    label: Support agent role
+    description: A workload identity; it has no second factor
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: false}
+  reader-role:
+    kind: account
+    label: Data reader role
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: false}
+  admin-password:
+    kind: credential
+    label: Administrator password
+    parameters:
+      extract:
+        status: unknown
+      extract-protected:
+        status: unknown
+    defenses: {protected: false}
+  admin-seed:
+    kind: credential
+    label: Authenticator seed
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(mean 2)"
+        note: Exercise assumption
+      extract-protected:
+        status: illustrative
+        ttc: "Never"
+        note: "Exercise assumption: a hardware-backed store gives nothing up"
+    defenses: {protected: false}
+  bucket-key:
+    kind: credential
+    label: Bucket key
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: Exercise assumption
+      extract-protected:
+        status: illustrative
+        ttc: "Never"
+        note: "Exercise assumption: a hardware-backed store gives nothing up"
+    defenses: {protected: false}
+  customer-bucket:
+    kind: data
+    label: Customer bucket
+    defenses: {encrypted: false}
+  help-articles:
+    kind: data
+    label: Help centre articles
+    defenses: {encrypted: false}
+
+associations:
+  laptop-office:
+    kind: attached
+    from: laptop
+    to: office-net
+  edge-office:
+    kind: attached
+    from: edge
+    to: office-net
+  edge-cloud:
+    kind: attached
+    from: edge
+    to: cloud-net
+  storage-cloud:
+    kind: attached
+    from: storage-node
+    to: cloud-net
+  hypervisor-cloud:
+    kind: attached
+    from: hypervisor
+    to: cloud-net
+  support-vm-cloud:
+    kind: attached
+    from: support-vm
+    to: cloud-net
+  kms-cloud:
+    kind: attached
+    from: kms-node
+    to: cloud-net
+  edge-filters:
+    kind: filters
+    from: edge
+    to: edge-filter
+  browser-hosting:
+    kind: hosts
+    from: laptop
+    to: browser
+    privilege: user
+  storage-hosting:
+    kind: hosts
+    from: storage-node
+    to: storage-api
+    privilege: admin
+  support-vm-hosting:
+    kind: hosts
+    from: hypervisor
+    to: support-vm
+    privilege: user
+  kms-node-hosting:
+    kind: hosts
+    from: hypervisor
+    to: kms-node
+    privilege: user
+  kms-hosting:
+    kind: hosts
+    from: kms-node
+    to: kms-api
+    privilege: admin
+  agent-hosting:
+    kind: hosts
+    from: support-vm
+    to: support-agent
+    privilege: admin
+    description: The agent runs as root in its VM and its tools run commands (not contained)
+  storage-instance:
+    kind: instance-of
+    from: storage-api
+    to: api-gateway
+  agent-instance:
+    kind: instance-of
+    from: support-agent
+    to: support-bot
+  kms-instance:
+    kind: instance-of
+    from: kms-api
+    to: api-gateway
+  tickets:
+    kind: delivers
+    from: internet
+    to: support-agent
+    description: The public ticket queue
+  mail:
+    kind: delivers
+    from: internet
+    to: admin
+  admin-knows-password:
+    kind: knows
+    from: admin
+    to: admin-password
+  admin-uses-browser:
+    kind: operates
+    from: admin
+    to: browser
+  seed-store:
+    kind: stores
+    from: laptop
+    to: admin-seed
+    privilege: user
+  key-store:
+    kind: stores
+    from: kms-node
+    to: bucket-key
+    privilege: admin
+  password-auth:
+    kind: authenticates
+    from: admin-password
+    to: admin-account
+  seed-auth:
+    kind: authenticates
+    from: admin-seed
+    to: admin-account
+    factor: second
+  admin-storage:
+    kind: authorizes
+    from: admin-account
+    to: storage-api
+  agent-role-storage:
+    kind: authorizes
+    from: agent-role
+    to: storage-api
+  reader-storage:
+    kind: authorizes
+    from: reader-role
+    to: storage-api
+  agent-runs-as:
+    kind: runs-as
+    from: support-agent
+    to: agent-role
+    privilege: user
+  agent-becomes-reader:
+    kind: assumes
+    from: agent-role
+    to: reader-role
+  bucket-held:
+    kind: holds
+    from: storage-api
+    to: customer-bucket
+    privilege: user
+    decrypts: false
+    description: Client-side encryption when encrypted; storage sees ciphertext only
+  articles-held:
+    kind: holds
+    from: storage-api
+    to: help-articles
+    privilege: user
+    decrypts: true
+  bucket-key-link:
+    kind: encrypted-with
+    from: customer-bucket
+    to: bucket-key
+  reader-bucket:
+    kind: accesses
+    from: reader-role
+    to: customer-bucket
+    mode: read
+  admin-bucket:
+    kind: accesses
+    from: admin-account
+    to: customer-bucket
+    mode: write
+  admin-articles:
+    kind: accesses
+    from: admin-account
+    to: help-articles
+    mode: write
+  agent-reads-articles:
+    kind: reads
+    from: support-agent
+    to: help-articles
+  edge-permits-console:
+    kind: permits
+    from: edge-filter
+    to: console
+    allowed: true
+
+flows:
+  console:
+    label: Browser to storage API
+    source: browser
+    target: storage-api
+    route: [office-net, edge, cloud-net]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: Exercise assumption
+  agent-storage:
+    label: Agent to storage API
+    source: support-agent
+    target: storage-api
+    route: [cloud-net]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: Exercise assumption
+
+attacker:
+  footholds:
+    - {entity: internet, state: access}
+  target: {entity: customer-bucket, state: read}
+
+scenarios:
+  guardrails:
+    label: Guard the agent against its content
+    changes:
+      - {entity: support-agent, defense: guarded, value: true}
+  mfa:
+    label: Require a second factor
+    changes:
+      - {entity: admin-account, defense: mfa, value: true}
+  training:
+    label: Train the administrator
+    changes:
+      - {entity: admin, defense: trained, value: true}
+  patch:
+    label: Patch the API gateway
+    changes:
+      - {entity: api-gateway, defense: patched, value: true}
+  encrypt:
+    label: Encrypt the bucket client-side
+    changes:
+      - {entity: customer-bucket, defense: encrypted, value: true}
+
+analysis:
+  seed: 42
+  samples: 10000
+  confidence: 0.95

@@ -325,6 +325,33 @@ impl Cx<'_> {
                     "software uses its identity as `user`; only a host names `admin`",
                 ),
                 (
+                    Relation::Holds {
+                        privilege: Privilege::Admin,
+                        ..
+                    },
+                    Some(k),
+                    _,
+                ) if k != EntityKind::Host => self.error(
+                    Code::AssociationType,
+                    format!("{at}.privilege"),
+                    "software holds data as `user`; only a host holds it as `admin`",
+                ),
+                (
+                    Relation::Holds {
+                        decrypts: None,
+                        from,
+                        to,
+                        ..
+                    },
+                    _,
+                    _,
+                ) => self.incomplete(
+                    at.clone(),
+                    format!(
+                        "say whether \"{from}\" sees \"{to}\" in plaintext: `decrypts: true | false`"
+                    ),
+                ),
+                (
                     Relation::Stores {
                         privilege: Privilege::Admin,
                         ..

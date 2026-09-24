@@ -11,7 +11,7 @@ use effractor_core::architecture::{Architecture, Change, Factor, Parameter, Rela
 
 use crate::CURRENT_VERSION;
 use crate::architecture_read::{
-    DEFENSES, EVIDENCE, FACTORS, KINDS, PRIVILEGES, RELATIONS, STATES, SWITCHES,
+    BOOLS, DEFENSES, EVIDENCE, FACTORS, KINDS, MODES, PRIVILEGES, RELATIONS, STATES, SWITCHES,
 };
 use crate::lower::{ARCHITECTURE, Extras, TIME_UNITS};
 use crate::write::{Context, WIDTH, Writer, expression, string, word};
@@ -125,6 +125,13 @@ fn document(w: &mut Writer, m: &Architecture) {
                 } = r
                 {
                     w.line(4, "contained", "true");
+                }
+                match r {
+                    Relation::Holds {
+                        decrypts: Some(d), ..
+                    } => w.line(4, "decrypts", word(&BOOLS, d)),
+                    Relation::Accesses { mode, .. } => w.line(4, "mode", word(&MODES, mode)),
+                    _ => {}
                 }
             }
         }

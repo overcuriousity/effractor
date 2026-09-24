@@ -6,8 +6,8 @@
 
 use effractor_core::architecture::{
     Architecture, Association, Attacker, Change, Defense, Defenses, Entity, EntityKind, Evidence,
-    Factor, Flow, LibraryPin, Parameter, Privilege, Relation, RelationKind, Scenario, Slot, State,
-    StateRef, Switch,
+    Factor, Flow, LibraryPin, Mode, Parameter, Privilege, Relation, RelationKind, Scenario, Slot,
+    State, StateRef, Switch,
 };
 use effractor_core::{Code, Pos};
 use indexmap::IndexMap;
@@ -15,7 +15,7 @@ use indexmap::IndexMap;
 use crate::lower::{Cx, TIME_UNITS};
 use crate::tree::{Entry, Node};
 
-pub const KINDS: [(&str, EntityKind); 10] = [
+pub const KINDS: [(&str, EntityKind); 11] = [
     ("network", EntityKind::Network),
     ("router", EntityKind::Router),
     ("firewall", EntityKind::Firewall),
@@ -26,8 +26,9 @@ pub const KINDS: [(&str, EntityKind); 10] = [
     ("account", EntityKind::Account),
     ("credential", EntityKind::Credential),
     ("person", EntityKind::Person),
+    ("data", EntityKind::Data),
 ];
-pub const RELATIONS: [(&str, RelationKind); 15] = [
+pub const RELATIONS: [(&str, RelationKind); 19] = [
     ("attached", RelationKind::Attached),
     ("hosts", RelationKind::Hosts),
     ("filters", RelationKind::Filters),
@@ -43,10 +44,14 @@ pub const RELATIONS: [(&str, RelationKind); 15] = [
     ("knows", RelationKind::Knows),
     ("operates", RelationKind::Operates),
     ("delivers", RelationKind::Delivers),
+    ("holds", RelationKind::Holds),
+    ("accesses", RelationKind::Accesses),
+    ("encrypted-with", RelationKind::EncryptedWith),
+    ("reads", RelationKind::Reads),
 ];
 pub const PRIVILEGES: [(&str, Privilege); 2] =
     [("user", Privilege::User), ("admin", Privilege::Admin)];
-pub const STATES: [(&str, State); 7] = [
+pub const STATES: [(&str, State); 9] = [
     ("access", State::Access),
     ("user", State::User),
     ("admin", State::Admin),
@@ -54,6 +59,8 @@ pub const STATES: [(&str, State); 7] = [
     ("possessed", State::Possessed),
     ("contacted", State::Contacted),
     ("deceived", State::Deceived),
+    ("read", State::Read),
+    ("modified", State::Modified),
 ];
 pub const SWITCHES: [(&str, Switch); 3] = [
     ("unknown", Switch::Unknown),
@@ -67,7 +74,15 @@ pub const EVIDENCE: [(&str, Evidence); 4] = [
     ("calibrated", Evidence::Calibrated),
 ];
 /// The fields an association may carry beside kind/from/to/description.
-const EXTRAS: [&str; 4] = ["privilege", "allowed", "factor", "contained"];
+const EXTRAS: [&str; 6] = [
+    "privilege",
+    "allowed",
+    "factor",
+    "contained",
+    "decrypts",
+    "mode",
+];
+pub const MODES: [(&str, Mode); 2] = [("read", Mode::Read), ("write", Mode::Write)];
 pub const BOOLS: [(&str, bool); 2] = [("true", true), ("false", false)];
 pub const FACTORS: [(&str, Factor); 2] = [("first", Factor::First), ("second", Factor::Second)];
 pub const SLOTS: [(&str, Slot); 14] = [
@@ -86,12 +101,13 @@ pub const SLOTS: [(&str, Slot); 14] = [
     ("take-over", Slot::TakeOver),
     ("take-over-guarded", Slot::TakeOverGuarded),
 ];
-pub const DEFENSES: [(&str, Defense); 5] = [
+pub const DEFENSES: [(&str, Defense); 6] = [
     ("patched", Defense::Patched),
     ("protected", Defense::Protected),
     ("mfa", Defense::Mfa),
     ("trained", Defense::Trained),
     ("guarded", Defense::Guarded),
+    ("encrypted", Defense::Encrypted),
 ];
 
 pub fn document(cx: &mut Cx, root: &Node) -> Option<Architecture> {
@@ -283,6 +299,8 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
             "allowed",
             "factor",
             "contained",
+            "decrypts",
+            "mode",
             "description",
         ],
     )?;
@@ -335,6 +353,19 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
         Some(e) if kind == RelationKind::Hosts => cx.word(&e.value, &f.path("contained"), &BOOLS),
         _ => Some(false),
     };
+    // Unsaid is `incomplete`, which the validator reports.
+    let decrypts = match f.get("decrypts") {
+        Some(e) if kind == RelationKind::Holds => {
+            cx.word(&e.value, &f.path("decrypts"), &BOOLS).map(Some)
+        }
+        _ => Some(None),
+    };
+    let mode = if kind == RelationKind::Accesses {
+        cx.required(&f, "mode")
+            .and_then(|e| cx.word(&e.value, &f.path("mode"), &MODES))
+    } else {
+        None
+    };
     let relation = match kind {
         RelationKind::Permits => Relation::Permits {
             from: from?,
@@ -380,6 +411,19 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
                 RelationKind::Knows => Relation::Knows { from, to },
                 RelationKind::Operates => Relation::Operates { from, to },
                 RelationKind::Delivers => Relation::Delivers { from, to },
+                RelationKind::Holds => Relation::Holds {
+                    from,
+                    to,
+                    privilege: privilege?,
+                    decrypts: decrypts?,
+                },
+                RelationKind::Accesses => Relation::Accesses {
+                    from,
+                    to,
+                    mode: mode?,
+                },
+                RelationKind::EncryptedWith => Relation::EncryptedWith { from, to },
+                RelationKind::Reads => Relation::Reads { from, to },
                 RelationKind::Permits => unreachable!("handled above"),
             }
         }

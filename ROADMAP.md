@@ -13,9 +13,8 @@ items below are its delivery decomposition. Plan tasks 1
 (`architecture-document`), 2 (`component-generation`), 3
 (`sequential-simulation`), 4 (`architecture-editor`), 5
 (`architecture-links`) and 6 (`attack-graph-inspection`) are done; the rest map
-as defense-comparison = 7, lecture-workflow = 8. `library-extension` was added
-by the owner on 2026-09-23 and comes before defense-comparison, so comparisons
-cover its defenses from the start.
+as defense-comparison = 7, lecture-workflow = 8. `library-extension`, added by the owner
+on 2026-09-23, is done, so comparisons cover its defenses from the start.
 "securiCAD parity" in the owner's words means `lecture-workflow`, not the later
 `mal-securicad-compatibility`.
 
@@ -74,25 +73,8 @@ the underlying rules and calibrated inputs.
 
 ## Lecture implementation
 
-### library-extension — Virtualisation, products, identity, operators, data
-needs: —            cost: 4   benefit: 5
-Extend the component library in place (owner, 2026-09-23: no versioning, no
-legacy to keep), oriented on securiCAD's coreLang and on cloud estates, AI
-agents and data (owner, 2026-09-24). Design:
-[`2026-09-24-library-extension-design.md`](docs/superpowers/specs/2026-09-24-library-extension-design.md)
-— hosts on hosts with escapes, shared product vulnerabilities, MFA, workload
-identity, role assumption, people (phishing) and AI agents (injection), data
-with holding, account access and encryption. Plan:
-[`2026-09-24-library-extension.md`](docs/superpowers/plans/2026-09-24-library-extension.md).
-Virtualisation, products, identity, people and content-processing software
-(spec §10, plan Task 4b: AI agents are software that content reaches) are
-done; data and the cloud example (Task 5, to re-plan) remain. Done when every addition is generated,
-solved and inspectable, its rules and assumptions are in the catalog, the
-cloud support agent example runs natively and in wasm alike, and the owner
-accepts it in the browser.
-
 ### defense-comparison — Inspect defense changes and remaining alternatives
-needs: library-extension            cost: 3   benefit: 5
+needs: —            cost: 3   benefit: 5
 Add named defense overlay editing, baseline/scenario CDFs, paired probability
 deltas and visible changed/remaining/blocked routes. Surface illustrative
 inputs and missing replacement assumptions; clear comparisons on structural

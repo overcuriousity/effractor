@@ -9,25 +9,9 @@ use effractor_components::{
     Binding, GeneratedGraph, GeneratedKind, RULES, ResolvedTtc, generate, resolve,
 };
 use effractor_core::architecture::{
-    Architecture, Association, Defense, Entity, EntityKind, Factor, Privilege, Relation, Slot,
+    Architecture, Association, Defense, Entity, EntityKind, Factor, Mode, Privilege, Relation, Slot,
 };
 use effractor_core::{AssociationId, Code, Document, FlowId, ScenarioId};
-
-/// Rules no shipped example uses yet; emptied when the cloud example lands.
-const NOT_YET_IN_AN_EXAMPLE: &[&str] = &[
-    "hosted-host",
-    "guest-escape",
-    "router-escape",
-    "mfa-second-factor",
-    "workload-identity",
-    "assume-role",
-    "content-from-zone",
-    "content-from-service",
-    "phish",
-    "person-disclose",
-    "person-run",
-    "take-over",
-];
 
 const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
 
@@ -371,20 +355,27 @@ fn every_lecture_step_has_exactly_its_prerequisites() {
 }
 
 #[test]
-fn every_rule_is_used_by_the_lecture_and_names_what_it_bound() {
-    let graph = generate(&lecture()).unwrap();
-    let used: BTreeSet<&str> = graph
-        .nodes
-        .iter()
-        .flat_map(|n| n.origins.iter().map(|o| o.rule.as_str()))
-        .collect();
-    // The lecture's router is its own box; a router on a host has its own test.
-    let all: BTreeSet<&str> = RULES
-        .iter()
-        .map(|r| r.id)
-        .filter(|r| *r != "hosted-router" && !NOT_YET_IN_AN_EXAMPLE.contains(r))
-        .collect();
+fn every_rule_is_used_by_a_shipped_file_and_names_what_it_bound() {
+    const SHIPPED: [&str; 5] = [
+        include_str!("../../../assets/examples/14-branch-office-architecture.yaml"),
+        include_str!("../../../assets/examples/15-web-shop-architecture.yaml"),
+        include_str!("../../../assets/examples/16-clinic-records-architecture.yaml"),
+        include_str!("../../../assets/examples/17-cloud-support-agent-architecture.yaml"),
+        include_str!("../../../assets/examples/18-self-hosted-nextcloud-architecture.yaml"),
+    ];
+    let mut used: BTreeSet<String> = BTreeSet::new();
+    for text in std::iter::once(LECTURE).chain(SHIPPED) {
+        let g = generate(&architecture(text)).unwrap();
+        used.extend(
+            g.nodes
+                .iter()
+                .flat_map(|n| n.origins.iter().map(|o| o.rule.clone())),
+        );
+    }
+    let all: BTreeSet<String> = RULES.iter().map(|r| r.id.to_owned()).collect();
     assert_eq!(used, all);
+
+    let graph = generate(&lecture()).unwrap();
 
     let rules = |id: &str| -> BTreeSet<String> {
         node(&graph, id)
@@ -1393,4 +1384,167 @@ fn contained_software_does_not_control_its_machine() {
         inputs(&closed, "state/application/ssh-client/control")
             .contains(&"state/host/workstation/user".to_owned())
     );
+}
+
+/// The lecture's SSH server holds a customer table; the server account may
+/// write it through a login, the server's key encrypts it.
+fn with_data(decrypts: bool) -> Architecture {
+    let mut m = lecture();
+    add(&mut m, "table", EntityKind::Data);
+    relate(
+        &mut m,
+        "sshd-table",
+        Relation::Holds {
+            from: id("sshd"),
+            to: id("table"),
+            privilege: Privilege::User,
+            decrypts: Some(decrypts),
+        },
+    );
+    relate(
+        &mut m,
+        "account-table",
+        Relation::Accesses {
+            from: id("server-account"),
+            to: id("table"),
+            mode: Mode::Write,
+        },
+    );
+    relate(
+        &mut m,
+        "table-key",
+        Relation::EncryptedWith {
+            from: id("table"),
+            to: id("server-key"),
+        },
+    );
+    m
+}
+
+#[test]
+fn a_decrypting_holder_reads_and_modifies_its_data() {
+    let g = generate(&with_data(true)).unwrap();
+    for state in ["read", "modified"] {
+        let into = inputs(&g, &format!("state/data/table/{state}"));
+        assert!(
+            into.contains(&"state/service/sshd/control".to_owned()),
+            "{into:?}"
+        );
+        assert!(
+            into.contains(&"state/session/server-account/sshd".to_owned()),
+            "{into:?}"
+        );
+    }
+}
+
+#[test]
+fn a_holder_that_does_not_decrypt_needs_plaintext_to_read() {
+    let g = generate(&with_data(false)).unwrap();
+    let mut read = inputs(&g, "state/data/table/read");
+    read.sort();
+    assert_eq!(
+        read,
+        vec![
+            "action/account-data/server-account/sshd/table",
+            "action/holder-read/sshd/table"
+        ]
+    );
+    assert_eq!(
+        inputs(&g, "action/holder-read/sshd/table"),
+        vec!["state/data/table/plaintext", "state/service/sshd/control"]
+    );
+    assert_eq!(
+        node(&g, "action/holder-read/sshd/table").duration,
+        Binding::Logical
+    );
+    assert_eq!(
+        inputs(&g, "action/account-data/server-account/sshd/table"),
+        vec![
+            "state/data/table/plaintext",
+            "state/session/server-account/sshd"
+        ]
+    );
+    // Encryption does not stop modification.
+    assert!(
+        inputs(&g, "state/data/table/modified").contains(&"state/service/sshd/control".to_owned())
+    );
+    let mut plain = inputs(&g, "state/data/table/plaintext");
+    plain.sort();
+    assert_eq!(
+        plain,
+        vec![
+            "input/policy/table/encrypted",
+            "state/credential/server-key/possessed"
+        ]
+    );
+    assert_eq!(
+        node(&g, "input/policy/table/encrypted").duration,
+        Binding::Policy {
+            entity: id("table"),
+            defense: Defense::Encrypted
+        }
+    );
+}
+
+#[test]
+fn read_access_never_modifies() {
+    let mut m = with_data(true);
+    relate(
+        &mut m,
+        "account-table",
+        Relation::Accesses {
+            from: id("server-account"),
+            to: id("table"),
+            mode: Mode::Read,
+        },
+    );
+    let g = generate(&m).unwrap();
+    assert!(
+        !inputs(&g, "state/data/table/modified")
+            .contains(&"state/session/server-account/sshd".to_owned())
+    );
+}
+
+#[test]
+fn changed_content_reaches_the_software_that_reads_it_and_cycles_stay_finite() {
+    let mut m = with_data(true);
+    // The server itself reads the table it holds: a cycle through the data.
+    relate(
+        &mut m,
+        "sshd-reads",
+        Relation::Reads {
+            from: id("sshd"),
+            to: id("table"),
+        },
+    );
+    let g = generate(&m).unwrap();
+    assert!(
+        inputs(&g, "state/service/sshd/contacted")
+            .contains(&"state/data/table/modified".to_owned())
+    );
+    assert_eq!(
+        inputs(&g, "action/take-over/sshd"),
+        vec!["state/service/sshd/contacted"]
+    );
+    // Nothing seeds sshd → table → sshd when the attacker has no way in.
+    m.attacker.footholds.clear();
+    m.attacker
+        .footholds
+        .push(effractor_core::architecture::StateRef {
+            entity: id("admin-net"),
+            state: effractor_core::architecture::State::Access,
+        });
+    let reached = possible(&generate(&m).unwrap());
+    assert!(!reached.contains("state/service/sshd/control"));
+}
+
+#[test]
+fn data_can_be_the_target() {
+    let mut m = with_data(true);
+    m.attacker.target = Some(effractor_core::architecture::StateRef {
+        entity: id("table"),
+        state: effractor_core::architecture::State::Read,
+    });
+    let g = generate(&m).unwrap();
+    assert_eq!(g.nodes[g.target].id, "state/data/table/read");
 }

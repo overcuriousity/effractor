@@ -3,8 +3,8 @@
 //! component library the document pins, and the generated graph is a derived
 //! artifact, never a second source of truth.
 //!
-//! The vocabulary is small and closed on purpose: ten entity kinds, fifteen
-//! association kinds, seven states. What a kind may carry — which parameter
+//! The vocabulary is small and closed on purpose: eleven entity kinds,
+//! nineteen association kinds, nine states. What a kind may carry — which parameter
 //! slots, which defence switches, which states — is answered by the methods
 //! here, so the reader, the validator and the writer agree on one answer.
 
@@ -96,10 +96,11 @@ pub enum EntityKind {
     Account,
     Credential,
     Person,
+    Data,
 }
 
 impl EntityKind {
-    pub const ALL: [EntityKind; 10] = [
+    pub const ALL: [EntityKind; 11] = [
         Self::Network,
         Self::Router,
         Self::Firewall,
@@ -110,6 +111,7 @@ impl EntityKind {
         Self::Account,
         Self::Credential,
         Self::Person,
+        Self::Data,
     ];
 
     /// The kebab-case spelling a document uses.
@@ -125,6 +127,7 @@ impl EntityKind {
             Self::Account => "account",
             Self::Credential => "credential",
             Self::Person => "person",
+            Self::Data => "data",
         }
     }
 
@@ -140,6 +143,7 @@ impl EntityKind {
             Self::Application | Self::Service => &[State::Control],
             Self::Credential => &[State::Possessed],
             Self::Person => &[State::Contacted, State::Deceived],
+            Self::Data => &[State::Read, State::Modified],
         }
     }
 
@@ -171,6 +175,7 @@ impl EntityKind {
             Self::Person => Some(Defense::Trained),
             Self::Credential => Some(Defense::Protected),
             Self::Application | Self::Service => Some(Defense::Guarded),
+            Self::Data => Some(Defense::Encrypted),
             _ => None,
         }
     }
@@ -210,10 +215,12 @@ pub enum State {
     Possessed,
     Contacted,
     Deceived,
+    Read,
+    Modified,
 }
 
 impl State {
-    pub const ALL: [State; 7] = [
+    pub const ALL: [State; 9] = [
         Self::Access,
         Self::User,
         Self::Admin,
@@ -221,6 +228,8 @@ impl State {
         Self::Possessed,
         Self::Contacted,
         Self::Deceived,
+        Self::Read,
+        Self::Modified,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -232,6 +241,8 @@ impl State {
             Self::Possessed => "possessed",
             Self::Contacted => "contacted",
             Self::Deceived => "deceived",
+            Self::Read => "read",
+            Self::Modified => "modified",
         }
     }
 }
@@ -391,6 +402,9 @@ pub struct Defenses {
     /// Software that processes content: `take-over-guarded` stands in for
     /// `take-over`.
     pub guarded: Option<Switch>,
+    /// Data: encrypted at rest; a holder that does not decrypt then gives up
+    /// plaintext only with the key.
+    pub encrypted: Option<Switch>,
 }
 
 impl Defenses {
@@ -401,6 +415,7 @@ impl Defenses {
             Defense::Mfa => self.mfa,
             Defense::Trained => self.trained,
             Defense::Guarded => self.guarded,
+            Defense::Encrypted => self.encrypted,
         }
     }
 
@@ -411,6 +426,7 @@ impl Defenses {
             Defense::Mfa => self.mfa = value,
             Defense::Trained => self.trained = value,
             Defense::Guarded => self.guarded = value,
+            Defense::Encrypted => self.encrypted = value,
         }
     }
 }
@@ -521,6 +537,41 @@ pub enum Relation {
     /// network → person/software: content from anyone in the zone reaches
     /// this reader.
     Delivers { from: EntityId, to: EntityId },
+    /// host/software → data: where it lives, a host at this privilege,
+    /// software as user; `decrypts` whether this holder sees plaintext. None
+    /// is unsaid.
+    Holds {
+        from: EntityId,
+        to: EntityId,
+        privilege: Privilege,
+        decrypts: Option<bool>,
+    },
+    /// account → data: what a session of the account may do with it.
+    Accesses {
+        from: EntityId,
+        to: EntityId,
+        mode: Mode,
+    },
+    /// data → credential: the key.
+    EncryptedWith { from: EntityId, to: EntityId },
+    /// software → data: content it reads, e.g. a retrieval corpus.
+    Reads { from: EntityId, to: EntityId },
+}
+
+/// What an account may do with data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Mode {
+    Read,
+    Write,
+}
+
+impl Mode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Read => "read",
+            Self::Write => "write",
+        }
+    }
 }
 
 /// How a credential proves an account: alone, or as the second factor.
@@ -540,7 +591,7 @@ impl Factor {
     }
 }
 
-/// The nine association kinds, as a document spells them.
+/// The association kinds, as a document spells them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum RelationKind {
     Attached,
@@ -558,10 +609,14 @@ pub enum RelationKind {
     Knows,
     Operates,
     Delivers,
+    Holds,
+    Accesses,
+    EncryptedWith,
+    Reads,
 }
 
 impl RelationKind {
-    pub const ALL: [RelationKind; 15] = [
+    pub const ALL: [RelationKind; 19] = [
         Self::Attached,
         Self::Hosts,
         Self::Filters,
@@ -577,6 +632,10 @@ impl RelationKind {
         Self::Knows,
         Self::Operates,
         Self::Delivers,
+        Self::Holds,
+        Self::Accesses,
+        Self::EncryptedWith,
+        Self::Reads,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -596,6 +655,10 @@ impl RelationKind {
             Self::Knows => "knows",
             Self::Operates => "operates",
             Self::Delivers => "delivers",
+            Self::Holds => "holds",
+            Self::Accesses => "accesses",
+            Self::EncryptedWith => "encrypted-with",
+            Self::Reads => "reads",
         }
     }
 
@@ -615,6 +678,10 @@ impl RelationKind {
             Self::Assumes => &[K::Account],
             Self::Knows | Self::Operates => &[K::Person],
             Self::Delivers => &[K::Network],
+            Self::Holds => &[K::Host, K::Application, K::Service],
+            Self::Accesses => &[K::Account],
+            Self::EncryptedWith => &[K::Data],
+            Self::Reads => &[K::Application, K::Service],
         }
     }
 
@@ -636,6 +703,8 @@ impl RelationKind {
             Self::Knows => &[K::Credential],
             Self::Operates => &[K::Application],
             Self::Delivers => &[K::Person, K::Application, K::Service],
+            Self::Holds | Self::Accesses | Self::Reads => &[K::Data],
+            Self::EncryptedWith => &[K::Credential],
         }
     }
 
@@ -645,6 +714,8 @@ impl RelationKind {
             Self::Permits => &["allowed"],
             Self::Authenticates => &["factor"],
             Self::Hosts => &["privilege", "contained"],
+            Self::Holds => &["privilege", "decrypts"],
+            Self::Accesses => &["mode"],
             k if k.has_privilege() => &["privilege"],
             _ => &[],
         }
@@ -653,7 +724,7 @@ impl RelationKind {
     pub fn has_privilege(self) -> bool {
         matches!(
             self,
-            Self::Hosts | Self::Stores | Self::Grants | Self::RunsAs
+            Self::Hosts | Self::Stores | Self::Grants | Self::RunsAs | Self::Holds
         )
     }
 }
@@ -676,6 +747,10 @@ impl Relation {
             Self::Knows { .. } => RelationKind::Knows,
             Self::Operates { .. } => RelationKind::Operates,
             Self::Delivers { .. } => RelationKind::Delivers,
+            Self::Holds { .. } => RelationKind::Holds,
+            Self::Accesses { .. } => RelationKind::Accesses,
+            Self::EncryptedWith { .. } => RelationKind::EncryptedWith,
+            Self::Reads { .. } => RelationKind::Reads,
         }
     }
 
@@ -695,7 +770,11 @@ impl Relation {
             | Self::Assumes { from, .. }
             | Self::Knows { from, .. }
             | Self::Operates { from, .. }
-            | Self::Delivers { from, .. } => from,
+            | Self::Delivers { from, .. }
+            | Self::Holds { from, .. }
+            | Self::Accesses { from, .. }
+            | Self::EncryptedWith { from, .. }
+            | Self::Reads { from, .. } => from,
         }
     }
 
@@ -715,7 +794,11 @@ impl Relation {
             | Self::Assumes { to, .. }
             | Self::Knows { to, .. }
             | Self::Operates { to, .. }
-            | Self::Delivers { to, .. } => Some(to),
+            | Self::Delivers { to, .. }
+            | Self::Holds { to, .. }
+            | Self::Accesses { to, .. }
+            | Self::EncryptedWith { to, .. }
+            | Self::Reads { to, .. } => Some(to),
             Self::Permits { .. } => None,
         }
     }
@@ -725,7 +808,8 @@ impl Relation {
             Self::Hosts { privilege, .. }
             | Self::Stores { privilege, .. }
             | Self::Grants { privilege, .. }
-            | Self::RunsAs { privilege, .. } => Some(*privilege),
+            | Self::RunsAs { privilege, .. }
+            | Self::Holds { privilege, .. } => Some(*privilege),
             _ => None,
         }
     }
@@ -752,15 +836,17 @@ pub enum Defense {
     Mfa,
     Trained,
     Guarded,
+    Encrypted,
 }
 
 impl Defense {
-    pub const ALL: [Defense; 5] = [
+    pub const ALL: [Defense; 6] = [
         Self::Patched,
         Self::Protected,
         Self::Mfa,
         Self::Trained,
         Self::Guarded,
+        Self::Encrypted,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -770,6 +856,7 @@ impl Defense {
             Self::Mfa => "mfa",
             Self::Trained => "trained",
             Self::Guarded => "guarded",
+            Self::Encrypted => "encrypted",
         }
     }
 }

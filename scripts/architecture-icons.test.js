@@ -15,7 +15,7 @@ test('every kind of component has an icon of plain line parts', () => {
 });
 
 test('kinds fall in three families, each drawn in its own colour', () => {
-  assert.deepEqual(A.KINDS.map(I.family), ['network', 'network', 'network', 'compute', 'compute', 'compute', 'compute', 'identity', 'identity', 'identity']);
+  assert.deepEqual(A.KINDS.map(I.family), ['network', 'network', 'network', 'compute', 'compute', 'compute', 'compute', 'identity', 'identity', 'identity', 'data']);
 });
 
 test('an unknown kind still draws: a plain dot, in no family', () => {

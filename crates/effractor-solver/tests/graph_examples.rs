@@ -10,6 +10,10 @@ use serde_json::Value;
 const BRANCH: &str = include_str!("../../../assets/examples/14-branch-office-architecture.yaml");
 const SHOP: &str = include_str!("../../../assets/examples/15-web-shop-architecture.yaml");
 const CLINIC: &str = include_str!("../../../assets/examples/16-clinic-records-architecture.yaml");
+const CLOUD: &str =
+    include_str!("../../../assets/examples/17-cloud-support-agent-architecture.yaml");
+const NEXTCLOUD: &str =
+    include_str!("../../../assets/examples/18-self-hosted-nextcloud-architecture.yaml");
 
 fn open(text: &str) -> Architecture {
     let (_, diagnostics) = effractor_format::diagnose_document(text);
@@ -103,4 +107,100 @@ fn clinic_records_an_unknown_alternative_costs_the_number_until_patched() {
     assert!(patched["delta"]["unavailable"].is_object());
     let tokens = solve(&m, Some("short-tokens"));
     assert!(tokens["scenario"]["outcome"]["unavailable"].is_object());
+}
+
+fn witness(r: &Value) -> Vec<String> {
+    r["scenario"]["witness"]["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n["id"].as_str().unwrap().to_owned())
+        .collect()
+}
+
+/// Every entity defence a scenario sets, applied to the model itself: the
+/// graph must not change.
+fn switches_never_change_the_graph(m: &Architecture) {
+    let ids = |g: &effractor_components::GeneratedGraph| {
+        g.nodes.iter().map(|n| n.id.clone()).collect::<Vec<_>>()
+    };
+    let base = ids(&generate(m).unwrap());
+    for (sid, scenario) in &m.scenarios {
+        let mut s = m.clone();
+        for change in &scenario.changes {
+            if let effractor_core::architecture::Change::EntityDefense {
+                entity,
+                defense,
+                value,
+            } = change
+            {
+                s.entities[entity].defenses.set(*defense, Some(*value));
+            }
+        }
+        assert_eq!(ids(&generate(&s).unwrap()), base, "{sid}");
+    }
+}
+
+#[test]
+fn cloud_support_agent_no_single_defence_closes_every_route() {
+    let m = open(CLOUD);
+    let base = p(&solve(&m, None)["baseline"]["outcome"]);
+    println!("cloud baseline {base}");
+    assert!(base > 0.5, "{base}");
+    for scenario in ["guardrails", "mfa", "training", "patch", "encrypt"] {
+        let left = p(&solve(&m, Some(scenario))["scenario"]["outcome"]);
+        println!("cloud {scenario} {left}");
+        // The same samples under a stronger defence never finish sooner.
+        assert!(left <= base, "{scenario}: {left} > {base}");
+        assert!(left > 0.0, "{scenario} closed every route");
+    }
+    switches_never_change_the_graph(&m);
+}
+
+#[test]
+fn cloud_support_agent_encryption_leaves_the_key_route() {
+    let m = open(CLOUD);
+    let route = witness(&solve(&m, Some("encrypt")));
+    assert!(
+        route.contains(&"state/credential/bucket-key/possessed".to_owned()),
+        "{route:?}"
+    );
+}
+
+#[test]
+fn nextcloud_haproxy_is_the_chokepoint_and_the_app_route_is_the_fast_one() {
+    let m = open(NEXTCLOUD);
+    let base = p(&solve(&m, None)["baseline"]["outcome"]);
+    assert!(base > 0.4, "{base}");
+    // Patching the internet-facing reverse proxy closes every route: both the
+    // application pivot and the infrastructure escape start by taking over
+    // HAProxy.
+    assert_eq!(
+        p(&solve(&m, Some("patch-haproxy"))["scenario"]["outcome"]),
+        0.0
+    );
+    assert_eq!(
+        p(&solve(&m, Some("patch-web-stack"))["scenario"]["outcome"]),
+        0.0
+    );
+    // Patching Nextcloud closes the fast application route; the slower
+    // hypervisor-escape route to the volume on disk remains.
+    let patched = p(&solve(&m, Some("patch-nextcloud"))["scenario"]["outcome"]);
+    assert!(patched > 0.0 && patched < base, "{patched} vs {base}");
+    let route = witness(&solve(&m, Some("patch-nextcloud")));
+    assert!(
+        route.contains(&"state/host/app-vm/admin".to_owned()),
+        "{route:?}"
+    );
+    assert!(
+        route.contains(&"action/holder-read/app-vm/the-file".to_owned()),
+        "{route:?}"
+    );
+    // Encrypting the volume at rest does not stop the running application from
+    // serving the file: the number is unchanged.
+    assert_eq!(
+        p(&solve(&m, Some("encrypt-at-rest"))["scenario"]["outcome"]),
+        base
+    );
+    switches_never_change_the_graph(&m);
 }

@@ -1,8 +1,8 @@
 // What each kind of component looks like: a line drawing on a 24-unit grid,
 // after the conventions network diagrams share — Cisco's cloud, router,
-// firewall and server; a window, a gear, a box, a badge, a key and a person
-// for the rest — and the family whose colour its plate wears. Pure data and one
-// builder.
+// firewall and server; a window, a gear, a box, a badge, a key, a person and a
+// cylinder for the rest — and the family whose colour its plate wears. Pure
+// data and one builder.
 (function () {
   var ICONS = {
     // A cloud: a network, its details abstracted away.
@@ -52,11 +52,18 @@
       ["circle", { cx: 7.5, cy: 15.5, r: 4 }],
       ["path", { d: "M10.4 12.6 20 3M16 7l3 3M13.5 9.5l2 2" }],
     ],
+    // A cylinder: stored records.
+    data: [
+      ["path", { d: "M5 6c0-1.66 3.13-3 7-3s7 1.34 7 3-3.13 3-7 3-7-1.34-7-3z" }],
+      ["path", { d: "M5 6v12c0 1.66 3.13 3 7 3s7-1.34 7-3V6" }],
+      ["path", { d: "M5 12c0 1.66 3.13 3 7 3s7-1.34 7-3" }],
+    ],
   };
   var FAMILY = {
     network: "network", router: "network", firewall: "network",
     host: "compute", application: "compute", service: "compute", product: "compute",
     account: "identity", credential: "identity", person: "identity",
+    data: "data",
   };
   var DOT = [["circle", { cx: 12, cy: 12, r: 3 }]];
 

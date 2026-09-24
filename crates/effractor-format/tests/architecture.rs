@@ -1211,3 +1211,117 @@ fn content_software_and_containment_round_trip() {
         "{d:?}"
     );
 }
+
+/// A bucket held by a storage service that sees ciphertext only, its key,
+/// an account that may write it and a bot that reads it.
+fn bucket() -> String {
+    CANONICAL
+        .replace(
+            "entities: {}",
+            r#"entities:
+  store:
+    kind: service
+    label: Storage
+    parameters:
+      deploy-exploit:
+        status: unknown
+      login:
+        status: unknown
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  bot:
+    kind: application
+    label: Bot
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: false}
+  ops:
+    kind: account
+    label: Ops
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: false}
+  key:
+    kind: credential
+    label: Key
+    parameters:
+      extract:
+        status: unknown
+      extract-protected:
+        status: unknown
+    defenses: {protected: false}
+  bucket:
+    kind: data
+    label: Bucket
+    defenses: {encrypted: false}"#,
+        )
+        .replace(
+            "associations: {}",
+            r#"associations:
+  store-bucket:
+    kind: holds
+    from: store
+    to: bucket
+    privilege: user
+    decrypts: false
+  ops-bucket:
+    kind: accesses
+    from: ops
+    to: bucket
+    mode: write
+  bucket-key:
+    kind: encrypted-with
+    from: bucket
+    to: key
+  bot-bucket:
+    kind: reads
+    from: bot
+    to: bucket"#,
+        )
+}
+
+#[test]
+fn data_holdings_access_keys_and_readers_round_trip() {
+    let text = bucket();
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    // An unsaid `decrypts` loads (it is incomplete, not unreadable).
+    let unsaid = text.replace("    decrypts: false\n", "");
+    assert_eq!(canonicalize(&unsaid).unwrap(), unsaid);
+    for (from, to, path, code) in [
+        (
+            "mode: write",
+            "mode: delete",
+            "associations.ops-bucket.mode",
+            None,
+        ),
+        (
+            "    mode: write\n",
+            "",
+            "associations.ops-bucket.mode",
+            Some(effractor_core::Code::MissingKey),
+        ),
+        (
+            "    to: key\n",
+            "    to: key\n    decrypts: true\n",
+            "associations.bucket-key.decrypts",
+            Some(effractor_core::Code::MisplacedKey),
+        ),
+    ] {
+        let (_, d) = effractor_format::diagnose_document(&text.replace(from, to));
+        assert!(
+            d.iter().any(|d| d.path == path
+                && d.severity == Severity::Error
+                && code.is_none_or(|c| d.code == c)),
+            "{to}: {d:?}"
+        );
+    }
+}

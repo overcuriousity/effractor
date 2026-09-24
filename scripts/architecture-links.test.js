@@ -280,7 +280,7 @@ test('the link menu offers the kinds a component can stand in, with eligible end
   const doc = lecture();
   const choices = L.linkChoices(doc, CATALOG, 'server');
   const kinds = choices.map((c) => c.kind + ':' + c.direction);
-  assert.deepEqual(kinds, ['attached:out', 'hosts:out', 'hosts:in', 'stores:out', 'grants:in', 'administration:in', 'runs-as:out']);
+  assert.deepEqual(kinds, ['attached:out', 'hosts:out', 'hosts:in', 'stores:out', 'grants:in', 'administration:in', 'runs-as:out', 'holds:out']);
   const attached = choices.find((c) => c.kind === 'attached');
   // server is already attached to server-net; the others are offered.
   assert.deepEqual(attached.candidates, ['client-net', 'admin-net']);
@@ -291,7 +291,7 @@ test('the link menu offers the kinds a component can stand in, with eligible end
   assert.equal(choices.some((c) => c.kind === 'permits'), false, 'permissions belong to a flow');
   // A firewall's router is picked from routers; an account links both ways.
   assert.deepEqual(L.linkChoices(doc, CATALOG, 'filter').map((c) => c.kind + ':' + c.direction), ['filters:in']);
-  assert.deepEqual(L.linkChoices(doc, CATALOG, 'server-account').map((c) => c.kind + ':' + c.direction), ['authenticates:in', 'authorizes:out', 'grants:out', 'runs-as:in', 'assumes:out', 'assumes:in']);
+  assert.deepEqual(L.linkChoices(doc, CATALOG, 'server-account').map((c) => c.kind + ':' + c.direction), ['authenticates:in', 'authorizes:out', 'grants:out', 'runs-as:in', 'assumes:out', 'assumes:in', 'accesses:out']);
   assert.deepEqual(L.linkChoices(doc, CATALOG, 'absent'), []);
 });
 
@@ -384,13 +384,14 @@ test('Tab offers the kinds that can be linked to the selection, with each way to
     'service: hosts → · user, hosts → · admin',
     'account: ← grants · user, ← grants · admin, runs-as → · user, runs-as → · admin',
     'credential: stores → · user, stores → · admin',
+    'data: holds → · user, holds → · admin',
   ]);
   // A router hosts and is granted only as admin; it has its firewall already.
   const router = L.addChoices(doc, CATALOG, 'bridge').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
   assert.deepEqual(router, ['network: attached, administration', 'host: hosts·user, hosts·admin', 'application: hosts·admin', 'service: hosts·admin', 'account: grants·admin']);
   // A hosted executable offers no second host; an application stores as user.
   const client = L.addChoices(doc, CATALOG, 'ssh-client').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
-  assert.deepEqual(client, ['network: delivers', 'service: flow', 'account: runs-as·user', 'credential: stores·user', 'person: operates']);
+  assert.deepEqual(client, ['network: delivers', 'service: flow', 'account: runs-as·user', 'credential: stores·user', 'person: operates', 'data: holds·user, reads']);
   assert.deepEqual(L.addChoices(doc, CATALOG, 'absent'), []);
 });
 
@@ -441,10 +442,10 @@ test('each way to link reads as a few words from the selected component', () => 
 test('software is offered a flow to or from a new service', () => {
   const doc = lecture();
   const kinds = (id) => L.addChoices(doc, CATALOG, id).map((c) => c.kind + ': ' + c.options.map((o) => o.relation + ':' + o.direction).join(', '));
-  assert.deepEqual(kinds('ssh-client'), ['network: delivers:in', 'service: flow:out', 'account: runs-as:out', 'credential: stores:out', 'person: operates:in']);
-  assert.deepEqual(kinds('sshd'), ['network: delivers:in', 'application: flow:in', 'service: flow:out, flow:in', 'account: authorizes:in, runs-as:out'], 'it runs its product already');
+  assert.deepEqual(kinds('ssh-client'), ['network: delivers:in', 'service: flow:out', 'account: runs-as:out', 'credential: stores:out', 'person: operates:in', 'data: holds:out, reads:out']);
+  assert.deepEqual(kinds('sshd'), ['network: delivers:in', 'application: flow:in', 'service: flow:out, flow:in', 'account: authorizes:in, runs-as:out', 'data: holds:out, reads:out'], 'it runs its product already');
   doc.entities.web = { kind: 'service', label: 'Web' };
-  assert.deepEqual(kinds('web'), ['network: delivers:in', 'router: hosts:in', 'host: hosts:in, hosts:in', 'application: flow:in', 'service: flow:out, flow:in', 'product: instance-of:out', 'account: authorizes:in, runs-as:out']);
+  assert.deepEqual(kinds('web'), ['network: delivers:in', 'router: hosts:in', 'host: hosts:in, hosts:in', 'application: flow:in', 'service: flow:out, flow:in', 'product: instance-of:out', 'account: authorizes:in, runs-as:out', 'data: holds:out, reads:out']);
   const version = L.linkChoices(doc, CATALOG, 'web').find((c) => c.kind === 'instance-of');
   assert.deepEqual(version.candidates, ['openssh']);
   assert.deepEqual(L.linkChoices(doc, CATALOG, 'sshd').find((c) => c.kind === 'instance-of').candidates, []);
@@ -481,7 +482,7 @@ test('an empty Link menu says what is missing', () => {
   assert.equal(L.emptyLink(doc, CATALOG, 'filter'), 'a firewall permits flows · set it in each flow that crosses its router');
   // A lone host in a new document: nothing to link to yet.
   const lone = { entities: { h: { kind: 'host', label: 'H' } }, associations: {}, flows: {} };
-  assert.equal(L.emptyLink(lone, CATALOG, 'h'), 'no network, router, host, application, service, account or credential yet · Tab adds one linked');
+  assert.equal(L.emptyLink(lone, CATALOG, 'h'), 'no network, router, host, application, service, account, credential or data yet · Tab adds one linked');
   assert.equal(L.emptyLink(doc, CATALOG, 'sshd'), null, 'there is something to link');
 });
 
@@ -567,4 +568,28 @@ test('software hosting has a contained setting that the Link menu does not multi
   assert.equal('contained' in open.doc.associations[id], false);
   const guest = L.putAssociation(doc, null, { kind: 'hosts', from: 'hv', to: 'vm', privilege: 'user', contained: true });
   assert.equal('contained' in guest.doc.associations[Object.keys(guest.doc.associations)[0]], false);
+});
+
+test('a holding offers privilege and decryption; access offers a mode', () => {
+  const doc = { entities: { h: { kind: 'host', label: 'H' }, s: { kind: 'service', label: 'S' }, a: { kind: 'account', label: 'A' }, d: { kind: 'data', label: 'D' } }, associations: {}, flows: {} };
+  assert.deepEqual(L.variants(doc, 'holds', 's', 'd'), [{ privilege: 'user', decrypts: true }, { privilege: 'user', decrypts: false }]);
+  assert.equal(L.variants(doc, 'holds', 'h', 'd').length, 4);
+  assert.deepEqual(L.variants(doc, 'accesses', 'a', 'd'), [{ mode: 'read' }, { mode: 'write' }]);
+  assert.equal(L.phrase('holds', 'out', 'user', { privilege: 'user', decrypts: false }), 'holds, ciphertext only');
+  assert.equal(L.phrase('accesses', 'out', null, { mode: 'write' }), 'may access, read and write');
+  const put = L.putAssociation(doc, 's-d', { kind: 'holds', from: 's', to: 'd', privilege: 'user', decrypts: false });
+  assert.deepEqual(put.doc.associations['s-d'], { kind: 'holds', from: 's', to: 'd', privilege: 'user', decrypts: false });
+  const access = L.putAssociation(doc, 'a-d', { kind: 'accesses', from: 'a', to: 'd', mode: 'write' });
+  assert.deepEqual(access.doc.associations['a-d'], { kind: 'accesses', from: 'a', to: 'd', mode: 'write' });
+});
+
+test('deleting data takes its holdings, access, key and readers along', () => {
+  const doc = { entities: { s: { kind: 'service', label: 'S' }, d: { kind: 'data', label: 'D' }, k: { kind: 'credential', label: 'K' }, b: { kind: 'application', label: 'B' }, a: { kind: 'account', label: 'A' } },
+    associations: {
+      's-d': { kind: 'holds', from: 's', to: 'd', privilege: 'user', decrypts: true },
+      'a-d': { kind: 'accesses', from: 'a', to: 'd', mode: 'read' },
+      'd-k': { kind: 'encrypted-with', from: 'd', to: 'k' },
+      'b-d': { kind: 'reads', from: 'b', to: 'd' },
+    }, flows: {} };
+  assert.deepEqual(L.remove(doc, 'entities', 'd').doc.associations, {});
 });

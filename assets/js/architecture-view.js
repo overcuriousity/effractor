@@ -15,9 +15,13 @@
     });
   }
 
-  // Software processes content only where content is said to reach it.
+  // Software processes content only where content is said to reach it: a
+  // network delivers to it, or it reads data.
   function reader(doc, id) {
-    return linkedTo(doc, "delivers", id);
+    return linkedTo(doc, "delivers", id) || Object.keys(doc.associations || {}).some(function (k) {
+      var a = doc.associations[k];
+      return a.kind === "reads" && a.from === id;
+    });
   }
 
   var TAKE_OVER = ["take-over", "take-over-guarded"];
@@ -97,6 +101,18 @@
     },
     delivers: function () {
       return "reaches";
+    },
+    holds: function (a) {
+      return "holds" + (a.privilege === "admin" ? " · admin" : "") + (a.decrypts === false ? " · ciphertext only" : "");
+    },
+    accesses: function (a) {
+      return a.mode === "write" ? "may read and write" : "may read";
+    },
+    "encrypted-with": function () {
+      return "encrypted with";
+    },
+    reads: function () {
+      return "reads";
     },
   };
 

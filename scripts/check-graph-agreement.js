@@ -14,6 +14,14 @@ const unknown = fs.readFileSync(
   path.join(root, 'crates/effractor-components/tests/fixtures/lecture-unknown.yaml'),
   'utf8',
 );
+const cloud = fs.readFileSync(
+  path.join(root, 'assets/examples/17-cloud-support-agent-architecture.yaml'),
+  'utf8',
+);
+const nextcloud = fs.readFileSync(
+  path.join(root, 'assets/examples/18-self-hosted-nextcloud-architecture.yaml'),
+  'utf8',
+);
 
 // Past JavaScript's exact integers, so the seed has to travel as text.
 const LARGE_SEED = '18446744073709551557';
@@ -32,6 +40,10 @@ const CASES = [
     scenario: 'both',
   },
   { name: 'large seed', text: lecture.replace('seed: 42', 'seed: ' + LARGE_SEED), scenario: 'both' },
+  { name: 'cloud baseline', text: cloud, scenario: '' },
+  { name: 'cloud encrypt', text: cloud, scenario: 'encrypt' },
+  { name: 'nextcloud baseline', text: nextcloud, scenario: '' },
+  { name: 'nextcloud patch-nextcloud', text: nextcloud, scenario: 'patch-nextcloud' },
 ];
 
 // The browser module's answers, in the order the native example prints them.

@@ -491,3 +491,80 @@ fn only_software_is_contained() {
         "{d:?}"
     );
 }
+
+#[test]
+fn data_is_a_target_with_an_encryption_switch() {
+    assert_eq!(EntityKind::Data.states(), &[State::Read, State::Modified]);
+    assert_eq!(EntityKind::Data.slots(), &[] as &[Slot]);
+    assert_eq!(EntityKind::Data.defense(), Some(Defense::Encrypted));
+}
+
+fn bucket_model(decrypts: Option<bool>, privilege: Privilege) -> Architecture {
+    let mut m = Architecture::new("D");
+    for (key, kind) in [
+        ("h", EntityKind::Host),
+        ("app", EntityKind::Application),
+        ("d", EntityKind::Data),
+    ] {
+        m.entities.insert(id(key), Entity::new(kind, key));
+    }
+    m.associations.insert(
+        "h-app".parse().unwrap(),
+        Association {
+            relation: Relation::Hosts {
+                from: id("h"),
+                to: id("app"),
+                privilege: Privilege::User,
+                contained: false,
+            },
+            description: None,
+        },
+    );
+    m.associations.insert(
+        "app-d".parse().unwrap(),
+        Association {
+            relation: Relation::Holds {
+                from: id("app"),
+                to: id("d"),
+                privilege,
+                decrypts,
+            },
+            description: None,
+        },
+    );
+    m
+}
+
+#[test]
+fn a_holding_must_say_whether_it_decrypts_and_software_holds_as_user() {
+    let d = validate_architecture(&bucket_model(None, Privilege::User));
+    assert!(
+        d.iter().any(|d| d.code == Code::Incomplete
+            && d.path == "associations.app-d"
+            && d.message.contains("decrypts")),
+        "{d:?}"
+    );
+    let d = validate_architecture(&bucket_model(Some(true), Privilege::Admin));
+    assert!(
+        d.iter()
+            .any(|d| d.code == Code::AssociationType && d.path == "associations.app-d.privilege"),
+        "{d:?}"
+    );
+    let d = validate_architecture(&bucket_model(Some(false), Privilege::User));
+    assert!(
+        d.iter().all(|d| !d.path.starts_with("associations.app-d")),
+        "{d:?}"
+    );
+}
+
+#[test]
+fn data_nothing_holds_is_complete() {
+    let mut m = Architecture::new("D");
+    m.entities
+        .insert(id("d"), Entity::new(EntityKind::Data, "D"));
+    assert!(
+        validate_architecture(&m)
+            .iter()
+            .all(|d| d.path != "entities.d")
+    );
+}

@@ -1,6 +1,6 @@
 # Sample models
 
-Twelve realistic, fictional trees, one date-night bonus and three
+Twelve realistic, fictional trees, one date-night bonus and five
 architectures. Download a YAML
 file and use **Open** (`Ctrl+O`) in Effractor; it is solved as it opens.
 The files are bundled with the server and static edition under
@@ -25,6 +25,8 @@ The files are bundled with the server and static edition under
 | [14 · Branch office](14-branch-office-architecture.yaml) | Architecture | Introductory | A gateway running on its appliance box; denying a flow leaves the route through the appliance |
 | [15 · Web shop](15-web-shop-architecture.yaml) | Architecture | Medium | Two routers, exploit or stolen password to the database, one assumed value without a reason |
 | [16 · Clinic records](16-clinic-records-architecture.yaml) | Architecture | Incomplete | An intentionally unknown exploit time: no number until the vendor patch closes that route |
+| [17 · Cloud support agent](17-cloud-support-agent-architecture.yaml) | Architecture | Detailed | A content-processing support agent reading a public queue, a phishable administrator with MFA, role assumption, a VM escape to a key and a shared product; no single defence closes every route |
+| [18 · Self-hosted Nextcloud](18-self-hosted-nextcloud-architecture.yaml) | Architecture | Detailed | An adversary AI agent through OPNsense/HAProxy to a Nextcloud VM behind nginx; patching the edge proxy closes every route, patching the app leaves the hypervisor-escape route, encryption at rest does not stop the running app |
 
 ## Reading the assumptions
 

@@ -44,7 +44,7 @@ const TEXT = [
   ["--color-fg-muted", "--color-bg-elevated"],
   ...STEPS.map((n) => [`--viz-imp-${n}-ink`, `--viz-imp-${n}`]),
 ];
-const FAMILIES = ["network", "compute", "identity"];
+const FAMILIES = ["network", "compute", "identity", "data"];
 const GRAPHIC = [
   ["--viz-outline", "--viz-canvas"],
   ...FAMILIES.map((f) => [`--viz-family-${f}`, "--viz-canvas"]),

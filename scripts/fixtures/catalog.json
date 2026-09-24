@@ -123,6 +123,17 @@
         "phish-trained"
       ],
       "defense": "trained"
+    },
+    {
+      "kind": "data",
+      "description": "Information worth protecting: a database, a bucket, a vault, a file share, model weights. `read` is confidentiality, `modified` integrity; either can be the target.",
+      "meaning": "Information an attacker wants to read or change.",
+      "states": [
+        "read",
+        "modified"
+      ],
+      "parameters": [],
+      "defense": "encrypted"
     }
   ],
   "associations": [
@@ -315,6 +326,58 @@
       ],
       "fields": [],
       "description": "Content from anyone in this network reaches the person or software: mail, a public web page, a ticket queue an agent reads."
+    },
+    {
+      "kind": "holds",
+      "from": [
+        "host",
+        "application",
+        "service"
+      ],
+      "to": [
+        "data"
+      ],
+      "fields": [
+        "privilege",
+        "decrypts"
+      ],
+      "description": "Where data lives: a host at `privilege: user | admin`, software as `user`; `decrypts: true | false` says whether this holder sees plaintext."
+    },
+    {
+      "kind": "accesses",
+      "from": [
+        "account"
+      ],
+      "to": [
+        "data"
+      ],
+      "fields": [
+        "mode"
+      ],
+      "description": "What a session of the account may do with the data: `mode: read | write`."
+    },
+    {
+      "kind": "encrypted-with",
+      "from": [
+        "data"
+      ],
+      "to": [
+        "credential"
+      ],
+      "fields": [],
+      "description": "The key the data is encrypted with."
+    },
+    {
+      "kind": "reads",
+      "from": [
+        "application",
+        "service"
+      ],
+      "to": [
+        "data"
+      ],
+      "fields": [],
+      "description": "Content software reads, e.g. a retrieval corpus; changing it reaches the software."
     }
   ],
   "states": [
@@ -352,6 +415,16 @@
       "id": "deceived",
       "word": "deceived",
       "description": "This person acts on what the attacker sent."
+    },
+    {
+      "id": "read",
+      "word": "read",
+      "description": "The attacker has read this data."
+    },
+    {
+      "id": "modified",
+      "word": "modified",
+      "description": "The attacker has changed, encrypted or deleted this data."
     }
   ],
   "defenses": [
@@ -379,6 +452,11 @@
       "id": "guarded",
       "word": "Guarded",
       "description": "The software is guarded against the content it processes: `take-over-guarded` stands in for `take-over`."
+    },
+    {
+      "id": "encrypted",
+      "word": "Encrypted",
+      "description": "Encrypted at rest: a holder that does not decrypt gives up plaintext only with the key."
     }
   ],
   "parameters": [
@@ -985,7 +1063,7 @@
       "bindings": [
         "software"
       ],
-      "prerequisites": "software.contacted, for software that a `delivers` names",
+      "prerequisites": "software.contacted, for software that a `delivers` or `reads` names",
       "output": "software.control",
       "duration": {
         "kind": "slot",
@@ -998,7 +1076,7 @@
       "scope": "one per application or service that content reaches",
       "assumptions": [
         "Software that processes content it does not trust can be made to act on it: prompt injection for an AI agent, a malicious file for a parser or a client.",
-        "Only software that content is said to reach processes it; other software has no such step.",
+        "Only software that content is said to reach (`delivers`, `reads`) processes it; other software has no such step.",
         "Guarding (input validation, sandboxing, guardrails, human approval of actions) selects the authored replacement distribution, not a guarantee."
       ]
     },
@@ -1058,6 +1136,110 @@
       "assumptions": [
         "An administration association is explicit permission to attempt management authentication, not a successful login.",
         "An isolated administration zone is not reached just because it administers something."
+      ]
+    },
+    {
+      "id": "holder-modify",
+      "title": "Whoever controls a holder can change its data",
+      "version": 1,
+      "bindings": [
+        "holds"
+      ],
+      "prerequisites": "the holder under control, or the holding host at the declared privilege",
+      "output": "data.modified",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per holds association",
+      "assumptions": [
+        "Ransomware and deletion count as modification; encryption at rest does not stop it."
+      ]
+    },
+    {
+      "id": "holder-read",
+      "title": "Whoever controls a holder can read its data",
+      "version": 1,
+      "bindings": [
+        "holds"
+      ],
+      "prerequisites": "the holder under control, or the holding host at the declared privilege; and data.plaintext where the holding says `decrypts: false`",
+      "output": "data.read",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per holds association",
+      "assumptions": [
+        "Encryption at rest does not stop software that serves the data; a holder that does not decrypt (a disk, client-side encryption) gives up ciphertext only."
+      ]
+    },
+    {
+      "id": "account-data",
+      "title": "A logged-in account uses its access",
+      "version": 1,
+      "bindings": [
+        "accesses",
+        "authorizes",
+        "holds"
+      ],
+      "prerequisites": "a session of the account on a service that holds the data; and data.plaintext where that holding says `decrypts: false`",
+      "output": "data.read; with `mode: write` also data.modified",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per access, service and holding",
+      "assumptions": [
+        "No data rule is timed: how long exfiltration takes is outside this library."
+      ]
+    },
+    {
+      "id": "data-policy",
+      "title": "The data is not encrypted",
+      "version": 1,
+      "bindings": [
+        "data"
+      ],
+      "prerequisites": "the data's `encrypted` switch is off",
+      "output": "data.plaintext",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per data",
+      "assumptions": [
+        "An unknown switch is an unknown branch, not a guess either way."
+      ]
+    },
+    {
+      "id": "data-key",
+      "title": "The key decrypts the data",
+      "version": 1,
+      "bindings": [
+        "encrypted-with"
+      ],
+      "prerequisites": "credential.possessed, for a key the data is encrypted with",
+      "output": "data.plaintext",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per encrypted-with association",
+      "assumptions": [
+        "Possession of the key still takes an extraction or a disclosure."
+      ]
+    },
+    {
+      "id": "data-poisoning",
+      "title": "Changed content reaches the software that reads it",
+      "version": 1,
+      "bindings": [
+        "reads"
+      ],
+      "prerequisites": "data.modified",
+      "output": "software.contacted",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per reads association",
+      "assumptions": [
+        "Changing what software reads — a retrieval corpus, a shared document — puts content in front of it; taking it over is still its own step."
       ]
     }
   ],

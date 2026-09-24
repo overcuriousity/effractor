@@ -20,6 +20,7 @@
 .node-component.family-network .plate { fill: var(--viz-family-network); }
 .node-component.family-compute .plate { fill: var(--viz-family-compute); }
 .node-component.family-identity .plate { fill: var(--viz-family-identity); }
+.node-component.family-data .plate { fill: var(--viz-family-data); }
 .node-component.family-none .plate { fill: var(--viz-outline); }
 .node-component .glyph { fill: none; stroke: var(--viz-family-ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .node-component .halo { fill: var(--viz-canvas); stroke: transparent; stroke-width: 2; }
@@ -42,6 +43,7 @@
 .kind-icon.is-plate.family-network { background: var(--viz-family-network); }
 .kind-icon.is-plate.family-compute { background: var(--viz-family-compute); }
 .kind-icon.is-plate.family-identity { background: var(--viz-family-identity); }
+.kind-icon.is-plate.family-data { background: var(--viz-family-data); }
 .help-legend { margin-top: 12px; }
 .help-legend dt { display: flex; align-items: center; }
 .help-legend .legend-meaning { display: block; max-width: 46ch; margin: 0 0 4px; }
@@ -61,6 +63,7 @@
 .swatch-network { background: var(--viz-family-network); border-color: transparent; }
 .swatch-compute { background: var(--viz-family-compute); border-color: transparent; }
 .swatch-identity { background: var(--viz-family-identity); border-color: transparent; }
+.swatch-data { background: var(--viz-family-data); border-color: transparent; }
 .line-sample { display: inline-block; width: 18px; height: 0; margin-right: 5px; border-top: 1.5px solid var(--viz-edge); vertical-align: middle; }
 .line-flow { border-top-style: dashed; }
 .line-permit { border-top: 2px dotted var(--viz-family-network); }
