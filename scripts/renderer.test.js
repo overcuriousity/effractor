@@ -251,7 +251,7 @@ test("an architecture's component is its kind's icon on a plate, its name, its c
 });
 
 // An architecture is laid out free: components where the author dragged them,
-// edges as curves between their boxes (positions.js).
+// edges as straight lines between their boxes (positions.js).
 const Pos = require("../assets/js/positions.js");
 function freeLayout() {
   const box = (id, x, y) => ({ id, x, y, width: 148, height: 62, node: { id, label: id, lines: [id], symbol: "component", component: "host", attributes: "host", parents: 0 } });
@@ -270,7 +270,7 @@ test("in a free layout a dragged node moves, its lines follow, and the move is r
   r.on("select", (e) => selects.push(e.id));
   const line = dom.byClass(host, "edge")[0];
   const before = line.getAttribute("d");
-  assert.match(before, /^M[-\d. ]+Q[-\d. ]+$/);
+  assert.equal(before, "M148 31L300 31", "a straight line from box to box");
   assert.equal(line.getAttribute("marker-end"), "url(#edge-arrow)");
   assert.deepEqual(dom.text(host).filter((t) => t === "attached"), ["attached"]);
 

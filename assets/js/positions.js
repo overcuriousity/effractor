@@ -1,13 +1,12 @@
 // Where an architecture's components are, once the author has moved them:
 // the automatic layout places everything, a component that was dragged stays
 // where it was put. Positions are this browser's, per document — never in
-// the file. Edges are drawn as in an investigation graph: a gentle curve from
-// box border to box border, the label halfway, links between the same two
-// components bent apart. Pure but for the storage handed in.
+// the file. Edges are drawn as in an investigation graph: a straight line
+// from box border to box border, the label halfway, links between the same
+// two components side by side. Pure but for the storage handed in.
 (function () {
   var PREFIX = "effractor.positions:";
-  var SPREAD = 36; // px between links that share their two ends
-  var SINGLE = 14; // a lone link still bends a little
+  var SPREAD = 20; // px between links that share their two ends
 
   function has(o, k) {
     return !!o && Object.prototype.hasOwnProperty.call(o, k);
@@ -34,6 +33,25 @@
     return { x: c.x + dx * t, y: c.y + dy * t };
   }
 
+  // Where the ray from `p`, inside the box, along the unit direction `d`
+  // leaves it; `p` itself when it is not inside.
+  function exit(n, p, d) {
+    if (n.hub) {
+      var c = center(n);
+      var ox = p.x - c.x;
+      var oy = p.y - c.y;
+      var b = ox * d.x + oy * d.y;
+      var q = b * b - (ox * ox + oy * oy - n.hub.r * n.hub.r);
+      if (q < 0) return p;
+      var s = Math.max(0, -b + Math.sqrt(q));
+      return { x: p.x + d.x * s, y: p.y + d.y * s };
+    }
+    var tx = d.x > 0 ? (n.x + n.width - p.x) / d.x : d.x < 0 ? (n.x - p.x) / d.x : Infinity;
+    var ty = d.y > 0 ? (n.y + n.height - p.y) / d.y : d.y < 0 ? (n.y - p.y) / d.y : Infinity;
+    var t = Math.max(0, Math.min(tx, ty));
+    return { x: p.x + d.x * t, y: p.y + d.y * t };
+  }
+
   function byId(nodes) {
     var out = Object.create(null);
     nodes.forEach(function (n) {
@@ -42,9 +60,10 @@
     return out;
   }
 
-  // The curve of `edge` between its two boxes as they now stand. `edge.bend`
-  // is its offset from the straight line, measured in the frame of the two
-  // ids in sorted order, so a→b and b→a bend to different sides.
+  // The line of `edge` between its two boxes as they now stand. `edge.bend`
+  // is its sideways offset from the line between the centres, measured in
+  // the frame of the two ids in sorted order, so a→b and b→a lie on
+  // different sides.
   function route(nodes, edge) {
     var at = Array.isArray(nodes) ? byId(nodes) : nodes;
     var a = at[edge.from];
@@ -58,29 +77,30 @@
     var dy = second.y - first.y;
     var len = Math.sqrt(dx * dx + dy * dy) || 1;
     var bend = edge.bend || 0;
-    var control = { x: (ca.x + cb.x) / 2 - (dy / len) * bend * 2, y: (ca.y + cb.y) / 2 + (dx / len) * bend * 2 };
-    var start = border(a, control);
-    var end = border(b, control);
-    var mid = {
-      x: 0.25 * start.x + 0.5 * control.x + 0.25 * end.x,
-      y: 0.25 * start.y + 0.5 * control.y + 0.25 * end.y,
-    };
-    return Object.assign({}, edge, { start: start, control: control, end: end, mid: mid });
+    var start, end;
+    if (bend) {
+      var off = { x: (-dy / len) * bend, y: (dx / len) * bend };
+      var ab = Math.hypot(cb.x - ca.x, cb.y - ca.y) || 1;
+      var d = { x: (cb.x - ca.x) / ab, y: (cb.y - ca.y) / ab };
+      start = exit(a, { x: ca.x + off.x, y: ca.y + off.y }, d);
+      end = exit(b, { x: cb.x + off.x, y: cb.y + off.y }, { x: -d.x, y: -d.y });
+    } else {
+      start = border(a, cb);
+      end = border(b, ca);
+    }
+    var mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+    return Object.assign({}, edge, { start: start, end: end, mid: mid });
   }
 
   var WORD = { true: "allows", false: "blocks", null: "?" };
 
-  // The point a fraction `t` along a routed curve.
+  // The point a fraction `t` along a routed line.
   function along(r, t) {
-    var u = 1 - t;
-    return {
-      x: u * u * r.start.x + 2 * u * t * r.control.x + t * t * r.end.x,
-      y: u * u * r.start.y + 2 * u * t * r.control.y + t * t * r.end.y,
-    };
+    return { x: r.start.x + (r.end.x - r.start.x) * t, y: r.start.y + (r.end.y - r.start.y) * t };
   }
 
   // A firewall's permission: a straight line from the firewall's ring to the
-  // flow it rules on, `flow` as that flow's curve now stands. It lands a
+  // flow it rules on, `flow` as that flow's line now stands. It lands a
   // third of the way in from whichever end is nearer the firewall, clear of
   // the flow's own label in the middle.
   function attach(nodes, flow, permit) {
@@ -105,7 +125,7 @@
   }
 
   // The layout with the stored positions laid over it, its size and origin
-  // measured from what is on it, every edge routed as a curve, and — unless
+  // measured from what is on it, every edge routed as a line, and — unless
   // `options.permits` is false — every firewall's permissions drawn to the
   // flows they rule on.
   function place(laid, stored, options) {
@@ -123,7 +143,7 @@
     edges = edges
       .map(function (e) {
         var group = groups[e.key];
-        var bend = group.length === 1 ? SINGLE : (group.indexOf(e.id) - (group.length - 1) / 2) * SPREAD;
+        var bend = (group.indexOf(e.id) - (group.length - 1) / 2) * SPREAD;
         return route(at, { id: e.id, from: e.from, to: e.to, label: e.label, title: e.title, bend: bend });
       })
       .filter(Boolean);

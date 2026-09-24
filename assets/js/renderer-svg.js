@@ -4,7 +4,7 @@
 //   · reveal(id, inset) — pan a node out from under an overlay at the right edge
 //
 // A layout is ELK's, with routed edges, or `free` (positions.js): nodes where
-// the author put them and edges as curves between them. In a free layout a
+// the author put them and edges as straight lines between them. In a free layout a
 // dragged node moves and is reported with `move`; in the other a node
 // dragged onto another is a `drop`.
 //
@@ -291,14 +291,15 @@
       return g;
     }
 
-    // A free layout's edge: a curve from box to box, a wide unseen copy to
-    // take the pointer, its label halfway.
-    function curve(r) {
-      return "M" + r.start.x + " " + r.start.y + "Q" + r.control.x + " " + r.control.y + " " + r.end.x + " " + r.end.y;
+    function straight(r) {
+      return "M" + r.start.x + " " + r.start.y + "L" + r.end.x + " " + r.end.y;
     }
-    function drawCurve(r) {
-      var line = el("path", { d: curve(r), "data-id": r.id, "data-from": r.from, "data-to": r.to, "marker-end": "url(#edge-arrow)" }, ["edge"], edgeLayer);
-      var hit = el("path", { d: curve(r), "data-id": r.id, "data-from": r.from, "data-to": r.to }, ["edge-hit"], edgeLayer);
+
+    // A free layout's edge: a straight line from box to box, a wide unseen
+    // copy to take the pointer, its label halfway.
+    function drawLink(r) {
+      var line = el("path", { d: straight(r), "data-id": r.id, "data-from": r.from, "data-to": r.to, "marker-end": "url(#edge-arrow)" }, ["edge"], edgeLayer);
+      var hit = el("path", { d: straight(r), "data-id": r.id, "data-from": r.from, "data-to": r.to }, ["edge-hit"], edgeLayer);
       // The file's own term, where the line says it in other words.
       if (r.title) el("title", {}, [], hit).textContent = r.title;
       var label = null;
@@ -308,9 +309,9 @@
       }
       return { line: line, hit: hit, label: label };
     }
-    function redrawCurve(item, r) {
-      item.line.setAttribute("d", curve(r));
-      item.hit.setAttribute("d", curve(r));
+    function redrawLink(item, r) {
+      item.line.setAttribute("d", straight(r));
+      item.hit.setAttribute("d", straight(r));
       if (item.label) {
         item.label.setAttribute("x", r.mid.x);
         item.label.setAttribute("y", r.mid.y - 4);
@@ -319,9 +320,6 @@
 
     // A firewall's permission: a dotted line from the firewall to the middle
     // of the flow it rules on, with a word — allows, blocks, ?.
-    function straight(a) {
-      return "M" + a.start.x + " " + a.start.y + "L" + a.end.x + " " + a.end.y;
-    }
     function drawAttachment(a) {
       var line = el("path", { d: straight(a), "data-id": a.id, "data-from": a.firewall, "data-to": a.flow }, ["edge", "permit", "permit-" + a.label.replace("?", "unknown")], edgeLayer);
       var hit = el("path", { d: straight(a), "data-id": a.id, "data-from": a.firewall, "data-to": a.flow }, ["edge-hit"], edgeLayer);
@@ -353,7 +351,7 @@
           var r = routes.route(free.at, e.route);
           if (r) {
             e.now = r;
-            redrawCurve(e.parts, r);
+            redrawLink(e.parts, r);
           }
         }
         flows[e.id] = e;
@@ -417,7 +415,7 @@
           free.at[n.id] = { id: n.id, x: n.x, y: n.y, width: n.width, height: n.height, hub: n.hub };
         });
         layout.edges.forEach(function (e) {
-          var parts = drawCurve(e);
+          var parts = drawLink(e);
           drawn.edges.push({ el: parts.line, parts: parts, route: e, now: e, id: e.id, from: e.from, to: e.to });
         });
         (layout.attachments || []).forEach(function (a) {

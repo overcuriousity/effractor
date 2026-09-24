@@ -552,8 +552,9 @@ preview. What exists:
   selected one in one undoable edit, flows included.
 - **Dragging** (owner's choice: positions in *this browser only*, per
   document name, `positions.js` over localStorage; never in the file). An
-  architecture is drawn "free": stored positions over ELK's, curved edges box
-  to box with arrow and label, parallel links fanned; "Arrange automatically"
+  architecture is drawn "free": stored positions over ELK's, straight edges
+  box to box with arrow and label (owner 2026-09-24: curves were unnecessary,
+  Reactor draws straight), parallel links side by side; "Arrange automatically"
   on the background menu forgets the moves. Trees keep ELK routes and
   drag-onto-to-move. The renderer interface gained `move` and `reveal`.
 - An architecture's automatic layout is ELK **stress** (`graph.toStress`), not

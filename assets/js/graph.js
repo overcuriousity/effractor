@@ -396,7 +396,7 @@
 
   // An architecture's layout: its components clear of each other, every one
   // with the ring round its plate (`hub`, relative to its box) as the place
-  // its lines end; its lines are curves drawn
+  // its lines end; its straight lines are drawn
   // later (positions.js), so ELK's routes and the pulls are dropped, and the
   // firewalls' permissions ride along to be drawn as lines of their own.
   function fromStress(graph, result, described) {

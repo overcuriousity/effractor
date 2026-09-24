@@ -32,26 +32,46 @@ test('the drawing is as large as what is on it, wherever that is', () => {
   assert.equal(out.height, 262 + 50);
 });
 
-test('an edge is a curve from border to border, its label halfway', () => {
+test('an edge is a straight line from border to border, its label halfway', () => {
   const out = Pos.place(laid(), {});
   const ac = out.edges.find((e) => e.id === 'association/ac');
-  // a is above c: the line leaves a's bottom edge and meets c's top edge.
-  assert.ok(Math.abs(ac.start.y - 62) < 1e-9, JSON.stringify(ac.start));
-  assert.ok(Math.abs(ac.end.y - 200) < 1e-9, JSON.stringify(ac.end));
-  assert.ok(ac.mid.y > 62 && ac.mid.y < 200);
+  // a is above c: the line leaves a's bottom edge and meets c's top edge,
+  // straight down between their centres.
+  assert.deepEqual(ac.start, { x: 74, y: 62 });
+  assert.deepEqual(ac.end, { x: 74, y: 200 });
+  assert.deepEqual(ac.mid, { x: 74, y: 131 });
   assert.equal(ac.from, 'entity/a');
   assert.equal(ac.to, 'entity/c');
   assert.equal(out.edges.find((e) => e.id === 'association/ab').label, 'hosts · admin');
 });
 
-test('links between the same two components bend apart, whichever way they point', () => {
+test('links between the same two components run side by side, whichever way they point', () => {
   const out = Pos.place(laid(), {});
   const ab = out.edges.find((e) => e.id === 'association/ab');
   const ba = out.edges.find((e) => e.id === 'flow/ba');
-  // Both run horizontally between a and b; their middles are on either side.
-  const side = (e) => Math.sign(e.mid.y - 31);
-  assert.notEqual(side(ab), 0);
-  assert.equal(side(ab), -side(ba));
+  // Both run straight across between a and b, one above the other.
+  for (const e of [ab, ba]) {
+    assert.equal(e.start.y, e.end.y, JSON.stringify(e));
+    assert.equal(e.mid.y, e.start.y);
+  }
+  assert.equal(Math.abs(ab.mid.y - ba.mid.y), 20);
+  assert.equal(ab.mid.y + ba.mid.y, 62);
+});
+
+test('side by side links end on the ring of a component plate', () => {
+  const ring = (id, x) => ({ id, x, y: 0, width: 148, height: 62, hub: { x: 74, y: 24, r: 28 } });
+  const out = Pos.place({
+    nodes: [ring('entity/a', 0), ring('entity/b', 300)],
+    edges: [
+      { id: 'flow/1', from: 'entity/a', to: 'entity/b' },
+      { id: 'flow/2', from: 'entity/a', to: 'entity/b' },
+    ],
+  }, {});
+  for (const e of out.edges) {
+    assert.ok(Math.abs(Math.hypot(e.start.x - 74, e.start.y - 24) - 28) < 1e-9, JSON.stringify(e.start));
+    assert.ok(Math.abs(Math.hypot(e.end.x - 374, e.end.y - 24) - 28) < 1e-9, JSON.stringify(e.end));
+    assert.ok(Math.abs(e.start.y - e.end.y) < 1e-9);
+  }
 });
 
 test('an edge can be recomputed for one moved node', () => {
