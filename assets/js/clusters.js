@@ -236,6 +236,8 @@
     gone[entity] = true;
     var name = label(doc, cid);
     var dissolved = forget(next, gone);
+    // What is left opens (owner, 2026-09-25): its outline beside what left it.
+    if (!dissolved.length) next.clusters[cid].closed = false;
     return { doc: next, select: "entity/" + entity, notice: dissolved.length ? "dissolved “" + name + "” · Ctrl+Z undoes" : "took “" + nameOf(doc, entity) + "” out of “" + name + "”" };
   }
 

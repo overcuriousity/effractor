@@ -201,7 +201,9 @@ Every refusal says why (`app.say`): *Select two or more to cluster*,
 A selected cluster shows its label (editable), open/closed, and its members,
 each with its icon, selecting itself on click, its component menu on a
 right-click (the inspector stays until an action needs the component), and
-a × that takes it out.
+a × that takes it out. Taking a member out of a closed cluster, any way,
+opens what is left (owner, 2026-09-25), so its outline shows beside the
+member that left.
 Selecting a member of a closed cluster opens that member's form and lights
 the cluster node; the cluster stays closed, so looking never edits the file.
 
