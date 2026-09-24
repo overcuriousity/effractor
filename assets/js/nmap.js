@@ -327,6 +327,14 @@
     return links(doc, "hosts").some(function (a) { return a.from === host && doc.entities[a.to] && doc.entities[a.to].kind === "router"; });
   }
 
+  // What nmap says it scanned: the words after "-oX -" in its own args, or
+  // "" when it does not say (a command of the user's own, trimmed XML).
+  function targetsOf(scan) {
+    var args = String((scan && scan.args) || "");
+    var at = args.indexOf(" -oX - ");
+    return at >= 0 ? args.slice(at + 7).trim() : "";
+  }
+
   // The drawn host nmap runs on, named by the scan: "altiera.fritz.box" or
   // "altiera" for a host labelled "altiera".
   function sameName(hostname, label) {
@@ -348,7 +356,9 @@
     var networks = ids(doc, "network");
     var appHost = hostingOf(doc, appId);
     var appNets = appHost ? attachedNetworks(doc, appHost) : [];
-    var cidr = onlyCidr(range);
+    // The network the scan covered, as nmap says it ran; the range field only
+    // when the scan does not name one (an old scan pasted needs no range).
+    var cidr = onlyCidr(targetsOf(scan)) || onlyCidr(range);
     var proposed = cidr && !networks.some(function (n) {
       return (doc.entities[n].addresses || []).some(function (c) { return networkOf(c) === cidr; });
     }) ? { label: cidr, addresses: [cidr] } : null;
@@ -538,8 +548,7 @@
   function stampFor(scan, range, date) {
     var args = String((scan && scan.args) || "").replace(/ -6 /, " ");
     var l = LEVELS.filter(function (x) { return args.indexOf("nmap " + x.args + " -oX - ") >= 0; })[0];
-    var at = args.indexOf(" -oX - ");
-    var targets = at >= 0 ? args.slice(at + 7).trim() : "";
+    var targets = targetsOf(scan);
     return { date: date, level: l ? l.name : null, range: targets || String(range == null ? "" : range).trim().replace(/\s+/g, " ") };
   }
 

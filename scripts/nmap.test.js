@@ -186,8 +186,10 @@ test('a range no network holds is proposed as a new network; a nmap on no host g
   assert.deepEqual(p.network, { label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
   assert.deepEqual(p.hosts[1].networks, ['new']);
   assert.deepEqual(p.hosts[1].route, [], 'nmap is not attached to the new network');
-  assert.equal(N.plan(d, 'nmap', deep(), '10.0.1.0/24 10.0.2.0/24', {}).network, null, 'only one CIDR');
-  assert.equal(N.plan(d, 'nmap', deep(), 'srv-01.lab', {}).network, null);
+  // Without nmap's own args, the field decides: only one CIDR proposes.
+  const bare = Object.assign({}, deep(), { args: '' });
+  assert.equal(N.plan(d, 'nmap', bare, '10.0.1.0/24 10.0.2.0/24', {}).network, null, 'only one CIDR');
+  assert.equal(N.plan(d, 'nmap', bare, 'srv-01.lab', {}).network, null);
   const loose = lab();
   delete loose.associations.a3;
   const q = N.plan(loose, 'nmap', deep(), '10.0.1.0/24', {});
@@ -538,4 +540,18 @@ test('the router import is the document the Rust and wasm checks validate', () =
   const text = JSON.stringify(out, null, 2) + '\n';
   if (process.env.NMAP_FIXTURE === 'write') fs.writeFileSync(file, text);
   assert.equal(fs.readFileSync(file, 'utf8'), text);
+});
+
+test('an old scan pasted without a range still names its network, from what nmap ran', () => {
+  const d = lab();
+  delete d.entities.lan.addresses;
+  // deep-lab.xml was run on 10.0.1.0/24; the range field is empty.
+  const p = N.plan(d, 'nmap', deep(), '', {});
+  assert.deepEqual(p.network, { label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
+  // What the scan says it covered wins over a field showing something else.
+  assert.deepEqual(N.plan(d, 'nmap', deep(), '10.9.0.0/16', {}).network, { label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
+  // A scan of single addresses or names says no network: the field is used.
+  const named = Object.assign({}, deep(), { args: 'nmap -sT -sV -oX - srv-01.lab 10.0.1.7' });
+  assert.deepEqual(N.plan(d, 'nmap', named, '10.0.1.0/24', {}).network, { label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
+  assert.equal(N.plan(d, 'nmap', named, '', {}).network, null);
 });

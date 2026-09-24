@@ -196,10 +196,14 @@ name is the only sign.
 Every scanned host, new, known or merged, is attached to every network whose
 `addresses` contain one of its addresses and that it is not attached to yet:
 an address in a network's range is an interface in it (owner, 2026-09-24).
-When no network holds it and the dialog's range is one CIDR, the preview
+When no network holds it and the scan covered one CIDR, the preview
 proposes one new network, written from its own address (`192.168.2.138/24`
 proposes `192.168.2.0/24`), and hosts in it are attached to it. Otherwise
-they stay where they are. The summary counts these attachments. A flow's
+they stay where they are. The scan's CIDR is the target nmap names in its
+own `args` (so an old scan pasted without a range still names its network,
+and it wins over a range field showing something else); only when the args
+name no single CIDR does the dialog's range decide (owner, 2026-09-24). The
+summary counts these attachments. A flow's
 route is the first network nmap's host and the target share after the
 import; when nmap's host is left unticked, its flows have no route.
 
