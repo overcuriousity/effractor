@@ -176,19 +176,55 @@
   // host on top, centred; its software in rows of BLOCK.columns under it, in
   // the file's order; under each, the products only this host's software
   // uses. A product used on two hosts, a router or guest on the box, and
-  // everything else keep places of their own. Returns {blocks: {host:
-  // {members, at: {id: {x, y}}, width, height}}, of: {member: host}}.
+  // everything else keep places of their own. An open cluster
+  // (`graph.groups`) is a block of its own, its first member on top, and
+  // what is in one is in no host's block. Returns {blocks: {top:
+  // {members, at: {id: {x, y}}, width, height}}, of: {member: top}}.
   var BLOCK = { columns: 5, gap: 12 };
   var SOFTWARE = { application: true, service: true };
+
+  // One block: `top` centred on top, `row` in rows of BLOCK.columns under
+  // it, each of `under[id]` in a column under its user.
+  function arrange(top, row, under) {
+    var cell = SIZE.width + BLOCK.gap, step = SIZE.component + BLOCK.gap;
+    var columns = Math.max(1, Math.min(BLOCK.columns, row.length));
+    var width = columns * cell - BLOCK.gap;
+    var at = dict(), members = [top], y = step;
+    at[top] = { x: (width - SIZE.width) / 2, y: 0 };
+    for (var start = 0; start < row.length; start += BLOCK.columns) {
+      var tier = row.slice(start, start + BLOCK.columns), deepest = 0;
+      tier.forEach(function (id, i) {
+        at[id] = { x: i * cell, y: y };
+        members.push(id);
+        (under[id] || []).forEach(function (product, k) {
+          at[product] = { x: i * cell, y: y + (k + 1) * step };
+          members.push(product);
+        });
+        deepest = Math.max(deepest, (under[id] || []).length);
+      });
+      y += (deepest + 1) * step;
+    }
+    return { members: members, at: at, width: width, height: y - BLOCK.gap };
+  }
+
   function blocks(graph) {
     var node = dict(), order = dict();
     graph.nodes.forEach(function (n, i) {
       node[n.id] = n;
       order[n.id] = i;
     });
+    var groups = (graph.groups || []).map(function (g) {
+      return g.members.filter(function (m) { return node[m]; });
+    }).filter(function (members) {
+      return members.length > 1;
+    });
+    var taken = dict();
+    groups.forEach(function (members) {
+      members.forEach(function (m) { taken[m] = true; });
+    });
     var runs = dict(), hostOf = dict(), usedBy = dict();
     graph.edges.forEach(function (e) {
-      if (!node[e.from] || !node[e.to]) return;
+      if (!node[e.from] || !node[e.to] || taken[e.from] || taken[e.to]) return;
       if (e.kind === "hosts" && node[e.from].component === "host" && SOFTWARE[node[e.to].component] && !hostOf[e.to]) {
         hostOf[e.to] = e.from;
         (runs[e.from] = runs[e.from] || []).push(e.to);
@@ -204,29 +240,36 @@
       var first = users.slice().sort(function (a, b) { return order[a] - order[b]; })[0];
       (under[first] = under[first] || []).push(product);
     });
-    var cell = SIZE.width + BLOCK.gap, row = SIZE.component + BLOCK.gap;
     var out = { blocks: dict(), of: dict() };
     Object.keys(runs).sort(function (a, b) { return order[a] - order[b]; }).forEach(function (host) {
       var software = runs[host].slice().sort(function (a, b) { return order[a] - order[b]; });
-      var columns = Math.min(BLOCK.columns, software.length);
-      var width = columns * cell - BLOCK.gap;
-      var at = dict(), members = [host], y = row;
-      at[host] = { x: (width - SIZE.width) / 2, y: 0 };
-      for (var start = 0; start < software.length; start += BLOCK.columns) {
-        var tier = software.slice(start, start + BLOCK.columns), deepest = 0;
-        tier.forEach(function (sw, i) {
-          at[sw] = { x: i * cell, y: y };
-          members.push(sw);
-          (under[sw] || []).forEach(function (product, k) {
-            at[product] = { x: i * cell, y: y + (k + 1) * row };
-            members.push(product);
-          });
-          deepest = Math.max(deepest, (under[sw] || []).length);
-        });
-        y += (deepest + 1) * row;
-      }
-      members.forEach(function (m) { out.of[m] = host; });
-      out.blocks[host] = { members: members, at: at, width: width, height: y - BLOCK.gap };
+      var block = arrange(host, software, under);
+      block.members.forEach(function (m) { out.of[m] = host; });
+      out.blocks[host] = block;
+    });
+    groups.forEach(function (members) {
+      var inside = dict();
+      members.forEach(function (m) { inside[m] = true; });
+      var top = members[0];
+      // A product under its first user in the group, when every user is in it.
+      var users = dict(), outsider = dict();
+      graph.edges.forEach(function (e) {
+        if (e.kind !== "instance-of" || !inside[e.to]) return;
+        if (inside[e.from]) (users[e.to] = users[e.to] || []).push(e.from);
+        else outsider[e.to] = true;
+      });
+      var under2 = dict(), placed = dict();
+      members.forEach(function (p) {
+        if (p === top || !users[p] || outsider[p]) return;
+        var first = members.filter(function (m) { return m !== top && m !== p && users[p].indexOf(m) >= 0; })[0];
+        if (!first) return;
+        (under2[first] = under2[first] || []).push(p);
+        placed[p] = true;
+      });
+      var row = members.filter(function (m) { return m !== top && !placed[m]; });
+      var block = arrange(top, row, under2);
+      block.members.forEach(function (m) { out.of[m] = top; });
+      out.blocks[top] = block;
     });
     return out;
   }
@@ -438,6 +481,7 @@
         return out;
       }),
       permits: (graph.permits || []).slice(),
+      groups: (graph.groups || []).slice(),
     };
   }
 

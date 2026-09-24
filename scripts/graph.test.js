@@ -361,3 +361,26 @@ test("arranged: every block keeps its shape, nothing overlaps, and flows move no
   assert.deepEqual(bare.nodes.map((n) => [n.id, n.x, n.y]), laid.nodes.map((n) => [n.id, n.x, n.y]), "flows are drawn, never pulled");
   assert.deepEqual(laid.edges.map((e) => e.id).sort(), Object.keys(lan().associations).map((k) => "association/" + k).concat(["flow/f1", "flow/f2"]).sort(), "every line is still drawn");
 });
+
+test("an open cluster is laid out as a block, its first member on top", () => {
+  const G = require("../assets/js/graph.js");
+  const node = (id, component) => ({ id: "entity/" + id, component, symbol: "component", lines: [id] });
+  const graph = {
+    nodes: [node("box", "host"), node("r", "router"), node("a", "service"), node("p", "product"), node("x", "host")],
+    edges: [
+      { id: "h1", from: "entity/box", to: "entity/r", kind: "hosts" },
+      { id: "h2", from: "entity/box", to: "entity/a", kind: "hosts" },
+      { id: "i1", from: "entity/a", to: "entity/p", kind: "instance-of" },
+    ],
+    groups: [{ id: "cluster/c", label: "c", members: ["entity/box", "entity/r", "entity/a", "entity/p"] }],
+  };
+  const b = G.blocks(graph);
+  assert.deepStrictEqual(Object.keys(b.blocks), ["entity/box"]);
+  const block = b.blocks["entity/box"];
+  assert.deepStrictEqual(block.members, ["entity/box", "entity/r", "entity/a", "entity/p"]);
+  assert.strictEqual(block.at["entity/box"].y, 0);
+  assert.strictEqual(block.at["entity/r"].y, block.at["entity/a"].y, "router in the software row");
+  assert.strictEqual(block.at["entity/p"].x, block.at["entity/a"].x, "product under its user");
+  assert.ok(block.at["entity/p"].y > block.at["entity/a"].y);
+  assert.strictEqual(b.of["entity/x"], undefined);
+});

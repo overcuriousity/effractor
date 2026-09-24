@@ -103,9 +103,17 @@
   // flow it rules on, `flow` as that flow's line now stands. It lands a
   // third of the way in from whichever end is nearer the firewall, clear of
   // the flow's own label in the middle.
+  // One that ends on a component or a cluster (`permit.node`) meets its ring.
   function attach(nodes, flow, permit) {
     var at = Array.isArray(nodes) ? byId(nodes) : nodes;
     var fw = at[permit.firewall];
+    if (permit.node) {
+      var to = at[permit.node];
+      if (!fw || !to) return null;
+      var from = border(fw, center(to));
+      var into = border(to, center(fw));
+      return { id: permit.id, firewall: permit.firewall, flow: null, node: permit.node, allowed: permit.allowed, label: permit.label || WORD[permit.allowed], start: from, end: into, mid: { x: (from.x + into.x) / 2, y: (from.y + into.y) / 2 } };
+    }
     if (!fw || !flow) return null;
     var c = center(fw);
     var near = along(flow, 0.35);
@@ -117,11 +125,30 @@
       firewall: permit.firewall,
       flow: permit.flow,
       allowed: permit.allowed,
-      label: WORD[permit.allowed],
+      label: permit.label || WORD[permit.allowed],
       start: start,
       end: end,
       mid: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
     };
+  }
+
+  var PAD = 10; // px round an open cluster's members
+
+  // An open cluster's outline round its members as they now stand, or null
+  // when none of them is drawn.
+  function outline(at, group) {
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, any = false;
+    group.members.forEach(function (id) {
+      var n = at[id];
+      if (!n) return;
+      any = true;
+      x0 = Math.min(x0, n.x);
+      y0 = Math.min(y0, n.y);
+      x1 = Math.max(x1, n.x + n.width);
+      y1 = Math.max(y1, n.y + n.height);
+    });
+    if (!any) return null;
+    return { id: group.id, label: group.label, members: group.members, x: x0 - PAD, y: y0 - PAD, width: x1 - x0 + 2 * PAD, height: y1 - y0 + 2 * PAD };
   }
 
   // The layout with the stored positions laid over it, its size and origin
@@ -157,15 +184,18 @@
         return attach(at, routed[p.flow], p);
       })
       .filter(Boolean);
+    var outlines = (laid.groups || []).map(function (g) {
+      return outline(at, g);
+    }).filter(Boolean);
     var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    nodes.forEach(function (n) {
+    nodes.concat(outlines).forEach(function (n) {
       x0 = Math.min(x0, n.x);
       y0 = Math.min(y0, n.y);
       x1 = Math.max(x1, n.x + n.width);
       y1 = Math.max(y1, n.y + n.height);
     });
     if (!nodes.length) x0 = y0 = x1 = y1 = 0;
-    return { free: true, x0: x0, y0: y0, width: x1 - x0, height: y1 - y0, nodes: nodes, edges: edges, attachments: attachments };
+    return { free: true, x0: x0, y0: y0, width: x1 - x0, height: y1 - y0, nodes: nodes, edges: edges, attachments: attachments, outlines: outlines };
   }
 
   // `storage`: localStorage or anything with its three methods, or null.
@@ -200,7 +230,7 @@
     return { load: load, move: move, clear: clear };
   }
 
-  var api = { place: place, route: route, attach: attach, along: along, createStore: createStore };
+  var api = { place: place, route: route, attach: attach, along: along, outline: outline, createStore: createStore };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorPositions = api;
 })();

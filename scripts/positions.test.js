@@ -138,3 +138,22 @@ test('a firewall\'s permission runs from its ring to its flow, off the flow\'s m
   assert.deepEqual(Pos.place(laid, {}, { permits: false }).attachments, []);
   assert.deepEqual(Pos.place({ ...laid, permits: [{ ...laid.permits[0], flow: 'flow/gone' }] }, {}).attachments, []);
 });
+
+test('an open cluster’s outline wraps its members; a permission may end on a node', () => {
+  const at = {
+    'entity/a': { id: 'entity/a', x: 0, y: 0, width: 148, height: 84 },
+    'entity/b': { id: 'entity/b', x: 200, y: 100, width: 148, height: 84 },
+    'cluster/k': { id: 'cluster/k', x: 600, y: 0, width: 148, height: 84, hub: { x: 74, y: 24, r: 28 } },
+  };
+  const o = Pos.outline(at, { id: 'cluster/c', label: 'C', members: ['entity/a', 'entity/b', 'entity/gone'] });
+  assert.deepEqual([o.x, o.y, o.width, o.height], [-10, -10, 368, 204]);
+  assert.equal(Pos.outline(at, { id: 'cluster/d', label: 'D', members: ['entity/gone'] }), null);
+  const line = Pos.attach(at, null, { id: 'permits/x', firewall: 'entity/a', node: 'cluster/k', allowed: null, label: '2 permissions' });
+  assert.equal(line.label, '2 permissions');
+  assert.equal(line.node, 'cluster/k');
+  assert.ok(line.end.x < 600 + 74, 'ends on the ring');
+  // The outline is part of what is drawn: the drawing's size includes it.
+  const placed = Pos.place({ nodes: Object.values(at), edges: [], permits: [], groups: [{ id: 'cluster/c', label: 'C', members: ['entity/a', 'entity/b'] }] }, {}, {});
+  assert.equal(placed.outlines.length, 1);
+  assert.equal(placed.x0, -10);
+});

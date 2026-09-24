@@ -28,7 +28,10 @@ function lecture() {
 }
 
 test('an empty architecture draws nothing', () => {
-  assert.deepEqual(V.describe({ profile: 'architecture', entities: {}, associations: {}, flows: {}, attacker: { footholds: [] } }), { profile: 'architecture', nodes: [], edges: [], permits: [] });
+  const d = V.describe({ profile: 'architecture', entities: {}, associations: {}, flows: {}, attacker: { footholds: [] } });
+  assert.equal(d.profile, 'architecture');
+  assert.deepEqual([d.nodes, d.edges, d.permits, d.groups], [[], [], [], []]);
+  assert.deepEqual([Object.keys(d.hidden), Object.keys(d.bundles)], [[], []]);
 });
 
 test('components are icons of their kind, with qualified ids and no fault symbols', () => {
@@ -52,13 +55,13 @@ test('components are icons of their kind, with qualified ids and no fault symbol
 
 test('footholds and the target are pins on their components', () => {
   const g = V.describe(lecture());
-  assert.deepEqual(g.nodes[1].pins, [{ role: 'foothold', state: 'admin', word: 'admin' }]);
-  assert.deepEqual(g.nodes[2].pins, [{ role: 'target', state: 'admin', word: 'admin' }]);
+  assert.deepEqual(g.nodes[1].pins, [{ role: 'foothold', state: 'admin', entity: 'ws', word: 'admin' }]);
+  assert.deepEqual(g.nodes[2].pins, [{ role: 'target', state: 'admin', entity: 'srv', word: 'admin' }]);
   assert.deepEqual(g.nodes[0].pins, []);
   // One component may be both; each pin is its own.
   const both = lecture();
   both.attacker.target = { entity: both.attacker.footholds[0].entity, state: 'user' };
-  assert.deepEqual(V.describe(both).nodes[1].pins, [{ role: 'foothold', state: 'admin', word: 'admin' }, { role: 'target', state: 'user', word: 'user' }]);
+  assert.deepEqual(V.describe(both).nodes[1].pins, [{ role: 'foothold', state: 'admin', entity: 'ws', word: 'admin' }, { role: 'target', state: 'user', entity: 'ws', word: 'user' }]);
   const worded = V.describe(both, s => s + ' control').nodes[1].pins;
   assert.deepEqual(worded.map(p => p.word), ['admin control', 'user control']);
 });
@@ -260,4 +263,80 @@ test('an unpatched product rings red, and so do the software running it and its 
   assert.deepEqual(rings.https, [{ state: 'vulnerable', why: nginx }]);
   assert.deepEqual(rings.web, [{ state: 'vulnerable', why: nginx + '\nvulnerable: PHP 5.3 unpatched' }]);
   for (const id of ['other', 'ssh', 'openssh', 'fixed']) assert.deepEqual(rings[id], [], id);
+});
+
+const Clusters = require('../assets/js/clusters.js');
+const IMPORTED = require('./fixtures/nmap/imported.doc.json');
+
+test('a closed cluster is one node; its lines go to it, merged, and inner ones hide', () => {
+  const doc = Clusters.build(IMPORTED).doc;
+  const d = V.describe(doc);
+  const ids = d.nodes.map((n) => n.id);
+  assert.ok(ids.includes('cluster/srv'));
+  assert.equal(ids.includes('entity/sshd'), false);
+  assert.equal(d.hidden.sshd, 'cluster/srv');
+  const srv = d.nodes.find((n) => n.id === 'cluster/srv');
+  assert.equal(srv.component, 'host');
+  assert.equal(srv.cluster.count, 6);
+  const plain = V.describe(IMPORTED).nodes;
+  assert.equal(srv.unknown, doc.clusters.srv.members.reduce((s, m) => s + plain.find((n) => n.id === 'entity/' + m).unknown, 0));
+  assert.equal(srv.symbol, 'component');
+  // No line inside one closed cluster; every line's ends are drawn nodes.
+  for (const e of d.edges) {
+    assert.notEqual(e.from, e.to);
+    assert.ok(ids.includes(e.from) && ids.includes(e.to), e.id);
+  }
+  // Lines between the same drawn ends, same direction: one, counted.
+  const merged = d.edges.filter((e) => /^(links|flows)\//.test(e.id));
+  assert.ok(merged.length > 0);
+  for (const m of merged) {
+    assert.match(m.label, /^\d+ (links|flows)$/);
+    assert.equal(d.bundles[m.id].length, Number(m.label.split(' ')[0]));
+  }
+  // openssh is used on srv and printer: it stays, with lines from both clusters.
+  assert.ok(ids.includes('entity/openssh'));
+  const intoOpenssh = d.edges.filter((e) => e.to === 'entity/openssh').map((e) => e.from).sort();
+  assert.deepEqual(intoOpenssh, ['cluster/printer', 'cluster/srv']);
+});
+
+test('an open cluster draws its members and an outline', () => {
+  const doc = Clusters.build(IMPORTED).doc;
+  doc.clusters.srv.closed = false;
+  const d = V.describe(doc);
+  assert.ok(d.nodes.some((n) => n.id === 'entity/sshd'));
+  assert.deepEqual(d.groups, [{ id: 'cluster/srv', label: Clusters.label(doc, 'srv'), members: doc.clusters.srv.members.map((m) => 'entity/' + m) }]);
+  assert.equal(d.hidden.sshd, undefined);
+});
+
+test('ring sectors carry each member state; pins keep their member', () => {
+  const doc = Clusters.build(IMPORTED).doc;
+  doc.entities['dnsmasq-2-90'].defenses = { patched: false };
+  doc.attacker = { footholds: [{ entity: 'sshd', state: 'admin' }] };
+  const srv = V.describe(doc).nodes.find((n) => n.id === 'cluster/srv');
+  const at = (m) => srv.cluster.states[doc.clusters.srv.members.indexOf(m)];
+  assert.equal(at('dnsmasq-2-90'), 'vulnerable');
+  assert.equal(at('domain'), 'vulnerable', 'the software running it');
+  assert.equal(at('srv'), 'vulnerable', 'and the host');
+  assert.ok(srv.rings.some((r) => r.state === 'vulnerable'));
+  assert.deepEqual(srv.pins.map((p) => [p.entity, p.role]), [['sshd', 'foothold']]);
+});
+
+test('permissions start at the firewall’s cluster and end at a cluster holding the flow', () => {
+  const doc = JSON.parse(JSON.stringify(require('./fixtures/architecture.doc.json')));
+  doc.clusters = {
+    edge: { members: ['bridge', 'filter'], closed: true },
+    servers: { members: ['server', 'sshd'], closed: true },
+  };
+  const d = V.describe(doc);
+  assert.equal(d.permits.length, 1);
+  assert.equal(d.permits[0].firewall, 'cluster/edge');
+  assert.equal(d.permits[0].node, 'cluster/servers', 'the flow’s target is inside');
+  // The firewall outside, the flow untouched: on the flow's line as before.
+  doc.clusters = { servers: { members: ['server', 'openssh'], closed: true } };
+  const plain = V.describe(doc).permits[0];
+  assert.equal(plain.firewall, 'entity/filter');
+  assert.equal(plain.flow, 'flow/ssh');
+  // Firewall and the whole flow in one cluster: nothing to draw.
+  doc.clusters = { all: { members: ['bridge', 'filter', 'ssh-client', 'sshd', 'workstation', 'server'], closed: true } };
+  assert.deepEqual(V.describe(doc).permits, []);
 });

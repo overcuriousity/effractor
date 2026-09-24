@@ -90,3 +90,35 @@ test('labels of hand-made clusters without one', () => {
   doc.clusters = { c: { members: ['srv', 'sshd', 'domain'], closed: true } };
   assert.equal(C.label(doc, 'c'), IMPORTED.entities.srv.label + ' +2');
 });
+
+test('ring sectors: one per member up to twelve, else one per state', () => {
+  const four = C.segments(['vulnerable', null, 'unknown', null]);
+  assert.equal(four.length, 4);
+  assert.deepEqual(four.map((s) => s.state), ['vulnerable', null, 'unknown', null]);
+  assert.ok(four[0].from > -Math.PI / 2 && four[0].to < 0, 'first sector clockwise from the top, with a gap');
+  assert.ok(four.every((s) => s.to > s.from));
+  const many = C.segments(Array.from({ length: 20 }, (_, i) => (i < 5 ? 'vulnerable' : null)));
+  assert.deepEqual(many.map((s) => s.state), ['vulnerable', null]);
+  const share = (s) => s.to - s.from;
+  assert.ok(Math.abs(share(many[0]) / (share(many[0]) + share(many[1])) - 0.25) < 0.02, 'sized by count');
+  assert.deepEqual(C.segments(Array(20).fill(null)), [{ state: null, full: true }]);
+  assert.equal(C.arc(0, 0, 10, -Math.PI / 2, 0), 'M0 -10A10 10 0 0 1 10 0');
+});
+
+test('a rectangle picks what its centre is inside of', () => {
+  const nodes = [
+    { id: 'entity/a', x: 0, y: 0, width: 148, height: 84, hub: { x: 74, y: 24, r: 28 } },
+    { id: 'entity/b', x: 300, y: 0, width: 148, height: 84, hub: { x: 74, y: 24, r: 28 } },
+  ];
+  assert.deepEqual(C.within(nodes, { x0: 200, y0: 100, x1: -10, y1: -10 }), ['entity/a']);
+  assert.deepEqual(C.within(nodes, { x0: -10, y0: -10, x1: 500, y1: 60 }), ['entity/a', 'entity/b']);
+});
+
+test('closing and opening in place', () => {
+  assert.deepEqual(C.closeAt([{ x: 0, y: 0 }, { x: 100, y: 50 }]), { x: 50, y: 25 });
+  assert.equal(C.closeAt([]), null);
+  // Opened where the cluster now stands: members keep their spacing.
+  const moved = C.reopen({ x: 1000, y: 500 }, ['a', 'b', 'c'], { a: { x: 0, y: 0 }, b: { x: 100, y: 50 } });
+  assert.deepEqual(moved, { a: { x: 950, y: 475 }, b: { x: 1050, y: 525 } });
+  assert.deepEqual(C.reopen({ x: 0, y: 0 }, ['a'], {}), {});
+});

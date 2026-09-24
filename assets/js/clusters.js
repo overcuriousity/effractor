@@ -275,6 +275,94 @@
     return { doc: next, select: "cluster/" + cid };
   }
 
+  // ---- geometry ----
+
+  var GAP = 0.14; // radians between two sectors
+  var ONE_EACH = 12; // above this many members, one arc per state
+  var STATES = ["vulnerable", "unknown", null];
+
+  // A closed cluster's ring (spec §4.1), clockwise from the top: a sector
+  // per member, or per state when there are many; `full` when one state
+  // takes the whole ring.
+  function segments(states) {
+    var n = states.length;
+    if (!n) return [];
+    var parts;
+    if (n <= ONE_EACH) {
+      parts = states.map(function (s) {
+        return { state: s, share: 1 };
+      });
+    } else {
+      parts = STATES.map(function (s) {
+        return { state: s, share: states.filter(function (x) { return x === s; }).length };
+      }).filter(function (p) {
+        return p.share > 0;
+      });
+      if (parts.length === 1) return [{ state: parts[0].state, full: true }];
+    }
+    var total = parts.reduce(function (sum, p) { return sum + p.share; }, 0);
+    var at = -Math.PI / 2;
+    return parts.map(function (p) {
+      var sweep = (2 * Math.PI * p.share) / total;
+      var out = { state: p.state, from: at + GAP / 2, to: at + sweep - GAP / 2 };
+      at += sweep;
+      return out;
+    });
+  }
+
+  function round(v) {
+    return Math.round(v * 100) / 100 || 0;
+  }
+
+  // An SVG path along the circle from angle `from` to `to`, clockwise.
+  function arc(cx, cy, r, from, to) {
+    var x0 = round(cx + r * Math.cos(from)), y0 = round(cy + r * Math.sin(from));
+    var x1 = round(cx + r * Math.cos(to)), y1 = round(cy + r * Math.sin(to));
+    return "M" + x0 + " " + y0 + "A" + r + " " + r + " 0 " + (to - from > Math.PI ? 1 : 0) + " 1 " + x1 + " " + y1;
+  }
+
+  // The drawn nodes whose centre (their plate's, where they have one) lies
+  // in the rectangle, given by any two opposite corners.
+  function within(nodes, rect) {
+    var x0 = Math.min(rect.x0, rect.x1), x1 = Math.max(rect.x0, rect.x1);
+    var y0 = Math.min(rect.y0, rect.y1), y1 = Math.max(rect.y0, rect.y1);
+    return nodes.filter(function (n) {
+      var cx = n.hub ? n.x + n.hub.x : n.x + n.width / 2;
+      var cy = n.hub ? n.y + n.hub.y : n.y + n.height / 2;
+      return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1;
+    }).map(function (n) {
+      return n.id;
+    });
+  }
+
+  // Where a closing cluster stands: amid its members (all one size, so
+  // their corners average to it).
+  function closeAt(boxes) {
+    if (!boxes.length) return null;
+    var x = 0, y = 0;
+    boxes.forEach(function (b) {
+      x += b.x;
+      y += b.y;
+    });
+    return { x: Math.round(x / boxes.length), y: Math.round(y / boxes.length) };
+  }
+
+  // Members opened round where the cluster now stands (`at`), keeping the
+  // spacing they had: their stored positions, shifted. Members never placed
+  // are the layout's to place.
+  function reopen(at, members, stored) {
+    var known = members.filter(function (m) {
+      return has(stored, m);
+    });
+    var centre = closeAt(known.map(function (m) { return stored[m]; }));
+    var out = {};
+    if (!centre) return out;
+    known.forEach(function (m) {
+      out[m] = { x: stored[m].x + at.x - centre.x, y: stored[m].y + at.y - centre.y };
+    });
+    return out;
+  }
+
   var api = {
     SPECIFIC: SPECIFIC,
     clusterOf: clusterOf,
@@ -292,6 +380,11 @@
     dissolve: dissolve,
     rename: rename,
     setClosed: setClosed,
+    segments: segments,
+    arc: arc,
+    within: within,
+    closeAt: closeAt,
+    reopen: reopen,
   };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorClusters = api;

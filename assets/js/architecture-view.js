@@ -3,6 +3,7 @@
 // edges. Pure: no DOM, no ELK. The canvas never stores a position.
 (function () {
   var graph = typeof module !== "undefined" ? require("./graph.js") : window.effractorGraph;
+  var C = typeof module !== "undefined" ? require("./clusters.js") : window.effractorClusters;
 
   function has(o, k) {
     return !!o && Object.prototype.hasOwnProperty.call(o, k);
@@ -62,7 +63,7 @@
     var out = Object.create(null);
     var attacker = doc.attacker || {};
     function put(entity, role, state) {
-      (out[entity] = out[entity] || []).push({ role: role, state: state, word: word ? word(state) : state });
+      (out[entity] = out[entity] || []).push({ role: role, state: state, entity: entity, word: word ? word(state) : state });
     }
     (attacker.footholds || []).forEach(function (s) {
       put(s.entity, "foothold", s.state);
@@ -189,7 +190,146 @@
         unreachable: false,
       };
     });
-    return { profile: "architecture", nodes: nodes, edges: edges, permits: permits };
+    return fold(doc, { profile: "architecture", nodes: nodes, edges: edges, permits: permits });
+  }
+
+  // Closed clusters as one node each (clustering spec §4): their members'
+  // lines drawn to them, merged per pair of drawn ends, inner ones hidden;
+  // open ones listed for their outlines. `hidden` says where a member is
+  // drawn, `bundles` what each merged line or permission holds.
+  function fold(doc, d) {
+    var hidden = Object.create(null), groups = [], closed = [];
+    Object.keys(doc.clusters || {}).forEach(function (cid) {
+      var members = (doc.clusters[cid].members || []).filter(function (m) {
+        return has(doc.entities, m);
+      });
+      if (members.length < 2) return; // the validator says so; drawn as components meanwhile
+      if (doc.clusters[cid].closed === true) {
+        members.forEach(function (m) {
+          hidden[m] = "cluster/" + cid;
+        });
+        closed.push({ cid: cid, members: members });
+      } else {
+        groups.push({ id: "cluster/" + cid, label: C.label(doc, cid), members: members.map(function (m) { return "entity/" + m; }) });
+      }
+    });
+    var byId = Object.create(null);
+    d.nodes.forEach(function (n) {
+      byId[n.id] = n;
+    });
+    function drawn(id) {
+      var entity = id.indexOf("entity/") === 0 ? id.slice(7) : null;
+      return entity !== null && hidden[entity] ? hidden[entity] : id;
+    }
+    var nodes = d.nodes.filter(function (n) {
+      return !hidden[n.id.slice(7)];
+    });
+    closed.forEach(function (c) {
+      nodes.push(clusterNode(doc, c.cid, c.members.map(function (m) { return byId["entity/" + m]; })));
+    });
+
+    var bundles = Object.create(null), edges = [], merged = Object.create(null), lineOf = Object.create(null);
+    d.edges.forEach(function (e) {
+      var from = drawn(e.from), to = drawn(e.to);
+      if (from === to) return;
+      if (from === e.from && to === e.to) {
+        lineOf[e.id] = e.id;
+        return edges.push(e);
+      }
+      var key = (e.kind === "flow" ? "flows/" : "links/") + from + ">" + to;
+      lineOf[e.id] = key;
+      if (!merged[key]) {
+        merged[key] = { at: edges.length, members: [] };
+        edges.push(null);
+      }
+      merged[key].members.push(Object.assign({}, e, { from: from, to: to }));
+    });
+    Object.keys(merged).forEach(function (key) {
+      var m = merged[key].members;
+      if (m.length === 1) {
+        lineOf[m[0].id] = m[0].id;
+        edges[merged[key].at] = m[0];
+        return;
+      }
+      var flows = key.indexOf("flows/") === 0;
+      bundles[key] = m.map(function (e) { return e.id; });
+      edges[merged[key].at] = {
+        id: key,
+        from: m[0].from,
+        to: m[0].to,
+        kind: flows ? "flow" : "bundle",
+        label: m.length + (flows ? " flows" : " links"),
+        title: m.map(function (e) { return e.label; }).join("\n"),
+      };
+    });
+
+    // A permission from the firewall, or its cluster, to a closed cluster
+    // holding an end of its flow (the target's first), else to the flow's line.
+    var permits = [], toNode = Object.create(null);
+    d.permits.forEach(function (p) {
+      var f = doc.flows[p.flow.slice(5)];
+      var firewall = drawn(p.firewall);
+      var s = drawn("entity/" + f.source), t = drawn("entity/" + f.target);
+      var node = t.indexOf("cluster/") === 0 ? t : s.indexOf("cluster/") === 0 ? s : null;
+      if (!node) {
+        var line = lineOf[p.flow];
+        if (line) permits.push(Object.assign({}, p, { firewall: firewall, flow: line }));
+        return;
+      }
+      if (node === firewall) return;
+      var key = "permits/" + firewall + ">" + node;
+      if (!toNode[key]) {
+        toNode[key] = { id: p.id, firewall: firewall, node: node, allowed: p.allowed, members: [] };
+        permits.push(toNode[key]);
+      }
+      var m = toNode[key];
+      if (m.members.length && m.allowed !== p.allowed) m.allowed = null;
+      m.members.push(p.id);
+    });
+    permits.forEach(function (p) {
+      if (!p.members) return;
+      if (p.members.length > 1) {
+        p.id = "permits/" + p.firewall + ">" + p.node;
+        p.label = p.members.length + " permissions";
+        bundles[p.id] = p.members;
+      }
+      delete p.members;
+    });
+    return { profile: d.profile, nodes: nodes, edges: edges, permits: permits, hidden: hidden, bundles: bundles, groups: groups };
+  }
+
+  // A closed cluster's node: the most specific member's icon, its members'
+  // states as the ring's sectors, their unknowns summed, their pins.
+  function clusterNode(doc, cid, members) {
+    var label = C.label(doc, cid);
+    var states = members.map(function (m) {
+      return m.rings.length ? "vulnerable" : m.unknown > 0 ? "unknown" : null;
+    });
+    var unknown = members.reduce(function (sum, m) { return sum + m.unknown; }, 0);
+    var why = members.filter(function (m) { return m.rings.length; }).map(function (m) {
+      return m.rings.map(function (r) { return r.why; }).join("\n");
+    });
+    var rings = why.length ? [{ state: "vulnerable", why: why.join("\n") }] : [];
+    var open = states.filter(function (s) { return s === "unknown"; }).length;
+    if (open) rings.push({ state: "unknown", why: open + (open === 1 ? " member" : " members") + " with unknown inputs" });
+    return {
+      id: "cluster/" + cid,
+      label: label,
+      lines: graph.wrap(label + " · " + members.length, 22, 2),
+      symbol: "component",
+      component: C.lead(doc, members.map(function (m) { return m.id.slice(7); })),
+      inscription: null,
+      attributes: null,
+      unknown: unknown,
+      badge: null,
+      pins: members.reduce(function (all, m) { return all.concat(m.pins); }, []),
+      rings: rings,
+      cluster: { count: members.length, states: states },
+      parents: 0,
+      unquantified: unknown > 0,
+      top: false,
+      unreachable: false,
+    };
   }
 
   // Why each component is vulnerable (owner, 2026-09-24, after Reactor's
