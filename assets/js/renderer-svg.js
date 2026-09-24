@@ -133,6 +133,15 @@
             return free.at[id];
           });
         }
+        // An open cluster's outline carries its members.
+        if (free && gesture.id && !gesture.group && !free.at[gesture.id]) {
+          drawn.outlines.forEach(function (d) {
+            if (d.group.id !== gesture.id) return;
+            gesture.group = d.group.members.filter(function (id) {
+              return free.at[id];
+            });
+          });
+        }
         if (svg.focus) svg.focus();
       });
       svg.addEventListener("pointermove", function (e) {

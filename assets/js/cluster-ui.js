@@ -35,6 +35,10 @@
       if (ev.target.closest("button")) return;
       app.select("entity/" + id);
     });
+    item.addEventListener("contextmenu", function (ev) {
+      ev.preventDefault();
+      U.menuFor(id, ev.clientX, ev.clientY);
+    });
     if (extra) extra(item);
     list.appendChild(item);
     return item;
@@ -107,6 +111,22 @@
     if (!C.toggleAll(doc())) return app.say("nothing runs together here · select two or more and press C");
     act(function () { return C.toggleAll(doc()); });
   }
+  // K and the rail (owner, 2026-09-25): nothing selected, everything; one
+  // cluster or a member of one, dissolve it; several, one cluster of them.
+  function pressK() {
+    var picked = app.state.picked || [];
+    var edit = C.pressK(doc(), picked);
+    if (edit.refusal) return app.say(edit.refusal);
+    act(function () { return C.pressK(doc(), picked); });
+  }
+  function railTitle() {
+    var picked = app.state.picked || [];
+    if (!picked.length) return "Cluster · uncluster all (K)";
+    if (picked.length > 1) return "Cluster the " + picked.length + " selected (K)";
+    var q = P.qualified(picked[0]);
+    var cid = q && q.kind === "cluster" ? q.id : q && q.kind === "entity" ? C.clusterOf(doc(), q.id) : null;
+    return cid && own(doc().clusters, cid) ? "Dissolve “" + C.label(doc(), cid) + "” (K)" : "Cluster · uncluster (K)";
+  }
   function buildMissing() {
     if (!C.build(doc())) return app.say("nothing more runs together");
     act(function () { return C.build(doc()); });
@@ -138,8 +158,13 @@
 
   // ---- the rail and keys ----
 
-  document.querySelector('[data-action="clusterAll"]').addEventListener("click", function () {
-    if (arch()) toggleAll();
+  var railButton = document.querySelector('[data-action="clusterAll"]');
+  railButton.addEventListener("click", function () {
+    if (arch()) pressK();
+  });
+  app.onChange(function () {
+    if (!doc() || !P.isArchitecture(doc())) return;
+    railButton.title = railTitle();
   });
 
   document.addEventListener("keydown", function (e) {
@@ -148,7 +173,7 @@
     var key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (key === "k") {
       e.preventDefault();
-      return toggleAll();
+      return pressK();
     }
     var cid = selectedCluster();
     if (key === "c") {
@@ -160,7 +185,7 @@
       return focusName();
     }
   });
-  U.keyList.push(["C", "Cluster the selected; open or close a cluster"], ["K", "Cluster · uncluster all"]);
+  U.keyList.push(["C", "Cluster the selected; open or close a cluster"], ["K", "Nothing selected: cluster · uncluster all; one: dissolve its cluster; several: merge into one"]);
 
   // ---- menus ----
 

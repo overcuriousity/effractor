@@ -139,3 +139,28 @@ test('what glides from where when clusters open and close', () => {
   assert.equal(t.exits['cluster/m'], 'cluster/n');
   assert.deepEqual(C.transitions(null, null), { origins: {}, exits: {} });
 });
+
+test('K: nothing selected toggles all; one dissolves; several merge', () => {
+  const doc = C.build(IMPORTED).doc;
+  // Nothing selected: the rail's toggle.
+  assert.deepEqual(C.pressK(doc, []).doc, C.toggleAll(doc).doc);
+  // A cluster, or a member of one: that cluster is dissolved.
+  assert.equal('srv' in C.pressK(doc, ['cluster/srv']).doc.clusters, false);
+  assert.equal('srv' in C.pressK(doc, ['entity/domain']).doc.clusters, false);
+  // A component in no cluster: nothing to do, and why.
+  const alone = C.pressK(doc, ['entity/openssh']);
+  assert.equal(alone.doc, undefined);
+  assert.match(alone.refusal, /no cluster/);
+  // Several, clusters among them: one cluster of all their members.
+  const merged = C.pressK(doc, ['cluster/printer', 'cluster/admin-box', 'entity/openssh']).doc;
+  assert.deepEqual(Object.keys(merged.clusters).sort(), ['printer', 'srv'], 'admin-box merged away; the new one named after its first');
+  assert.deepEqual(merged.clusters.printer.members, ['printer', 'ssh', 'admin-box', 'nmap', 'openssh']);
+  assert.match(C.pressK(doc, ['entity/openssh', 'entity/openssh']).refusal || '', /two or more/);
+});
+
+test('an open cluster selected lights its members', () => {
+  const doc = C.build(IMPORTED).doc;
+  doc.clusters.srv.closed = false;
+  assert.deepEqual(C.lit(doc, ['cluster/srv']), ['cluster/srv'].concat(doc.clusters.srv.members.map((m) => 'entity/' + m)));
+  assert.deepEqual(C.lit(doc, ['cluster/printer', 'entity/openssh']), ['cluster/printer', 'entity/openssh'], 'a closed one is its node');
+});

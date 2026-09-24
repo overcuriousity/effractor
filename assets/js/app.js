@@ -188,7 +188,8 @@
     // `parentChosen`: the edge was named (a tree row, an arrow key), not guessed.
     state.parentChosen = parents.indexOf(parent) >= 0;
     state.parent = state.parentChosen ? parent : parents[0] || null;
-    renderer.highlight(state.picked.map(shown), "selected");
+    // An open cluster selected lights its members too, so they move together.
+    renderer.highlight(window.effractorClusters.lit(state.doc, state.picked).map(shown), "selected");
     // A selected flow shows where it goes: the networks and routers on its
     // route, which its line from end to end does not.
     var flow = arch && state.selected && state.selected.indexOf("flow/") === 0 ? state.selected.slice(5) : null;

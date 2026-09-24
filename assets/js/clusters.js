@@ -275,6 +275,38 @@
     return { doc: next, select: "cluster/" + cid };
   }
 
+  // K (owner, 2026-09-25): nothing selected, the rail's toggle; one
+  // cluster, or a member of one, dissolves it; several, clusters among them,
+  // become one cluster. `picked`: qualified ids. An edit, or {refusal}.
+  function pressK(doc, picked) {
+    if (!picked.length) return toggleAll(doc) || { refusal: "nothing runs together here · select two or more and press K" };
+    if (picked.length === 1) {
+      var q = picked[0];
+      var cid = q.indexOf("cluster/") === 0 ? q.slice(8) : q.indexOf("entity/") === 0 ? clusterOf(doc, q.slice(7)) : null;
+      if (cid && has(doc.clusters, cid)) {
+        var gone = dissolve(doc, cid);
+        gone.select = q.indexOf("entity/") === 0 ? q : null;
+        return gone;
+      }
+      return { refusal: "“" + nameOf(doc, q.slice(q.indexOf("/") + 1)) + "” is in no cluster" };
+    }
+    return make(doc, entitiesOf(doc, picked)) || { refusal: "select two or more to cluster" };
+  }
+
+  // What lights up for a selection: an open cluster with all its members.
+  function lit(doc, picked) {
+    var out = [];
+    picked.forEach(function (q) {
+      if (out.indexOf(q) < 0) out.push(q);
+      var c = q.indexOf("cluster/") === 0 && has(doc.clusters, q.slice(8)) ? doc.clusters[q.slice(8)] : null;
+      if (!c || c.closed) return;
+      (c.members || []).forEach(function (m) {
+        if (has(doc.entities, m) && out.indexOf("entity/" + m) < 0) out.push("entity/" + m);
+      });
+    });
+    return out;
+  }
+
   // ---- geometry ----
 
   var GAP = 0.14; // radians between two sectors
@@ -413,6 +445,8 @@
     dissolve: dissolve,
     rename: rename,
     setClosed: setClosed,
+    pressK: pressK,
+    lit: lit,
     segments: segments,
     arc: arc,
     within: within,

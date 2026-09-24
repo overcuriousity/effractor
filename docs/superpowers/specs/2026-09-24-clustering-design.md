@@ -137,7 +137,9 @@ One node, `cluster/<id>`:
 ### 4.3 An open cluster
 
 Its members are drawn as usual, inside a quiet rounded outline with the
-label at its top left. A click on the outline selects the cluster.
+label on a tab at its top left. A click on the outline or the tab selects
+the cluster and lights all its members, which then move together; dragging
+the outline moves them all (owner, 2026-09-25).
 
 **In place.** Opening puts the members round where the cluster stands,
 keeping their offsets from their centre; closing puts the cluster at the
@@ -171,9 +173,13 @@ or router (id made unique against existing clusters).
 
 ### 5.2 Where the actions are
 
-* **Rail:** one icon, *Cluster · uncluster all* (**K**). With no clusters it
+* **Rail:** one icon, **K** (owner, 2026-09-25, after the first look):
+  with nothing selected, *cluster · uncluster all* — with no clusters it
   makes what runs together, closed; else, if any is closed, it opens all;
-  else it closes all. It never removes a cluster.
+  else it closes all, never removing one. With one selected, a cluster or a
+  member of one, it dissolves that cluster (a component in none: it says
+  so). With several selected, clusters among them, it merges them into one
+  cluster. Its tooltip says which.
 * **C:** with two or more picked, cluster them (label: the first's, "+n");
   a member of another cluster moves over, dissolving one left with fewer
   than two. With a cluster selected, open or close it.
@@ -193,7 +199,8 @@ Every refusal says why (`app.say`): *Select two or more to cluster*,
 ### 5.3 The inspector
 
 A selected cluster shows its label (editable), open/closed, and its members,
-each with its icon, selecting itself on click, and a × that takes it out.
+each with its icon, selecting itself on click, its component menu on a
+right-click, and a × that takes it out.
 Selecting a member of a closed cluster opens that member's form and lights
 the cluster node; the cluster stays closed, so looking never edits the file.
 

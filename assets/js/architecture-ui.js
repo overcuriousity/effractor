@@ -766,6 +766,7 @@
     render: renderProperties,
     sections: sections,
     menuItems: extraItems,
+    menuFor: menuFor,
     contextHooks: contextHooks,
     backgroundItems: backgroundItems,
     kindExtras: kindExtras,
