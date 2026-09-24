@@ -454,6 +454,8 @@
     renderer.fit();
   }
 
+  var SPREAD_GAP = 24; // px clear round an opened cluster
+
   // The architecture last painted, for the glide from it: its name and
   // where its clustered members were drawn.
   var painted = null;
@@ -467,7 +469,19 @@
       // The same document glides to its new drawing; another one just appears.
       var motion = painted && painted.name === state.doc.name ? window.effractorClusters.transitions(painted.hidden, state.hidden) : null;
       painted = { name: state.doc.name, hidden: state.hidden };
-      state.placed = window.effractorPositions.place(state.laid, positions.load(state.doc.name), { permits: showPermits, outlines: showOutlines });
+      var options = { permits: showPermits, outlines: showOutlines };
+      state.placed = window.effractorPositions.place(state.laid, positions.load(state.doc.name), options);
+      // A cluster that just opened pushes what it now covers out of its way,
+      // and those places are kept.
+      var opened = motion ? window.effractorClusters.opened(motion) : [];
+      if (opened.length) {
+        var room = window.effractorPositions.place(state.laid, positions.load(state.doc.name), { permits: false, outlines: true });
+        var moved = window.effractorClusters.spread(room, opened, SPREAD_GAP);
+        if (Object.keys(moved).length) {
+          putPositions(moved);
+          state.placed = window.effractorPositions.place(state.laid, positions.load(state.doc.name), options);
+        }
+      }
       return renderer.render(state.placed, {}, motion);
     }
     painted = null;

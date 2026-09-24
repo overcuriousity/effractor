@@ -147,6 +147,10 @@ the outline moves them all (owner, 2026-09-25).
 **In place.** Opening puts the members round where the cluster stands,
 keeping their offsets from their centre; closing puts the cluster at the
 members' centre. Both write the moved positions to this browser's store.
+An opened cluster then pushes what it covers out of its way (owner,
+2026-09-25: readable, not piled): each outline with its contents is one
+box, everything overlapping it gives way until 24 px clear, the opened
+cluster itself stays, and the new places are kept.
 
 **Animated** (owner, 2026-09-24): closing, members glide into the cluster
 and fade; opening, they glide out from it to their places; a node whose

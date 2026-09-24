@@ -240,3 +240,20 @@ test('dragging one onto another merges them', () => {
   assert.equal('shown' in all, false);
   assert.equal(C.merge(doc, 'cluster/srv', 'cluster/srv'), null);
 });
+
+test('a cluster just opened pushes what it now overlaps away, and stays', () => {
+  const n = (id, x, y) => ({ id, x, y, width: 148, height: 84 });
+  const placed = {
+    nodes: [n('entity/a', 0, 0), n('entity/b', 160, 0), n('entity/c', 200, 40), n('entity/far', 1000, 0)],
+    outlines: [{ id: 'cluster/k', x: -10, y: -10, width: 328, height: 104, members: ['entity/a', 'entity/b'] }],
+  };
+  const moved = C.spread(placed, ['cluster/k'], 20);
+  assert.equal(moved['entity/a'], undefined, 'the opened one stays');
+  assert.equal(moved['entity/b'], undefined);
+  assert.equal(moved['entity/far'], undefined, 'what is clear stays');
+  const c = moved['entity/c'];
+  assert.ok(c, 'c moved');
+  const clear = c.x >= 318 + 20 || c.y >= 94 + 20;
+  assert.ok(clear, 'c is clear of the outline: ' + JSON.stringify(c));
+  assert.deepEqual(C.opened({ origins: { 'entity/a': ['cluster/k'], 'cluster/q': ['entity/x'] }, exits: {} }), ['cluster/k']);
+});

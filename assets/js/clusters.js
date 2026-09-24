@@ -527,8 +527,74 @@
     return { origins: origins, exits: exits };
   }
 
+  // The clusters a glide opens: those members come out of.
+  function opened(motion) {
+    var out = [];
+    Object.keys((motion && motion.origins) || {}).forEach(function (id) {
+      if (id.indexOf("entity/") !== 0) return;
+      motion.origins[id].forEach(function (from) {
+        if (from.indexOf("cluster/") === 0 && out.indexOf(from) < 0) out.push(from);
+      });
+    });
+    return out;
+  }
+
+  // After clusters open in place (owner, 2026-09-25: readable, not piled):
+  // each outline with what is in it is one box, every other node its own;
+  // what overlaps is pushed apart until all stand `gap` clear. The opened
+  // ones (`fixed`, outline ids) stay; the rest give way — half each between
+  // two that may both move. Returns new places {node id: {x, y}} of what moved.
+  function spread(placed, fixed, gap) {
+    var inside = Object.create(null);
+    var units = (placed.outlines || []).map(function (o) {
+      o.members.forEach(function (m) { inside[m] = true; });
+      return { id: o.id, x: o.x, y: o.y, width: o.width, height: o.height, nodes: o.members, fixed: fixed.indexOf(o.id) >= 0, dx: 0, dy: 0 };
+    });
+    (placed.nodes || []).forEach(function (n) {
+      if (!inside[n.id]) units.push({ id: n.id, x: n.x, y: n.y, width: n.width, height: n.height, nodes: [n.id], fixed: false, dx: 0, dy: 0 });
+    });
+    function shift(u, dx, dy) {
+      u.x += dx;
+      u.y += dy;
+      u.dx += dx;
+      u.dy += dy;
+    }
+    for (var round = 0; round < 60; round++) {
+      var any = false;
+      for (var i = 0; i < units.length; i++) {
+        for (var j = i + 1; j < units.length; j++) {
+          var a = units[i], b = units[j];
+          if (a.fixed && b.fixed) continue;
+          var ox = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) + gap;
+          var oy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) + gap;
+          if (ox <= 0 || oy <= 0) continue;
+          any = true;
+          var alongX = ox <= oy;
+          var sign = alongX ? (b.x + b.width / 2 >= a.x + a.width / 2 ? 1 : -1) : (b.y + b.height / 2 >= a.y + a.height / 2 ? 1 : -1);
+          var d = alongX ? ox : oy;
+          var ka = a.fixed ? 0 : b.fixed ? 1 : 0.5, kb = 1 - ka;
+          shift(a, alongX ? -sign * d * ka : 0, alongX ? 0 : -sign * d * ka);
+          shift(b, alongX ? sign * d * kb : 0, alongX ? 0 : sign * d * kb);
+        }
+      }
+      if (!any) break;
+    }
+    var at = Object.create(null);
+    (placed.nodes || []).forEach(function (n) { at[n.id] = n; });
+    var out = {};
+    units.forEach(function (u) {
+      if (!u.dx && !u.dy) return;
+      u.nodes.forEach(function (id) {
+        if (at[id]) out[id] = { x: Math.round(at[id].x + u.dx), y: Math.round(at[id].y + u.dy) };
+      });
+    });
+    return out;
+  }
+
   var api = {
     SPECIFIC: SPECIFIC,
+    opened: opened,
+    spread: spread,
     transitions: transitions,
     clusterOf: clusterOf,
     label: label,
