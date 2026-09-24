@@ -615,7 +615,7 @@
     var defense = Object.keys(e.defenses || {})[0];
     if (defense) {
       var current = e.defenses[defense];
-      var toggle = field(form, "prop-defense", word(defense), window.effractorMenu.dropdown(SWITCH, String(current)));
+      var toggle = field(form, "prop-defense", catalog ? W.defense(catalog, defense) : word(defense), window.effractorMenu.dropdown(SWITCH, String(current)));
       toggle.addEventListener("change", function () {
         var v = toggle.value === "true" ? true : toggle.value === "false" ? false : "unknown";
         apply(function () {
@@ -705,7 +705,7 @@
     },
     // A control of the selected item's form, by what it sets.
     focusField: function (field) {
-      var control = $({ defense: "prop-defense", foothold: "prop-foothold", target: "prop-target", allowed: "prop-allowed", privilege: "prop-privilege", route: "prop-route-add" }[field] || "");
+      var control = $({ defense: "prop-defense", foothold: "prop-foothold", target: "prop-target", allowed: "prop-allowed", privilege: "prop-privilege", factor: "prop-factor", route: "prop-route-add" }[field] || "");
       if (control) control.focus();
     },
     // For architecture-links-ui.js: the same edit queue, form parts and hooks.

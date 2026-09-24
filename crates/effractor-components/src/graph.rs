@@ -28,8 +28,9 @@ pub struct GeneratedNode {
     /// Built from source labels; user content, never identity.
     pub label: String,
     pub kind: GeneratedKind,
-    /// Read only as the kind allows: an Any is always `Logical`, an All always
-    /// a `Parameter`, an Input a foothold or a permission.
+    /// Read only as the kind allows: an Any is always `Logical`, an All a
+    /// `Parameter` or — for a join that takes no time — `Logical`, an Input a
+    /// foothold, a permission or a policy.
     pub duration: Binding,
     /// Every rule that produced this node, with what it bound.
     pub origins: Vec<Origin>,
@@ -38,7 +39,8 @@ pub struct GeneratedNode {
 /// Inputs are node indices, ascending.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GeneratedKind {
-    /// Completes at zero or never: a declared foothold or a policy constant.
+    /// Completes at zero or never: a declared foothold, a firewall rule or a
+    /// defence switch.
     Input,
     /// A fact: completes with its first producer. May have none.
     Any { inputs: Vec<usize> },
@@ -79,6 +81,9 @@ pub enum Binding {
         base: Slot,
         replacement: Option<(Defense, Slot)>,
     },
+    /// Zero while the owner's defence is off, never while it is on: a
+    /// defence that removes a way rather than slowing one.
+    Policy { entity: EntityId, defense: Defense },
     /// Unknown under every scenario: a flow whose route is still being drawn.
     /// `missing` holds the route paths the validator marked `unfinished`.
     Unfinished { flow: FlowId, missing: Vec<String> },

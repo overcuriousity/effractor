@@ -9,12 +9,19 @@ use effractor_components::{
     Binding, GeneratedGraph, GeneratedKind, RULES, ResolvedTtc, generate, resolve,
 };
 use effractor_core::architecture::{
-    Architecture, Association, Defense, Entity, EntityKind, Privilege, Relation, Slot,
+    Architecture, Association, Defense, Entity, EntityKind, Factor, Privilege, Relation, Slot,
 };
 use effractor_core::{AssociationId, Code, Document, FlowId, ScenarioId};
 
 /// Rules no shipped example uses yet; emptied when the cloud example lands.
-const NOT_YET_IN_AN_EXAMPLE: &[&str] = &["hosted-host", "guest-escape", "router-escape"];
+const NOT_YET_IN_AN_EXAMPLE: &[&str] = &[
+    "hosted-host",
+    "guest-escape",
+    "router-escape",
+    "mfa-second-factor",
+    "workload-identity",
+    "assume-role",
+];
 
 const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
 
@@ -88,7 +95,12 @@ fn nodes_are_sorted_by_id_bytes_and_inputs_by_index() {
         }
         if let GeneratedKind::All { inputs } = &n.kind {
             assert!(!inputs.is_empty(), "{}", n.id);
-            assert!(matches!(n.duration, Binding::Parameter { .. }), "{}", n.id);
+            // Timed, or a join that takes no time.
+            assert!(
+                matches!(n.duration, Binding::Parameter { .. } | Binding::Logical),
+                "{}",
+                n.id
+            );
         }
         if let GeneratedKind::Any { .. } = &n.kind {
             assert!(matches!(n.duration, Binding::Logical), "{}", n.id);
@@ -176,7 +188,7 @@ fn every_lecture_step_has_exactly_its_prerequisites() {
         (
             "action/administration-login/admin-net/admin-account/bridge",
             &[
-                "state/account/admin-account/material",
+                "state/account/admin-account/authenticated",
                 "state/network/admin-net/access",
             ],
         ),
@@ -209,7 +221,7 @@ fn every_lecture_step_has_exactly_its_prerequisites() {
         (
             "action/service-login/server-account/sshd",
             &[
-                "state/account/server-account/material",
+                "state/account/server-account/authenticated",
                 "state/service/sshd/reachable",
             ],
         ),
@@ -298,6 +310,52 @@ fn every_lecture_step_has_exactly_its_prerequisites() {
             "state/session/server-account/sshd",
             &["action/service-login/server-account/sshd"],
         ),
+        (
+            "state/account/server-account/mfa-satisfied",
+            &[
+                "action/mfa-bypass/server-account",
+                "input/policy/server-account/mfa",
+            ],
+        ),
+        (
+            "state/account/server-account/authenticated",
+            &["action/account-authenticated/server-account"],
+        ),
+        (
+            "action/account-authenticated/server-account",
+            &[
+                "state/account/server-account/material",
+                "state/account/server-account/mfa-satisfied",
+            ],
+        ),
+        (
+            "action/mfa-bypass/server-account",
+            &["state/account/server-account/material"],
+        ),
+        ("input/policy/server-account/mfa", &[]),
+        (
+            "state/account/admin-account/mfa-satisfied",
+            &[
+                "action/mfa-bypass/admin-account",
+                "input/policy/admin-account/mfa",
+            ],
+        ),
+        (
+            "state/account/admin-account/authenticated",
+            &["action/account-authenticated/admin-account"],
+        ),
+        (
+            "action/account-authenticated/admin-account",
+            &[
+                "state/account/admin-account/material",
+                "state/account/admin-account/mfa-satisfied",
+            ],
+        ),
+        (
+            "action/mfa-bypass/admin-account",
+            &["state/account/admin-account/material"],
+        ),
+        ("input/policy/admin-account/mfa", &[]),
     ];
     let expected: BTreeMap<String, Vec<String>> = expected
         .iter()
@@ -978,4 +1036,173 @@ fn an_action_names_the_component_whose_time_it_takes_last() {
     };
     assert_eq!(last("action/service-deploy-exploit/sshd"), "sshd");
     assert_eq!(last("action/guest-escape/server"), "server");
+}
+
+#[test]
+fn a_login_needs_the_account_authenticated_and_mfa_joins_material() {
+    let g = generate(&lecture()).unwrap();
+    assert_eq!(
+        inputs(&g, "action/service-login/server-account/sshd"),
+        vec![
+            "state/account/server-account/authenticated",
+            "state/service/sshd/reachable"
+        ]
+    );
+    assert_eq!(
+        inputs(&g, "action/account-authenticated/server-account"),
+        vec![
+            "state/account/server-account/material",
+            "state/account/server-account/mfa-satisfied"
+        ]
+    );
+    assert_eq!(
+        node(&g, "action/account-authenticated/server-account").duration,
+        Binding::Logical
+    );
+    let mut mfa = inputs(&g, "state/account/server-account/mfa-satisfied");
+    mfa.sort();
+    assert_eq!(
+        mfa,
+        vec![
+            "action/mfa-bypass/server-account",
+            "input/policy/server-account/mfa"
+        ]
+    );
+    assert_eq!(
+        node(&g, "input/policy/server-account/mfa").duration,
+        Binding::Policy {
+            entity: id("server-account"),
+            defense: Defense::Mfa
+        }
+    );
+    assert_eq!(
+        inputs(&g, "action/mfa-bypass/server-account"),
+        vec!["state/account/server-account/material"]
+    );
+    assert!(matches!(
+        node(&g, "action/mfa-bypass/server-account").duration,
+        Binding::Parameter {
+            base: Slot::MfaBypass,
+            replacement: None,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn a_second_factor_satisfies_mfa_and_gives_no_material() {
+    let mut m = lecture();
+    add(&mut m, "seed", EntityKind::Credential);
+    relate(
+        &mut m,
+        "seed-auth",
+        Relation::Authenticates {
+            from: id("seed"),
+            to: id("server-account"),
+            factor: Factor::Second,
+        },
+    );
+    let g = generate(&m).unwrap();
+    assert!(
+        inputs(&g, "state/account/server-account/mfa-satisfied")
+            .contains(&"state/credential/seed/possessed".to_owned())
+    );
+    assert!(
+        !inputs(&g, "state/account/server-account/material")
+            .contains(&"state/credential/seed/possessed".to_owned())
+    );
+}
+
+#[test]
+fn a_workload_uses_its_identity_and_roles_chain_finitely() {
+    let mut m = lecture();
+    add(&mut m, "role-a", EntityKind::Account);
+    add(&mut m, "role-b", EntityKind::Account);
+    relate(
+        &mut m,
+        "sshd-runs-as",
+        Relation::RunsAs {
+            from: id("sshd"),
+            to: id("role-a"),
+            privilege: Privilege::User,
+        },
+    );
+    relate(
+        &mut m,
+        "server-runs-as",
+        Relation::RunsAs {
+            from: id("server"),
+            to: id("role-b"),
+            privilege: Privilege::Admin,
+        },
+    );
+    relate(
+        &mut m,
+        "a-to-b",
+        Relation::Assumes {
+            from: id("role-a"),
+            to: id("role-b"),
+        },
+    );
+    relate(
+        &mut m,
+        "b-to-a",
+        Relation::Assumes {
+            from: id("role-b"),
+            to: id("role-a"),
+        },
+    );
+    let g = generate(&m).unwrap();
+    let a = inputs(&g, "state/account/role-a/authenticated");
+    assert!(
+        a.contains(&"state/service/sshd/control".to_owned()),
+        "{a:?}"
+    );
+    assert!(
+        a.contains(&"state/account/role-b/authenticated".to_owned()),
+        "{a:?}"
+    );
+    let b = inputs(&g, "state/account/role-b/authenticated");
+    assert!(b.contains(&"state/host/server/admin".to_owned()), "{b:?}");
+    assert!(
+        b.contains(&"state/account/role-a/authenticated".to_owned()),
+        "{b:?}"
+    );
+}
+
+#[test]
+fn role_cycles_are_finite() {
+    let mut m = lecture();
+    add(&mut m, "role-a", EntityKind::Account);
+    add(&mut m, "role-b", EntityKind::Account);
+    relate(
+        &mut m,
+        "a-to-b",
+        Relation::Assumes {
+            from: id("role-a"),
+            to: id("role-b"),
+        },
+    );
+    relate(
+        &mut m,
+        "b-to-a",
+        Relation::Assumes {
+            from: id("role-b"),
+            to: id("role-a"),
+        },
+    );
+    let g = generate(&m).unwrap();
+    // The cycle is in the graph…
+    assert!(
+        inputs(&g, "state/account/role-b/authenticated")
+            .contains(&"state/account/role-a/authenticated".to_owned())
+    );
+    assert!(
+        inputs(&g, "state/account/role-a/authenticated")
+            .contains(&"state/account/role-b/authenticated".to_owned())
+    );
+    let reached = possible(&g);
+    // …but A→B→A with nothing seeding it is not a derivation.
+    assert!(!reached.contains("state/account/role-a/authenticated"));
+    assert!(!reached.contains("state/account/role-b/authenticated"));
 }

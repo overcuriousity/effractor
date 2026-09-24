@@ -26,7 +26,7 @@ entities:
       find-exploit: {status: illustrative, ttc: "Exponential(mean 10)", note: "Exercise assumption; not calibrated to the lecture"}
       find-exploit-patched: {status: illustrative, ttc: Never, note: "Exercise assumption: a patched service has no exploit to find"}
     defenses: {patched: false}
-  server-account: {kind: account, label: Server user account}
+  server-account: {kind: account, label: Server user account, defenses: {mfa: false}}
   server-credential:
     kind: credential
     label: Server user password
@@ -40,6 +40,7 @@ entities:
     label: Server administrator
     parameters:
       admin-login: {status: illustrative, ttc: "Exponential(mean 1)", note: "Exercise assumption; not calibrated to the lecture"}
+    defenses: {mfa: false}
   admin-credential:
     kind: credential
     label: Administrator password

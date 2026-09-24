@@ -57,8 +57,10 @@ fn origin(o: &Origin) -> Value {
 }
 
 /// `{status, expression, note, paths}`. `status` is `logical`, `foothold`,
-/// `policy`, `unknown` or the active parameter's evidence; `expression` is
-/// canonical TTC text, or `allowed`/`denied` for a policy.
+/// `policy` (a firewall rule), `defense` (a switch that opens or closes a
+/// way), `unknown` or the active parameter's evidence; `expression` is
+/// canonical TTC text, `allowed`/`denied` for a firewall rule, `off`/`on` for
+/// a defence switch.
 fn timing(binding: &Binding, resolved: &ResolvedGraph, i: usize) -> Value {
     let paths = &resolved.paths[i];
     let ttc = &resolved.ttc[i];
@@ -71,6 +73,14 @@ fn timing(binding: &Binding, resolved: &ResolvedGraph, i: usize) -> Value {
             (
                 "policy",
                 Some(if allowed { "allowed" } else { "denied" }.to_owned()),
+                None,
+            )
+        }
+        (Binding::Policy { .. }, ResolvedTtc::Known(d)) => {
+            let on = matches!(d, effractor_core::Distribution::Infinity);
+            (
+                "defense",
+                Some(if on { "on" } else { "off" }.to_owned()),
                 None,
             )
         }

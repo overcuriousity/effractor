@@ -83,13 +83,14 @@
     },
     {
       "kind": "account",
-      "description": "An identity with explicit authentication and grants; no implicit global privileges.",
+      "description": "An identity with explicit authentication and grants; no implicit global privileges. Multi-factor login is its switch.",
       "meaning": "An identity that services accept and that has rights on machines.",
       "states": [],
       "parameters": [
-        "admin-login"
+        "admin-login",
+        "mfa-bypass"
       ],
-      "defense": null
+      "defense": "mfa"
     },
     {
       "kind": "credential",
@@ -115,7 +116,7 @@
       "to": [
         "network"
       ],
-      "field": null,
+      "fields": [],
       "description": "Membership of a network; a machine can be attached to several. Implies no flow permission."
     },
     {
@@ -130,7 +131,9 @@
         "router",
         "host"
       ],
-      "field": "privilege",
+      "fields": [
+        "privilege"
+      ],
       "description": "The machine an executable, a router or a guest host runs on, at `privilege: user | admin`. Each has one host; a router or a guest runs only on a host."
     },
     {
@@ -141,7 +144,7 @@
       "to": [
         "firewall"
       ],
-      "field": null,
+      "fields": [],
       "description": "The firewall a router manages: one each way."
     },
     {
@@ -153,7 +156,9 @@
       "to": [
         "credential"
       ],
-      "field": "privilege",
+      "fields": [
+        "privilege"
+      ],
       "description": "Where a credential is kept: a host at `privilege: user | admin`, an application as `user`. Possession still takes an extraction."
     },
     {
@@ -164,8 +169,10 @@
       "to": [
         "account"
       ],
-      "field": null,
-      "description": "A credential that authenticates an account; any one suffices."
+      "fields": [
+        "factor"
+      ],
+      "description": "A credential that proves an account: as its first factor (any one suffices) or, with `factor: second`, as the second."
     },
     {
       "kind": "authorizes",
@@ -175,7 +182,7 @@
       "to": [
         "service"
       ],
-      "field": null,
+      "fields": [],
       "description": "A service that accepts this account for login."
     },
     {
@@ -187,7 +194,9 @@
         "host",
         "router"
       ],
-      "field": "privilege",
+      "fields": [
+        "privilege"
+      ],
       "description": "What an account gets on a host (`user | admin`) or router (`admin` only)."
     },
     {
@@ -199,7 +208,7 @@
         "host",
         "router"
       ],
-      "field": null,
+      "fields": [],
       "description": "Management access to a machine from a network, independent of ordinary forwarding."
     },
     {
@@ -210,7 +219,9 @@
       "to": [
         "flow"
       ],
-      "field": "allowed",
+      "fields": [
+        "allowed"
+      ],
       "description": "A firewall's named permission for a flow: `allowed: true | false | unknown`."
     },
     {
@@ -221,8 +232,34 @@
       "to": [
         "product"
       ],
-      "field": null,
+      "fields": [],
       "description": "The software version a service runs: exactly one product."
+    },
+    {
+      "kind": "runs-as",
+      "from": [
+        "host",
+        "application",
+        "service"
+      ],
+      "to": [
+        "account"
+      ],
+      "fields": [
+        "privilege"
+      ],
+      "description": "The identity a workload runs as: a host at `privilege: user | admin`, software as `user`. Code in it can use the identity without credentials."
+    },
+    {
+      "kind": "assumes",
+      "from": [
+        "account"
+      ],
+      "to": [
+        "account"
+      ],
+      "fields": [],
+      "description": "An account that may become another, e.g. a role it can assume."
     }
   ],
   "states": [
@@ -250,6 +287,23 @@
       "id": "possessed",
       "word": "held",
       "description": "The attacker holds this credential."
+    }
+  ],
+  "defenses": [
+    {
+      "id": "patched",
+      "word": "Patched",
+      "description": "The vendor fix is applied: `find-exploit-patched` stands in for `find-exploit`."
+    },
+    {
+      "id": "protected",
+      "word": "Protected",
+      "description": "Where the credential is kept is hardened: `extract-protected` stands in for `extract`."
+    },
+    {
+      "id": "mfa",
+      "word": "Multi-factor login",
+      "description": "The account needs a second factor: a first factor alone no longer logs in."
     }
   ],
   "parameters": [
@@ -306,6 +360,12 @@
       "name": "Escape to the host",
       "owner": "host or router",
       "description": "Time to break out of a virtual machine, container or appliance to the host it runs on, once in admin control of it."
+    },
+    {
+      "slot": "mfa-bypass",
+      "name": "Get past multi-factor login",
+      "owner": "account",
+      "description": "Time to get past the second factor once a first factor is held: push fatigue, a proxy, a SIM swap — the note says which."
     }
   ],
   "rules": [
@@ -612,15 +672,120 @@
       "bindings": [
         "authenticates"
       ],
-      "prerequisites": "credential.possessed",
+      "prerequisites": "credential.possessed, for a credential that authenticates the account as its first factor",
       "output": "account.material",
       "duration": {
         "kind": "logical"
       },
       "scope": "one per authenticates association",
       "assumptions": [
-        "Any one authenticating credential suffices; multi-factor authentication is outside this library.",
+        "Any one first-factor credential gives the material; a second factor alone gives none.",
         "Material alone grants no access."
+      ]
+    },
+    {
+      "id": "mfa-policy",
+      "title": "Multi-factor login is off",
+      "version": 1,
+      "bindings": [
+        "account"
+      ],
+      "prerequisites": "the account's `mfa` switch is off",
+      "output": "account.mfa-satisfied",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per account",
+      "assumptions": [
+        "An unknown switch is an unknown branch, not a guess either way."
+      ]
+    },
+    {
+      "id": "mfa-second-factor",
+      "title": "A second factor is held",
+      "version": 1,
+      "bindings": [
+        "authenticates"
+      ],
+      "prerequisites": "credential.possessed, for a credential that authenticates the account with `factor: second`",
+      "output": "account.mfa-satisfied",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per second-factor authenticates association",
+      "assumptions": [
+        "A hardware key, an authenticator seed or a stolen session cookie in the attacker's hands is the second factor."
+      ]
+    },
+    {
+      "id": "mfa-bypass",
+      "title": "Get past multi-factor login",
+      "version": 1,
+      "bindings": [
+        "account"
+      ],
+      "prerequisites": "account.material",
+      "output": "account.mfa-satisfied",
+      "duration": {
+        "kind": "slot",
+        "slot": "mfa-bypass",
+        "replaced_by": null
+      },
+      "scope": "one per account",
+      "assumptions": [
+        "Push fatigue, adversary-in-the-middle proxies and SIM swaps are one timed step; the note says which the value stands for."
+      ]
+    },
+    {
+      "id": "account-authenticated",
+      "title": "The account can log in",
+      "version": 1,
+      "bindings": [
+        "account"
+      ],
+      "prerequisites": "account.material and account.mfa-satisfied",
+      "output": "account.authenticated",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per account",
+      "assumptions": [
+        "With multi-factor login off, a first factor alone authenticates."
+      ]
+    },
+    {
+      "id": "workload-identity",
+      "title": "Running code uses its identity",
+      "version": 1,
+      "bindings": [
+        "runs-as"
+      ],
+      "prerequisites": "the workload under control, or its host at the declared privilege",
+      "output": "account.authenticated",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per runs-as association",
+      "assumptions": [
+        "Whoever runs code in the workload can obtain its identity's token; metadata-endpoint hardening stops remote request forgery, not code execution, so it is not a switch here.",
+        "The token is still used through an ordinary login to a service that authorizes the account."
+      ]
+    },
+    {
+      "id": "assume-role",
+      "title": "Become another role",
+      "version": 1,
+      "bindings": [
+        "assumes"
+      ],
+      "prerequisites": "the first account authenticated",
+      "output": "the second account authenticated",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per assumes association",
+      "assumptions": [
+        "Trust-policy conditions (external id, required MFA, source address) are not modelled."
       ]
     },
     {
@@ -630,7 +795,7 @@
       "bindings": [
         "authorizes"
       ],
-      "prerequisites": "service.reachable and account.material, for an account the service authorizes",
+      "prerequisites": "service.reachable and account.authenticated, for an account the service authorizes",
       "output": "account.session at that service",
       "duration": {
         "kind": "slot",
@@ -668,7 +833,7 @@
         "administration",
         "grants"
       ],
-      "prerequisites": "access to the administering network and account.material, for an account granted on the managed machine",
+      "prerequisites": "access to the administering network and account.authenticated, for an account granted on the managed machine",
       "output": "the managed machine at the granted privilege",
       "duration": {
         "kind": "slot",

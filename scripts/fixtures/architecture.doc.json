@@ -98,7 +98,13 @@
       "parameters": {
         "admin-login": {
           "status": "unknown"
+        },
+        "mfa-bypass": {
+          "status": "unknown"
         }
+      },
+      "defenses": {
+        "mfa": false
       }
     },
     "admin-account": {
@@ -109,7 +115,13 @@
           "status": "illustrative",
           "ttc": "Exponential(mean 1)",
           "note": "Exercise assumption; not calibrated to the lecture"
+        },
+        "mfa-bypass": {
+          "status": "unknown"
         }
+      },
+      "defenses": {
+        "mfa": false
       }
     },
     "server-key": {

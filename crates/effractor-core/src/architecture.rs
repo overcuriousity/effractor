@@ -146,7 +146,7 @@ impl EntityKind {
             Self::Service => &[Slot::DeployExploit, Slot::Login],
             Self::Product => &[Slot::FindExploit, Slot::FindExploitPatched],
             Self::Credential => &[Slot::Extract, Slot::ExtractProtected],
-            Self::Account => &[Slot::AdminLogin],
+            Self::Account => &[Slot::AdminLogin, Slot::MfaBypass],
             Self::Host | Self::Router => &[Slot::Escape],
             _ => &[],
         }
@@ -156,6 +156,7 @@ impl EntityKind {
     pub fn defense(self) -> Option<Defense> {
         match self {
             Self::Product => Some(Defense::Patched),
+            Self::Account => Some(Defense::Mfa),
             Self::Credential => Some(Defense::Protected),
             _ => None,
         }
@@ -288,10 +289,11 @@ pub enum Slot {
     ExtractProtected,
     AdminLogin,
     Escape,
+    MfaBypass,
 }
 
 impl Slot {
-    pub const ALL: [Slot; 9] = [
+    pub const ALL: [Slot; 10] = [
         Self::Connect,
         Self::FindExploit,
         Self::FindExploitPatched,
@@ -301,6 +303,7 @@ impl Slot {
         Self::ExtractProtected,
         Self::AdminLogin,
         Self::Escape,
+        Self::MfaBypass,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -314,6 +317,7 @@ impl Slot {
             Self::ExtractProtected => "extract-protected",
             Self::AdminLogin => "admin-login",
             Self::Escape => "escape",
+            Self::MfaBypass => "mfa-bypass",
         }
     }
 }
@@ -349,6 +353,8 @@ pub struct Defenses {
     pub patched: Option<Switch>,
     /// A credential: `extract-protected` stands in for `extract`.
     pub protected: Option<Switch>,
+    /// An account: a first factor alone no longer authenticates.
+    pub mfa: Option<Switch>,
 }
 
 impl Defenses {
@@ -356,6 +362,7 @@ impl Defenses {
         match defense {
             Defense::Patched => self.patched,
             Defense::Protected => self.protected,
+            Defense::Mfa => self.mfa,
         }
     }
 
@@ -363,6 +370,7 @@ impl Defenses {
         match defense {
             Defense::Patched => self.patched = value,
             Defense::Protected => self.protected = value,
+            Defense::Mfa => self.mfa = value,
         }
     }
 }
@@ -431,7 +439,11 @@ pub enum Relation {
         privilege: Privilege,
     },
     /// credential → account: any one suffices.
-    Authenticates { from: EntityId, to: EntityId },
+    Authenticates {
+        from: EntityId,
+        to: EntityId,
+        factor: Factor,
+    },
     /// account → service: the service accepts this account.
     Authorizes { from: EntityId, to: EntityId },
     /// account → host/router at this privilege; a router only as admin.
@@ -450,6 +462,32 @@ pub enum Relation {
     },
     /// service → product: which software version it runs; exactly one.
     InstanceOf { from: EntityId, to: EntityId },
+    /// host/software → account: the workload's own identity; a host at this
+    /// privilege, software as user.
+    RunsAs {
+        from: EntityId,
+        to: EntityId,
+        privilege: Privilege,
+    },
+    /// account → account: the first may become the second.
+    Assumes { from: EntityId, to: EntityId },
+}
+
+/// How a credential proves an account: alone, or as the second factor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+pub enum Factor {
+    #[default]
+    First,
+    Second,
+}
+
+impl Factor {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::First => "first",
+            Self::Second => "second",
+        }
+    }
 }
 
 /// The nine association kinds, as a document spells them.
@@ -465,10 +503,12 @@ pub enum RelationKind {
     Administration,
     Permits,
     InstanceOf,
+    RunsAs,
+    Assumes,
 }
 
 impl RelationKind {
-    pub const ALL: [RelationKind; 10] = [
+    pub const ALL: [RelationKind; 12] = [
         Self::Attached,
         Self::Hosts,
         Self::Filters,
@@ -479,6 +519,8 @@ impl RelationKind {
         Self::Administration,
         Self::Permits,
         Self::InstanceOf,
+        Self::RunsAs,
+        Self::Assumes,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -493,6 +535,8 @@ impl RelationKind {
             Self::Administration => "administration",
             Self::Permits => "permits",
             Self::InstanceOf => "instance-of",
+            Self::RunsAs => "runs-as",
+            Self::Assumes => "assumes",
         }
     }
 
@@ -508,6 +552,8 @@ impl RelationKind {
             Self::Administration => &[K::Network],
             Self::Permits => &[K::Firewall],
             Self::InstanceOf => &[K::Service],
+            Self::RunsAs => &[K::Host, K::Application, K::Service],
+            Self::Assumes => &[K::Account],
         }
     }
 
@@ -525,11 +571,25 @@ impl RelationKind {
             Self::Grants | Self::Administration => &[K::Host, K::Router],
             Self::Permits => &[],
             Self::InstanceOf => &[K::Product],
+            Self::RunsAs | Self::Assumes => &[K::Account],
+        }
+    }
+
+    /// The fields beside kind/from/to/description this kind of association has.
+    pub fn fields(self) -> &'static [&'static str] {
+        match self {
+            Self::Permits => &["allowed"],
+            Self::Authenticates => &["factor"],
+            k if k.has_privilege() => &["privilege"],
+            _ => &[],
         }
     }
 
     pub fn has_privilege(self) -> bool {
-        matches!(self, Self::Hosts | Self::Stores | Self::Grants)
+        matches!(
+            self,
+            Self::Hosts | Self::Stores | Self::Grants | Self::RunsAs
+        )
     }
 }
 
@@ -546,6 +606,8 @@ impl Relation {
             Self::Administration { .. } => RelationKind::Administration,
             Self::Permits { .. } => RelationKind::Permits,
             Self::InstanceOf { .. } => RelationKind::InstanceOf,
+            Self::RunsAs { .. } => RelationKind::RunsAs,
+            Self::Assumes { .. } => RelationKind::Assumes,
         }
     }
 
@@ -560,7 +622,9 @@ impl Relation {
             | Self::Grants { from, .. }
             | Self::Administration { from, .. }
             | Self::Permits { from, .. }
-            | Self::InstanceOf { from, .. } => from,
+            | Self::InstanceOf { from, .. }
+            | Self::RunsAs { from, .. }
+            | Self::Assumes { from, .. } => from,
         }
     }
 
@@ -575,7 +639,9 @@ impl Relation {
             | Self::Authorizes { to, .. }
             | Self::Grants { to, .. }
             | Self::Administration { to, .. }
-            | Self::InstanceOf { to, .. } => Some(to),
+            | Self::InstanceOf { to, .. }
+            | Self::RunsAs { to, .. }
+            | Self::Assumes { to, .. } => Some(to),
             Self::Permits { .. } => None,
         }
     }
@@ -584,7 +650,8 @@ impl Relation {
         match self {
             Self::Hosts { privilege, .. }
             | Self::Stores { privilege, .. }
-            | Self::Grants { privilege, .. } => Some(*privilege),
+            | Self::Grants { privilege, .. }
+            | Self::RunsAs { privilege, .. } => Some(*privilege),
             _ => None,
         }
     }
@@ -608,15 +675,17 @@ pub struct Flow {
 pub enum Defense {
     Patched,
     Protected,
+    Mfa,
 }
 
 impl Defense {
-    pub const ALL: [Defense; 2] = [Self::Patched, Self::Protected];
+    pub const ALL: [Defense; 3] = [Self::Patched, Self::Protected, Self::Mfa];
 
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Patched => "patched",
             Self::Protected => "protected",
+            Self::Mfa => "mfa",
         }
     }
 }

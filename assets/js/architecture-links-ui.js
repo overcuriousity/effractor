@@ -76,13 +76,14 @@
 
   // ---- Link: the way, in words, then the component it goes to ----
 
-  function endItem(id, relation, from, to, privilege, other) {
-    return [name(other), "", function () { link(id, relation, from, to, privilege); }, { hint: kindOf(other) }];
+  function endItem(id, relation, from, to, variant, other) {
+    return [name(other), "", function () { link(id, relation, from, to, variant); }, { hint: kindOf(other) }];
   }
 
-  // Each way to link, with its privilege where it has one, opens the list of
-  // existing components that fit; the new link keeps the selection here.
-  // When nothing can be linked, one greyed note that says why.
+  // Each way to link — with its privilege and other fields where it has
+  // them — opens the list of existing components that fit; the new link
+  // keeps the selection here. When nothing can be linked, one greyed note
+  // that says why.
   function linkItems(id) {
     return U.loadCatalog().then(function (c) {
       catalog = c;
@@ -91,23 +92,30 @@
         var ends = function (other) {
           return choice.direction === "out" ? [id, other] : [other, id];
         };
-        var variants = [];
+        // Each candidate's own ways, keyed so one way lists every end it fits.
+        var keys = [];
+        var ways = {};
+        var fits = {};
         choice.candidates.forEach(function (other) {
           var fromTo = ends(other);
-          (L.privileges(doc(), choice.kind, fromTo[0], fromTo[1]) || [null]).forEach(function (p) {
-            if (variants.indexOf(p) < 0) variants.push(p);
+          L.variants(doc(), choice.kind, fromTo[0], fromTo[1]).forEach(function (v) {
+            var key = JSON.stringify(v);
+            if (!ways[key]) {
+              keys.push(key);
+              ways[key] = v;
+              fits[key] = [];
+            }
+            fits[key].push(other);
           });
         });
-        variants.forEach(function (p) {
-          var fitting = choice.candidates.filter(function (other) {
+        keys.forEach(function (key) {
+          var v = ways[key];
+          var p = v.privilege || null;
+          var said = Object.keys(v).map(function (k) { return v[k]; }).join(" · ");
+          items.push([L.phrase(choice.kind, choice.direction, p, v), "", fits[key].map(function (other) {
             var fromTo = ends(other);
-            var allowed = L.privileges(doc(), choice.kind, fromTo[0], fromTo[1]);
-            return p === null ? !allowed : !!allowed && allowed.indexOf(p) >= 0;
-          });
-          items.push([L.phrase(choice.kind, choice.direction, p), "", fitting.map(function (other) {
-            var fromTo = ends(other);
-            return endItem(id, choice.kind, fromTo[0], fromTo[1], p, other);
-          }), { title: choice.kind + (p ? " · " + p : "") }]);
+            return endItem(id, choice.kind, fromTo[0], fromTo[1], v, other);
+          }), { title: choice.kind + (said ? " · " + said : "") }]);
         });
       });
       flowItems(id).forEach(function (item) {
@@ -157,9 +165,9 @@
   }
 
   // The selection stays on the component: the next link starts from it too.
-  function link(id, kind, from, to, privilege) {
+  function link(id, kind, from, to, variant) {
     U.apply(function () {
-      var edit = L.putAssociation(doc(), null, { kind: kind, from: from, to: to, privilege: privilege });
+      var edit = L.putAssociation(doc(), null, Object.assign({ kind: kind, from: from, to: to }, variant));
       if (edit) edit.select = "entity/" + id;
       return edit;
     });
@@ -220,7 +228,7 @@
   function unlinkItems(id) {
     var items = L.linksOf(doc(), id).map(function (l) {
       var a = doc().associations[l.id];
-      return [name(l.other), "", function () { unlink("associations", l.id); }, { hint: L.phrase(l.kind, l.direction, a.privilege), title: l.kind }];
+      return [name(l.other), "", function () { unlink("associations", l.id); }, { hint: L.phrase(l.kind, l.direction, a.privilege, a), title: l.kind }];
     }).concat(L.flowsOf(doc(), id).map(function (f) {
       return [doc().flows[f.id].label, "", function () { unlink("flows", f.id); }, { hint: "flow " + (f.direction === "out" ? "to " : "from ") + name(f.other) }];
     }));
@@ -234,7 +242,7 @@
     var links = block(form, "Links", linkButton);
     L.linksOf(doc(), id).forEach(function (l) {
       var a = doc().associations[l.id];
-      row(links, [[name(l.other), "name"], [L.phrase(l.kind, l.direction, a.privilege), "privilege"]], "association/" + l.id, l.kind + (a.privilege ? " · " + a.privilege : "") + " · " + l.id, { collection: "associations", id: l.id, what: "Unlink" });
+      row(links, [[name(l.other), "name"], [L.phrase(l.kind, l.direction, a.privilege, a), "privilege"]], "association/" + l.id, l.kind + (a.privilege ? " · " + a.privilege : "") + " · " + l.id, { collection: "associations", id: l.id, what: "Unlink" });
     });
     if (!links.children.length) links.appendChild(el("li", "none", "empty"));
 
@@ -313,16 +321,23 @@
     } else {
       U.field(form, "prop-to", "To", endButton("entity/" + a.to, name(a.to)));
     }
-    var privileges = L.privileges(doc(), a.kind, a.from, a.to);
-    if (privileges) {
-      var options = privileges.concat(privileges.indexOf(a.privilege) < 0 && a.privilege ? [a.privilege] : []).map(function (p) { return [p, p]; });
-      var privilege = U.field(form, "prop-privilege", "Privilege", M.dropdown(options, a.privilege));
-      privilege.addEventListener("change", function () {
+    // One dropdown per field the link carries; a value the file has that
+    // the ends no longer allow stays shown, for the validator to name.
+    L.fieldsOf(a.kind, kindOf(a.from), kindOf(a.to)).forEach(function (f) {
+      var current = a[f.name] == null ? String(f.values[0]) : String(a[f.name]);
+      var values = f.values.map(String);
+      var options = values.concat(values.indexOf(current) < 0 ? [current] : []).map(function (v) {
+        return [v, L.fieldWord(f.name, v) || v];
+      });
+      var control = U.field(form, "prop-" + f.name, f.name.charAt(0).toUpperCase() + f.name.slice(1), M.dropdown(options, current));
+      control.addEventListener("change", function () {
+        var change = {};
+        change[f.name] = control.value === "true" ? true : control.value === "false" ? false : control.value;
         U.apply(function () {
-          return L.putAssociation(doc(), id, Object.assign({}, doc().associations[id], { privilege: privilege.value }));
+          return L.putAssociation(doc(), id, Object.assign({}, doc().associations[id], change));
         }, null, true);
       });
-    }
+    });
     if (a.kind === "permits") {
       var allowed = U.field(form, "prop-allowed", "Allowed", M.dropdown(U.SWITCH, String(a.allowed)));
       allowed.addEventListener("change", function () {

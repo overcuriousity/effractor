@@ -19,3 +19,10 @@ test('evidence statuses and step states are words, not ids', () => {
   assert.equal(W.status('illustrative'), 'Illustrative');
   assert.equal(W.status('policy'), 'Firewall rule');
 });
+
+test('a defence switch and its step status read as words', () => {
+  assert.equal(W.defense(catalog, 'mfa'), 'Multi-factor login');
+  assert.equal(W.defense(catalog, 'patched'), 'Patched');
+  assert.equal(W.defense(null, 'mfa'), 'mfa');
+  assert.equal(W.status('defense'), 'Defence switch');
+});

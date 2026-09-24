@@ -111,6 +111,9 @@ entities:
     parameters:
       admin-login:
         status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: false}
   db-password:
     kind: credential
     label: Database password in the shop's configuration

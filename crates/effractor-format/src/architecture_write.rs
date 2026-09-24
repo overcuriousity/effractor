@@ -7,11 +7,11 @@
 use std::fmt::Write;
 
 use effractor_core::EntityId;
-use effractor_core::architecture::{Architecture, Change, Parameter, Relation, Switch};
+use effractor_core::architecture::{Architecture, Change, Factor, Parameter, Relation, Switch};
 
 use crate::CURRENT_VERSION;
 use crate::architecture_read::{
-    DEFENSES, EVIDENCE, KINDS, PRIVILEGES, RELATIONS, STATES, SWITCHES,
+    DEFENSES, EVIDENCE, FACTORS, KINDS, PRIVILEGES, RELATIONS, STATES, SWITCHES,
 };
 use crate::lower::{ARCHITECTURE, Extras, TIME_UNITS};
 use crate::write::{Context, WIDTH, Writer, expression, string, word};
@@ -112,6 +112,13 @@ fn document(w: &mut Writer, m: &Architecture) {
                 }
                 if let Some(privilege) = r.privilege() {
                     w.line(4, "privilege", word(&PRIVILEGES, &privilege));
+                }
+                if let Relation::Authenticates {
+                    factor: Factor::Second,
+                    ..
+                } = r
+                {
+                    w.line(4, "factor", word(&FACTORS, &Factor::Second));
                 }
             }
         }

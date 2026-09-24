@@ -133,9 +133,10 @@ pub struct Assumption {
     /// Every source field that decided it, the switch that chose a
     /// replacement slot included.
     pub paths: Vec<String>,
-    /// The parameter's evidence, `policy`, or `unknown`.
+    /// The parameter's evidence, `policy`, `defense`, or `unknown`.
     pub status: &'static str,
-    /// Canonical TTC text, `allowed`/`denied` for a policy, `None` if unknown.
+    /// Canonical TTC text, `allowed`/`denied` for a firewall rule, `off`/`on`
+    /// for a defence switch, `None` if unknown.
     pub expression: Option<String>,
     pub note: Option<String>,
 }
@@ -532,6 +533,17 @@ impl GraphSolve {
                             "allowed".to_owned()
                         }),
                     ),
+                    (Binding::Policy { .. }, ResolvedTtc::Known(d)) => (
+                        "defense",
+                        Some(
+                            if matches!(d, Distribution::Infinity) {
+                                "on"
+                            } else {
+                                "off"
+                            }
+                            .to_owned(),
+                        ),
+                    ),
                     (Binding::Parameter { .. }, ResolvedTtc::Known(d)) => (
                         r.evidence[i]
                             .first()
@@ -539,7 +551,7 @@ impl GraphSolve {
                         Some(effractor_format::expr::write(d)),
                     ),
                     (
-                        Binding::Permission(_) | Binding::Parameter { .. },
+                        Binding::Permission(_) | Binding::Policy { .. } | Binding::Parameter { .. },
                         ResolvedTtc::Unknown(_),
                     )
                     | (Binding::Unfinished { .. }, _) => ("unknown", None),

@@ -66,6 +66,9 @@ entities:
     parameters:
       admin-login:
         status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: false}
   session-token:
     kind: credential
     label: Cached session token

@@ -279,7 +279,7 @@ test('the link menu offers the kinds a component can stand in, with eligible end
   const doc = lecture();
   const choices = L.linkChoices(doc, CATALOG, 'server');
   const kinds = choices.map((c) => c.kind + ':' + c.direction);
-  assert.deepEqual(kinds, ['attached:out', 'hosts:out', 'hosts:in', 'stores:out', 'grants:in', 'administration:in']);
+  assert.deepEqual(kinds, ['attached:out', 'hosts:out', 'hosts:in', 'stores:out', 'grants:in', 'administration:in', 'runs-as:out']);
   const attached = choices.find((c) => c.kind === 'attached');
   // server is already attached to server-net; the others are offered.
   assert.deepEqual(attached.candidates, ['client-net', 'admin-net']);
@@ -290,7 +290,7 @@ test('the link menu offers the kinds a component can stand in, with eligible end
   assert.equal(choices.some((c) => c.kind === 'permits'), false, 'permissions belong to a flow');
   // A firewall's router is picked from routers; an account links both ways.
   assert.deepEqual(L.linkChoices(doc, CATALOG, 'filter').map((c) => c.kind + ':' + c.direction), ['filters:in']);
-  assert.deepEqual(L.linkChoices(doc, CATALOG, 'server-account').map((c) => c.kind + ':' + c.direction), ['authenticates:in', 'authorizes:out', 'grants:out']);
+  assert.deepEqual(L.linkChoices(doc, CATALOG, 'server-account').map((c) => c.kind + ':' + c.direction), ['authenticates:in', 'authorizes:out', 'grants:out', 'runs-as:in', 'assumes:out', 'assumes:in']);
   assert.deepEqual(L.linkChoices(doc, CATALOG, 'absent'), []);
 });
 
@@ -381,7 +381,7 @@ test('Tab offers the kinds that can be linked to the selection, with each way to
     'host: hosts → · user, hosts → · admin, ← hosts · user, ← hosts · admin',
     'application: hosts → · user, hosts → · admin',
     'service: hosts → · user, hosts → · admin',
-    'account: ← grants · user, ← grants · admin',
+    'account: ← grants · user, ← grants · admin, runs-as → · user, runs-as → · admin',
     'credential: stores → · user, stores → · admin',
   ]);
   // A router hosts and is granted only as admin; it has its firewall already.
@@ -389,7 +389,7 @@ test('Tab offers the kinds that can be linked to the selection, with each way to
   assert.deepEqual(router, ['network: attached, administration', 'host: hosts·user, hosts·admin', 'application: hosts·admin', 'service: hosts·admin', 'account: grants·admin']);
   // A hosted executable offers no second host; an application stores as user.
   const client = L.addChoices(doc, CATALOG, 'ssh-client').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
-  assert.deepEqual(client, ['service: flow', 'credential: stores·user']);
+  assert.deepEqual(client, ['service: flow', 'account: runs-as·user', 'credential: stores·user']);
   assert.deepEqual(L.addChoices(doc, CATALOG, 'absent'), []);
 });
 
@@ -440,10 +440,10 @@ test('each way to link reads as a few words from the selected component', () => 
 test('software is offered a flow to or from a new service', () => {
   const doc = lecture();
   const kinds = (id) => L.addChoices(doc, CATALOG, id).map((c) => c.kind + ': ' + c.options.map((o) => o.relation + ':' + o.direction).join(', '));
-  assert.deepEqual(kinds('ssh-client'), ['service: flow:out', 'credential: stores:out']);
-  assert.deepEqual(kinds('sshd'), ['application: flow:in', 'service: flow:out, flow:in', 'account: authorizes:in'], 'it runs its product already');
+  assert.deepEqual(kinds('ssh-client'), ['service: flow:out', 'account: runs-as:out', 'credential: stores:out']);
+  assert.deepEqual(kinds('sshd'), ['application: flow:in', 'service: flow:out, flow:in', 'account: authorizes:in, runs-as:out'], 'it runs its product already');
   doc.entities.web = { kind: 'service', label: 'Web' };
-  assert.deepEqual(kinds('web'), ['router: hosts:in', 'host: hosts:in, hosts:in', 'application: flow:in', 'service: flow:out, flow:in', 'product: instance-of:out', 'account: authorizes:in']);
+  assert.deepEqual(kinds('web'), ['router: hosts:in', 'host: hosts:in, hosts:in', 'application: flow:in', 'service: flow:out, flow:in', 'product: instance-of:out', 'account: authorizes:in, runs-as:out']);
   const version = L.linkChoices(doc, CATALOG, 'web').find((c) => c.kind === 'instance-of');
   assert.deepEqual(version.candidates, ['openssh']);
   assert.deepEqual(L.linkChoices(doc, CATALOG, 'sshd').find((c) => c.kind === 'instance-of').candidates, []);
@@ -507,4 +507,32 @@ test('deleting a product takes its instance-of links along', () => {
     associations: { 's-p': { kind: 'instance-of', from: 's', to: 'p' } }, flows: {} };
   const out = L.remove(doc, 'entities', 'p');
   assert.deepEqual(out.doc.associations, {});
+});
+
+test('a link offers every combination of the fields its kind carries', () => {
+  const doc = { entities: {
+    k: { kind: 'credential', label: 'K' }, a: { kind: 'account', label: 'A' }, b: { kind: 'account', label: 'B' },
+    h: { kind: 'host', label: 'H' }, app: { kind: 'application', label: 'App' },
+  }, associations: {}, flows: {} };
+  assert.deepEqual(L.fieldsOf('authenticates', 'credential', 'account'), [{ name: 'factor', values: ['first', 'second'] }]);
+  assert.deepEqual(L.variants(doc, 'authenticates', 'k', 'a'), [{ factor: 'first' }, { factor: 'second' }]);
+  assert.deepEqual(L.variants(doc, 'runs-as', 'h', 'a'), [{ privilege: 'user' }, { privilege: 'admin' }]);
+  assert.deepEqual(L.variants(doc, 'runs-as', 'app', 'a'), [{ privilege: 'user' }]);
+  assert.deepEqual(L.variants(doc, 'assumes', 'a', 'b'), [{}]);
+  assert.equal(L.phrase('authenticates', 'out', null, { factor: 'second' }), 'unlocks, as second factor');
+  assert.equal(L.phrase('assumes', 'out'), 'may become');
+});
+
+test('a second factor is written, a first factor is not', () => {
+  const doc = { entities: { k: { kind: 'credential', label: 'K' }, a: { kind: 'account', label: 'A' } }, associations: {}, flows: {} };
+  const second = L.putAssociation(doc, 'k-a', { kind: 'authenticates', from: 'k', to: 'a', factor: 'second' });
+  assert.deepEqual(second.doc.associations['k-a'], { kind: 'authenticates', from: 'k', to: 'a', factor: 'second' });
+  const first = L.putAssociation(doc, 'k-a', { kind: 'authenticates', from: 'k', to: 'a', factor: 'first' });
+  assert.deepEqual(first.doc.associations['k-a'], { kind: 'authenticates', from: 'k', to: 'a' });
+});
+
+test('an account cannot be linked to become itself', () => {
+  const doc = { entities: { a: { kind: 'account', label: 'A' } }, associations: {}, flows: {} };
+  const become = L.linkChoices(doc, CATALOG, 'a').find((c) => c.kind === 'assumes' && c.direction === 'out');
+  assert.deepEqual(become.candidates, []);
 });

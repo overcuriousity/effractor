@@ -9,11 +9,73 @@
   "target": "state/host/server/admin",
   "nodes": [
    {
+    "id": "action/account-authenticated/admin-account",
+    "label": "Log in as · Router administrator",
+    "kind": "all",
+    "inputs": [
+     "state/account/admin-account/material",
+     "state/account/admin-account/mfa-satisfied"
+    ],
+    "origins": [
+     {
+      "rule": "account-authenticated",
+      "version": 1,
+      "entities": [
+       "admin-account"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "With multi-factor login off, a first factor alone authenticates."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "action/account-authenticated/server-account",
+    "label": "Log in as · Server account",
+    "kind": "all",
+    "inputs": [
+     "state/account/server-account/material",
+     "state/account/server-account/mfa-satisfied"
+    ],
+    "origins": [
+     {
+      "rule": "account-authenticated",
+      "version": 1,
+      "entities": [
+       "server-account"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "With multi-factor login off, a first factor alone authenticates."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
     "id": "action/administration-login/admin-net/admin-account/bridge",
     "label": "Admin login · Router administrator · Router from Administration network",
     "kind": "all",
     "inputs": [
-     "state/account/admin-account/material",
+     "state/account/admin-account/authenticated",
      "state/network/admin-net/access"
     ],
     "origins": [
@@ -174,6 +236,78 @@
     }
    },
    {
+    "id": "action/mfa-bypass/admin-account",
+    "label": "Get past multi-factor login · Router administrator",
+    "kind": "all",
+    "inputs": [
+     "state/account/admin-account/material"
+    ],
+    "origins": [
+     {
+      "rule": "mfa-bypass",
+      "version": 1,
+      "entities": [
+       "admin-account"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [
+       "entities.admin-account.parameters.mfa-bypass"
+      ],
+      "assumptions": [
+       "Push fatigue, adversary-in-the-middle proxies and SIM swaps are one timed step; the note says which the value stands for."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "unknown",
+     "expression": null,
+     "note": null,
+     "paths": [
+      "entities.admin-account.parameters.mfa-bypass"
+     ],
+     "missing": [
+      "entities.admin-account.parameters.mfa-bypass"
+     ]
+    }
+   },
+   {
+    "id": "action/mfa-bypass/server-account",
+    "label": "Get past multi-factor login · Server account",
+    "kind": "all",
+    "inputs": [
+     "state/account/server-account/material"
+    ],
+    "origins": [
+     {
+      "rule": "mfa-bypass",
+      "version": 1,
+      "entities": [
+       "server-account"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [
+       "entities.server-account.parameters.mfa-bypass"
+      ],
+      "assumptions": [
+       "Push fatigue, adversary-in-the-middle proxies and SIM swaps are one timed step; the note says which the value stands for."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "unknown",
+     "expression": null,
+     "note": null,
+     "paths": [
+      "entities.server-account.parameters.mfa-bypass"
+     ],
+     "missing": [
+      "entities.server-account.parameters.mfa-bypass"
+     ]
+    }
+   },
+   {
     "id": "action/product-find-exploit/openssh",
     "label": "Find an exploit · OpenSSH",
     "kind": "all",
@@ -254,7 +388,7 @@
     "label": "Log in · Server account · SSH server",
     "kind": "all",
     "inputs": [
-     "state/account/server-account/material",
+     "state/account/server-account/authenticated",
      "state/service/sshd/reachable"
     ],
     "origins": [
@@ -357,6 +491,100 @@
     }
    },
    {
+    "id": "input/policy/admin-account/mfa",
+    "label": "Multi-factor login off · Router administrator",
+    "kind": "input",
+    "inputs": [],
+    "origins": [
+     {
+      "rule": "mfa-policy",
+      "version": 1,
+      "entities": [
+       "admin-account"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [
+       "entities.admin-account.defenses.mfa"
+      ],
+      "assumptions": [
+       "An unknown switch is an unknown branch, not a guess either way."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "defense",
+     "expression": "off",
+     "note": null,
+     "paths": [
+      "entities.admin-account.defenses.mfa"
+     ],
+     "missing": []
+    }
+   },
+   {
+    "id": "input/policy/server-account/mfa",
+    "label": "Multi-factor login off · Server account",
+    "kind": "input",
+    "inputs": [],
+    "origins": [
+     {
+      "rule": "mfa-policy",
+      "version": 1,
+      "entities": [
+       "server-account"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [
+       "entities.server-account.defenses.mfa"
+      ],
+      "assumptions": [
+       "An unknown switch is an unknown branch, not a guess either way."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "defense",
+     "expression": "off",
+     "note": null,
+     "paths": [
+      "entities.server-account.defenses.mfa"
+     ],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/account/admin-account/authenticated",
+    "label": "Router administrator · can log in",
+    "kind": "any",
+    "inputs": [
+     "action/account-authenticated/admin-account"
+    ],
+    "origins": [
+     {
+      "rule": "account-authenticated",
+      "version": 1,
+      "entities": [
+       "admin-account"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "With multi-factor login off, a first factor alone authenticates."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
     "id": "state/account/admin-account/material",
     "label": "Router administrator · credential held",
     "kind": "any",
@@ -377,8 +605,84 @@
       "flows": [],
       "paths": [],
       "assumptions": [
-       "Any one authenticating credential suffices; multi-factor authentication is outside this library.",
+       "Any one first-factor credential gives the material; a second factor alone gives none.",
        "Material alone grants no access."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/account/admin-account/mfa-satisfied",
+    "label": "Router administrator · second factor no obstacle",
+    "kind": "any",
+    "inputs": [
+     "action/mfa-bypass/admin-account",
+     "input/policy/admin-account/mfa"
+    ],
+    "origins": [
+     {
+      "rule": "mfa-bypass",
+      "version": 1,
+      "entities": [
+       "admin-account"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Push fatigue, adversary-in-the-middle proxies and SIM swaps are one timed step; the note says which the value stands for."
+      ]
+     },
+     {
+      "rule": "mfa-policy",
+      "version": 1,
+      "entities": [
+       "admin-account"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [
+       "entities.admin-account.defenses.mfa"
+      ],
+      "assumptions": [
+       "An unknown switch is an unknown branch, not a guess either way."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/account/server-account/authenticated",
+    "label": "Server account · can log in",
+    "kind": "any",
+    "inputs": [
+     "action/account-authenticated/server-account"
+    ],
+    "origins": [
+     {
+      "rule": "account-authenticated",
+      "version": 1,
+      "entities": [
+       "server-account"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "With multi-factor login off, a first factor alone authenticates."
       ]
      }
     ],
@@ -411,8 +715,54 @@
       "flows": [],
       "paths": [],
       "assumptions": [
-       "Any one authenticating credential suffices; multi-factor authentication is outside this library.",
+       "Any one first-factor credential gives the material; a second factor alone gives none.",
        "Material alone grants no access."
+      ]
+     }
+    ],
+    "timing": {
+     "status": "logical",
+     "expression": null,
+     "note": null,
+     "paths": [],
+     "missing": []
+    }
+   },
+   {
+    "id": "state/account/server-account/mfa-satisfied",
+    "label": "Server account · second factor no obstacle",
+    "kind": "any",
+    "inputs": [
+     "action/mfa-bypass/server-account",
+     "input/policy/server-account/mfa"
+    ],
+    "origins": [
+     {
+      "rule": "mfa-bypass",
+      "version": 1,
+      "entities": [
+       "server-account"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [],
+      "assumptions": [
+       "Push fatigue, adversary-in-the-middle proxies and SIM swaps are one timed step; the note says which the value stands for."
+      ]
+     },
+     {
+      "rule": "mfa-policy",
+      "version": 1,
+      "entities": [
+       "server-account"
+      ],
+      "associations": [],
+      "flows": [],
+      "paths": [
+       "entities.server-account.defenses.mfa"
+      ],
+      "assumptions": [
+       "An unknown switch is an unknown branch, not a guess either way."
       ]
      }
     ],
@@ -1118,6 +1468,16 @@
  "support": {
   "nodes": [
    {
+    "id": "action/account-authenticated/admin-account",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "action/account-authenticated/server-account",
+    "status": "possible",
+    "missing": []
+   },
+   {
     "id": "action/administration-login/admin-net/admin-account/bridge",
     "status": "unreachable",
     "missing": []
@@ -1136,6 +1496,20 @@
     "id": "action/flow-connect/ssh",
     "status": "possible",
     "missing": []
+   },
+   {
+    "id": "action/mfa-bypass/admin-account",
+    "status": "possible",
+    "missing": [
+     "entities.admin-account.parameters.mfa-bypass"
+    ]
+   },
+   {
+    "id": "action/mfa-bypass/server-account",
+    "status": "possible",
+    "missing": [
+     "entities.server-account.parameters.mfa-bypass"
+    ]
    },
    {
     "id": "action/product-find-exploit/openssh",
@@ -1163,13 +1537,43 @@
     "missing": []
    },
    {
+    "id": "input/policy/admin-account/mfa",
+    "status": "seeded",
+    "missing": []
+   },
+   {
+    "id": "input/policy/server-account/mfa",
+    "status": "seeded",
+    "missing": []
+   },
+   {
+    "id": "state/account/admin-account/authenticated",
+    "status": "possible",
+    "missing": []
+   },
+   {
     "id": "state/account/admin-account/material",
+    "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/account/admin-account/mfa-satisfied",
+    "status": "seeded",
+    "missing": []
+   },
+   {
+    "id": "state/account/server-account/authenticated",
     "status": "possible",
     "missing": []
    },
    {
     "id": "state/account/server-account/material",
     "status": "possible",
+    "missing": []
+   },
+   {
+    "id": "state/account/server-account/mfa-satisfied",
+    "status": "seeded",
     "missing": []
    },
    {
@@ -1264,12 +1668,15 @@
    }
   ],
   "target_support": [
+   "action/account-authenticated/server-account",
    "action/credential-extract/workstation/server-key",
    "action/flow-connect/ssh",
    "action/product-find-exploit/openssh",
    "action/service-deploy-exploit/sshd",
    "action/service-login/server-account/sshd",
+   "state/account/server-account/authenticated",
    "state/account/server-account/material",
+   "state/account/server-account/mfa-satisfied",
    "state/application/ssh-client/control",
    "state/credential/server-key/possessed",
    "state/flow/ssh/connected",

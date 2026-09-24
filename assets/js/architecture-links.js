@@ -6,8 +6,12 @@
 // named what it deletes — so a document never points at nothing.
 (function () {
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
-  var KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of"];
-  var PRIVILEGED = ["hosts", "stores", "grants"];
+  var KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of", "runs-as", "assumes"];
+  var PRIVILEGED = ["hosts", "stores", "grants", "runs-as"];
+  // The fields a link carries beside kind/from/to, in the file's order.
+  var FIELD_ORDER = ["privilege", "factor"];
+  // What a field's value adds to a link's words; a missing entry adds nothing.
+  var FIELD_WORDS = { factor: { second: "as second factor" } };
   var COLLECTIONS = ["entities", "associations", "flows"];
 
   function has(o, k) {
@@ -52,7 +56,7 @@
     return null;
   }
 
-  // `value`: {kind, from, to, privilege?, allowed?, description?}. Written in
+  // `value`: {kind, from, to, privilege?, allowed?, factor?, description?}. Written in
   // canonical key order with only the fields its kind carries; `id` null
   // makes a new one named after its ends.
   function putAssociation(doc, id, value) {
@@ -64,6 +68,7 @@
     var a = { kind: value.kind, from: String(value.from || ""), to: String(value.to || "") };
     if (PRIVILEGED.indexOf(value.kind) >= 0) a.privilege = value.privilege;
     if (value.kind === "permits") a.allowed = value.allowed;
+    if (value.kind === "authenticates" && value.factor === "second") a.factor = "second";
     var description = String(value.description == null ? "" : value.description).trim();
     if (description) a.description = description;
     Object.assign(a, extensions(has(next.associations, id) ? next.associations[id] : null));
@@ -394,7 +399,37 @@
     if (kind === "hosts" && fromKind === "router") return ["admin"];
     if (kind === "grants" && toKind === "router") return ["admin"];
     if (kind === "stores" && fromKind === "application") return ["user"];
+    if (kind === "runs-as" && fromKind !== "host") return ["user"];
     return ["user", "admin"];
+  }
+
+  // The fields a link of `kind` between these kinds carries, each with the
+  // values it may take there.
+  function fieldsOf(kind, fromKind, toKind) {
+    var out = [];
+    var p = privilegesOf(kind, fromKind, toKind);
+    if (p) out.push({ name: "privilege", values: p });
+    if (kind === "authenticates") out.push({ name: "factor", values: ["first", "second"] });
+    return out;
+  }
+
+  // Every combination of those values: the ways the Link menu offers.
+  function variants(doc, kind, from, to) {
+    return fieldsOf(kind, kindOf(doc, from), kindOf(doc, to)).reduce(function (acc, f) {
+      var out = [];
+      acc.forEach(function (v) {
+        f.values.forEach(function (value) {
+          var next = Object.assign({}, v);
+          next[f.name] = value;
+          out.push(next);
+        });
+      });
+      return out;
+    }, [{}]);
+  }
+
+  function fieldWord(name, value) {
+    return FIELD_WORDS[name] && FIELD_WORDS[name][String(value)] ? FIELD_WORDS[name][String(value)] : "";
   }
 
   // A way to link, in a few words about the *other* component, seen from the
@@ -408,10 +443,22 @@
     authorizes: { out: "accepts this account", in: "may log in" },
     grants: { out: "grants it", in: "has rights here" },
     administration: { out: "managed from here", in: "managed from there" },
+    "runs-as": { out: "runs as", in: "runs as this" },
+    assumes: { out: "may become", in: "may become this" },
     "instance-of": { out: "is a version of", in: "runs this version" },
     flow: { out: "flow to it", in: "flow from it" },
   };
-  function phrase(relation, direction, privilege) {
+  // `fields`, when given, is the link or variant: its other fields add their words.
+  function phrase(relation, direction, privilege, fields) {
+    var words = privilegeWords(relation, direction, privilege);
+    FIELD_ORDER.forEach(function (name) {
+      if (name === "privilege" || !fields || fields[name] == null) return;
+      var more = fieldWord(name, fields[name]);
+      if (more) words += ", " + more;
+    });
+    return words;
+  }
+  function privilegeWords(relation, direction, privilege) {
     var words = WORDS[relation] ? WORDS[relation][direction] : relation;
     if (!privilege) return words;
     if (relation === "hosts") return words + " as " + privilege;
@@ -419,6 +466,7 @@
     if (relation === "grants") return direction === "in" ? "is " + privilege + " here" : words + " " + privilege;
     return words;
   }
+
 
   var ENTITY_KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential"];
 
@@ -623,7 +671,7 @@
     return want === "router" ? "no router yet · add one with A, then connect it to both networks" : "no network yet · add one with A";
   }
 
-  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, renameId: renameId, remove: remove };
+  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, fieldsOf: fieldsOf, variants: variants, fieldWord: fieldWord, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, renameId: renameId, remove: remove };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
 })();

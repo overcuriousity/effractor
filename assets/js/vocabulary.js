@@ -9,11 +9,12 @@
     var hit = catalog ? find(catalog[list], key, id) : null;
     return hit && hit[field] ? hit[field] : id;
   }
-  var STATUS = { unknown: "Unknown", illustrative: "Illustrative", assumed: "Assumed", calibrated: "Calibrated", policy: "Firewall rule" };
+  var STATUS = { unknown: "Unknown", illustrative: "Illustrative", assumed: "Assumed", calibrated: "Calibrated", policy: "Firewall rule", defense: "Defence switch" };
   var api = {
     state: function (catalog, id) { return pick(catalog, "states", "id", id, "word"); },
     slot: function (catalog, slot) { return pick(catalog, "parameters", "slot", slot, "name"); },
     rule: function (catalog, id) { return pick(catalog, "rules", "id", id, "title"); },
+    defense: function (catalog, id) { return pick(catalog, "defenses", "id", id, "word"); },
     meaning: function (catalog, kind) {
       var hit = catalog ? find(catalog.entities, "kind", kind) : null;
       return hit && hit.meaning ? hit.meaning : "";

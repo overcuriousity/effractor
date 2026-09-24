@@ -13,7 +13,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use effractor_core::architecture::{
-    Architecture, Defense, EntityKind, Privilege, Relation, Slot, State,
+    Architecture, Defense, EntityKind, Factor, Privilege, Relation, Slot, State,
 };
 use effractor_core::{
     AssociationId, Code, Diagnostic, EntityId, FlowId, Severity, validate_architecture,
@@ -74,6 +74,8 @@ fn generate_within(
     b.products();
     b.services();
     b.credentials();
+    b.accounts();
+    b.identities();
     b.logins();
     b.administration();
     if let Some(d) = b.overflow.take() {
@@ -323,8 +325,14 @@ impl<'a> Builder<'a> {
                     }
                 }
                 EntityKind::Account => {
-                    let fid = self.state_id(id, "material");
-                    self.fact(fid, format!("{} · credential held", entity.label));
+                    for (state, word) in [
+                        ("material", "credential held"),
+                        ("mfa-satisfied", "second factor no obstacle"),
+                        ("authenticated", "can log in"),
+                    ] {
+                        let fid = self.state_id(id, state);
+                        self.fact(fid, format!("{} · {word}", entity.label));
+                    }
                 }
                 _ => {}
             }
@@ -668,15 +676,118 @@ impl<'a> Builder<'a> {
                         o,
                     );
                 }
-                Relation::Authenticates { from, to } => {
+                Relation::Authenticates { from, to, factor } => {
+                    let (rule, fact) = match factor {
+                        Factor::First => ("account-material", "material"),
+                        Factor::Second => ("mfa-second-factor", "mfa-satisfied"),
+                    };
                     let o = Origin {
                         entities: vec![from.clone(), to.clone()],
                         associations: vec![aid.clone()],
-                        ..origin("account-material")
+                        ..origin(rule)
                     };
                     let possessed = self.state_id(from, State::Possessed.as_str());
-                    let material = self.state_id(to, "material");
-                    self.produce(&possessed, &material, o);
+                    let reached = self.state_id(to, fact);
+                    self.produce(&possessed, &reached, o);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Per account: the MFA switch as a policy, the bypass, and the join of
+    /// material and second factor into a login.
+    fn accounts(&mut self) {
+        for (aid, entity) in &self.m.entities {
+            if entity.kind != EntityKind::Account {
+                continue;
+            }
+            let owner = Owner::Entity(aid.clone());
+            let material = self.state_id(aid, "material");
+            let satisfied = self.state_id(aid, "mfa-satisfied");
+            let authenticated = self.state_id(aid, "authenticated");
+
+            let input = format!("input/policy/{aid}/mfa");
+            let policy = Origin {
+                entities: vec![aid.clone()],
+                paths: vec![format!("entities.{aid}.defenses.mfa")],
+                ..origin("mfa-policy")
+            };
+            self.insert(
+                input.clone(),
+                format!("Multi-factor login off · {}", entity.label),
+                DraftKind::Input(Binding::Policy {
+                    entity: aid.clone(),
+                    defense: Defense::Mfa,
+                }),
+            );
+            self.originate(&input, policy.clone());
+            self.produce(&input, &satisfied, policy);
+
+            let bypass = Origin {
+                entities: vec![aid.clone()],
+                paths: vec![owner.slot_path(Slot::MfaBypass)],
+                ..origin("mfa-bypass")
+            };
+            self.action(
+                format!("action/mfa-bypass/{aid}"),
+                format!("Get past multi-factor login · {}", entity.label),
+                Binding::Parameter {
+                    owner,
+                    base: Slot::MfaBypass,
+                    replacement: None,
+                },
+                std::slice::from_ref(&material),
+                &satisfied,
+                bypass,
+            );
+
+            let join = Origin {
+                entities: vec![aid.clone()],
+                ..origin("account-authenticated")
+            };
+            self.action(
+                format!("action/account-authenticated/{aid}"),
+                format!("Log in as · {}", entity.label),
+                Binding::Logical,
+                &[material, satisfied],
+                &authenticated,
+                join,
+            );
+        }
+    }
+
+    /// Workloads authenticate as the accounts they run as; an account that may
+    /// become another is authenticated as it too. Cycles are ordinary facts.
+    fn identities(&mut self) {
+        for (id, a) in &self.m.associations {
+            match &a.relation {
+                Relation::RunsAs {
+                    from,
+                    to,
+                    privilege,
+                } => {
+                    let workload = match self.kind(from) {
+                        EntityKind::Host => self.machine_id(from, *privilege),
+                        _ => self.state_id(from, State::Control.as_str()),
+                    };
+                    let o = Origin {
+                        entities: vec![from.clone(), to.clone()],
+                        associations: vec![id.clone()],
+                        ..origin("workload-identity")
+                    };
+                    let authenticated = self.state_id(to, "authenticated");
+                    self.produce(&workload, &authenticated, o);
+                }
+                Relation::Assumes { from, to } => {
+                    let o = Origin {
+                        entities: vec![from.clone(), to.clone()],
+                        associations: vec![id.clone()],
+                        ..origin("assume-role")
+                    };
+                    let source = self.state_id(from, "authenticated");
+                    let target = self.state_id(to, "authenticated");
+                    self.produce(&source, &target, o);
                 }
                 _ => {}
             }
@@ -702,7 +813,7 @@ impl<'a> Builder<'a> {
             );
             let prerequisites = [
                 self.state_id(to, "reachable"),
-                self.state_id(from, "material"),
+                self.state_id(from, "authenticated"),
             ];
             self.action(
                 format!("action/service-login/{from}/{to}"),
@@ -750,7 +861,7 @@ impl<'a> Builder<'a> {
                 };
                 let prerequisites = [
                     self.state_id(from, State::Access.as_str()),
-                    self.state_id(account, "material"),
+                    self.state_id(account, "authenticated"),
                 ];
                 let granted = self.machine_id(to, privilege);
                 self.action(

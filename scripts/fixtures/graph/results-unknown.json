@@ -23,6 +23,32 @@
   },
   "nodes": [
    {
+    "id": "action/account-authenticated/admin-account",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "action/account-authenticated/server-account",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
     "id": "action/administration-login/admin-net/admin-account/bridge",
     "status": "unreachable",
     "outcome": {
@@ -71,6 +97,30 @@
        "lo": 0.9996160016293234,
        "hi": 1
       }
+     }
+    }
+   },
+   {
+    "id": "action/mfa-bypass/admin-account",
+    "status": "possible",
+    "outcome": {
+     "unavailable": {
+      "reason": "rests on unknown inputs",
+      "missing": [
+       "entities.admin-account.parameters.mfa-bypass"
+      ]
+     }
+    }
+   },
+   {
+    "id": "action/mfa-bypass/server-account",
+    "status": "possible",
+    "outcome": {
+     "unavailable": {
+      "reason": "rests on unknown inputs",
+      "missing": [
+       "entities.server-account.parameters.mfa-bypass"
+      ]
      }
     }
    },
@@ -138,7 +188,72 @@
     }
    },
    {
+    "id": "input/policy/admin-account/mfa",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "input/policy/server-account/mfa",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/admin-account/authenticated",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
     "id": "state/account/admin-account/material",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/admin-account/mfa-satisfied",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/server-account/authenticated",
     "status": "possible",
     "outcome": {
      "available": {
@@ -158,6 +273,19 @@
       "p": 1,
       "ci": {
        "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/server-account/mfa-satisfied",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
        "hi": 1
       }
      }
@@ -411,6 +539,15 @@
     ],
     "status": "unknown",
     "expression": null,
+    "note": null
+   },
+   {
+    "path": "entities.server-account.defenses.mfa",
+    "paths": [
+     "entities.server-account.defenses.mfa"
+    ],
+    "status": "defense",
+    "expression": "off",
     "note": null
    },
    {

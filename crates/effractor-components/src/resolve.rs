@@ -1,6 +1,6 @@
 //! A generated graph's durations under the baseline or one scenario. The graph
-//! does not change; only which slot, switch or permission value each node
-//! reads. An unknown switch or an unknown active slot resolves to `Unknown`
+//! does not change; only which slot, switch, permission or policy value each
+//! node reads. An unknown switch or an unknown active slot resolves to `Unknown`
 //! with the fields that would have to be filled in, never to a guess.
 
 use std::collections::HashMap;
@@ -88,6 +88,16 @@ pub fn resolve(
                 };
                 (ttc, Vec::new(), vec![path])
             }
+            Binding::Policy { entity, defense } => {
+                let (value, path) = switch(model, &overlay, entity, *defense);
+                // Off: the way is open at once. On: it is closed.
+                let ttc = match value {
+                    Switch::Off => ResolvedTtc::Known(Distribution::Zero),
+                    Switch::On => ResolvedTtc::Known(Distribution::Infinity),
+                    Switch::Unknown => ResolvedTtc::Unknown(vec![path.clone()]),
+                };
+                (ttc, Vec::new(), vec![path])
+            }
             Binding::Unfinished { flow, missing } => {
                 let mut paths = missing.clone();
                 let connect = parameter(model, &Owner::Flow(flow.clone()), Slot::Connect);
@@ -104,17 +114,7 @@ pub fn resolve(
                 let mut paths = Vec::new();
                 let slot = match (owner, replacement) {
                     (Owner::Entity(eid), Some((defense, replaced))) => {
-                        let (value, path) = match overlay.defenses.get(&(eid, *defense)) {
-                            Some((v, p)) => (*v, p.clone()),
-                            None => (
-                                model
-                                    .entities
-                                    .get(eid)
-                                    .and_then(|e| e.defenses.get(*defense))
-                                    .unwrap_or(Switch::Unknown),
-                                format!("entities.{eid}.defenses.{}", defense.as_str()),
-                            ),
-                        };
+                        let (value, path) = switch(model, &overlay, eid, *defense);
                         paths.push(path);
                         match value {
                             Switch::Off => Some(*base),
@@ -144,6 +144,21 @@ pub fn resolve(
         out.paths.push(paths);
     }
     Ok(out)
+}
+
+/// A defence switch's value under the scenario, and the path that set it.
+fn switch(model: &Architecture, overlay: &Overlay, entity: &EntityId, defense: Defense) -> Setting {
+    match overlay.defenses.get(&(entity, defense)) {
+        Some((v, p)) => (*v, p.clone()),
+        None => (
+            model
+                .entities
+                .get(entity)
+                .and_then(|e| e.defenses.get(defense))
+                .unwrap_or(Switch::Unknown),
+            format!("entities.{entity}.defenses.{}", defense.as_str()),
+        ),
+    }
 }
 
 fn allowed(model: &Architecture, aid: &AssociationId) -> Switch {

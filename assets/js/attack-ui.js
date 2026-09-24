@@ -272,7 +272,7 @@
     rows.forEach(function (a) {
       var row = el("tr");
       cells(row, [a.path, W.status(a.status), a.expression || "?"], numeric);
-      row.title = (a.note || (a.status === "policy" || a.status === "unknown" ? "" : "no reason given")) + (a.paths.length > 1 ? "\n" + a.paths.join("\n") : "");
+      row.title = (a.note || (a.status === "policy" || a.status === "defense" || a.status === "unknown" ? "" : "no reason given")) + (a.paths.length > 1 ? "\n" + a.paths.join("\n") : "");
       activeRow(row, function () {
         follow(a.path);
       });

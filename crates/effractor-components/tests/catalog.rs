@@ -3,7 +3,7 @@
 use effractor_components::{RULES, catalog};
 use serde_json::Value;
 
-const RULE_IDS: [&str; 20] = [
+const RULE_IDS: [&str; 26] = [
     "foothold",
     "admin-implies-user",
     "host-execution",
@@ -21,6 +21,12 @@ const RULE_IDS: [&str; 20] = [
     "service-deploy-exploit",
     "credential-extract",
     "account-material",
+    "mfa-policy",
+    "mfa-second-factor",
+    "mfa-bypass",
+    "account-authenticated",
+    "workload-identity",
+    "assume-role",
     "service-login",
     "session-grant",
     "administration-login",
@@ -55,9 +61,9 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
             "credential"
         ]
     );
-    assert_eq!(ids(&c["associations"], "kind").len(), 10);
+    assert_eq!(ids(&c["associations"], "kind").len(), 12);
     assert_eq!(ids(&c["states"], "id").len(), 5);
-    assert_eq!(ids(&c["parameters"], "slot").len(), 9);
+    assert_eq!(ids(&c["parameters"], "slot").len(), 10);
     let rules = ids(&c["rules"], "id");
     assert_eq!(rules, RULE_IDS);
     for rule in &RULES {
@@ -83,7 +89,7 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
     // A firewall's permission points at a flow, which is not an entity kind.
     let permits = &c["associations"][8];
     assert_eq!(permits["to"], serde_json::json!(["flow"]));
-    assert_eq!(permits["field"], "allowed");
+    assert_eq!(permits["fields"], serde_json::json!(["allowed"]));
 }
 
 /// Every string in the catalog, wherever it is.

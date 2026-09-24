@@ -307,6 +307,23 @@ impl Cx<'_> {
                         "a host runs on a host, not on a router",
                     )
                 }
+                (Relation::Assumes { from, to }, _, _) if from == to => self.error(
+                    Code::AssociationType,
+                    format!("{at}.to"),
+                    "an account does not assume itself",
+                ),
+                (
+                    Relation::RunsAs {
+                        privilege: Privilege::Admin,
+                        ..
+                    },
+                    Some(k),
+                    _,
+                ) if k != EntityKind::Host => self.error(
+                    Code::AssociationType,
+                    format!("{at}.privilege"),
+                    "software uses its identity as `user`; only a host names `admin`",
+                ),
                 (
                     Relation::Stores {
                         privilege: Privilege::Admin,

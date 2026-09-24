@@ -9,11 +9,73 @@
     "target": "state/host/server/admin",
     "nodes": [
       {
+        "id": "action/account-authenticated/admin-account",
+        "label": "Log in as · Router administrator",
+        "kind": "all",
+        "inputs": [
+          "state/account/admin-account/material",
+          "state/account/admin-account/mfa-satisfied"
+        ],
+        "origins": [
+          {
+            "rule": "account-authenticated",
+            "version": 1,
+            "entities": [
+              "admin-account"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "With multi-factor login off, a first factor alone authenticates."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "action/account-authenticated/server-account",
+        "label": "Log in as · Server account",
+        "kind": "all",
+        "inputs": [
+          "state/account/server-account/material",
+          "state/account/server-account/mfa-satisfied"
+        ],
+        "origins": [
+          {
+            "rule": "account-authenticated",
+            "version": 1,
+            "entities": [
+              "server-account"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "With multi-factor login off, a first factor alone authenticates."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
         "id": "action/administration-login/admin-net/admin-account/bridge",
         "label": "Admin login · Router administrator · Router from Administration network",
         "kind": "all",
         "inputs": [
-          "state/account/admin-account/material",
+          "state/account/admin-account/authenticated",
           "state/network/admin-net/access"
         ],
         "origins": [
@@ -174,6 +236,78 @@
         }
       },
       {
+        "id": "action/mfa-bypass/admin-account",
+        "label": "Get past multi-factor login · Router administrator",
+        "kind": "all",
+        "inputs": [
+          "state/account/admin-account/material"
+        ],
+        "origins": [
+          {
+            "rule": "mfa-bypass",
+            "version": 1,
+            "entities": [
+              "admin-account"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [
+              "entities.admin-account.parameters.mfa-bypass"
+            ],
+            "assumptions": [
+              "Push fatigue, adversary-in-the-middle proxies and SIM swaps are one timed step; the note says which the value stands for."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "unknown",
+          "expression": null,
+          "note": null,
+          "paths": [
+            "entities.admin-account.parameters.mfa-bypass"
+          ],
+          "missing": [
+            "entities.admin-account.parameters.mfa-bypass"
+          ]
+        }
+      },
+      {
+        "id": "action/mfa-bypass/server-account",
+        "label": "Get past multi-factor login · Server account",
+        "kind": "all",
+        "inputs": [
+          "state/account/server-account/material"
+        ],
+        "origins": [
+          {
+            "rule": "mfa-bypass",
+            "version": 1,
+            "entities": [
+              "server-account"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [
+              "entities.server-account.parameters.mfa-bypass"
+            ],
+            "assumptions": [
+              "Push fatigue, adversary-in-the-middle proxies and SIM swaps are one timed step; the note says which the value stands for."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "unknown",
+          "expression": null,
+          "note": null,
+          "paths": [
+            "entities.server-account.parameters.mfa-bypass"
+          ],
+          "missing": [
+            "entities.server-account.parameters.mfa-bypass"
+          ]
+        }
+      },
+      {
         "id": "action/product-find-exploit/openssh",
         "label": "Find an exploit · OpenSSH",
         "kind": "all",
@@ -254,7 +388,7 @@
         "label": "Log in · Server account · SSH server",
         "kind": "all",
         "inputs": [
-          "state/account/server-account/material",
+          "state/account/server-account/authenticated",
           "state/service/sshd/reachable"
         ],
         "origins": [
@@ -357,6 +491,100 @@
         }
       },
       {
+        "id": "input/policy/admin-account/mfa",
+        "label": "Multi-factor login off · Router administrator",
+        "kind": "input",
+        "inputs": [],
+        "origins": [
+          {
+            "rule": "mfa-policy",
+            "version": 1,
+            "entities": [
+              "admin-account"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [
+              "entities.admin-account.defenses.mfa"
+            ],
+            "assumptions": [
+              "An unknown switch is an unknown branch, not a guess either way."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "defense",
+          "expression": "off",
+          "note": null,
+          "paths": [
+            "entities.admin-account.defenses.mfa"
+          ],
+          "missing": []
+        }
+      },
+      {
+        "id": "input/policy/server-account/mfa",
+        "label": "Multi-factor login off · Server account",
+        "kind": "input",
+        "inputs": [],
+        "origins": [
+          {
+            "rule": "mfa-policy",
+            "version": 1,
+            "entities": [
+              "server-account"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [
+              "entities.server-account.defenses.mfa"
+            ],
+            "assumptions": [
+              "An unknown switch is an unknown branch, not a guess either way."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "defense",
+          "expression": "off",
+          "note": null,
+          "paths": [
+            "entities.server-account.defenses.mfa"
+          ],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/account/admin-account/authenticated",
+        "label": "Router administrator · can log in",
+        "kind": "any",
+        "inputs": [
+          "action/account-authenticated/admin-account"
+        ],
+        "origins": [
+          {
+            "rule": "account-authenticated",
+            "version": 1,
+            "entities": [
+              "admin-account"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "With multi-factor login off, a first factor alone authenticates."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
         "id": "state/account/admin-account/material",
         "label": "Router administrator · credential held",
         "kind": "any",
@@ -377,8 +605,84 @@
             "flows": [],
             "paths": [],
             "assumptions": [
-              "Any one authenticating credential suffices; multi-factor authentication is outside this library.",
+              "Any one first-factor credential gives the material; a second factor alone gives none.",
               "Material alone grants no access."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/account/admin-account/mfa-satisfied",
+        "label": "Router administrator · second factor no obstacle",
+        "kind": "any",
+        "inputs": [
+          "action/mfa-bypass/admin-account",
+          "input/policy/admin-account/mfa"
+        ],
+        "origins": [
+          {
+            "rule": "mfa-bypass",
+            "version": 1,
+            "entities": [
+              "admin-account"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Push fatigue, adversary-in-the-middle proxies and SIM swaps are one timed step; the note says which the value stands for."
+            ]
+          },
+          {
+            "rule": "mfa-policy",
+            "version": 1,
+            "entities": [
+              "admin-account"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [
+              "entities.admin-account.defenses.mfa"
+            ],
+            "assumptions": [
+              "An unknown switch is an unknown branch, not a guess either way."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/account/server-account/authenticated",
+        "label": "Server account · can log in",
+        "kind": "any",
+        "inputs": [
+          "action/account-authenticated/server-account"
+        ],
+        "origins": [
+          {
+            "rule": "account-authenticated",
+            "version": 1,
+            "entities": [
+              "server-account"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "With multi-factor login off, a first factor alone authenticates."
             ]
           }
         ],
@@ -411,8 +715,54 @@
             "flows": [],
             "paths": [],
             "assumptions": [
-              "Any one authenticating credential suffices; multi-factor authentication is outside this library.",
+              "Any one first-factor credential gives the material; a second factor alone gives none.",
               "Material alone grants no access."
+            ]
+          }
+        ],
+        "timing": {
+          "status": "logical",
+          "expression": null,
+          "note": null,
+          "paths": [],
+          "missing": []
+        }
+      },
+      {
+        "id": "state/account/server-account/mfa-satisfied",
+        "label": "Server account · second factor no obstacle",
+        "kind": "any",
+        "inputs": [
+          "action/mfa-bypass/server-account",
+          "input/policy/server-account/mfa"
+        ],
+        "origins": [
+          {
+            "rule": "mfa-bypass",
+            "version": 1,
+            "entities": [
+              "server-account"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [],
+            "assumptions": [
+              "Push fatigue, adversary-in-the-middle proxies and SIM swaps are one timed step; the note says which the value stands for."
+            ]
+          },
+          {
+            "rule": "mfa-policy",
+            "version": 1,
+            "entities": [
+              "server-account"
+            ],
+            "associations": [],
+            "flows": [],
+            "paths": [
+              "entities.server-account.defenses.mfa"
+            ],
+            "assumptions": [
+              "An unknown switch is an unknown branch, not a guess either way."
             ]
           }
         ],
@@ -1149,87 +1499,87 @@
             ],
             [
               1.5625,
-              0.1358642578125,
-              0.12861483006851876,
-              0.1434550324372828
+              0.1502685546875,
+              0.14269456646433792,
+              0.158170386964801
             ],
             [
               3.125,
-              0.4019775390625,
-              0.39140860453630916,
-              0.4126383614684373
+              0.422119140625,
+              0.4114628666511598,
+              0.4328484214074059
             ],
             [
               4.6875,
-              0.6065673828125,
-              0.5959412042657911,
-              0.6170936633280525
+              0.6278076171875,
+              0.6172823216138553,
+              0.6382131037821975
             ],
             [
               6.25,
-              0.7440185546875,
-              0.7344553244893932,
-              0.7533530378474833
+              0.7613525390625,
+              0.7520009083877816,
+              0.770459173534806
             ],
             [
               7.8125,
-              0.8355712890625,
-              0.8273877056485089,
-              0.843440302387546
+              0.8514404296875,
+              0.8435741568660571,
+              0.8589772564245219
             ],
             [
               9.375,
-              0.895263671875,
-              0.8884464013530252,
-              0.9017104156788939
+              0.9061279296875,
+              0.8996205644798138,
+              0.9122545838417412
             ],
             [
               10.9375,
-              0.9359130859375,
-              0.9304026633999634,
-              0.9410148763223909
+              0.9415283203125,
+              0.9362374266074931,
+              0.9464053180510774
             ],
             [
               12.5,
-              0.96044921875,
-              0.9560083376469312,
-              0.9644584671228028
+              0.963623046875,
+              0.9593465352456287,
+              0.9674649505750101
             ],
             [
               14.0625,
-              0.9736328125,
-              0.9699349080761074,
-              0.9768867256743082
+              0.9766845703125,
+              0.9731865053687707,
+              0.9797357832382843
             ],
             [
               15.625,
-              0.9835205078125,
-              0.9805283494144565,
-              0.9860594060714705
+              0.9849853515625,
+              0.9821154041004805,
+              0.9874006657166332
             ],
             [
               17.1875,
-              0.9888916015625,
-              0.9863818247079311,
-              0.990943083325681
+              0.99072265625,
+              0.9884043666660866,
+              0.9925809342815092
             ],
             [
               18.75,
-              0.992919921875,
-              0.9908590300547093,
-              0.9945187423896666
+              0.99365234375,
+              0.9916860729437387,
+              0.9951558566662306
             ],
             [
               20.3125,
-              0.995849609375,
-              0.9942060795459996,
-              0.9970283215607499
+              0.9964599609375,
+              0.9949205454221596,
+              0.997533986655918
             ],
             [
               21.875,
-              0.997314453125,
-              0.9959369403357912,
-              0.9982257751021453
+              0.997802734375,
+              0.9965291919038554,
+              0.9986096283111433
             ],
             [
               23.4375,
@@ -1239,15 +1589,15 @@
             ],
             [
               25.0,
-              0.999267578125,
-              0.9984028519273321,
-              0.9996642826188534
+              0.9989013671875,
+              0.9979131717323111,
+              0.9994218842310778
             ],
             [
               26.5625,
-              0.9996337890625,
-              0.9989237655350104,
-              0.9998754475939718
+              0.9993896484375,
+              0.9985718937344816,
+              0.9997392670059695
             ],
             [
               28.125,
@@ -1257,9 +1607,9 @@
             ],
             [
               29.6875,
-              0.999755859375,
-              0.9991101940419058,
-              0.999933045281342
+              0.9996337890625,
+              0.9989237655350104,
+              0.9998754475939718
             ],
             [
               31.25,
@@ -1536,6 +1886,32 @@
       },
       "nodes": [
         {
+          "id": "action/account-authenticated/admin-account",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/account-authenticated/server-account",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
           "id": "action/administration-login/admin-net/admin-account/bridge",
           "status": "unreachable",
           "outcome": {
@@ -1588,14 +1964,38 @@
           }
         },
         {
+          "id": "action/mfa-bypass/admin-account",
+          "status": "possible",
+          "outcome": {
+            "unavailable": {
+              "reason": "rests on unknown inputs",
+              "missing": [
+                "entities.admin-account.parameters.mfa-bypass"
+              ]
+            }
+          }
+        },
+        {
+          "id": "action/mfa-bypass/server-account",
+          "status": "possible",
+          "outcome": {
+            "unavailable": {
+              "reason": "rests on unknown inputs",
+              "missing": [
+                "entities.server-account.parameters.mfa-bypass"
+              ]
+            }
+          }
+        },
+        {
           "id": "action/product-find-exploit/openssh",
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 1.0,
+              "p": 0.999755859375,
               "ci": {
-                "lo": 0.9995312917117791,
-                "hi": 1.0
+                "lo": 0.9991101940419058,
+                "hi": 0.999933045281342
               }
             }
           }
@@ -1605,10 +2005,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 1.0,
+              "p": 0.999755859375,
               "ci": {
-                "lo": 0.9995312917117791,
-                "hi": 1.0
+                "lo": 0.9991101940419058,
+                "hi": 0.999933045281342
               }
             }
           }
@@ -1653,7 +2053,72 @@
           }
         },
         {
+          "id": "input/policy/admin-account/mfa",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/policy/server-account/mfa",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/authenticated",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
           "id": "state/account/admin-account/material",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/mfa-satisfied",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/authenticated",
           "status": "possible",
           "outcome": {
             "available": {
@@ -1673,6 +2138,19 @@
               "p": 1.0,
               "ci": {
                 "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/mfa-satisfied",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
                 "hi": 1.0
               }
             }
@@ -1839,10 +2317,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 1.0,
+              "p": 0.999755859375,
               "ci": {
-                "lo": 0.9995312917117791,
-                "hi": 1.0
+                "lo": 0.9991101940419058,
+                "hi": 0.999933045281342
               }
             }
           }
@@ -1934,6 +2412,15 @@
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
+          "path": "entities.server-account.defenses.mfa",
+          "paths": [
+            "entities.server-account.defenses.mfa"
+          ],
+          "status": "defense",
+          "expression": "off",
+          "note": null
+        },
+        {
           "path": "entities.server-key.parameters.extract",
           "paths": [
             "entities.server-key.parameters.extract",
@@ -1973,7 +2460,7 @@
       ],
       "witness": {
         "sample": 0,
-        "target_time": 9.869109204942117,
+        "target_time": 4.641549295373838,
         "nodes": [
           {
             "id": "input/flow-permission/filter/ssh",
@@ -1981,6 +2468,14 @@
           },
           {
             "id": "input/foothold/workstation/admin",
+            "time": 0.0
+          },
+          {
+            "id": "input/policy/server-account/mfa",
+            "time": 0.0
+          },
+          {
+            "id": "state/account/server-account/mfa-satisfied",
             "time": 0.0
           },
           {
@@ -2001,42 +2496,54 @@
           },
           {
             "id": "action/flow-connect/ssh",
-            "time": 0.20426056628550843
+            "time": 0.24364585606877515
           },
           {
             "id": "state/flow/ssh/connected",
-            "time": 0.20426056628550843
+            "time": 0.24364585606877515
           },
           {
             "id": "state/service/sshd/reachable",
-            "time": 0.20426056628550843
+            "time": 0.24364585606877515
+          },
+          {
+            "id": "action/account-authenticated/server-account",
+            "time": 4.583038427664114
           },
           {
             "id": "action/credential-extract/workstation/server-key",
-            "time": 9.379000546000169
+            "time": 4.583038427664114
+          },
+          {
+            "id": "state/account/server-account/authenticated",
+            "time": 4.583038427664114
           },
           {
             "id": "state/account/server-account/material",
-            "time": 9.379000546000169
+            "time": 4.583038427664114
           },
           {
             "id": "state/credential/server-key/possessed",
-            "time": 9.379000546000169
+            "time": 4.583038427664114
           },
           {
             "id": "action/service-login/server-account/sshd",
-            "time": 9.869109204942117
+            "time": 4.641549295373838
           },
           {
             "id": "state/host/server/admin",
-            "time": 9.869109204942117
+            "time": 4.641549295373838
           },
           {
             "id": "state/session/server-account/sshd",
-            "time": 9.869109204942117
+            "time": 4.641549295373838
           }
         ],
         "edges": [
+          {
+            "prerequisite": "action/account-authenticated/server-account",
+            "dependent": "state/account/server-account/authenticated"
+          },
           {
             "prerequisite": "action/credential-extract/workstation/server-key",
             "dependent": "state/credential/server-key/possessed"
@@ -2058,8 +2565,20 @@
             "dependent": "state/host/workstation/admin"
           },
           {
-            "prerequisite": "state/account/server-account/material",
+            "prerequisite": "input/policy/server-account/mfa",
+            "dependent": "state/account/server-account/mfa-satisfied"
+          },
+          {
+            "prerequisite": "state/account/server-account/authenticated",
             "dependent": "action/service-login/server-account/sshd"
+          },
+          {
+            "prerequisite": "state/account/server-account/material",
+            "dependent": "action/account-authenticated/server-account"
+          },
+          {
+            "prerequisite": "state/account/server-account/mfa-satisfied",
+            "dependent": "action/account-authenticated/server-account"
           },
           {
             "prerequisite": "state/application/ssh-client/control",
@@ -2121,141 +2640,141 @@
             ],
             [
               1.5625,
-              0.1138916015625,
-              0.10719253494777248,
-              0.12095261259022624
+              0.1279296875,
+              0.1208707380144473,
+              0.13533742186409214
             ],
             [
               3.125,
-              0.33154296875,
-              0.32142965390142736,
-              0.3418141980120846
+              0.3499755859375,
+              0.33971959513791156,
+              0.36037221210970166
             ],
             [
               4.6875,
-              0.5035400390625,
-              0.49271381511364354,
-              0.514362944520058
+              0.5223388671875,
+              0.5115143649398912,
+              0.5331424286107083
             ],
             [
               6.25,
-              0.632568359375,
-              0.6220686145603992,
-              0.642943832412011
+              0.6466064453125,
+              0.6361884477572546,
+              0.6568870115556962
             ],
             [
               7.8125,
-              0.7227783203125,
-              0.7129823648005069,
-              0.7323654397341604
+              0.7464599609375,
+              0.7369253190838905,
+              0.7557635671382974
             ],
             [
               9.375,
-              0.7957763671875,
-              0.7869089328955119,
-              0.8043665358099668
+              0.816650390625,
+              0.8081232565553558,
+              0.8248806913695355
             ],
             [
               10.9375,
-              0.8492431640625,
-              0.8413312357160379,
-              0.8568277060777609
+              0.8663330078125,
+              0.8587920466283481,
+              0.8735305623626306
             ],
             [
               12.5,
-              0.88916015625,
-              0.8821787447557379,
-              0.8957767625629027
+              0.90380859375,
+              0.8972330373386757,
+              0.9100056132918335
             ],
             [
               14.0625,
-              0.9144287109375,
-              0.9081752888242182,
-              0.9202936407073955
+              0.9300537109375,
+              0.9243265744156012,
+              0.9353777079820057
             ],
             [
               15.625,
-              0.939208984375,
-              0.9338259140231794,
-              0.9441803329443453
+              0.948486328125,
+              0.9434859955672722,
+              0.9530662421644359
             ],
             [
               17.1875,
-              0.95703125,
-              0.9524215476818153,
-              0.9612125236484826
+              0.962646484375,
+              0.9583185624886678,
+              0.9665407137778464
             ],
             [
               18.75,
-              0.96826171875,
-              0.9642406583511427,
-              0.9718438228515878
+              0.97265625,
+              0.9688970748677599,
+              0.9759723493285313
             ],
             [
               20.3125,
-              0.97607421875,
-              0.9725351031513714,
-              0.9791670544843558
+              0.98095703125,
+              0.977764037127657,
+              0.9836991682786929
             ],
             [
               21.875,
-              0.98291015625,
-              0.9798687650504047,
-              0.9854988594641944
+              0.9853515625,
+              0.9825131316297879,
+              0.9877350167701227
             ],
             [
               23.4375,
-              0.9871826171875,
-              0.984508303810733,
-              0.9894002375031612
+              0.989501953125,
+              0.9870540728609231,
+              0.9914909661440169
             ],
             [
               25.0,
-              0.9893798828125,
-              0.9869194783162919,
-              0.9913815344943825
+              0.991943359375,
+              0.9897636901653554,
+              0.9936618727248959
             ],
             [
               26.5625,
-              0.992919921875,
-              0.9908590300547093,
-              0.9945187423896666
+              0.99462890625,
+              0.9927977876189181,
+              0.9959963515451759
             ],
             [
               28.125,
-              0.994873046875,
-              0.9930775976362596,
-              0.9962045939163655
-            ],
-            [
-              29.6875,
               0.995849609375,
               0.9942060795459996,
               0.9970283215607499
             ],
             [
+              29.6875,
+              0.996337890625,
+              0.9947769851074504,
+              0.9974335207763616
+            ],
+            [
               31.25,
-              0.9970703125,
-              0.9956442573474235,
-              0.9980304057019819
+              0.9974365234375,
+              0.9960840840873944,
+              0.9983226575448076
             ],
             [
               32.8125,
-              0.99755859375,
-              0.9962318115776512,
-              0.9984189562488164
+              0.9976806640625,
+              0.9963801650003536,
+              0.9985146290203795
             ],
             [
               34.375,
-              0.9979248046875,
-              0.9966789461939597,
-              0.9987039002153045
+              0.9984130859375,
+              0.9972866188182836,
+              0.999072332368043
             ],
             [
               35.9375,
-              0.998779296875,
-              0.9977542442220053,
-              0.999336785547118
+              0.9989013671875,
+              0.9979131717323111,
+              0.9994218842310778
             ],
             [
               37.5,
@@ -2265,27 +2784,27 @@
             ],
             [
               39.0625,
+              0.999267578125,
+              0.9984028519273321,
+              0.9996642826188534
+            ],
+            [
+              40.625,
+              0.999267578125,
+              0.9984028519273321,
+              0.9996642826188534
+            ],
+            [
+              42.1875,
               0.9996337890625,
               0.9989237655350104,
               0.9998754475939718
             ],
             [
-              40.625,
-              0.999755859375,
-              0.9991101940419058,
-              0.999933045281342
-            ],
-            [
-              42.1875,
-              0.999755859375,
-              0.9991101940419058,
-              0.999933045281342
-            ],
-            [
               43.75,
-              0.999755859375,
-              0.9991101940419058,
-              0.999933045281342
+              0.9996337890625,
+              0.9989237655350104,
+              0.9998754475939718
             ],
             [
               45.3125,
@@ -2295,27 +2814,27 @@
             ],
             [
               46.875,
-              0.999755859375,
-              0.9991101940419058,
-              0.999933045281342
-            ],
-            [
-              48.4375,
-              0.999755859375,
-              0.9991101940419058,
-              0.999933045281342
-            ],
-            [
-              50.0,
-              0.999755859375,
-              0.9991101940419058,
-              0.999933045281342
-            ],
-            [
-              51.5625,
               0.9998779296875,
               0.9993088142501059,
               0.9999784512674077
+            ],
+            [
+              48.4375,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              50.0,
+              1.0,
+              0.9995312917117791,
+              1.0
+            ],
+            [
+              51.5625,
+              1.0,
+              0.9995312917117791,
+              1.0
             ],
             [
               53.125,
@@ -2508,6 +3027,32 @@
       },
       "nodes": [
         {
+          "id": "action/account-authenticated/admin-account",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/account-authenticated/server-account",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
           "id": "action/administration-login/admin-net/admin-account/bridge",
           "status": "unreachable",
           "outcome": {
@@ -2556,6 +3101,30 @@
                 "lo": 0.9995312917117791,
                 "hi": 1.0
               }
+            }
+          }
+        },
+        {
+          "id": "action/mfa-bypass/admin-account",
+          "status": "possible",
+          "outcome": {
+            "unavailable": {
+              "reason": "rests on unknown inputs",
+              "missing": [
+                "entities.admin-account.parameters.mfa-bypass"
+              ]
+            }
+          }
+        },
+        {
+          "id": "action/mfa-bypass/server-account",
+          "status": "possible",
+          "outcome": {
+            "unavailable": {
+              "reason": "rests on unknown inputs",
+              "missing": [
+                "entities.server-account.parameters.mfa-bypass"
+              ]
             }
           }
         },
@@ -2625,7 +3194,72 @@
           }
         },
         {
+          "id": "input/policy/admin-account/mfa",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/policy/server-account/mfa",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/authenticated",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
           "id": "state/account/admin-account/material",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/mfa-satisfied",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/authenticated",
           "status": "possible",
           "outcome": {
             "available": {
@@ -2645,6 +3279,19 @@
               "p": 1.0,
               "ci": {
                 "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/mfa-satisfied",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
                 "hi": 1.0
               }
             }
@@ -2906,6 +3553,15 @@
           "note": "Exercise assumption: perfect blocking, a patched service has no exploit to find"
         },
         {
+          "path": "entities.server-account.defenses.mfa",
+          "paths": [
+            "entities.server-account.defenses.mfa"
+          ],
+          "status": "defense",
+          "expression": "off",
+          "note": null
+        },
+        {
           "path": "entities.server-key.parameters.extract",
           "paths": [
             "entities.server-key.parameters.extract",
@@ -2936,7 +3592,7 @@
       ],
       "witness": {
         "sample": 0,
-        "target_time": 9.869109204942117,
+        "target_time": 4.641549295373838,
         "nodes": [
           {
             "id": "input/flow-permission/filter/ssh",
@@ -2944,6 +3600,14 @@
           },
           {
             "id": "input/foothold/workstation/admin",
+            "time": 0.0
+          },
+          {
+            "id": "input/policy/server-account/mfa",
+            "time": 0.0
+          },
+          {
+            "id": "state/account/server-account/mfa-satisfied",
             "time": 0.0
           },
           {
@@ -2964,42 +3628,54 @@
           },
           {
             "id": "action/flow-connect/ssh",
-            "time": 0.20426056628550843
+            "time": 0.24364585606877515
           },
           {
             "id": "state/flow/ssh/connected",
-            "time": 0.20426056628550843
+            "time": 0.24364585606877515
           },
           {
             "id": "state/service/sshd/reachable",
-            "time": 0.20426056628550843
+            "time": 0.24364585606877515
+          },
+          {
+            "id": "action/account-authenticated/server-account",
+            "time": 4.583038427664114
           },
           {
             "id": "action/credential-extract/workstation/server-key",
-            "time": 9.379000546000169
+            "time": 4.583038427664114
+          },
+          {
+            "id": "state/account/server-account/authenticated",
+            "time": 4.583038427664114
           },
           {
             "id": "state/account/server-account/material",
-            "time": 9.379000546000169
+            "time": 4.583038427664114
           },
           {
             "id": "state/credential/server-key/possessed",
-            "time": 9.379000546000169
+            "time": 4.583038427664114
           },
           {
             "id": "action/service-login/server-account/sshd",
-            "time": 9.869109204942117
+            "time": 4.641549295373838
           },
           {
             "id": "state/host/server/admin",
-            "time": 9.869109204942117
+            "time": 4.641549295373838
           },
           {
             "id": "state/session/server-account/sshd",
-            "time": 9.869109204942117
+            "time": 4.641549295373838
           }
         ],
         "edges": [
+          {
+            "prerequisite": "action/account-authenticated/server-account",
+            "dependent": "state/account/server-account/authenticated"
+          },
           {
             "prerequisite": "action/credential-extract/workstation/server-key",
             "dependent": "state/credential/server-key/possessed"
@@ -3021,8 +3697,20 @@
             "dependent": "state/host/workstation/admin"
           },
           {
-            "prerequisite": "state/account/server-account/material",
+            "prerequisite": "input/policy/server-account/mfa",
+            "dependent": "state/account/server-account/mfa-satisfied"
+          },
+          {
+            "prerequisite": "state/account/server-account/authenticated",
             "dependent": "action/service-login/server-account/sshd"
+          },
+          {
+            "prerequisite": "state/account/server-account/material",
+            "dependent": "action/account-authenticated/server-account"
+          },
+          {
+            "prerequisite": "state/account/server-account/mfa-satisfied",
+            "dependent": "action/account-authenticated/server-account"
           },
           {
             "prerequisite": "state/application/ssh-client/control",
@@ -3108,87 +3796,87 @@
             ],
             [
               1.5625,
-              0.1358642578125,
-              0.12861483006851876,
-              0.1434550324372828
+              0.1502685546875,
+              0.14269456646433792,
+              0.158170386964801
             ],
             [
               3.125,
-              0.4019775390625,
-              0.39140860453630916,
-              0.4126383614684373
+              0.422119140625,
+              0.4114628666511598,
+              0.4328484214074059
             ],
             [
               4.6875,
-              0.6065673828125,
-              0.5959412042657911,
-              0.6170936633280525
+              0.6278076171875,
+              0.6172823216138553,
+              0.6382131037821975
             ],
             [
               6.25,
-              0.7440185546875,
-              0.7344553244893932,
-              0.7533530378474833
+              0.7613525390625,
+              0.7520009083877816,
+              0.770459173534806
             ],
             [
               7.8125,
-              0.8355712890625,
-              0.8273877056485089,
-              0.843440302387546
+              0.8514404296875,
+              0.8435741568660571,
+              0.8589772564245219
             ],
             [
               9.375,
-              0.895263671875,
-              0.8884464013530252,
-              0.9017104156788939
+              0.9061279296875,
+              0.8996205644798138,
+              0.9122545838417412
             ],
             [
               10.9375,
-              0.9359130859375,
-              0.9304026633999634,
-              0.9410148763223909
+              0.9415283203125,
+              0.9362374266074931,
+              0.9464053180510774
             ],
             [
               12.5,
-              0.96044921875,
-              0.9560083376469312,
-              0.9644584671228028
+              0.963623046875,
+              0.9593465352456287,
+              0.9674649505750101
             ],
             [
               14.0625,
-              0.9736328125,
-              0.9699349080761074,
-              0.9768867256743082
+              0.9766845703125,
+              0.9731865053687707,
+              0.9797357832382843
             ],
             [
               15.625,
-              0.9835205078125,
-              0.9805283494144565,
-              0.9860594060714705
+              0.9849853515625,
+              0.9821154041004805,
+              0.9874006657166332
             ],
             [
               17.1875,
-              0.9888916015625,
-              0.9863818247079311,
-              0.990943083325681
+              0.99072265625,
+              0.9884043666660866,
+              0.9925809342815092
             ],
             [
               18.75,
-              0.992919921875,
-              0.9908590300547093,
-              0.9945187423896666
+              0.99365234375,
+              0.9916860729437387,
+              0.9951558566662306
             ],
             [
               20.3125,
-              0.995849609375,
-              0.9942060795459996,
-              0.9970283215607499
+              0.9964599609375,
+              0.9949205454221596,
+              0.997533986655918
             ],
             [
               21.875,
-              0.997314453125,
-              0.9959369403357912,
-              0.9982257751021453
+              0.997802734375,
+              0.9965291919038554,
+              0.9986096283111433
             ],
             [
               23.4375,
@@ -3198,15 +3886,15 @@
             ],
             [
               25.0,
-              0.999267578125,
-              0.9984028519273321,
-              0.9996642826188534
+              0.9989013671875,
+              0.9979131717323111,
+              0.9994218842310778
             ],
             [
               26.5625,
-              0.9996337890625,
-              0.9989237655350104,
-              0.9998754475939718
+              0.9993896484375,
+              0.9985718937344816,
+              0.9997392670059695
             ],
             [
               28.125,
@@ -3216,9 +3904,9 @@
             ],
             [
               29.6875,
-              0.999755859375,
-              0.9991101940419058,
-              0.999933045281342
+              0.9996337890625,
+              0.9989237655350104,
+              0.9998754475939718
             ],
             [
               31.25,
@@ -3495,6 +4183,32 @@
       },
       "nodes": [
         {
+          "id": "action/account-authenticated/admin-account",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/account-authenticated/server-account",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
           "id": "action/administration-login/admin-net/admin-account/bridge",
           "status": "unreachable",
           "outcome": {
@@ -3547,14 +4261,38 @@
           }
         },
         {
+          "id": "action/mfa-bypass/admin-account",
+          "status": "possible",
+          "outcome": {
+            "unavailable": {
+              "reason": "rests on unknown inputs",
+              "missing": [
+                "entities.admin-account.parameters.mfa-bypass"
+              ]
+            }
+          }
+        },
+        {
+          "id": "action/mfa-bypass/server-account",
+          "status": "possible",
+          "outcome": {
+            "unavailable": {
+              "reason": "rests on unknown inputs",
+              "missing": [
+                "entities.server-account.parameters.mfa-bypass"
+              ]
+            }
+          }
+        },
+        {
           "id": "action/product-find-exploit/openssh",
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 1.0,
+              "p": 0.999755859375,
               "ci": {
-                "lo": 0.9995312917117791,
-                "hi": 1.0
+                "lo": 0.9991101940419058,
+                "hi": 0.999933045281342
               }
             }
           }
@@ -3564,10 +4302,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 1.0,
+              "p": 0.999755859375,
               "ci": {
-                "lo": 0.9995312917117791,
-                "hi": 1.0
+                "lo": 0.9991101940419058,
+                "hi": 0.999933045281342
               }
             }
           }
@@ -3612,7 +4350,72 @@
           }
         },
         {
+          "id": "input/policy/admin-account/mfa",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/policy/server-account/mfa",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/authenticated",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
           "id": "state/account/admin-account/material",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/mfa-satisfied",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/authenticated",
           "status": "possible",
           "outcome": {
             "available": {
@@ -3632,6 +4435,19 @@
               "p": 1.0,
               "ci": {
                 "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/mfa-satisfied",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
                 "hi": 1.0
               }
             }
@@ -3798,10 +4614,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 1.0,
+              "p": 0.999755859375,
               "ci": {
-                "lo": 0.9995312917117791,
-                "hi": 1.0
+                "lo": 0.9991101940419058,
+                "hi": 0.999933045281342
               }
             }
           }
@@ -3893,6 +4709,15 @@
           "note": "Exercise assumption; not calibrated to the lecture"
         },
         {
+          "path": "entities.server-account.defenses.mfa",
+          "paths": [
+            "entities.server-account.defenses.mfa"
+          ],
+          "status": "defense",
+          "expression": "off",
+          "note": null
+        },
+        {
           "path": "entities.server-key.parameters.extract",
           "paths": [
             "entities.server-key.parameters.extract",
@@ -3932,7 +4757,7 @@
       ],
       "witness": {
         "sample": 0,
-        "target_time": 9.869109204942117,
+        "target_time": 4.641549295373838,
         "nodes": [
           {
             "id": "input/flow-permission/filter/ssh",
@@ -3940,6 +4765,14 @@
           },
           {
             "id": "input/foothold/workstation/admin",
+            "time": 0.0
+          },
+          {
+            "id": "input/policy/server-account/mfa",
+            "time": 0.0
+          },
+          {
+            "id": "state/account/server-account/mfa-satisfied",
             "time": 0.0
           },
           {
@@ -3960,42 +4793,54 @@
           },
           {
             "id": "action/flow-connect/ssh",
-            "time": 0.20426056628550843
+            "time": 0.24364585606877515
           },
           {
             "id": "state/flow/ssh/connected",
-            "time": 0.20426056628550843
+            "time": 0.24364585606877515
           },
           {
             "id": "state/service/sshd/reachable",
-            "time": 0.20426056628550843
+            "time": 0.24364585606877515
+          },
+          {
+            "id": "action/account-authenticated/server-account",
+            "time": 4.583038427664114
           },
           {
             "id": "action/credential-extract/workstation/server-key",
-            "time": 9.379000546000169
+            "time": 4.583038427664114
+          },
+          {
+            "id": "state/account/server-account/authenticated",
+            "time": 4.583038427664114
           },
           {
             "id": "state/account/server-account/material",
-            "time": 9.379000546000169
+            "time": 4.583038427664114
           },
           {
             "id": "state/credential/server-key/possessed",
-            "time": 9.379000546000169
+            "time": 4.583038427664114
           },
           {
             "id": "action/service-login/server-account/sshd",
-            "time": 9.869109204942117
+            "time": 4.641549295373838
           },
           {
             "id": "state/host/server/admin",
-            "time": 9.869109204942117
+            "time": 4.641549295373838
           },
           {
             "id": "state/session/server-account/sshd",
-            "time": 9.869109204942117
+            "time": 4.641549295373838
           }
         ],
         "edges": [
+          {
+            "prerequisite": "action/account-authenticated/server-account",
+            "dependent": "state/account/server-account/authenticated"
+          },
           {
             "prerequisite": "action/credential-extract/workstation/server-key",
             "dependent": "state/credential/server-key/possessed"
@@ -4017,8 +4862,20 @@
             "dependent": "state/host/workstation/admin"
           },
           {
-            "prerequisite": "state/account/server-account/material",
+            "prerequisite": "input/policy/server-account/mfa",
+            "dependent": "state/account/server-account/mfa-satisfied"
+          },
+          {
+            "prerequisite": "state/account/server-account/authenticated",
             "dependent": "action/service-login/server-account/sshd"
+          },
+          {
+            "prerequisite": "state/account/server-account/material",
+            "dependent": "action/account-authenticated/server-account"
+          },
+          {
+            "prerequisite": "state/account/server-account/mfa-satisfied",
+            "dependent": "action/account-authenticated/server-account"
           },
           {
             "prerequisite": "state/application/ssh-client/control",
@@ -4467,6 +5324,32 @@
       },
       "nodes": [
         {
+          "id": "action/account-authenticated/admin-account",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "action/account-authenticated/server-account",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
           "id": "action/administration-login/admin-net/admin-account/bridge",
           "status": "unreachable",
           "outcome": {
@@ -4515,6 +5398,30 @@
                 "lo": 0.0,
                 "hi": 0.0
               }
+            }
+          }
+        },
+        {
+          "id": "action/mfa-bypass/admin-account",
+          "status": "possible",
+          "outcome": {
+            "unavailable": {
+              "reason": "rests on unknown inputs",
+              "missing": [
+                "entities.admin-account.parameters.mfa-bypass"
+              ]
+            }
+          }
+        },
+        {
+          "id": "action/mfa-bypass/server-account",
+          "status": "possible",
+          "outcome": {
+            "unavailable": {
+              "reason": "rests on unknown inputs",
+              "missing": [
+                "entities.server-account.parameters.mfa-bypass"
+              ]
             }
           }
         },
@@ -4584,7 +5491,72 @@
           }
         },
         {
+          "id": "input/policy/admin-account/mfa",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/policy/server-account/mfa",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/authenticated",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
           "id": "state/account/admin-account/material",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/mfa-satisfied",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/authenticated",
           "status": "possible",
           "outcome": {
             "available": {
@@ -4604,6 +5576,19 @@
               "p": 1.0,
               "ci": {
                 "lo": 0.9995312917117791,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/mfa-satisfied",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
                 "hi": 1.0
               }
             }
@@ -4888,10 +5873,10 @@
           "method": "sampled",
           "samples": 8192,
           "confidence": 0.95,
-          "p_target": 0.9132080078125,
+          "p_target": 0.921142578125,
           "ci": {
-            "lo": 0.9069162253558729,
-            "hi": 0.9191124422330852
+            "lo": 0.915106912073945,
+            "hi": 0.9267834581422751
           },
           "ttc_cdf": [
             [
@@ -4902,392 +5887,418 @@
             ],
             [
               0.15625,
-              0.0001220703125,
-              0.000021548732592319576,
-              0.0006911857498941994
+              0.0006103515625,
+              0.00026073299403049687,
+              0.0014281062655183065
             ],
             [
               0.3125,
-              0.0047607421875,
-              0.0034846682696729817,
-              0.006501061594905239
+              0.003662109375,
+              0.0025664792236384307,
+              0.0052230148925496486
             ],
             [
               0.46875,
-              0.011474609375,
-              0.009386483372261455,
-              0.014020687176923171
+              0.0091552734375,
+              0.007310536475748699,
+              0.011460136382390077
             ],
             [
               0.625,
-              0.021728515625,
-              0.018788306035311515,
-              0.025117064832181082
+              0.0206298828125,
+              0.017769052729477756,
+              0.023940082389624702
             ],
             [
               0.78125,
-              0.0350341796875,
-              0.0312655084877024,
-              0.03923871755473745
+              0.034912109375,
+              0.031150171874033086,
+              0.03911002797414119
             ],
             [
               0.9375,
-              0.0516357421875,
-              0.047050420240096966,
-              0.056641368222460534
+              0.0528564453125,
+              0.04821744822247215,
+              0.05791460218274107
             ],
             [
               1.09375,
-              0.07177734375,
-              0.06638626288110648,
-              0.07756984763527024
+              0.07470703125,
+              0.06921079115604638,
+              0.08060194802270405
             ],
             [
               1.25,
-              0.091552734375,
-              0.08549761728458437,
-              0.09799073670281487
+              0.09716796875,
+              0.09094166301852677,
+              0.10377189590508873
             ],
             [
               1.40625,
-              0.1146240234375,
-              0.1079054020579135,
-              0.12170390264567864
+              0.1229248046875,
+              0.11599065756568225,
+              0.13021242834796873
             ],
             [
               1.5625,
-              0.1358642578125,
-              0.12861483006851876,
-              0.1434550324372828
+              0.1502685546875,
+              0.14269456646433792,
+              0.158170386964801
             ],
             [
               1.71875,
-              0.164306640625,
-              0.1564400763010931,
-              0.17248788946858648
+              0.17724609375,
+              0.16912847916559398,
+              0.18566626319623614
             ],
             [
               1.875,
-              0.18896484375,
-              0.18063394631309002,
-              0.19758731069823496
+              0.20361328125,
+              0.19503310329673978,
+              0.21247129702645368
             ],
             [
               2.03125,
-              0.216796875,
-              0.20800759651531062,
-              0.22585163278856454
+              0.2347412109375,
+              0.22568876644319147,
+              0.24404231341772264
             ],
             [
               2.1875,
-              0.2435302734375,
-              0.23435739795515514,
-              0.2529435678928801
+              0.26318359375,
+              0.2537602699013473,
+              0.2728289132234449
             ],
             [
               2.34375,
-              0.2740478515625,
-              0.2644967038209043,
-              0.28381081059352364
+              0.290771484375,
+              0.2810375503340943,
+              0.300701552694717
             ],
             [
               2.5,
-              0.2982177734375,
-              0.2884077020955074,
-              0.30821699878350367
+              0.317138671875,
+              0.3071490826869888,
+              0.32729967830318574
             ],
             [
               2.65625,
-              0.323974609375,
-              0.31392493836660335,
-              0.33418928950244314
+              0.34619140625,
+              0.33596330353185344,
+              0.3565636916935271
             ],
             [
               2.8125,
-              0.3494873046875,
-              0.339234872119731,
-              0.35988083035081986
+              0.3702392578125,
+              0.3598459526687669,
+              0.3807542028269311
             ],
             [
               2.96875,
-              0.375,
-              0.3645773225023684,
-              0.38553985456968687
+              0.3973388671875,
+              0.38679266955672825,
+              0.4079813010659265
             ],
             [
               3.125,
-              0.4019775390625,
-              0.39140860453630916,
-              0.4126383614684373
+              0.422119140625,
+              0.4114628666511598,
+              0.4328484214074059
             ],
             [
               3.28125,
-              0.4266357421875,
-              0.41596239687699726,
-              0.4373778603693946
+              0.444091796875,
+              0.4333610175258447,
+              0.4548749855005237
             ],
             [
               3.4375,
-              0.4483642578125,
-              0.43762147498743253,
-              0.4591554448382309
+              0.4671630859375,
+              0.45637699927947956,
+              0.4779799544630818
             ],
             [
               3.59375,
-              0.46875,
-              0.45796096425935456,
-              0.4795683300086592
+              0.4893798828125,
+              0.47856246558883986,
+              0.5002072555100555
             ],
             [
               3.75,
-              0.4910888671875,
-              0.4802699265128491,
-              0.5019161613057642
+              0.5113525390625,
+              0.5005251714072575,
+              0.5221692646594406
             ],
             [
               3.90625,
-              0.5130615234375,
-              0.5022342579088226,
-              0.5238765448775935
+              0.531982421875,
+              0.5211647527701946,
+              0.542770110127385
             ],
             [
               4.0625,
-              0.532470703125,
-              0.5216534876000529,
-              0.5432574800745891
+              0.55224609375,
+              0.5414560001497274,
+              0.562987210995937
             ],
             [
               4.21875,
-              0.5526123046875,
-              0.5418228750094343,
-              0.5633524147190268
+              0.5701904296875,
+              0.5594398365590523,
+              0.5808752251436511
             ],
             [
               4.375,
-              0.5716552734375,
-              0.5609085359344655,
-              0.5823348400994247
+              0.588623046875,
+              0.5779279860133133,
+              0.5992350310234913
             ],
             [
               4.53125,
-              0.5885009765625,
-              0.5778054975222418,
-              0.5991134933202973
+              0.60791015625,
+              0.5972897288200426,
+              0.6184294269107221
             ],
             [
               4.6875,
-              0.6065673828125,
-              0.5959412042657911,
-              0.6170936633280525
+              0.6278076171875,
+              0.6172823216138553,
+              0.6382131037821975
             ],
             [
               4.84375,
-              0.622314453125,
-              0.6117610242480083,
-              0.6327532224060939
+              0.6444091796875,
+              0.6339777491438515,
+              0.654705238672319
             ],
             [
               5.0,
-              0.6387939453125,
-              0.6283292654641901,
-              0.6491285174157642
+              0.6602783203125,
+              0.6499493190824235,
+              0.6704570739882714
             ],
             [
               5.15625,
-              0.654052734375,
-              0.6436820439446467,
-              0.6642790132185039
+              0.67626953125,
+              0.6660567253282135,
+              0.686317099191271
             ],
             [
               5.3125,
-              0.669921875,
-              0.6596613573336605,
-              0.6800231050840144
+              0.689208984375,
+              0.679100062957985,
+              0.6991405381536501
             ],
             [
               5.46875,
-              0.6826171875,
-              0.6724542212179572,
-              0.6926089654033372
+              0.7025146484375,
+              0.6925220853983641,
+              0.7123173708882183
             ],
             [
               5.625,
-              0.6942138671875,
-              0.6841475611889569,
-              0.7040981138875666
+              0.71630859375,
+              0.7064472507476011,
+              0.7259671654909908
             ],
             [
               5.78125,
-              0.7071533203125,
-              0.6972036598813753,
-              0.7169087917872987
+              0.72998046875,
+              0.7202602749870618,
+              0.739485075009274
             ],
             [
               5.9375,
-              0.719970703125,
-              0.7101460650184749,
-              0.7295891370480841
+              0.7423095703125,
+              0.7327265592748257,
+              0.7516654363423328
             ],
             [
               6.09375,
-              0.7314453125,
-              0.7217409176832269,
-              0.7409327466442958
+              0.7525634765625,
+              0.7431020269468074,
+              0.7617881689886592
             ],
             [
               6.25,
-              0.7440185546875,
-              0.7344553244893932,
-              0.7533530378474833
+              0.7613525390625,
+              0.7520009083877816,
+              0.770459173534806
             ],
             [
               6.40625,
-              0.7557373046875,
-              0.7463149021453563,
-              0.7649199748410149
+              0.7723388671875,
+              0.7631321231251702,
+              0.7812903162813187
             ],
             [
               6.5625,
-              0.766845703125,
-              0.7575654362905979,
-              0.7758758243739403
+              0.7830810546875,
+              0.7740245394084024,
+              0.7918722050934568
             ],
             [
               6.71875,
-              0.7757568359375,
-              0.7665969529835559,
-              0.784658219862369
+              0.793701171875,
+              0.7848019440280658,
+              0.8023250793748982
             ],
             [
               6.875,
-              0.7872314453125,
-              0.778235335122383,
-              0.7959582999845056
+              0.8026123046875,
+              0.7938521384891032,
+              0.8110887970952475
             ],
             [
               7.03125,
-              0.7955322265625,
-              0.786661033479904,
-              0.8041263828370435
+              0.8115234375,
+              0.8029091461299213,
+              0.8198457016358162
             ],
             [
               7.1875,
-              0.8050537109375,
-              0.7963328180302797,
-              0.8134886414393824
+              0.8206787109375,
+              0.8122217748534671,
+              0.8288350374821881
             ],
             [
               7.34375,
-              0.8121337890625,
-              0.8035297474808322,
-              0.820445231256233
+              0.8280029296875,
+              0.8196776380401287,
+              0.8360207459514608
             ],
             [
               7.5,
-              0.81982421875,
-              0.8113522636692,
-              0.8279963653065961
+              0.836181640625,
+              0.828009745911719,
+              0.8440383930956636
             ],
             [
               7.65625,
-              0.827880859375,
-              0.81955333016669,
-              0.8359010276306338
+              0.844970703125,
+              0.8369716222191457,
+              0.8526464027753582
             ],
             [
               7.8125,
-              0.8355712890625,
-              0.8273877056485089,
-              0.843440302387546
+              0.8514404296875,
+              0.8435741568660571,
+              0.8589772564245219
             ],
             [
               7.96875,
-              0.8428955078125,
-              0.8348548511672664,
-              0.8506147285247228
+              0.85791015625,
+              0.8501817240882353,
+              0.8653030774984191
             ],
             [
               8.125,
-              0.849365234375,
-              0.841455827403614,
-              0.8569471405844503
+              0.86328125,
+              0.8556712794222956,
+              0.870550674712044
             ],
             [
               8.28125,
-              0.8565673828125,
-              0.8488099147353877,
-              0.8639905987143454
+              0.87158203125,
+              0.8641627762995481,
+              0.8786529590448502
             ],
             [
               8.4375,
-              0.8629150390625,
-              0.8552968714908028,
-              0.8701930040607398
+              0.8779296875,
+              0.8706629473517237,
+              0.8848421500944844
             ],
             [
               8.59375,
-              0.8681640625,
-              0.8606651178627776,
-              0.8753178840421847
+              0.88427734375,
+              0.8771693301764791,
+              0.8910251293715385
             ],
             [
               8.75,
-              0.872314453125,
-              0.8649124920122649,
-              0.8793674004977269
+              0.8895263671875,
+              0.882554615812678,
+              0.8961329700887593
             ],
             [
               8.90625,
-              0.8785400390625,
-              0.8712882845181499,
-              0.885436943899386
+              0.894287109375,
+              0.8874431187194513,
+              0.9007614887583432
             ],
             [
               9.0625,
-              0.8839111328125,
-              0.8767937855219268,
-              0.8906685954432942
+              0.8990478515625,
+              0.8923358373041848,
+              0.905385791749967
             ],
             [
               9.21875,
-              0.8897705078125,
-              0.8828052095811622,
-              0.8963704287088062
+              0.9031982421875,
+              0.8966049306786709,
+              0.9094135889805103
             ],
             [
               9.375,
-              0.895263671875,
-              0.8884464013530252,
-              0.9017104156788939
+              0.9061279296875,
+              0.8996205644798138,
+              0.9122545838417412
             ],
             [
               9.53125,
-              0.90087890625,
-              0.8942188298996345,
-              0.9071631920685008
+              0.9097900390625,
+              0.9033927453748262,
+              0.9158031887746959
             ],
             [
               9.6875,
-              0.904296875,
-              0.8977355791664724,
-              0.910479176241099
+              0.9139404296875,
+              0.907671619705023,
+              0.9198212050495285
             ],
             [
               9.84375,
-              0.9078369140625,
-              0.9013805425409055,
-              0.9139109725003675
+              0.9171142578125,
+              0.9109465331406299,
+              0.9228909726648264
             ],
             [
               10.0,
-              0.9132080078125,
-              0.9069162253558729,
-              0.9191124422330852
+              0.921142578125,
+              0.915106912073945,
+              0.9267834581422751
             ]
           ]
         }
       },
       "nodes": [
+        {
+          "id": "action/account-authenticated/admin-account",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 0.8685302734375,
+              "ci": {
+                "lo": 0.8610397880114843,
+                "hi": 0.8756752924762746
+              }
+            }
+          }
+        },
+        {
+          "id": "action/account-authenticated/server-account",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 0.872314453125,
+              "ci": {
+                "lo": 0.8649124920122649,
+                "hi": 0.8793674004977269
+              }
+            }
+          }
+        },
         {
           "id": "action/administration-login/admin-net/admin-account/bridge",
           "status": "unreachable",
@@ -5306,10 +6317,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.86767578125,
+              "p": 0.8685302734375,
               "ci": {
-                "lo": 0.8601655867751468,
-                "hi": 0.8748413103527533
+                "lo": 0.8610397880114843,
+                "hi": 0.8756752924762746
               }
             }
           }
@@ -5319,10 +6330,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.8563232421875,
+              "p": 0.872314453125,
               "ci": {
-                "lo": 0.8485605192486074,
-                "hi": 0.8637519418125945
+                "lo": 0.8649124920122649,
+                "hi": 0.8793674004977269
               }
             }
           }
@@ -5341,14 +6352,38 @@
           }
         },
         {
+          "id": "action/mfa-bypass/admin-account",
+          "status": "possible",
+          "outcome": {
+            "unavailable": {
+              "reason": "rests on unknown inputs",
+              "missing": [
+                "entities.admin-account.parameters.mfa-bypass"
+              ]
+            }
+          }
+        },
+        {
+          "id": "action/mfa-bypass/server-account",
+          "status": "possible",
+          "outcome": {
+            "unavailable": {
+              "reason": "rests on unknown inputs",
+              "missing": [
+                "entities.server-account.parameters.mfa-bypass"
+              ]
+            }
+          }
+        },
+        {
           "id": "action/product-find-exploit/openssh",
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.6143798828125,
+              "p": 0.6173095703125,
               "ci": {
-                "lo": 0.6037883429352394,
-                "hi": 0.6248642010916007
+                "lo": 0.6067317564189478,
+                "hi": 0.6277774162702658
               }
             }
           }
@@ -5358,10 +6393,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.517578125,
+              "p": 0.5238037109375,
               "ci": {
-                "lo": 0.5067517385700119,
-                "hi": 0.5283880334042305
+                "lo": 0.5129799863174445,
+                "hi": 0.5346051215643419
               }
             }
           }
@@ -5371,10 +6406,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.8173828125,
+              "p": 0.8387451171875,
               "ci": {
-                "lo": 0.8088683279053186,
-                "hi": 0.8255997771851662
+                "lo": 0.8306227509512032,
+                "hi": 0.8465499381357564
               }
             }
           }
@@ -5406,14 +6441,79 @@
           }
         },
         {
+          "id": "input/policy/admin-account/mfa",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/policy/server-account/mfa",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/authenticated",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 0.8685302734375,
+              "ci": {
+                "lo": 0.8610397880114843,
+                "hi": 0.8756752924762746
+              }
+            }
+          }
+        },
+        {
           "id": "state/account/admin-account/material",
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.86767578125,
+              "p": 0.8685302734375,
               "ci": {
-                "lo": 0.8601655867751468,
-                "hi": 0.8748413103527533
+                "lo": 0.8610397880114843,
+                "hi": 0.8756752924762746
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/mfa-satisfied",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/authenticated",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 0.872314453125,
+              "ci": {
+                "lo": 0.8649124920122649,
+                "hi": 0.8793674004977269
               }
             }
           }
@@ -5423,10 +6523,23 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.8563232421875,
+              "p": 0.872314453125,
               "ci": {
-                "lo": 0.8485605192486074,
-                "hi": 0.8637519418125945
+                "lo": 0.8649124920122649,
+                "hi": 0.8793674004977269
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/mfa-satisfied",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
               }
             }
           }
@@ -5449,10 +6562,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.86767578125,
+              "p": 0.8685302734375,
               "ci": {
-                "lo": 0.8601655867751468,
-                "hi": 0.8748413103527533
+                "lo": 0.8610397880114843,
+                "hi": 0.8756752924762746
               }
             }
           }
@@ -5462,10 +6575,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.8563232421875,
+              "p": 0.872314453125,
               "ci": {
-                "lo": 0.8485605192486074,
-                "hi": 0.8637519418125945
+                "lo": 0.8649124920122649,
+                "hi": 0.8793674004977269
               }
             }
           }
@@ -5488,10 +6601,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.9132080078125,
+              "p": 0.921142578125,
               "ci": {
-                "lo": 0.9069162253558729,
-                "hi": 0.9191124422330852
+                "lo": 0.915106912073945,
+                "hi": 0.9267834581422751
               }
             }
           }
@@ -5501,10 +6614,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.9132080078125,
+              "p": 0.921142578125,
               "ci": {
-                "lo": 0.9069162253558729,
-                "hi": 0.9191124422330852
+                "lo": 0.915106912073945,
+                "hi": 0.9267834581422751
               }
             }
           }
@@ -5566,10 +6679,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.9132080078125,
+              "p": 0.921142578125,
               "ci": {
-                "lo": 0.9069162253558729,
-                "hi": 0.9191124422330852
+                "lo": 0.915106912073945,
+                "hi": 0.9267834581422751
               }
             }
           }
@@ -5592,10 +6705,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.6143798828125,
+              "p": 0.6173095703125,
               "ci": {
-                "lo": 0.6037883429352394,
-                "hi": 0.6248642010916007
+                "lo": 0.6067317564189478,
+                "hi": 0.6277774162702658
               }
             }
           }
@@ -5631,10 +6744,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.9132080078125,
+              "p": 0.921142578125,
               "ci": {
-                "lo": 0.9069162253558729,
-                "hi": 0.9191124422330852
+                "lo": 0.915106912073945,
+                "hi": 0.9267834581422751
               }
             }
           }
@@ -5657,10 +6770,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.8173828125,
+              "p": 0.8387451171875,
               "ci": {
-                "lo": 0.8088683279053186,
-                "hi": 0.8255997771851662
+                "lo": 0.8306227509512032,
+                "hi": 0.8465499381357564
               }
             }
           }
@@ -5685,6 +6798,15 @@
           "status": "illustrative",
           "expression": "Exponential(mean 10)",
           "note": "Exercise assumption; not calibrated to the lecture"
+        },
+        {
+          "path": "entities.server-account.defenses.mfa",
+          "paths": [
+            "entities.server-account.defenses.mfa"
+          ],
+          "status": "defense",
+          "expression": "off",
+          "note": null
         },
         {
           "path": "entities.server-key.parameters.extract",
@@ -5726,7 +6848,7 @@
       ],
       "witness": {
         "sample": 0,
-        "target_time": 9.869109204942117,
+        "target_time": 4.641549295373838,
         "nodes": [
           {
             "id": "input/flow-permission/filter/ssh",
@@ -5734,6 +6856,14 @@
           },
           {
             "id": "input/foothold/workstation/admin",
+            "time": 0.0
+          },
+          {
+            "id": "input/policy/server-account/mfa",
+            "time": 0.0
+          },
+          {
+            "id": "state/account/server-account/mfa-satisfied",
             "time": 0.0
           },
           {
@@ -5754,42 +6884,54 @@
           },
           {
             "id": "action/flow-connect/ssh",
-            "time": 0.20426056628550843
+            "time": 0.24364585606877515
           },
           {
             "id": "state/flow/ssh/connected",
-            "time": 0.20426056628550843
+            "time": 0.24364585606877515
           },
           {
             "id": "state/service/sshd/reachable",
-            "time": 0.20426056628550843
+            "time": 0.24364585606877515
+          },
+          {
+            "id": "action/account-authenticated/server-account",
+            "time": 4.583038427664114
           },
           {
             "id": "action/credential-extract/workstation/server-key",
-            "time": 9.379000546000169
+            "time": 4.583038427664114
+          },
+          {
+            "id": "state/account/server-account/authenticated",
+            "time": 4.583038427664114
           },
           {
             "id": "state/account/server-account/material",
-            "time": 9.379000546000169
+            "time": 4.583038427664114
           },
           {
             "id": "state/credential/server-key/possessed",
-            "time": 9.379000546000169
+            "time": 4.583038427664114
           },
           {
             "id": "action/service-login/server-account/sshd",
-            "time": 9.869109204942117
+            "time": 4.641549295373838
           },
           {
             "id": "state/host/server/admin",
-            "time": 9.869109204942117
+            "time": 4.641549295373838
           },
           {
             "id": "state/session/server-account/sshd",
-            "time": 9.869109204942117
+            "time": 4.641549295373838
           }
         ],
         "edges": [
+          {
+            "prerequisite": "action/account-authenticated/server-account",
+            "dependent": "state/account/server-account/authenticated"
+          },
           {
             "prerequisite": "action/credential-extract/workstation/server-key",
             "dependent": "state/credential/server-key/possessed"
@@ -5811,8 +6953,20 @@
             "dependent": "state/host/workstation/admin"
           },
           {
-            "prerequisite": "state/account/server-account/material",
+            "prerequisite": "input/policy/server-account/mfa",
+            "dependent": "state/account/server-account/mfa-satisfied"
+          },
+          {
+            "prerequisite": "state/account/server-account/authenticated",
             "dependent": "action/service-login/server-account/sshd"
+          },
+          {
+            "prerequisite": "state/account/server-account/material",
+            "dependent": "action/account-authenticated/server-account"
+          },
+          {
+            "prerequisite": "state/account/server-account/mfa-satisfied",
+            "dependent": "action/account-authenticated/server-account"
           },
           {
             "prerequisite": "state/application/ssh-client/control",
@@ -5860,10 +7014,10 @@
           "method": "sampled",
           "samples": 8192,
           "confidence": 0.95,
-          "p_target": 0.078857421875,
+          "p_target": 0.0797119140625,
           "ci": {
-            "lo": 0.07321654185772486,
-            "hi": 0.08489308792605499
+            "lo": 0.07404185676650167,
+            "hi": 0.08577595637713716
           },
           "ttc_cdf": [
             [
@@ -5880,345 +7034,345 @@
             ],
             [
               0.3125,
-              0.0003662109375,
-              0.00012455240602811374,
-              0.0010762344649895474
+              0.0001220703125,
+              0.000021548732592319576,
+              0.0006911857498941994
             ],
             [
               0.46875,
-              0.0008544921875,
-              0.0004139833388256,
-              0.0017629083092543453
+              0.00048828125,
+              0.00018989891009916788,
+              0.0012549141551840644
             ],
             [
               0.625,
-              0.0013427734375,
-              0.0007499685943402919,
-              0.0024030278308019375
+              0.0010986328125,
+              0.0005781157689221384,
+              0.0020868282676889493
             ],
             [
               0.78125,
+              0.00146484375,
+              0.0008381746336550333,
+              0.002558847985752767
+            ],
+            [
+              0.9375,
               0.0018310546875,
               0.001109993435244185,
               0.003019107766960328
             ],
             [
-              0.9375,
-              0.002197265625,
-              0.0013903716888566176,
-              0.003470808096144609
-            ],
-            [
               1.09375,
-              0.0029296875,
-              0.001969594298018087,
-              0.004355742652576567
+              0.0028076171875,
+              0.0018716534317468761,
+              0.004209657324582206
             ],
             [
               1.25,
-              0.00341796875,
-              0.0023659142094806765,
-              0.004935527518176261
+              0.0032958984375,
+              0.002266200917016292,
+              0.0047912146163750745
             ],
             [
               1.40625,
-              0.0035400390625,
-              0.0024660133440821,
-              0.005079454577840408
+              0.0040283203125,
+              0.002869908326020686,
+              0.005651664372964107
             ],
             [
               1.5625,
-              0.0042724609375,
-              0.0030737397445313,
-              0.005935885342984636
+              0.0045166015625,
+              0.0032786886813956214,
+              0.0062189887946514566
             ],
             [
               1.71875,
-              0.00537109375,
-              0.0040036484548241725,
-              0.0072022123810819025
+              0.005859375,
+              0.004422484085990226,
+              0.007759481526978133
             ],
             [
               1.875,
-              0.0069580078125,
-              0.005374717076933893,
-              0.009003484284424606
+              0.0068359375,
+              0.005268313510080834,
+              0.008865861657012093
             ],
             [
               2.03125,
+              0.0074462890625,
+              0.005801667260752152,
+              0.009552638877668633
+            ],
+            [
+              2.1875,
               0.0084228515625,
               0.006661350430807367,
               0.010645165261737985
             ],
             [
-              2.1875,
-              0.0101318359375,
-              0.008181193690149668,
-              0.012541688722113678
-            ],
-            [
               2.34375,
-              0.01123046875,
-              0.00916670473105452,
-              0.013752413429598966
+              0.009765625,
+              0.007854064178161677,
+              0.012136739651304955
             ],
             [
               2.5,
+              0.0111083984375,
+              0.009056916674318946,
+              0.01361817529206897
+            ],
+            [
+              2.65625,
+              0.0113525390625,
+              0.009276560653105458,
+              0.013886583701813598
+            ],
+            [
+              2.8125,
               0.0125732421875,
               0.010378630549992012,
               0.015224775747582754
             ],
             [
-              2.65625,
-              0.013427734375,
-              0.0111535574376411,
-              0.016158032219792666
-            ],
-            [
-              2.8125,
-              0.0147705078125,
-              0.012376388358319307,
-              0.01761948943603574
-            ],
-            [
               2.96875,
-              0.015869140625,
-              0.013381014590614627,
-              0.018811098952130557
+              0.013916015625,
+              0.01159753789525997,
+              0.016690156539236077
             ],
             [
               3.125,
-              0.0177001953125,
-              0.015062604233269088,
-              0.020789902223459663
+              0.0157470703125,
+              0.013269219543422037,
+              0.018678867805057574
             ],
             [
               3.28125,
-              0.0189208984375,
-              0.016188102943013885,
-              0.022104665456370576
+              0.01708984375,
+              0.014501140535805621,
+              0.020131234949595272
             ],
             [
               3.4375,
-              0.019775390625,
-              0.016977851696847335,
-              0.023023100062396124
+              0.0186767578125,
+              0.015962740478485428,
+              0.021841975532367892
             ],
             [
               3.59375,
-              0.0211181640625,
-              0.01822178577671944,
-              0.0244634541194453
+              0.02001953125,
+              0.01720376492274496,
+              0.02328523922502964
             ],
             [
               3.75,
-              0.022216796875,
-              0.01924198830066085,
-              0.02563948734389403
+              0.0213623046875,
+              0.018448314701577498,
+              0.024724977583118382
             ],
             [
               3.90625,
-              0.0234375,
-              0.020377916620534533,
-              0.026943820966676055
+              0.0233154296875,
+              0.020264216761715782,
+              0.026813494631229236
             ],
             [
               4.0625,
-              0.0247802734375,
-              0.02163010366234234,
-              0.028375922061789537
+              0.02490234375,
+              0.021744069919460013,
+              0.028505981998937432
             ],
             [
               4.21875,
-              0.0252685546875,
-              0.02208609509073481,
-              0.028896035410459348
+              0.0260009765625,
+              0.022770701088312906,
+              0.029675586578474678
             ],
             [
               4.375,
-              0.0262451171875,
-              0.022999063591694895,
-              0.02993527646362383
+              0.0272216796875,
+              0.02391328767419104,
+              0.030973261935252253
             ],
             [
               4.53125,
-              0.02783203125,
-              0.024485286243467994,
-              0.031621394337303155
+              0.0281982421875,
+              0.024828702422646245,
+              0.03201005674092162
             ],
             [
               4.6875,
-              0.0289306640625,
-              0.025516008942723066,
-              0.032786907386438226
+              0.0299072265625,
+              0.026433367411526118,
+              0.033821758471759736
             ],
             [
               4.84375,
-              0.031005859375,
-              0.02746663495494154,
-              0.034984726676734454
+              0.0311279296875,
+              0.027581520657141426,
+              0.03511386716880014
             ],
             [
               5.0,
-              0.0323486328125,
-              0.02873120590839262,
-              0.03640444386020465
+              0.0321044921875,
+              0.02850115038970552,
+              0.03614644699036061
             ],
             [
               5.15625,
-              0.0343017578125,
-              0.03057368476592773,
-              0.03846638411091868
+              0.0330810546875,
+              0.029421717616471676,
+              0.03717808931771903
             ],
             [
               5.3125,
-              0.03564453125,
-              0.03184238393611099,
-              0.03988197307765671
+              0.0347900390625,
+              0.031034848236270004,
+              0.03898132541763869
             ],
             [
               5.46875,
-              0.036376953125,
-              0.03253504942498988,
-              0.04065346475437124
+              0.0355224609375,
+              0.031726983408096876,
+              0.03975334741140525
             ],
             [
               5.625,
-              0.0379638671875,
-              0.03403731870725896,
-              0.04232353599755459
+              0.037109375,
+              0.033228155258535896,
+              0.04142451608641866
             ],
             [
               5.78125,
-              0.03955078125,
-              0.035541532877197204,
-              0.04399166235306877
+              0.038818359375,
+              0.03484704585087983,
+              0.043221992213792707
             ],
             [
               5.9375,
-              0.0406494140625,
-              0.036583992397024104,
-              0.045145438581632
+              0.04052734375,
+              0.03646812124029847,
+              0.04501728354409207
             ],
             [
               6.09375,
-              0.0418701171875,
-              0.03774327025279585,
-              0.046426422668515974
+              0.0416259765625,
+              0.03751133335569196,
+              0.04617030717708872
             ],
             [
               6.25,
-              0.04296875,
-              0.03878747635151732,
-              0.04757845231818464
+              0.0433349609375,
+              0.039135719870463215,
+              0.04796228738203545
             ],
             [
               6.40625,
-              0.0439453125,
-              0.039716315562906626,
-              0.048601822660919905
-            ],
-            [
-              6.5625,
               0.0457763671875,
               0.04145948394565431,
               0.05051904719215579
             ],
             [
+              6.5625,
+              0.046875,
+              0.04250634304517745,
+              0.051668423841022784
+            ],
+            [
               6.71875,
-              0.04736328125,
-              0.04297183637855197,
-              0.052179035284710545
+              0.0484619140625,
+              0.04401968392490223,
+              0.05332742348675043
             ],
             [
               6.875,
-              0.0489501953125,
-              0.04448560623247995,
-              0.05383760595623499
+              0.0498046875,
+              0.045301277235370384,
+              0.05473011831320356
             ],
             [
               7.03125,
-              0.050537109375,
-              0.046000728652878464,
-              0.0554948240612889
+              0.0513916015625,
+              0.04681710287359258,
+              0.05638663320043378
             ],
             [
               7.1875,
-              0.052490234375,
-              0.04786726339132979,
-              0.05753270843108672
+              0.053955078125,
+              0.04926838776059879,
+              0.05905989839300456
             ],
             [
               7.34375,
-              0.0535888671875,
-              0.04891801102877625,
-              0.05867819654203039
+              0.0557861328125,
+              0.0510212007609629,
+              0.060967478306624016
             ],
             [
               7.5,
-              0.0548095703125,
-              0.05008617643208187,
-              0.05995029308138048
+              0.0572509765625,
+              0.052424532186980684,
+              0.06249246121179309
             ],
             [
               7.65625,
-              0.0565185546875,
-              0.05172274893289433,
-              0.06173008730028602
+              0.0584716796875,
+              0.053594681948922564,
+              0.06376257339250693
             ],
             [
               7.8125,
-              0.0589599609375,
-              0.05406291720026019,
-              0.06427044291823159
+              0.0601806640625,
+              0.05523393357967683,
+              0.06553968848147064
             ],
             [
               7.96875,
-              0.0596923828125,
-              0.054765454317607744,
-              0.06503206296647746
+              0.0618896484375,
+              0.056874357323529426,
+              0.06731563145733604
             ],
             [
               8.125,
-              0.06201171875,
-              0.056991574089779014,
-              0.06744244088535203
+              0.0631103515625,
+              0.05804678110612113,
+              0.06858346961740003
             ],
             [
               8.28125,
-              0.0638427734375,
-              0.05875050488716574,
-              0.06934390300194887
+              0.064208984375,
+              0.05910244129357047,
+              0.06972404517834084
             ],
             [
               8.4375,
-              0.064697265625,
-              0.05957176622454989,
-              0.0702308250244237
+              0.06640625,
+              0.06121507849456681,
+              0.07200387947412479
             ],
             [
               8.59375,
-              0.0667724609375,
-              0.061567350988968206,
-              0.07238368556252009
+              0.0672607421875,
+              0.06203711998788979,
+              0.07289002134066079
             ],
             [
               8.75,
-              0.06787109375,
-              0.06262444632722049,
-              0.07352282597265795
+              0.068359375,
+              0.06309439847558058,
+              0.07402897860136014
             ],
             [
               8.90625,
-              0.06884765625,
-              0.06356443071273357,
-              0.07453505114126943
+              0.070068359375,
+              0.06473985656464203,
+              0.07579988723201668
             ],
             [
               9.0625,
-              0.070556640625,
-              0.06521016300584903,
-              0.07630568556787198
+              0.0712890625,
+              0.0659157661658519,
+              0.07706423957346253
             ],
             [
               9.21875,
@@ -6228,38 +7382,64 @@
             ],
             [
               9.375,
-              0.0738525390625,
-              0.06838670069386439,
-              0.07971785512502703
+              0.0736083984375,
+              0.06815128660654785,
+              0.07946521682381244
             ],
             [
               9.53125,
-              0.0748291015625,
-              0.06932853615475774,
-              0.08072822921825824
+              0.07470703125,
+              0.06921079115604638,
+              0.08060194802270405
             ],
             [
               9.6875,
-              0.0762939453125,
-              0.07074181789834688,
-              0.08224326180585595
+              0.076416015625,
+              0.070859619563167,
+              0.08236948633530142
             ],
             [
               9.84375,
-              0.0772705078125,
-              0.07168435086402218,
-              0.08325293839430524
+              0.0771484375,
+              0.0715665193525731,
+              0.08312674371148873
             ],
             [
               10.0,
-              0.078857421875,
-              0.07321654185772486,
-              0.08489308792605499
+              0.0797119140625,
+              0.07404185676650167,
+              0.08577595637713716
             ]
           ]
         }
       },
       "nodes": [
+        {
+          "id": "action/account-authenticated/admin-account",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 0.8685302734375,
+              "ci": {
+                "lo": 0.8610397880114843,
+                "hi": 0.8756752924762746
+              }
+            }
+          }
+        },
+        {
+          "id": "action/account-authenticated/server-account",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 0.048828125,
+              "ci": {
+                "lo": 0.044369113582996306,
+                "hi": 0.053710072411453064
+              }
+            }
+          }
+        },
         {
           "id": "action/administration-login/admin-net/admin-account/bridge",
           "status": "unreachable",
@@ -6278,10 +7458,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.86767578125,
+              "p": 0.8685302734375,
               "ci": {
-                "lo": 0.8601655867751468,
-                "hi": 0.8748413103527533
+                "lo": 0.8610397880114843,
+                "hi": 0.8756752924762746
               }
             }
           }
@@ -6291,10 +7471,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.0491943359375,
+              "p": 0.048828125,
               "ci": {
-                "lo": 0.04471861550593186,
-                "hi": 0.05409264907131422
+                "lo": 0.044369113582996306,
+                "hi": 0.053710072411453064
               }
             }
           }
@@ -6313,14 +7493,38 @@
           }
         },
         {
+          "id": "action/mfa-bypass/admin-account",
+          "status": "possible",
+          "outcome": {
+            "unavailable": {
+              "reason": "rests on unknown inputs",
+              "missing": [
+                "entities.admin-account.parameters.mfa-bypass"
+              ]
+            }
+          }
+        },
+        {
+          "id": "action/mfa-bypass/server-account",
+          "status": "possible",
+          "outcome": {
+            "unavailable": {
+              "reason": "rests on unknown inputs",
+              "missing": [
+                "entities.server-account.parameters.mfa-bypass"
+              ]
+            }
+          }
+        },
+        {
           "id": "action/product-find-exploit/openssh",
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.0438232421875,
+              "p": 0.044921875,
               "ci": {
-                "lo": 0.039600177618465945,
-                "hi": 0.048473934411095015
+                "lo": 0.04064575187587638,
+                "hi": 0.049624595902074714
               }
             }
           }
@@ -6330,10 +7534,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.03515625,
+              "p": 0.037353515625,
               "ci": {
-                "lo": 0.03138085801219334,
-                "hi": 0.039367394224512076
+                "lo": 0.03345928622215347,
+                "hi": 0.04168143751133223
               }
             }
           }
@@ -6343,10 +7547,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.0455322265625,
+              "p": 0.0433349609375,
               "ci": {
-                "lo": 0.04122694455616157,
-                "hi": 0.05026353419311739
+                "lo": 0.039135719870463215,
+                "hi": 0.04796228738203545
               }
             }
           }
@@ -6378,14 +7582,79 @@
           }
         },
         {
+          "id": "input/policy/admin-account/mfa",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "input/policy/server-account/mfa",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/authenticated",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 0.8685302734375,
+              "ci": {
+                "lo": 0.8610397880114843,
+                "hi": 0.8756752924762746
+              }
+            }
+          }
+        },
+        {
           "id": "state/account/admin-account/material",
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.86767578125,
+              "p": 0.8685302734375,
               "ci": {
-                "lo": 0.8601655867751468,
-                "hi": 0.8748413103527533
+                "lo": 0.8610397880114843,
+                "hi": 0.8756752924762746
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/admin-account/mfa-satisfied",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/authenticated",
+          "status": "possible",
+          "outcome": {
+            "available": {
+              "p": 0.048828125,
+              "ci": {
+                "lo": 0.044369113582996306,
+                "hi": 0.053710072411453064
               }
             }
           }
@@ -6395,10 +7664,23 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.0491943359375,
+              "p": 0.048828125,
               "ci": {
-                "lo": 0.04471861550593186,
-                "hi": 0.05409264907131422
+                "lo": 0.044369113582996306,
+                "hi": 0.053710072411453064
+              }
+            }
+          }
+        },
+        {
+          "id": "state/account/server-account/mfa-satisfied",
+          "status": "seeded",
+          "outcome": {
+            "available": {
+              "p": 1.0,
+              "ci": {
+                "lo": 1.0,
+                "hi": 1.0
               }
             }
           }
@@ -6421,10 +7703,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.86767578125,
+              "p": 0.8685302734375,
               "ci": {
-                "lo": 0.8601655867751468,
-                "hi": 0.8748413103527533
+                "lo": 0.8610397880114843,
+                "hi": 0.8756752924762746
               }
             }
           }
@@ -6434,10 +7716,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.0491943359375,
+              "p": 0.048828125,
               "ci": {
-                "lo": 0.04471861550593186,
-                "hi": 0.05409264907131422
+                "lo": 0.044369113582996306,
+                "hi": 0.053710072411453064
               }
             }
           }
@@ -6460,10 +7742,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.078857421875,
+              "p": 0.0797119140625,
               "ci": {
-                "lo": 0.07321654185772486,
-                "hi": 0.08489308792605499
+                "lo": 0.07404185676650167,
+                "hi": 0.08577595637713716
               }
             }
           }
@@ -6473,10 +7755,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.078857421875,
+              "p": 0.0797119140625,
               "ci": {
-                "lo": 0.07321654185772486,
-                "hi": 0.08489308792605499
+                "lo": 0.07404185676650167,
+                "hi": 0.08577595637713716
               }
             }
           }
@@ -6538,10 +7820,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.078857421875,
+              "p": 0.0797119140625,
               "ci": {
-                "lo": 0.07321654185772486,
-                "hi": 0.08489308792605499
+                "lo": 0.07404185676650167,
+                "hi": 0.08577595637713716
               }
             }
           }
@@ -6564,10 +7846,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.0438232421875,
+              "p": 0.044921875,
               "ci": {
-                "lo": 0.039600177618465945,
-                "hi": 0.048473934411095015
+                "lo": 0.04064575187587638,
+                "hi": 0.049624595902074714
               }
             }
           }
@@ -6603,10 +7885,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.078857421875,
+              "p": 0.0797119140625,
               "ci": {
-                "lo": 0.07321654185772486,
-                "hi": 0.08489308792605499
+                "lo": 0.07404185676650167,
+                "hi": 0.08577595637713716
               }
             }
           }
@@ -6629,10 +7911,10 @@
           "status": "possible",
           "outcome": {
             "available": {
-              "p": 0.0455322265625,
+              "p": 0.0433349609375,
               "ci": {
-                "lo": 0.04122694455616157,
-                "hi": 0.05026353419311739
+                "lo": 0.039135719870463215,
+                "hi": 0.04796228738203545
               }
             }
           }
@@ -6657,6 +7939,15 @@
           "status": "illustrative",
           "expression": "Exponential(mean 200)",
           "note": "Exercise assumption: perfect blocking, a patched service has no exploit to find"
+        },
+        {
+          "path": "entities.server-account.defenses.mfa",
+          "paths": [
+            "entities.server-account.defenses.mfa"
+          ],
+          "status": "defense",
+          "expression": "off",
+          "note": null
         },
         {
           "path": "entities.server-key.parameters.extract-protected",
@@ -6697,8 +7988,8 @@
         }
       ],
       "witness": {
-        "sample": 6,
-        "target_time": 8.526415087278755,
+        "sample": 2,
+        "target_time": 8.27767366144769,
         "nodes": [
           {
             "id": "input/flow-permission/filter/ssh",
@@ -6726,53 +8017,53 @@
           },
           {
             "id": "action/flow-connect/ssh",
-            "time": 0.7981788967839002
+            "time": 0.05555241024905836
           },
           {
             "id": "state/flow/ssh/connected",
-            "time": 0.7981788967839002
+            "time": 0.05555241024905836
+          },
+          {
+            "id": "state/product/openssh/reachable",
+            "time": 0.05555241024905836
           },
           {
             "id": "state/service/sshd/reachable",
-            "time": 0.7981788967839002
+            "time": 0.05555241024905836
           },
           {
-            "id": "action/credential-extract/workstation/server-key",
-            "time": 7.455377636035715
+            "id": "action/product-find-exploit/openssh",
+            "time": 8.009224681765211
           },
           {
-            "id": "state/account/server-account/material",
-            "time": 7.455377636035715
+            "id": "state/product/openssh/exploit-ready",
+            "time": 8.009224681765211
           },
           {
-            "id": "state/credential/server-key/possessed",
-            "time": 7.455377636035715
-          },
-          {
-            "id": "action/service-login/server-account/sshd",
-            "time": 8.526415087278755
+            "id": "action/service-deploy-exploit/sshd",
+            "time": 8.27767366144769
           },
           {
             "id": "state/host/server/admin",
-            "time": 8.526415087278755
+            "time": 8.27767366144769
           },
           {
-            "id": "state/session/server-account/sshd",
-            "time": 8.526415087278755
+            "id": "state/service/sshd/control",
+            "time": 8.27767366144769
           }
         ],
         "edges": [
-          {
-            "prerequisite": "action/credential-extract/workstation/server-key",
-            "dependent": "state/credential/server-key/possessed"
-          },
           {
             "prerequisite": "action/flow-connect/ssh",
             "dependent": "state/flow/ssh/connected"
           },
           {
-            "prerequisite": "action/service-login/server-account/sshd",
-            "dependent": "state/session/server-account/sshd"
+            "prerequisite": "action/product-find-exploit/openssh",
+            "dependent": "state/product/openssh/exploit-ready"
+          },
+          {
+            "prerequisite": "action/service-deploy-exploit/sshd",
+            "dependent": "state/service/sshd/control"
           },
           {
             "prerequisite": "input/flow-permission/filter/ssh",
@@ -6783,16 +8074,8 @@
             "dependent": "state/host/workstation/admin"
           },
           {
-            "prerequisite": "state/account/server-account/material",
-            "dependent": "action/service-login/server-account/sshd"
-          },
-          {
             "prerequisite": "state/application/ssh-client/control",
             "dependent": "action/flow-connect/ssh"
-          },
-          {
-            "prerequisite": "state/credential/server-key/possessed",
-            "dependent": "state/account/server-account/material"
           },
           {
             "prerequisite": "state/flow/ssh/connected",
@@ -6804,10 +8087,6 @@
           },
           {
             "prerequisite": "state/host/workstation/user",
-            "dependent": "action/credential-extract/workstation/server-key"
-          },
-          {
-            "prerequisite": "state/host/workstation/user",
             "dependent": "state/application/ssh-client/control"
           },
           {
@@ -6815,22 +8094,34 @@
             "dependent": "action/flow-connect/ssh"
           },
           {
-            "prerequisite": "state/service/sshd/reachable",
-            "dependent": "action/service-login/server-account/sshd"
+            "prerequisite": "state/product/openssh/exploit-ready",
+            "dependent": "action/service-deploy-exploit/sshd"
           },
           {
-            "prerequisite": "state/session/server-account/sshd",
+            "prerequisite": "state/product/openssh/reachable",
+            "dependent": "action/product-find-exploit/openssh"
+          },
+          {
+            "prerequisite": "state/service/sshd/control",
             "dependent": "state/host/server/admin"
+          },
+          {
+            "prerequisite": "state/service/sshd/reachable",
+            "dependent": "action/service-deploy-exploit/sshd"
+          },
+          {
+            "prerequisite": "state/service/sshd/reachable",
+            "dependent": "state/product/openssh/reachable"
           }
         ]
       }
     },
     "delta": {
       "available": {
-        "mean": 0.8343505859375,
+        "mean": 0.8414306640625,
         "ci": {
-          "lo": 0.8262996037143895,
-          "hi": 0.8424015681606105
+          "lo": 0.8335202648918185,
+          "hi": 0.8493410632331815
         },
         "ci_reason": null
       }

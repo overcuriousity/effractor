@@ -10,8 +10,8 @@ use effractor_components::{
     resolve,
 };
 use effractor_core::architecture::{
-    Architecture, Change, Entity, EntityKind, Evidence, Parameter, Privilege, Relation, Slot,
-    Switch,
+    Architecture, Change, Defense, Entity, EntityKind, Evidence, Parameter, Privilege, Relation,
+    Scenario, Slot, Switch,
 };
 use effractor_core::{AssociationId, Code, Distribution, Document, EntityId, FlowId, ScenarioId};
 use serde_json::Value;
@@ -369,7 +369,7 @@ fn the_graph_image_carries_timing_and_provenance() {
     assert_eq!(
         login["inputs"],
         serde_json::json!([
-            "state/account/server-account/material",
+            "state/account/server-account/authenticated",
             "state/service/sshd/reachable"
         ])
     );
@@ -502,4 +502,50 @@ fn flows_and_scenarios_use_their_own_ids() {
     let flows: Vec<&FlowId> = connect.origins[0].flows.iter().collect();
     assert_eq!(flows, [&id::<FlowId>("ssh")]);
     assert_eq!(connect.origins[0].paths, ["flows.ssh.parameters.connect"]);
+}
+
+#[test]
+fn mfa_resolves_as_a_policy_on_its_switch() {
+    let mut m = architecture(LECTURE);
+    m.scenarios.insert(
+        id("mfa"),
+        Scenario {
+            label: "MFA".into(),
+            changes: vec![Change::EntityDefense {
+                entity: id("server-account"),
+                defense: Defense::Mfa,
+                value: Switch::On,
+            }],
+        },
+    );
+    m.entities[&id::<EntityId>("server-account")].defenses.mfa = Some(Switch::Off);
+    let g = generate(&m).unwrap();
+    let i = index(&g, "input/policy/server-account/mfa");
+    let base = resolve(&m, &g, None).unwrap();
+    assert_eq!(base.ttc[i], ResolvedTtc::Known(Distribution::Zero));
+    assert_eq!(base.paths[i], ["entities.server-account.defenses.mfa"]);
+    let on = resolve(&m, &g, Some(&id("mfa"))).unwrap();
+    assert_eq!(on.ttc[i], ResolvedTtc::Known(Distribution::Infinity));
+    assert_eq!(on.paths[i], ["scenarios.mfa.changes[0]"]);
+    m.entities[&id::<EntityId>("server-account")].defenses.mfa = Some(Switch::Unknown);
+    let unknown = resolve(&m, &g, None).unwrap();
+    assert_eq!(
+        unknown.ttc[i],
+        ResolvedTtc::Unknown(vec!["entities.server-account.defenses.mfa".into()])
+    );
+}
+
+#[test]
+fn switches_never_change_the_graph() {
+    let model = architecture(LECTURE);
+    let baseline = shape(&generate(&model).unwrap());
+    for value in [Switch::On, Switch::Off, Switch::Unknown] {
+        let mut m = model.clone();
+        for e in m.entities.values_mut() {
+            if let Some(defense) = e.kind.defense() {
+                e.defenses.set(defense, Some(value));
+            }
+        }
+        assert_eq!(shape(&generate(&m).unwrap()), baseline, "{value:?}");
+    }
 }

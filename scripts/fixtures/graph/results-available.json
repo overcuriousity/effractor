@@ -32,105 +32,105 @@
      ],
      [
       1.5625,
-      0.1364,
-      0.1298126167025602,
-      0.1432666269125958
+      0.1462,
+      0.13941117312712134,
+      0.1532605441199694
      ],
      [
       3.125,
-      0.4038,
-      0.39422199044064493,
-      0.41345189084587314
+      0.4155,
+      0.4058753882080229,
+      0.4251895075166214
      ],
      [
       4.6875,
-      0.6083,
-      0.5986929831638528,
-      0.6178238427890586
+      0.6231,
+      0.6135562638478569,
+      0.6325491957532825
      ],
      [
       6.25,
-      0.7448,
-      0.7361621957336849,
-      0.7532497986640317
+      0.7582,
+      0.7497098259662934,
+      0.7664918772750892
      ],
      [
       7.8125,
-      0.8367,
-      0.8293261506119043,
-      0.8438152648852821
+      0.8514,
+      0.844293626304068,
+      0.8582364996410204
      ],
      [
       9.375,
-      0.8969,
-      0.8907867431552386,
-      0.9027084389381183
+      0.9064,
+      0.9005340913217336,
+      0.9119537948025803
      ],
      [
       10.9375,
-      0.9363,
-      0.9313438689192319,
-      0.9409210541025157
+      0.9417,
+      0.9369357491910962,
+      0.946125026648248
      ],
      [
       12.5,
-      0.961,
-      0.9570251863191388,
-      0.9646207671830973
+      0.9633,
+      0.9594333014298508,
+      0.9668108856798803
      ],
      [
       14.0625,
-      0.9745,
-      0.9712233682732674,
-      0.9774122172729605
+      0.9766,
+      0.9734490251718769,
+      0.9793849475811941
      ],
      [
       15.625,
-      0.984,
-      0.9813483360961877,
-      0.9862799534809974
+      0.9852,
+      0.9826401257885482,
+      0.9873872421925471
      ],
      [
       17.1875,
-      0.9888,
-      0.9865415906830627,
-      0.9906830125097638
+      0.9912,
+      0.9891715358948607,
+      0.9928512241057865
      ],
      [
       18.75,
-      0.9928,
-      0.9909432250635823,
-      0.9942783061422789
+      0.9942,
+      0.9925101325899993,
+      0.9955103234204238
      ],
      [
       20.3125,
-      0.9957,
-      0.9942133784168481,
-      0.9968059255984631
+      0.9966,
+      0.9952527946345442,
+      0.9975658181836999
      ],
      [
       21.875,
-      0.9973,
-      0.9960744058463006,
-      0.9981436693742244
+      0.9981,
+      0.9970342049827606,
+      0.9987832558403712
      ],
      [
       23.4375,
-      0.9985,
-      0.9975264154500286,
-      0.9990907381744069
+      0.9987,
+      0.9977769118976668,
+      0.9992400881274203
      ],
      [
       25,
-      0.9993,
-      0.9985556655587302,
-      0.9996608736683119
+      0.999,
+      0.9981600556125619,
+      0.9994567140135028
      ],
      [
       26.5625,
-      0.9996,
-      0.9989718716646431,
-      0.9998444371633769
+      0.9995,
+      0.998829974053858,
+      0.9997864115738362
      ],
      [
       28.125,
@@ -140,9 +140,9 @@
      ],
      [
       29.6875,
-      0.9998,
-      0.9992710041559925,
-      0.9999451510726791
+      0.9997,
+      0.9991182642277636,
+      0.9998979678005822
      ],
      [
       31.25,
@@ -419,6 +419,32 @@
   },
   "nodes": [
    {
+    "id": "action/account-authenticated/admin-account",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "action/account-authenticated/server-account",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
     "id": "action/administration-login/admin-net/admin-account/bridge",
     "status": "unreachable",
     "outcome": {
@@ -471,14 +497,38 @@
     }
    },
    {
+    "id": "action/mfa-bypass/admin-account",
+    "status": "possible",
+    "outcome": {
+     "unavailable": {
+      "reason": "rests on unknown inputs",
+      "missing": [
+       "entities.admin-account.parameters.mfa-bypass"
+      ]
+     }
+    }
+   },
+   {
+    "id": "action/mfa-bypass/server-account",
+    "status": "possible",
+    "outcome": {
+     "unavailable": {
+      "reason": "rests on unknown inputs",
+      "missing": [
+       "entities.server-account.parameters.mfa-bypass"
+      ]
+     }
+    }
+   },
+   {
     "id": "action/product-find-exploit/openssh",
     "status": "possible",
     "outcome": {
      "available": {
-      "p": 1,
+      "p": 0.9998,
       "ci": {
-       "lo": 0.9996160016293234,
-       "hi": 1
+       "lo": 0.9992710041559925,
+       "hi": 0.9999451510726791
       }
      }
     }
@@ -488,10 +538,10 @@
     "status": "possible",
     "outcome": {
      "available": {
-      "p": 1,
+      "p": 0.9998,
       "ci": {
-       "lo": 0.9996160016293234,
-       "hi": 1
+       "lo": 0.9992710041559925,
+       "hi": 0.9999451510726791
       }
      }
     }
@@ -536,7 +586,72 @@
     }
    },
    {
+    "id": "input/policy/admin-account/mfa",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "input/policy/server-account/mfa",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/admin-account/authenticated",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
     "id": "state/account/admin-account/material",
+    "status": "possible",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/admin-account/mfa-satisfied",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/server-account/authenticated",
     "status": "possible",
     "outcome": {
      "available": {
@@ -556,6 +671,19 @@
       "p": 1,
       "ci": {
        "lo": 0.9996160016293234,
+       "hi": 1
+      }
+     }
+    }
+   },
+   {
+    "id": "state/account/server-account/mfa-satisfied",
+    "status": "seeded",
+    "outcome": {
+     "available": {
+      "p": 1,
+      "ci": {
+       "lo": 1,
        "hi": 1
       }
      }
@@ -722,10 +850,10 @@
     "status": "possible",
     "outcome": {
      "available": {
-      "p": 1,
+      "p": 0.9998,
       "ci": {
-       "lo": 0.9996160016293234,
-       "hi": 1
+       "lo": 0.9992710041559925,
+       "hi": 0.9999451510726791
       }
      }
     }
@@ -817,6 +945,15 @@
     "note": "Exercise assumption; not calibrated to the lecture"
    },
    {
+    "path": "entities.server-account.defenses.mfa",
+    "paths": [
+     "entities.server-account.defenses.mfa"
+    ],
+    "status": "defense",
+    "expression": "off",
+    "note": null
+   },
+   {
     "path": "entities.server-key.parameters.extract",
     "paths": [
      "entities.server-key.parameters.extract",
@@ -856,7 +993,7 @@
   ],
   "witness": {
    "sample": 0,
-   "target_time": 9.869109204942117,
+   "target_time": 4.641549295373838,
    "nodes": [
     {
      "id": "input/flow-permission/filter/ssh",
@@ -864,6 +1001,14 @@
     },
     {
      "id": "input/foothold/workstation/admin",
+     "time": 0
+    },
+    {
+     "id": "input/policy/server-account/mfa",
+     "time": 0
+    },
+    {
+     "id": "state/account/server-account/mfa-satisfied",
      "time": 0
     },
     {
@@ -884,42 +1029,54 @@
     },
     {
      "id": "action/flow-connect/ssh",
-     "time": 0.20426056628550843
+     "time": 0.24364585606877515
     },
     {
      "id": "state/flow/ssh/connected",
-     "time": 0.20426056628550843
+     "time": 0.24364585606877515
     },
     {
      "id": "state/service/sshd/reachable",
-     "time": 0.20426056628550843
+     "time": 0.24364585606877515
+    },
+    {
+     "id": "action/account-authenticated/server-account",
+     "time": 4.583038427664114
     },
     {
      "id": "action/credential-extract/workstation/server-key",
-     "time": 9.379000546000169
+     "time": 4.583038427664114
+    },
+    {
+     "id": "state/account/server-account/authenticated",
+     "time": 4.583038427664114
     },
     {
      "id": "state/account/server-account/material",
-     "time": 9.379000546000169
+     "time": 4.583038427664114
     },
     {
      "id": "state/credential/server-key/possessed",
-     "time": 9.379000546000169
+     "time": 4.583038427664114
     },
     {
      "id": "action/service-login/server-account/sshd",
-     "time": 9.869109204942117
+     "time": 4.641549295373838
     },
     {
      "id": "state/host/server/admin",
-     "time": 9.869109204942117
+     "time": 4.641549295373838
     },
     {
      "id": "state/session/server-account/sshd",
-     "time": 9.869109204942117
+     "time": 4.641549295373838
     }
    ],
    "edges": [
+    {
+     "prerequisite": "action/account-authenticated/server-account",
+     "dependent": "state/account/server-account/authenticated"
+    },
     {
      "prerequisite": "action/credential-extract/workstation/server-key",
      "dependent": "state/credential/server-key/possessed"
@@ -941,8 +1098,20 @@
      "dependent": "state/host/workstation/admin"
     },
     {
-     "prerequisite": "state/account/server-account/material",
+     "prerequisite": "input/policy/server-account/mfa",
+     "dependent": "state/account/server-account/mfa-satisfied"
+    },
+    {
+     "prerequisite": "state/account/server-account/authenticated",
      "dependent": "action/service-login/server-account/sshd"
+    },
+    {
+     "prerequisite": "state/account/server-account/material",
+     "dependent": "action/account-authenticated/server-account"
+    },
+    {
+     "prerequisite": "state/account/server-account/mfa-satisfied",
+     "dependent": "action/account-authenticated/server-account"
     },
     {
      "prerequisite": "state/application/ssh-client/control",

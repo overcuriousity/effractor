@@ -958,3 +958,103 @@ fn a_product_and_its_instances_round_trip() {
         "{diagnostics:?}"
     );
 }
+
+/// Two accounts, a workload identity, a role one may become and a second factor.
+fn identities(seed_factor: &str) -> String {
+    CANONICAL
+        .replace(
+            "entities: {}",
+            r#"entities:
+  box:
+    kind: host
+    label: Box
+    parameters:
+      escape:
+        status: unknown
+  admin:
+    kind: account
+    label: Admin
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: true}
+  role:
+    kind: account
+    label: Role
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: false}
+  password:
+    kind: credential
+    label: Password
+    parameters:
+      extract:
+        status: unknown
+      extract-protected:
+        status: unknown
+    defenses: {protected: false}
+  seed:
+    kind: credential
+    label: Seed
+    parameters:
+      extract:
+        status: unknown
+      extract-protected:
+        status: unknown
+    defenses: {protected: false}"#,
+        )
+        .replace(
+            "associations: {}",
+            &format!(
+                r#"associations:
+  password-auth:
+    kind: authenticates
+    from: password
+    to: admin
+  seed-auth:
+    kind: authenticates
+    from: seed
+    to: admin{seed_factor}
+  box-identity:
+    kind: runs-as
+    from: box
+    to: role
+    privilege: user
+  admin-becomes-role:
+    kind: assumes
+    from: admin
+    to: role"#
+            ),
+        )
+}
+
+#[test]
+fn factors_workload_identities_and_roles_round_trip() {
+    let text = identities("\n    factor: second");
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    // A first factor is what an authentication is unless it says otherwise.
+    let first = identities("\n    factor: first");
+    assert_eq!(canonicalize(&first).unwrap(), identities(""));
+    let (_, d) = effractor_format::diagnose_document(&identities("\n    factor: third"));
+    assert!(
+        d.iter()
+            .any(|d| d.path == "associations.seed-auth.factor" && d.severity == Severity::Error),
+        "{d:?}"
+    );
+    let misplaced = text.replace(
+        "    to: role\n    privilege: user\n",
+        "    to: role\n    privilege: user\n    factor: second\n",
+    );
+    let (_, d) = effractor_format::diagnose_document(&misplaced);
+    assert!(
+        d.iter()
+            .any(|d| d.code == effractor_core::Code::MisplacedKey
+                && d.path == "associations.box-identity.factor"),
+        "{d:?}"
+    );
+}

@@ -104,12 +104,18 @@ entities:
     parameters:
       admin-login:
         status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: false}
   appliance-root:
     kind: account
     label: Appliance root
     parameters:
       admin-login:
         status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: false}
   staff-password:
     kind: credential
     label: Saved staff password

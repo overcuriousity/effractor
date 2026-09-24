@@ -96,7 +96,10 @@ test('step facts: the state, the probability by the horizon and its interval', (
 
 test('assumptions are listed with their evidence status, expression and note', () => {
   const rows = R.assumptions(available.baseline);
-  assert.deepEqual(rows.map(a => a.status), ['policy', 'illustrative', 'illustrative', 'illustrative', 'illustrative', 'illustrative']);
+  assert.deepEqual(rows.map(a => a.status), ['policy', 'illustrative', 'defense', 'illustrative', 'illustrative', 'illustrative', 'illustrative']);
+  // A switch that opens a way at once is something the result rests on too.
+  const mfa = rows.find(a => a.path === 'entities.server-account.defenses.mfa');
+  assert.equal(mfa.expression, 'off');
   assert.equal(rows[0].path, 'associations.allow-ssh.allowed');
   assert.equal(rows[0].expression, 'allowed');
   const extract = rows.find(a => a.path === 'entities.server-key.parameters.extract');

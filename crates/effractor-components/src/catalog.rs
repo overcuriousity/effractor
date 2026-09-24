@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 20] = [
+pub const RULES: [Rule; 26] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -278,13 +278,91 @@ pub const RULES: [Rule; 20] = [
         title: "A held credential unlocks its account",
         version: 1,
         bindings: &["authenticates"],
-        prerequisites: "credential.possessed",
+        prerequisites: "credential.possessed, for a credential that authenticates the account as its first factor",
         output: "account.material",
         duration: D::Logical,
         scope: "one per authenticates association",
         assumptions: &[
-            "Any one authenticating credential suffices; multi-factor authentication is outside this library.",
+            "Any one first-factor credential gives the material; a second factor alone gives none.",
             "Material alone grants no access.",
+        ],
+    },
+    Rule {
+        id: "mfa-policy",
+        title: "Multi-factor login is off",
+        version: 1,
+        bindings: &["account"],
+        prerequisites: "the account's `mfa` switch is off",
+        output: "account.mfa-satisfied",
+        duration: D::Logical,
+        scope: "one per account",
+        assumptions: &["An unknown switch is an unknown branch, not a guess either way."],
+    },
+    Rule {
+        id: "mfa-second-factor",
+        title: "A second factor is held",
+        version: 1,
+        bindings: &["authenticates"],
+        prerequisites: "credential.possessed, for a credential that authenticates the account with `factor: second`",
+        output: "account.mfa-satisfied",
+        duration: D::Logical,
+        scope: "one per second-factor authenticates association",
+        assumptions: &[
+            "A hardware key, an authenticator seed or a stolen session cookie in the attacker's hands is the second factor.",
+        ],
+    },
+    Rule {
+        id: "mfa-bypass",
+        title: "Get past multi-factor login",
+        version: 1,
+        bindings: &["account"],
+        prerequisites: "account.material",
+        output: "account.mfa-satisfied",
+        duration: D::Slot {
+            slot: Slot::MfaBypass,
+            replaced_by: None,
+        },
+        scope: "one per account",
+        assumptions: &[
+            "Push fatigue, adversary-in-the-middle proxies and SIM swaps are one timed step; the note says which the value stands for.",
+        ],
+    },
+    Rule {
+        id: "account-authenticated",
+        title: "The account can log in",
+        version: 1,
+        bindings: &["account"],
+        prerequisites: "account.material and account.mfa-satisfied",
+        output: "account.authenticated",
+        duration: D::Logical,
+        scope: "one per account",
+        assumptions: &["With multi-factor login off, a first factor alone authenticates."],
+    },
+    Rule {
+        id: "workload-identity",
+        title: "Running code uses its identity",
+        version: 1,
+        bindings: &["runs-as"],
+        prerequisites: "the workload under control, or its host at the declared privilege",
+        output: "account.authenticated",
+        duration: D::Logical,
+        scope: "one per runs-as association",
+        assumptions: &[
+            "Whoever runs code in the workload can obtain its identity's token; metadata-endpoint hardening stops remote request forgery, not code execution, so it is not a switch here.",
+            "The token is still used through an ordinary login to a service that authorizes the account.",
+        ],
+    },
+    Rule {
+        id: "assume-role",
+        title: "Become another role",
+        version: 1,
+        bindings: &["assumes"],
+        prerequisites: "the first account authenticated",
+        output: "the second account authenticated",
+        duration: D::Logical,
+        scope: "one per assumes association",
+        assumptions: &[
+            "Trust-policy conditions (external id, required MFA, source address) are not modelled.",
         ],
     },
     Rule {
@@ -292,7 +370,7 @@ pub const RULES: [Rule; 20] = [
         title: "Log in to a service",
         version: 1,
         bindings: &["authorizes"],
-        prerequisites: "service.reachable and account.material, for an account the service authorizes",
+        prerequisites: "service.reachable and account.authenticated, for an account the service authorizes",
         output: "account.session at that service",
         duration: D::Slot {
             slot: Slot::Login,
@@ -319,7 +397,7 @@ pub const RULES: [Rule; 20] = [
         title: "Admin login from a network",
         version: 1,
         bindings: &["administration", "grants"],
-        prerequisites: "access to the administering network and account.material, for an account granted on the managed machine",
+        prerequisites: "access to the administering network and account.authenticated, for an account granted on the managed machine",
         output: "the managed machine at the granted privilege",
         duration: D::Slot {
             slot: Slot::AdminLogin,
@@ -353,7 +431,7 @@ fn kind_description(kind: EntityKind) -> &'static str {
             "One software version, e.g. OpenSSH 9.6. Its services share one exploit discovery; patching is set here."
         }
         EntityKind::Account => {
-            "An identity with explicit authentication and grants; no implicit global privileges."
+            "An identity with explicit authentication and grants; no implicit global privileges. Multi-factor login is its switch."
         }
         EntityKind::Credential => {
             "A description of authentication material; `possessed` is the attacker holding it. Never the secret itself."
@@ -374,7 +452,7 @@ fn relation_description(kind: RelationKind) -> &'static str {
             "Where a credential is kept: a host at `privilege: user | admin`, an application as `user`. Possession still takes an extraction."
         }
         RelationKind::Authenticates => {
-            "A credential that authenticates an account; any one suffices."
+            "A credential that proves an account: as its first factor (any one suffices) or, with `factor: second`, as the second."
         }
         RelationKind::Authorizes => "A service that accepts this account for login.",
         RelationKind::Grants => {
@@ -387,6 +465,10 @@ fn relation_description(kind: RelationKind) -> &'static str {
             "A firewall's named permission for a flow: `allowed: true | false | unknown`."
         }
         RelationKind::InstanceOf => "The software version a service runs: exactly one product.",
+        RelationKind::RunsAs => {
+            "The identity a workload runs as: a host at `privilege: user | admin`, software as `user`. Code in it can use the identity without credentials."
+        }
+        RelationKind::Assumes => "An account that may become another, e.g. a role it can assume.",
     }
 }
 
@@ -440,6 +522,7 @@ fn slot_name(slot: Slot) -> &'static str {
         Slot::ExtractProtected => "Extract (protected)",
         Slot::AdminLogin => "Admin login",
         Slot::Escape => "Escape to the host",
+        Slot::MfaBypass => "Get past multi-factor login",
     }
 }
 
@@ -487,9 +570,31 @@ fn slot_description(slot: Slot) -> (&'static str, &'static str) {
             "account",
             "Time to authenticate to a machine's management from an administering network.",
         ),
+        Slot::MfaBypass => (
+            "account",
+            "Time to get past the second factor once a first factor is held: push fatigue, a proxy, a SIM swap — the note says which.",
+        ),
         Slot::Escape => (
             "host or router",
             "Time to break out of a virtual machine, container or appliance to the host it runs on, once in admin control of it.",
+        ),
+    }
+}
+
+/// A defence switch as the page names it, and what turning it on means.
+fn defense_word(defense: Defense) -> (&'static str, &'static str) {
+    match defense {
+        Defense::Patched => (
+            "Patched",
+            "The vendor fix is applied: `find-exploit-patched` stands in for `find-exploit`.",
+        ),
+        Defense::Protected => (
+            "Protected",
+            "Where the credential is kept is hardened: `extract-protected` stands in for `extract`.",
+        ),
+        Defense::Mfa => (
+            "Multi-factor login",
+            "The account needs a second factor: a first factor alone no longer logs in.",
         ),
     }
 }
@@ -510,7 +615,7 @@ fn duration(d: Duration) -> Value {
 }
 
 /// The catalog as JSON: `library`, `entities`, `associations`, `states`,
-/// `parameters`, `rules` and `limits`.
+/// `defenses`, `parameters`, `rules` and `limits`.
 pub fn catalog() -> Value {
     let entities: Vec<Value> = EntityKind::ALL
         .iter()
@@ -528,13 +633,6 @@ pub fn catalog() -> Value {
     let associations: Vec<Value> = RelationKind::ALL
         .iter()
         .map(|&kind| {
-            let field = if kind.has_privilege() {
-                Some("privilege")
-            } else if kind == RelationKind::Permits {
-                Some("allowed")
-            } else {
-                None
-            };
             json!({
                 "kind": kind.as_str(),
                 "from": kind.from_kinds().iter().map(|k| k.as_str()).collect::<Vec<_>>(),
@@ -543,9 +641,16 @@ pub fn catalog() -> Value {
                 } else {
                     json!(kind.to_kinds().iter().map(|k| k.as_str()).collect::<Vec<_>>())
                 },
-                "field": field,
+                "fields": kind.fields(),
                 "description": relation_description(kind),
             })
+        })
+        .collect();
+    let defenses: Vec<Value> = Defense::ALL
+        .iter()
+        .map(|&d| {
+            let (word, description) = defense_word(d);
+            json!({"id": d.as_str(), "word": word, "description": description})
         })
         .collect();
     let states: Vec<Value> = State::ALL
@@ -580,6 +685,7 @@ pub fn catalog() -> Value {
         "entities": entities,
         "associations": associations,
         "states": states,
+        "defenses": defenses,
         "parameters": parameters,
         "rules": rules,
         "limits": {

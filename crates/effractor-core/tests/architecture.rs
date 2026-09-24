@@ -349,3 +349,55 @@ fn patching_belongs_to_the_product() {
         &[Slot::DeployExploit, Slot::Login]
     );
 }
+
+#[test]
+fn accounts_carry_mfa_and_its_bypass() {
+    assert_eq!(EntityKind::Account.defense(), Some(Defense::Mfa));
+    assert_eq!(
+        EntityKind::Account.slots(),
+        &[Slot::AdminLogin, Slot::MfaBypass]
+    );
+}
+
+#[test]
+fn an_account_cannot_assume_itself_and_software_runs_as_user() {
+    let mut m = Architecture::new("I");
+    m.entities
+        .insert("a".parse().unwrap(), Entity::new(EntityKind::Account, "A"));
+    m.entities.insert(
+        "app".parse().unwrap(),
+        Entity::new(EntityKind::Application, "App"),
+    );
+    m.associations.insert(
+        "self".parse().unwrap(),
+        Association {
+            relation: Relation::Assumes {
+                from: "a".parse().unwrap(),
+                to: "a".parse().unwrap(),
+            },
+            description: None,
+        },
+    );
+    m.associations.insert(
+        "run".parse().unwrap(),
+        Association {
+            relation: Relation::RunsAs {
+                from: "app".parse().unwrap(),
+                to: "a".parse().unwrap(),
+                privilege: Privilege::Admin,
+            },
+            description: None,
+        },
+    );
+    let d = validate_architecture(&m);
+    assert!(
+        d.iter()
+            .any(|d| d.code == Code::AssociationType && d.path == "associations.self.to"),
+        "{d:?}"
+    );
+    assert!(
+        d.iter()
+            .any(|d| d.code == Code::AssociationType && d.path == "associations.run.privilege"),
+        "{d:?}"
+    );
+}

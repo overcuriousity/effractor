@@ -6,7 +6,7 @@
 
 use effractor_core::architecture::{
     Architecture, Association, Attacker, Change, Defense, Defenses, Entity, EntityKind, Evidence,
-    Flow, LibraryPin, Parameter, Privilege, Relation, RelationKind, Scenario, Slot, State,
+    Factor, Flow, LibraryPin, Parameter, Privilege, Relation, RelationKind, Scenario, Slot, State,
     StateRef, Switch,
 };
 use effractor_core::{Code, Pos};
@@ -26,7 +26,7 @@ pub const KINDS: [(&str, EntityKind); 9] = [
     ("account", EntityKind::Account),
     ("credential", EntityKind::Credential),
 ];
-pub const RELATIONS: [(&str, RelationKind); 10] = [
+pub const RELATIONS: [(&str, RelationKind); 12] = [
     ("attached", RelationKind::Attached),
     ("hosts", RelationKind::Hosts),
     ("filters", RelationKind::Filters),
@@ -37,6 +37,8 @@ pub const RELATIONS: [(&str, RelationKind); 10] = [
     ("administration", RelationKind::Administration),
     ("permits", RelationKind::Permits),
     ("instance-of", RelationKind::InstanceOf),
+    ("runs-as", RelationKind::RunsAs),
+    ("assumes", RelationKind::Assumes),
 ];
 pub const PRIVILEGES: [(&str, Privilege); 2] =
     [("user", Privilege::User), ("admin", Privilege::Admin)];
@@ -58,7 +60,10 @@ pub const EVIDENCE: [(&str, Evidence); 4] = [
     ("assumed", Evidence::Assumed),
     ("calibrated", Evidence::Calibrated),
 ];
-pub const SLOTS: [(&str, Slot); 9] = [
+/// The fields an association may carry beside kind/from/to/description.
+const EXTRAS: [&str; 3] = ["privilege", "allowed", "factor"];
+pub const FACTORS: [(&str, Factor); 2] = [("first", Factor::First), ("second", Factor::Second)];
+pub const SLOTS: [(&str, Slot); 10] = [
     ("connect", Slot::Connect),
     ("find-exploit", Slot::FindExploit),
     ("find-exploit-patched", Slot::FindExploitPatched),
@@ -68,10 +73,12 @@ pub const SLOTS: [(&str, Slot); 9] = [
     ("extract-protected", Slot::ExtractProtected),
     ("admin-login", Slot::AdminLogin),
     ("escape", Slot::Escape),
+    ("mfa-bypass", Slot::MfaBypass),
 ];
-pub const DEFENSES: [(&str, Defense); 2] = [
+pub const DEFENSES: [(&str, Defense); 3] = [
     ("patched", Defense::Patched),
     ("protected", Defense::Protected),
+    ("mfa", Defense::Mfa),
 ];
 
 pub fn document(cx: &mut Cx, root: &Node) -> Option<Architecture> {
@@ -255,7 +262,15 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
         &entry.value,
         path,
         entry.key_pos,
-        &["kind", "from", "to", "privilege", "allowed", "description"],
+        &[
+            "kind",
+            "from",
+            "to",
+            "privilege",
+            "allowed",
+            "factor",
+            "description",
+        ],
     )?;
     let kind = cx
         .required(&f, "kind")
@@ -267,17 +282,10 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
     let to = cx.required(&f, "to");
     let kind = kind?;
 
-    // The extra field the kind has, and the ones it does not.
-    let extra = if kind.has_privilege() {
-        "privilege"
-    } else if kind == RelationKind::Permits {
-        "allowed"
-    } else {
-        ""
-    };
+    // The fields the kind has, and the ones it does not.
     let mut misplaced = false;
-    for key in ["privilege", "allowed"] {
-        if key != extra
+    for key in EXTRAS {
+        if !kind.fields().contains(&key)
             && let Some(e) = f.get(key)
         {
             let message = format!(
@@ -299,6 +307,13 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
             .and_then(|e| cx.word(&e.value, &f.path("allowed"), &SWITCHES))
     } else {
         None
+    };
+    // Absent is a first factor; canonical text writes only a second.
+    let factor = match f.get("factor") {
+        Some(e) if kind == RelationKind::Authenticates => {
+            cx.word(&e.value, &f.path("factor"), &FACTORS)
+        }
+        _ => Some(Factor::First),
     };
     let relation = match kind {
         RelationKind::Permits => Relation::Permits {
@@ -322,7 +337,11 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
                     to,
                     privilege: privilege?,
                 },
-                RelationKind::Authenticates => Relation::Authenticates { from, to },
+                RelationKind::Authenticates => Relation::Authenticates {
+                    from,
+                    to,
+                    factor: factor?,
+                },
                 RelationKind::Authorizes => Relation::Authorizes { from, to },
                 RelationKind::Grants => Relation::Grants {
                     from,
@@ -331,6 +350,12 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
                 },
                 RelationKind::Administration => Relation::Administration { from, to },
                 RelationKind::InstanceOf => Relation::InstanceOf { from, to },
+                RelationKind::RunsAs => Relation::RunsAs {
+                    from,
+                    to,
+                    privilege: privilege?,
+                },
+                RelationKind::Assumes => Relation::Assumes { from, to },
                 RelationKind::Permits => unreachable!("handled above"),
             }
         }
