@@ -381,6 +381,7 @@
               spec.from.indexOf(kindOf(doc, other)) >= 0 &&
               endsAllowed(spec.kind, kindOf(doc, other), kind) &&
               !(spec.kind === "filters" && hasFilters(doc, "from", other)) &&
+              !(spec.kind === "instance-of" && productOf(doc, other)) &&
               !linked(doc, spec.kind, other, id)
             );
           }),

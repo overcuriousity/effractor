@@ -43,8 +43,9 @@
     return out;
   }
 
-  // Relations whose file term reads backwards along the arrow ("account
-  // authorizes service"), said the way the arrow runs instead.
+  // Relations whose file term reads backwards or as an id along the arrow
+  // ("account authorizes service", "instance-of"), said the way the arrow
+  // runs in plain words instead.
   var ALONG = {
     authorizes: function () {
       return "may log in to";
@@ -54,6 +55,24 @@
     },
     filters: function () {
       return "filtered by";
+    },
+    authenticates: function (a) {
+      return a.factor === "second" ? "second factor for" : "authenticates";
+    },
+    "instance-of": function () {
+      return "is an instance of";
+    },
+    "runs-as": function (a) {
+      return "runs as" + (a.privilege ? " · " + a.privilege : "");
+    },
+    assumes: function () {
+      return "may become";
+    },
+    operates: function () {
+      return "uses";
+    },
+    delivers: function () {
+      return "reaches";
     },
   };
 

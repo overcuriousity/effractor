@@ -144,3 +144,31 @@ test('an escape is shown only on a hosted host or router', () => {
   assert.equal(nodes.find((n) => n.id === 'entity/hv').unknown, 0);
   assert.equal(nodes.find((n) => n.id === 'entity/vm').unknown, 1);
 });
+
+test('the new links are said in plain words along the arrow', () => {
+  const doc = {
+    profile: 'architecture',
+    entities: {
+      s: { kind: 'service', label: 'S' }, p: { kind: 'product', label: 'P' }, a: { kind: 'account', label: 'A' },
+      b: { kind: 'account', label: 'B' }, k: { kind: 'credential', label: 'K' }, seed: { kind: 'credential', label: 'Seed' },
+      ada: { kind: 'person', label: 'Ada' }, app: { kind: 'application', label: 'App' }, net: { kind: 'network', label: 'Net' },
+    },
+    associations: {
+      i: { kind: 'instance-of', from: 's', to: 'p' },
+      r: { kind: 'runs-as', from: 's', to: 'a', privilege: 'user' },
+      m: { kind: 'assumes', from: 'a', to: 'b' },
+      k1: { kind: 'authenticates', from: 'k', to: 'a' },
+      k2: { kind: 'authenticates', from: 'seed', to: 'a', factor: 'second' },
+      kn: { kind: 'knows', from: 'ada', to: 'k' },
+      op: { kind: 'operates', from: 'ada', to: 'app' },
+      d: { kind: 'delivers', from: 'net', to: 'ada' },
+    },
+    flows: {},
+    attacker: { footholds: [] },
+  };
+  const said = Object.fromEntries(V.describe(doc).edges.map((e) => [e.id.split('/')[1], e.label]));
+  assert.deepEqual(said, {
+    i: 'is an instance of', r: 'runs as · user', m: 'may become', k1: 'authenticates',
+    k2: 'second factor for', kn: 'knows', op: 'uses', d: 'reaches',
+  });
+});

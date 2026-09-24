@@ -542,3 +542,12 @@ test('deleting a person takes what they know and are reached by along', () => {
     associations: { 'p-k': { kind: 'knows', from: 'p', to: 'k' }, 'n-p': { kind: 'delivers', from: 'n', to: 'p' } }, flows: {} };
   assert.deepEqual(L.remove(doc, 'entities', 'p').doc.associations, {});
 });
+
+test('a product is not offered a service that already runs a product', () => {
+  const doc = lecture();
+  doc.entities.p2 = { kind: 'product', label: 'P2' };
+  const runs = L.linkChoices(doc, CATALOG, 'p2').find((c) => c.kind === 'instance-of' && c.direction === 'in');
+  assert.deepEqual(runs.candidates, []);
+  doc.entities.web = { kind: 'service', label: 'Web' };
+  assert.deepEqual(L.linkChoices(doc, CATALOG, 'p2').find((c) => c.kind === 'instance-of').candidates, ['web']);
+});

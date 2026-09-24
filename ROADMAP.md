@@ -82,8 +82,11 @@ agents and data (owner, 2026-09-24). Design:
 [`2026-09-24-library-extension-design.md`](docs/superpowers/specs/2026-09-24-library-extension-design.md)
 — hosts on hosts with escapes, shared product vulnerabilities, MFA, workload
 identity, role assumption, people (phishing) and AI agents (injection), data
-with holding, account access and encryption. Next: an implementation plan and
-the spec's five branch-sized parts. Done when every addition is generated,
+with holding, account access and encryption. Plan:
+[`2026-09-24-library-extension.md`](docs/superpowers/plans/2026-09-24-library-extension.md).
+Virtualisation, products, identity and people are done; AI agents became
+content-processing software (spec §10, plan Task 4b, still to plan), then
+data and the cloud example (Task 5, to re-plan). Done when every addition is generated,
 solved and inspectable, its rules and assumptions are in the catalog, the
 cloud support agent example runs natively and in wasm alike, and the owner
 accepts it in the browser.
