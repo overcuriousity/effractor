@@ -19,6 +19,8 @@
 
 .label-action { float: right; margin: -3px 0; padding: 0 6px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--color-fg-muted); font: 400 1rem/1.2 var(--font-sans); cursor: pointer; }
 .label-action:hover { background: var(--color-bg-hover); color: var(--color-fg-primary); }
+/* The Model heading's + sits under the panel's ×; it keeps clear of it. */
+#component-add { margin-right: 20px; }
 .asset-new { width: 100%; margin-bottom: 6px; padding: 3px 5px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-base); color: var(--color-fg-primary); font: inherit; font-size: var(--text-sm); }
 .asset { margin-bottom: 4px; font-size: var(--text-sm); }
 .asset-head { width: 100%; }
