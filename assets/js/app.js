@@ -1337,6 +1337,13 @@
   $("zoom-out").addEventListener("click", function () {
     renderer.zoomBy(0.8);
   });
+  // A plain key meant for the canvas: not typed into a field, a menu or a
+  // dialog, and not already taken by something that owns it.
+  function canvasKey(e) {
+    return !e.ctrlKey && !e.metaKey && !e.altKey && !e.defaultPrevented &&
+      !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) &&
+      !e.target.closest(".menu") && !document.querySelector("dialog[open]");
+  }
   document.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -1348,11 +1355,11 @@
       closeFileMenu();
       // Esc on the canvas lets go of what is selected.
       if (P.isArchitecture(state.doc) && !e.defaultPrevented && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && !e.target.closest(".menu") && !document.querySelector("dialog[open]") && (state.selected || state.picked.length)) select(null);
-    } else if (e.key === "f" && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
+    } else if (e.key.toLowerCase() === "f" && canvasKey(e)) {
       renderer.fit();
-    } else if ((e.key === "+" || e.key === "-") && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
+    } else if ((e.key === "+" || e.key === "-") && canvasKey(e)) {
       renderer.zoomBy(e.key === "+" ? 1.25 : 0.8);
-    } else if (/^[123]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey && !e.defaultPrevented && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && !e.target.closest(".menu") && !document.querySelector("dialog[open]")) {
+    } else if (/^[123]$/.test(e.key) && canvasKey(e)) {
       // Before the editor's keys, which would start a rename with the digit.
       e.preventDefault();
       switchMode(MODES[Number(e.key) - 1]);
