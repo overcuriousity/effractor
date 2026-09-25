@@ -73,6 +73,14 @@ impl Limiter {
             Err(3600)
         }
     }
+
+    /// Return a token taken for something that then failed on our side.
+    pub fn give_back(&mut self, ip: IpAddr) {
+        let capacity = f64::from(self.per_hour);
+        if let Some(bucket) = self.buckets.get_mut(&Self::key(ip)) {
+            bucket.tokens = (bucket.tokens + 1.0).min(capacity);
+        }
+    }
 }
 
 #[cfg(test)]

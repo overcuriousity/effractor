@@ -152,11 +152,10 @@ async fn create(
     let ip = extensions
         .get::<ConnectInfo<SocketAddr>>()
         .map_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED), |info| info.0.ip());
-    let taken = shares
-        .limiter
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .take(ip, now);
+    let limiter = || shares.limiter.lock().unwrap_or_else(|e| e.into_inner());
+    // Taken before the write, so that concurrent requests cannot all pass the
+    // check; given back if the write fails, which is not the client's doing.
+    let taken = limiter().take(ip, now);
     if let Err(seconds) = taken {
         let retry = [(header::RETRY_AFTER, seconds.to_string())];
         return (StatusCode::TOO_MANY_REQUESTS, retry).into_response();
@@ -171,6 +170,7 @@ async fn create(
         size: blob.len() as u64,
     };
     if let Err(err) = shares.storage.put(&id, blob, meta).await {
+        limiter().give_back(ip);
         return failed(&err);
     }
     let body = serde_json::json!({
