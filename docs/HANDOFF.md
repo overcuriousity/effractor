@@ -34,7 +34,7 @@ each of the owner's decisions with its date; read it before changing any.
   sectors per member: red vulnerable, amber unknown inputs), merges lines per
   pair of drawn ends (`links/…`, `flows/…`, `permits/…`, listed in
   `bundles`), and lists outlines in `groups`; `hidden` says where a member is
-  drawn (`app.shown`). `graph.blocks` lays out every outline's contents as a
+  drawn (`app.js` `shown`). `graph.blocks` lays out every outline's contents as a
   block with room for the outline and its name tab. The renderer glides
   between drawings (`render(layout, styles, motion)`, not under reduced
   motion), draws outlines (above lines; a 14 px hit band and a name tab),

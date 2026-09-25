@@ -367,20 +367,6 @@
     pick(e.ids, e.add);
   });
 
-  // Where drawn nodes stand now: dragged positions over the last layout.
-  function positionsOf(ids) {
-    var stored = positions.load(state.doc.name);
-    var laid = state.placed ? state.placed.nodes : [];
-    var out = {};
-    ids.forEach(function (id) {
-      if (Object.prototype.hasOwnProperty.call(stored, id)) return void (out[id] = stored[id]);
-      var n = laid.filter(function (x) {
-        return x.id === id;
-      })[0];
-      if (n) out[id] = { x: n.x, y: n.y };
-    });
-    return out;
-  }
   // {id: {x, y}}, or null to forget one; one write.
   function putPositions(map) {
     positions.moveAll(state.doc.name, map);
@@ -1191,9 +1177,7 @@
   window.effractor.renderer = renderer;
   window.effractor.select = select;
   window.effractor.labelOf = labelOf;
-  window.effractor.shown = shown;
   window.effractor.pick = pick;
-  window.effractor.positionsOf = positionsOf;
   window.effractor.putPositions = putPositions;
   // Places set by hand for the edit about to be drawn (or null again once
   // it is): opening a cluster in place leaves them where they are.
@@ -1405,7 +1389,6 @@
 
   window.effractor.replaceDocument = replaceDocument;
   window.effractor.markSourceDirty = markSourceDirty;
-  window.effractor.revisions = gate;
   // Architecture or attack graph (setView); `generate` asks for the graph
   // of the text on the page without changing the view.
   window.effractor.setMode = function (mode) {
