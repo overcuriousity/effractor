@@ -5,8 +5,11 @@
 // takes along everything that named what it deletes — so a document never
 // points at nothing. Ids are fixed once made.
 (function () {
-  var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
-  var C = typeof module !== "undefined" ? require("./clusters.js") : window.effractorClusters;
+  var node = typeof module !== "undefined";
+  var slug = (node ? require("./edit.js") : window.effractorEdit).slug;
+  var C = node ? require("./clusters.js") : window.effractorClusters;
+  var E = node ? require("./architecture-edit.js") : window.effractorArchitectureEdit;
+  var has = E.has, clone = E.clone, extensions = E.extensions;
   var ASSOCIATION_KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of", "runs-as", "assumes", "knows", "operates", "delivers", "holds", "accesses", "encrypted-with", "reads"];
   var PRIVILEGED = ["hosts", "stores", "grants", "runs-as", "holds"];
   // The fields a link carries beside kind/from/to, in the file's order.
@@ -15,22 +18,6 @@
   var FIELD_WORDS = { factor: { second: "as second factor" }, contained: { true: "contained", false: "not contained" }, decrypts: { true: "sees plaintext", false: "ciphertext only" }, mode: { read: "read only", write: "read and write" } };
   var COLLECTIONS = ["entities", "associations", "flows"];
   var SOFTWARE = ["application", "service"];
-
-  function has(o, k) {
-    return !!o && Object.prototype.hasOwnProperty.call(o, k);
-  }
-
-  function clone(doc) {
-    return JSON.parse(JSON.stringify(doc));
-  }
-
-  function extensions(record) {
-    var out = {};
-    Object.keys(record || {}).forEach(function (k) {
-      if (k.indexOf("x-") === 0) out[k] = record[k];
-    });
-    return out;
-  }
 
   function freeId(map, base) {
     base = slug(base);
@@ -508,9 +495,6 @@
     return words;
   }
 
-
-  var ENTITY_KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential", "person", "data"];
-
   function hasFilters(doc, end, id) {
     return Object.keys(doc.associations || {}).some(function (k) {
       var a = doc.associations[k];
@@ -571,7 +555,7 @@
         spec.from.forEach(function (k) { offer(k, spec.kind, "in"); });
       }
     });
-    return ENTITY_KINDS.filter(function (k) { return byKind[k]; }).map(function (k) {
+    return E.KINDS.filter(function (k) { return byKind[k]; }).map(function (k) {
       return { kind: k, options: byKind[k] };
     });
   }
