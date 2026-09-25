@@ -112,6 +112,9 @@ impl Storage for FsStorage {
         Ok(existed)
     }
 
+    /// What cannot be read is logged and passed over: one bad directory — a
+    /// root-owned `lost+found`, say — must not keep every expired share on
+    /// disk. Only directories named like an id prefix are looked into.
     async fn sweep(&self, now: Timestamp) -> Result<u64, StorageError> {
         let mut swept = 0;
         let mut dirs = match fs::read_dir(&self.root).await {
@@ -119,42 +122,93 @@ impl Storage for FsStorage {
             Err(e) if e.kind() == ErrorKind::NotFound => return Ok(0),
             Err(e) => return Err(e.into()),
         };
-        while let Some(dir) = dirs.next_entry().await? {
-            if !dir.file_type().await?.is_dir() {
+        loop {
+            let dir = match dirs.next_entry().await {
+                Ok(Some(dir)) => dir,
+                Ok(None) => break,
+                Err(err) => {
+                    tracing::warn!(%err, "sweep could not list the data directory");
+                    break;
+                }
+            };
+            let name = dir.file_name();
+            let Some(prefix) = name.to_str().filter(|n| is_prefix(n)) else {
+                continue;
+            };
+            if !dir.file_type().await.is_ok_and(|t| t.is_dir()) {
                 continue;
             }
-            let mut files = fs::read_dir(dir.path()).await?;
-            while let Some(file) = files.next_entry().await? {
-                let path = file.path();
-                let name = file.file_name();
-                let Some(name) = name.to_str() else { continue };
-
-                let share = |suffix| {
-                    name.strip_suffix(suffix)
-                        .and_then(|s: &str| s.parse::<ShareId>().ok())
-                };
-                if let Some(id) = share(".meta.json") {
-                    // Unreadable metadata is left for a person to look at.
-                    let expired = read(&path).await?.and_then(|bytes| {
-                        serde_json::from_slice::<ShareMeta>(&bytes)
-                            .ok()
-                            .map(|m| m.expired(now))
-                    });
-                    if expired == Some(true) && self.delete(&id).await? {
-                        swept += 1;
-                    }
-                    continue;
-                }
-                // A blob without its metadata, or a temporary file.
-                let orphan = match share(".bin") {
-                    Some(id) => !fs::try_exists(self.meta(&id)).await?,
-                    None => name.ends_with(".bin.tmp") || name.ends_with(".meta.json.tmp"),
-                };
-                if orphan && is_debris(&path).await {
-                    remove(&path).await?;
-                }
+            let (n, failed) = self.sweep_dir(&dir.path(), now).await;
+            swept += n;
+            if let Some(err) = failed {
+                tracing::warn!(%err, dir = prefix, "sweep skipped what it could not read");
             }
         }
         Ok(swept)
+    }
+}
+
+/// Two characters of an id: the name of a directory `put` creates.
+fn is_prefix(name: &str) -> bool {
+    name.len() == 2 && name.bytes().all(|b| super::ALPHABET.contains(&b))
+}
+
+impl FsStorage {
+    /// How many shares went, and the first error, if an entry failed and was
+    /// passed over.
+    async fn sweep_dir(&self, dir: &Path, now: Timestamp) -> (u64, Option<StorageError>) {
+        let mut swept = 0;
+        let mut first_error = None;
+        let mut files = match fs::read_dir(dir).await {
+            Ok(files) => files,
+            Err(err) => return (0, Some(err.into())),
+        };
+        loop {
+            let file = match files.next_entry().await {
+                Ok(Some(file)) => file,
+                Ok(None) => break,
+                Err(err) => {
+                    first_error.get_or_insert(err.into());
+                    break;
+                }
+            };
+            match self.sweep_file(&file.path(), now).await {
+                Ok(true) => swept += 1,
+                Ok(false) => {}
+                Err(err) => {
+                    first_error.get_or_insert(err);
+                }
+            }
+        }
+        (swept, first_error)
+    }
+
+    /// Whether this was an expired share, now removed.
+    async fn sweep_file(&self, path: &Path, now: Timestamp) -> Result<bool, StorageError> {
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            return Ok(false);
+        };
+        let share = |suffix| {
+            name.strip_suffix(suffix)
+                .and_then(|s: &str| s.parse::<ShareId>().ok())
+        };
+        if let Some(id) = share(".meta.json") {
+            // Unreadable metadata is left for a person to look at.
+            let expired = read(path).await?.and_then(|bytes| {
+                serde_json::from_slice::<ShareMeta>(&bytes)
+                    .ok()
+                    .map(|m| m.expired(now))
+            });
+            return Ok(expired == Some(true) && self.delete(&id).await?);
+        }
+        // A blob without its metadata, or a temporary file.
+        let orphan = match share(".bin") {
+            Some(id) => !fs::try_exists(self.meta(&id)).await?,
+            None => name.ends_with(".bin.tmp") || name.ends_with(".meta.json.tmp"),
+        };
+        if orphan && is_debris(path).await {
+            remove(path).await?;
+        }
+        Ok(false)
     }
 }
