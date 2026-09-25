@@ -58,11 +58,11 @@ fn a_quoted_scalar_is_a_string_and_stays_one() {
 #[test]
 fn an_edit_in_json_is_an_edit_in_the_text() {
     let mut d = doc(WEBSERVER);
-    d["analysis"]["samples"] = json!(500000);
+    d["analysis"]["samples"] = json!(50000);
     d["controls"]["redundant-psu"]["enabled"] = json!(true);
     d["nodes"]["malware"]["x-note"] = json!({"seen": [2024, 2025], "by": "SOC"});
     let text = from_document(&d).unwrap();
-    assert!(text.contains("  samples: 500000\n"));
+    assert!(text.contains("  samples: 50000\n"));
     assert!(text.contains("    enabled: true\n"));
     assert!(text.contains("    x-note: {seen: [2024, 2025], by: SOC}\n"));
     assert_eq!(canonicalize(&text).unwrap(), text);
