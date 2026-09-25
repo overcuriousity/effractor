@@ -323,10 +323,11 @@ impl Solve {
             }
             (Ok(bdd), Some(dists), Some(p)) => {
                 let top = bdd.root();
+                let all = bdd.prob_all(p);
                 p_node_exact = Some(
                     plan.ids
                         .iter()
-                        .map(|id| bdd.prob(bdd.node(id).expect("planned"), p))
+                        .map(|id| all[Bdd::index(bdd.node(id).expect("planned"))])
                         .collect(),
                 );
                 if let Ok(z) = &cut_sets
