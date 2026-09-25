@@ -193,11 +193,8 @@ test('a member dragged out of a closed cluster stays in it, drawn beside it', ()
   // Closing or opening puts everyone together again.
   assert.equal('shown' in C.setClosed(out.doc, 'srv', false).doc.clusters.srv, false);
   assert.equal('shown' in C.toggleAll(out.doc).doc.clusters.srv, false);
-  // Taking out, or deleting, forgets it; renaming renames it.
+  // Taking out, or deleting, forgets it.
   assert.equal('shown' in C.takeOut(out.doc, 'srv', 'domain').doc.clusters.srv, false);
-  const renamed = JSON.parse(JSON.stringify(out.doc));
-  C.rekey(renamed, 'domain', 'dns');
-  assert.deepEqual(renamed.clusters.srv.shown, ['dns']);
   // Selected, the cluster lights what is drawn beside it.
   assert.deepEqual(C.lit(out.doc, ['cluster/srv']), ['cluster/srv', 'entity/domain']);
 });

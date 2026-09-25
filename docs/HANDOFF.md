@@ -5,6 +5,28 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — full code review (2026-09-25)
+
+The owner asked for a review of the whole application with every finding
+fixed, minors included. Eight reviewers (one per area) verified each finding
+by code or a scratch repro; fixes landed as #98 (server, release, Pages),
+#103 (solver: a control whose flip left a leaf without a distribution
+panicked the worker), #104 (format and validation; trees now also stop at
+100,000 samples — the owner chose refusing over raising the limit), and
+#99–#102 (architecture, canvas/app, nmap/attack/comparison, tree editor)
+through #105, which also brought the owner's **exposed** ring (see "Vulnerable
+ring"). Kept on purpose: deleting a member of a closed cluster still writes
+stored places for it, so an undo puts the cluster back where it stood; quoted
+`decrypts: "true"` / `contained: "true"` still read (shared since 2026-09-24).
+
+Open, for the owner:
+- nmap: a drawn network without addresses can now be filled by the import
+  (`plan`'s `merges.network`), but the preview does not offer the choice; a
+  *new ▾ / same as “LAN”* menu on the network row, like host rows, was
+  proposed.
+- Pages now deploys only commits whose CI passed and skips (not fails) a
+  documentation-only push.
+
 ## Continuation — clustering (2026-09-25)
 
 `clustering` is done (spec
@@ -24,8 +46,8 @@ each of the owner's decisions with its date; read it before changing any.
   `peel`/`unpeel`, `dissolve`, `rename`, `setClosed`), `together` (what runs
   together: a host with its router + firewall, software and products only it
   uses; a router on no box with its firewall), `forget` (used by
-  `architecture-links.remove`; `rekey` has no caller since ids are fixed
-  once made), and the drawing's geometry
+  `architecture-links.remove`; ids are fixed once made, so nothing renames
+  one), and the drawing's geometry
   (`segments`/`arc` ring sectors, `within` rectangle, `closeAt`/`reopen` in
   place, `transitions`/`opened` for the glide, `spread` to push aside what an
   opened cluster covers, `lit`). Loads right after `graph.js`; `edit.js`'s

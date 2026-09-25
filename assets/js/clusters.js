@@ -109,18 +109,6 @@
     return dissolved;
   }
 
-  // On a copy: entity `old` is now called `id`.
-  function rekey(next, old, id) {
-    ids(next).forEach(function (cid) {
-      var c = next.clusters[cid];
-      var swap = function (m) {
-        return m === old ? id : m;
-      };
-      c.members = (c.members || []).map(swap);
-      if (c.shown) c.shown = c.shown.map(swap);
-    });
-  }
-
   function make(doc, members, name) {
     var list = [];
     members.forEach(function (m) {
@@ -718,7 +706,6 @@
     entitiesOf: entitiesOf,
     together: together,
     forget: forget,
-    rekey: rekey,
     make: make,
     build: build,
     gather: gather,
