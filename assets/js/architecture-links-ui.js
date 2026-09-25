@@ -376,6 +376,12 @@
     var f = doc().flows[id];
     var label = U.field(form, "prop-label", "Label", U.input("text", f.label));
     label.addEventListener("change", function () {
+      // Spaces around the label are not part of it: nothing to change.
+      var now = own(doc().flows, id);
+      if (now && label.value.trim() === now.label) {
+        label.value = now.label;
+        return;
+      }
       putFlow(id, { label: label.value });
     });
     label.addEventListener("keydown", function (ev) {

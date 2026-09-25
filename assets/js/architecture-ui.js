@@ -19,6 +19,9 @@
   function arch() {
     return P.isArchitecture(doc());
   }
+  function own(map, key) {
+    return map && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null;
+  }
   function entityId() {
     var q = P.qualified(app.state.selected);
     return q && q.kind === "entity" ? q.id : null;
@@ -649,6 +652,12 @@
 
     var label = field(form, "prop-label", "Label", input("text", e.label));
     label.addEventListener("change", function () {
+      // Spaces around the label are not part of it: nothing to change.
+      var now = own(doc().entities, id);
+      if (now && label.value.trim() === now.label) {
+        label.value = now.label;
+        return;
+      }
       apply(function () {
         return A.renameEntity(doc(), id, label.value);
       });
