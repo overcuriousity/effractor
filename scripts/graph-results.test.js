@@ -113,6 +113,15 @@ test('facts of many steps read from one index of the results', () => {
   assert.equal(R.nodesById(null), null);
 });
 
+test("a scenario's own assumptions are those the baseline does not rest on", () => {
+  const fast = require('./fixtures/graph/results-fast.json');
+  assert.deepEqual(R.scenarioAssumptions(fast).map(a => [a.path, a.status, a.expression]), [['scenarios.fast.attacker.speed', 'attacker', '2 × speed']]);
+  const patch = require('./fixtures/graph/results-patch.json');
+  assert.deepEqual(R.scenarioAssumptions(patch).map(a => a.path), ['entities.openssh.parameters.find-exploit-patched']);
+  assert.deepEqual(R.scenarioAssumptions(available), [], 'no scenario, nothing');
+  assert.deepEqual(R.scenarioAssumptions(null), []);
+});
+
 test('assumptions are listed with their evidence status, expression and note', () => {
   const rows = R.assumptions(available.baseline);
   assert.deepEqual(rows.map(a => a.status), ['policy', 'illustrative', 'defense', 'illustrative', 'illustrative', 'illustrative', 'illustrative']);

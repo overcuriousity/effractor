@@ -269,9 +269,15 @@
   // What the target's number rests on: each input in plain words, its
   // evidence and value under it; the source path and the note on hover.
   function renderAssumptions(box, results) {
-    var rows = R.assumptions(results.baseline);
+    assumptionList(box, "Assumptions", R.assumptions(results.baseline));
+    // A chosen scenario's own: its changes, speed, the inputs they bring in.
+    var all = doc().scenarios || {};
+    var scenario = Object.prototype.hasOwnProperty.call(all, app.state.scenario) ? all[app.state.scenario] : null;
+    assumptionList(box, "Only in “" + (scenario ? scenario.label : "scenario") + "”", R.scenarioAssumptions(results));
+  }
+  function assumptionList(box, title, rows) {
     if (!rows.length) return;
-    heading(box, "Assumptions", rows.length);
+    heading(box, title, rows.length);
     var list = el("ul", null, "assumptions");
     rows.forEach(function (a) {
       var li = el("li");

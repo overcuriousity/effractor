@@ -120,6 +120,23 @@
     });
   }
 
+  // What the scenario's number rests on that the baseline's does not: its
+  // changes, an attacker speed, the inputs a change brings in.
+  function scenarioAssumptions(results) {
+    var scenario = results && results.scenario;
+    if (!scenario) return [];
+    function key(a) {
+      return JSON.stringify([a.path, a.status, a.expression, a.note]);
+    }
+    var base = Object.create(null);
+    assumptions(results.baseline).forEach(function (a) {
+      base[key(a)] = true;
+    });
+    return assumptions(scenario).filter(function (a) {
+      return !base[key(a)];
+    });
+  }
+
   // One real sample that reached the target, whole: every step it needed,
   // each with the prerequisites it waited for, in the order they completed.
   function witness(side, graph) {
@@ -166,6 +183,7 @@
     nodesById: nodesById,
     nodeFacts: nodeFacts,
     assumptions: assumptions,
+    scenarioAssumptions: scenarioAssumptions,
     witness: witness,
     analyses: analyses,
   };
