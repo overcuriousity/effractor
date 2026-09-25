@@ -423,10 +423,20 @@
     var proposed = cidr && !networks.some(function (n) {
       return (doc.entities[n].addresses || []).some(function (c) { return networkOf(c) === cidr; });
     }) ? { label: cidr, addresses: [cidr] } : null;
-    // A drawn network without addresses may be the proposed one, when the
-    // author says so (merges.network): it is filled instead of drawn twice.
+    // A drawn network without addresses may be the proposed one: it is
+    // filled instead of drawn twice. Chosen (merges.network; "" is a chosen
+    // "new"), or guessed when nmap's host is on exactly one such network
+    // (owner, 2026-09-25), as "nmap runs here?" guesses a host.
     var netCandidates = networks.filter(function (n) { return !(doc.entities[n].addresses || []).length; });
-    if (proposed && has(merges, "network") && netCandidates.indexOf(merges.network) >= 0) proposed.merged = merges.network;
+    if (proposed && has(merges, "network")) {
+      if (netCandidates.indexOf(merges.network) >= 0) proposed.merged = merges.network;
+    } else if (proposed && appHost) {
+      var onIt = attachedNetworks(doc, appHost).filter(function (n) { return netCandidates.indexOf(n) >= 0; });
+      if (onIt.length === 1) {
+        proposed.merged = onIt[0];
+        proposed.guessed = true;
+      }
+    }
     var products = Object.create(null);
     ids(doc, "product").forEach(function (p) { products[doc.entities[p].label] = products[doc.entities[p].label] || p; });
 

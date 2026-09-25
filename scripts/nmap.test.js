@@ -182,7 +182,7 @@ test('merging a scanned host into a hand-drawn one makes it that host', () => {
 test('a range no network holds is proposed as a new network; a nmap on no host gives no routes', () => {
   const d = lab();
   delete d.entities.lan.addresses;
-  const p = N.plan(d, 'nmap', deep(), ' 10.0.1.0/24 ', {});
+  const p = N.plan(d, 'nmap', deep(), ' 10.0.1.0/24 ', { network: '' });
   assert.deepEqual(p.network, { label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
   assert.deepEqual(p.hosts[1].networks, ['new']);
   assert.deepEqual(p.hosts[1].route, [], 'nmap is not attached to the new network');
@@ -286,7 +286,7 @@ test('merging fills the chosen host; a proposed network is made and used', () =>
   const bare = lab();
   delete bare.entities.lan.addresses;
   const one = { args: '', silentUdp: 0, hosts: [{ addresses: ['10.0.1.9'], hostname: null, os: null, ports: [] }] };
-  const q = N.plan(bare, 'nmap', one, '10.0.1.0/24', {});
+  const q = N.plan(bare, 'nmap', one, '10.0.1.0/24', { network: '' });
   const out = N.apply(bare, q, N.defaults(q), specOf, STAMP).doc;
   const net = Object.keys(out.entities).find(id => out.entities[id].label === '10.0.1.0/24');
   assert.deepEqual(out.entities[net], { kind: 'network', label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
@@ -548,13 +548,13 @@ test('an old scan pasted without a range still names its network, from what nmap
   const d = lab();
   delete d.entities.lan.addresses;
   // deep-lab.xml was run on 10.0.1.0/24; the range field is empty.
-  const p = N.plan(d, 'nmap', deep(), '', {});
+  const p = N.plan(d, 'nmap', deep(), '', { network: '' });
   assert.deepEqual(p.network, { label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
   // What the scan says it covered wins over a field showing something else.
-  assert.deepEqual(N.plan(d, 'nmap', deep(), '10.9.0.0/16', {}).network, { label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
+  assert.deepEqual(N.plan(d, 'nmap', deep(), '10.9.0.0/16', { network: '' }).network, { label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
   // A scan of single addresses or names says no network: the field is used.
   const named = Object.assign({}, deep(), { args: 'nmap -sT -sV -oX - srv-01.lab 10.0.1.7' });
-  assert.deepEqual(N.plan(d, 'nmap', named, '10.0.1.0/24', {}).network, { label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
+  assert.deepEqual(N.plan(d, 'nmap', named, '10.0.1.0/24', { network: '' }).network, { label: '10.0.1.0/24', addresses: ['10.0.1.0/24'] });
   assert.equal(N.plan(d, 'nmap', named, '', {}).network, null);
 });
 
@@ -798,10 +798,20 @@ test('a drawn network without addresses may be the proposed one: filled, not dra
   delete d.entities.lan.addresses; // admin-box and srv are attached to it
   const p0 = N.plan(d, 'nmap', deep(), '10.0.1.0/24', {});
   assert.deepEqual(p0.networkCandidates, ['lan']);
-  assert.ok(!p0.network.merged, 'new unless chosen, as the spec says');
+  // nmap's host is on it, and on no other without addresses: a guess, said.
+  assert.equal(p0.network.merged, 'lan');
+  assert.equal(p0.network.guessed, true);
+  // "" is a chosen "new": no guess returns.
+  const fresh = N.plan(d, 'nmap', deep(), '10.0.1.0/24', { network: '' });
+  assert.ok(!fresh.network.merged);
+  // nmap's host on no such network: new.
+  const off = JSON.parse(JSON.stringify(d));
+  for (const [k, a] of Object.entries(off.associations)) if (a.kind === 'attached' && a.to === 'lan' && a.from === 'admin-box') delete off.associations[k];
+  assert.ok(!N.plan(off, 'nmap', deep(), '10.0.1.0/24', {}).network.merged);
 
   const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', { network: 'lan' });
   assert.equal(p.network.merged, 'lan');
+  assert.ok(!p.network.guessed, 'chosen, not guessed');
   assert.deepEqual(p.hosts.map(h => h.networks), [[], ['lan']], 'the server is on it already');
   assert.deepEqual(p.hosts.map(h => h.route), [['lan'], ['lan']]);
   const t = N.defaults(p);

@@ -19,11 +19,10 @@ ring"). Kept on purpose: deleting a member of a closed cluster still writes
 stored places for it, so an undo puts the cluster back where it stood; quoted
 `decrypts: "true"` / `contained: "true"` still read (shared since 2026-09-24).
 
-Open, for the owner:
-- nmap: a drawn network without addresses can now be filled by the import
-  (`plan`'s `merges.network`), but the preview does not offer the choice; a
-  *new ▾ / same as “LAN”* menu on the network row, like host rows, was
-  proposed.
+Afterwards (owner): the nmap preview's network row offers *new* or *same as
+“…”* (a drawn network without addresses, which it fills), preselected with
+*nmap is on it?* when nmap's host is on exactly one such network (nmap spec
+§4.2).
 - Pages now deploys only commits whose CI passed and skips (not fails) a
   documentation-only push.
 

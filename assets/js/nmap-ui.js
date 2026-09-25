@@ -137,10 +137,12 @@
     rows.textContent = "";
     if (at.plan.network) {
       var net = el("li", null, "nmap-host");
-      net.appendChild(check(at.ticks.network, "New network " + at.plan.network.label, function (on) {
+      var netHead = check(at.ticks.network, "Network " + at.plan.network.label, function (on) {
         at.ticks.network = on;
         count();
-      }));
+      });
+      netHead.appendChild(networkState(at.plan));
+      net.appendChild(netHead);
       rows.appendChild(net);
     }
     // One box for every host, where there are several (a /16 is past the limits).
@@ -272,6 +274,24 @@
     // nmap's own host, by its name in the scan: said, and one click to undo.
     var both = el("span", null, "nmap-merge-state");
     both.appendChild(el("span", "nmap runs here?", "hint"));
+    both.appendChild(menu);
+    return both;
+  }
+  // The proposed network: new, or a drawn one without addresses it fills
+  // (spec §4.2), guessed when nmap's host is on it, as a host is.
+  function networkState(p) {
+    var options = [["", "new"]].concat(p.networkCandidates.map(function (id) {
+      return [id, "same as “" + doc().entities[id].label + "”"];
+    }));
+    var menu = window.effractorMenu.dropdown(options, p.network.merged || "");
+    menu.classList.add("nmap-merge");
+    menu.addEventListener("change", function () {
+      at.merges.network = menu.value; // "" is a chosen "new": no guess returns
+      preview();
+    });
+    if (!p.network.guessed) return menu;
+    var both = el("span", null, "nmap-merge-state");
+    both.appendChild(el("span", "nmap is on it?", "hint"));
     both.appendChild(menu);
     return both;
   }
