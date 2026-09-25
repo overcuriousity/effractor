@@ -115,10 +115,7 @@ pub fn routes(shares: Shares) -> Router {
 }
 
 fn hash(token: &str) -> String {
-    Sha256::digest(token.as_bytes())
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
+    crate::hex(&Sha256::digest(token.as_bytes()))
 }
 
 /// Without an early exit, so the time taken says nothing about where two

@@ -23,6 +23,11 @@ pub const VERSION: &str = match option_env!("EFFRACTOR_VERSION") {
     None => concat!(env!("CARGO_PKG_VERSION"), "+dev"),
 };
 
+/// Lower-case hex, for hashes: asset ETags and delete-token hashes.
+pub(crate) fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
 /// Serve it with `into_make_service_with_connect_info::<SocketAddr>()`: the
 /// share API limits creation per peer address, and without the address every
 /// client is the same client.

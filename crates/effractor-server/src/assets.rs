@@ -14,7 +14,7 @@ pub async fn asset(Path(path): Path<String>, request: HeaderMap) -> Response {
     let Some(file) = Assets::get(&path) else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    let etag = format!("\"{}\"", hex(&file.metadata.sha256_hash()));
+    let etag = format!("\"{}\"", crate::hex(&file.metadata.sha256_hash()));
     let unchanged = request
         .get(header::IF_NONE_MATCH)
         .and_then(|v| v.to_str().ok())
@@ -36,8 +36,4 @@ pub async fn asset(Path(path): Path<String>, request: HeaderMap) -> Response {
         file.data,
     )
         .into_response()
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
