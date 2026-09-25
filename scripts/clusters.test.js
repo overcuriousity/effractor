@@ -349,3 +349,56 @@ test('review: a line chosen from a merged line lights the line it is drawn in', 
   assert.equal(C.drawnLine(bundles, 'association/z'), 'association/z');
   assert.equal(C.drawnLine(null, 'association/z'), 'association/z');
 });
+
+test('review: the last member dragged out of its stack stands where it was dropped', () => {
+  const motion = C.transitions({ a: 'cluster/c' }, {});
+  assert.deepEqual(C.opened(motion), ['cluster/c']);
+  const dropped = { 'entity/a': { x: 100, y: 100 } };
+  // Placed by hand for this change: the opening does not place it again.
+  assert.deepEqual(C.inPlace(motion, { 'cluster/c': { x: 500, y: 500 } }, dropped, dropped), {});
+  // Without a place by hand it comes out where the cluster stood.
+  assert.deepEqual(C.inPlace(motion, { 'cluster/c': { x: 500, y: 500 } }, dropped), { 'entity/a': { x: 500, y: 500 } });
+});
+
+test('review: a cluster made of other clusters stands amid them', () => {
+  const ent = (k) => ({ kind: 'host', label: k });
+  const doc = { entities: { a: ent('a'), b: ent('b'), c: ent('c'), d: ent('d') }, associations: {}, flows: {},
+    clusters: { x: { members: ['a', 'b'], closed: true }, y: { members: ['c', 'd'], closed: true } } };
+  const merged = C.pressK(doc, ['cluster/x', 'cluster/y']);
+  const id = merged.select.slice(8);
+  const hidden = (d) => {
+    const out = {};
+    Object.keys(d.clusters).forEach((cid) => d.clusters[cid].members.forEach((m) => { out[m] = 'cluster/' + cid; }));
+    return out;
+  };
+  const prev = { 'cluster/x': { x: 0, y: 0 }, 'cluster/y': { x: 400, y: 100 } };
+  const merging = C.transitions(hidden(doc), hidden(merged.doc));
+  assert.deepEqual(C.inPlace(merging, prev, {}), { ['cluster/' + id]: { x: 200, y: 50 } }, 'only the new cluster is written');
+  // Renamed: it stays where it stood.
+  const renamed = C.transitions({ a: 'cluster/x', b: 'cluster/x' }, { a: 'cluster/z', b: 'cluster/z' });
+  assert.deepEqual(C.inPlace(renamed, prev, {}), { 'cluster/z': { x: 0, y: 0 } });
+  // The merge undone: each cluster back where it was put before.
+  const undoing = C.transitions(hidden(merged.doc), hidden(doc));
+  assert.deepEqual(C.inPlace(undoing, { ['cluster/' + id]: { x: 200, y: 50 } }, prev), {});
+});
+
+test('review: a component going into a stack that was there glides into it', () => {
+  const t = C.transitions({ b: 'cluster/c' }, { a: 'cluster/c', b: 'cluster/c' });
+  assert.equal(t.exits['entity/a'], 'cluster/c');
+  const moved = C.transitions({ b: 'cluster/c', d: 'cluster/c' }, { a: 'cluster/c', b: 'cluster/c', d: 'cluster/c' });
+  assert.equal(moved.exits['entity/a'], 'cluster/c');
+});
+
+test('review: a cluster dissolved by deleting a member comes back where it stood on undo', () => {
+  const ent = (k) => ({ kind: 'host', label: k });
+  const whole = { entities: { a: ent('a'), b: ent('b') }, associations: {}, flows: {}, clusters: { c: { members: ['a', 'b'], closed: true } } };
+  const cut = copy(whole);
+  delete cut.entities.a;
+  C.forget(cut, { a: true });
+  assert.equal(cut.clusters, undefined);
+  const stored = { 'entity/a': { x: 0, y: 0 }, 'entity/b': { x: 100, y: 0 }, 'cluster/c': { x: 500, y: 500 } };
+  Object.assign(stored, C.inPlace(C.transitions({ a: 'cluster/c', b: 'cluster/c' }, {}), { 'cluster/c': { x: 500, y: 500 } }, stored));
+  // Undone: b drawn, a not (it was gone); the cluster stands amid both again.
+  const back = C.inPlace(C.transitions({}, { a: 'cluster/c', b: 'cluster/c' }), { 'entity/b': stored['entity/b'] }, stored);
+  assert.deepEqual(back['cluster/c'], { x: 500, y: 500 });
+});

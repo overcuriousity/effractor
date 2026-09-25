@@ -556,8 +556,10 @@
     Object.keys(after).forEach(function (e) {
       var into = after[e];
       if (was[into]) {
-        // A whole cluster taken into one that was there: it glides into it.
+        // A whole cluster taken into one that was there: it glides into it;
+        // so does a component drawn on its own before (moved in, put back).
         if (has(before, e) && before[e] !== into && !now[before[e]]) exits[before[e]] = into;
+        if (!has(before, e)) exits["entity/" + e] = into;
         return;
       }
       if (!has(before, e)) {
@@ -575,25 +577,37 @@
   // change — an edit, undo, the source: a closing cluster's members keep
   // their last places (`prev`, drawn ids) for opening, and it stands amid
   // them; an opening one's members come round where it stood, spaced as
-  // their stored places (`stored`) say. Returns places to write.
-  function inPlace(motion, prev, stored) {
+  // their stored places (`stored`) say. `fixed`: places set by hand for
+  // this change (a member dropped out of its stack), not placed again.
+  // Returns places to write.
+  function inPlace(motion, prev, stored, fixed) {
     var out = {};
     if (!motion) return out;
     Object.keys(motion.origins || {}).forEach(function (id) {
       if (id.indexOf("cluster/") !== 0) return;
-      var from = motion.origins[id].filter(function (s) {
-        return s.indexOf("entity/") === 0 && prev[s];
+      var sources = motion.origins[id];
+      var members = sources.filter(function (s) {
+        return s.indexOf("entity/") === 0;
       });
-      if (!from.length) return;
-      from.forEach(function (s) {
-        out[s] = { x: prev[s].x, y: prev[s].y };
+      // Made of other clusters only (merged, renamed, a merge undone): one
+      // put somewhere before in this browser stays there.
+      if (!members.length && has(stored, id)) return;
+      var at = [];
+      sources.forEach(function (s) {
+        if (has(prev, s)) {
+          at.push(prev[s]);
+          if (s.indexOf("entity/") === 0) out[s] = { x: prev[s].x, y: prev[s].y };
+        } else if (s.indexOf("entity/") === 0 && has(stored, s)) {
+          // Not drawn before (deleted, then undone): where it was kept.
+          at.push(stored[s]);
+        }
       });
-      out[id] = closeAt(from.map(function (s) { return prev[s]; }));
+      if (at.length) out[id] = closeAt(at);
     });
     (motion.opened || []).forEach(function (c) {
       if (!prev[c]) return;
       var members = Object.keys(motion.origins || {}).filter(function (id) {
-        return id.indexOf("entity/") === 0 && motion.origins[id].indexOf(c) >= 0;
+        return id.indexOf("entity/") === 0 && motion.origins[id].indexOf(c) >= 0 && !has(fixed, id);
       });
       var mine = {};
       members.forEach(function (m) {
@@ -623,8 +637,8 @@
     var inside = Object.create(null);
     var units = (placed.outlines || []).map(function (o) {
       o.members.forEach(function (m) { inside[m] = true; });
-      var opened = fixed.indexOf(o.id) >= 0;
-      return { id: o.id, x: o.x, y: o.y, width: o.width, height: o.height, nodes: o.members, opened: opened, pushing: opened, dx: 0, dy: 0 };
+      var isOpened = fixed.indexOf(o.id) >= 0;
+      return { id: o.id, x: o.x, y: o.y, width: o.width, height: o.height, nodes: o.members, opened: isOpened, pushing: isOpened, dx: 0, dy: 0 };
     });
     (placed.nodes || []).forEach(function (n) {
       if (!inside[n.id]) units.push({ id: n.id, x: n.x, y: n.y, width: n.width, height: n.height, nodes: [n.id], opened: false, pushing: false, dx: 0, dy: 0 });
@@ -635,7 +649,7 @@
       u.dx += dx;
       u.dy += dy;
     }
-    for (var round = 0; round < 60; round++) {
+    for (var pass = 0; pass < 60; pass++) {
       var any = false;
       for (var i = 0; i < units.length; i++) {
         for (var j = i + 1; j < units.length; j++) {
