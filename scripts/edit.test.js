@@ -21,6 +21,13 @@ test("Tab on a leaf makes it a gate; the new child's id comes from its first lab
   assert.equal(E.slug("  ***  "), "node");
 });
 
+test("an accent is dropped, not dashed; umlauts spelled out however they are written", () => {
+  assert.equal(E.slug("Réseau Zürich"), "reseau-zuerich");
+  assert.equal(E.slug("Crème brûlée, façade"), "creme-brulee-facade");
+  assert.equal(E.slug("Zürich"), "zuerich", "a decomposed ü is an ü");
+  assert.equal(E.slug("ﬁle Ⅳ"), "file-iv");
+});
+
 test("Enter adds a sibling after the node; ids stay unique", () => {
   const a = E.addSibling(attack, "phish", "account");
   assert.deepEqual(a.doc.nodes.account.children, ["phish", "new-event", "mfa"]);
