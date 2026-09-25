@@ -19,18 +19,18 @@ macro_rules! examples {
 }
 
 const EXAMPLES: &[(&str, &str)] = &examples![
-    "01-edge-node-fault.yaml",
-    "02-payment-switch-fault.yaml",
-    "03-gpu-hall-fault.yaml",
-    "04-courier-payout-attack.yaml",
-    "05-implant-telemetry-attack.yaml",
-    "06-game-build-leak-attack.yaml",
-    "07-ramen-bar-architecture.yaml",
-    "08-dental-practice-architecture.yaml",
-    "09-building-automation-architecture.yaml",
-    "10-cloud-analytics-architecture.yaml",
-    "11-devops-assistant-architecture.yaml",
-    "12-exchange-kyc-vault-architecture.yaml",
+    "01-relay-mast-fault.yaml",
+    "02-cred-switch-fault.yaml",
+    "03-ai-core-fault.yaml",
+    "04-drone-payout-attack.yaml",
+    "05-cyberware-telemetry-attack.yaml",
+    "06-simstim-leak-attack.yaml",
+    "07-noodle-stall-architecture.yaml",
+    "08-chrome-clinic-architecture.yaml",
+    "09-arcology-life-support-architecture.yaml",
+    "10-data-broker-architecture.yaml",
+    "11-ops-construct-architecture.yaml",
+    "12-identity-vault-architecture.yaml",
 ];
 
 #[test]

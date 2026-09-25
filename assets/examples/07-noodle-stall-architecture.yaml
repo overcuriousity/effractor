@@ -1,0 +1,174 @@
+effractor: 2
+profile: architecture
+name: Undercity noodle stall
+time_unit: d
+horizon: 30
+library: {id: core-components, version: 1}
+
+entities:
+  stall-wifi:
+    kind: network
+    label: Stall guest Wi-Fi
+    description: The open "SLURP-FREE" network the maglev commuters use under the tracks
+  stall-lan:
+    kind: network
+    label: Stall LAN
+    description: The till box, the kitchen order screen and the cook's wrist slate
+  grid-box:
+    kind: router
+    label: Co-op grid router
+    description: The router the district net co-op bolted to the maglev pillar; guest isolation is a checkbox
+    parameters:
+      escape:
+        status: unknown
+  grid-box-rules:
+    kind: firewall
+    label: Co-op router rules
+  decker-deck:
+    kind: host
+    label: A decker's cyberdeck
+    description: Someone at the counter with a bowl, a jacked-in deck and an evening to spare
+    parameters:
+      escape:
+        status: unknown
+  deck-browser:
+    kind: application
+    label: Deck browser
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  till-box:
+    kind: host
+    label: Till box
+    description: A grease-stained mini PC under the counter running the cred-till back office
+    parameters:
+      escape:
+        status: unknown
+  till-backoffice:
+    kind: service
+    label: Cred-till back office
+    description: The till vendor's web back office on port 8443, reachable from the stall LAN
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 0.5)"
+        note: "Teaching input: a public advisory with a proof of concept is traded on every board"
+      login:
+        status: unknown
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  neontill:
+    kind: product
+    label: NeonTill POS 4.2
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 5)"
+        note: "Teaching input: 4.2 has a published advisory; finding and adapting it takes days"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Exponential(mean 400)"
+        note: "Teaching input: 4.3 fixes the advisory; a new bug would take much longer"
+    defenses: {patched: false}
+  regulars-list:
+    kind: data
+    label: Regulars' list
+    description: Handles, comm numbers and order history of 3,000 regulars, some with prices on their heads
+    defenses: {encrypted: false}
+
+associations:
+  deck-on-wifi:
+    kind: attached
+    from: decker-deck
+    to: stall-wifi
+  router-on-wifi:
+    kind: attached
+    from: grid-box
+    to: stall-wifi
+  router-on-lan:
+    kind: attached
+    from: grid-box
+    to: stall-lan
+  till-on-lan:
+    kind: attached
+    from: till-box
+    to: stall-lan
+  router-filters:
+    kind: filters
+    from: grid-box
+    to: grid-box-rules
+  deck-runs-browser:
+    kind: hosts
+    from: decker-deck
+    to: deck-browser
+    privilege: user
+  till-runs-backoffice:
+    kind: hosts
+    from: till-box
+    to: till-backoffice
+    privilege: admin
+    description: The vendor's installer runs the service as SYSTEM
+  backoffice-is-neontill:
+    kind: instance-of
+    from: till-backoffice
+    to: neontill
+  backoffice-holds-regulars:
+    kind: holds
+    from: till-backoffice
+    to: regulars-list
+    privilege: user
+    decrypts: true
+  wifi-to-lan:
+    kind: permits
+    from: grid-box-rules
+    to: wifi-to-backoffice
+    allowed: true
+    description: Guest isolation is off, as it shipped
+
+flows:
+  wifi-to-backoffice:
+    label: Guest Wi-Fi to the cred-till back office
+    source: deck-browser
+    target: till-backoffice
+    route: [stall-wifi, grid-box, stall-lan]
+    protocol: tcp/8443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.05)"
+        note: "Teaching input: the till answers on the LAN within the hour"
+
+clusters:
+  under-the-counter:
+    label: Under the counter
+    members: [till-box, till-backoffice, neontill]
+    closed: true
+  grid-box:
+    members: [grid-box, grid-box-rules]
+    closed: true
+
+attacker:
+  footholds:
+    - {entity: decker-deck, state: admin}
+  target: {entity: regulars-list, state: read}
+
+scenarios:
+  guest-isolation:
+    label: Turn on guest isolation
+    changes:
+      - {association: wifi-to-lan, field: allowed, value: false}
+  update-till:
+    label: Update the till software to 4.3
+    changes:
+      - {entity: neontill, defense: patched, value: true}
+
+analysis:
+  seed: 107
+  samples: 10000
+  confidence: 0.95

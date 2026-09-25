@@ -1,24 +1,25 @@
 effractor: 2
 profile: architecture
-name: Dental practice on a cloud records system
+name: Street surgeon's chrome clinic
 time_unit: d
 horizon: 30
 library: {id: core-components, version: 1}
 
 entities:
-  internet:
+  citynet:
     kind: network
-    label: Internet
-  cloud-host:
+    label: Citynet
+    description: Sodium City's public net
+  medichrome-host:
     kind: host
-    label: PMS cloud host
-    description: The provider's internet-facing server the practice management portal runs on
+    label: MediChrome cloud host
+    description: The vendor's net-facing server the clinic's records portal runs on
     parameters:
       escape:
         status: unknown
-  pms-software:
+  medichrome:
     kind: product
-    label: DentCloud PMS
+    label: MediChrome Clinic Suite
     parameters:
       find-exploit:
         status: illustrative
@@ -29,28 +30,28 @@ entities:
         ttc: "Never"
         note: "Teaching input: no portal exploit is modelled here"
     defenses: {patched: false}
-  practice-lan:
+  clinic-lan:
     kind: network
-    label: Practice LAN
-  fibre-router:
+    label: Clinic LAN
+  clinic-router:
     kind: router
-    label: Fibre router
+    label: Clinic router
     parameters:
       escape:
         status: unknown
-  fibre-router-rules:
+  clinic-router-rules:
     kind: firewall
     label: Router rules
-  reception-pc:
+  front-desk-pc:
     kind: host
-    label: Reception PC
-    description: The front-desk machine the receptionist reads mail and books appointments on
+    label: Front-desk terminal
+    description: The machine behind the counter where the receptionist reads mail and books implant fittings
     parameters:
       escape:
         status: unknown
   mail-client:
     kind: application
-    label: Mail and calendar client
+    label: Mail and booking client
     parameters:
       take-over:
         status: illustrative
@@ -64,21 +65,21 @@ entities:
   receptionist:
     kind: person
     label: Receptionist
-    description: Opens booking requests and supplier mail all day
+    description: Handles walk-ins, fitting bookings and mail from the chrome wholesalers all day
     parameters:
       phish:
         status: illustrative
         ttc: "Exponential(mean 12)"
-        note: "Teaching input: a convincing booking-portal lure"
+        note: "Teaching input: a convincing fitting-booking lure"
       phish-trained:
         status: illustrative
         ttc: "Exponential(mean 45)"
         note: "Teaching input: training slows deception, it does not remove it"
     defenses: {trained: false}
-  pms-portal:
+  records-portal:
     kind: service
-    label: Practice management portal
-    description: The cloud dental records system the practice logs in to
+    label: Records portal
+    description: The cloud records system the street surgeon's clinic logs in to
     parameters:
       deploy-exploit:
         status: unknown
@@ -91,9 +92,9 @@ entities:
       take-over-guarded:
         status: unknown
     defenses: {guarded: unknown}
-  pms-account:
+  front-desk-login:
     kind: account
-    label: Reception PMS login
+    label: Front-desk portal login
     parameters:
       admin-login:
         status: unknown
@@ -104,72 +105,72 @@ entities:
     defenses: {mfa: false}
   portal-password:
     kind: credential
-    label: PMS portal password
-    description: Known by the receptionist and saved in the reception PC's browser
+    label: Portal password
+    description: Known by the receptionist and saved in the front-desk terminal's browser
     parameters:
       extract:
         status: illustrative
         ttc: "Exponential(mean 1)"
-        note: "Teaching input: a saved browser password is read once the PC is controlled"
+        note: "Teaching input: a saved browser password is read once the terminal is controlled"
       extract-protected:
         status: illustrative
         ttc: "Never"
-        note: "Teaching input: a managed password manager with OS binding gives nothing up"
+        note: "Teaching input: a managed password vault bound to the OS gives nothing up"
     defenses: {protected: false}
-  patient-records:
+  implant-records:
     kind: data
-    label: Patient records
-    description: Dental and medical histories of about 8,000 patients
+    label: Implant records
+    description: Cyberware fittings, implant serials and medical histories of about 8,000 patients, worth a fortune to chop shops
     defenses: {encrypted: false}
 
 associations:
-  router-internet:
+  router-citynet:
     kind: attached
-    from: fibre-router
-    to: internet
+    from: clinic-router
+    to: citynet
   router-lan:
     kind: attached
-    from: fibre-router
-    to: practice-lan
-  reception-on-lan:
+    from: clinic-router
+    to: clinic-lan
+  front-desk-on-lan:
     kind: attached
-    from: reception-pc
-    to: practice-lan
-  cloud-host-internet:
+    from: front-desk-pc
+    to: clinic-lan
+  medichrome-host-citynet:
     kind: attached
-    from: cloud-host
-    to: internet
-  cloud-runs-portal:
+    from: medichrome-host
+    to: citynet
+  host-runs-portal:
     kind: hosts
-    from: cloud-host
-    to: pms-portal
+    from: medichrome-host
+    to: records-portal
     privilege: admin
-  portal-is-dentcloud:
+  portal-is-medichrome:
     kind: instance-of
-    from: pms-portal
-    to: pms-software
+    from: records-portal
+    to: medichrome
   router-filters:
     kind: filters
-    from: fibre-router
-    to: fibre-router-rules
-  reception-runs-mail:
+    from: clinic-router
+    to: clinic-router-rules
+  front-desk-runs-mail:
     kind: hosts
-    from: reception-pc
+    from: front-desk-pc
     to: mail-client
     privilege: user
-  mail-from-internet:
+  mail-from-citynet:
     kind: delivers
-    from: internet
+    from: citynet
     to: receptionist
-    description: Booking requests and supplier mail reach the receptionist
-  attachments-from-internet:
+    description: Fitting requests and wholesaler mail reach the receptionist
+  attachments-from-citynet:
     kind: delivers
-    from: internet
+    from: citynet
     to: mail-client
     description: The same mail carries attachments the client opens
   password-stored:
     kind: stores
-    from: reception-pc
+    from: front-desk-pc
     to: portal-password
     privilege: user
   receptionist-operates-mail:
@@ -184,35 +185,35 @@ associations:
   password-authenticates:
     kind: authenticates
     from: portal-password
-    to: pms-account
-  account-authorizes:
+    to: front-desk-login
+  login-authorizes:
     kind: authorizes
-    from: pms-account
-    to: pms-portal
+    from: front-desk-login
+    to: records-portal
   portal-holds-records:
     kind: holds
-    from: pms-portal
-    to: patient-records
+    from: records-portal
+    to: implant-records
     privilege: user
     decrypts: true
     description: The portal serves the records, so it sees plaintext
-  reception-reads-records:
+  front-desk-reads-records:
     kind: accesses
-    from: pms-account
-    to: patient-records
+    from: front-desk-login
+    to: implant-records
     mode: read
   allow-portal:
     kind: permits
-    from: fibre-router-rules
+    from: clinic-router-rules
     to: portal-login
     allowed: true
 
 flows:
   portal-login:
-    label: Reception PC to the cloud portal
+    label: Front-desk terminal to the records portal
     source: mail-client
-    target: pms-portal
-    route: [practice-lan, fibre-router, internet]
+    target: records-portal
+    route: [clinic-lan, clinic-router, citynet]
     protocol: tcp/443
     parameters:
       connect:
@@ -220,10 +221,23 @@ flows:
         ttc: "Exponential(mean 0.05)"
         note: "Teaching input: the portal is public"
 
+clusters:
+  medichrome-cloud:
+    label: MediChrome cloud
+    members: [medichrome-host, records-portal, medichrome]
+    shown: [records-portal]
+    closed: true
+  front-desk:
+    members: [front-desk-pc, mail-client]
+    closed: false
+  clinic-router:
+    members: [clinic-router, clinic-router-rules]
+    closed: true
+
 attacker:
   footholds:
-    - {entity: internet, state: access}
-  target: {entity: patient-records, state: read}
+    - {entity: citynet, state: access}
+  target: {entity: implant-records, state: read}
 
 scenarios:
   train-receptionist:
@@ -233,7 +247,7 @@ scenarios:
   require-mfa:
     label: Require multi-factor login on the portal
     changes:
-      - {entity: pms-account, defense: mfa, value: true}
+      - {entity: front-desk-login, defense: mfa, value: true}
   guard-mail:
     label: Sandbox mail attachments
     changes:
@@ -242,7 +256,7 @@ scenarios:
     label: Train the receptionist and require MFA
     changes:
       - {entity: receptionist, defense: trained, value: true}
-      - {entity: pms-account, defense: mfa, value: true}
+      - {entity: front-desk-login, defense: mfa, value: true}
 
 analysis:
   seed: 108

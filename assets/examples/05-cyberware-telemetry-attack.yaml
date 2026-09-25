@@ -1,0 +1,134 @@
+effractor: 2
+profile: attack-tree
+name: Cyberware telemetry sold off the Glass Mile
+time_unit: d
+horizon: 90
+currency: EUR
+top: telemetry-exfiltrated
+
+nodes:
+  telemetry-exfiltrated:
+    label: Obtain a bulk copy of patients' cyberware telemetry
+    description: A Mirrorlake Biotic chrome clinic in the Stacks streams telemetry from its patients' neural implants into a street-surgeon portal and an analytics warehouse; Mirrorlake keeps a remote-support path into the clinic. A Glass Mile data broker wants the dataset within a quarter. A street surgeon's identity is shared by the portal and the warehouse routes and is sampled and paid for once. The Mirrorlake route needs two of three footholds. Costs are the broker's in EUR; detection is the chance the clinic's ICE team notices. Illustrative inputs.
+    gate: or
+    children: [portal-route, warehouse-route, mirrorlake-route]
+    consequences:
+      - {asset: patient-telemetry, dim: c}
+      - {asset: clinic-operations, dim: a, fraction: 0.3}
+  portal-route:
+    label: Export the dataset through the street-surgeon portal
+    gate: and
+    children: [surgeon-identity, portal-bulk-export]
+  warehouse-route:
+    label: Query the analytics warehouse directly
+    gate: and
+    children: [warehouse-access, research-grant, egress-past-ice]
+  surgeon-identity:
+    label: Control a street surgeon's identity
+    gate: or
+    children: [surgeon-session, moonlighter-account]
+  surgeon-session:
+    label: Obtain a street surgeon's authenticated session
+    leaf: basic
+    ttc: "40% * LogNormal(2.5, 0.8)"
+    cost: 3000
+    detection: 0.3
+  moonlighter-account:
+    label: Obtain the stale account of a surgeon who moonlighted a season and left
+    leaf: undeveloped
+    ttc: "20% * Exponential(mean 25)"
+    cost: 1500
+    detection: 0.05
+  portal-bulk-export:
+    label: Get the portal to export more than one patient at a time
+    leaf: basic
+    ttc: "30% * Gamma(2, 10)"
+    cost: 2000
+    detection: 0.55
+  warehouse-access:
+    label: Reach the warehouse's query interface
+    gate: or
+    children: [surgeon-identity, etl-service-account]
+  etl-service-account:
+    label: Obtain the ETL pipeline's service credentials
+    leaf: basic
+    ttc: "25% * Gamma(3, 12)"
+    cost: 9000
+    detection: 0.1
+  research-grant:
+    label: Hold a Mirrorlake research-cohort grant on the telemetry tables
+    leaf: basic
+    ttc: "45% * Exponential(mean 20)"
+    cost: 1200
+    detection: 0.15
+  egress-past-ice:
+    label: Slip the result set out past the clinic's data-loss ICE
+    leaf: basic
+    ttc: "60% * Gamma(2, 6)"
+    cost: 2500
+    detection: 0.35
+  mirrorlake-route:
+    label: Come in over Mirrorlake's remote-support path
+    description: Any two of the three are enough to reach the telemetry collector.
+    gate: vote
+    k: 2
+    children: [field-tech-vpn-account, support-jump-host, open-support-window]
+  field-tech-vpn-account:
+    label: Control a Mirrorlake field technician's VPN account
+    leaf: basic
+    ttc: "20% * Exponential(mean 30)"
+    cost: 6000
+    detection: 0.1
+  support-jump-host:
+    label: Control Mirrorlake's support jump host in Arcology Nine
+    leaf: undeveloped
+    ttc: "10% * Pareto(20, 1.6)"
+    cost: 25000
+    detection: 0.05
+  open-support-window:
+    label: Find a remote-support window left open after a firmware push
+    leaf: basic
+    ttc: "35% * Exponential(mean 15)"
+    cost: 500
+    detection: 0.2
+
+assets:
+  patient-telemetry:
+    label: Implant telemetry of 4,200 chrome patients
+    description: Notification, regulator fines and litigation; neural telemetry is special-category health data.
+    loss: {c: "Pert(400000, 2500000, 15000000)"}
+  clinic-operations:
+    label: Clinic downtime during forensic investigation
+    loss: {a: 350000}
+
+controls:
+  phishing-resistant-login:
+    label: Hardware security keys for street surgeons
+    cost: 18000
+    enabled: false
+    effects:
+      - {node: surgeon-session, ttc: "8% * LogNormal(3.2, 0.8)"}
+  joiner-leaver:
+    label: Disable moonlighters' accounts on the last day of their contract
+    cost: 3000
+    enabled: false
+    effects:
+      - {node: moonlighter-account, ttc: "2% * Exponential(mean 25)"}
+  export-four-eyes:
+    label: Two-person approval for exports of more than ten patients
+    cost: 7000
+    enabled: true
+    effects:
+      - {node: portal-bulk-export, ttc: "10% * Gamma(2, 20)"}
+  support-session-broker:
+    label: Mirrorlake sessions only through a recorded broker, opened on request
+    cost: 22000
+    enabled: false
+    effects:
+      - {node: open-support-window, ttc: "3% * Exponential(mean 15)"}
+      - {node: field-tech-vpn-account, ttc: "8% * Exponential(mean 45)"}
+
+analysis:
+  seed: 105
+  samples: 10000
+  confidence: 0.95

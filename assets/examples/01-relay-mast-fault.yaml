@@ -1,0 +1,71 @@
+effractor: 2
+profile: fault-tree
+name: Undercity relay mast goes dark
+time_unit: h
+horizon: 8760
+currency: EUR
+top: relay-mast-dark
+
+nodes:
+  relay-mast-dark:
+    label: The mesh-net relay mast over the Lantern Row night market stops serving
+    description: One weatherproofed relay box bolted to a maglev pylon above the Undercity carries the market's cred terminals, the district's drone-traffic beacons and the free mesh portal for a year. It has one power tap with a small UPS and one fibre drop to the Stacks backbone. Rates are illustrative time-to-first-failure values without repair; the single fibre is the weak spot every stallholder knows about and nobody has the cred to fix.
+    gate: or
+    children: [power-lost, backbone-lost, relay-fails]
+    consequences:
+      - {asset: market-services, dim: a}
+  power-lost:
+    label: The mast loses power long enough to drain the UPS
+    gate: and
+    children: [grid-tap-outage, ups-exhausted]
+  grid-tap-outage:
+    label: The pylon's grid tap browns out for more than 20 minutes
+    leaf: basic
+    rate: 8e-5
+  ups-exhausted:
+    label: UPS cells cannot bridge the outage
+    description: Per demand; the cells are three years old, salvaged, and never load-tested.
+    leaf: basic
+    p: 0.35
+  backbone-lost:
+    label: The single fibre drop to the Stacks backbone is cut
+    description: Maglev track works and copper scavengers along the pylon run.
+    leaf: basic
+    rate: 4e-5
+  relay-fails:
+    label: Relay hardware fails
+    gate: or
+    children: [flash-fails, overheat]
+  flash-fails:
+    label: Boot flash wears out or dies
+    leaf: basic
+    rate: 1e-5
+  overheat:
+    label: The box cooks under the neon in a summer heat wave and throttles to death
+    leaf: undeveloped
+    p: 0.02
+
+assets:
+  market-services:
+    label: Cred terminals, drone beacons and mesh portal for one market
+    description: Cash-only trading, grounded delivery drones and the stallholders' collective penalties.
+    loss: {a: "Pert(8000, 25000, 120000)"}
+
+controls:
+  second-backbone:
+    label: Second fibre drop along the maglev service conduit
+    cost: 14000
+    enabled: false
+    effects:
+      - {node: backbone-lost, ttc: "Exponential(mean 250000)"}
+  ups-refresh:
+    label: Replace the UPS cells and load-test them yearly
+    cost: 900
+    enabled: false
+    effects:
+      - {node: ups-exhausted, ttc: "5%"}
+
+analysis:
+  seed: 101
+  samples: 10000
+  confidence: 0.95

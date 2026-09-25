@@ -1,0 +1,375 @@
+effractor: 2
+profile: architecture
+name: Tessellate Data profile broker
+time_unit: d
+horizon: 30
+library: {id: core-components, version: 1}
+
+entities:
+  street-net:
+    kind: network
+    label: Street net
+  tessellate-grid:
+    kind: network
+    label: Tessellate compute grid
+  grid-gate:
+    kind: router
+    label: Grid gateway
+    parameters:
+      escape:
+        status: unknown
+  gate-ice:
+    kind: firewall
+    label: Gateway ICE
+  decker-rig:
+    kind: host
+    label: Decker's rig
+    parameters:
+      escape:
+        status: unknown
+  deck-client:
+    kind: application
+    label: Deck client
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  data-analyst:
+    kind: person
+    label: Tessellate profile analyst
+    description: Reads mail and shared dashboards from a maglev seat, anywhere in the city
+    parameters:
+      phish:
+        status: illustrative
+        ttc: "Exponential(mean 9)"
+        note: "Teaching input: a lure dressed as a shared dashboard from a client corp"
+      phish-trained:
+        status: illustrative
+        ttc: "Exponential(mean 50)"
+        note: "Teaching input: the security briefings slow the deception down"
+    defenses: {trained: false}
+  job-node:
+    kind: host
+    label: Job node
+    description: A rented slice of the compute grid that runs the profiling jobs
+    parameters:
+      escape:
+        status: unknown
+  job-console:
+    kind: service
+    label: Job console
+    description: The console open to the street net where analysts submit and run profiling jobs
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 4)"
+        note: Teaching input
+      login:
+        status: illustrative
+        ttc: "Exponential(mean 0.2)"
+        note: Teaching input
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  loomwork:
+    kind: product
+    label: Loomwork Scheduler 3.1
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 20)"
+        note: Teaching input
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: 3.2 closes the modelled bug"
+    defenses: {patched: false}
+  lake-node:
+    kind: host
+    label: Data-lake node
+    parameters:
+      escape:
+        status: unknown
+  fathom-lake:
+    kind: product
+    label: Fathom Lake 12
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: no data-lake exploit is modelled here"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: Teaching input
+    defenses: {patched: false}
+  data-lake:
+    kind: service
+    label: Profile data lake
+    description: Holds the citizen profiles; serves rows to logged-in roles
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: this exercise studies the identity route, not a data-lake exploit"
+      login:
+        status: illustrative
+        ttc: "Exponential(mean 0.2)"
+        note: "Teaching input: a query login with a valid token"
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  analyst-login:
+    kind: account
+    label: Analyst's login
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: illustrative
+        ttc: "Exponential(mean 12)"
+        note: "Teaching input: adversary-in-the-middle against the login"
+    defenses: {mfa: false}
+  job-identity:
+    kind: account
+    label: Job workload identity
+    description: The identity the job node's jobs execute as; it has no second factor
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: unknown}
+  profile-reader:
+    kind: account
+    label: Profile reader role
+    description: A role the job identity may assume; it reads every profile
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: unknown}
+  analyst-passphrase:
+    kind: credential
+    label: Analyst's passphrase
+    description: What the analyst would type into a spoofed Tessellate sign-on page
+    parameters:
+      extract:
+        status: unknown
+      extract-protected:
+        status: unknown
+    defenses: {protected: unknown}
+  implant-key:
+    kind: credential
+    label: Analyst's key implant
+    description: The analyst's second factor, a key chip under the skin of the wrist; it cannot be copied remotely
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Never"
+        note: Teaching input
+      extract-protected:
+        status: illustrative
+        ttc: "Never"
+        note: Teaching input
+    defenses: {protected: false}
+  citizen-profiles:
+    kind: data
+    label: Citizen behaviour profiles
+    description: Movement, purchase and implant-telemetry profiles of eleven million residents, the broker's stock in trade and the decker's goal
+    defenses: {encrypted: false}
+
+associations:
+  rig-on-street-net:
+    kind: attached
+    from: decker-rig
+    to: street-net
+  gate-on-street-net:
+    kind: attached
+    from: grid-gate
+    to: street-net
+  gate-on-grid:
+    kind: attached
+    from: grid-gate
+    to: tessellate-grid
+  job-node-on-grid:
+    kind: attached
+    from: job-node
+    to: tessellate-grid
+  lake-node-on-grid:
+    kind: attached
+    from: lake-node
+    to: tessellate-grid
+  gate-filters:
+    kind: filters
+    from: grid-gate
+    to: gate-ice
+  rig-runs-client:
+    kind: hosts
+    from: decker-rig
+    to: deck-client
+    privilege: user
+  node-runs-console:
+    kind: hosts
+    from: job-node
+    to: job-console
+    privilege: admin
+  console-is-loomwork:
+    kind: instance-of
+    from: job-console
+    to: loomwork
+  lake-node-runs-lake:
+    kind: hosts
+    from: lake-node
+    to: data-lake
+    privilege: admin
+  lake-is-fathom:
+    kind: instance-of
+    from: data-lake
+    to: fathom-lake
+  mail-to-analyst:
+    kind: delivers
+    from: street-net
+    to: data-analyst
+  analyst-knows-passphrase:
+    kind: knows
+    from: data-analyst
+    to: analyst-passphrase
+  passphrase-authenticates:
+    kind: authenticates
+    from: analyst-passphrase
+    to: analyst-login
+  implant-authenticates:
+    kind: authenticates
+    from: implant-key
+    to: analyst-login
+    factor: second
+  analyst-authorizes-console:
+    kind: authorizes
+    from: analyst-login
+    to: job-console
+  analyst-grant:
+    kind: grants
+    from: analyst-login
+    to: job-node
+    privilege: admin
+    description: Analysts hold an admin grant on the job node so their jobs can install packages
+  console-runs-as-identity:
+    kind: runs-as
+    from: job-console
+    to: job-identity
+    privilege: user
+  identity-assumes-reader:
+    kind: assumes
+    from: job-identity
+    to: profile-reader
+  reader-authorizes-lake:
+    kind: authorizes
+    from: profile-reader
+    to: data-lake
+  lake-holds-profiles:
+    kind: holds
+    from: data-lake
+    to: citizen-profiles
+    privilege: user
+    decrypts: true
+    description: The data lake serves rows, so it sees plaintext
+  reader-reads-profiles:
+    kind: accesses
+    from: profile-reader
+    to: citizen-profiles
+    mode: read
+  console-permit:
+    kind: permits
+    from: gate-ice
+    to: deck-to-console
+    allowed: true
+
+flows:
+  deck-to-console:
+    label: Deck to the job console
+    source: deck-client
+    target: job-console
+    route: [street-net, grid-gate, tessellate-grid]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: Teaching input
+  console-to-lake:
+    label: Job console to the data lake
+    source: job-console
+    target: data-lake
+    route: [tessellate-grid]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: Teaching input
+
+clusters:
+  rig:
+    label: Decker's rig
+    members: [decker-rig, deck-client]
+    closed: true
+  gateway:
+    label: Grid gateway
+    members: [grid-gate, gate-ice]
+    closed: true
+  analyst:
+    label: The analyst
+    members: [data-analyst, analyst-login, analyst-passphrase, implant-key]
+    closed: true
+  job-node:
+    label: Job node
+    members: [job-node, job-console, loomwork, job-identity]
+    closed: false
+  data-lake:
+    label: Data lake
+    members:
+      - lake-node
+      - data-lake
+      - fathom-lake
+      - profile-reader
+      - citizen-profiles
+    shown: [citizen-profiles]
+    closed: true
+
+attacker:
+  footholds:
+    - {entity: decker-rig, state: admin}
+  target: {entity: citizen-profiles, state: read}
+
+scenarios:
+  train-analyst:
+    label: Brief the analyst
+    changes:
+      - {entity: data-analyst, defense: trained, value: true}
+  require-mfa:
+    label: Require the analyst's key implant at every login
+    changes:
+      - {entity: analyst-login, defense: mfa, value: true}
+  patch-loomwork:
+    label: Update Loomwork to 3.2
+    changes:
+      - {entity: loomwork, defense: patched, value: true}
+  patch-and-harden-people:
+    label: Patch Loomwork and harden the analyst (briefing and key implant)
+    changes:
+      - {entity: loomwork, defense: patched, value: true}
+      - {entity: data-analyst, defense: trained, value: true}
+      - {entity: analyst-login, defense: mfa, value: true}
+
+analysis:
+  seed: 110
+  samples: 10000
+  confidence: 0.95

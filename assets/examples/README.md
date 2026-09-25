@@ -1,11 +1,13 @@
 # Sample models
 
 Twelve fictional models across three profiles, in rising order of complexity:
-three fault trees, three attack trees and six architectures. Download a YAML
+three fault trees, three attack trees and six architectures, all set in
+**Sodium City** — an invented coastal megacity of neon, maglev lines, chrome
+clinics and arcology towers, where every corporation and product is made up. Download a YAML
 file and use **Open** (`Ctrl+O`) in Effractor; it is solved as it opens. The
 files ship with both the server and the static edition under `assets/examples/`;
 a local server serves the first at
-`http://127.0.0.1:8080/assets/examples/01-edge-node-fault.yaml`.
+`http://127.0.0.1:8080/assets/examples/01-relay-mast-fault.yaml`.
 
 All numbers are invented teaching inputs, not measured rates, threat
 intelligence or calibrated valuations. Every scenario is fictional. Each
@@ -16,17 +18,17 @@ before using a model for a real decision.
 
 | File | Detail | What to explore |
 | --- | --- | --- |
-| [01 · Metro edge node](01-edge-node-fault.yaml) | Introductory | OR/AND gates, a single-fibre single point of failure, a rate-and-a-demand `AND`, two candidate mitigations ranked by benefit per euro |
-| [02 · Card switch](02-payment-switch-fault.yaml) | Medium | A two-of-three HSM vote, a shared kernel image and a shared carrier ring as common causes, an already-enabled control |
-| [03 · GPU compute hall](03-gpu-hall-fault.yaml) | Detailed | A shared heat wave across cooling and grid branches, a two-of-four CDU vote, generator common-cause fuel, integrity vs availability losses, an undeveloped ransomware event that the attack trees develop |
+| [01 · Undercity relay mast](01-relay-mast-fault.yaml) | Introductory | OR/AND gates, a single-fibre single point of failure on a maglev pylon, a rate-and-a-demand `AND` (grid tap and salvaged UPS cells), two candidate mitigations ranked by benefit per euro |
+| [02 · Kestrel Clearing cred switch](02-cred-switch-fault.yaml) | Medium | A two-of-three HSM vote, a shared kernel image and a shared harbour carrier ring as common causes, an already-enabled control |
+| [03 · Arcology Nine AI core](03-ai-core-fault.yaml) | Detailed | A shared heat dome across cooling and grid branches, a two-of-four CDU vote, generator common-cause fuel, integrity vs availability losses, an undeveloped black-ICE worm on the facilities network that the attack trees develop |
 
 ## Attack trees
 
 | File | Detail | What to explore |
 | --- | --- | --- |
-| [04 · Courier payouts](04-courier-payout-attack.yaml) | Introductory | Two alternative routes, attacker cost and detection, a single point of failure, control toggles |
-| [05 · Implant telemetry](05-implant-telemetry-attack.yaml) | Medium | A shared clinician identity and shared export barrier, a two-of-three vendor-access vote, a diverse Pareto front of cheap-noisy and expensive-quiet routes |
-| [06 · Game build leak](06-game-build-leak-attack.yaml) | Detailed | Four routes, a two-of-three artifact-store vote, an `Immediate` prerequisite, `Never` used to retire one legacy path, several shared identity and approval events |
+| [04 · Drone-courier payouts](04-drone-payout-attack.yaml) | Introductory | Two alternative routes to a runner's payouts — the runner's own login, or talking the fixer's dispatch desk round — attacker cost and detection, a single point of failure, control toggles |
+| [05 · Cyberware telemetry](05-cyberware-telemetry-attack.yaml) | Medium | A shared street-surgeon identity and a shared data-loss ICE barrier, a two-of-three vote on Mirrorlake's remote-support route, a diverse Pareto front of cheap-noisy and expensive-quiet routes |
+| [06 · Sim-stim build leak](06-simstim-leak-attack.yaml) | Detailed | Four routes to an unreleased sim-stim build, a two-of-three artifact-store vote, an `Immediate` prerequisite, `Never` used to retire a Docks partner's legacy share, several shared identity and approval events |
 
 ## Architectures
 
@@ -36,14 +38,22 @@ and edits them, generates the attack graph, simulates its routes in the browser,
 and compares each file's scenarios against the baseline. Component values are
 marked `illustrative`; `unknown` marks a value nobody has assessed yet.
 
+Each architecture also comes **clustered**: a host is folded together with the
+software it runs and the products only it uses, a router with its firewall. A
+closed cluster is drawn as one stacked node (press **K** on it, or use its menu,
+to open it); an open one is an outline around its members; a member listed as
+`shown` stays drawn beside its closed stack — a foothold or a target kept in
+view. Clusters are a way of looking: they change neither the generated graph
+nor any result.
+
 | File | Detail | What to explore |
 | --- | --- | --- |
-| [07 · Night-market ramen bar](07-ramen-bar-architecture.yaml) | Introductory | The smallest architecture: a guest-Wi-Fi customer reaches an unpatched till over a router with guest isolation off. Either turning on isolation or updating the till closes the route |
-| [08 · Dental practice](08-dental-practice-architecture.yaml) | Medium | Two alternative routes to one password — phishing the receptionist, or a mail attachment that reads the saved credential — converging on one portal login. Defending either route alone barely helps; multi-factor login on the shared step is what moves the number |
-| [09 · Building automation](09-building-automation-architecture.yaml) | Detailed | An out-of-band **administration** channel that a data-flow firewall rule does not govern. Denying the supervisory flow or patching the controller leaves the management route; only protecting the operations password closes it, and the exploit-over-flow route then still needs closing too |
-| [10 · Cloud analytics platform](10-cloud-analytics-architecture.yaml) | Detailed | A workload identity (`runs-as`), a role it assumes (`assumes`), a second authentication factor and a session grant. Two entry routes — a service exploit and a phished analyst — converge on a reader role; patching, training and MFA each leave a route, and only all three together drive the number down |
-| [11 · DevOps assistant](11-devops-assistant-architecture.yaml) | Detailed | An autonomous agent that **reads** a runbook wiki: poisoning the corpus (control the wiki, change the pages) reaches the agent, prompt-injection takes it over, and its sandboxed identity reads the secrets. Patching the wiki closes the poisoning at its source; guarding the agent slows but does not stop it |
-| [12 · Exchange KYC vault](12-exchange-kyc-vault-architecture.yaml) | Detailed, incomplete | An **unknown** exploit time on the internet-facing API leaves the target with no number until it is assessed or the vendor patch closes that route. A second route through an internal workstation to the encrypted-at-rest database then shows why encryption at rest alone is nearly worthless while the key is extractable, and only sealing it in the HSM closes the route |
+| [07 · Undercity noodle stall](07-noodle-stall-architecture.yaml) | Introductory | The smallest architecture: a decker on the stall's guest Wi-Fi reaches an unpatched cred-till over a co-op router with guest isolation off. Either turning on isolation or updating the till closes the route. Two closed clusters, one without a label |
+| [08 · Street surgeon's chrome clinic](08-chrome-clinic-architecture.yaml) | Medium | Two alternative routes to one password — phishing the receptionist, or a mail attachment that reads the saved credential — converging on one portal login. Defending either route alone barely helps; multi-factor login on the shared step is what moves the number. The closed cloud cluster keeps that portal `shown`; the front desk is an open cluster |
+| [09 · Arcology Nine life support](09-arcology-life-support-architecture.yaml) | Detailed | An out-of-band **administration** channel that a data-flow firewall rule does not govern. Denying the supervisory flow or patching the controller leaves the management route; only protecting the operations password closes it, and the exploit-over-flow route then still needs closing too. The engineer's rig is a closed cluster with the foothold `shown` |
+| [10 · Tessellate Data profile broker](10-data-broker-architecture.yaml) | Detailed | A workload identity (`runs-as`), a role it assumes (`assumes`), a second authentication factor (a key implant) and a session grant. A decker's exploit and a phished analyst converge on a reader role; patching, briefing and the implant factor each leave a route, and only all three together drive the number down. Five clusters tame the drawing; the data lake stays closed with the citizen profiles `shown` |
+| [11 · Arcology Nine ops construct](11-ops-construct-architecture.yaml) | Detailed | An autonomous AI construct that **reads** a runbook wiki: poisoning the corpus (control the wiki, change the pages) reaches the construct, prompt-injection takes it over, and its sandboxed identity reads the tower's secrets. Patching the wiki closes the poisoning at its source; guarding the construct slows but does not stop it. The wiki, where it happens, is the one open cluster |
+| [12 · Kestrel Clearing identity vault](12-identity-vault-architecture.yaml) | Detailed, incomplete | An **unknown** exploit time on the street-facing identity API leaves the target with no number until it is assessed or the vendor patch closes that route. A second route from an inside terminal to the encrypted-at-rest vault then shows why encryption at rest alone is nearly worthless while the key is extractable, and only sealing it in the HSM closes the route. The vault is an open cluster; the second foothold is `shown` beside its closed one |
 
 ## Reading the assumptions
 

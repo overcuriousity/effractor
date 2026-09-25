@@ -1,0 +1,343 @@
+effractor: 2
+profile: architecture
+name: Arcology Nine ops construct
+time_unit: d
+horizon: 21
+library: {id: core-components, version: 1}
+
+entities:
+  street-net:
+    kind: network
+    label: Street net
+  arcology-net:
+    kind: network
+    label: Arcology Nine backbone
+  arcology-gate:
+    kind: router
+    label: Arcology gateway
+    parameters:
+      escape:
+        status: unknown
+  gate-ice:
+    kind: firewall
+    label: Gateway ICE
+  decker-rig:
+    kind: host
+    label: Decker's rig
+    parameters:
+      escape:
+        status: unknown
+  deck-client:
+    kind: application
+    label: Deck client
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  wiki-node:
+    kind: host
+    label: Wiki node
+    parameters:
+      escape:
+        status: unknown
+  runbook-wiki:
+    kind: service
+    label: Runbook wiki
+    description: The wiki, open to the street net for maintenance contractors, that holds the tower's operations runbooks
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 5)"
+        note: Teaching input
+      login:
+        status: illustrative
+        ttc: "Exponential(mean 0.3)"
+        note: Teaching input
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  lorekeeper:
+    kind: product
+    label: Lorekeeper Wiki 2.0
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 14)"
+        note: Teaching input
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: 2.1 closes the modelled bug"
+    defenses: {patched: false}
+  construct-pod:
+    kind: host
+    label: Construct pod
+    parameters:
+      escape:
+        status: unknown
+  ops-construct:
+    kind: service
+    label: KAIROS ops construct
+    description: Halcyon's autonomous AI construct; it reads runbooks and tenants' public tickets and runs tools to fix incidents in the tower
+    parameters:
+      deploy-exploit:
+        status: unknown
+      login:
+        status: unknown
+      take-over:
+        status: illustrative
+        ttc: "Exponential(mean 2)"
+        note: "Teaching input: instructions planted in content it reads (prompt injection)"
+      take-over-guarded:
+        status: illustrative
+        ttc: "Exponential(mean 40)"
+        note: "Teaching input: guardrails and human approval slow injection, they do not stop it"
+    defenses: {guarded: false}
+  synapse:
+    kind: product
+    label: Synapse Agent Framework 1.4
+    parameters:
+      find-exploit:
+        status: unknown
+      find-exploit-patched:
+        status: unknown
+    defenses: {patched: false}
+  keystore-node:
+    kind: host
+    label: Keystore node
+    parameters:
+      escape:
+        status: unknown
+  keystore:
+    kind: service
+    label: Halcyon keystore
+    description: Serves the tower's control secrets to authorised workloads
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: this exercise studies the construct route, not a keystore exploit"
+      login:
+        status: illustrative
+        ttc: "Exponential(mean 0.2)"
+        note: Teaching input
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  cipherwell:
+    kind: product
+    label: Cipherwell Keystore 5
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Never"
+        note: Teaching input
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: Teaching input
+    defenses: {patched: false}
+  construct-identity:
+    kind: account
+    label: Construct workload identity
+    description: The identity the construct runs as; authorised to read the tower's control secrets
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: unknown}
+  runbooks:
+    kind: data
+    label: Tower operations runbooks
+    description: The wiki pages the construct reads before it acts
+    defenses: {encrypted: false}
+  tower-secrets:
+    kind: data
+    label: Arcology control secrets
+    description: The production secrets for the tower's lifts, door locks and life support — the decker's goal
+    defenses: {encrypted: false}
+
+associations:
+  rig-on-street-net:
+    kind: attached
+    from: decker-rig
+    to: street-net
+  gate-on-street-net:
+    kind: attached
+    from: arcology-gate
+    to: street-net
+  gate-on-backbone:
+    kind: attached
+    from: arcology-gate
+    to: arcology-net
+  wiki-node-on-backbone:
+    kind: attached
+    from: wiki-node
+    to: arcology-net
+  pod-on-backbone:
+    kind: attached
+    from: construct-pod
+    to: arcology-net
+  keystore-node-on-backbone:
+    kind: attached
+    from: keystore-node
+    to: arcology-net
+  gate-filters:
+    kind: filters
+    from: arcology-gate
+    to: gate-ice
+  rig-runs-client:
+    kind: hosts
+    from: decker-rig
+    to: deck-client
+    privilege: user
+  wiki-node-runs-wiki:
+    kind: hosts
+    from: wiki-node
+    to: runbook-wiki
+    privilege: admin
+  wiki-is-lorekeeper:
+    kind: instance-of
+    from: runbook-wiki
+    to: lorekeeper
+  pod-runs-construct:
+    kind: hosts
+    from: construct-pod
+    to: ops-construct
+    privilege: user
+    contained: true
+    description: The construct runs sandboxed; taking it over does not reach its pod, but its tools and identity still act
+  construct-is-synapse:
+    kind: instance-of
+    from: ops-construct
+    to: synapse
+  keystore-node-runs-keystore:
+    kind: hosts
+    from: keystore-node
+    to: keystore
+    privilege: admin
+  keystore-is-cipherwell:
+    kind: instance-of
+    from: keystore
+    to: cipherwell
+  construct-runs-as-identity:
+    kind: runs-as
+    from: ops-construct
+    to: construct-identity
+    privilege: user
+  identity-authorizes-keystore:
+    kind: authorizes
+    from: construct-identity
+    to: keystore
+  wiki-holds-runbooks:
+    kind: holds
+    from: runbook-wiki
+    to: runbooks
+    privilege: user
+    decrypts: true
+  construct-reads-runbooks:
+    kind: reads
+    from: ops-construct
+    to: runbooks
+    description: The construct reads the runbooks before acting; changing them reaches it
+  keystore-holds-secrets:
+    kind: holds
+    from: keystore
+    to: tower-secrets
+    privilege: user
+    decrypts: true
+  identity-reads-secrets:
+    kind: accesses
+    from: construct-identity
+    to: tower-secrets
+    mode: read
+  wiki-permit:
+    kind: permits
+    from: gate-ice
+    to: wiki-edit
+    allowed: true
+  construct-to-keystore-permit:
+    kind: permits
+    from: gate-ice
+    to: construct-to-keystore
+    allowed: true
+
+flows:
+  wiki-edit:
+    label: Deck to the runbook wiki
+    source: deck-client
+    target: runbook-wiki
+    route: [street-net, arcology-gate, arcology-net]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: Teaching input
+  construct-to-keystore:
+    label: Construct to the keystore
+    source: ops-construct
+    target: keystore
+    route: [arcology-net]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: Teaching input
+
+clusters:
+  rig:
+    label: Decker's rig
+    members: [decker-rig, deck-client]
+    closed: true
+  gateway:
+    label: Arcology gateway
+    members: [arcology-gate, gate-ice]
+    closed: true
+  wiki:
+    label: Runbook wiki
+    members: [wiki-node, runbook-wiki, lorekeeper, runbooks]
+    closed: false
+  construct:
+    label: KAIROS
+    members: [construct-pod, ops-construct, synapse, construct-identity]
+    shown: [ops-construct]
+    closed: true
+  keystore:
+    label: Keystore
+    members: [keystore-node, keystore, cipherwell, tower-secrets]
+    shown: [tower-secrets]
+    closed: true
+
+attacker:
+  footholds:
+    - {entity: decker-rig, state: admin}
+  target: {entity: tower-secrets, state: read}
+
+scenarios:
+  guard-construct:
+    label: Guard the construct against what it reads
+    changes:
+      - {entity: ops-construct, defense: guarded, value: true}
+  patch-wiki:
+    label: Update Lorekeeper to 2.1
+    changes:
+      - {entity: lorekeeper, defense: patched, value: true}
+  guard-and-patch:
+    label: Guard the construct and patch the wiki
+    changes:
+      - {entity: ops-construct, defense: guarded, value: true}
+      - {entity: lorekeeper, defense: patched, value: true}
+
+analysis:
+  seed: 111
+  samples: 10000
+  confidence: 0.95

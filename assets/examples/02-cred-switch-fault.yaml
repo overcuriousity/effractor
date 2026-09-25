@@ -1,6 +1,6 @@
 effractor: 2
 profile: fault-tree
-name: Neobank card switch cannot authorise payments
+name: Kestrel Clearing's cred switch cannot authorise payments
 time_unit: h
 horizon: 720
 currency: EUR
@@ -8,27 +8,27 @@ top: authorisation-down
 
 nodes:
   authorisation-down:
-    label: Card payments cannot be authorised for a month-long stretch
-    description: A challenger bank's card switch over one 30-day month, no repair credited. Authorisation needs the switch cluster, a working signing path through the hardware security modules, and a way out to the card schemes. The three HSMs vote two-of-three; both scheme links share one carrier's metro ring and one DNS provider, which are modelled as shared events rather than copied. Illustrative inputs, not an operator's incident history.
+    label: Cred-chip payments cannot be authorised for a month-long stretch
+    description: Kestrel Clearing runs the cred switch behind half the chip readers on the Glass Mile; this is one 30-day month, no repair credited. Authorisation needs the switch cluster, a working signing path through the hardware security modules, and a way out to the clearing networks. The three HSMs vote two-of-three; both clearing links share one carrier's harbour ring and one name-service provider, which are modelled as shared events rather than copied. Illustrative inputs, not an operator's incident history.
     gate: or
     children:
       - switch-cluster-down
       - signing-lost
-      - scheme-unreachable
+      - clearing-unreachable
       - bad-config-push
     consequences:
-      - {asset: card-revenue, dim: a}
+      - {asset: clearing-revenue, dim: a}
       - {asset: customer-trust, dim: a}
   switch-cluster-down:
     label: Both switch nodes are down
     gate: and
     children: [switch-node-a, switch-node-b]
   switch-node-a:
-    label: Switch node A (Frankfurt rack) fails
+    label: Switch node A (Glass Mile vault floor) fails
     gate: or
     children: [node-a-hardware, shared-kernel-bug]
   switch-node-b:
-    label: Switch node B (Amsterdam rack) fails
+    label: Switch node B (Docks bunker) fails
     gate: or
     children: [node-b-hardware, shared-kernel-bug]
   node-a-hardware:
@@ -51,33 +51,33 @@ nodes:
     k: 2
     children: [hsm-1, hsm-2, hsm-3]
   hsm-1:
-    label: HSM 1 fails or tampers itself out
+    label: HSM 1 fails or zeroises itself on a tamper alarm
     leaf: basic
     rate: 5e-5
   hsm-2:
-    label: HSM 2 fails or tampers itself out
+    label: HSM 2 fails or zeroises itself on a tamper alarm
     leaf: basic
     rate: 5e-5
   hsm-3:
-    label: HSM 3 fails or tampers itself out
+    label: HSM 3 fails or zeroises itself on a tamper alarm
     leaf: basic
     rate: 5e-5
-  scheme-unreachable:
-    label: Neither card scheme can be reached
+  clearing-unreachable:
+    label: Neither clearing network can be reached
     gate: or
-    children: [both-links-down, dns-provider-outage]
+    children: [both-links-down, name-service-outage]
   both-links-down:
-    label: Both scheme links are down
+    label: Both clearing links are down
     gate: and
     children: [link-primary, link-secondary]
   link-primary:
-    label: Primary scheme link fails
+    label: Primary clearing link fails
     gate: or
-    children: [primary-circuit, metro-ring-cut]
+    children: [primary-circuit, harbour-ring-cut]
   link-secondary:
-    label: Secondary scheme link fails
+    label: Secondary clearing link fails
     gate: or
-    children: [secondary-circuit, metro-ring-cut]
+    children: [secondary-circuit, harbour-ring-cut]
   primary-circuit:
     label: Primary leased circuit fails
     leaf: basic
@@ -86,13 +86,13 @@ nodes:
     label: Secondary leased circuit fails
     leaf: basic
     rate: 0.0001
-  metro-ring-cut:
-    label: The one carrier metro ring both circuits ride on is cut
-    description: Diverse on the contract, not in the duct.
+  harbour-ring-cut:
+    label: The one carrier harbour ring both circuits ride on is cut
+    description: Diverse on the contract, not in the duct under the Docks.
     leaf: basic
     rate: 2e-5
-  dns-provider-outage:
-    label: Managed DNS provider outage hides the scheme endpoints
+  name-service-outage:
+    label: Managed name-service outage hides the clearing endpoints
     leaf: undeveloped
     ttc: "1.5% * LogNormal(2.5, 0.8)"
   bad-config-push:
@@ -109,12 +109,12 @@ nodes:
     p: 0.1
 
 assets:
-  card-revenue:
-    label: Interchange lost while cards decline
+  clearing-revenue:
+    label: Clearing fees lost while chips decline
     loss: {a: "Pert(150000, 400000, 2500000)"}
   customer-trust:
-    label: Customers leaving after a public outage
-    description: Churn and regulator attention; counted separately from interchange.
+    label: Merchants leaving after a public outage
+    description: Churn and the Glass Mile regulator's attention; counted separately from fees.
     loss: {a: "LogNormal(12.5, 0.9)"}
 
 controls:
@@ -123,13 +123,13 @@ controls:
     cost: 6000
     enabled: false
     effects:
-      - {node: metro-ring-cut, ttc: "Exponential(mean 400000)"}
-  secondary-dns:
-    label: Second DNS provider with pinned scheme endpoints
+      - {node: harbour-ring-cut, ttc: "Exponential(mean 400000)"}
+  secondary-name-service:
+    label: Second name-service provider with pinned clearing endpoints
     cost: 1200
     enabled: false
     effects:
-      - {node: dns-provider-outage, ttc: "0.1% * LogNormal(2.5, 0.8)"}
+      - {node: name-service-outage, ttc: "0.1% * LogNormal(2.5, 0.8)"}
   staged-os-rollout:
     label: Roll the OS image out one node at a time, a week apart
     cost: 3500

@@ -1,0 +1,72 @@
+effractor: 2
+profile: attack-tree
+name: Drone-courier payouts hijacked in Sodium City
+time_unit: d
+horizon: 30
+currency: EUR
+top: payouts-hijacked
+
+nodes:
+  payouts-hijacked:
+    label: A runner's weekly payouts land in a cred account the crew controls
+    description: A fixer's drone-courier network in the Undercity pays its runners weekly to a cred account set in the courier app. A Stacks fraud crew wants to swap that account for one mid-volume runner within a month. Two routes — through the runner's own login, or by talking the fixer's dispatch desk into the change. Costs are the crew's, in EUR; detection is the chance the fixer's fraud watcher notices the attempt. Illustrative inputs.
+    gate: or
+    children: [login-route, dispatch-route]
+    consequences:
+      - {asset: runner-earnings, dim: i}
+  login-route:
+    label: Swap the payout account through the runner's own login
+    gate: and
+    children: [runner-password, second-factor]
+  runner-password:
+    label: Obtain the runner's password
+    gate: or
+    children: [credential-reuse, neon-lookalike-login]
+  credential-reuse:
+    label: The password is reused from an old dump sold on the Undercity boards
+    leaf: basic
+    ttc: "25% * Exponential(mean 2)"
+    cost: 40
+    detection: 0.05
+  neon-lookalike-login:
+    label: The runner types it into a lookalike login page pushed to their eyepiece
+    leaf: basic
+    ttc: "30% * Exponential(mean 6)"
+    cost: 300
+    detection: 0.2
+  second-factor:
+    label: Get past the SMS code by cloning the runner's handset number
+    leaf: basic
+    ttc: "35% * LogNormal(1.5, 0.7)"
+    cost: 600
+    detection: 0.3
+  dispatch-route:
+    label: Convince the fixer's dispatch desk to change the payout account
+    leaf: basic
+    ttc: "15% * Exponential(mean 8)"
+    cost: 150
+    detection: 0.45
+
+assets:
+  runner-earnings:
+    label: Diverted payouts, refunds and dispatch time
+    loss: {i: "Pert(400, 1800, 6000)"}
+
+controls:
+  app-passkey:
+    label: Passkeys bound to the runner's implant instead of SMS codes
+    cost: 1200
+    enabled: false
+    effects:
+      - {node: second-factor, ttc: "2% * LogNormal(2.5, 0.7)"}
+  payout-change-hold:
+    label: Hold payouts for 72 hours after an account change and ping the old handset
+    cost: 400
+    enabled: false
+    effects:
+      - {node: dispatch-route, ttc: "4% * Exponential(mean 8)"}
+
+analysis:
+  seed: 104
+  samples: 10000
+  confidence: 0.95

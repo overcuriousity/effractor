@@ -1,57 +1,57 @@
 effractor: 2
 profile: architecture
-name: Remote building-automation operator
+name: Arcology Nine life support
 time_unit: d
 horizon: 60
 library: {id: core-components, version: 1}
 
 entities:
-  internet:
+  citynet:
     kind: network
-    label: Internet
-  corp-net:
+    label: Citynet
+  facilities-net:
     kind: network
-    label: Operator corporate network
-    description: The facilities company's office network, where the engineers sit
-  ot-net:
+    label: Halcyon facilities network
+    description: Halcyon Dynamics' facilities office network, where the life-support engineers sit
+  life-support-net:
     kind: network
-    label: Building automation network
-    description: The controllers and sensors in the managed building
-  edge-router:
+    label: Life-support network
+    description: The controllers and sensors of Arcology Nine's upper floors
+  tower-router:
     kind: router
-    label: Site edge router
+    label: Tower edge router
     parameters:
       escape:
         status: unknown
-  edge-rules:
+  tower-firewall:
     kind: firewall
-    label: Site firewall
-    description: Only the operator's supervisory link is meant to reach the OT network
-  engineer-pc:
+    label: Tower firewall
+    description: Only the facilities supervisory link is meant to reach the life-support network
+  engineer-rig:
     kind: host
-    label: Engineer workstation
-    description: A facilities engineer's PC on the corporate network
+    label: Engineer's rig
+    description: A life-support engineer's workstation on the facilities network
     parameters:
       escape:
         status: unknown
-  scada-client:
+  supervisory-console:
     kind: application
-    label: Supervisory client
-    description: The SCADA/HMI client the engineer drives the building with
+    label: Supervisory console
+    description: The SCADA/HMI client the engineer drives air, water and lifts with
     parameters:
       take-over:
         status: unknown
       take-over-guarded:
         status: unknown
     defenses: {guarded: unknown}
-  bas-host:
+  atmos-controller:
     kind: host
-    label: Automation controller
-    description: The programmable controller that runs HVAC, lifts and access control
+    label: Atmospherics controller
+    description: The programmable controller that runs the air scrubbers, lifts and blast doors for floors 180 to 240
     parameters:
       escape:
         status: unknown
-  bas-service:
+  atmos-management:
     kind: service
     label: Controller management service
     description: The controller's web management interface on tcp/443
@@ -69,9 +69,9 @@ entities:
       take-over-guarded:
         status: unknown
     defenses: {guarded: unknown}
-  bas-firmware:
+  atmologic:
     kind: product
-    label: Controller firmware 7.1
+    label: Verdance AtmoLogic 7.1
     parameters:
       find-exploit:
         status: illustrative
@@ -82,7 +82,7 @@ entities:
         ttc: "Never"
         note: "Teaching input: firmware 7.2 closes the modelled bug"
     defenses: {patched: false}
-  ops-account:
+  ops-login:
     kind: account
     label: Operations login
     description: The shared operations login on the controller
@@ -99,7 +99,7 @@ entities:
   ops-password:
     kind: credential
     label: Operations password
-    description: Saved in the engineer workstation's credential store
+    description: Saved in the engineer's rig's credential store
     parameters:
       extract:
         status: illustrative
@@ -110,98 +110,98 @@ entities:
         ttc: "Never"
         note: "Teaching input: an OS-bound store gives nothing up"
     defenses: {protected: false}
-  building-controls:
+  atmos-controls:
     kind: data
-    label: Building control state
-    description: Setpoints, door schedules and lift logic — changing it is the attacker's goal
+    label: Atmospherics control state
+    description: Air-mix setpoints, blast-door schedules and lift logic; changing it is the attacker's goal
     defenses: {encrypted: false}
 
 associations:
-  router-internet:
+  router-citynet:
     kind: attached
-    from: edge-router
-    to: internet
-  router-corp:
+    from: tower-router
+    to: citynet
+  router-facilities:
     kind: attached
-    from: edge-router
-    to: corp-net
-  router-ot:
+    from: tower-router
+    to: facilities-net
+  router-life-support:
     kind: attached
-    from: edge-router
-    to: ot-net
-  engineer-on-corp:
+    from: tower-router
+    to: life-support-net
+  rig-on-facilities:
     kind: attached
-    from: engineer-pc
-    to: corp-net
-  bas-on-ot:
+    from: engineer-rig
+    to: facilities-net
+  controller-on-life-support:
     kind: attached
-    from: bas-host
-    to: ot-net
+    from: atmos-controller
+    to: life-support-net
   router-filters:
     kind: filters
-    from: edge-router
-    to: edge-rules
-  engineer-runs-client:
+    from: tower-router
+    to: tower-firewall
+  rig-runs-console:
     kind: hosts
-    from: engineer-pc
-    to: scada-client
+    from: engineer-rig
+    to: supervisory-console
     privilege: user
-  bas-runs-service:
+  controller-runs-management:
     kind: hosts
-    from: bas-host
-    to: bas-service
+    from: atmos-controller
+    to: atmos-management
     privilege: admin
-  service-is-firmware:
+  management-is-atmologic:
     kind: instance-of
-    from: bas-service
-    to: bas-firmware
+    from: atmos-management
+    to: atmologic
   password-stored:
     kind: stores
-    from: engineer-pc
+    from: engineer-rig
     to: ops-password
     privilege: user
   password-authenticates:
     kind: authenticates
     from: ops-password
-    to: ops-account
+    to: ops-login
   ops-authorizes:
     kind: authorizes
-    from: ops-account
-    to: bas-service
+    from: ops-login
+    to: atmos-management
   ops-grant:
     kind: grants
-    from: ops-account
-    to: bas-host
+    from: ops-login
+    to: atmos-controller
     privilege: admin
     description: The operations login is an administrator on the controller
-  corp-administers-ot:
+  facilities-administers-atmos:
     kind: administration
-    from: corp-net
-    to: bas-host
-    description: The supervisory link lets the corporate network manage the controller
+    from: facilities-net
+    to: atmos-controller
+    description: The management link lets the facilities network administer the controller
   supervisory-flow:
     kind: permits
-    from: edge-rules
+    from: tower-firewall
     to: supervise
     allowed: true
-  bas-holds-controls:
+  controller-holds-controls:
     kind: holds
-    from: bas-service
-    to: building-controls
+    from: atmos-management
+    to: atmos-controls
     privilege: user
     decrypts: true
   ops-writes-controls:
     kind: accesses
-    from: ops-account
-    to: building-controls
+    from: ops-login
+    to: atmos-controls
     mode: write
 
 flows:
   supervise:
-    label: Supervisory client to the controller
-    source: scada-client
-    target: bas-service
-    route: [corp-net, edge-router, ot-net]
+    label: Supervisory console to the controller
+    source: supervisory-console
+    target: atmos-management
+    route: [facilities-net, tower-router, life-support-net]
     protocol: tcp/443
     parameters:
       connect:
@@ -209,10 +209,29 @@ flows:
         ttc: "Exponential(mean 0.1)"
         note: Teaching input
 
+clusters:
+  engineer-rig:
+    label: Engineer's rig
+    members: [engineer-rig, supervisory-console]
+    shown: [engineer-rig]
+    closed: true
+  atmos-controller:
+    label: Atmospherics controller
+    members: [atmos-controller, atmos-management, atmologic]
+    closed: true
+  tower-edge:
+    label: Tower edge
+    members: [tower-router, tower-firewall]
+    closed: false
+  ops-access:
+    label: Operations access
+    members: [ops-login, ops-password]
+    closed: false
+
 attacker:
   footholds:
-    - {entity: engineer-pc, state: admin}
-  target: {entity: building-controls, state: modified}
+    - {entity: engineer-rig, state: admin}
+  target: {entity: atmos-controls, state: modified}
 
 scenarios:
   deny-supervisory:
@@ -220,13 +239,13 @@ scenarios:
     changes:
       - {association: supervisory-flow, field: allowed, value: false}
   patch-firmware:
-    label: Update the controller to firmware 7.2
+    label: Update the controller to AtmoLogic 7.2
     changes:
-      - {entity: bas-firmware, defense: patched, value: true}
+      - {entity: atmologic, defense: patched, value: true}
   require-mfa:
     label: Require multi-factor login on the controller
     changes:
-      - {entity: ops-account, defense: mfa, value: true}
+      - {entity: ops-login, defense: mfa, value: true}
   protect-password:
     label: Move the operations password to an OS-bound store
     changes:

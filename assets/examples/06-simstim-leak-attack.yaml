@@ -1,6 +1,6 @@
 effractor: 2
 profile: attack-tree
-name: Unreleased game build leaks before launch
+name: Unreleased sim-stim build leaks before launch
 time_unit: d
 horizon: 120
 currency: EUR
@@ -8,19 +8,19 @@ top: build-leaked
 
 nodes:
   build-leaked:
-    label: A playable build of the studio's unannounced sequel is posted online
-    description: A 600-person game studio is four months from revealing its next open-world title. Leak groups pay well for playable builds. The routes are the studio's own build farm and artifact store, the platform holder's certification portal, an outsourcing partner that receives nightly builds over a legacy file share, and the review-copy programme. A studio SSO identity is shared by the internal routes and sampled once; the artifact store needs two of three findings before a build can be pulled. Costs are the leak group's in EUR; detection is the chance the studio's security team notices in time to act. Illustrative inputs.
+    label: A playable build of the studio's unannounced sim-stim sequel hits the Undercity boards
+    description: Lotus Reel, a 600-person sim-stim studio on the Glass Mile, is four months from revealing its next full-sensory title. Leak crews pay well for playable builds. The routes are the studio's own render farm and artifact store, the Halcyon Dynamics certification portal every sim-stim release must pass, a Docks outsourcing partner that receives nightly builds over a legacy file share, and the critics' preview programme. A studio SSO identity is shared by the internal routes and sampled once; the artifact store needs two of three findings before a build can be pulled. Costs are the leak crew's in EUR; detection is the chance the studio's ICE team notices in time to act. Illustrative inputs.
     gate: or
     children:
-      - build-farm-route
+      - render-farm-route
       - cert-portal-route
       - partner-route
-      - review-copy-route
+      - preview-copy-route
     consequences:
       - {asset: launch-revenue, dim: c}
       - {asset: reveal-campaign, dim: c}
       - {asset: studio-reputation, dim: c, fraction: 0.4}
-  build-farm-route:
+  render-farm-route:
     label: Pull a build from the studio's artifact store
     gate: and
     children: [studio-identity, artifact-store-access]
@@ -35,7 +35,7 @@ nodes:
     cost: 4000
     detection: 0.3
   contractor-account:
-    label: Obtain a short-term QA contractor's account
+    label: Obtain a short-term sensory-QA contractor's account
     leaf: undeveloped
     ttc: "30% * Exponential(mean 20)"
     cost: 2000
@@ -45,13 +45,13 @@ nodes:
     gate: and
     children: [reused-password, push-accepted]
   reused-password:
-    label: A developer's password is reused from an old breach
+    label: A developer's password is reused from an old board dump
     leaf: basic
     ttc: "20% * Exponential(mean 3)"
     cost: 100
     detection: 0.02
   push-accepted:
-    label: The developer accepts an unexpected push prompt
+    label: The developer, mid-session in a rig, accepts an unexpected push prompt
     leaf: basic
     ttc: "25% * Exponential(mean 4)"
     cost: 50
@@ -81,7 +81,7 @@ nodes:
     cost: 1500
     detection: 0.05
   cert-portal-route:
-    label: Download the submission from the platform holder's certification portal
+    label: Download the submission from Halcyon's certification portal
     gate: and
     children: [studio-identity, cert-portal-role]
   cert-portal-role:
@@ -91,7 +91,7 @@ nodes:
     cost: 500
     detection: 0.2
   partner-route:
-    label: Take a nightly build from the outsourcing partner
+    label: Take a nightly build from the Docks outsourcing partner
     gate: or
     children: [legacy-share, partner-workstation]
   legacy-share:
@@ -101,24 +101,24 @@ nodes:
     cost: 6000
     detection: 0.1
   partner-workstation:
-    label: Control an artist workstation at the partner
+    label: Control a sensory-artist workstation at the partner
     leaf: basic
     ttc: "25% * Gamma(3, 12)"
     cost: 9000
     detection: 0.08
-  review-copy-route:
-    label: A review copy is passed on before embargo
+  preview-copy-route:
+    label: A critic's preview copy is passed on before embargo
     gate: and
-    children: [review-copies-sent, reviewer-passes-on]
-  review-copies-sent:
-    label: Review copies have gone out
+    children: [preview-copies-sent, critic-passes-on]
+  preview-copies-sent:
+    label: Preview copies have gone out
     description: Scheduled three weeks before launch.
     leaf: basic
     ttc: "TruncatedNormal(100, 5)"
     cost: 0
     detection: 0
-  reviewer-passes-on:
-    label: A reviewer or their contact passes the copy on
+  critic-passes-on:
+    label: A critic or their fixer passes the copy on
     leaf: undeveloped
     ttc: "4% * Exponential(mean 5)"
     cost: 20000
@@ -129,7 +129,7 @@ assets:
     label: Sales lost to a leaked, pirated build
     loss: {c: "Pert(1000000, 6000000, 30000000)"}
   reveal-campaign:
-    label: Marketing reveal that no longer lands
+    label: Neon-billboard reveal that no longer lands
     loss: {c: 2500000}
   studio-reputation:
     label: Talent and partner trust after a public leak
@@ -162,12 +162,12 @@ controls:
     enabled: true
     effects:
       - {node: ci-token-in-logs, ttc: "10% * Gamma(2, 20)"}
-  watermarked-reviews:
-    label: Per-reviewer watermarked review builds
+  watermarked-previews:
+    label: Per-critic watermarked preview builds
     cost: 12000
     enabled: false
     effects:
-      - {node: reviewer-passes-on, ttc: "1.5% * Exponential(mean 5)"}
+      - {node: critic-passes-on, ttc: "1.5% * Exponential(mean 5)"}
 
 analysis:
   seed: 106
