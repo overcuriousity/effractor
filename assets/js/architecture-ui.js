@@ -443,7 +443,9 @@
   function input(type, value) {
     var i = document.createElement(type === "textarea" ? "textarea" : "input");
     if (type !== "textarea") i.type = type;
-    i.value = value == null ? "" : value;
+    // What the document holds: a value that differs is typed, not committed.
+    i.defaultValue = value == null ? "" : value;
+    i.value = i.defaultValue;
     return i;
   }
 
@@ -626,9 +628,39 @@
     form.appendChild(list);
   }
 
+  // What the form was last built from: while none of it changes, a change
+  // elsewhere (a solve finishing or refused) leaves the form as it is.
+  var rendered = null;
+  function formKey() {
+    return { doc: doc(), diagnostics: app.state.diagnostics, selected: app.state.selected, picked: picked().join("\u0000"), openSlot: openSlot, catalog: catalog };
+  }
+  function sameKey(a, b) {
+    return !!a && !!b && Object.keys(a).every(function (k) {
+      return a[k] === b[k];
+    });
+  }
+
+  // The form, built again. The field being typed in keeps its focus, and —
+  // where the document still holds what it started from — the text not yet
+  // committed and the caret.
   function renderProperties() {
     var form = $("properties");
-    var keepFocus = document.activeElement && form.contains(document.activeElement) ? document.activeElement.id : null;
+    var active = document.activeElement && form.contains(document.activeElement) ? document.activeElement : null;
+    var typing = active && active.id && (active.tagName === "TEXTAREA" || (active.tagName === "INPUT" && active.type === "text")) && active.value !== active.defaultValue
+      ? { id: active.id, value: active.value, base: active.defaultValue, start: active.selectionStart, end: active.selectionEnd, selected: rendered && rendered.selected }
+      : null;
+    buildProperties(form);
+    rendered = formKey();
+    var again = active && active.id ? $(active.id) : null;
+    if (!again) return;
+    again.focus();
+    if (typing && typing.selected === app.state.selected && again.defaultValue === typing.base && again.value === typing.base) {
+      again.value = typing.value;
+      again.setSelectionRange(typing.start, typing.end);
+    }
+  }
+
+  function buildProperties(form) {
     form.replaceChildren();
     if (picked().length > 1 && sections.picked) {
       form.hidden = false;
@@ -642,7 +674,6 @@
       form.hidden = false;
       if (openSlot && openSlot.indexOf(q.kind + "/" + q.id + "\u0000") !== 0) openSlot = null;
       sections[q.kind](form, q.id);
-      if (keepFocus && $(keepFocus)) $(keepFocus).focus();
       return;
     }
     form.hidden = !e;
@@ -705,7 +736,6 @@
       }, null, true);
     });
     problems(form, "entities." + id);
-    if (keepFocus && $(keepFocus)) $(keepFocus).focus();
   }
   // Filled in by architecture-links-ui.js: entity(form, id) adds to a
   // component's form, association/flow(form, id) are theirs whole.
@@ -751,7 +781,7 @@
     });
     renderRail();
     renderOutline();
-    renderProperties();
+    if (!sameKey(rendered, formKey())) renderProperties();
   });
 
   window.effractorArchitectureUi = {
