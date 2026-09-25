@@ -465,9 +465,13 @@
 
   var SPREAD_GAP = 24; // px clear round an opened cluster
 
-  // The architecture last painted, for the glide from it: its name and
-  // where its clustered members were drawn.
+  // The architecture last painted, for the glide from it: which document it
+  // was (state.documents when laid out) and where its clustered members
+  // were drawn.
   var painted = null;
+  // Places set by hand for the change on its way (cluster-ui.js: a member
+  // dropped out of its stack), which opening in place leaves where they are.
+  var handPlaced = null;
   function paint() {
     if (!state.laid) return;
     if (state.laidView === "attack") {
@@ -475,33 +479,38 @@
       return renderer.render(state.laid, {});
     }
     if (P.isArchitecture(state.doc)) {
-      // The same document glides to its new drawing; another one just appears.
-      var motion = painted && painted.name === state.doc.name ? window.effractorClusters.transitions(painted.hidden, state.hidden) : null;
-      painted = { name: state.doc.name, hidden: state.hidden };
+      var C = window.effractorClusters;
+      var Pos = window.effractorPositions;
+      // The same document glides to its new drawing; another one — even of
+      // the same name — just appears.
+      var motion = painted && painted.document === state.laidDocument ? C.transitions(painted.hidden, state.hidden) : null;
+      painted = { document: state.laidDocument, hidden: state.hidden };
+      var stored = positions.load(state.doc.name);
+      var kept = {};
+      var keep = function (places) {
+        Object.keys(places).forEach(function (id) {
+          kept[id] = stored[id] = { x: Math.round(places[id].x), y: Math.round(places[id].y) };
+        });
+      };
+      var opened = motion ? C.opened(motion) : [];
+      var closing = motion && Object.keys(motion.origins).some(function (id) {
+        return id.indexOf("cluster/") === 0;
+      });
       // Clusters closing or opening, by an edit, an undo or the source: in
       // place, from where things stood when last drawn.
-      if (motion && state.placed) {
-        var stored = positions.load(state.doc.name);
+      if ((opened.length || closing) && state.placed) {
         var prev = {};
         state.placed.nodes.forEach(function (n) {
           prev[n.id] = Object.prototype.hasOwnProperty.call(stored, n.id) ? stored[n.id] : { x: n.x, y: n.y };
         });
-        var kept = window.effractorClusters.inPlace(motion, prev, stored);
-        if (Object.keys(kept).length) positions.moveAll(state.doc.name, kept);
+        keep(C.inPlace(motion, prev, stored, handPlaced));
       }
       var options = { permits: showPermits, outlines: showOutlines };
-      state.placed = window.effractorPositions.place(state.laid, positions.load(state.doc.name), options);
       // A cluster that just opened pushes what it now covers out of its way,
       // and those places are kept.
-      var opened = motion ? window.effractorClusters.opened(motion) : [];
-      if (opened.length) {
-        var room = window.effractorPositions.place(state.laid, positions.load(state.doc.name), { permits: false, outlines: true });
-        var moved = window.effractorClusters.spread(room, opened, SPREAD_GAP);
-        if (Object.keys(moved).length) {
-          putPositions(moved);
-          state.placed = window.effractorPositions.place(state.laid, positions.load(state.doc.name), options);
-        }
-      }
+      if (opened.length) keep(C.spread(Pos.place(state.laid, stored, { permits: false, outlines: true }), opened, SPREAD_GAP));
+      if (Object.keys(kept).length) positions.moveAll(state.doc.name, kept);
+      state.placed = Pos.place(state.laid, stored, options);
       return renderer.render(state.placed, {}, motion);
     }
     painted = null;
@@ -540,6 +549,7 @@
     var token = gate.issue("layout");
     fitOwed = fitOwed || !!fit;
     var shown = attackShown();
+    var documentNo = state.documents;
     var described;
     if (shown) {
       // At most a window of the generated graph, round what is in focus.
@@ -558,6 +568,9 @@
     return layout(described).then(function (laid) {
       if (!gate.accept(token)) return;
       state.laid = laid;
+      // Which document it draws: a paint before the next layout arrives is
+      // still of this one.
+      state.laidDocument = documentNo;
       // Where each member of a closed cluster is drawn, and what merged lines
       // hold: this layout's, set with it.
       state.hidden = !shown && described.hidden ? described.hidden : null;

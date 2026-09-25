@@ -899,3 +899,45 @@ test('review: several selected stay selected when results arrive', async () => {
   assert.deepEqual(h.app.state.picked, ['entity/web', 'entity/db']);
   assert.equal(h.nodes.get('inspector').hidden, false);
 });
+
+// Two architectures of one name ("Untitled"): `arch` draws web and db as
+// one closed cluster, every other text draws them apart.
+function namedAlike() {
+  const loads = [], writes = [];
+  const box = (id, x) => ({ id, x, y: 0, width: 10, height: 10 });
+  const page = racePage('arch', null, {
+    docOf: (text, doc) => (text.startsWith('arch') ? { ...doc, name: 'Untitled', src: text, entities: { web: doc.entities.web, db: { kind: 'service', label: 'Db' } } } : doc),
+    view: {
+      describe: doc => (doc.src === 'arch'
+        ? { name: doc.name, hidden: { web: 'cluster/x', db: 'cluster/x' }, nodes: [box('cluster/x', 100)] }
+        : { name: doc.name, nodes: [box('entity/web', 0), box('entity/db', 50)] }),
+      route: () => [],
+    },
+    positions: {
+      createStore: () => ({ load: name => (loads.push(name), { 'entity/web': { x: 1, y: 1 }, 'entity/db': { x: 31, y: 1 } }), moveAll: (name, places) => writes.push(places), clear() {} }),
+      place: laid => laid,
+    },
+  });
+  return { ...page, loads, moves: writes };
+}
+
+test('review: another document of the same name just appears; the same one opens in place, with one read and one write', async () => {
+  const h = namedAlike();
+  await h.app.ready; await h.settle();
+  h.loads.length = 0;
+  h.app.setPermits(true);
+  assert.equal(h.loads.length, 1, 'a repaint reads the places once');
+  assert.deepEqual(h.moves, [], 'and writes none');
+  assert.equal(await h.app.replaceDocument('arch2', 'opened other'), true); await h.settle();
+  assert.equal(h.app.state.doc.name, 'Untitled');
+  assert.deepEqual(h.moves, [], 'another document is not opened in place');
+  // Back to the clustered text and open again, as an edit: in place.
+  assert.equal(await h.app.applyEdit({ doc: h.docOf('arch') }), true);
+  assert.equal(h.moves.length, 1, 'closing in place is written too');
+  h.loads.length = 0;
+  h.moves.length = 0;
+  assert.equal(await h.app.applyEdit({ doc: h.docOf('arch-open') }), true);
+  assert.equal(h.loads.length, 1, 'read once');
+  assert.equal(h.moves.length, 1, 'written once');
+  assert.deepEqual(h.moves[0], { 'entity/web': { x: 85, y: 0 }, 'entity/db': { x: 115, y: 0 } }, 'round where the cluster stood');
+});
