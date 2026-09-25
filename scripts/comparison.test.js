@@ -78,6 +78,16 @@ test('a scenario is removed alone, and a new id never collides', () => {
   assert.equal(C.freshId({ scenarios: {} }, ''), 'scenario');
 });
 
+test('a new scenario takes the first number no scenario is called by', () => {
+  const two = { scenarios: { a: { label: 'Scenario 1' }, b: { label: 'Scenario 2' } } };
+  assert.equal(C.newLabel(two), 'Scenario 3');
+  delete two.scenarios.a;
+  assert.equal(C.newLabel(two), 'Scenario 1', 'after a removal, not a second "Scenario 2"');
+  assert.equal(C.newLabel({ scenarios: { x: { label: 'Scenario 2' } } }), 'Scenario 1');
+  assert.equal(C.newLabel({}), 'Scenario 1');
+  assert.equal(C.newLabel(doc), 'Scenario 1');
+});
+
 test('what a scenario can switch: each defence a component has and each permission', () => {
   const all = C.switches(doc, catalog);
   const ssh = all.find((s) => s.entity === 'openssh');
@@ -130,15 +140,12 @@ test('the benefit is the paired difference the solver gave, never a difference o
   const up = C.summary(R('deny'));
   assert.equal(up.benefit, 1);
   assert.deepEqual(up.ci, { lo: 1, hi: 1 });
-  assert.equal(up.verdict, 'lower');
   const zero = C.summary(R('patch'));
   assert.equal(zero.benefit, 0);
-  assert.equal(zero.verdict, 'same');
   const worse = C.summary(R('fast'));
   const d = R('fast').delta.available;
   assert.equal(worse.benefit, d.mean);
   assert.deepEqual(worse.ci, d.ci);
-  assert.equal(worse.verdict, 'higher');
   const b = R('fast').baseline.outcome.available.ci;
   const s = R('fast').scenario.outcome.available.ci;
   assert.notDeepEqual(worse.ci, { lo: b.lo - s.hi, hi: b.hi - s.lo });

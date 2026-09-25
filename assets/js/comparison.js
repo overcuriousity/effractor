@@ -42,6 +42,16 @@
     return id;
   }
 
+  // "Scenario n" for a new one: the first n no scenario is called by, so a
+  // removal does not lead to two of one name.
+  function newLabel(doc) {
+    var taken = Object.create(null);
+    ids(doc).forEach(function (id) {
+      taken[doc.scenarios[id].label] = true;
+    });
+    for (var n = 1; ; n++) if (!taken["Scenario " + n]) return "Scenario " + n;
+  }
+
   // The scenario the comparison names, while the document still has it; ""
   // is the baseline alone. Choosing one never rewrites the baseline.
   function selectable(doc, id) {
@@ -221,7 +231,6 @@
       ciReason: d ? d.ci_reason : null,
       reason: u ? u.reason : null,
       missing: u ? u.missing.slice() : [],
-      verdict: benefit === null ? null : benefit > 0 ? "lower" : benefit < 0 ? "higher" : "same",
       baseline: sideHeadline(result.baseline),
       scenario: sideHeadline(result.scenario),
       illustrative: { baseline: illustrative(result.baseline), scenario: illustrative(result.scenario) },
@@ -370,6 +379,7 @@
     state: state,
     ids: ids,
     freshId: freshId,
+    newLabel: newLabel,
     selectable: selectable,
     putScenario: putScenario,
     rename: rename,

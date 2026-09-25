@@ -186,12 +186,14 @@ the owner accepted it in the 8082 preview. Three stacked PRs:
   hand-written in nmap's shape: Deep needs root); `imported.doc.json` is
   pinned by the Node test, `tests/json.rs` and `scripts/check-nmap-wasm.js`
   (new CI step, browser wasm).
-- **Deferred minors** (from the fresh review): a stale read error survives
-  Back; a merge-only choice is summarised as "Nothing new to add"; for a /16
-  the dialog says "Untick some hosts" (no untick-all, no smaller-range hint);
-  a dropped file that fails to read is not said; a drawn network without
-  addresses makes the import propose a second one; Deep/Complete fixtures are
-  hand-written, not recorded; `slug()` keeps accents as separate letters.
+- **Deferred minors** (from the fresh review), fixed on
+  `fix/review-nmap-attack` (2026-09-25) except where said: the read error
+  is cleared, a merge is summarised as "addresses for n drawn hosts", the
+  limit says what to untick (hosts or a smaller range; ports of one host)
+  and an "all hosts" box unticks everything, a dropped file that fails is
+  said, `slug()` drops accents. A drawn network without addresses: the
+  plan can fill it (`merges.network`), but the preview does not offer the
+  choice yet (owner's to decide). Deep/Complete fixtures stay hand-written.
 
 ## Continuation — top bar and modes (2026-09-24)
 
@@ -248,10 +250,10 @@ preview after two layout rounds. Next is `lecture-workflow` (plan Task 8).
 - Only baseline vs one scenario, by design (spec §9). The owner asked about
   comparing two scenarios directly and was fine without it for now; a paired
   A-vs-B solve would need the reference side to be a scenario in Rust.
-- Deferred minors: the comparison chart draws a structural baseline dashed;
-  the Results tab lists only the baseline's assumptions; the wasm refusal of
-  duplicate/wrong-kind scenario changes is checked by Rust format tests, not
-  through wasm.
+- Deferred minors, fixed on `fix/review-nmap-attack` (2026-09-25): a
+  structural baseline is solid in the comparison chart; the Results tab
+  adds "Only in “scenario”" assumptions; `scripts/check-scenario-wasm.js`
+  (CI) sends duplicate and wrong-kind scenario changes through wasm.
 
 ## Continuation — unfinished flows and plain problems (2026-09-24)
 

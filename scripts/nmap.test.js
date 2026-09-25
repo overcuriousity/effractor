@@ -720,3 +720,123 @@ test('a known port with nothing to add still marks its product', () => {
   assert.equal(out.entities.openssh.defenses.patched, false);
   assert.equal(out.entities.openssh.parameters['find-exploit'].note, 'nmap sshv1: VULNERABLE, X (SSHv1 enabled).');
 });
+
+test('two scanned hosts that are one drawn host by address are one row: every port once, one router', () => {
+  const d = lab();
+  d.entities.lan2 = { kind: 'network', label: 'Second network', addresses: ['10.0.2.0/24'] };
+  d.entities.srv.addresses = ['10.0.1.5', '10.0.2.5'];
+  const port = (n, product) => ({ protocol: 'tcp', port: n, state: 'open', service: { name: 'svc' + n, product: product, version: null }, scripts: [] });
+  const scan = { args: '', silentUdp: 0, hosts: [
+    { addresses: ['10.0.1.5'], hostname: null, os: null, device: ['WAP'], ports: [port(80, 'nginx'), port(443, 'nginx')] },
+    { addresses: ['10.0.1.9'], hostname: null, os: null, ports: [] },
+    { addresses: ['10.0.2.5'], hostname: null, os: null, ports: [port(443, 'nginx'), port(8080, null)] },
+  ] };
+  const p = N.plan(d, 'nmap', scan, '', {});
+  assert.deepEqual(p.hosts.map(h => [h.key, h.known]), [['h0', 'srv'], ['h1', null]], 'keys stay those of the first listing');
+  const srv = p.hosts[0];
+  assert.deepEqual(srv.addresses, ['10.0.1.5', '10.0.2.5']);
+  assert.deepEqual(srv.ports.map(r => r.proto), ['tcp/80', 'tcp/443', 'tcp/8080']);
+  assert.deepEqual(srv.networks, ['lan2'], 'attached where its second address says');
+  assert.equal(srv.role, 'router', 'the device class of either listing');
+  const t = N.defaults(p);
+  const out = N.apply(d, p, t, specOf, STAMP).doc;
+  const labels = Object.values(out.entities).map(e => e.label);
+  assert.equal(labels.filter(l => l === 'svc443').length, 1, 'one service per port');
+  assert.equal(labels.filter(l => l === 'Server router').length, 1, 'one router');
+  assert.equal(Object.values(out.flows).filter(f => f.protocol === 'tcp/443').length, 1);
+});
+
+test('a host listed with every port reads in time (ports are keyed, not searched)', () => {
+  let x = '<?xml version="1.0"?><nmaprun args="nmap -oX - 10.0.0.5"><host><status state="up"/><address addr="10.0.0.5" addrtype="ipv4"/><ports>';
+  for (let i = 1; i <= 65535; i++) x += '<port protocol="tcp" portid="' + i + '"><state state="open"/></port>';
+  x += '</ports></host><host><status state="up"/><address addr="10.0.0.5" addrtype="ipv4"/><ports><port protocol="tcp" portid="7"><state state="open"/></port></ports></host>';
+  x += '<runstats><finished exit="success"/></runstats></nmaprun>';
+  const t = Date.now();
+  const { scan } = N.read(x);
+  const ms = Date.now() - t;
+  assert.equal(scan.hosts.length, 1);
+  assert.equal(scan.hosts[0].ports.length, 65535);
+  assert.ok(ms < 3000, 'read took ' + ms + ' ms');
+});
+
+test('an IPv6 link-local address may name its interface; nothing else gets through with it', () => {
+  assert.equal(N.command('standard', 'fe80::1%eth0').text, 'nmap -6 -sT -sV -oX - fe80::1%eth0');
+  assert.equal(N.command('standard', 'fe80::1%enp0s3.100 fe80::2%wlan_0').text, 'nmap -6 -sT -sV -oX - fe80::1%enp0s3.100 fe80::2%wlan_0');
+  for (const bad of ['10.0.0.1%eth0', 'fe80::1%', 'fe80::1%eth0;id', 'fe80::1%$(id)', 'fe80::1%eth0%eth1', '%eth0', 'fe80::1%-x', 'host%eth0']) {
+    assert.equal(N.command('standard', bad).text, undefined, bad);
+  }
+  assert.match(N.command('standard', 'fe80::/64%eth0').note, /too wide/);
+});
+
+test('the summary says what Add does, a merge that only fills addresses included', () => {
+  const d = lab();
+  const one = { args: '', silentUdp: 0, hosts: [{ addresses: ['10.0.1.7'], hostname: null, os: null, ports: [] }] };
+  const p = N.plan(d, 'nmap', one, '10.0.1.0/24', { h0: 'printer' });
+  const t = N.defaults(p);
+  const s = N.summary(d, p, t, null);
+  assert.equal(s.filled, 1);
+  assert.equal(N.said(s), 'Adds 1 attachment, addresses for 1 drawn host.');
+  assert.equal(N.said(Object.assign({}, s, { attached: 0 })), 'Adds addresses for 1 drawn host.');
+  assert.equal(N.said(Object.assign({}, s, { attached: 0, filled: 0 })), 'Nothing new to add.');
+  assert.equal(N.said(Object.assign({}, s, { attached: 0, filled: 0, unpatched: 2 })), 'Marks 2 products unpatched.');
+  assert.equal(N.said(Object.assign({}, s, { hosts: 2, services: 1, attached: 0, filled: 0, unpatched: 1 })), 'Adds 2 hosts, 1 service, marks 1 product unpatched.');
+  t.hosts.h0 = false;
+  assert.equal(N.summary(d, p, t, null).filled, 0);
+});
+
+test('past the limits the summary says what to untick: hosts, or ports of the one host', () => {
+  const d = lab();
+  const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', {});
+  const t = N.defaults(p);
+  assert.match(N.summary(d, p, t, { entities: 10, relationships: 2000 }).tooMany, /Untick some hosts, or scan a smaller range\.$/);
+  t.hosts.h1 = false;
+  assert.match(N.summary(d, p, t, { entities: 10, relationships: 2000 }).tooMany, /Untick some ports\.$/);
+});
+
+test('a drawn network without addresses may be the proposed one: filled, not drawn twice', () => {
+  const d = lab();
+  delete d.entities.lan.addresses; // admin-box and srv are attached to it
+  const p0 = N.plan(d, 'nmap', deep(), '10.0.1.0/24', {});
+  assert.deepEqual(p0.networkCandidates, ['lan']);
+  assert.ok(!p0.network.merged, 'new unless chosen, as the spec says');
+
+  const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', { network: 'lan' });
+  assert.equal(p.network.merged, 'lan');
+  assert.deepEqual(p.hosts.map(h => h.networks), [[], ['lan']], 'the server is on it already');
+  assert.deepEqual(p.hosts.map(h => h.route), [['lan'], ['lan']]);
+  const t = N.defaults(p);
+  const s = N.summary(d, p, t, null);
+  assert.deepEqual([s.networks, s.filledNetworks, s.attached, s.hosts], [0, 1, 0, 1]);
+  assert.equal(N.said({ hosts: 0, filled: 0, filledNetworks: 1 }), 'Adds addresses for 1 drawn network.');
+  const out = N.apply(d, p, t, specOf, STAMP).doc;
+  assert.equal(Object.values(out.entities).filter(e => e.kind === 'network').length, 1);
+  assert.deepEqual(out.entities.lan.addresses, ['10.0.1.0/24']);
+  const h = Object.keys(out.entities).find(id => out.entities[id].label === '10.0.1.7');
+  assert.ok(Object.values(out.associations).some(a => a.kind === 'attached' && a.from === h && a.to === 'lan'));
+  assert.ok(Object.values(out.flows).every(f => f.route.length === 1 && f.route[0] === 'lan'));
+
+  // Unticked, the drawn network is left as it is and nobody joins it.
+  t.network = false;
+  const s2 = N.summary(d, p, t, null);
+  assert.deepEqual([s2.filledNetworks, s2.attached], [0, 0]);
+  const kept = N.apply(d, p, t, specOf, STAMP).doc;
+  assert.equal(kept.entities.lan.addresses, undefined);
+  // A chosen network with addresses, or not a network, is no choice.
+  assert.ok(!N.plan(d, 'nmap', deep(), '10.0.1.0/24', { network: 'srv' }).network.merged);
+});
+
+test('ticking a host ticks what it offers; all hosts at once', () => {
+  const d = lab();
+  const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', {});
+  const t = N.defaults(p);
+  N.tickHosts(p, t, false);
+  assert.deepEqual(t.hosts, { h0: false, h1: false });
+  assert.ok(Object.values(t.ports).every(v => !v));
+  assert.equal(N.summary(d, p, t, null).hosts, 0);
+  N.tickHosts(p, t, true);
+  const on = o => Object.keys(o).filter(k => o[k]);
+  const d0 = N.defaults(p);
+  assert.deepEqual([on(t.hosts), on(t.ports), on(t.findings)], [on(d0.hosts), on(d0.ports), on(d0.findings)], 'back to what was offered');
+  N.tickHost(p.hosts[1], t, false);
+  assert.deepEqual([t.hosts.h0, t.hosts.h1, t.ports['h1/tcp/22']], [true, false, false]);
+});

@@ -173,9 +173,10 @@
     head.appendChild(el("span", String(steps.length), "num"));
     var list = el("ul", null, "link-list");
     if (!steps.length) list.appendChild(el("li", "none: no rule applies to it", "empty"));
+    var at = V.index(g.graph);
     steps.slice(0, MAX_LISTED).forEach(function (id) {
       var item = el("li");
-      var inspected = V.inspect(g.graph, g.support, id);
+      var inspected = V.inspect(g.graph, g.support, id, at);
       var b = button(null, id, function () {
         showStep(id);
       }, "link-row");
@@ -268,9 +269,15 @@
   // What the target's number rests on: each input in plain words, its
   // evidence and value under it; the source path and the note on hover.
   function renderAssumptions(box, results) {
-    var rows = R.assumptions(results.baseline);
+    assumptionList(box, "Assumptions", R.assumptions(results.baseline));
+    // A chosen scenario's own: its changes, speed, the inputs they bring in.
+    var all = doc().scenarios || {};
+    var scenario = Object.prototype.hasOwnProperty.call(all, app.state.scenario) ? all[app.state.scenario] : null;
+    assumptionList(box, "Only in “" + (scenario ? scenario.label : "scenario") + "”", R.scenarioAssumptions(results));
+  }
+  function assumptionList(box, title, rows) {
     if (!rows.length) return;
-    heading(box, "Assumptions", rows.length);
+    heading(box, title, rows.length);
     var list = el("ul", null, "assumptions");
     rows.forEach(function (a) {
       var li = el("li");
@@ -319,9 +326,12 @@
     var ids = V.search(g.graph, query);
     body.replaceChildren();
     var numeric = [false, false, true];
+    // Indexed once per render, not once per row.
+    var at = V.index(g.graph);
+    var byId = results ? R.nodesById(results) : null;
     ids.slice(0, MAX_ROWS).forEach(function (id) {
-      var s = V.inspect(g.graph, g.support, id);
-      var facts = results ? R.nodeFacts(results, id) : [];
+      var s = V.inspect(g.graph, g.support, id, at);
+      var facts = results ? R.nodeFacts(results, id, undefined, byId) : [];
       var p = facts.filter(function (f) {
         return f[0] === "P(step)";
       })[0];

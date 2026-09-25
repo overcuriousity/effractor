@@ -73,8 +73,7 @@
   function newScenario() {
     var d = doc();
     if (!P.isArchitecture(d)) return;
-    var n = C.ids(d).length + 1;
-    var label = "Scenario " + n;
+    var label = C.newLabel(d);
     apply(C.putScenario(d, C.freshId(d, label), label, []));
   }
 
