@@ -59,6 +59,27 @@ fn version_one_trees_migrate_by_version_alone_and_cannot_hold_an_architecture() 
     assert_eq!(errors[0].code, effractor_core::Code::Unsupported);
     assert_eq!(errors[1].code, effractor_core::Code::UnknownLibrary);
 
+    // The first `profile` is the one that counts, to the tree-only readers
+    // too: a second is a duplicate, not an architecture.
+    let webserver = include_str!("fixtures/canonical/webserver.yaml");
+    let twice = webserver.replacen(
+        "profile: fault-tree\n",
+        "profile: fault-tree\nprofile: architecture\n",
+        1,
+    );
+    let errors = effractor_format::load(&twice).unwrap_err();
+    assert_eq!(
+        errors[0].code,
+        effractor_core::Code::DuplicateKey,
+        "{errors:?}"
+    );
+    assert!(
+        errors
+            .iter()
+            .all(|d| d.code != effractor_core::Code::Unsupported),
+        "{errors:?}"
+    );
+
     // A version this build does not know is refused, whatever the profile.
     let future = EMPTY.replacen("effractor: 2", "effractor: 3", 1);
     assert_eq!(

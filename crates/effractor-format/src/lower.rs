@@ -399,10 +399,7 @@ impl Cx {
         // `profile` decides which keys the rest of the document may have, so
         // it is read before any of them. A tree is the default only for
         // the diagnostics: a missing profile is still reported as missing.
-        if let Value::Map(entries) = &root.value
-            && let Some(profile) = entries.iter().find(|e| e.key == "profile")
-            && matches!(&profile.value.value, Value::Scalar { text, .. } if text == ARCHITECTURE)
-        {
+        if is_architecture(root) {
             return architecture_read::document(self, root).map(Document::Architecture);
         }
         self.tree(root).map(Document::Tree)
@@ -433,8 +430,8 @@ impl Cx {
                 .map(|(w, p)| (*w, Some(*p)))
                 .chain([(ARCHITECTURE, None)])
                 .collect();
-            // `architecture` was dispatched above; here it can only be the
-            // value of a second, duplicate `profile` key.
+            // `architecture` is listed so that a wrong profile is told all
+            // three; a document that says it never reaches here.
             self.word(&e.value, "profile", &words).flatten()
         });
         let name = self
@@ -767,6 +764,17 @@ impl Cx {
             effects: effects?,
         })
     }
+}
+
+/// Does the document say it is an architecture? Its first `profile` does: a
+/// second is a duplicate, reported as one.
+pub fn is_architecture(root: &Node) -> bool {
+    let Value::Map(entries) = &root.value else {
+        return false;
+    };
+    entries.iter().find(|e| e.key == "profile").is_some_and(
+        |e| matches!(&e.value.value, Value::Scalar { text, .. } if text == ARCHITECTURE),
+    )
 }
 
 /// A finite decimal number. Rust's parser is close to what a person means, but

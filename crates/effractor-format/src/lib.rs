@@ -129,16 +129,7 @@ pub fn diagnose(text: &str) -> (Option<Model>, Vec<Diagnostic>) {
 }
 
 fn says_architecture(text: &str) -> bool {
-    let Ok(root) = tree::parse(text) else {
-        return false;
-    };
-    let tree::Value::Map(entries) = &root.value else {
-        return false;
-    };
-    entries.iter().any(|e| {
-        e.key == "profile"
-            && matches!(&e.value.value, tree::Value::Scalar { text, .. } if text == lower::ARCHITECTURE)
-    })
+    tree::parse(text).is_ok_and(|root| lower::is_architecture(&root))
 }
 
 /// The model a text describes. Warnings do not stop a load — [`diagnose`]
