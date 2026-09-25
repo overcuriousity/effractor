@@ -208,11 +208,12 @@ pub struct ControlResult {
     pub id: String,
     pub enabled: bool,
     pub cost: f64,
-    /// The measure with this one control flipped.
-    pub flipped: f64,
+    /// The measure with this one control flipped; `null` when that cannot be
+    /// measured, and then `unavailable` says why.
+    pub flipped: Option<f64>,
     /// What the control is worth: for a disabled control, the risk enabling it
     /// removes; for an enabled one, the risk removing it would add.
-    pub value: f64,
+    pub value: Option<f64>,
     /// Present when the value is a sampled loss. The scenarios share their
     /// random numbers, so this is the interval of a paired difference — and if
     /// it straddles another control's value, more samples will settle it.
@@ -221,6 +222,10 @@ pub struct ControlResult {
     pub value_per_cost: Option<f64>,
     /// 1 is the best buy. Disabled controls only.
     pub rank: Option<usize>,
+    /// Why this flip has no numbers: switching the control off can take away
+    /// the only distribution a leaf has.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unavailable: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -235,6 +240,8 @@ struct Scenario {
     p_top_exact: Option<f64>,
     sampler: Option<Sampler>,
     chunks: Vec<Chunk>,
+    /// Why this flip cannot be measured, if so.
+    unavailable: Option<String>,
 }
 
 pub struct Solve {
@@ -421,10 +428,29 @@ impl Solve {
                 if let Some(i) = flip {
                     enabled[i] = !enabled[i];
                 }
-                let ds: Vec<Distribution> = leaf_distributions(model, &plan, &enabled)
-                    .into_iter()
-                    .map(|d| d.expect("checked above"))
+                let ds = leaf_distributions(model, &plan, &enabled);
+                let lacking: Vec<String> = ds
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, d)| d.is_none())
+                    .map(|(i, _)| name(&i))
                     .collect();
+                let Some(ds) = ds.into_iter().collect::<Option<Vec<Distribution>>>() else {
+                    // As written every leaf has numbers, and an effect only
+                    // ever replaces them: this is a control switched off that
+                    // was a leaf's only source.
+                    scenarios.push(Scenario {
+                        flip,
+                        p_top_exact: None,
+                        sampler: None,
+                        chunks: vec![],
+                        unavailable: Some(format!(
+                            "switched off, it leaves no distribution on: {}",
+                            lacking.join(", ")
+                        )),
+                    });
+                    continue;
+                };
                 let p_top_exact = bdd.as_ref().ok().map(|b| {
                     b.prob(
                         b.root(),
@@ -439,6 +465,7 @@ impl Solve {
                     p_top_exact,
                     sampler: needed.then_some(sampler),
                     chunks: vec![],
+                    unavailable: None,
                 });
             }
         }
@@ -576,6 +603,19 @@ impl Solve {
                             .controls
                             .get_index(c)
                             .expect("one scenario per control");
+                        if let Some(reason) = &self.scenarios[i].unavailable {
+                            return ControlResult {
+                                id: id.to_string(),
+                                enabled: control.enabled,
+                                cost: control.cost,
+                                flipped: None,
+                                value: None,
+                                value_ci: None,
+                                value_per_cost: None,
+                                rank: None,
+                                unavailable: Some(reason.clone()),
+                            };
+                        }
                         let flipped = measure(i).expect("measured like the baseline");
                         let value = if control.enabled {
                             flipped - baseline
@@ -601,19 +641,26 @@ impl Solve {
                             id: id.to_string(),
                             enabled: control.enabled,
                             cost: control.cost,
-                            flipped,
-                            value,
+                            flipped: Some(flipped),
+                            value: Some(value),
                             value_ci,
                             value_per_cost,
                             rank: None,
+                            unavailable: None,
                         }
                     })
                     .collect();
                 // Best buy first; something for nothing beats any ratio.
-                let mut order: Vec<usize> = (0..out.len()).filter(|i| !out[*i].enabled).collect();
+                let mut order: Vec<usize> = (0..out.len())
+                    .filter(|i| !out[*i].enabled && out[*i].value.is_some())
+                    .collect();
                 let score = |c: &ControlResult| {
                     c.value_per_cost
-                        .unwrap_or(if c.value > 0.0 { f64::INFINITY } else { 0.0 })
+                        .unwrap_or(if c.value.is_some_and(|v| v > 0.0) {
+                            f64::INFINITY
+                        } else {
+                            0.0
+                        })
                 };
                 order.sort_by(|a, b| score(&out[*b]).total_cmp(&score(&out[*a])).then(a.cmp(b)));
                 for (rank, i) in order.into_iter().enumerate() {

@@ -157,30 +157,30 @@ fn controls_are_ranked_by_what_they_buy() {
     // which is the ranking: at 9000 instead of 4000 the PSU would win.
     assert_eq!(by("cluster").rank, Some(1));
     assert!(by("cluster").value_per_cost > by("psu").value_per_cost);
-    assert!(by("cluster").value > by("psu").value && by("psu").value > 0.0);
+    assert!(by("cluster").value > by("psu").value && by("psu").value > Some(0.0));
     assert_eq!(by("psu").rank, Some(2));
     // …and a control that changes nothing is worth exactly nothing: the same
     // seed gives the same draws, so this is 0, not "about 0".
-    assert_eq!(by("placebo").value, 0.0);
-    assert_eq!(by("placebo").flipped, c.baseline);
+    assert_eq!(by("placebo").value, Some(0.0));
+    assert_eq!(by("placebo").flipped, Some(c.baseline));
     let zero = by("placebo").value_ci.as_ref().unwrap();
     assert_eq!((zero.lo, zero.hi), (0.0, 0.0));
     // Paired, so the interval is about the control and excludes zero, where the
     // two expected losses' own intervals overlap almost entirely.
     let ci = by("cluster").value_ci.as_ref().unwrap();
     assert!(
-        ci.lo > 0.0 && ci.lo <= by("cluster").value && by("cluster").value <= ci.hi,
+        ci.lo > 0.0 && Some(ci.lo) <= by("cluster").value && by("cluster").value <= Some(ci.hi),
         "{ci:?}"
     );
     let loss = r.sampled.available().unwrap().loss.as_ref().unwrap();
     assert!(ci.hi - ci.lo < loss.mean_ci.hi - loss.mean_ci.lo);
     assert_eq!(by("placebo").rank, Some(3));
     // An enabled control is valued by what removing it would cost; it is not ranked.
-    assert!(by("edr").value > 0.0 && by("edr").flipped > c.baseline);
+    assert!(by("edr").value > Some(0.0) && by("edr").flipped > Some(c.baseline));
     assert_eq!((by("edr").rank, by("edr").value_per_cost), (None, None));
     assert_eq!(
         by("cluster").value_per_cost,
-        Some(by("cluster").value / 4000.0)
+        by("cluster").value.map(|v| v / 4000.0)
     );
 }
 
@@ -261,6 +261,65 @@ fn a_leaf_without_numbers_costs_only_the_numbers() {
     }
 }
 
+/// A leaf may get its numbers only from a control that is on. Switching that
+/// control off leaves the leaf without any: that one flip cannot be measured,
+/// says why, and costs nothing else.
+#[test]
+fn a_flip_that_takes_a_leafs_only_numbers_is_unavailable_not_a_crash() {
+    let text = r#"effractor: 1
+profile: fault-tree
+name: t
+time_unit: h
+horizon: 10
+top: top
+nodes:
+  top:
+    label: Top
+    gate: or
+    children: [a, b]
+  a:
+    label: A
+    leaf: basic
+  b:
+    label: B
+    leaf: basic
+    p: 0.1
+controls:
+  c:
+    label: C
+    cost: 1
+    enabled: true
+    effects:
+      - {node: a, ttc: "Exponential(mean 5)"}
+  d:
+    label: D
+    cost: 1
+    enabled: false
+    effects:
+      - {node: b, ttc: "1%"}
+"#;
+    let (doc, diagnostics) = effractor_format::diagnose_document(text);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let Some(Document::Tree(m)) = doc else {
+        panic!("a tree")
+    };
+    let r = solve(&m, &cfg(&m)).unwrap();
+    assert!(r.exact.available().is_some() && r.sampled.available().is_some());
+    let c = r.controls.available().unwrap();
+    let by = |id: &str| c.controls.iter().find(|x| x.id == id).unwrap();
+    assert_eq!(
+        (by("c").flipped, by("c").value, by("c").rank),
+        (None, None, None)
+    );
+    assert_eq!(
+        by("c").unavailable.as_deref(),
+        Some("switched off, it leaves no distribution on: a")
+    );
+    assert!(by("d").unavailable.is_none());
+    assert!(by("d").value.is_some_and(|v| v > 0.0));
+    assert_eq!(by("d").rank, Some(1));
+}
+
 #[test]
 fn past_the_node_limit_sampling_carries_on_alone() {
     let mut m = webserver();
@@ -290,7 +349,7 @@ fn past_the_node_limit_sampling_carries_on_alone() {
     );
     assert_eq!(
         c.controls.iter().find(|x| x.id == "placebo").unwrap().value,
-        0.0
+        Some(0.0)
     );
     assert_eq!(
         c.controls.iter().find(|x| x.id == "cluster").unwrap().rank,
