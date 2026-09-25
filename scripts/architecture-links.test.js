@@ -375,7 +375,8 @@ test('a component lists its links and flows, outgoing and incoming', () => {
 test('Tab offers the kinds that can be linked to the selection, with each way to link them', () => {
   const doc = lecture();
   const choices = L.addChoices(doc, CATALOG, 'server');
-  const flat = choices.map((c) => c.kind + ': ' + c.options.map((o) => (o.direction === 'out' ? o.relation + ' →' : '← ' + o.relation) + (o.privilege ? ' · ' + o.privilege : '')).join(', '));
+  const more = (o) => Object.keys(o.fields).filter((k) => k !== 'privilege').map((k) => ' · ' + k + '=' + o.fields[k]).join('');
+  const flat = choices.map((c) => c.kind + ': ' + c.options.map((o) => (o.direction === 'out' ? o.relation + ' →' : '← ' + o.relation) + (o.privilege ? ' · ' + o.privilege : '') + more(o)).join(', '));
   assert.deepEqual(flat, [
     'network: attached →, ← administration',
     'router: hosts → · user, hosts → · admin',
@@ -384,14 +385,14 @@ test('Tab offers the kinds that can be linked to the selection, with each way to
     'service: hosts → · user, hosts → · admin',
     'account: ← grants · user, ← grants · admin, runs-as → · user, runs-as → · admin',
     'credential: stores → · user, stores → · admin',
-    'data: holds → · user, holds → · admin',
+    'data: holds → · user · decrypts=true, holds → · user · decrypts=false, holds → · admin · decrypts=true, holds → · admin · decrypts=false',
   ]);
   // A router hosts and is granted only as admin; it has its firewall already.
   const router = L.addChoices(doc, CATALOG, 'bridge').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
   assert.deepEqual(router, ['network: attached, administration', 'host: hosts·user, hosts·admin', 'application: hosts·admin', 'service: hosts·admin', 'account: grants·admin']);
   // A hosted executable offers no second host; an application stores as user.
   const client = L.addChoices(doc, CATALOG, 'ssh-client').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
-  assert.deepEqual(client, ['network: delivers', 'service: flow', 'account: runs-as·user', 'credential: stores·user', 'person: operates', 'data: holds·user, reads']);
+  assert.deepEqual(client, ['network: delivers', 'service: flow', 'account: runs-as·user', 'credential: stores·user', 'person: operates', 'data: holds·user, holds·user, reads']);
   assert.deepEqual(L.addChoices(doc, CATALOG, 'absent'), []);
 });
 
@@ -442,10 +443,10 @@ test('each way to link reads as a few words from the selected component', () => 
 test('software is offered a flow to or from a new service', () => {
   const doc = lecture();
   const kinds = (id) => L.addChoices(doc, CATALOG, id).map((c) => c.kind + ': ' + c.options.map((o) => o.relation + ':' + o.direction).join(', '));
-  assert.deepEqual(kinds('ssh-client'), ['network: delivers:in', 'service: flow:out', 'account: runs-as:out', 'credential: stores:out', 'person: operates:in', 'data: holds:out, reads:out']);
-  assert.deepEqual(kinds('sshd'), ['network: delivers:in', 'application: flow:in', 'service: flow:out, flow:in', 'account: authorizes:in, runs-as:out', 'data: holds:out, reads:out'], 'it runs its product already');
+  assert.deepEqual(kinds('ssh-client'), ['network: delivers:in', 'service: flow:out', 'account: runs-as:out', 'credential: stores:out', 'person: operates:in', 'data: holds:out, holds:out, reads:out']);
+  assert.deepEqual(kinds('sshd'), ['network: delivers:in', 'application: flow:in', 'service: flow:out, flow:in', 'account: authorizes:in, runs-as:out', 'data: holds:out, holds:out, reads:out'], 'it runs its product already');
   doc.entities.web = { kind: 'service', label: 'Web' };
-  assert.deepEqual(kinds('web'), ['network: delivers:in', 'router: hosts:in', 'host: hosts:in, hosts:in', 'application: flow:in', 'service: flow:out, flow:in', 'product: instance-of:out', 'account: authorizes:in, runs-as:out', 'data: holds:out, reads:out']);
+  assert.deepEqual(kinds('web'), ['network: delivers:in', 'router: hosts:in', 'host: hosts:in, hosts:in', 'application: flow:in', 'service: flow:out, flow:in', 'product: instance-of:out', 'account: authorizes:in, runs-as:out', 'data: holds:out, holds:out, reads:out']);
   const version = L.linkChoices(doc, CATALOG, 'web').find((c) => c.kind === 'instance-of');
   assert.deepEqual(version.candidates, ['openssh']);
   assert.deepEqual(L.linkChoices(doc, CATALOG, 'sshd').find((c) => c.kind === 'instance-of').candidates, []);
@@ -623,6 +624,18 @@ test('deleting members keeps clusters valid', () => {
   assert.equal(all.select, null);
   assert.equal(L.removeAll(doc, ['nowhere']), null);
   assert.equal(L.removeAll(doc, ['srv']).notice, L.remove(doc, 'entities', 'srv').notice, 'one: said as one');
+});
+
+test('Tab offers every way the Link menu offers, fields included, and writes them', () => {
+  const doc = { entities: { a: { kind: 'account', label: 'A' }, h: { kind: 'host', label: 'H' } }, associations: {}, flows: {} };
+  const data = L.addChoices(doc, CATALOG, 'a').find((c) => c.kind === 'data');
+  assert.deepEqual(data.options.map((o) => o.fields), [{ mode: 'read' }, { mode: 'write' }]);
+  const edit = L.addLinked(doc, E, 'a', 'data', 'Data', SPEC.data, data.options[1]);
+  assert.deepEqual(edit.doc.associations['a-accesses-data'], { kind: 'accesses', from: 'a', to: 'data', mode: 'write' });
+  const options = L.addChoices(doc, CATALOG, 'h').find((c) => c.kind === 'data').options;
+  assert.deepEqual(options.map((o) => o.fields), L.variants({ entities: { h: doc.entities.h, d: { kind: 'data', label: 'D' } } }, 'holds', 'h', 'd'));
+  const holds = L.addLinked(doc, E, 'h', 'data', 'Data', SPEC.data, options[1]);
+  assert.deepEqual(holds.doc.associations['h-holds-data'], { kind: 'holds', from: 'h', to: 'data', privilege: 'user', decrypts: false });
 });
 
 test('renaming an id renames it in its cluster', () => {

@@ -450,19 +450,7 @@
 
   // Every combination of those values: the ways the Link menu offers.
   function variants(doc, kind, from, to) {
-    return fieldsOf(kind, kindOf(doc, from), kindOf(doc, to)).filter(function (f) {
-      return !f.setting;
-    }).reduce(function (acc, f) {
-      var out = [];
-      acc.forEach(function (v) {
-        f.values.filter(function (value) { return value !== "unknown"; }).forEach(function (value) {
-          var next = Object.assign({}, v);
-          next[f.name] = value;
-          out.push(next);
-        });
-      });
-      return out;
-    }, [{}]);
+    return combinations(kind, kindOf(doc, from), kindOf(doc, to));
   }
 
   function fieldWord(name, value) {
@@ -522,10 +510,28 @@
     });
   }
 
+  // Every combination of the fields a link carries between these kinds.
+  function combinations(kind, fromKind, toKind) {
+    return fieldsOf(kind, fromKind, toKind).filter(function (f) {
+      return !f.setting;
+    }).reduce(function (acc, f) {
+      var out = [];
+      acc.forEach(function (v) {
+        f.values.filter(function (value) { return value !== "unknown"; }).forEach(function (value) {
+          var next = Object.assign({}, v);
+          next[f.name] = value;
+          out.push(next);
+        });
+      });
+      return out;
+    }, [{}]);
+  }
+
   // What Tab can add next to `id`: each kind that can be linked to it, with
-  // every way to link it — relation, direction, privilege — in the catalog's
-  // order. A hosted executable gets no second host, a router with a firewall
-  // no second one; permissions belong to a flow.
+  // every way to link it — relation, direction, and the fields the Link menu
+  // offers (`fields`; `privilege` among them) — in the catalog's order. A
+  // hosted executable gets no second host, a router with a firewall no
+  // second one; permissions belong to a flow.
   function addChoices(doc, catalog, id) {
     var kind = kindOf(doc, id);
     if (!kind) return [];
@@ -535,8 +541,9 @@
       var to = direction === "out" ? newKind : kind;
       if (!endsAllowed(relation, from, to)) return;
       var list = (byKind[newKind] = byKind[newKind] || []);
-      (privilegesOf(relation, from, to) || [null]).forEach(function (p) {
-        list.push({ relation: relation, direction: direction, privilege: p });
+      var ways = relation === "flow" ? [{}] : combinations(relation, from, to);
+      ways.forEach(function (v) {
+        list.push({ relation: relation, direction: direction, privilege: v.privilege || null, fields: v });
       });
     }
     // A flow runs from software to a service: offered from either end.
@@ -571,15 +578,16 @@
     var from = option.direction === "out" ? id : added.entity;
     var to = option.direction === "out" ? added.entity : id;
     if (option.relation === "flow") {
-      var label = function (e) {
+      var labelOfEnd = function (e) {
         return added.doc.entities[e].label;
       };
-      var flowed = putFlow(added.doc, null, { label: label(from) + " to " + label(to), source: from, target: to, route: [] });
+      var flowed = putFlow(added.doc, null, { label: labelOfEnd(from) + " to " + labelOfEnd(to), source: from, target: to, route: [] });
       return flowed ? { doc: flowed.doc, select: "entity/" + added.entity, entity: added.entity } : null;
     }
-    var linked = putAssociation(added.doc, null, { kind: option.relation, from: from, to: to, privilege: option.privilege });
-    if (!linked) return null;
-    return { doc: linked.doc, select: "entity/" + added.entity, entity: added.entity };
+    var fields = option.fields || { privilege: option.privilege };
+    var put = putAssociation(added.doc, null, Object.assign({}, fields, { kind: option.relation, from: from, to: to }));
+    if (!put) return null;
+    return { doc: put.doc, select: "entity/" + added.entity, entity: added.entity };
   }
 
   function attachedTo(doc, machine, network) {

@@ -123,11 +123,13 @@
   // where there is more than one way to link it, the way. The new component
   // is linked, selected and named in one step, as Tab adds a child in a tree.
   function optionWord(o) {
-    return L.phrase(o.relation, o.direction, o.privilege);
+    return L.phrase(o.relation, o.direction, o.privilege, o.fields);
   }
-  // The file's name for the relation, for the tooltip.
+  // The file's name for the relation and its fields, for the tooltip.
   function optionTitle(o) {
-    return o.relation + (o.privilege ? " · " + o.privilege : "");
+    var fields = o.fields || {};
+    var said = Object.keys(fields).map(function (k) { return fields[k]; }).join(" · ");
+    return o.relation + (said ? " · " + said : "");
   }
   function addLinked(id, kind, option) {
     apply(function () {
