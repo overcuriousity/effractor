@@ -234,7 +234,7 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
         None => Some(None),
     };
     let parameters = match f.get("parameters") {
-        Some(e) => parameters(cx, e, &f.path("parameters"), kind.slots()),
+        Some(e) => parameters(cx, e, &f.path("parameters"), kind.slots(), kind.as_str()),
         None => Some(IndexMap::new()),
     };
     let defenses = match f.get("defenses") {
@@ -318,16 +318,18 @@ fn tool(cx: &mut Cx, entry: &Entry, path: &str, kind: EntityKind) -> Option<Opti
     cx.word(&entry.value, path, &TOOLS).map(Some)
 }
 
-/// The slots of one owner. What is written must be one of `allowed`; what is
+/// The slots of one `owner`. What is written must be one of `allowed`; what is
 /// not written is unknown.
 fn parameters(
     cx: &mut Cx,
     entry: &Entry,
     path: &str,
     allowed: &[Slot],
+    owner: &str,
 ) -> Option<IndexMap<Slot, Parameter>> {
     let names: Vec<&str> = allowed.iter().map(|s| s.as_str()).collect();
-    let f = cx.fields(&entry.value, path, entry.key_pos, &names)?;
+    let none = format!("a {owner} has no parameters");
+    let f = cx.fields_or(&entry.value, path, entry.key_pos, &names, &none)?;
     let mut map = IndexMap::new();
     let mut ok = true;
     for e in &f.entries {
@@ -368,7 +370,8 @@ fn parameter(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Parameter> {
 
 fn defenses(cx: &mut Cx, entry: &Entry, path: &str, kind: EntityKind) -> Option<Defenses> {
     let allowed: Vec<&str> = kind.defense().map(|d| d.as_str()).into_iter().collect();
-    let f = cx.fields(&entry.value, path, entry.key_pos, &allowed)?;
+    let none = format!("a {} has no defence", kind.as_str());
+    let f = cx.fields_or(&entry.value, path, entry.key_pos, &allowed, &none)?;
     let mut defenses = Defenses::default();
     for (word, defense) in DEFENSES {
         if let Some(e) = f.get(word) {
@@ -569,7 +572,7 @@ fn flow(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Flow> {
     });
     let protocol = cx.optional_string(&f, "protocol");
     let connect = match f.get("parameters") {
-        Some(e) => parameters(cx, e, &f.path("parameters"), &[Slot::Connect])
+        Some(e) => parameters(cx, e, &f.path("parameters"), &[Slot::Connect], "flow")
             .map(|mut p| p.shift_remove(&Slot::Connect).unwrap_or_default()),
         None => Some(Parameter::unknown()),
     };

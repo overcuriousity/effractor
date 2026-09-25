@@ -155,6 +155,18 @@ impl Cx {
         at: Pos,
         allowed: &[&str],
     ) -> Option<Fields<'a>> {
+        self.fields_or(node, path, at, allowed, "only `x-` keys are")
+    }
+
+    /// The same, with `none` said of a key where no key is `allowed`.
+    pub fn fields_or<'a>(
+        &mut self,
+        node: &'a Node,
+        path: &str,
+        at: Pos,
+        allowed: &[&str],
+        none: &str,
+    ) -> Option<Fields<'a>> {
         let all = self.entries(node, path, "a map")?;
         let mut entries = Vec::new();
         let mut extra = Vec::new();
@@ -165,11 +177,15 @@ impl Cx {
             } else if allowed.contains(&entry.key.as_str()) {
                 entries.push(entry);
             } else {
-                let message = format!(
-                    "`{}` is not a key here; expected one of: {}",
-                    entry.key,
-                    allowed.join(", ")
-                );
+                let message = if allowed.is_empty() {
+                    format!("`{}` is not a key here; {none}", entry.key)
+                } else {
+                    format!(
+                        "`{}` is not a key here; expected one of: {}",
+                        entry.key,
+                        allowed.join(", ")
+                    )
+                };
                 self.error(
                     Code::UnknownKey,
                     join(path, &entry.key),

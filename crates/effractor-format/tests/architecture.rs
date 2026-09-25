@@ -1742,3 +1742,27 @@ fn every_problem_in_one_association_is_reported_at_once() {
         }
     }
 }
+
+#[test]
+fn a_kind_without_parameters_or_defence_says_so() {
+    let mut image = image(LECTURE);
+    image["entities"]["client-net"]["parameters"] =
+        serde_json::json!({"login": {"status": "unknown"}});
+    image["entities"]["client-net"]["defenses"] = serde_json::json!({"patched": true});
+    let errors = from_document(&image).unwrap_err();
+    let message = |path: &str| {
+        errors
+            .iter()
+            .find(|d| d.path == path)
+            .map(|d| d.message.clone())
+            .unwrap_or_else(|| panic!("{path}: {errors:?}"))
+    };
+    assert_eq!(
+        message("entities.client-net.parameters.login"),
+        "`login` is not a key here; a network has no parameters"
+    );
+    assert_eq!(
+        message("entities.client-net.defenses.patched"),
+        "`patched` is not a key here; a network has no defence"
+    );
+}
