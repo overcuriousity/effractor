@@ -56,9 +56,11 @@
 
   --color-danger: #b3382c;
   /* Exposed (after Reactor's exposure colours): what runs a vulnerable
-     product. Magenta, far from the danger red also for red-green colour
-     blindness (orange was not, in the owner's look); 4.75:1 on the canvas. */
-  --color-exposed: #c02a8c;
+     product. Violet: in OKLab at least 0.2 from danger and warning in both
+     themes, also under simulated deuteranopia and protanopia (orange was
+     0.08, magenta 0.12 — the owner could not tell orange from red), and
+     clear of the accent, which selects. 5.44:1 on the canvas. */
+  --color-exposed: #7a3fd0;
   --color-warning: #845b16;
 
   /* Visualization. Importance is a magnitude, so the ramp is sequential: one
@@ -126,7 +128,7 @@
 
     /* 5.75:1 or better on every ground. */
     --color-danger: #e77676;
-    --color-exposed: #ee6fc3;
+    --color-exposed: #b28cff;
     --color-warning: #e8a839;
 
     /* See the light half. Selected for this canvas, not flipped: 5.38:1 for
@@ -176,7 +178,7 @@
 
     /* 5.75:1 or better on every ground. */
     --color-danger: #e77676;
-    --color-exposed: #ee6fc3;
+    --color-exposed: #b28cff;
     --color-warning: #e8a839;
 
     /* See the light half. Selected for this canvas, not flipped: 5.38:1 for
