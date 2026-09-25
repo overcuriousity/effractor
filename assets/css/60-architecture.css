@@ -36,7 +36,9 @@
 .node-component .plate-behind { opacity: 0.5; }
 .node-component .sector-vulnerable { stroke: var(--color-danger); }
 .node-component .sector-exposed { stroke: var(--color-exposed); }
-.node-component .sector-unknown { stroke: var(--color-warning); }
+/* Dashed as well as amber: under red-green colour blindness amber and the
+   danger red are nearly one colour (light theme). */
+.node-component .sector-unknown { stroke: var(--color-warning); stroke-dasharray: 4 3; }
 .node-component .sector-none { stroke: var(--color-border-strong); }
 .edge[data-id^="flows/"] { stroke-dasharray: 5 3; }
 /* An open cluster: a quiet outline round its members, taking the pointer
@@ -94,7 +96,7 @@
 .outline-sample { display: inline-block; width: 14px; height: 9px; margin-right: 5px; border: 1.5px dashed var(--color-border-strong); border-radius: 4px; vertical-align: middle; }
 .ring-sample { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; border: 2.5px solid var(--color-danger); vertical-align: middle; }
 .ring-sample.is-exposed { border-color: var(--color-exposed); }
-.ring-sample.is-unknown { border-color: var(--color-warning); }
+.ring-sample.is-unknown { border-color: var(--color-warning); border-style: dashed; }
 .legend-toggle, .legend-kinds { padding: 1px 6px; font-size: var(--text-xs); }
 .legend-kinds { display: inline-flex; align-items: center; gap: 5px; }
 .legend-toggle[aria-pressed="false"] { color: var(--color-fg-muted); text-decoration: line-through; }
