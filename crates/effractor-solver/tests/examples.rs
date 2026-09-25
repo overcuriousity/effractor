@@ -31,6 +31,7 @@ const EXAMPLES: &[(&str, &str)] = &examples![
     "10-data-broker-architecture.yaml",
     "11-ops-construct-architecture.yaml",
     "12-identity-vault-architecture.yaml",
+    "13-hot-wallet-architecture.yaml",
 ];
 
 #[test]

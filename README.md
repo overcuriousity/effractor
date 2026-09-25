@@ -35,7 +35,7 @@ effractor --bind 0.0.0.0:9000
 ```
 
 The [sample collection](assets/examples/README.md) includes three fault trees,
-three attack trees and six architectures in rising order of complexity. Download
+three attack trees and seven architectures in rising order of complexity. Download
 a YAML file and use **Open** in the app; the files ship with both the server and
 the static site.
 

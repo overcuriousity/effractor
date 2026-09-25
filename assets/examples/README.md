@@ -1,9 +1,10 @@
 # Sample models
 
-Twelve fictional models across three profiles, in rising order of complexity:
-three fault trees, three attack trees and six architectures, all set in
-**Sodium City** — an invented coastal megacity of neon, maglev lines, chrome
-clinics and arcology towers, where every corporation and product is made up. Download a YAML
+Thirteen fictional models across three profiles, in rising order of complexity:
+three fault trees, three attack trees and seven architectures. The first twelve
+are set in **Sodium City** — an invented coastal megacity of neon, maglev lines,
+chrome clinics and arcology towers, where every corporation and product is made
+up. The thirteenth is a realistic exercise for defenders, with no city in it. Download a YAML
 file and use **Open** (`Ctrl+O`) in Effractor; it is solved as it opens. The
 files ship with both the server and the static edition under `assets/examples/`;
 a local server serves the first at
@@ -32,7 +33,7 @@ before using a model for a real decision.
 
 ## Architectures
 
-Examples 07–12 are architectures: components and how they are linked, from which
+Examples 07–13 are architectures: components and how they are linked, from which
 the bundled `core-components` library generates the attack steps. The app opens
 and edits them, generates the attack graph, simulates its routes in the browser,
 and compares each file's scenarios against the baseline. Component values are
@@ -54,6 +55,7 @@ nor any result.
 | [10 · Tessellate Data profile broker](10-data-broker-architecture.yaml) | Detailed | A workload identity (`runs-as`), a role it assumes (`assumes`), a second authentication factor (a key implant) and a session grant. A decker's exploit and a phished analyst converge on a reader role; patching, briefing and the implant factor each leave a route, and only all three together drive the number down. Five clusters tame the drawing; the data lake stays closed with the citizen profiles `shown` |
 | [11 · Arcology Nine ops construct](11-ops-construct-architecture.yaml) | Detailed | An autonomous AI construct that **reads** a runbook wiki: poisoning the corpus (control the wiki, change the pages) reaches the construct, prompt-injection takes it over, and its sandboxed identity reads the tower's secrets. Patching the wiki closes the poisoning at its source; guarding the construct slows but does not stop it. The wiki, where it happens, is the one open cluster |
 | [12 · Kestrel Clearing identity vault](12-identity-vault-architecture.yaml) | Detailed, incomplete | An **unknown** exploit time on the street-facing identity API leaves the target with no number until it is assessed or the vendor patch closes that route. A second route from an inside terminal to the encrypted-at-rest vault then shows why encryption at rest alone is nearly worthless while the key is extractable, and only sealing it in the HSM closes the route. The vault is an open cluster; the second foothold is `shown` beside its closed one |
+| [13 · Treasury hot wallet on a workstation](13-hot-wallet-architecture.yaml) | Detailed, realistic | A defender's exercise on a small fund's treasury laptop. A hot wallet's keystore is stolen by an infostealer, delivered through a lure or through an exploited remote-support agent behind a forwarded port, and the recovery phrase is phished by a fake wallet-support page. Unprotected, the funds are gone within a month. A hardware wallet, a closed port or a patched agent each leave the phrase route, and two defences on the same route add nothing. Only 2-of-3 multisig changes the order of magnitude, and even all four together leave a blind-signing route |
 
 ## Reading the assumptions
 
@@ -84,7 +86,7 @@ Trees and architectures share these conventions.
 For a first walkthrough, open 01 or 07 and look at the cut sets or the generated
 route, then toggle a control or run a scenario and compare. Use 03 for voting
 and shared causes, 06 for the attacker Pareto view, 09 for the out-of-band
-management lesson, 11 for content-driven agent compromise, and 12 for what an
-unknown value does to the result. All files use fixed seeds and 10,000 samples;
-sampling intervals describe simulation error, not confidence in the invented
-assumptions.
+management lesson, 11 for content-driven agent compromise, 12 for what an
+unknown value does to the result, and 13 to rank defences as a blue team. All
+files use fixed seeds and 10,000 samples; sampling intervals describe
+simulation error, not confidence in the invented assumptions.

@@ -1,0 +1,406 @@
+effractor: 2
+profile: architecture
+name: Treasury hot wallet on a workstation
+time_unit: d
+horizon: 90
+library: {id: core-components, version: 1}
+
+entities:
+  internet:
+    kind: network
+    label: Internet
+  office-lan:
+    kind: network
+    label: Office LAN
+    description: The flat network of a five-person fund's rented office
+  office-router:
+    kind: router
+    label: Office router
+    description: A small-business router; the IT contractor forwarded a port for remote support
+    parameters:
+      escape:
+        status: unknown
+  office-router-rules:
+    kind: firewall
+    label: Router rules
+  attacker-infra:
+    kind: host
+    label: Attacker infrastructure
+    description: Rented servers of a financially motivated crew that runs an infostealer-as-a-service and a drainer kit
+    parameters:
+      escape:
+        status: unknown
+  attacker-tooling:
+    kind: application
+    label: Scanner and wallet tooling
+    description: Mass scanners for exposed remote-support agents, and scripts that sign and broadcast a sweep transaction
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  workstation:
+    kind: host
+    label: Treasury workstation
+    description: A Windows 11 laptop the operations lead uses for mail, chat, research and the fund's hot wallet
+    parameters:
+      escape:
+        status: unknown
+  browser:
+    kind: application
+    label: Browser
+    description: A Chromium-based browser with saved passwords, kept on automatic updates
+    parameters:
+      take-over:
+        status: illustrative
+        ttc: "Exponential(mean 365)"
+        note: "Assumption: a drive-by on an auto-updated browser needs an in-the-wild zero-day; rare against a single target"
+      take-over-guarded:
+        status: illustrative
+        ttc: "Exponential(mean 1500)"
+        note: "Assumption: application control and browser isolation block most payloads that land"
+    defenses: {guarded: false}
+  wallet-app:
+    kind: application
+    label: Desktop wallet
+    description: A desktop hot wallet; the keystore file lives in the user profile, unlocked with a password
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  remote-support:
+    kind: service
+    label: Remote-support agent
+    description: Installed by the IT contractor, running as SYSTEM, reachable from the internet through the forwarded port
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 0.05)"
+        note: "Assumption: the public exploit for an authentication bypass is scripted; about an hour to a SYSTEM shell"
+      login:
+        status: unknown
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  remote-support-product:
+    kind: product
+    label: Remote-support agent, installed version
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 7)"
+        note: "Assumption: a critical authentication bypass with a public proof of concept; internet-wide scans find exposed agents within days"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Exponential(mean 730)"
+        note: "Assumption: the next exploitable bug in this product family, years apart"
+    defenses: {patched: false}
+  ops-lead:
+    kind: person
+    label: Operations lead
+    description: Signs the fund's transfers; publicly listed on the fund's site and active on crypto social media
+    parameters:
+      phish:
+        status: illustrative
+        ttc: "Exponential(mean 21)"
+        note: "Assumption: a publicly known crypto holder gets tailored lures weekly (fake job tests, fake meeting apps, fake CAPTCHA paste-and-run, wallet support impostors); one lands within weeks"
+      phish-trained:
+        status: illustrative
+        ttc: "Exponential(mean 75)"
+        note: "Assumption: drills on run-this-command and never-type-the-phrase lures slow deception; they do not remove it"
+    defenses: {trained: false}
+  hot-key:
+    kind: credential
+    label: Hot-wallet keystore and password
+    description: The encrypted keystore file in the user profile, and the password that unlocks it
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(mean 2)"
+        note: "Assumption: an infostealer copies the keystore in seconds; the password comes from the browser's saved passwords, a keylogger at the next unlock, or offline cracking"
+      extract-protected:
+        status: illustrative
+        ttc: "Never"
+        note: "Assumption: with a hardware wallet the signing key never leaves the device; physical and supply-chain attacks are out of scope"
+    defenses: {protected: false}
+  recovery-phrase:
+    kind: credential
+    label: Recovery phrase
+    description: The 24 words on paper in the office safe; whoever has them can rebuild the wallet anywhere
+    parameters:
+      extract:
+        status: unknown
+      extract-protected:
+        status: unknown
+    defenses: {protected: unknown}
+  treasury-address:
+    kind: account
+    label: Treasury address
+    description: The on-chain address that holds the fund's working capital
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: illustrative
+        ttc: "Exponential(mean 180)"
+        note: "Assumption: with 2-of-3 multisig the co-signers must be deceived into approving a tampered transaction they cannot read on their devices (blind signing); months of preparation"
+    defenses: {mfa: false}
+  chain-nodes:
+    kind: host
+    label: Public blockchain nodes
+    description: Anyone's RPC endpoint; a signed transaction is valid wherever it is broadcast
+    parameters:
+      escape:
+        status: unknown
+  blockchain:
+    kind: service
+    label: Blockchain
+    description: Accepts any transaction signed by the address's keys; there is no reversal
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Never"
+        note: "Assumption: the chain itself is not attacked"
+      login:
+        status: illustrative
+        ttc: "Exponential(mean 0.01)"
+        note: "Assumption: signing and broadcasting a sweep takes minutes"
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  node-client:
+    kind: product
+    label: Node client
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Never"
+        note: "Assumption: the chain itself is not attacked"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Assumption: the chain itself is not attacked"
+    defenses: {patched: true}
+  treasury-funds:
+    kind: data
+    label: Treasury funds
+    description: The fund's working capital on the treasury address; moving it is the loss
+    defenses: {encrypted: false}
+
+associations:
+  attacker-on-internet:
+    kind: attached
+    from: attacker-infra
+    to: internet
+  attacker-runs-tooling:
+    kind: hosts
+    from: attacker-infra
+    to: attacker-tooling
+    privilege: admin
+  router-on-internet:
+    kind: attached
+    from: office-router
+    to: internet
+  router-on-lan:
+    kind: attached
+    from: office-router
+    to: office-lan
+  router-filters:
+    kind: filters
+    from: office-router
+    to: office-router-rules
+  workstation-on-lan:
+    kind: attached
+    from: workstation
+    to: office-lan
+  workstation-runs-browser:
+    kind: hosts
+    from: workstation
+    to: browser
+    privilege: user
+  workstation-runs-wallet:
+    kind: hosts
+    from: workstation
+    to: wallet-app
+    privilege: user
+  workstation-runs-remote-support:
+    kind: hosts
+    from: workstation
+    to: remote-support
+    privilege: admin
+    description: The agent's service runs as SYSTEM
+  remote-support-version:
+    kind: instance-of
+    from: remote-support
+    to: remote-support-product
+  keystore-on-workstation:
+    kind: stores
+    from: workstation
+    to: hot-key
+    privilege: user
+    description: The keystore file in the user profile and the password saved in the browser
+  keystore-in-wallet:
+    kind: stores
+    from: wallet-app
+    to: hot-key
+    privilege: user
+  lures-reach-ops-lead:
+    kind: delivers
+    from: internet
+    to: ops-lead
+    description: Mail, chat messages, search ads and fake job offers
+  pages-reach-browser:
+    kind: delivers
+    from: internet
+    to: browser
+    description: Every page the operations lead opens
+  ops-lead-uses-browser:
+    kind: operates
+    from: ops-lead
+    to: browser
+    description: Deceived, they run the "fix" or installer the page gives them
+  ops-lead-knows-phrase:
+    kind: knows
+    from: ops-lead
+    to: recovery-phrase
+    description: Deceived by a fake wallet-support page, they type the phrase in
+  keystore-signs:
+    kind: authenticates
+    from: hot-key
+    to: treasury-address
+  phrase-signs:
+    kind: authenticates
+    from: recovery-phrase
+    to: treasury-address
+  nodes-on-internet:
+    kind: attached
+    from: chain-nodes
+    to: internet
+  nodes-run-chain:
+    kind: hosts
+    from: chain-nodes
+    to: blockchain
+    privilege: admin
+  chain-client:
+    kind: instance-of
+    from: blockchain
+    to: node-client
+  chain-accepts-address:
+    kind: authorizes
+    from: treasury-address
+    to: blockchain
+  chain-holds-funds:
+    kind: holds
+    from: blockchain
+    to: treasury-funds
+    privilege: user
+    decrypts: true
+  address-moves-funds:
+    kind: accesses
+    from: treasury-address
+    to: treasury-funds
+    mode: write
+  port-forward:
+    kind: permits
+    from: office-router-rules
+    to: scan-remote-support
+    allowed: true
+    description: Forwarded for the IT contractor and never closed
+
+flows:
+  scan-remote-support:
+    label: Internet to the remote-support agent
+    source: attacker-tooling
+    target: remote-support
+    route: [internet, office-router, office-lan]
+    protocol: tcp/8040
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.5)"
+        note: "Assumption: internet-wide scanners find a forwarded port within a day"
+  broadcast:
+    label: Broadcast a signed transaction
+    source: attacker-tooling
+    target: blockchain
+    route: [internet]
+    protocol: tcp/8545
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.001)"
+        note: "Assumption: public RPC endpoints answer at once"
+
+clusters:
+  workstation:
+    label: Treasury workstation
+    members:
+      - workstation
+      - browser
+      - wallet-app
+      - remote-support
+      - remote-support-product
+    shown: [wallet-app]
+    closed: true
+  office-router:
+    members: [office-router, office-router-rules]
+    closed: true
+  attacker:
+    label: Attacker
+    members: [attacker-infra, attacker-tooling]
+    closed: true
+  chain:
+    label: Blockchain
+    members: [chain-nodes, blockchain, node-client]
+    closed: false
+
+attacker:
+  footholds:
+    - {entity: attacker-infra, state: admin}
+  target: {entity: treasury-funds, state: modified}
+
+scenarios:
+  hardware-wallet:
+    label: Move the key to a hardware wallet
+    changes:
+      - {entity: hot-key, defense: protected, value: true}
+  train-ops-lead:
+    label: Drill the operations lead on crypto lures
+    changes:
+      - {entity: ops-lead, defense: trained, value: true}
+  close-port:
+    label: Close the forwarded port
+    changes:
+      - {association: port-forward, field: allowed, value: false}
+  patch-agent:
+    label: Update the remote-support agent
+    changes:
+      - {entity: remote-support-product, defense: patched, value: true}
+  multisig:
+    label: Require 2-of-3 multisig
+    changes:
+      - {entity: treasury-address, defense: mfa, value: true}
+  hardware-and-port:
+    label: Hardware wallet and close the port
+    changes:
+      - {entity: hot-key, defense: protected, value: true}
+      - {association: port-forward, field: allowed, value: false}
+  defense-in-depth:
+    label: Hardware wallet, closed port, drills and multisig
+    changes:
+      - {entity: hot-key, defense: protected, value: true}
+      - {association: port-forward, field: allowed, value: false}
+      - {entity: ops-lead, defense: trained, value: true}
+      - {entity: treasury-address, defense: mfa, value: true}
+
+analysis:
+  seed: 113
+  samples: 10000
+  confidence: 0.95
