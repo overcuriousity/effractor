@@ -660,6 +660,15 @@ test('a firewall\'s permission goes when its router no longer filters the flow',
   assert.ok('allow-ssh' in L.putFlow(stray, 'ssh', Object.assign({}, stray.flows.ssh, { protocol: 'tcp/2222' })).doc.associations);
 });
 
+test('deleting several says the foothold and target that went with them', () => {
+  const both = L.removeAll(lecture(), ['workstation', 'server']);
+  assert.match(both.notice, /^deleted 2 components and \d+ links, a foothold and the target · Ctrl\+Z undoes$/);
+  const doc = lecture();
+  doc.attacker.footholds.push({ entity: 'server', state: 'user' });
+  assert.match(L.removeAll(doc, ['workstation', 'server']).notice, /, 2 footholds and the target · /);
+  assert.doesNotMatch(L.removeAll(lecture(), ['sshd', 'openssh']).notice, /foothold|target/);
+});
+
 test('renaming an id renames it in its cluster', () => {
   const doc = Clusters.build(require('./fixtures/nmap/imported.doc.json')).doc;
   const edit = L.renameId(doc, 'entities', 'sshd', 'openssh-server');

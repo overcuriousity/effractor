@@ -354,17 +354,17 @@
       delete next.associations[k];
       links++;
     });
-    var was = [];
+    var footholds = 0, target = false;
     var attacker = next.attacker || {};
     if (collection === "entities") {
       var before = (attacker.footholds || []).length;
       attacker.footholds = (attacker.footholds || []).filter(function (s) {
         return s.entity !== id;
       });
-      if (attacker.footholds.length < before) was.push("a foothold");
+      footholds = before - attacker.footholds.length;
       if (attacker.target && attacker.target.entity === id) {
         delete attacker.target;
-        was.push("the target");
+        target = true;
       }
     }
     Object.keys(next.scenarios || {}).forEach(function (k) {
@@ -377,25 +377,35 @@
     C.forget(next, gone.entities);
     var notice = "deleted “" + title(doc, collection, id) + "”";
     if (links) notice += " and " + links + (links === 1 ? " link" : " links");
-    if (was.length) notice += ", " + was.join(" and ");
-    return { doc: next, select: null, notice: notice + " · Ctrl+Z undoes", links: links };
+    notice += attackerWords(footholds, target);
+    return { doc: next, select: null, notice: notice + " · Ctrl+Z undoes", links: links, footholds: footholds, target: target };
+  }
+
+  // ", a foothold and the target": what of the attacker a delete took along.
+  function attackerWords(footholds, target) {
+    var was = [];
+    if (footholds) was.push(footholds === 1 ? "a foothold" : footholds + " footholds");
+    if (target) was.push("the target");
+    return was.length ? ", " + was.join(" and ") : "";
   }
 
   // Several components in one edit (clustering spec §3): each with what
   // named it.
   function removeAll(doc, entityIds) {
-    var next = doc, n = 0, links = 0, single = null;
+    var next = doc, n = 0, links = 0, footholds = 0, target = false, single = null;
     entityIds.forEach(function (id) {
       if (!has(next.entities, id)) return;
       var r = remove(next, "entities", id);
       next = r.doc;
       n++;
       links += r.links;
+      footholds += r.footholds;
+      target = target || r.target;
       single = r;
     });
     if (!n) return null;
     if (n === 1) return single;
-    var notice = "deleted " + n + " components" + (links ? " and " + links + (links === 1 ? " link" : " links") : "");
+    var notice = "deleted " + n + " components" + (links ? " and " + links + (links === 1 ? " link" : " links") : "") + attackerWords(footholds, target);
     return { doc: next, select: null, notice: notice + " · Ctrl+Z undoes" };
   }
 
