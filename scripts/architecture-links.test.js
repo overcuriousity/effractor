@@ -669,6 +669,15 @@ test('deleting several says the foothold and target that went with them', () => 
   assert.doesNotMatch(L.removeAll(lecture(), ['sshd', 'openssh']).notice, /foothold|target/);
 });
 
+test('a field the file leaves out reads as what absent means, or as not said', () => {
+  assert.equal(L.fieldValue({ kind: 'authenticates' }, 'factor'), 'first');
+  assert.equal(L.fieldValue({ kind: 'authenticates', factor: 'second' }, 'factor'), 'second');
+  assert.equal(L.fieldValue({ kind: 'hosts' }, 'contained'), false);
+  assert.equal(L.fieldValue({ kind: 'holds', privilege: 'user' }, 'decrypts'), null, 'no default: not "sees plaintext"');
+  assert.equal(L.fieldValue({ kind: 'holds', decrypts: false }, 'decrypts'), false);
+  assert.equal(L.fieldValue({ kind: 'accesses' }, 'mode'), null);
+});
+
 test('renaming an id renames it in its cluster', () => {
   const doc = Clusters.build(require('./fixtures/nmap/imported.doc.json')).doc;
   const edit = L.renameId(doc, 'entities', 'sshd', 'openssh-server');

@@ -511,6 +511,14 @@
     return combinations(kind, kindOf(doc, from), kindOf(doc, to));
   }
 
+  // What a field the file leaves out means: its value where absent says one
+  // (a first factor, not contained), else null — not said.
+  var FIELD_ABSENT = { factor: "first", contained: false };
+  function fieldValue(link, name) {
+    if (link && link[name] != null) return link[name];
+    return has(FIELD_ABSENT, name) ? FIELD_ABSENT[name] : null;
+  }
+
   function fieldWord(name, value) {
     return FIELD_WORDS[name] && FIELD_WORDS[name][String(value)] ? FIELD_WORDS[name][String(value)] : "";
   }
@@ -782,7 +790,7 @@
     return want === "router" ? "no router yet · add one with A, then connect it to both networks" : "no network yet · add one with A";
   }
 
-  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, fieldsOf: fieldsOf, variants: variants, fieldWord: fieldWord, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, renameId: renameId, remove: remove, removeAll: removeAll };
+  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, fieldsOf: fieldsOf, variants: variants, fieldWord: fieldWord, fieldValue: fieldValue, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, renameId: renameId, remove: remove, removeAll: removeAll };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
 })();

@@ -322,12 +322,14 @@
       U.field(form, "prop-to", "To", endButton("entity/" + a.to, name(a.to)));
     }
     // One dropdown per field the link carries; a value the file has that
-    // the ends no longer allow stays shown, for the validator to name.
+    // the ends no longer allow stays shown, for the validator to name; one
+    // the file leaves out, with no meaning when absent, shows as not said.
     L.fieldsOf(a.kind, kindOf(a.from), kindOf(a.to)).forEach(function (f) {
-      var current = a[f.name] == null ? String(f.values[0]) : String(a[f.name]);
+      var value = L.fieldValue(a, f.name);
+      var current = value == null ? "" : String(value);
       var values = f.values.map(String);
       var options = values.concat(values.indexOf(current) < 0 ? [current] : []).map(function (v) {
-        return [v, L.fieldWord(f.name, v) || v];
+        return [v, v === "" ? "? not said" : L.fieldWord(f.name, v) || v];
       });
       var control = U.field(form, "prop-" + f.name, f.name.charAt(0).toUpperCase() + f.name.slice(1), M.dropdown(options, current));
       control.addEventListener("change", function () {
