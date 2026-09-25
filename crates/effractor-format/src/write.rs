@@ -90,7 +90,7 @@ impl Writer<'_> {
         self.line(0, "time_unit", word(&TIME_UNITS, &m.time_unit));
         self.line(0, "horizon", &number(m.horizon));
         self.line(0, "currency", &string(&m.currency, Context::Block));
-        self.line(0, "top", m.top.as_str());
+        self.line(0, "top", &reference(m.top.as_str()));
 
         self.out.push('\n');
         if m.nodes.is_empty() {
@@ -116,7 +116,7 @@ impl Writer<'_> {
                     if let Gate::Vote { k } = gate {
                         self.line(4, "k", &k.to_string());
                     }
-                    let ids: Vec<&str> = children.iter().map(|c| c.as_str()).collect();
+                    let ids: Vec<String> = children.iter().map(|c| reference(c.as_str())).collect();
                     let inline = format!("[{}]", ids.join(", "));
                     if "    children: ".len() + inline.len() <= WIDTH {
                         self.line(4, "children", &inline);
@@ -145,7 +145,7 @@ impl Writer<'_> {
             }
             for (i, c) in node.consequences.iter().enumerate() {
                 let mut fields = vec![
-                    format!("asset: {}", c.asset),
+                    format!("asset: {}", reference(c.asset.as_str())),
                     format!("dim: {}", word(&DIMS, &c.dim)),
                 ];
                 if c.fraction != 1.0 {
@@ -199,7 +199,7 @@ impl Writer<'_> {
             }
             for (i, e) in control.effects.iter().enumerate() {
                 let mut fields = vec![
-                    format!("node: {}", e.node),
+                    format!("node: {}", reference(e.node.as_str())),
                     format!("ttc: {}", expression(&e.ttc)),
                 ];
                 self.extension_fields(&format!("{path}.effects[{i}]"), &mut fields);
@@ -317,6 +317,16 @@ fn quoted(text: &str) -> String {
     }
     out.push('"');
     out
+}
+
+/// An id where it is a value. Its characters are safe anywhere; its words are
+/// not: `null`, `yes`, `42` would be read back as something other than text.
+pub fn reference(text: &str) -> String {
+    if looks_typed(text) {
+        quoted(text)
+    } else {
+        text.to_owned()
+    }
 }
 
 /// Text, bare where that is unambiguous and quoted where it is not.

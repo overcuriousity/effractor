@@ -1640,3 +1640,53 @@ fn a_closed_cluster_may_show_members_beside_it() {
         assert!(has(&errors, "cardinality", path), "{path}: {errors:?}");
     }
 }
+
+/// Every id in `image` renamed, keys and values alike.
+fn renamed(image: &serde_json::Value, names: &[(&str, &str)]) -> serde_json::Value {
+    let mut json = image.to_string();
+    for (old, new) in names {
+        json = json.replace(&format!("\"{old}\""), &format!("\"{new}\""));
+    }
+    serde_json::from_str(&json).unwrap()
+}
+
+#[test]
+fn ids_that_yaml_would_read_as_something_else_are_quoted_where_they_are_values() {
+    // `slug("Null")` is `null`: a valid id, and nothing at all when bare.
+    let mut image = image(LECTURE);
+    clustered(&mut image);
+    let image = renamed(
+        &image,
+        &[
+            ("allow-ssh", "null"),
+            ("openssh", "yes"),
+            ("ssh-client", "on"),
+            ("sshd", "off"),
+            ("bridge-fw", "true"),
+            ("bridge", "y"),
+            ("ssh", "false"),
+            ("workstation", "n"),
+            ("server", "no"),
+        ],
+    );
+    let text = from_document(&image).unwrap();
+    for line in [
+        "    to: \"yes\"\n",
+        "    to: \"false\"\n",
+        "    from: \"true\"\n",
+        "    source: \"on\"\n",
+        "    target: \"off\"\n",
+        "    route: [client-net, \"y\", server-net]\n",
+        "    members: [\"n\", \"on\"]\n",
+        "    - {entity: \"n\", state: admin}\n",
+        "  target: {entity: \"no\", state: admin}\n",
+        "      - {association: \"null\", field: allowed, value: false}\n",
+    ] {
+        assert!(text.contains(line), "{line:?} in {text}");
+    }
+    // Keys stay bare: a key is text whatever it looks like.
+    assert!(text.contains("\n  null:\n    kind: permits\n"), "{text}");
+    load_document(&text).unwrap();
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    assert_eq!(self::image(&text), image);
+}

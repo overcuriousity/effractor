@@ -15,7 +15,7 @@ use crate::architecture_read::{
     SWITCHES, TOOLS,
 };
 use crate::lower::{ARCHITECTURE, Extras, TIME_UNITS};
-use crate::write::{Context, WIDTH, Writer, expression, string, word};
+use crate::write::{Context, WIDTH, Writer, expression, reference, string, word};
 
 pub fn write(m: &Architecture, extras: &Extras) -> String {
     let mut w = Writer::new(extras);
@@ -35,8 +35,8 @@ fn parameter(w: &mut Writer, indent: usize, key: &str, p: &Parameter, path: &str
     w.extension_lines(indent + 2, path);
 }
 
-fn ids(ids: &[EntityId]) -> Vec<&str> {
-    ids.iter().map(|id| id.as_str()).collect()
+fn ids(ids: &[EntityId]) -> Vec<String> {
+    ids.iter().map(|i| reference(i.as_str())).collect()
 }
 
 /// A cluster's list of ids: on one line where it fits, else one per line.
@@ -47,8 +47,8 @@ fn id_list(w: &mut Writer, key: &str, list: &[EntityId]) {
         w.line(4, key, &inline);
     } else {
         w.open(4, key);
-        for id in items {
-            let _ = writeln!(w.out, "      - {id}");
+        for item in items {
+            let _ = writeln!(w.out, "      - {item}");
         }
     }
 }
@@ -126,15 +126,15 @@ fn document(w: &mut Writer, m: &Architecture) {
         let r = &association.relation;
         w.open(2, id.as_str());
         w.line(4, "kind", word(&RELATIONS, &r.kind()));
-        w.line(4, "from", r.from().as_str());
+        w.line(4, "from", &reference(r.from().as_str()));
         match r {
             Relation::Permits { to, allowed, .. } => {
-                w.line(4, "to", to.as_str());
+                w.line(4, "to", &reference(to.as_str()));
                 w.line(4, "allowed", word(&SWITCHES, allowed));
             }
             _ => {
                 if let Some(to) = r.to_entity() {
-                    w.line(4, "to", to.as_str());
+                    w.line(4, "to", &reference(to.as_str()));
                 }
                 if let Some(privilege) = r.privilege() {
                     w.line(4, "privilege", word(&HOSTING_PRIVILEGES, &privilege));
@@ -177,16 +177,16 @@ fn document(w: &mut Writer, m: &Architecture) {
         let path = format!("flows.{id}");
         w.open(2, id.as_str());
         w.line(4, "label", &string(&flow.label, Context::Block));
-        w.line(4, "source", flow.source.as_str());
-        w.line(4, "target", flow.target.as_str());
+        w.line(4, "source", &reference(flow.source.as_str()));
+        w.line(4, "target", &reference(flow.target.as_str()));
         let route = ids(&flow.route);
         let inline = format!("[{}]", route.join(", "));
         if "    route: ".len() + inline.len() <= WIDTH {
             w.line(4, "route", &inline);
         } else {
             w.open(4, "route");
-            for id in route {
-                let _ = writeln!(w.out, "      - {id}");
+            for item in route {
+                let _ = writeln!(w.out, "      - {item}");
             }
         }
         if let Some(p) = &flow.protocol {
@@ -232,7 +232,7 @@ fn document(w: &mut Writer, m: &Architecture) {
     }
     for (i, foothold) in m.attacker.footholds.iter().enumerate() {
         let mut fields = vec![
-            format!("entity: {}", foothold.entity),
+            format!("entity: {}", reference(foothold.entity.as_str())),
             format!("state: {}", word(&STATES, &foothold.state)),
         ];
         w.extension_fields(&format!("attacker.footholds[{i}]"), &mut fields);
@@ -240,7 +240,7 @@ fn document(w: &mut Writer, m: &Architecture) {
     }
     if let Some(target) = &m.attacker.target {
         let mut fields = vec![
-            format!("entity: {}", target.entity),
+            format!("entity: {}", reference(target.entity.as_str())),
             format!("state: {}", word(&STATES, &target.state)),
         ];
         w.extension_fields("attacker.target", &mut fields);
@@ -275,12 +275,12 @@ fn document(w: &mut Writer, m: &Architecture) {
                     defense,
                     value,
                 } => vec![
-                    format!("entity: {entity}"),
+                    format!("entity: {}", reference(entity.as_str())),
                     format!("defense: {}", word(&DEFENSES, defense)),
                     format!("value: {}", word(&SWITCHES, value)),
                 ],
                 Change::Permission { association, value } => vec![
-                    format!("association: {association}"),
+                    format!("association: {}", reference(association.as_str())),
                     "field: allowed".to_owned(),
                     format!("value: {}", word(&SWITCHES, value)),
                 ],
