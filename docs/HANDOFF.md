@@ -23,8 +23,9 @@ each of the owner's decisions with its date; read it before changing any.
   `toggleAll`, `pressK`, `takeOut`, `moveTo`, `merge`, `stack` via `merge`,
   `peel`/`unpeel`, `dissolve`, `rename`, `setClosed`), `together` (what runs
   together: a host with its router + firewall, software and products only it
-  uses; a router on no box with its firewall), `forget`/`rekey` (used by
-  `architecture-links.remove`/`renameId`), and the drawing's geometry
+  uses; a router on no box with its firewall), `forget` (used by
+  `architecture-links.remove`; `rekey` has no caller since ids are fixed
+  once made), and the drawing's geometry
   (`segments`/`arc` ring sectors, `within` rectangle, `closeAt`/`reopen` in
   place, `transitions`/`opened` for the glide, `spread` to push aside what an
   opened cluster covers, `lit`). Loads right after `graph.js`; `edit.js`'s
@@ -623,10 +624,12 @@ Task 5 (`architecture-links`) is merged after the owner's look in the 8081
 preview. What exists:
 
 - `architecture-links.js` (pure): `putAssociation`, `putFlow`, `setFoothold`,
-  `setTarget`, `renameId`, `remove` (reference-safe: a delete takes along the
+  `setTarget`, `remove` (reference-safe: a delete takes along the
   associations, flows from/to/over it or needing a removed attachment, their
-  permissions, attacker states and scenario changes); catalog-driven
-  `linkChoices`, `addChoices`, `addLinked`, `privileges`, `nextHops`,
+  permissions, attacker states and scenario changes; a firewall's permission
+  goes when its router leaves the flow's route or stops being filtered by
+  it); ids are fixed once made, never renamed; catalog-driven
+  `linkChoices`, `addChoices` (the same fields as the Link menu), `addLinked`, `nextHops`,
   `flowPermissions`, `phrase`, and the explanations `notes`, `emptyLink`,
   `emptyFlow`, `emptyHop`. Fixtures `scripts/fixtures/architecture.doc.json`
   and `catalog.json` are pinned to the real format/catalog by Rust tests.

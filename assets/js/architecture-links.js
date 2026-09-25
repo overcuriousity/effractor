@@ -1,13 +1,16 @@
 // Architecture relationships, flows and attacker states, as pure edits with
 // the same contract as architecture-edit.js: {doc, select, notice?} or null.
 // Whether an association's kinds, ends and fields are valid is for the wasm
-// module to say; what this file does is keep references whole — a rename
-// rewrites every place an id is named, a delete takes along everything that
-// named what it deletes — so a document never points at nothing.
+// module to say; what this file does is keep references whole — a delete
+// takes along everything that named what it deletes — so a document never
+// points at nothing. Ids are fixed once made.
 (function () {
-  var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
-  var C = typeof module !== "undefined" ? require("./clusters.js") : window.effractorClusters;
-  var KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of", "runs-as", "assumes", "knows", "operates", "delivers", "holds", "accesses", "encrypted-with", "reads"];
+  var node = typeof module !== "undefined";
+  var slug = (node ? require("./edit.js") : window.effractorEdit).slug;
+  var C = node ? require("./clusters.js") : window.effractorClusters;
+  var E = node ? require("./architecture-edit.js") : window.effractorArchitectureEdit;
+  var has = E.has, clone = E.clone, extensions = E.extensions;
+  var ASSOCIATION_KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of", "runs-as", "assumes", "knows", "operates", "delivers", "holds", "accesses", "encrypted-with", "reads"];
   var PRIVILEGED = ["hosts", "stores", "grants", "runs-as", "holds"];
   // The fields a link carries beside kind/from/to, in the file's order.
   var FIELD_ORDER = ["privilege", "factor", "contained", "decrypts", "mode"];
@@ -15,31 +18,6 @@
   var FIELD_WORDS = { factor: { second: "as second factor" }, contained: { true: "contained", false: "not contained" }, decrypts: { true: "sees plaintext", false: "ciphertext only" }, mode: { read: "read only", write: "read and write" } };
   var COLLECTIONS = ["entities", "associations", "flows"];
   var SOFTWARE = ["application", "service"];
-
-  function has(o, k) {
-    return !!o && Object.prototype.hasOwnProperty.call(o, k);
-  }
-
-  function clone(doc) {
-    return JSON.parse(JSON.stringify(doc));
-  }
-
-  function extensions(record) {
-    var out = {};
-    Object.keys(record || {}).forEach(function (k) {
-      if (k.indexOf("x-") === 0) out[k] = record[k];
-    });
-    return out;
-  }
-
-  // A map with one key renamed, in its place.
-  function renamed(map, from, to) {
-    var out = {};
-    Object.keys(map).forEach(function (k) {
-      out[k === from ? to : k] = map[k];
-    });
-    return out;
-  }
 
   function freeId(map, base) {
     base = slug(base);
@@ -49,24 +27,21 @@
     return id;
   }
 
-  // What is wrong with `id` as the new name of `old` in a collection, or null.
-  function idProblem(doc, collection, old, id) {
-    if (COLLECTIONS.indexOf(collection) < 0) return "nothing to rename there";
-    if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) return "an id is a-z, 0-9 and '-', not starting with '-'";
-    if (/^[0-9]+$/.test(id)) return "an id needs a letter or '-', not only digits";
-    if (id !== old && has(doc[collection], id)) return "“" + id + "” is taken";
-    return null;
+  // An id the file can hold: a-z, 0-9 and '-', not starting with '-', and
+  // not only digits (JavaScript would move such a key to the front of a map).
+  function goodId(id) {
+    return /^[a-z0-9][a-z0-9-]*$/.test(id) && !/^[0-9]+$/.test(id);
   }
 
   // `value`: {kind, from, to, privilege?, allowed?, factor?, description?}. Written in
   // canonical key order with only the fields its kind carries; `id` null
   // makes a new one named after its ends.
   function putAssociation(doc, id, value) {
-    if (!value || KINDS.indexOf(value.kind) < 0) return null;
+    if (!value || ASSOCIATION_KINDS.indexOf(value.kind) < 0) return null;
     var next = clone(doc);
     next.associations = next.associations || {};
     if (id == null) id = freeId(next.associations, value.from + "-" + value.kind + "-" + value.to);
-    else if (!has(next.associations, id) && idProblem(next, "associations", null, id)) return null;
+    else if (!has(next.associations, id) && !goodId(id)) return null;
     var a = { kind: value.kind, from: String(value.from || ""), to: String(value.to || "") };
     if (PRIVILEGED.indexOf(value.kind) >= 0) a.privilege = value.privilege;
     if (value.kind === "permits") a.allowed = value.allowed;
@@ -90,7 +65,7 @@
     var next = clone(doc);
     next.flows = next.flows || {};
     if (id == null) id = freeId(next.flows, label);
-    else if (!has(next.flows, id) && idProblem(next, "flows", null, id)) return null;
+    else if (!has(next.flows, id) && !goodId(id)) return null;
     var old = has(next.flows, id) ? next.flows[id] : null;
     var f = {
       label: label,
@@ -104,7 +79,49 @@
     Object.assign(f, extensions(old));
     if (old && JSON.stringify(old) === JSON.stringify(f)) return null;
     next.flows[id] = f;
-    return { doc: next, select: "flow/" + id };
+    var edit = { doc: next, select: "flow/" + id };
+    // A router off the route takes its firewall's permission along.
+    var dropped = strayPermits(doc, next, id);
+    if (dropped.length) {
+      var firewalls = dropped.map(function (k) {
+        return "“" + labelOf(next, next.associations[k].from) + "”";
+      });
+      dropAssociations(next, dropped);
+      edit.notice = (dropped.length === 1 ? "permission of " : "permissions of ") + firewalls.join(", ") + " removed · Ctrl+Z undoes";
+    }
+    return edit;
+  }
+
+  // Does a permission's firewall filter a router on its flow's route?
+  function filtered(doc, permit) {
+    var flow = has(doc.flows, permit.to) ? doc.flows[permit.to] : null;
+    return !!flow && (flow.route || []).some(function (router) {
+      return linked(doc, "filters", router, permit.from);
+    });
+  }
+
+  // The permissions (of flow `only`, when given) that `before` filtered and
+  // `after` no longer does. One the file had without its router is left for
+  // the validator to name.
+  function strayPermits(before, after, only) {
+    return Object.keys(after.associations || {}).filter(function (k) {
+      var a = after.associations[k];
+      if (a.kind !== "permits" || (only != null && a.to !== only) || !has(before.associations, k)) return false;
+      return filtered(before, before.associations[k]) && !filtered(after, a);
+    });
+  }
+
+  // Deletes associations and the scenario changes on them.
+  function dropAssociations(next, ids) {
+    ids.forEach(function (k) {
+      delete next.associations[k];
+    });
+    Object.keys(next.scenarios || {}).forEach(function (k) {
+      var s = next.scenarios[k];
+      s.changes = (s.changes || []).filter(function (c) {
+        return !(has(c, "association") && ids.indexOf(c.association) >= 0);
+      });
+    });
   }
 
   function sameState(a, entity, state) {
@@ -185,50 +202,6 @@
     return edit;
   }
 
-  var SELECT = { entities: "entity/", associations: "association/", flows: "flow/" };
-
-  function renameId(doc, collection, old, id) {
-    if (COLLECTIONS.indexOf(collection) < 0 || !has(doc[collection], old) || old === id) return null;
-    if (idProblem(doc, collection, old, id)) return null;
-    var next = clone(doc);
-    next[collection] = renamed(next[collection], old, id);
-    var swap = function (v) {
-      return v === old ? id : v;
-    };
-    if (collection === "entities") {
-      Object.keys(next.associations || {}).forEach(function (k) {
-        var a = next.associations[k];
-        a.from = swap(a.from);
-        if (a.kind !== "permits") a.to = swap(a.to);
-      });
-      Object.keys(next.flows || {}).forEach(function (k) {
-        var f = next.flows[k];
-        f.source = swap(f.source);
-        f.target = swap(f.target);
-        f.route = (f.route || []).map(swap);
-      });
-      var attacker = next.attacker || {};
-      (attacker.footholds || []).forEach(function (s) {
-        s.entity = swap(s.entity);
-      });
-      if (attacker.target) attacker.target.entity = swap(attacker.target.entity);
-      C.rekey(next, old, id);
-    }
-    if (collection === "flows") {
-      Object.keys(next.associations || {}).forEach(function (k) {
-        var a = next.associations[k];
-        if (a.kind === "permits") a.to = swap(a.to);
-      });
-    }
-    Object.keys(next.scenarios || {}).forEach(function (k) {
-      (next.scenarios[k].changes || []).forEach(function (c) {
-        if (collection === "entities" && has(c, "entity")) c.entity = swap(c.entity);
-        if (collection === "associations" && has(c, "association")) c.association = swap(c.association);
-      });
-    });
-    return { doc: next, select: SELECT[collection] + id };
-  }
-
   // The product a service is an instance of, or null.
   function productOf(doc, service) {
     var link = Object.keys(doc.associations || {}).filter(function (k) {
@@ -306,17 +279,23 @@
       });
     });
     if (collection !== "entities") links--;
-    var was = [];
+    // A firewall that no longer filters a flow's router loses its permission.
+    strayPermits(doc, next).forEach(function (k) {
+      gone.associations[k] = true;
+      delete next.associations[k];
+      links++;
+    });
+    var footholds = 0, target = false;
     var attacker = next.attacker || {};
     if (collection === "entities") {
       var before = (attacker.footholds || []).length;
       attacker.footholds = (attacker.footholds || []).filter(function (s) {
         return s.entity !== id;
       });
-      if (attacker.footholds.length < before) was.push("a foothold");
+      footholds = before - attacker.footholds.length;
       if (attacker.target && attacker.target.entity === id) {
         delete attacker.target;
-        was.push("the target");
+        target = true;
       }
     }
     Object.keys(next.scenarios || {}).forEach(function (k) {
@@ -329,25 +308,35 @@
     C.forget(next, gone.entities);
     var notice = "deleted “" + title(doc, collection, id) + "”";
     if (links) notice += " and " + links + (links === 1 ? " link" : " links");
-    if (was.length) notice += ", " + was.join(" and ");
-    return { doc: next, select: null, notice: notice + " · Ctrl+Z undoes", links: links };
+    notice += attackerWords(footholds, target);
+    return { doc: next, select: null, notice: notice + " · Ctrl+Z undoes", links: links, footholds: footholds, target: target };
+  }
+
+  // ", a foothold and the target": what of the attacker a delete took along.
+  function attackerWords(footholds, target) {
+    var was = [];
+    if (footholds) was.push(footholds === 1 ? "a foothold" : footholds + " footholds");
+    if (target) was.push("the target");
+    return was.length ? ", " + was.join(" and ") : "";
   }
 
   // Several components in one edit (clustering spec §3): each with what
   // named it.
   function removeAll(doc, entityIds) {
-    var next = doc, n = 0, links = 0, single = null;
+    var next = doc, n = 0, links = 0, footholds = 0, target = false, single = null;
     entityIds.forEach(function (id) {
       if (!has(next.entities, id)) return;
       var r = remove(next, "entities", id);
       next = r.doc;
       n++;
       links += r.links;
+      footholds += r.footholds;
+      target = target || r.target;
       single = r;
     });
     if (!n) return null;
     if (n === 1) return single;
-    var notice = "deleted " + n + " components" + (links ? " and " + links + (links === 1 ? " link" : " links") : "");
+    var notice = "deleted " + n + " components" + (links ? " and " + links + (links === 1 ? " link" : " links") : "") + attackerWords(footholds, target);
     return { doc: next, select: null, notice: notice + " · Ctrl+Z undoes" };
   }
 
@@ -417,10 +406,8 @@
     return out;
   }
 
-  // What privilege a link of this kind can carry here, or null for none.
-  function privileges(doc, kind, from, to) {
-    return privilegesOf(kind, kindOf(doc, from), kindOf(doc, to));
-  }
+  // What privilege a link of this kind can carry between these kinds, or
+  // null for none.
   function privilegesOf(kind, fromKind, toKind) {
     if (PRIVILEGED.indexOf(kind) < 0) return null;
     if (kind === "hosts" && fromKind === "router") return ["admin"];
@@ -450,19 +437,15 @@
 
   // Every combination of those values: the ways the Link menu offers.
   function variants(doc, kind, from, to) {
-    return fieldsOf(kind, kindOf(doc, from), kindOf(doc, to)).filter(function (f) {
-      return !f.setting;
-    }).reduce(function (acc, f) {
-      var out = [];
-      acc.forEach(function (v) {
-        f.values.filter(function (value) { return value !== "unknown"; }).forEach(function (value) {
-          var next = Object.assign({}, v);
-          next[f.name] = value;
-          out.push(next);
-        });
-      });
-      return out;
-    }, [{}]);
+    return combinations(kind, kindOf(doc, from), kindOf(doc, to));
+  }
+
+  // What a field the file leaves out means: its value where absent says one
+  // (a first factor, not contained), else null — not said.
+  var FIELD_ABSENT = { factor: "first", contained: false };
+  function fieldValue(link, name) {
+    if (link && link[name] != null) return link[name];
+    return has(FIELD_ABSENT, name) ? FIELD_ABSENT[name] : null;
   }
 
   function fieldWord(name, value) {
@@ -512,9 +495,6 @@
     return words;
   }
 
-
-  var ENTITY_KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential", "person", "data"];
-
   function hasFilters(doc, end, id) {
     return Object.keys(doc.associations || {}).some(function (k) {
       var a = doc.associations[k];
@@ -522,10 +502,28 @@
     });
   }
 
+  // Every combination of the fields a link carries between these kinds.
+  function combinations(kind, fromKind, toKind) {
+    return fieldsOf(kind, fromKind, toKind).filter(function (f) {
+      return !f.setting;
+    }).reduce(function (acc, f) {
+      var out = [];
+      acc.forEach(function (v) {
+        f.values.filter(function (value) { return value !== "unknown"; }).forEach(function (value) {
+          var next = Object.assign({}, v);
+          next[f.name] = value;
+          out.push(next);
+        });
+      });
+      return out;
+    }, [{}]);
+  }
+
   // What Tab can add next to `id`: each kind that can be linked to it, with
-  // every way to link it — relation, direction, privilege — in the catalog's
-  // order. A hosted executable gets no second host, a router with a firewall
-  // no second one; permissions belong to a flow.
+  // every way to link it — relation, direction, and the fields the Link menu
+  // offers (`fields`; `privilege` among them) — in the catalog's order. A
+  // hosted executable gets no second host, a router with a firewall no
+  // second one; permissions belong to a flow.
   function addChoices(doc, catalog, id) {
     var kind = kindOf(doc, id);
     if (!kind) return [];
@@ -535,8 +533,9 @@
       var to = direction === "out" ? newKind : kind;
       if (!endsAllowed(relation, from, to)) return;
       var list = (byKind[newKind] = byKind[newKind] || []);
-      (privilegesOf(relation, from, to) || [null]).forEach(function (p) {
-        list.push({ relation: relation, direction: direction, privilege: p });
+      var ways = relation === "flow" ? [{}] : combinations(relation, from, to);
+      ways.forEach(function (v) {
+        list.push({ relation: relation, direction: direction, privilege: v.privilege || null, fields: v });
       });
     }
     // A flow runs from software to a service: offered from either end.
@@ -556,7 +555,7 @@
         spec.from.forEach(function (k) { offer(k, spec.kind, "in"); });
       }
     });
-    return ENTITY_KINDS.filter(function (k) { return byKind[k]; }).map(function (k) {
+    return E.KINDS.filter(function (k) { return byKind[k]; }).map(function (k) {
       return { kind: k, options: byKind[k] };
     });
   }
@@ -571,15 +570,16 @@
     var from = option.direction === "out" ? id : added.entity;
     var to = option.direction === "out" ? added.entity : id;
     if (option.relation === "flow") {
-      var label = function (e) {
+      var labelOfEnd = function (e) {
         return added.doc.entities[e].label;
       };
-      var flowed = putFlow(added.doc, null, { label: label(from) + " to " + label(to), source: from, target: to, route: [] });
+      var flowed = putFlow(added.doc, null, { label: labelOfEnd(from) + " to " + labelOfEnd(to), source: from, target: to, route: [] });
       return flowed ? { doc: flowed.doc, select: "entity/" + added.entity, entity: added.entity } : null;
     }
-    var linked = putAssociation(added.doc, null, { kind: option.relation, from: from, to: to, privilege: option.privilege });
-    if (!linked) return null;
-    return { doc: linked.doc, select: "entity/" + added.entity, entity: added.entity };
+    var fields = option.fields || { privilege: option.privilege };
+    var put = putAssociation(added.doc, null, Object.assign({}, fields, { kind: option.relation, from: from, to: to }));
+    if (!put) return null;
+    return { doc: put.doc, select: "entity/" + added.entity, entity: added.entity };
   }
 
   function attachedTo(doc, machine, network) {
@@ -716,7 +716,7 @@
     return want === "router" ? "no router yet · add one with A, then connect it to both networks" : "no network yet · add one with A";
   }
 
-  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, fieldsOf: fieldsOf, variants: variants, fieldWord: fieldWord, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, renameId: renameId, remove: remove, removeAll: removeAll };
+  var api = { notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, fieldsOf: fieldsOf, variants: variants, fieldWord: fieldWord, fieldValue: fieldValue, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, remove: remove, removeAll: removeAll };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
 })();

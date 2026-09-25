@@ -5,7 +5,7 @@
 // Every function returns {doc, select, notice?} — `select` is the qualified
 // selection to land on — or null when the edit does not apply or changes
 // nothing. Source ids are fixed when a component is made; labels never move them.
-// Links, renames of ids and deletion are in architecture-links.js.
+// Links and deletion are in architecture-links.js.
 (function () {
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
   var KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential", "person", "data"];
@@ -18,6 +18,7 @@
   ];
   var STATUSES = ["unknown", "illustrative", "assumed", "calibrated"];
 
+  // Shared with architecture-links.js.
   function has(o, k) {
     return !!o && Object.prototype.hasOwnProperty.call(o, k);
   }
@@ -135,7 +136,10 @@
       if (ttc) parameter.ttc = ttc;
       if (note) parameter.note = note;
     }
-    at.record.parameters[slot] = Object.assign(parameter, extensions(at.record.parameters[slot]));
+    var was = at.record.parameters[slot];
+    Object.assign(parameter, extensions(was));
+    if (JSON.stringify(was) === JSON.stringify(parameter)) return null;
+    at.record.parameters[slot] = parameter;
     return { doc: next, select: at.select };
   }
 
@@ -148,7 +152,7 @@
     return { doc: next, select: "entity/" + id };
   }
 
-  var api = { KINDS: KINDS, GROUPS: GROUPS, STATUSES: STATUSES, empty: empty, addEntity: addEntity, renameEntity: renameEntity, setDescription: setDescription, setAddresses: setAddresses, setParameter: setParameter, setDefense: setDefense };
+  var api = { KINDS: KINDS, GROUPS: GROUPS, STATUSES: STATUSES, has: has, clone: clone, extensions: extensions, empty: empty, addEntity: addEntity, renameEntity: renameEntity, setDescription: setDescription, setAddresses: setAddresses, setParameter: setParameter, setDefense: setDefense };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureEdit = api;
 })();

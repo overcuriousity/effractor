@@ -50,17 +50,6 @@
     return b;
   }
 
-  var catalog = null;
-  function withCatalog(then) {
-    U.loadCatalog().then(function (c) {
-      catalog = c;
-      then(c);
-    }, function () {
-      app.say("the component library could not be read");
-    });
-  }
-
-  // Where a menu opens: beside a control, or in the canvas.
   // Where a menu opens: beside the button that opened it, else beside the
   // component on the canvas, else in the canvas.
   function at(anchor, id) {
@@ -86,7 +75,6 @@
   // that says why.
   function linkItems(id) {
     return U.loadCatalog().then(function (c) {
-      catalog = c;
       var items = [];
       L.linkChoices(doc(), c, id).forEach(function (choice) {
         var ends = function (other) {
@@ -138,19 +126,25 @@
     });
   }
 
+  // The services a flow from `source` can go to, as menu items.
+  function serviceItems(source) {
+    return Object.keys(doc().entities).filter(function (o) {
+      return o !== source && kindOf(o) === "service";
+    }).map(function (target) {
+      return [name(target), "", function () { flow(source, target); }, { hint: "service" }];
+    });
+  }
+
   // Software to a service, and a service from software: a flow with an empty
   // route, whose networks and routers are said, never guessed.
   function flowItems(id) {
-    var others = Object.keys(doc().entities).filter(function (o) { return o !== id; });
     var out = [];
     if (executable(id)) {
-      var to = others.filter(function (o) { return kindOf(o) === "service"; });
-      if (to.length) out.push([L.phrase("flow", "out"), "", to.map(function (o) {
-        return [name(o), "", function () { flow(id, o); }, { hint: "service" }];
-      }), { title: "flow" }]);
+      var to = serviceItems(id);
+      if (to.length) out.push([L.phrase("flow", "out"), "", to, { title: "flow" }]);
     }
     if (kindOf(id) === "service") {
-      var from = others.filter(executable);
+      var from = Object.keys(doc().entities).filter(function (o) { return o !== id && executable(o); });
       if (from.length) out.push([L.phrase("flow", "in"), "", from.map(function (o) {
         return [name(o), "", function () { flow(o, id); }, { hint: kindOf(o) }];
       }), { title: "flow" }]);
@@ -174,13 +168,9 @@
   }
 
   function pickFlowTarget(source, where) {
-    var services = Object.keys(doc().entities).filter(function (o) {
-      return o !== source && kindOf(o) === "service";
-    });
+    var services = serviceItems(source);
     if (!services.length) return app.say(L.emptyFlow(doc(), source));
-    app.showMenu(services.map(function (target) {
-      return [name(target), "", function () { flow(source, target); }, { hint: "service" }];
-    }), where.x, where.y, where.box);
+    app.showMenu(services, where.x, where.y, where.box);
   }
 
   // ---- in a component's form: links, flows, foothold, target ----
@@ -259,14 +249,17 @@
     attacker(form, id);
   }
 
-  function statesOf(id) {
-    var spec = catalog ? (catalog.entities || []).filter(function (e) { return e.kind === kindOf(id); })[0] : null;
+  function statesOf(catalog, id) {
+    var spec = (catalog.entities || []).filter(function (e) { return e.kind === kindOf(id); })[0];
     return spec ? spec.states : [];
   }
 
+  // Before the catalog has arrived there are no states to offer; the form
+  // is built again when it comes.
   function attacker(form, id) {
-    if (!catalog) return withCatalog(function () { U.render(); });
-    var states = statesOf(id);
+    var catalog = U.catalog();
+    if (!catalog) return;
+    var states = statesOf(catalog, id);
     if (!states.length) return;
     var a = doc().attacker || {};
     var options = [["", "—"]].concat(states.map(function (s) { return [s, window.effractorWords.state(catalog, s)]; }));
@@ -322,12 +315,14 @@
       U.field(form, "prop-to", "To", endButton("entity/" + a.to, name(a.to)));
     }
     // One dropdown per field the link carries; a value the file has that
-    // the ends no longer allow stays shown, for the validator to name.
+    // the ends no longer allow stays shown, for the validator to name; one
+    // the file leaves out, with no meaning when absent, shows as not said.
     L.fieldsOf(a.kind, kindOf(a.from), kindOf(a.to)).forEach(function (f) {
-      var current = a[f.name] == null ? String(f.values[0]) : String(a[f.name]);
+      var value = L.fieldValue(a, f.name);
+      var current = value == null ? "" : String(value);
       var values = f.values.map(String);
       var options = values.concat(values.indexOf(current) < 0 ? [current] : []).map(function (v) {
-        return [v, L.fieldWord(f.name, v) || v];
+        return [v, v === "" ? "? not said" : L.fieldWord(f.name, v) || v];
       });
       var control = U.field(form, "prop-" + f.name, f.name.charAt(0).toUpperCase() + f.name.slice(1), M.dropdown(options, current));
       control.addEventListener("change", function () {
@@ -376,6 +371,12 @@
     var f = doc().flows[id];
     var label = U.field(form, "prop-label", "Label", U.input("text", f.label));
     label.addEventListener("change", function () {
+      // Spaces around the label are not part of it: nothing to change.
+      var now = own(doc().flows, id);
+      if (now && label.value.trim() === now.label) {
+        label.value = now.label;
+        return;
+      }
       putFlow(id, { label: label.value });
     });
     label.addEventListener("keydown", function (ev) {
@@ -482,7 +483,7 @@
 
   document.addEventListener("keydown", function (e) {
     if (e.defaultPrevented || !P.isArchitecture(doc()) || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName) || e.target.closest(".menu") || document.querySelector("dialog[open]")) return;
+    if (U.typingElsewhere(e)) return;
     if (e.key.toLowerCase() !== "l" || !selectedEntity()) return;
     e.preventDefault();
     startLink(selectedEntity(), null);
