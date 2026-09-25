@@ -16,8 +16,9 @@
   function split(expr) {
     var m = SHAPE.exec(String(expr || ''));
     if (!m || (m[1] == null && m[2] == null)) return null;
-    // "30% Exponential(…)" without * is not the notation.
-    if (m[1] != null && m[2] != null && !/\*/.test(expr)) return null;
+    // The * joins two parts: without both it is not the notation, and
+    // "30% Exponential(…)" without it is not either.
+    if ((m[1] != null && m[2] != null) !== /\*/.test(expr)) return null;
     return { chance: m[1] == null ? null : Number(m[1]), mean: m[2] == null ? null : Number(m[2]) };
   }
   function join(parts) {
@@ -75,6 +76,9 @@
     var chance = part('Chance', '%', 'How likely the step succeeds at all · empty: certain');
     chance.field.max = '100';
     var mean = part('Average time', unitName(unit, 2), 'How long it takes on average when it succeeds · empty: at once');
+    // Ids from the field's, so a form drawn again gives the focus back to
+    // the part that had it.
+    if (input.id) { picker.id = input.id + '-preset'; chance.field.id = input.id + '-chance'; mean.field.id = input.id + '-mean'; }
     var parts = document.createElement('div'); parts.className = 'ttc-parts';
     parts.append(chance.box, mean.box);
     var hint = document.createElement('p'); hint.className = 'hint ttc-description';
