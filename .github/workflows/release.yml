@@ -34,9 +34,18 @@ jobs:
     # Once, not per architecture: both binaries embed the same bytes.
     needs: gate
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
       - run: rustup show
+      # Also once, here where the toolchain already is: the binaries and the
+      # release tag must name the same version.
+      - name: version
+        id: version
+        run: |
+          base=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "effractor-server") | .version')
+          echo "version=$base+$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-wasm
@@ -68,12 +77,12 @@ jobs:
         with:
           name: wasm-bundle
           path: assets/wasm
-      - name: version
-        run: |
-          base=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "effractor-server") | .version')
-          echo "EFFRACTOR_VERSION=$base+$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
       - run: cargo build --release --locked --target ${{ matrix.target }} -p effractor-server
+        env:
+          EFFRACTOR_VERSION: ${{ needs.wasm.outputs.version }}
       - name: stage
+        env:
+          EFFRACTOR_VERSION: ${{ needs.wasm.outputs.version }}
         run: |
           bin=target/${{ matrix.target }}/release/effractor
           # Static, or the installer's promise of "any Linux" is false.
@@ -89,7 +98,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: build
+    needs: [wasm, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -104,9 +113,9 @@ jobs:
       - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.wasm.outputs.version }}
         run: |
-          base=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
-          tag="v$base+$(git rev-parse --short=7 HEAD)"
+          tag="v$VERSION"
           cd dist
           sha256sum effractor-* > SHA256SUMS
           cat SHA256SUMS

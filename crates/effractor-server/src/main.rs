@@ -6,18 +6,10 @@ use std::time::Duration;
 use clap::Parser;
 use effractor_server::share::{FsStorage, Limits, Shares, Ttl};
 
-/// The release workflow stamps `<Cargo version>+<short sha>`, since every
-/// commit to master is a release and the Cargo version alone would not tell
-/// two of them apart. A local build has no stamp and says so.
-const VERSION: &str = match option_env!("EFFRACTOR_VERSION") {
-    Some(stamped) => stamped,
-    None => concat!(env!("CARGO_PKG_VERSION"), "+dev"),
-};
-
 /// Security architecture analysis, served locally. Models are solved in the
 /// browser and never reach this process unless shared.
 #[derive(Parser)]
-#[command(name = "effractor", version = VERSION)]
+#[command(name = "effractor", version = effractor_server::VERSION)]
 struct Args {
     /// Export a static site with self-contained sharing to a new directory, then exit.
     #[arg(long, value_name = "DIRECTORY")]

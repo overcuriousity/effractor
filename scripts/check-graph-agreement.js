@@ -91,8 +91,7 @@ if (require.main === module) {
     });
     const target = process.env.CARGO_TARGET_DIR || path.join(root, 'target');
     const binary = path.join(target, 'debug', 'examples', 'graph-agreement');
-    const api = new Function(fs.readFileSync(path.join(root, 'assets/wasm/effractor_wasm.js'), 'utf8') + '; return wasm_bindgen;')();
-    api.initSync({ module: fs.readFileSync(path.join(root, 'assets/wasm/effractor_wasm_bg.wasm')) });
+    const api = require('./wasm.js').loadWasm();
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'effractor-agreement-'));
     let failed = false;
     try {
