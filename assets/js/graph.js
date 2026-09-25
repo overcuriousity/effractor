@@ -293,8 +293,8 @@
   // firewall is pulled towards both ends of every flow it rules on, so it
   // settles beside its router, among the traffic it governs; the pulls shape
   // the layout and are never drawn.
-  function toStress(graph) {
-    var grouped = blocks(graph);
+  function toStress(graph, grouped) {
+    grouped = grouped || blocks(graph);
     function place(id) {
       return grouped.of[id] || id;
     }
@@ -386,8 +386,10 @@
   // places. `run` is ELK's `layout`, wherever it lives (a worker, in the page).
   function layoutWith(run, graph) {
     if (graph.profile === "architecture") {
-      return run(toElk(graph)).then(function (result) {
-        return fromElk(graph, result);
+      // Its blocks worked out once, for the layout and for reading it back.
+      var grouped = blocks(graph);
+      return run(toStress(graph, grouped)).then(function (result) {
+        return fromElk(graph, result, grouped);
       });
     }
     return run(toElk(graph)).then(function (first) {
@@ -414,8 +416,9 @@
     });
   }
 
-  // ELK's answer, reduced to what a renderer draws.
-  function fromElk(graph, result) {
+  // ELK's answer, reduced to what a renderer draws. `grouped`: an
+  // architecture's blocks, if already worked out.
+  function fromElk(graph, result, grouped) {
     var described = dict();
     graph.nodes.forEach(function (n) {
       described[n.id] = n;
@@ -424,7 +427,7 @@
     graph.edges.forEach(function (e) {
       ends[e.id] = e;
     });
-    if (graph.profile === "architecture") return fromStress(graph, result, described);
+    if (graph.profile === "architecture") return fromStress(graph, result, described, grouped);
     return {
       width: result.width || 0,
       height: result.height || 0,
@@ -454,8 +457,8 @@
   // its lines end; its straight lines are drawn
   // later (positions.js), so ELK's routes and the pulls are dropped, and the
   // firewalls' permissions ride along to be drawn as lines of their own.
-  function fromStress(graph, result, described) {
-    var grouped = blocks(graph);
+  function fromStress(graph, result, described, grouped) {
+    grouped = grouped || blocks(graph);
     var hub = { x: SIZE.width / 2, y: SIZE.plate / 2, r: SIZE.plate / 2 + SIZE.halo };
     // A ringed component's lines end outside its ring.
     var ringed = { x: hub.x, y: hub.y, r: hub.r + SIZE.ring + 2 };
