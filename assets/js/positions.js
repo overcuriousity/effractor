@@ -212,15 +212,6 @@
         return {};
       }
     }
-    function move(name, id, x, y) {
-      var all = load(name);
-      all[id] = { x: Math.round(x), y: Math.round(y) };
-      try {
-        if (storage) storage.setItem(PREFIX + name, JSON.stringify(all));
-      } catch (e) {
-        /* kept for this page only */
-      }
-    }
     // Several at once, one write: {id: {x, y}}, or null to forget one.
     function moveAll(name, places) {
       var all = load(name);
@@ -242,7 +233,7 @@
         /* nothing to clear */
       }
     }
-    return { load: load, move: move, moveAll: moveAll, clear: clear };
+    return { load: load, moveAll: moveAll, clear: clear };
   }
 
   var api = { place: place, route: route, attach: attach, along: along, outline: outline, createStore: createStore };

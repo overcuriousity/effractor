@@ -941,3 +941,10 @@ test('review: another document of the same name just appears; the same one opens
   assert.equal(h.moves.length, 1, 'written once');
   assert.deepEqual(h.moves[0], { 'entity/web': { x: 85, y: 0 }, 'entity/db': { x: 115, y: 0 } }, 'round where the cluster stood');
 });
+
+test('review: a group drag is one move, written once', async () => {
+  const h = namedAlike();
+  await h.app.ready; await h.settle();
+  h.emit('move', { places: { 'cluster/x': { x: 5, y: 6 }, 'entity/q': { x: 7, y: 8 } } });
+  assert.deepEqual(h.moves, [{ 'cluster/x': { x: 5, y: 6 }, 'entity/q': { x: 7, y: 8 } }]);
+});

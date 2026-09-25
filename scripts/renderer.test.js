@@ -279,9 +279,21 @@ test("in a free layout a dragged node moves, its lines follow, and the move is r
   assert.equal(node("entity/b").getAttribute("transform"), "translate(320 100)");
   assert.notEqual(line.getAttribute("d"), before, "the line follows while dragging");
   node("entity/a").dispatch("pointerup", { clientX: 30, clientY: 110, pointerId: 1 });
-  assert.deepEqual(moves, [{ id: "entity/b", x: 320, y: 100 }]);
+  assert.deepEqual(moves, [{ places: { "entity/b": { x: 320, y: 100 } } }]);
   assert.deepEqual(drops, [], "let go over nothing: only a move");
   assert.deepEqual(selects, []);
+});
+
+test("review: several selected dragged together are reported in one move", () => {
+  const { r, node } = mounted();
+  r.render(freeLayout(), {});
+  const moves = [];
+  r.on("move", (e) => moves.push(e));
+  r.highlight(["entity/a", "entity/b"], "selected");
+  node("entity/b").dispatch("pointerdown", { clientX: 10, clientY: 10, button: 0, pointerId: 1 });
+  node("entity/b").dispatch("pointermove", { clientX: 30, clientY: 110, pointerId: 1 });
+  node("entity/b").dispatch("pointerup", { clientX: 30, clientY: 110, pointerId: 1 });
+  assert.deepEqual(moves, [{ places: { "entity/a": { x: 20, y: 100 }, "entity/b": { x: 320, y: 100 } } }]);
 });
 
 test("in a free layout a node let go over another is dropped on it, to merge", () => {

@@ -5,7 +5,8 @@
 //
 // A layout is ELK's, with routed edges, or `free` (positions.js): nodes where
 // the author put them and edges as straight lines between them. In a free layout a
-// dragged node moves and is reported with `move`; in the other a node
+// dragged node moves and is reported with `move` ({places: {id: {x, y}}},
+// one report for everything dragged together); in the other a node
 // dragged onto another is a `drop`.
 //
 // It is told node ids, class names and positions, and tells back node ids.
@@ -257,10 +258,13 @@
         if (!g.moved) return emit("select", g.edge ? { id: g.edge.to, parent: g.edge.from, edge: g.edge.id, x: e.clientX, y: e.clientY, ctrl: ctrl } : { id: g.id, parent: undefined, x: e.clientX, y: e.clientY, ctrl: ctrl });
         svg.releasePointerCapture(e.pointerId);
         if (free && g.id) {
+          // Everything that moved together, in one report.
+          var places = {};
           (g.group || [g.id]).forEach(function (id) {
             var p = free.at[id];
-            if (p) emit("move", { id: id, x: p.x, y: p.y });
+            if (p) places[id] = { x: p.x, y: p.y };
           });
+          if (Object.keys(places).length) emit("move", { places: places });
           // One component or cluster let go over another: dropped on it,
           // to merge them (owner, 2026-09-25).
           if (g.alone && drawn.nodes[g.id]) {

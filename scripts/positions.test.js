@@ -88,7 +88,7 @@ test('positions are kept per document in the browser, and a broken storage is no
   const storage = { getItem: (k) => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, v), removeItem: (k) => data.delete(k) };
   const store = Pos.createStore(storage);
   assert.deepEqual(store.load('Lab'), {});
-  store.move('Lab', 'entity/a', 10.4, 20.6);
+  store.moveAll('Lab', { 'entity/a': { x: 10.4, y: 20.6 } });
   assert.deepEqual(store.load('Lab'), { 'entity/a': { x: 10, y: 21 } });
   assert.deepEqual(store.load('Other'), {});
   store.clear('Lab');
@@ -97,7 +97,7 @@ test('positions are kept per document in the browser, and a broken storage is no
   assert.deepEqual(store.load('Bad'), {});
   const broken = Pos.createStore({ getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } });
   assert.deepEqual(broken.load('Lab'), {});
-  broken.move('Lab', 'entity/a', 1, 2);
+  broken.moveAll('Lab', { 'entity/a': { x: 1, y: 2 } });
   broken.clear('Lab');
   // Without any storage it still answers.
   assert.deepEqual(Pos.createStore(null).load('Lab'), {});
@@ -171,7 +171,7 @@ test('review: many positions are written, and forgotten, in one go', () => {
   const saved = [];
   const storage = { data: {}, getItem(k) { return this.data[k] || null; }, setItem(k, v) { saved.push(k); this.data[k] = v; }, removeItem(k) { delete this.data[k]; } };
   const store = Pos.createStore(storage);
-  store.move('doc', 'entity/a', 1, 2);
+  store.moveAll('doc', { 'entity/a': { x: 1, y: 2 } });
   saved.length = 0;
   store.moveAll('doc', { 'entity/b': { x: 3.4, y: 4 }, 'entity/c': { x: 5, y: 6 }, 'entity/a': null });
   assert.equal(saved.length, 1, 'one write');

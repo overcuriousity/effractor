@@ -361,7 +361,7 @@
     }
   }
   renderer.on("move", function (e) {
-    if (P.isArchitecture(state.doc)) positions.move(state.doc.name, e.id, e.x, e.y);
+    if (P.isArchitecture(state.doc)) positions.moveAll(state.doc.name, e.places);
   });
   renderer.on("pick", function (e) {
     pick(e.ids, e.add);
