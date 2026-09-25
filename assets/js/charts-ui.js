@@ -133,17 +133,23 @@
       plot.appendChild(svg('text', { x: data.x(max * fraction, max), y: 220, 'text-anchor': fraction === 1 ? 'end' : fraction === 0 ? 'start' : 'middle' }, number(max * fraction)));
     });
     plot.appendChild(svg('text', { x: 196, y: 239, 'text-anchor': 'middle' }, unit));
+    // A baseline known by structure is solid, as on its own chart; the
+    // scenario is dotted either way, so the two stay told apart.
+    var structural = graphs.cdf(result.baseline.outcome).method === 'structural';
     var sides = [
-      { column: 1, name: 'Baseline', mark: '┄', line: 'chart-line chart-sampled', band: 'chart-band' },
+      structural
+        ? { column: 1, name: 'Baseline · by structure', mark: '—', line: 'chart-line', band: 'chart-band' }
+        : { column: 1, name: 'Baseline', mark: '┄', line: 'chart-line chart-sampled', band: 'chart-band' },
       { column: 4, name: name, mark: '┈', line: 'chart-line chart-scenario', band: 'chart-band chart-band-scenario' },
     ];
-    var key = [];
+    var key = [], banded = false;
     sides.forEach(function (side) {
       var c = side.column;
       var known = rows.filter(function (r) { return r[c] !== null; });
       if (!known.length) { key.push(side.name + ' · not available'); return; }
       var band = known.filter(function (r) { return r[c + 1] !== r[c + 2]; });
       if (band.length) {
+        banded = true;
         var outline = band.map(function (r) { return [r[0], r[c + 1]]; }).concat(band.slice().reverse().map(function (r) { return [r[0], r[c + 2]]; }));
         plot.appendChild(svg('path', { d: data.line(outline, max) + ' Z', class: side.band }));
       }
@@ -175,7 +181,7 @@
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       e.preventDefault(); e.stopPropagation(); inspect(active + (e.key === 'ArrowRight' ? 1 : -1));
     });
-    root.append(plot, tooltip, el('p', key.join(' · ') + ' · ' + number(result.confidence * 100) + '% pointwise bands', 'hint chart-key'));
+    root.append(plot, tooltip, el('p', key.join(' · ') + (banded ? ' · ' + number(result.confidence * 100) + '% pointwise bands' : ''), 'hint chart-key'));
     var equivalent = table(['Time · ' + unit, 'Baseline', 'Lower', 'Upper', name, 'Lower', 'Upper'], rows);
     equivalent.open = !!open; root.appendChild(equivalent);
     if (focused) (focused === 'summary' ? equivalent.querySelector('summary') : plot).focus();
