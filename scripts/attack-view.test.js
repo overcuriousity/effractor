@@ -108,6 +108,18 @@ test('a step inspected says its rule, its time and its state, blocked ones inclu
   assert.equal(V.inspect(graph, support, 'state/nothing'), null);
 });
 
+test('a table of every step inspects each with one index built once', () => {
+  const at = V.index(graph);
+  for (const n of graph.nodes) assert.deepEqual(V.inspect(graph, support, n.id, at), V.inspect(graph, support, n.id));
+  assert.equal(V.inspect(graph, support, 'state/nothing', at), null);
+  const big = chain(20000);
+  const once = V.index(big.graph);
+  const t = Date.now();
+  for (const n of big.graph.nodes) V.inspect(big.graph, big.support, n.id, once);
+  const ms = Date.now() - t;
+  assert.ok(ms < 1000, '20000 steps took ' + ms + ' ms');
+});
+
 // ---- Cycle 2: what the canvas draws ----
 
 // A generated-looking graph of `n` steps in a chain, the last the target.

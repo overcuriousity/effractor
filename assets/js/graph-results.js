@@ -84,14 +84,22 @@
     return t === null ? "not reached by " + h.by : number(t) + " " + results.time_unit;
   }
 
-  // What the inspector lists for a step.
-  function nodeFacts(results, id, side) {
+  // A side's step results by id, built once for a table of many steps.
+  function nodesById(results, side) {
     var r = report(results, side);
-    var n = r
-      ? r.nodes.filter(function (x) {
-          return x.id === id;
-        })[0]
-      : null;
+    if (!r) return null;
+    var out = Object.create(null);
+    r.nodes.forEach(function (x) {
+      if (!(x.id in out)) out[x.id] = x;
+    });
+    return out;
+  }
+
+  // What the inspector lists for a step. `byId`: nodesById(results, side),
+  // when the caller asks for many steps.
+  function nodeFacts(results, id, side, byId) {
+    byId = byId || nodesById(results, side);
+    var n = byId && id in byId ? byId[id] : null;
     if (!n) return [];
     var facts = [["State", n.status]];
     var a = n.outcome.available;
@@ -101,7 +109,8 @@
       return facts;
     }
     facts.push(["P(step)", number(a.p)]);
-    if (a.ci.lo !== a.ci.hi) facts.push([Math.round(results.confidence * 100) + "% CI", band(a.ci)]);
+    // An interval that prints as one number says nothing the number does not.
+    if (number(a.ci.lo) !== number(a.ci.hi)) facts.push([Math.round(results.confidence * 100) + "% CI", band(a.ci)]);
     return facts;
   }
 
@@ -154,6 +163,7 @@
     illustrative: illustrative,
     reachedBy: reachedBy,
     timeTo: timeTo,
+    nodesById: nodesById,
     nodeFacts: nodeFacts,
     assumptions: assumptions,
     witness: witness,

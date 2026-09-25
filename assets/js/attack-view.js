@@ -23,8 +23,10 @@
     return at;
   }
 
-  function node(graph, id) {
-    var at = indexOf(graph);
+  // `at`: the graph's index when the caller built it once for many steps
+  // (a table of every step); else it is built here.
+  function node(graph, id, at) {
+    at = at || indexOf(graph);
     return id in at ? graph.nodes[at[id]] : null;
   }
 
@@ -125,8 +127,8 @@
     return out;
   }
 
-  function supportOf(support, graph, id) {
-    var at = indexOf(graph);
+  function supportOf(support, graph, id, at) {
+    at = at || indexOf(graph);
     var entry = support && support.nodes && id in at ? support.nodes[at[id]] : null;
     return entry && entry.id === id ? entry : { status: null, missing: [] };
   }
@@ -141,10 +143,12 @@
   }
 
   // What the inspector says about a step, or null for one not in the graph.
-  function inspect(graph, support, stepId) {
-    var n = node(graph, stepId);
+  // `at` (index(graph)) saves rebuilding the index for each of many steps.
+  function inspect(graph, support, stepId, at) {
+    at = at || indexOf(graph);
+    var n = node(graph, stepId, at);
     if (!n) return null;
-    var s = supportOf(support, graph, stepId);
+    var s = supportOf(support, graph, stepId, at);
     return {
       id: n.id,
       label: n.label,
@@ -238,14 +242,13 @@
     var nodes = (graph && graph.nodes) || [];
     var limit = focus && focus.limit ? focus.limit : LIMIT;
     var id = focus && focus.id;
-    var at0 = indexOf(graph);
+    var at = indexOf(graph);
     var seeds = (!id ? [] : id.indexOf("step/") === 0 ? [id.slice(5)] : stepsFor(graph, id)).filter(function (s) {
-      return s in at0;
+      return s in at;
     });
     // A focus that names nothing here: round the target.
     if (!seeds.length) seeds = [graph.target];
     var keep = windowOf({ nodes: nodes }, seeds, limit);
-    var at = indexOf(graph);
     var hidden = nodes.map(function () {
       return 0;
     });
@@ -316,6 +319,7 @@
     sourcesForStep: sourcesForStep,
     originOf: originOf,
     sourceTarget: sourceTarget,
+    index: indexOf,
     inspect: inspect,
     search: search,
     describe: describe,
