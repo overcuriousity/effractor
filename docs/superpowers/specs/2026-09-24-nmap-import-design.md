@@ -109,7 +109,9 @@ command box is monospace, updates as the level or range changes, and has
 from the remote host. A range with characters outside
 `[0-9A-Za-z.:/,\- ]`, or a word starting with `-` (it would be an nmap
 option), is refused with a note, so the copied command never carries shell
-syntax or options.
+syntax or options. An IPv6 word may end in the interface it is on
+(`fe80::1%eth0`: `%`, then letters, digits, `_`, `.`, `-`, starting with a
+letter or digit; amended after review, 2026-09-25).
 
 nmap scans IPv6 only with `-6`, and then no IPv4: a range of IPv6 addresses
 gets `-6` after `nmap`, a range mixing both is refused with a note (one scan
@@ -205,6 +207,9 @@ A host with `<status state="up">` is **known** when one of its addresses
 `addresses`. Otherwise it is **new**: labelled with its first `<hostname>`,
 else its address; `addresses` are its IP addresses. Deep and Complete add
 nmap's best OS match to its description: `nmap OS guess: Linux 5.4 (96%).`
+Scanned hosts known as the same host (a machine with an address in each of
+two scanned networks) are one row, with every port once (amended after
+review, 2026-09-25).
 
 **Merge** (the *new ▾* choice): the scanned host becomes that existing host,
 whose empty `addresses` are filled, and which is attached as §4.2 says; nothing

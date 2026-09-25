@@ -37,13 +37,19 @@
   // Addresses, names, ranges and CIDR only; no word may start with "-",
   // which nmap would take as an option.
   var RANGE_CHARS = /^[0-9A-Za-z.:\/,\- ]+$/;
+  // An IPv6 word may end in the interface it is on (fe80::1%eth0): letters,
+  // digits, "_", "." and "-", starting with a letter or digit.
+  var ZONE = /%[0-9A-Za-z][0-9A-Za-z_.\-]*$/;
+  function unzoned(w) {
+    return w.indexOf(":") >= 0 ? w.replace(ZONE, "") : w;
+  }
   function command(levelId, range, checksId) {
     var l = level(levelId);
     if (!l) return null;
     var words = String(range == null ? "" : range).trim().split(/\s+/).filter(Boolean);
     if (!words.length) return { problem: "Give the range to scan, such as 10.0.1.0/24." };
     var text = words.join(" ");
-    if (!RANGE_CHARS.test(text) || words.some(function (w) { return w[0] === "-"; })) {
+    if (!RANGE_CHARS.test(words.map(unzoned).join(" ")) || words.some(function (w) { return w[0] === "-"; })) {
       return { problem: "The range may hold only addresses, names, ranges and CIDR, such as 10.0.1.0/24." };
     }
     // nmap scans IPv6 only with -6, and then nothing else.
@@ -54,7 +60,7 @@
     var c = checksOffered(levelId) ? CHECKS.filter(function (x) { return x.id === checksId && x.script; })[0] : null;
     var script = c ? " --script '" + c.script + "'" : "";
     var out = { text: (l.root ? "sudo " : "") + "nmap " + (six.length ? "-6 " : "") + l.args + script + " -oX - " + text };
-    var wide = six.filter(function (w) { return /\/(\d{1,3})$/.test(w) && Number(w.split("/")[1]) < 112; });
+    var wide = six.map(unzoned).filter(function (w) { return /\/(\d{1,3})$/.test(w) && Number(w.split("/")[1]) < 112; });
     if (wide.length) out.note = wide[0] + " is too wide to scan in useful time; give addresses or a /112 or narrower.";
     return out;
   }
@@ -200,37 +206,53 @@
     };
   }
 
-  // nmap lists a host once per time the range names it (an address and its
-  // name): one host, with every port once.
-  function fold(hosts) {
-    var out = [], byKey = Object.create(null);
-    hosts.forEach(function (h) {
-      var same = null;
-      h.addresses.forEach(function (a) { if (!same && byKey[addressKey(a)]) same = byKey[addressKey(a)]; });
-      if (!same) {
-        same = { addresses: [], hostname: h.hostname, os: h.os, device: h.device || [], self: false, ports: [], scripts: [] };
-        out.push(same);
-      }
+  // Several listings of one machine as one host: every address and port
+  // once (an open listing of a port wins), the first name, OS guess and
+  // device class. Ports are keyed, so a Complete scan folds in linear time.
+  function oneHost(listings) {
+    var same = { addresses: [], hostname: null, os: null, device: [], self: false, ports: [], scripts: [] };
+    var address = Object.create(null), port = Object.create(null), script = Object.create(null);
+    listings.forEach(function (h) {
       h.addresses.forEach(function (a) {
-        if (!byKey[addressKey(a)]) {
-          byKey[addressKey(a)] = same;
-          same.addresses.push(a);
-        }
+        if (address[addressKey(a)]) return;
+        address[addressKey(a)] = true;
+        same.addresses.push(a);
       });
       same.hostname = same.hostname || h.hostname;
       same.os = same.os || h.os;
       if (!same.device.length) same.device = h.device || [];
-      same.self = same.self || h.self;
+      same.self = same.self || !!h.self;
       (h.scripts || []).forEach(function (s) {
-        if (!same.scripts.some(function (t) { return t.id === s.id; })) same.scripts.push(s);
+        if (script[s.id]) return;
+        script[s.id] = true;
+        same.scripts.push(s);
       });
       h.ports.forEach(function (p) {
-        var there = same.ports.filter(function (q) { return q.protocol === p.protocol && q.port === p.port; })[0];
-        if (!there) same.ports.push(p);
-        else if (there.state !== "open" && p.state === "open") same.ports[same.ports.indexOf(there)] = p;
+        var k = p.protocol + "/" + p.port;
+        if (!has(port, k)) {
+          port[k] = same.ports.length;
+          same.ports.push(p);
+        } else if (same.ports[port[k]].state !== "open" && p.state === "open") same.ports[port[k]] = p;
       });
     });
-    return out;
+    return same;
+  }
+
+  // nmap lists a host once per time the range names it (an address and its
+  // name): one host, with every port once.
+  function fold(hosts) {
+    var groups = [], byKey = Object.create(null);
+    hosts.forEach(function (h) {
+      var group = null;
+      h.addresses.forEach(function (a) { if (!group && byKey[addressKey(a)]) group = byKey[addressKey(a)]; });
+      if (!group) {
+        group = [];
+        groups.push(group);
+      }
+      group.push(h);
+      h.addresses.forEach(function (a) { if (!byKey[addressKey(a)]) byKey[addressKey(a)] = group; });
+    });
+    return groups.map(oneHost);
   }
 
   function read(text) {
@@ -395,7 +417,6 @@
     var candidates = hosts.filter(function (h) { return !(doc.entities[h].addresses || []).length; });
     var networks = ids(doc, "network");
     var appHost = hostingOf(doc, appId);
-    var appNets = appHost ? attachedNetworks(doc, appHost) : [];
     // The network the scan covered, as nmap says it ran; the range field only
     // when the scan does not name one (an old scan pasted needs no range).
     var cidr = onlyCidr(targetsOf(scan)) || onlyCidr(range);
@@ -408,14 +429,24 @@
     // Who each scanned host is: known by address, merged as chosen (the
     // first choice of a drawn host wins; "" is a chosen "new"), or else
     // nmap's own host when the scan names it so.
-    var takenBy = Object.create(null);
-    var rows = scan.hosts.map(function (h, i) {
+    // Scanned hosts that are one drawn host by address (a machine with an
+    // address in each of two scanned networks) are one row, keyed by the
+    // first, with every port once.
+    var takenBy = Object.create(null), rowOf = Object.create(null);
+    var rows = [];
+    scan.hosts.forEach(function (h, i) {
       var key = "h" + i;
       var known = null;
       h.addresses.forEach(function (a) { if (!known && byAddress[addressKey(a)]) known = byAddress[addressKey(a)]; });
+      if (known && rowOf[known]) return rowOf[known].listings.push(h);
       var merged = !known && candidates.indexOf(merges[key]) >= 0 && !takenBy[merges[key]] ? merges[key] : null;
       if (merged) takenBy[merged] = key;
-      return { key: key, scan: h, known: known, merged: merged, guessed: false };
+      var row = { key: key, scan: h, listings: [h], known: known, merged: merged, guessed: false };
+      if (known) rowOf[known] = row;
+      rows.push(row);
+    });
+    rows.forEach(function (r) {
+      if (r.listings.length > 1) r.scan = oneHost(r.listings);
     });
     if (appHost && candidates.indexOf(appHost) >= 0 && !takenBy[appHost]) {
       var own = rows.filter(function (r) {
@@ -455,8 +486,9 @@
       var offered = !(target && runsRouter(doc, target));
       var suggested = roleOf(h.device);
       var hostChecks = readScripts(h.scripts);
+      var seen = reached(doc, appId, target);
       var ports = h.ports.filter(function (p) { return p.state === "open" && !wrapped(p); }).map(function (p) {
-        var row = portRow(doc, appId, target, r.key, label, p, products);
+        var row = portRow(seen, r.key, label, p, products);
         var own = readScripts(p.scripts);
         row.found = own.found;
         row.unread = own.unread;
@@ -491,8 +523,8 @@
     });
 
     var tcpwrapped = 0;
-    scan.hosts.forEach(function (h) {
-      h.ports.forEach(function (p) { if (p.state === "open" && wrapped(p)) tcpwrapped++; });
+    rows.forEach(function (r) {
+      r.scan.ports.forEach(function (p) { if (p.state === "open" && wrapped(p)) tcpwrapped++; });
     });
     return {
       app: appId,
@@ -579,24 +611,32 @@
     return !!p.service && p.service.name === "tcpwrapped";
   }
 
-  function portRow(doc, appId, target, hostKey, hostLabel, p, products) {
+  // What the drawing already has on a host, by protocol: the service a flow
+  // reaches there (the first such flow in file order), and which of those
+  // this nmap already reaches. Built once per host, not once per port.
+  function reached(doc, appId, target) {
+    var out = { service: Object.create(null), fromApp: Object.create(null) };
+    if (!target) return out;
+    var hosted = Object.create(null);
+    links(doc, "hosts").forEach(function (a) {
+      if (a.from === target && doc.entities[a.to] && doc.entities[a.to].kind === "service") hosted[a.to] = true;
+    });
+    var flows = Object.keys(doc.flows || {}).map(function (k) { return doc.flows[k]; });
+    flows.forEach(function (f) {
+      if (hosted[f.target] === true && !has(out.service, f.protocol)) out.service[f.protocol] = f.target;
+    });
+    flows.forEach(function (f) {
+      if (f.source === appId && has(out.service, f.protocol) && out.service[f.protocol] === f.target) out.fromApp[f.protocol] = true;
+    });
+    return out;
+  }
+
+  function portRow(seen, hostKey, hostLabel, p, products) {
     var proto = p.protocol + "/" + p.port;
     var s = p.service || {};
     var label = s.name || proto;
-    var known = null;
-    if (target) {
-      var hosted = links(doc, "hosts").filter(function (a) {
-        return a.from === target && doc.entities[a.to] && doc.entities[a.to].kind === "service";
-      }).map(function (a) { return a.to; });
-      Object.keys(doc.flows || {}).forEach(function (k) {
-        var f = doc.flows[k];
-        if (!known && f.protocol === proto && hosted.indexOf(f.target) >= 0) known = f.target;
-      });
-    }
-    var addsFlow = !(known && Object.keys(doc.flows || {}).some(function (k) {
-      var f = doc.flows[k];
-      return f.source === appId && f.target === known && f.protocol === proto;
-    }));
+    var known = has(seen.service, proto) ? seen.service[proto] : null;
+    var addsFlow = !(known && seen.fromApp[proto]);
     var product = s.product
       ? { label: s.product + (s.version ? " " + s.version : ""), existing: null, identified: true }
       : { label: "unidentified " + label + " on " + hostLabel, existing: null, identified: false };
