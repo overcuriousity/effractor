@@ -30,17 +30,21 @@ pub fn image(node: &Node) -> Json {
     }
 }
 
-/// An unquoted scalar that is not a keyword: a number if it reads as one.
+/// An unquoted scalar that is not a keyword: a number if it comes back from
+/// [`tree`] as the same text, else a string — `007`, `1.50` and a whole
+/// number JavaScript cannot hold keep what they say.
 fn bare(text: &str) -> Json {
-    if text.bytes().all(|b| b.is_ascii_digit()) {
-        return match text.parse::<u64>() {
-            Ok(v) if v <= JS_EXACT => Json::Number(v.into()),
-            _ => Json::String(text.to_owned()),
-        };
-    }
-    parse_number(text)
-        .and_then(Number::from_f64)
-        .map_or_else(|| Json::String(text.to_owned()), Json::Number)
+    let exact = if text.bytes().all(|b| b.is_ascii_digit()) {
+        text.parse::<u64>()
+            .ok()
+            .filter(|v| *v <= JS_EXACT && v.to_string() == text)
+            .map(Number::from)
+    } else {
+        parse_number(text)
+            .filter(|v| number(*v) == text)
+            .and_then(Number::from_f64)
+    };
+    exact.map_or_else(|| Json::String(text.to_owned()), Json::Number)
 }
 
 pub fn tree(json: &Json) -> Result<Node, Diagnostic> {

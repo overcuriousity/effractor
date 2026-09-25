@@ -170,14 +170,21 @@ pub fn canonicalize(text: &str) -> Result<String, Vec<Diagnostic>> {
 
 /// A text as JSON, for an editor that is not written in Rust: an image of the
 /// document — the same maps, lists and keys, `x-` keys included, migrated to the
-/// current version — and not of the `Model`, which has no place for what it
+/// current version and in canonical form — and not of the `Model`, which has no place for what it
 /// does not understand. `None` if the text has errors.
 ///
 /// A whole number above 2^53 is a string in the image, because its reader is
 /// JavaScript; [`from_document`] takes it back either way.
 pub fn document(text: &str) -> (Option<serde_json::Value>, Vec<Diagnostic>) {
     let (read, diagnostics) = read(text);
-    (read.map(|r| json::image(&r.root)), diagnostics)
+    // Of the canonical text: every number in it is written the one way that
+    // comes back from JSON as written, and every text that could be taken
+    // for a number is quoted.
+    let image = read.map(|r| {
+        let canonical = write::write_document(&r.lowered.document, &r.lowered.extras);
+        tree::parse(&canonical).map_or_else(|_| json::image(&r.root), |root| json::image(&root))
+    });
+    (image, diagnostics)
 }
 
 /// The canonical text of an edited [`document`]. It is read exactly as a text

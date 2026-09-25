@@ -104,6 +104,45 @@ fn whole_numbers_too_big_for_javascript_travel_as_strings() {
 }
 
 #[test]
+fn a_bare_scalar_is_a_number_only_if_it_comes_back_as_written() {
+    let text = WEBSERVER
+        .replace("label: Malware", "label: 007")
+        .replace("label: Hardware defect", "label: 1.50")
+        .replace(
+            "  confidence: 0.95\n",
+            "  confidence: 0.95\n  x-a: 007\n  x-b: 1.50\n  x-c: 12345678901234567890\n  x-d: 42\n  x-e: 2.5e-6\n",
+        );
+    let d = doc(&text);
+    assert_eq!(d["nodes"]["malware"]["label"], json!("007"));
+    assert_eq!(d["nodes"]["hardware"]["label"], json!("1.50"));
+    let analysis = &d["analysis"];
+    assert_eq!(analysis["x-a"], json!("007"));
+    assert_eq!(analysis["x-b"], json!("1.50"));
+    assert_eq!(analysis["x-c"], json!("12345678901234567890"));
+    assert_eq!(analysis["x-d"], json!(42));
+    assert_eq!(analysis["x-e"], json!(2.5e-6));
+    // What a label says is what it says after an edit elsewhere.
+    let back = from_document(&d).unwrap();
+    assert!(back.contains("    label: \"007\"\n"), "{back}");
+    assert!(back.contains("    label: \"1.50\"\n"), "{back}");
+    assert!(back.contains("  x-a: \"007\"\n  x-b: \"1.50\"\n"), "{back}");
+    assert_eq!(doc(&back), d);
+}
+
+#[test]
+fn a_number_written_another_way_is_still_a_number_in_the_image() {
+    // The image is of the canonical text, where every number is written
+    // one way; a hand-written file's `8760.0` or `4e-3` is still a number.
+    let text = WEBSERVER
+        .replace("horizon: 8760", "horizon: 8760.0")
+        .replace("p: 0.004", "p: 4e-3");
+    let d = doc(&text);
+    assert_eq!(d["horizon"], json!(8760));
+    assert_eq!(d["nodes"]["malware"]["p"], json!(0.004));
+    assert_eq!(from_document(&d).unwrap(), WEBSERVER);
+}
+
+#[test]
 fn an_invalid_text_has_no_image() {
     let (d, diagnostics) = document("effractor: 1\nprofile: fault-tree\n");
     assert!(d.is_none());
