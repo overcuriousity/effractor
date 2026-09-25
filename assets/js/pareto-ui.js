@@ -103,7 +103,7 @@
         var pinned = el('span', 'Cheapest · pinned', 'pareto-cheapest');
         pinned.title = 'Remains first when sorting'; cell.appendChild(pinned);
       }
-      tr.appendChild(cell); ['cost', 'time', 'detection', 'success'].forEach(function (key) { tr.appendChild(el('td', amount(r, key) + (key === 'time' ? ' ' + result.time_unit : ''), 'num')); }); body.appendChild(tr);
+      tr.appendChild(cell); ['cost', 'time', 'detection', 'success'].forEach(function (key) { tr.appendChild(el('td', amount(r, key), 'num')); }); body.appendChild(tr);
     });
     table.appendChild(body); scroll.appendChild(table); root.appendChild(scroll);
     root.appendChild(el('p', TIME_HELP, 'hint'));
