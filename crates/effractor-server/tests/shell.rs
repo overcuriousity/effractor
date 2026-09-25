@@ -175,3 +175,16 @@ async fn shared_links_serve_the_local_editor_with_security_headers() {
     assert_security_headers(&res);
     assert!(text(res).await.contains("<title>effractor</title>"));
 }
+
+#[tokio::test]
+async fn shell_shows_the_version_the_binary_reports() {
+    // The release stamp, `+<sha>` included, not just the Cargo version.
+    let html = text(get("/").await).await;
+    let version = effractor_server::VERSION;
+    assert!(version.contains('+'), "{version}");
+    assert!(
+        html.contains(&format!("data-version=\"{version}\"")),
+        "{version}"
+    );
+    assert!(html.contains(&format!(">{version}</span>")), "{version}");
+}

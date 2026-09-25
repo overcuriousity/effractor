@@ -27,6 +27,11 @@ jobs:
           key: pages
       - uses: actions/configure-pages@v5
       - run: scripts/build-wasm.sh --fetch-cli
+      # The footer shows the same stamp as the release binary.
+      - name: version
+        run: |
+          base=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "effractor-server") | .version')
+          echo "EFFRACTOR_VERSION=$base+$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
       - run: scripts/build-site.sh
       - uses: actions/upload-pages-artifact@v4
         with:
