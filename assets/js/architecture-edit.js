@@ -5,7 +5,7 @@
 // Every function returns {doc, select, notice?} — `select` is the qualified
 // selection to land on — or null when the edit does not apply or changes
 // nothing. Source ids are fixed when a component is made; labels never move them.
-// Links, renames of ids and deletion are in architecture-links.js.
+// Links and deletion are in architecture-links.js.
 (function () {
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
   var KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential", "person", "data"];

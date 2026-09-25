@@ -7,6 +7,11 @@ const LECTURE = require('./fixtures/architecture.doc.json');
 const lecture = () => JSON.parse(JSON.stringify(LECTURE));
 const CATALOG = require('./fixtures/catalog.json');
 // Each kind's slots and switch, as the page gets them from the catalog.
+// The privileges the Link menu offers for a link of this kind here, or null.
+const privileges = (doc, kind, from, to) => {
+  const p = [...new Set(L.variants(doc, kind, from, to).map((v) => v.privilege).filter(Boolean))];
+  return p.length ? p : null;
+};
 const SPEC = Object.fromEntries(CATALOG.entities.map((e) => [e.kind, e.defense ? { parameters: e.parameters, defense: e.defense } : { parameters: e.parameters }]));
 
 test('footholds and the target are explicit states', () => {
@@ -75,7 +80,8 @@ test('the lecture architecture is built through links, flows and attacker states
     const e = want.entities[id];
     const added = E.addEntity(doc, e.kind, e.label, SPEC[e.kind]);
     doc = added.doc;
-    if (added.entity !== id) doc = L.renameId(doc, 'entities', added.entity, id).doc;
+    // Nothing names it yet: the fixture's id, where its label makes another.
+    if (added.entity !== id) doc.entities = Object.fromEntries(Object.entries(doc.entities).map(([k, v]) => [k === added.entity ? id : k, v]));
     if (e.description) doc = E.setDescription(doc, id, e.description).doc;
     for (const slot of Object.keys(e.parameters || {})) {
       if (e.parameters[slot].status !== 'unknown') doc = E.setParameter(doc, { entity: id }, slot, e.parameters[slot]).doc;
@@ -230,51 +236,17 @@ test('deleting the foothold removes only the foothold', () => {
   assert.deepEqual(d.attacker.target, { entity: 'server', state: 'admin' });
 });
 
-test('renaming an id rewrites every reference and keeps map order', () => {
+test('a numeric or malformed id is refused before any edit; a prototype-like one is only an id', () => {
   const doc = lecture();
-  const edit = L.renameId(doc, 'entities', 'server', 'production-server');
-  const d = edit.doc;
-  assert.equal(edit.select, 'entity/production-server');
-  assert.deepEqual(Object.keys(d.entities), Object.keys(doc.entities).map((k) => (k === 'server' ? 'production-server' : k)));
-  assert.equal(d.associations['server-net-link'].from, 'production-server');
-  assert.equal(d.associations['service-hosting'].from, 'production-server');
-  assert.equal(d.associations['server-grant'].to, 'production-server');
-  assert.deepEqual(d.attacker.target, { entity: 'production-server', state: 'admin' });
-  assert.equal(d.entities['production-server'].label, 'Server', 'the label is not the id');
-
-  const net = L.renameId(doc, 'entities', 'server-net', 'backend').doc;
-  assert.deepEqual(net.flows.ssh.route, ['client-net', 'bridge', 'backend']);
-  const key = L.renameId(doc, 'entities', 'sshd', 'ssh-server').doc;
-  assert.equal(key.flows.ssh.target, 'ssh-server');
-  assert.equal(key.associations['sshd-instance'].from, 'ssh-server');
-  const version = L.renameId(doc, 'entities', 'openssh', 'openssh-9').doc;
-  assert.equal(version.associations['sshd-instance'].to, 'openssh-9');
-  assert.deepEqual(version.scenarios.patch.changes[0], { entity: 'openssh-9', defense: 'patched', value: true });
-
-  const flow = L.renameId(doc, 'flows', 'ssh', 'admin-ssh').doc;
-  assert.equal(flow.associations['allow-ssh'].to, 'admin-ssh');
-  assert.deepEqual(Object.keys(flow.flows), ['admin-ssh']);
-  const permit = L.renameId(doc, 'associations', 'allow-ssh', 'ssh-rule').doc;
-  assert.deepEqual(permit.scenarios.deny.changes[0], { association: 'ssh-rule', field: 'allowed', value: false });
-});
-
-test('a taken, numeric or malformed id is refused before any edit', () => {
-  const doc = lecture();
-  assert.match(L.idProblem(doc, 'entities', 'server', 'workstation'), /taken/);
-  assert.match(L.idProblem(doc, 'entities', 'server', '123'), /digit/);
-  assert.match(L.idProblem(doc, 'entities', 'server', 'Server!'), /a-z/);
-  assert.equal(L.idProblem(doc, 'entities', 'server', 'constructor'), null);
-  assert.equal(L.idProblem(doc, 'entities', 'server', 'server'), null);
-  assert.equal(L.renameId(doc, 'entities', 'server', 'workstation'), null);
-  assert.equal(L.renameId(doc, 'entities', 'server', 'server'), null);
-  // Prototype-like ids are only ids.
-  const proto = L.renameId(doc, 'entities', 'server', 'constructor');
-  assert.equal(proto.doc.entities.constructor.label, 'Server');
-  assert.equal(proto.doc.attacker.target.entity, 'constructor');
-  assert.equal(Object.hasOwn(L.remove(proto.doc, 'entities', 'constructor').doc.entities, 'constructor'), false);
+  const value = { kind: 'assumes', from: 'server-account', to: 'admin-account' };
+  assert.equal(L.putAssociation(doc, '123', value), null);
+  assert.equal(L.putAssociation(doc, 'Server!', value), null);
+  assert.equal(L.putFlow(doc, '-ssh', { label: 'SSH', source: 'ssh-client', target: 'sshd', route: [] }), null);
+  const proto = L.putAssociation(doc, 'constructor', value);
+  assert.deepEqual(proto.doc.associations.constructor, value);
+  assert.equal(Object.hasOwn(L.remove(proto.doc, 'associations', 'constructor').doc.associations, 'constructor'), false);
   assert.equal(L.remove(lecture(), 'entities', 'toString'), null);
 });
-
 
 test('the link menu offers the kinds a component can stand in, with eligible ends', () => {
   const doc = lecture();
@@ -325,18 +297,18 @@ test('a router runs on a host, never on another router', () => {
   assert.deepEqual(out.candidates, [], 'what the router runs is hosted already, and a router is no candidate');
   const into = choices.find((c) => c.kind === 'hosts' && c.direction === 'in');
   assert.deepEqual(into.candidates, ['workstation', 'server']);
-  assert.deepEqual(L.privileges(doc, 'hosts', 'server', 'bridge'), ['user', 'admin']);
+  assert.deepEqual(privileges(doc, 'hosts', 'server', 'bridge'), ['user', 'admin']);
   doc.associations['router-vm'] = { kind: 'hosts', from: 'server', to: 'bridge', privilege: 'admin' };
   assert.deepEqual(L.linkChoices(doc, CATALOG, 'bridge').find((c) => c.kind === 'hosts' && c.direction === 'in').candidates, [], 'one host each');
 });
 
 test('privileges offered follow what a router or an application can hold', () => {
   const doc = lecture();
-  assert.deepEqual(L.privileges(doc, 'hosts', 'server', 'sshd'), ['user', 'admin']);
-  assert.deepEqual(L.privileges(doc, 'hosts', 'bridge', 'sshd'), ['admin']);
-  assert.deepEqual(L.privileges(doc, 'grants', 'admin-account', 'bridge'), ['admin']);
-  assert.deepEqual(L.privileges(doc, 'stores', 'ssh-client', 'server-key'), ['user']);
-  assert.deepEqual(L.privileges(doc, 'attached', 'server', 'server-net'), null);
+  assert.deepEqual(privileges(doc, 'hosts', 'server', 'sshd'), ['user', 'admin']);
+  assert.deepEqual(privileges(doc, 'hosts', 'bridge', 'sshd'), ['admin']);
+  assert.deepEqual(privileges(doc, 'grants', 'admin-account', 'bridge'), ['admin']);
+  assert.deepEqual(privileges(doc, 'stores', 'ssh-client', 'server-key'), ['user']);
+  assert.deepEqual(privileges(doc, 'attached', 'server', 'server-net'), null);
 });
 
 test('a route grows network, router, network — attached ones first, none twice', () => {
@@ -502,7 +474,7 @@ test('a host can be linked to run on a host, a router cannot host one', () => {
   const choices = L.linkChoices(doc, CATALOG, 'b');
   const runsOn = choices.find((c) => c.kind === 'hosts' && c.direction === 'in');
   assert.deepEqual(runsOn.candidates, ['a']);
-  assert.deepEqual(L.privileges(doc, 'hosts', 'a', 'b'), ['user', 'admin']);
+  assert.deepEqual(privileges(doc, 'hosts', 'a', 'b'), ['user', 'admin']);
 });
 
 test('deleting a product takes its instance-of links along', () => {
@@ -676,11 +648,4 @@ test('a field the file leaves out reads as what absent means, or as not said', (
   assert.equal(L.fieldValue({ kind: 'holds', privilege: 'user' }, 'decrypts'), null, 'no default: not "sees plaintext"');
   assert.equal(L.fieldValue({ kind: 'holds', decrypts: false }, 'decrypts'), false);
   assert.equal(L.fieldValue({ kind: 'accesses' }, 'mode'), null);
-});
-
-test('renaming an id renames it in its cluster', () => {
-  const doc = Clusters.build(require('./fixtures/nmap/imported.doc.json')).doc;
-  const edit = L.renameId(doc, 'entities', 'sshd', 'openssh-server');
-  assert.ok(edit.doc.clusters.srv.members.includes('openssh-server'));
-  assert.equal(edit.doc.clusters.srv.members.includes('sshd'), false);
 });

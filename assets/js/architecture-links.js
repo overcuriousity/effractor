@@ -1,13 +1,13 @@
 // Architecture relationships, flows and attacker states, as pure edits with
 // the same contract as architecture-edit.js: {doc, select, notice?} or null.
 // Whether an association's kinds, ends and fields are valid is for the wasm
-// module to say; what this file does is keep references whole — a rename
-// rewrites every place an id is named, a delete takes along everything that
-// named what it deletes — so a document never points at nothing.
+// module to say; what this file does is keep references whole — a delete
+// takes along everything that named what it deletes — so a document never
+// points at nothing. Ids are fixed once made.
 (function () {
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
   var C = typeof module !== "undefined" ? require("./clusters.js") : window.effractorClusters;
-  var KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of", "runs-as", "assumes", "knows", "operates", "delivers", "holds", "accesses", "encrypted-with", "reads"];
+  var ASSOCIATION_KINDS = ["attached", "hosts", "filters", "stores", "authenticates", "authorizes", "grants", "administration", "permits", "instance-of", "runs-as", "assumes", "knows", "operates", "delivers", "holds", "accesses", "encrypted-with", "reads"];
   var PRIVILEGED = ["hosts", "stores", "grants", "runs-as", "holds"];
   // The fields a link carries beside kind/from/to, in the file's order.
   var FIELD_ORDER = ["privilege", "factor", "contained", "decrypts", "mode"];
@@ -32,15 +32,6 @@
     return out;
   }
 
-  // A map with one key renamed, in its place.
-  function renamed(map, from, to) {
-    var out = {};
-    Object.keys(map).forEach(function (k) {
-      out[k === from ? to : k] = map[k];
-    });
-    return out;
-  }
-
   function freeId(map, base) {
     base = slug(base);
     if (!base || /^[0-9]+$/.test(base)) base = "item-" + base;
@@ -49,24 +40,21 @@
     return id;
   }
 
-  // What is wrong with `id` as the new name of `old` in a collection, or null.
-  function idProblem(doc, collection, old, id) {
-    if (COLLECTIONS.indexOf(collection) < 0) return "nothing to rename there";
-    if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) return "an id is a-z, 0-9 and '-', not starting with '-'";
-    if (/^[0-9]+$/.test(id)) return "an id needs a letter or '-', not only digits";
-    if (id !== old && has(doc[collection], id)) return "“" + id + "” is taken";
-    return null;
+  // An id the file can hold: a-z, 0-9 and '-', not starting with '-', and
+  // not only digits (JavaScript would move such a key to the front of a map).
+  function goodId(id) {
+    return /^[a-z0-9][a-z0-9-]*$/.test(id) && !/^[0-9]+$/.test(id);
   }
 
   // `value`: {kind, from, to, privilege?, allowed?, factor?, description?}. Written in
   // canonical key order with only the fields its kind carries; `id` null
   // makes a new one named after its ends.
   function putAssociation(doc, id, value) {
-    if (!value || KINDS.indexOf(value.kind) < 0) return null;
+    if (!value || ASSOCIATION_KINDS.indexOf(value.kind) < 0) return null;
     var next = clone(doc);
     next.associations = next.associations || {};
     if (id == null) id = freeId(next.associations, value.from + "-" + value.kind + "-" + value.to);
-    else if (!has(next.associations, id) && idProblem(next, "associations", null, id)) return null;
+    else if (!has(next.associations, id) && !goodId(id)) return null;
     var a = { kind: value.kind, from: String(value.from || ""), to: String(value.to || "") };
     if (PRIVILEGED.indexOf(value.kind) >= 0) a.privilege = value.privilege;
     if (value.kind === "permits") a.allowed = value.allowed;
@@ -90,7 +78,7 @@
     var next = clone(doc);
     next.flows = next.flows || {};
     if (id == null) id = freeId(next.flows, label);
-    else if (!has(next.flows, id) && idProblem(next, "flows", null, id)) return null;
+    else if (!has(next.flows, id) && !goodId(id)) return null;
     var old = has(next.flows, id) ? next.flows[id] : null;
     var f = {
       label: label,
@@ -225,50 +213,6 @@
     if (!edit) return null;
     edit.notice = role + " removed from " + labelOf(doc, entity);
     return edit;
-  }
-
-  var SELECT = { entities: "entity/", associations: "association/", flows: "flow/" };
-
-  function renameId(doc, collection, old, id) {
-    if (COLLECTIONS.indexOf(collection) < 0 || !has(doc[collection], old) || old === id) return null;
-    if (idProblem(doc, collection, old, id)) return null;
-    var next = clone(doc);
-    next[collection] = renamed(next[collection], old, id);
-    var swap = function (v) {
-      return v === old ? id : v;
-    };
-    if (collection === "entities") {
-      Object.keys(next.associations || {}).forEach(function (k) {
-        var a = next.associations[k];
-        a.from = swap(a.from);
-        if (a.kind !== "permits") a.to = swap(a.to);
-      });
-      Object.keys(next.flows || {}).forEach(function (k) {
-        var f = next.flows[k];
-        f.source = swap(f.source);
-        f.target = swap(f.target);
-        f.route = (f.route || []).map(swap);
-      });
-      var attacker = next.attacker || {};
-      (attacker.footholds || []).forEach(function (s) {
-        s.entity = swap(s.entity);
-      });
-      if (attacker.target) attacker.target.entity = swap(attacker.target.entity);
-      C.rekey(next, old, id);
-    }
-    if (collection === "flows") {
-      Object.keys(next.associations || {}).forEach(function (k) {
-        var a = next.associations[k];
-        if (a.kind === "permits") a.to = swap(a.to);
-      });
-    }
-    Object.keys(next.scenarios || {}).forEach(function (k) {
-      (next.scenarios[k].changes || []).forEach(function (c) {
-        if (collection === "entities" && has(c, "entity")) c.entity = swap(c.entity);
-        if (collection === "associations" && has(c, "association")) c.association = swap(c.association);
-      });
-    });
-    return { doc: next, select: SELECT[collection] + id };
   }
 
   // The product a service is an instance of, or null.
@@ -475,10 +419,8 @@
     return out;
   }
 
-  // What privilege a link of this kind can carry here, or null for none.
-  function privileges(doc, kind, from, to) {
-    return privilegesOf(kind, kindOf(doc, from), kindOf(doc, to));
-  }
+  // What privilege a link of this kind can carry between these kinds, or
+  // null for none.
   function privilegesOf(kind, fromKind, toKind) {
     if (PRIVILEGED.indexOf(kind) < 0) return null;
     if (kind === "hosts" && fromKind === "router") return ["admin"];
@@ -790,7 +732,7 @@
     return want === "router" ? "no router yet · add one with A, then connect it to both networks" : "no network yet · add one with A";
   }
 
-  var api = { KINDS: KINDS, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, fieldsOf: fieldsOf, variants: variants, fieldWord: fieldWord, fieldValue: fieldValue, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, privileges: privileges, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, idProblem: function (doc, collection, old, id) { return idProblem(doc, collection, old, id); }, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, renameId: renameId, remove: remove, removeAll: removeAll };
+  var api = { notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, fieldsOf: fieldsOf, variants: variants, fieldWord: fieldWord, fieldValue: fieldValue, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, remove: remove, removeAll: removeAll };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
 })();
