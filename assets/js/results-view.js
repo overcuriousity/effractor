@@ -74,6 +74,9 @@
       out.push("Cut sets: " + cuts.available.truncated + " (" + cuts.available.total + " in all)");
     }
     if (results.exact && results.exact.unavailable) out.push("Exact results: " + results.exact.unavailable.reason);
+    else if (results.exact && results.exact.available && results.exact.available.fussell_vesely_unavailable) {
+      out.push(results.exact.available.fussell_vesely_unavailable);
+    }
     if (results.sampled && results.sampled.unavailable) out.push("Sampled results: " + results.sampled.unavailable.reason);
     if (results.attacker && results.attacker.unavailable) out.push("Attacker: " + results.attacker.unavailable.reason);
     return out;
@@ -129,6 +132,7 @@
         value: r ? r.value : null,
         ci: (r && r.value_ci) || null,
         perCost: r && r.value_per_cost != null ? r.value_per_cost : null,
+        unavailable: (r && r.unavailable) || null,
         close: false,
       };
     });

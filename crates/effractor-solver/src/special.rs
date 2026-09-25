@@ -6,7 +6,7 @@
 //! anywhere in this crate, may use them. `powi` is out too: it lowers to an
 //! intrinsic whose rounding is not pinned down.
 
-use libm::{erfc, exp, lgamma, log, sqrt};
+use libm::{cbrt, erfc, exp, lgamma, log, sqrt};
 
 const SQRT_2: f64 = core::f64::consts::SQRT_2;
 const SQRT_2PI: f64 = 2.506_628_274_631_000_7;
@@ -65,13 +65,26 @@ pub fn phi_inv(p: f64) -> f64 {
         (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q
             / (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1.0)
     };
+    // Below p of about 1e-310 the step's 1 / density overflows; Acklam's own
+    // relative error there is still 1.15e-9.
+    let scale = exp(x * x / 2.0);
+    if !scale.is_finite() {
+        return x;
+    }
     let e = phi(x) - p;
-    let u = e * SQRT_2PI * exp(x * x / 2.0);
+    let u = e * SQRT_2PI * scale;
     x - u / (1.0 + x * u / 2.0)
 }
 
+/// Past this shape the incomplete gamma is taken as Wilson–Hilferty's normal
+/// in the cube root. Its error falls like 1/shape and is below 1e-9 here,
+/// while the series would need tens of thousands of terms and loses digits
+/// of its own to `a * log(x) - lgamma(a)`.
+const NORMAL_SHAPE: f64 = 1e7;
+
 /// Regularized lower incomplete gamma P(a, x): series below a + 1, Lentz's
-/// continued fraction above.
+/// continued fraction above. Near the mean the series needs about 8 sqrt(a)
+/// terms.
 pub fn gamma_p(a: f64, x: f64) -> f64 {
     if x <= 0.0 {
         return 0.0;
@@ -79,10 +92,17 @@ pub fn gamma_p(a: f64, x: f64) -> f64 {
     if x == f64::INFINITY {
         return 1.0;
     }
+    if a > NORMAL_SHAPE {
+        // Not 1 / (9a): that overflows to a zero variance near f64::MAX.
+        let v = 1.0 / 9.0 / a;
+        return phi((cbrt(x / a) - (1.0 - v)) / sqrt(v));
+    }
+    // At most about 32 600, since a is at most NORMAL_SHAPE here.
+    let steps = 1000 + (10.0 * sqrt(a)) as usize;
     let front = exp(a * log(x) - x - lgamma(a));
     if x < a + 1.0 {
         let (mut term, mut sum, mut n) = (1.0 / a, 1.0 / a, a);
-        for _ in 0..1000 {
+        for _ in 0..steps {
             n += 1.0;
             term *= x / n;
             sum += term;
@@ -97,8 +117,8 @@ pub fn gamma_p(a: f64, x: f64) -> f64 {
         let mut c = 1.0 / TINY;
         let mut d = 1.0 / b;
         let mut h = d;
-        for i in 1..1000 {
-            let i = f64::from(i);
+        for i in 1..steps {
+            let i = i as f64;
             let an = -i * (i - a);
             b += 2.0;
             d = an * d + b;
@@ -185,5 +205,32 @@ mod tests {
         }
         assert_eq!(phi_inv(0.5), 0.0);
         assert!((phi_inv(0.975) - 1.959_963_984_540_054).abs() < 1e-14);
+    }
+
+    /// A truncated normal draws `phi_inv(U * Q(a))` with Q(a) down to 1e-300:
+    /// p can be subnormal, and the quantile must still be a number.
+    #[test]
+    fn quantile_of_a_subnormal_is_a_number() {
+        for p in [1e-305, 1e-311, 1e-315, 5e-324] {
+            let x = phi_inv(p);
+            assert!(x.is_finite() && x < -37.0, "p = {p:e}: {x}");
+            let back = phi(x);
+            assert!((back - p).abs() <= p * 1e-4, "p = {p:e}: back = {back:e}");
+        }
+    }
+
+    /// Near its mean a gamma of large shape needs about sqrt(shape) terms,
+    /// in the series and in the continued fraction alike.
+    #[test]
+    fn incomplete_gamma_holds_for_large_shapes() {
+        for a in [1e3, 1e4, 1e5, 1e6, 1e7, 1.0000001e7, 1e9, 1e15, f64::MAX] {
+            // P(a, a) = 1/2 + 1/(3 sqrt(2 pi a)) + O(a^-3/2).
+            let half = 0.5 + 1.0 / (3.0 * SQRT_2PI * sqrt(a));
+            let got = gamma_p(a, a);
+            assert!((got - half).abs() < 1e-6, "a = {a}: P(a, a) = {got}");
+            // The two methods meet at a + 1 and must agree there.
+            let (below, above) = (gamma_p(a, a + 1.0 - 1e-9), gamma_p(a, a + 1.0));
+            assert!((above - below).abs() < 1e-7, "a = {a}: {below} vs {above}");
+        }
     }
 }

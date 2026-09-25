@@ -559,6 +559,47 @@ fn a_holding_must_say_whether_it_decrypts_and_software_holds_as_user() {
 }
 
 #[test]
+fn independent_problems_of_one_association_are_each_reported() {
+    // Held as admin by software, and not said whether it decrypts.
+    let d = validate_architecture(&bucket_model(None, Privilege::Admin));
+    let at = |code: Code, path: &str| d.iter().any(|d| d.code == code && d.path == path);
+    assert!(
+        at(Code::AssociationType, "associations.app-d.privilege"),
+        "{d:?}"
+    );
+    assert!(at(Code::Incomplete, "associations.app-d"), "{d:?}");
+
+    // A router hosting a host, at a privilege it cannot have.
+    for privilege in [Privilege::Unknown, Privilege::User] {
+        let mut m = vm_model();
+        m.entities
+            .insert(id("r"), Entity::new(EntityKind::Router, "R"));
+        m.associations.insert(
+            "r-hv".parse().unwrap(),
+            Association {
+                relation: Relation::Hosts {
+                    from: id("r"),
+                    to: id("hv"),
+                    privilege,
+                    contained: false,
+                },
+                description: None,
+            },
+        );
+        let d = validate_architecture(&m);
+        let at = |code: Code, path: &str| d.iter().any(|d| d.code == code && d.path == path);
+        assert!(
+            at(Code::AssociationType, "associations.r-hv.privilege"),
+            "{privilege:?}: {d:?}"
+        );
+        assert!(
+            at(Code::AssociationType, "associations.r-hv.from"),
+            "{privilege:?}: {d:?}"
+        );
+    }
+}
+
+#[test]
 fn data_nothing_holds_is_complete() {
     let mut m = Architecture::new("D");
     m.entities

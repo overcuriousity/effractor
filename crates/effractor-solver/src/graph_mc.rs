@@ -15,7 +15,7 @@ use crate::dist::{CHUNK, chunk_rng, sample};
 use crate::graph_plan::{EventPlan, Scratch, Witness};
 use crate::mc::GRID;
 
-/// 256 words is 32 draws, as for trees.
+/// 256 words is 128 uniforms, as for trees.
 const WINDOW: u128 = 256;
 
 /// Where a node's duration comes from in one side's samples.

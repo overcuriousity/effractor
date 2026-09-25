@@ -3,7 +3,7 @@
 use effractor_core::{Distribution, Model, NodeKind};
 
 use crate::dist::cdf;
-use crate::plan::Plan;
+use crate::plan::{Plan, Step};
 
 /// One entry per plan leaf; `None` where the model gives the leaf no numbers.
 ///
@@ -27,7 +27,8 @@ pub fn leaf_distributions(
     let mut strongest: Vec<Option<f64>> = vec![None; out.len()];
     for (control, _) in model.controls.values().zip(enabled).filter(|(_, on)| **on) {
         for effect in &control.effects {
-            let Some(leaf) = plan.leaves.iter().position(|id| *id == effect.node) else {
+            let Some(&Step::Leaf(leaf)) = plan.index.get(&effect.node).map(|s| &plan.steps[*s])
+            else {
                 continue;
             };
             let p = cdf(&effect.ttc, model.horizon);

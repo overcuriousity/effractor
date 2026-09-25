@@ -13,7 +13,7 @@ struct Shell {
 
 pub(crate) fn render(sharing: bool) -> Result<String, askama::Error> {
     Shell {
-        version: env!("CARGO_PKG_VERSION"),
+        version: super::VERSION,
         asset_prefix: if sharing { "/" } else { "./" },
         sharing,
         // Pages cannot set response headers. This directive only works in a

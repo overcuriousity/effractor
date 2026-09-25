@@ -299,7 +299,7 @@
       item.appendChild(facts);
       var value = document.createElement("p");
       value.className = "control-worth";
-      value.textContent = unavailable ? unavailable.reason : worth(row, solved, results && results.currency);
+      value.textContent = unavailable ? unavailable.reason : row.unavailable || worth(row, solved, results && results.currency);
       item.appendChild(value);
       if (openControl === row.id) item.appendChild(editor(row.id));
       list.appendChild(item);

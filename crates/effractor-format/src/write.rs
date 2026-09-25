@@ -18,6 +18,8 @@ use crate::tree::{Entry, Node, Value};
 /// A list of ids stays on one line up to here, then goes block.
 pub const WIDTH: usize = 80;
 
+/// A tree's word for `value`. The tables name every value (a test holds them
+/// to it); the architecture's words are its enums' own `as_str`.
 pub fn word<T: PartialEq>(words: &[(&'static str, T)], value: &T) -> &'static str {
     words
         .iter()
@@ -90,7 +92,7 @@ impl Writer<'_> {
         self.line(0, "time_unit", word(&TIME_UNITS, &m.time_unit));
         self.line(0, "horizon", &number(m.horizon));
         self.line(0, "currency", &string(&m.currency, Context::Block));
-        self.line(0, "top", m.top.as_str());
+        self.line(0, "top", &reference(m.top.as_str()));
 
         self.out.push('\n');
         if m.nodes.is_empty() {
@@ -116,7 +118,7 @@ impl Writer<'_> {
                     if let Gate::Vote { k } = gate {
                         self.line(4, "k", &k.to_string());
                     }
-                    let ids: Vec<&str> = children.iter().map(|c| c.as_str()).collect();
+                    let ids: Vec<String> = children.iter().map(|c| reference(c.as_str())).collect();
                     let inline = format!("[{}]", ids.join(", "));
                     if "    children: ".len() + inline.len() <= WIDTH {
                         self.line(4, "children", &inline);
@@ -145,7 +147,7 @@ impl Writer<'_> {
             }
             for (i, c) in node.consequences.iter().enumerate() {
                 let mut fields = vec![
-                    format!("asset: {}", c.asset),
+                    format!("asset: {}", reference(c.asset.as_str())),
                     format!("dim: {}", word(&DIMS, &c.dim)),
                 ];
                 if c.fraction != 1.0 {
@@ -199,7 +201,7 @@ impl Writer<'_> {
             }
             for (i, e) in control.effects.iter().enumerate() {
                 let mut fields = vec![
-                    format!("node: {}", e.node),
+                    format!("node: {}", reference(e.node.as_str())),
                     format!("ttc: {}", expression(&e.ttc)),
                 ];
                 self.extension_fields(&format!("{path}.effects[{i}]"), &mut fields);
@@ -299,6 +301,15 @@ fn needs_escape(c: char) -> bool {
     c.is_control() || matches!(c, '\u{85}' | '\u{2028}' | '\u{2029}' | '\u{feff}')
 }
 
+/// How many characters `c` takes in [`quoted`] text.
+pub(crate) fn written_width(c: char) -> usize {
+    match c {
+        '"' | '\\' | '\n' | '\t' | '\r' => 2,
+        c if needs_escape(c) => 6,
+        _ => 1,
+    }
+}
+
 fn quoted(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 2);
     out.push('"');
@@ -317,6 +328,16 @@ fn quoted(text: &str) -> String {
     }
     out.push('"');
     out
+}
+
+/// An id where it is a value. Its characters are safe anywhere; its words are
+/// not: `null`, `yes`, `42` would be read back as something other than text.
+pub fn reference(text: &str) -> String {
+    if looks_typed(text) {
+        quoted(text)
+    } else {
+        text.to_owned()
+    }
 }
 
 /// Text, bare where that is unambiguous and quoted where it is not.
@@ -355,5 +376,35 @@ fn flow(node: &Node, context: Context) -> String {
             let entries: Vec<String> = entries.iter().map(flow_entry).collect();
             format!("{{{}}}", entries.join(", "))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use effractor_core::{Dim, LeafKind, Profile, TimeUnit};
+
+    use super::word;
+    use crate::lower::{DIMS, LEAVES, PROFILES, TIME_UNITS};
+
+    /// The matches stop compiling when a value is added, which sends whoever
+    /// adds it to its table.
+    #[test]
+    fn every_value_has_a_word() {
+        let profiles = [Profile::FaultTree, Profile::AttackTree].map(|p| match p {
+            Profile::FaultTree | Profile::AttackTree => p,
+        });
+        let units = [TimeUnit::Hours, TimeUnit::Days, TimeUnit::Years].map(|u| match u {
+            TimeUnit::Hours | TimeUnit::Days | TimeUnit::Years => u,
+        });
+        let leaves = [LeafKind::Basic, LeafKind::Undeveloped].map(|l| match l {
+            LeafKind::Basic | LeafKind::Undeveloped => l,
+        });
+        let dims = [Dim::C, Dim::I, Dim::A].map(|d| match d {
+            Dim::C | Dim::I | Dim::A => d,
+        });
+        assert!(profiles.iter().all(|v| !word(&PROFILES, v).is_empty()));
+        assert!(units.iter().all(|v| !word(&TIME_UNITS, v).is_empty()));
+        assert!(leaves.iter().all(|v| !word(&LEAVES, v).is_empty()));
+        assert!(dims.iter().all(|v| !word(&DIMS, v).is_empty()));
     }
 }

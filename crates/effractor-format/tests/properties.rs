@@ -193,7 +193,7 @@ prop_compose! {
             (text(), prop::option::of(text()), 0.0..1e7f64, any::<bool>(), prop::collection::vec((any::<prop::sample::Index>(), ttc_distribution()), 0..3)),
             0..3,
         ),
-        analysis in (any::<u64>(), 1..u64::MAX, 0.001..0.999f64),
+        analysis in (any::<u64>(), 1..=effractor_core::architecture::MAX_SAMPLES, 0.001..0.999f64),
         attack in Just(attack),
     ) -> Model {
         let total = gate_parts.len() + leaf_nodes.len();

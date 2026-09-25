@@ -9,8 +9,9 @@
 
 use effractor_components::{
     Binding, GeneratedGraph, GeneratedKind, ResolvedGraph, ResolvedTtc, SEMANTICS, resolve,
+    timing_status,
 };
-use effractor_core::architecture::Architecture;
+use effractor_core::architecture::{Architecture, MAX_SAMPLES};
 use effractor_core::{Code, Diagnostic, Distribution, ScenarioId, TimeUnit};
 use libm::sqrt;
 use serde::Serialize;
@@ -21,9 +22,6 @@ use crate::graph_support::{GraphSupport, Status, analyze};
 use crate::mc::{GRID, wilson};
 use crate::results::Progress;
 use crate::special::phi_inv;
-
-/// The most samples a graph solve takes.
-pub const MAX_SAMPLES: u64 = 100_000;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraphConfig {
@@ -528,41 +526,11 @@ impl GraphSolve {
             .filter_map(|i| {
                 let path = r.paths[i].first()?.clone();
                 let note = r.evidence[i].first().and_then(|p| p.note.clone());
-                let (status, expression) = match (&self.graph.nodes[i].duration, &r.ttc[i]) {
-                    (Binding::Permission(_), ResolvedTtc::Known(d)) => (
-                        "policy",
-                        Some(if matches!(d, Distribution::Infinity) {
-                            "denied".to_owned()
-                        } else {
-                            "allowed".to_owned()
-                        }),
-                    ),
-                    (Binding::Policy { .. }, ResolvedTtc::Known(d)) => (
-                        "defense",
-                        Some(
-                            if matches!(d, Distribution::Infinity) {
-                                "on"
-                            } else {
-                                "off"
-                            }
-                            .to_owned(),
-                        ),
-                    ),
-                    (Binding::Parameter { .. }, ResolvedTtc::Known(d)) => (
-                        r.evidence[i]
-                            .first()
-                            .map_or("unknown", |p| p.status.as_str()),
-                        Some(effractor_format::expr::write(d)),
-                    ),
-                    (
-                        Binding::Permission(_) | Binding::Policy { .. } | Binding::Parameter { .. },
-                        ResolvedTtc::Unknown(_),
-                    )
-                    | (Binding::Unfinished { .. } | Binding::UnknownPrivilege(_), _) => {
-                        ("unknown", None)
-                    }
-                    (Binding::Logical | Binding::Foothold(_), _) => return None,
-                };
+                let binding = &self.graph.nodes[i].duration;
+                if matches!(binding, Binding::Logical | Binding::Foothold(_)) {
+                    return None;
+                }
+                let (status, expression) = timing_status(binding, r, i);
                 Some(Assumption {
                     path,
                     paths: r.paths[i].clone(),

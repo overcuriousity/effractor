@@ -360,6 +360,15 @@ fn horizon_and_analysis_ranges() {
     m.analysis.confidence = 1.0;
     let d = only(&m);
     assert_eq!(d.path, "analysis.confidence");
+
+    // As many samples as an architecture may have; more is memory, not
+    // precision.
+    let mut m = valid();
+    m.analysis.samples = architecture::MAX_SAMPLES;
+    assert_eq!(codes(&m), vec![]);
+    m.analysis.samples = 1_000_000_000;
+    let d = only(&m);
+    assert_eq!((d.code, d.path.as_str()), (Code::Limit, "analysis.samples"));
 }
 
 #[test]
