@@ -13,7 +13,7 @@ use serde::Serialize;
 use crate::attacker::{self, attacker};
 use crate::bdd::Bdd;
 use crate::dist::cdf;
-use crate::importance::importance;
+use crate::importance::{birnbaum, fussell_vesely};
 use crate::mc::{Chunk, GRID, Sampled, Sampler, paired_difference};
 use crate::mcs::{CutSets, Truncated};
 use crate::plan::Plan;
@@ -130,6 +130,11 @@ pub struct Exact {
     /// (t, P(top <= t)) on the grid.
     pub ttc_cdf: Vec<(f64, f64)>,
     pub bdd_nodes: usize,
+    /// Why the leaves have no Fussell–Vesely, if they have none: it needs the
+    /// cut sets and room in the diagram for a function per leaf. Birnbaum
+    /// needs neither.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fussell_vesely_unavailable: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -330,14 +335,23 @@ impl Solve {
                         .map(|id| all[Bdd::index(bdd.node(id).expect("planned"))])
                         .collect(),
                 );
-                if let Ok(z) = &cut_sets
-                    && let Ok(imp) = importance(bdd, top, z, p)
-                {
-                    for (leaf, i) in leaves.iter_mut().zip(imp) {
-                        leaf.birnbaum = Some(i.birnbaum);
-                        leaf.fussell_vesely = Some(i.fussell_vesely);
-                    }
+                for (leaf, b) in leaves.iter_mut().zip(birnbaum(bdd, top, p)) {
+                    leaf.birnbaum = Some(b);
                 }
+                let fv = match &cut_sets {
+                    Ok(z) => fussell_vesely(bdd, top, z, p)
+                        .map_err(|e| format!("Fussell–Vesely gave up: {e:?}")),
+                    Err(_) => Err("Fussell–Vesely needs cut sets".to_owned()),
+                };
+                let fussell_vesely_unavailable = match fv {
+                    Ok(fv) => {
+                        for (leaf, f) in leaves.iter_mut().zip(fv) {
+                            leaf.fussell_vesely = Some(f);
+                        }
+                        None
+                    }
+                    Err(reason) => Some(reason),
+                };
                 let ttc_cdf = (0..GRID)
                     .map(|j| {
                         let t = model.horizon * j as f64 / (GRID - 1) as f64;
@@ -349,6 +363,7 @@ impl Solve {
                     p_top: bdd.prob(top, p),
                     ttc_cdf,
                     bdd_nodes: bdd.size(),
+                    fussell_vesely_unavailable,
                 })
             }
         };

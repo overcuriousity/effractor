@@ -357,6 +357,54 @@ fn past_the_node_limit_sampling_carries_on_alone() {
     );
 }
 
+/// Fussell–Vesely needs a function per leaf on top of the diagram; Birnbaum
+/// only the diagram. A limit between the two costs Fussell–Vesely alone, and
+/// says so.
+#[test]
+fn a_limit_that_only_fussell_vesely_needs_costs_only_fussell_vesely() {
+    // "Some cut set with a holds" is a ∧ (b ∨ c), which top's diagram lacks.
+    let m = model(
+        "top",
+        vec![
+            ("top", gate(Gate::Vote { k: 2 }, &["a", "b", "c"])),
+            ("a", leaf(0.1)),
+            ("b", leaf(0.2)),
+            ("c", leaf(0.3)),
+        ],
+    );
+    let base = effractor_solver::bdd::Bdd::compile(&m, usize::MAX)
+        .unwrap()
+        .size();
+    let full = solve(&m, &cfg(&m)).unwrap();
+    let r = solve(
+        &m,
+        &Config {
+            bdd_node_limit: base,
+            ..cfg(&m)
+        },
+    )
+    .unwrap();
+    assert!(r.cut_sets.available().is_some());
+    let exact = r.exact.available().unwrap();
+    assert_eq!(exact.p_top, full.exact.available().unwrap().p_top);
+    for (leaf, want) in r.leaves.iter().zip(&full.leaves) {
+        assert_eq!(
+            (leaf.birnbaum, leaf.fussell_vesely),
+            (want.birnbaum, None),
+            "{}",
+            leaf.id
+        );
+    }
+    assert_eq!(
+        exact.fussell_vesely_unavailable.as_deref(),
+        Some(format!("Fussell–Vesely gave up: NodeLimit({base})").as_str())
+    );
+    assert_eq!(
+        full.exact.available().unwrap().fussell_vesely_unavailable,
+        None
+    );
+}
+
 #[test]
 fn cut_set_limits_are_reported() {
     let m = webserver();
