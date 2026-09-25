@@ -453,6 +453,10 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
         }
         _ => Some(Factor::First),
     };
+    // `contained` and `decrypts` are read as words, so a quoted `"true"` is
+    // taken, unlike `closed`: a link shared since they came may say it so,
+    // and must keep opening. Canonical text writes them bare.
+    //
     // Absent is not contained; canonical text writes only `true`. The
     // validator decides whether the hosted kind is software.
     let contained = match f.get("contained") {

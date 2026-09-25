@@ -1300,6 +1300,11 @@ fn data_holdings_access_keys_and_readers_round_trip() {
     // An unsaid `decrypts` loads (it is incomplete, not unreadable).
     let unsaid = text.replace("    decrypts: false\n", "");
     assert_eq!(canonicalize(&unsaid).unwrap(), unsaid);
+    // Quoted, as some links shared since 2026-09-24 may say it: read, and
+    // written bare. (`closed` and `enabled` never took quotes.)
+    let quoted = text.replace("    decrypts: false\n", "    decrypts: \"false\"\n");
+    assert_ne!(quoted, text);
+    assert_eq!(canonicalize(&quoted).unwrap(), text);
     for (from, to, path, code) in [
         (
             "mode: write",
