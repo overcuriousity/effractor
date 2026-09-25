@@ -1251,6 +1251,9 @@
       var profile = state.doc ? state.doc.profile : "fault-tree";
       template(templateOf(profile)).then(function (text) {
         replaceDocument(text, "new " + MODE_NAMES[profile].toLowerCase());
+      }).catch(function (e) {
+        console.error(e);
+        say("could not start a new one · " + e.message);
       });
     },
     open: function () {
@@ -1265,6 +1268,9 @@
     if (!file) return;
     file.text().then(function (text) {
       replaceDocument(text, "opened " + file.name);
+    }).catch(function (e) {
+      console.error(e);
+      say("could not read " + file.name + " · " + e.message);
     });
   });
 
