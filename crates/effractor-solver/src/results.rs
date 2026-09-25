@@ -129,6 +129,7 @@ pub struct Exact {
     pub p_top: f64,
     /// (t, P(top <= t)) on the grid.
     pub ttc_cdf: Vec<(f64, f64)>,
+    /// The size of the model's diagram, terminals included.
     pub bdd_nodes: usize,
     /// Why the leaves have no Fussell–Vesely, if they have none: it needs the
     /// cut sets and room in the diagram for a function per leaf. Birnbaum
@@ -327,6 +328,8 @@ impl Solve {
                 Outcome::unavailable(no_numbers.clone().unwrap_or_default())
             }
             (Ok(bdd), Some(dists), Some(p)) => {
+                // The model's own diagram, before importance adds to it.
+                let bdd_nodes = bdd.size();
                 let top = bdd.root();
                 let all = bdd.prob_all(p);
                 p_node_exact = Some(
@@ -362,7 +365,7 @@ impl Solve {
                 Outcome::Available(Exact {
                     p_top: bdd.prob(top, p),
                     ttc_cdf,
-                    bdd_nodes: bdd.size(),
+                    bdd_nodes,
                     fussell_vesely_unavailable,
                 })
             }

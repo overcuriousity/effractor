@@ -405,6 +405,28 @@ fn a_limit_that_only_fussell_vesely_needs_costs_only_fussell_vesely() {
     );
 }
 
+/// The size reported is the model's diagram, not what importance adds to it.
+#[test]
+fn the_diagram_size_is_the_models_own() {
+    let m = model(
+        "top",
+        vec![
+            ("top", gate(Gate::Vote { k: 2 }, &["a", "b", "c"])),
+            ("a", leaf(0.1)),
+            ("b", leaf(0.2)),
+            ("c", leaf(0.3)),
+        ],
+    );
+    let r = solve(&m, &cfg(&m)).unwrap();
+    assert!(r.leaves.iter().all(|l| l.fussell_vesely.is_some()));
+    assert_eq!(
+        r.exact.available().unwrap().bdd_nodes,
+        effractor_solver::bdd::Bdd::compile(&m, usize::MAX)
+            .unwrap()
+            .size()
+    );
+}
+
 #[test]
 fn cut_set_limits_are_reported() {
     let m = webserver();
