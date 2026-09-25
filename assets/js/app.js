@@ -371,77 +371,48 @@
   function putPositions(map) {
     positions.moveAll(state.doc.name, map);
   }
-  // A firewall's permissions on the canvas, shown or not; this browser
-  // remembers which.
-  var PERMITS = "effractor.permits";
-  var showPermits = (function () {
-    try {
-      var s = browserStorage();
-      return !s || s.getItem(PERMITS) !== "hidden";
-    } catch (e) {
-      return true;
+  // A canvas switch this browser remembers (`key` in localStorage, "hidden"
+  // when off; on unless said), with its bottom-bar button `button`, if the
+  // page has one. Switched, the canvas is drawn again.
+  function rememberedSwitch(key, button, title) {
+    var on = (function () {
+      try {
+        var s = browserStorage();
+        return !s || s.getItem(key) !== "hidden";
+      } catch (e) {
+        return true;
+      }
+    })();
+    function mark() {
+      var b = $(button);
+      if (!b) return;
+      b.setAttribute("aria-pressed", String(on));
+      b.title = title + " · click to " + (on ? "hide" : "show");
     }
-  })();
-  function setPermits(on) {
-    showPermits = !!on;
-    try {
-      var s = browserStorage();
-      if (s && showPermits) s.removeItem(PERMITS);
-      else if (s) s.setItem(PERMITS, "hidden");
-    } catch (e) {
-      /* kept for this page only */
+    function set(value) {
+      on = !!value;
+      try {
+        var s = browserStorage();
+        if (s && on) s.removeItem(key);
+        else if (s) s.setItem(key, "hidden");
+      } catch (e) {
+        /* kept for this page only */
+      }
+      mark();
+      paint();
     }
-    markPermits();
-    paint();
-  }
-  function markPermits() {
-    var b = $("permits");
-    if (!b) return;
-    b.setAttribute("aria-pressed", String(showPermits));
-    b.title = "Firewall permissions on flows · click to " + (showPermits ? "hide" : "show");
-  }
-  if ($("permits")) {
-    markPermits();
-    $("permits").addEventListener("click", function () {
-      setPermits(!showPermits);
-    });
-  }
-
-  // Open clusters' outlines on the canvas, shown or not (owner, 2026-09-25);
-  // this browser remembers which, as it does for permissions.
-  var OUTLINES = "effractor.outlines";
-  var showOutlines = (function () {
-    try {
-      var s = browserStorage();
-      return !s || s.getItem(OUTLINES) !== "hidden";
-    } catch (e) {
-      return true;
+    if ($(button)) {
+      mark();
+      $(button).addEventListener("click", function () {
+        set(!on);
+      });
     }
-  })();
-  function setOutlines(on) {
-    showOutlines = !!on;
-    try {
-      var s = browserStorage();
-      if (s && showOutlines) s.removeItem(OUTLINES);
-      else if (s) s.setItem(OUTLINES, "hidden");
-    } catch (e) {
-      /* kept for this page only */
-    }
-    markOutlines();
-    paint();
+    return { on: function () { return on; }, set: set };
   }
-  function markOutlines() {
-    var b = $("outlines");
-    if (!b) return;
-    b.setAttribute("aria-pressed", String(showOutlines));
-    b.title = "Outlines of open clusters · click to " + (showOutlines ? "hide" : "show");
-  }
-  if ($("outlines")) {
-    markOutlines();
-    $("outlines").addEventListener("click", function () {
-      setOutlines(!showOutlines);
-    });
-  }
+  // A firewall's permissions on the canvas, shown or not.
+  var permits = rememberedSwitch("effractor.permits", "permits", "Firewall permissions on flows");
+  // Open clusters' outlines on the canvas, shown or not (owner, 2026-09-25).
+  var outlines = rememberedSwitch("effractor.outlines", "outlines", "Outlines of open clusters");
 
   function arrange() {
     positions.clear(state.doc.name);
@@ -491,7 +462,7 @@
         });
         keep(C.inPlace(motion, prev, stored, handPlaced));
       }
-      var options = { permits: showPermits, outlines: showOutlines };
+      var options = { permits: permits.on(), outlines: outlines.on() };
       // A cluster that just opened pushes what it now covers out of its way,
       // and those places are kept.
       if (opened.length) keep(C.spread(Pos.place(state.laid, stored, { permits: false, outlines: true }), opened, SPREAD_GAP));
@@ -1189,13 +1160,13 @@
   };
   window.effractor.arrange = arrange;
   window.effractor.permits = function () {
-    return showPermits;
+    return permits.on();
   };
-  window.effractor.setPermits = setPermits;
+  window.effractor.setPermits = permits.set;
   window.effractor.outlines = function () {
-    return showOutlines;
+    return outlines.on();
   };
-  window.effractor.setOutlines = setOutlines;
+  window.effractor.setOutlines = outlines.set;
   // The architecture drawn again as it is: its pins' words have arrived.
   window.effractor.redraw = function () {
     return attackShown() ? Promise.resolve() : draw(false);
