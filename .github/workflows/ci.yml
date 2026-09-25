@@ -37,6 +37,8 @@ jobs:
         run: node scripts/check-graph-agreement.js
       - name: nmap import saves in browser wasm
         run: node scripts/check-nmap-wasm.js
+      - name: scenario changes refused in browser wasm
+        run: node scripts/check-scenario-wasm.js
       - name: static site export
         run: scripts/build-site.sh
       - name: wasm build
