@@ -444,7 +444,7 @@
 
   var GAP = 0.14; // radians between two sectors
   var ONE_EACH = 12; // above this many members, one arc per state
-  var STATES = ["vulnerable", "unknown", null];
+  var STATES = ["vulnerable", "exposed", "unknown", null];
 
   // A closed cluster's ring (spec §4.1), clockwise from the top: a sector
   // per member, or per state when there are many; `full` when one state

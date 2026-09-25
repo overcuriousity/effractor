@@ -166,7 +166,7 @@
     });
 
     var pinned = pins(doc, word);
-    var exposed = vulnerable(doc);
+    var found = vulnerable(doc);
     var nodes = Object.keys(entities).map(function (id) {
       var e = entities[id];
       var label = String(e.label == null ? id : e.label);
@@ -183,7 +183,7 @@
         unknown: open,
         badge: null,
         pins: pinned[id] || [],
-        rings: exposed[id] ? [{ state: "vulnerable", why: exposed[id].join("\n") }] : [],
+        rings: found.why[id] ? [{ state: found.own[id] ? "vulnerable" : "exposed", why: found.why[id].join("\n") }] : [],
         parents: incoming[id] || 0,
         unquantified: open > 0,
         top: false,
@@ -317,13 +317,13 @@
   function clusterNode(doc, cid, members) {
     var label = C.label(doc, cid);
     var states = members.map(function (m) {
-      return m.rings.length ? "vulnerable" : m.unknown > 0 ? "unknown" : null;
+      return m.rings.length ? m.rings[0].state : m.unknown > 0 ? "unknown" : null;
     });
     var unknown = members.reduce(function (sum, m) { return sum + m.unknown; }, 0);
     var why = members.filter(function (m) { return m.rings.length; }).map(function (m) {
       return m.rings.map(function (r) { return r.why; }).join("\n");
     });
-    var rings = why.length ? [{ state: "vulnerable", why: why.join("\n") }] : [];
+    var rings = why.length ? [{ state: states.indexOf("vulnerable") >= 0 ? "vulnerable" : "exposed", why: why.join("\n") }] : [];
     var open = states.filter(function (s) { return s === "unknown"; }).length;
     if (open) rings.push({ state: "unknown", why: open + (open === 1 ? " member" : " members") + " with unknown inputs" });
     return {
@@ -346,10 +346,12 @@
     };
   }
 
-  // Why each component is vulnerable (owner, 2026-09-24, after Reactor's
-  // exposure ring): a product whose patch is off, with the reason given for
-  // finding an exploit (an nmap finding); the software running it; and the
-  // host running that software.
+  // Why each component is ringed (owner, 2026-09-24, after Reactor's
+  // exposure ring): vulnerable, a product whose patch is off, with the reason
+  // given for finding an exploit (an nmap finding); exposed (owner,
+  // 2026-09-25: a colour of its own, so one finding reads as one), the
+  // software running it and the host running that software. `own`: the
+  // vulnerable ones.
   function vulnerable(doc) {
     var entities = doc.entities || {};
     var out = Object.create(null);
@@ -376,7 +378,7 @@
     associations.forEach(function (a) {
       if (a.kind === "hosts" && software[a.to] && has(entities, a.from) && entities[a.from].kind === "host") add(a.from, out[a.to]);
     });
-    return out;
+    return { why: out, own: own };
   }
 
   var api = { describe: describe, route: route, shownSlots: shownSlots, shownDefense: shownDefense };

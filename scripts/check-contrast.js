@@ -53,6 +53,10 @@ const TEXT = [
 const FAMILIES = ["network", "compute", "identity", "data"];
 const GRAPHIC = [
   ["--viz-outline", "--viz-canvas"],
+  // The rings round a component: vulnerable, exposed, unknown inputs.
+  ["--color-danger", "--viz-canvas"],
+  ["--color-exposed", "--viz-canvas"],
+  ["--color-warning", "--viz-canvas"],
   ...FAMILIES.map((f) => [`--viz-family-${f}`, "--viz-canvas"]),
   ...FAMILIES.map((f) => ["--viz-family-ink", `--viz-family-${f}`]),
 ];

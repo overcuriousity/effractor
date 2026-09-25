@@ -55,6 +55,9 @@
   --color-accent-muted: rgba(54, 102, 135, 0.25);
 
   --color-danger: #b3382c;
+  /* Exposed (after Reactor's exposure colours): what runs a vulnerable
+     product. Orange, between danger and warning; 4.05:1 on the canvas. */
+  --color-exposed: #c2560c;
   --color-warning: #845b16;
 
   /* Visualization. Importance is a magnitude, so the ramp is sequential: one
@@ -122,6 +125,7 @@
 
     /* 5.75:1 or better on every ground. */
     --color-danger: #e77676;
+    --color-exposed: #f0843c;
     --color-warning: #e8a839;
 
     /* See the light half. Selected for this canvas, not flipped: 5.38:1 for
@@ -171,6 +175,7 @@
 
     /* 5.75:1 or better on every ground. */
     --color-danger: #e77676;
+    --color-exposed: #f0843c;
     --color-warning: #e8a839;
 
     /* See the light half. Selected for this canvas, not flipped: 5.38:1 for

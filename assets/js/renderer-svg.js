@@ -347,7 +347,7 @@
           else el("path", { d: C.arc(cx, r, ringR, s.from, s.to) }, cls, g);
         });
       } else {
-        // Outside the halo, a ring per state it is in (so far: vulnerable).
+        // Outside the halo, a ring per state it is in: vulnerable, exposed.
         (n.rings || []).forEach(function (ring) {
           el("circle", { cx: cx, cy: r, r: ringR }, ["ring", "ring-" + ring.state], g);
         });

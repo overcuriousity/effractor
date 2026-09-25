@@ -99,6 +99,9 @@ test('ring sectors: one per member up to twelve, else one per state', () => {
   assert.ok(four.every((s) => s.to > s.from));
   const many = C.segments(Array.from({ length: 20 }, (_, i) => (i < 5 ? 'vulnerable' : null)));
   assert.deepEqual(many.map((s) => s.state), ['vulnerable', null]);
+  // Many members: one arc per state, the finding first, then what it exposes.
+  const mixed = C.segments(Array.from({ length: 20 }, (_, i) => (i < 2 ? 'exposed' : i < 3 ? 'vulnerable' : i < 5 ? 'unknown' : null)));
+  assert.deepEqual(mixed.map((s) => s.state), ['vulnerable', 'exposed', 'unknown', null]);
   const share = (s) => s.to - s.from;
   assert.ok(Math.abs(share(many[0]) / (share(many[0]) + share(many[1])) - 0.25) < 0.02, 'sized by count');
   assert.deepEqual(C.segments(Array(20).fill(null)), [{ state: null, full: true }]);

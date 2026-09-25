@@ -90,6 +90,11 @@ end outside it (`graph.js` `ringed` hub); the tooltip carries each product's
 "unpatched" line and its `find-exploit` note, which is where the CVE shows.
 The bottom bar's legend has *vulnerable*. More states (foothold, target,
 reached) could become further rings; none is asked for yet.
+**Exposed** (owner, 2026-09-25, after Reactor's exposure colours: three
+equal red rings read as three findings): only the product with the finding
+is `vulnerable` (red); the software running it and its host are `exposed`,
+in orange (`--color-exposed`), and a closed cluster's sectors say the same.
+Amber stays for unknown inputs.
 
 ## Continuation — nmap hint (2026-09-24)
 

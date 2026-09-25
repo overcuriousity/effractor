@@ -231,7 +231,7 @@ test('software that reads data processes content; data links read in plain words
   assert.equal(label('k'), 'encrypted with');
 });
 
-test('an unpatched product rings red, and so do the software running it and its host', () => {
+test('an unpatched product rings as vulnerable, the software running it and its host as exposed', () => {
   const doc = {
     profile: 'architecture',
     entities: {
@@ -260,8 +260,8 @@ test('an unpatched product rings red, and so do the software running it and its 
   const rings = Object.fromEntries(V.describe(doc).nodes.map(n => [n.id.slice(7), n.rings]));
   const nginx = 'vulnerable: nginx 1.4.6 unpatched\nnmap ssl-heartbleed: VULNERABLE, CVE-2014-0160 (The Heartbleed Bug).';
   assert.deepEqual(rings.nginx, [{ state: 'vulnerable', why: nginx }]);
-  assert.deepEqual(rings.https, [{ state: 'vulnerable', why: nginx }]);
-  assert.deepEqual(rings.web, [{ state: 'vulnerable', why: nginx + '\nvulnerable: PHP 5.3 unpatched' }]);
+  assert.deepEqual(rings.https, [{ state: 'exposed', why: nginx }]);
+  assert.deepEqual(rings.web, [{ state: 'exposed', why: nginx + '\nvulnerable: PHP 5.3 unpatched' }]);
   for (const id of ['other', 'ssh', 'openssh', 'fixed']) assert.deepEqual(rings[id], [], id);
 });
 
@@ -315,8 +315,8 @@ test('ring sectors carry each member state; pins keep their member', () => {
   const srv = V.describe(doc).nodes.find((n) => n.id === 'cluster/srv');
   const at = (m) => srv.cluster.states[doc.clusters.srv.members.indexOf(m)];
   assert.equal(at('dnsmasq-2-90'), 'vulnerable');
-  assert.equal(at('domain'), 'vulnerable', 'the software running it');
-  assert.equal(at('srv'), 'vulnerable', 'and the host');
+  assert.equal(at('domain'), 'exposed', 'the software running it');
+  assert.equal(at('srv'), 'exposed', 'and the host');
   assert.ok(srv.rings.some((r) => r.state === 'vulnerable'));
   assert.deepEqual(srv.pins.map((p) => [p.entity, p.role]), [['sshd', 'foothold']]);
 });
