@@ -25,7 +25,18 @@
     return state;
   }
 
-  if (typeof module !== "undefined") module.exports = { clampWidth: clampWidth, nextWidth: nextWidth, initialState: initialState, LIMITS: LIMITS };
+  // What is saved of the panels as shown: a side the page opened (`byPage`)
+  // and the visitor has not touched since is saved as it was, closed.
+  function saved(shown, byPage) {
+    var out = {};
+    for (var k in shown) out[k] = shown[k];
+    ["left", "right"].forEach(function (side) {
+      if (byPage[side]) out[side + "Open"] = false;
+    });
+    return out;
+  }
+
+  if (typeof module !== "undefined") module.exports = { clampWidth: clampWidth, nextWidth: nextWidth, initialState: initialState, saved: saved, LIMITS: LIMITS };
   if (typeof document === "undefined") return;
 
   var root = document.getElementById("app");
@@ -52,28 +63,36 @@
     });
   }
 
+  // Sides the page opened (a solve, the source view) that the visitor has
+  // not opened or closed since: not the visitor's choice.
+  var byPage = { left: false, right: false };
+
   // Saved only when the visitor changed something: a layout nobody chose is
   // not a preference.
   function change() {
     apply();
     try {
-      localStorage.setItem(KEY, JSON.stringify(state));
+      localStorage.setItem(KEY, JSON.stringify(saved(state, byPage)));
     } catch (e) {}
+  }
+  // The visitor opens or closes a side.
+  function setOpen(side, open) {
+    state[side + "Open"] = open;
+    byPage[side] = false;
+    change();
   }
 
   document.querySelectorAll("[data-toggle]").forEach(function (button) {
     button.addEventListener("click", function () {
       var side = button.getAttribute("data-toggle");
-      state[side + "Open"] = !state[side + "Open"];
-      change();
+      setOpen(side, !state[side + "Open"]);
     });
   });
 
   // The × in a panel's corner: closed as if its rail button had been pressed.
   document.querySelectorAll("[data-close]").forEach(function (button) {
     button.addEventListener("click", function () {
-      state[button.getAttribute("data-close") + "Open"] = false;
-      change();
+      setOpen(button.getAttribute("data-close"), false);
     });
   });
 
@@ -82,7 +101,8 @@
     open: function (side) {
       if (state[side + "Open"]) return;
       state[side + "Open"] = true;
-      apply(); // opened by the page, not chosen: not saved
+      byPage[side] = true; // opened by the page, not chosen: not saved
+      apply();
     },
   };
 
@@ -93,11 +113,13 @@
       var start = state[side];
       grip.setPointerCapture(down.pointerId);
       grip.setAttribute("data-dragging", "");
+      // Drawn while dragging, saved once let go.
       function move(e) {
         state[side] = nextWidth(side, start, e.clientX - down.clientX);
-        change();
+        apply();
       }
       function up() {
+        change();
         grip.removeAttribute("data-dragging");
         grip.removeEventListener("pointermove", move);
         grip.removeEventListener("pointerup", up);
@@ -108,8 +130,7 @@
       grip.addEventListener("pointercancel", up);
     });
     grip.addEventListener("dblclick", function () {
-      state[side + "Open"] = !state[side + "Open"];
-      change();
+      setOpen(side, !state[side + "Open"]);
     });
     grip.addEventListener("keydown", function (e) {
       var dx = e.key === "ArrowRight" ? 16 : e.key === "ArrowLeft" ? -16 : 0;

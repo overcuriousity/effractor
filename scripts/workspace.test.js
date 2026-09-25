@@ -25,3 +25,10 @@ test("a first visit opens no panel; a saved layout is kept, junk is not", () => 
   assert.deepEqual(initialState({ leftOpen: true, right: 300 }), { left: 220, right: 300, leftOpen: true, rightOpen: false });
   assert.deepEqual(initialState({ leftOpen: "yes", left: "wide" }), { left: 220, right: 264, leftOpen: false, rightOpen: false });
 });
+
+test("review: a panel the page opened is not saved as the visitor's choice", () => {
+  const { saved } = require("../assets/js/workspace.js");
+  const shown = { left: 240, right: 300, leftOpen: true, rightOpen: true };
+  assert.deepEqual(saved(shown, { right: true }), { left: 240, right: 300, leftOpen: true, rightOpen: false });
+  assert.deepEqual(saved(shown, {}), shown);
+});
