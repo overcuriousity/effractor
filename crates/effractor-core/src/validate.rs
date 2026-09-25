@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexMap;
 
+use crate::architecture::MAX_SAMPLES;
 use crate::distribution::probability;
 use crate::{Code, ControlId, Diagnostic, Distribution, Gate, Model, NodeId, NodeKind, Profile};
 
@@ -51,6 +52,14 @@ fn header(m: &Model, out: &mut Vec<Diagnostic>) {
         Err("samples must be > 0".into())
     };
     param(out, "analysis.samples".into(), samples);
+    // The sampler holds every draw: the cap is the architecture's.
+    if m.analysis.samples > MAX_SAMPLES {
+        out.push(Diagnostic::error(
+            Code::Limit,
+            "analysis.samples",
+            format!("at most {MAX_SAMPLES} samples, got {}", m.analysis.samples),
+        ));
+    }
     let c = m.analysis.confidence;
     let confidence = if c > 0.0 && c < 1.0 {
         Ok(())

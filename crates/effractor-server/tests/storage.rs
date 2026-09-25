@@ -29,8 +29,15 @@ async fn contract<S: Storage, F: Future<Output = S>>(make: impl Fn() -> F) {
         Some((blob.clone(), meta(Some(100), blob.len())))
     );
 
+    // The metadata alone, without reading the blob.
+    assert_eq!(
+        s.meta(&id).await.unwrap(),
+        Some(meta(Some(100), blob.len()))
+    );
+
     // Unknown is `None`, not an error.
     assert_eq!(s.get(&ShareId::random()).await.unwrap(), None);
+    assert_eq!(s.meta(&ShareId::random()).await.unwrap(), None);
 
     // A share is immutable: the same id cannot be written twice.
     let again = s
@@ -43,6 +50,7 @@ async fn contract<S: Storage, F: Future<Output = S>>(make: impl Fn() -> F) {
     assert!(s.delete(&id).await.unwrap());
     assert!(!s.delete(&id).await.unwrap());
     assert_eq!(s.get(&id).await.unwrap(), None);
+    assert_eq!(s.meta(&id).await.unwrap(), None);
 
     // Storage keeps what it is given until told otherwise: expiry is `sweep`,
     // and `sweep` takes what has expired at `now`, and nothing else.
@@ -172,6 +180,49 @@ async fn a_blob_without_its_metadata_is_not_a_share() {
     assert!(!dir.join(format!("{id}.bin.tmp")).exists());
     // Not ours, not touched.
     assert!(dir.join("README").exists());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_sweep_goes_past_what_it_cannot_read() {
+    use std::os::unix::fs::PermissionsExt;
+
+    // `--data` on its own filesystem has a root-owned `lost+found` in it, and
+    // a share directory can end up unreadable too. Neither may keep the
+    // expired shares elsewhere from going.
+    let root = tempfile::tempdir().unwrap();
+    let s = FsStorage::new(root.path().to_owned());
+    let expired = ShareId::random();
+    s.put(&expired, Bytes::from_static(b"x"), meta(Some(1), 1))
+        .await
+        .unwrap();
+    let prefix = if expired.as_str().starts_with("zz") {
+        "yy"
+    } else {
+        "zz"
+    };
+    let locked = [root.path().join("lost+found"), root.path().join(prefix)];
+    for dir in &locked {
+        std::fs::create_dir(dir).unwrap();
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o000)).unwrap();
+    }
+    // Root reads through permissions; there is nothing to test then.
+    let skipped = std::fs::read_dir(&locked[0]).is_ok();
+
+    let swept = if skipped {
+        None
+    } else {
+        Some(s.sweep(100).await)
+    };
+    for dir in &locked {
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    let Some(swept) = swept else {
+        eprintln!("running as root: skipped");
+        return;
+    };
+    assert_eq!(swept.unwrap(), 1);
+    assert_eq!(s.get(&expired).await.unwrap(), None);
 }
 
 #[test]

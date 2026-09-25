@@ -156,3 +156,28 @@ fn shipped_templates_are_canonical() {
     }
     assert!(seen > 0);
 }
+
+#[test]
+fn ids_that_yaml_would_read_as_something_else_are_quoted_where_they_are_values() {
+    let text = WEBSERVER
+        .replace("top: loss-of-availability", "top: \"null\"")
+        .replace("loss-of-availability", "null")
+        .replace("no-access", "yes")
+        .replace("[administration", "[\"true\"")
+        .replace("  administration:", "  true:")
+        .replace("webserver", "off")
+        .replace("hardware", "n");
+    let canonical = canonicalize(&text).unwrap();
+    for line in [
+        "top: \"null\"\n",
+        "    children: [\"yes\", no-function]\n",
+        "    children: [\"true\", network, server-outage]\n",
+        "      - {asset: \"off\", dim: a}\n",
+        "      - {node: \"n\", ttc: \"Exponential(mean 2500000)\"}\n",
+    ] {
+        assert!(canonical.contains(line), "{line:?} in {canonical}");
+    }
+    assert!(canonical.contains("\n  null:\n"), "{canonical}");
+    assert_eq!(save(&load(&canonical).unwrap()), canonical);
+    assert_eq!(canonicalize(&canonical).unwrap(), canonical);
+}

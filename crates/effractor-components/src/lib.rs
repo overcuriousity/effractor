@@ -20,7 +20,7 @@ pub use catalog::{
     LIBRARY_ID, LIBRARY_VERSION, MAX_GENERATED_DEPENDENCIES, MAX_GENERATED_NODES, RULES, Rule,
     catalog,
 };
-pub use export::graph_image;
+pub use export::{graph_image, timing_status};
 pub use generate::generate;
 pub use graph::{
     Binding, GeneratedGraph, GeneratedKind, GeneratedNode, Origin, Owner, ResolvedGraph,

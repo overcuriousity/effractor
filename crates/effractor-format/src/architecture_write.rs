@@ -10,12 +10,12 @@ use effractor_core::EntityId;
 use effractor_core::architecture::{Architecture, Change, Factor, Parameter, Relation, Switch};
 
 use crate::CURRENT_VERSION;
-use crate::architecture_read::{
-    BOOLS, DEFENSES, EVIDENCE, FACTORS, HOSTING_PRIVILEGES, KINDS, MODES, RELATIONS, STATES,
-    SWITCHES, TOOLS,
-};
 use crate::lower::{ARCHITECTURE, Extras, TIME_UNITS};
-use crate::write::{Context, WIDTH, Writer, expression, string, word};
+use crate::write::{Context, WIDTH, Writer, expression, reference, string, word};
+
+fn boolean(v: bool) -> &'static str {
+    if v { "true" } else { "false" }
+}
 
 pub fn write(m: &Architecture, extras: &Extras) -> String {
     let mut w = Writer::new(extras);
@@ -25,7 +25,7 @@ pub fn write(m: &Architecture, extras: &Extras) -> String {
 
 fn parameter(w: &mut Writer, indent: usize, key: &str, p: &Parameter, path: &str) {
     w.open(indent, key);
-    w.line(indent + 2, "status", word(&EVIDENCE, &p.status));
+    w.line(indent + 2, "status", p.status.as_str());
     if let Some(d) = &p.ttc {
         w.line(indent + 2, "ttc", &expression(d));
     }
@@ -35,8 +35,8 @@ fn parameter(w: &mut Writer, indent: usize, key: &str, p: &Parameter, path: &str
     w.extension_lines(indent + 2, path);
 }
 
-fn ids(ids: &[EntityId]) -> Vec<&str> {
-    ids.iter().map(|id| id.as_str()).collect()
+fn ids(ids: &[EntityId]) -> Vec<String> {
+    ids.iter().map(|i| reference(i.as_str())).collect()
 }
 
 /// A cluster's list of ids: on one line where it fits, else one per line.
@@ -47,8 +47,8 @@ fn id_list(w: &mut Writer, key: &str, list: &[EntityId]) {
         w.line(4, key, &inline);
     } else {
         w.open(4, key);
-        for id in items {
-            let _ = writeln!(w.out, "      - {id}");
+        for item in items {
+            let _ = writeln!(w.out, "      - {item}");
         }
     }
 }
@@ -75,7 +75,7 @@ fn document(w: &mut Writer, m: &Architecture) {
     for (id, entity) in &m.entities {
         let path = format!("entities.{id}");
         w.open(2, id.as_str());
-        w.line(4, "kind", word(&KINDS, &entity.kind));
+        w.line(4, "kind", entity.kind.as_str());
         w.line(4, "label", &string(&entity.label, Context::Block));
         if let Some(d) = &entity.description {
             w.line(4, "description", &string(d, Context::Block));
@@ -89,10 +89,12 @@ fn document(w: &mut Writer, m: &Architecture) {
             w.line(4, "addresses", &format!("[{}]", items.join(", ")));
         }
         if let Some(tool) = &entity.tool {
-            w.line(4, "tool", word(&TOOLS, tool));
+            w.line(4, "tool", tool.as_str());
         }
         let slots = entity.kind.slots();
-        if !slots.is_empty() {
+        let extended = format!("{path}.parameters");
+        // A kind without slots writes the map only for what an editor kept in it.
+        if !slots.is_empty() || w.has_extensions(&extended) {
             w.open(4, "parameters");
             for slot in slots {
                 let unknown = Parameter::unknown();
@@ -100,16 +102,20 @@ fn document(w: &mut Writer, m: &Architecture) {
                 let at = format!("{path}.parameters.{}", slot.as_str());
                 parameter(w, 6, slot.as_str(), p, &at);
             }
-            w.extension_lines(6, &format!("{path}.parameters"));
+            w.extension_lines(6, &extended);
         }
-        if let Some(defense) = entity.kind.defense() {
-            let value = entity.defenses.get(defense).unwrap_or(Switch::Unknown);
-            let mut fields = vec![format!(
-                "{}: {}",
-                word(&DEFENSES, &defense),
-                word(&SWITCHES, &value)
-            )];
-            w.extension_fields(&format!("{path}.defenses"), &mut fields);
+        let extended = format!("{path}.defenses");
+        if entity.kind.defense().is_some() || w.has_extensions(&extended) {
+            let mut fields: Vec<String> = entity
+                .kind
+                .defense()
+                .map(|defense| {
+                    let value = entity.defenses.get(defense).unwrap_or(Switch::Unknown);
+                    format!("{}: {}", defense.as_str(), value.as_str())
+                })
+                .into_iter()
+                .collect();
+            w.extension_fields(&extended, &mut fields);
             w.line(4, "defenses", &format!("{{{}}}", fields.join(", ")));
         }
         w.extension_lines(4, &path);
@@ -125,26 +131,26 @@ fn document(w: &mut Writer, m: &Architecture) {
         let path = format!("associations.{id}");
         let r = &association.relation;
         w.open(2, id.as_str());
-        w.line(4, "kind", word(&RELATIONS, &r.kind()));
-        w.line(4, "from", r.from().as_str());
+        w.line(4, "kind", r.kind().as_str());
+        w.line(4, "from", &reference(r.from().as_str()));
         match r {
             Relation::Permits { to, allowed, .. } => {
-                w.line(4, "to", to.as_str());
-                w.line(4, "allowed", word(&SWITCHES, allowed));
+                w.line(4, "to", &reference(to.as_str()));
+                w.line(4, "allowed", allowed.as_str());
             }
             _ => {
                 if let Some(to) = r.to_entity() {
-                    w.line(4, "to", to.as_str());
+                    w.line(4, "to", &reference(to.as_str()));
                 }
                 if let Some(privilege) = r.privilege() {
-                    w.line(4, "privilege", word(&HOSTING_PRIVILEGES, &privilege));
+                    w.line(4, "privilege", privilege.as_str());
                 }
                 if let Relation::Authenticates {
                     factor: Factor::Second,
                     ..
                 } = r
                 {
-                    w.line(4, "factor", word(&FACTORS, &Factor::Second));
+                    w.line(4, "factor", Factor::Second.as_str());
                 }
                 if let Relation::Hosts {
                     contained: true, ..
@@ -155,8 +161,8 @@ fn document(w: &mut Writer, m: &Architecture) {
                 match r {
                     Relation::Holds {
                         decrypts: Some(d), ..
-                    } => w.line(4, "decrypts", word(&BOOLS, d)),
-                    Relation::Accesses { mode, .. } => w.line(4, "mode", word(&MODES, mode)),
+                    } => w.line(4, "decrypts", boolean(*d)),
+                    Relation::Accesses { mode, .. } => w.line(4, "mode", mode.as_str()),
                     _ => {}
                 }
             }
@@ -177,16 +183,16 @@ fn document(w: &mut Writer, m: &Architecture) {
         let path = format!("flows.{id}");
         w.open(2, id.as_str());
         w.line(4, "label", &string(&flow.label, Context::Block));
-        w.line(4, "source", flow.source.as_str());
-        w.line(4, "target", flow.target.as_str());
+        w.line(4, "source", &reference(flow.source.as_str()));
+        w.line(4, "target", &reference(flow.target.as_str()));
         let route = ids(&flow.route);
         let inline = format!("[{}]", route.join(", "));
         if "    route: ".len() + inline.len() <= WIDTH {
             w.line(4, "route", &inline);
         } else {
             w.open(4, "route");
-            for id in route {
-                let _ = writeln!(w.out, "      - {id}");
+            for item in route {
+                let _ = writeln!(w.out, "      - {item}");
             }
         }
         if let Some(p) = &flow.protocol {
@@ -219,7 +225,7 @@ fn document(w: &mut Writer, m: &Architecture) {
         if !cluster.shown.is_empty() {
             id_list(w, "shown", &cluster.shown);
         }
-        w.line(4, "closed", word(&BOOLS, &cluster.closed));
+        w.line(4, "closed", boolean(cluster.closed));
         w.extension_lines(4, &path);
     }
 
@@ -232,16 +238,16 @@ fn document(w: &mut Writer, m: &Architecture) {
     }
     for (i, foothold) in m.attacker.footholds.iter().enumerate() {
         let mut fields = vec![
-            format!("entity: {}", foothold.entity),
-            format!("state: {}", word(&STATES, &foothold.state)),
+            format!("entity: {}", reference(foothold.entity.as_str())),
+            format!("state: {}", foothold.state.as_str()),
         ];
         w.extension_fields(&format!("attacker.footholds[{i}]"), &mut fields);
         let _ = writeln!(w.out, "    - {{{}}}", fields.join(", "));
     }
     if let Some(target) = &m.attacker.target {
         let mut fields = vec![
-            format!("entity: {}", target.entity),
-            format!("state: {}", word(&STATES, &target.state)),
+            format!("entity: {}", reference(target.entity.as_str())),
+            format!("state: {}", target.state.as_str()),
         ];
         w.extension_fields("attacker.target", &mut fields);
         w.line(2, "target", &format!("{{{}}}", fields.join(", ")));
@@ -275,14 +281,14 @@ fn document(w: &mut Writer, m: &Architecture) {
                     defense,
                     value,
                 } => vec![
-                    format!("entity: {entity}"),
-                    format!("defense: {}", word(&DEFENSES, defense)),
-                    format!("value: {}", word(&SWITCHES, value)),
+                    format!("entity: {}", reference(entity.as_str())),
+                    format!("defense: {}", defense.as_str()),
+                    format!("value: {}", value.as_str()),
                 ],
                 Change::Permission { association, value } => vec![
-                    format!("association: {association}"),
+                    format!("association: {}", reference(association.as_str())),
                     "field: allowed".to_owned(),
-                    format!("value: {}", word(&SWITCHES, value)),
+                    format!("value: {}", value.as_str()),
                 ],
             };
             w.extension_fields(&format!("{path}.changes[{i}]"), &mut fields);

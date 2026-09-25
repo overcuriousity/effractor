@@ -52,30 +52,6 @@ pub fn parse_expr(src: &str) -> Result<Distribution, ParseError> {
     Ok(expr)
 }
 
-/// The canonical spelling. `parse_expr(&to_expr(d)) == Ok(d)` for every `d`.
-pub fn to_expr(d: &Distribution) -> String {
-    use Distribution as D;
-    let call = |name: &str, args: &[f64]| {
-        let args: Vec<String> = args.iter().map(|v| number(*v)).collect();
-        format!("{name}({})", args.join(", "))
-    };
-    match d {
-        D::Bernoulli(p) => call("Bernoulli", &[*p]),
-        D::Exponential(rate) => call("Exponential", &[*rate]),
-        D::ExponentialMean(mean) => call("Exponential", &[1.0 / mean]),
-        D::Gamma { shape, scale } => call("Gamma", &[*shape, *scale]),
-        D::LogNormal { mu, sigma } => call("LogNormal", &[*mu, *sigma]),
-        D::Pareto { xm, alpha } => call("Pareto", &[*xm, *alpha]),
-        D::TruncatedNormal { mean, sd } => call("TruncatedNormal", &[*mean, *sd]),
-        D::Pert { min, mode, max } => call("Pert", &[*min, *mode, *max]),
-        D::Zero => "Zero".into(),
-        D::Infinity => "Infinity".into(),
-        D::Product(p, inner) => format!("{} * {}", call("Bernoulli", &[*p]), to_expr(inner)),
-        D::Named(s) => s.name().into(),
-        D::Const(v) => number(*v),
-    }
-}
-
 /// Shortest text that reads back as the same f64. Rust's `{}` never uses an
 /// exponent, which turns 2.5e-6 into a row of zeros someone has to count.
 /// Public because a document writes its bare numbers the same way.
