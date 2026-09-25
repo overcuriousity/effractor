@@ -404,7 +404,12 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
     let from = cx
         .required(&f, "from")
         .and_then(|e| cx.id_value(&e.value, &f.path("from")));
-    let to = cx.required(&f, "to");
+    // An entity, or a permission's flow: the same grammar, so it is checked
+    // before the kind says which.
+    let to = cx.required(&f, "to").and_then(|e| {
+        cx.id_value::<EntityId>(&e.value, &f.path("to"))
+            .map(|id| (id, e))
+    });
     let kind = kind?;
 
     // The fields the kind has, and the ones it does not.
@@ -464,67 +469,64 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
     } else {
         None
     };
+    let (from, (to, to_entry)) = (from?, to?);
     let relation = match kind {
         RelationKind::Permits => Relation::Permits {
-            from: from?,
-            to: cx.id_value(&to?.value, &f.path("to"))?,
+            from,
+            to: cx.id(to.as_str(), &f.path("to"), to_entry.value.pos)?,
             allowed: allowed?,
         },
-        _ => {
-            let from = from?;
-            let to = cx.id_value(&to?.value, &f.path("to"))?;
-            match kind {
-                RelationKind::Attached => Relation::Attached { from, to },
-                RelationKind::Hosts => Relation::Hosts {
-                    from,
-                    to,
-                    privilege: privilege?,
-                    contained: contained?,
-                },
-                RelationKind::Filters => Relation::Filters { from, to },
-                RelationKind::Stores => Relation::Stores {
-                    from,
-                    to,
-                    privilege: privilege?,
-                },
-                RelationKind::Authenticates => Relation::Authenticates {
-                    from,
-                    to,
-                    factor: factor?,
-                },
-                RelationKind::Authorizes => Relation::Authorizes { from, to },
-                RelationKind::Grants => Relation::Grants {
-                    from,
-                    to,
-                    privilege: privilege?,
-                },
-                RelationKind::Administration => Relation::Administration { from, to },
-                RelationKind::InstanceOf => Relation::InstanceOf { from, to },
-                RelationKind::RunsAs => Relation::RunsAs {
-                    from,
-                    to,
-                    privilege: privilege?,
-                },
-                RelationKind::Assumes => Relation::Assumes { from, to },
-                RelationKind::Knows => Relation::Knows { from, to },
-                RelationKind::Operates => Relation::Operates { from, to },
-                RelationKind::Delivers => Relation::Delivers { from, to },
-                RelationKind::Holds => Relation::Holds {
-                    from,
-                    to,
-                    privilege: privilege?,
-                    decrypts: decrypts?,
-                },
-                RelationKind::Accesses => Relation::Accesses {
-                    from,
-                    to,
-                    mode: mode?,
-                },
-                RelationKind::EncryptedWith => Relation::EncryptedWith { from, to },
-                RelationKind::Reads => Relation::Reads { from, to },
-                RelationKind::Permits => unreachable!("handled above"),
-            }
-        }
+        _ => match kind {
+            RelationKind::Attached => Relation::Attached { from, to },
+            RelationKind::Hosts => Relation::Hosts {
+                from,
+                to,
+                privilege: privilege?,
+                contained: contained?,
+            },
+            RelationKind::Filters => Relation::Filters { from, to },
+            RelationKind::Stores => Relation::Stores {
+                from,
+                to,
+                privilege: privilege?,
+            },
+            RelationKind::Authenticates => Relation::Authenticates {
+                from,
+                to,
+                factor: factor?,
+            },
+            RelationKind::Authorizes => Relation::Authorizes { from, to },
+            RelationKind::Grants => Relation::Grants {
+                from,
+                to,
+                privilege: privilege?,
+            },
+            RelationKind::Administration => Relation::Administration { from, to },
+            RelationKind::InstanceOf => Relation::InstanceOf { from, to },
+            RelationKind::RunsAs => Relation::RunsAs {
+                from,
+                to,
+                privilege: privilege?,
+            },
+            RelationKind::Assumes => Relation::Assumes { from, to },
+            RelationKind::Knows => Relation::Knows { from, to },
+            RelationKind::Operates => Relation::Operates { from, to },
+            RelationKind::Delivers => Relation::Delivers { from, to },
+            RelationKind::Holds => Relation::Holds {
+                from,
+                to,
+                privilege: privilege?,
+                decrypts: decrypts?,
+            },
+            RelationKind::Accesses => Relation::Accesses {
+                from,
+                to,
+                mode: mode?,
+            },
+            RelationKind::EncryptedWith => Relation::EncryptedWith { from, to },
+            RelationKind::Reads => Relation::Reads { from, to },
+            RelationKind::Permits => unreachable!("handled above"),
+        },
     };
     (!misplaced).then_some(Association {
         relation,

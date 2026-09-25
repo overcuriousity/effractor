@@ -1707,3 +1707,38 @@ fn extensions_survive_where_a_kind_has_no_parameters_or_defence() {
     assert_eq!(canonicalize(&text).unwrap(), text);
     assert_eq!(self::image(&text), image);
 }
+
+#[test]
+fn every_problem_in_one_association_is_reported_at_once() {
+    let cases = [
+        (
+            serde_json::json!({"kind": "linked", "from": "server", "to": "Bad Id"}),
+            vec![("wrong-type", "kind"), ("invalid-id", "to")],
+        ),
+        (
+            serde_json::json!({"kind": "attached", "from": "Bad Id", "to": "Also Bad"}),
+            vec![("invalid-id", "from"), ("invalid-id", "to")],
+        ),
+        (
+            serde_json::json!({"kind": "attached", "from": "Bad Id", "to": "server-net", "mode": "read"}),
+            vec![("invalid-id", "from"), ("misplaced-key", "mode")],
+        ),
+        (
+            serde_json::json!({"kind": "permits", "from": "Bad Id", "to": "Bad Flow", "allowed": true}),
+            vec![("invalid-id", "from"), ("invalid-id", "to")],
+        ),
+        (
+            serde_json::json!({"kind": "hosts", "from": "server", "privilege": "root"}),
+            vec![("missing-key", "to"), ("wrong-type", "privilege")],
+        ),
+    ];
+    for (association, want) in cases {
+        let mut image = image(LECTURE);
+        image["associations"]["a"] = association;
+        let errors = errors_of(&image);
+        for (code, key) in want {
+            let path = format!("associations.a.{key}");
+            assert!(has(&errors, code, &path), "{code} at {path}: {errors:?}");
+        }
+    }
+}
