@@ -124,6 +124,7 @@
     at.scan = r.scan;
     at.merges = {};
     at.ticks = null;
+    showCommand(); // an earlier read's problem is gone; the command's note stays
     preview();
   }
 
@@ -142,14 +143,19 @@
       }));
       rows.appendChild(net);
     }
+    // One box for every host, where there are several (a /16 is past the limits).
+    if (at.plan.hosts.length > 1) {
+      var all = el("li", null, "nmap-host");
+      all.appendChild(check(at.plan.hosts.every(function (h) { return at.ticks.hosts[h.key]; }), "all hosts", function (on) {
+        N.tickHosts(at.plan, at.ticks, on);
+        preview();
+      }));
+      rows.appendChild(all);
+    }
     at.plan.hosts.forEach(function (h) {
       var li = el("li", null, "nmap-host");
       var head = check(at.ticks.hosts[h.key], h.label + " · " + h.addresses.join(", "), function (on) {
-        at.ticks.hosts[h.key] = on;
-        h.ports.forEach(function (r) {
-          at.ticks.ports[r.key] = on && (!r.known || r.addsFlow);
-          r.findings.forEach(function (f) { at.ticks.findings[f.key] = on && !f.known && !f.patchedByAuthor; });
-        });
+        N.tickHost(h, at.ticks, on);
         preview();
       });
       head.appendChild(role(h));
@@ -272,12 +278,7 @@
   function count() {
     var c = U.catalog();
     var s = N.summary(doc(), at.plan, at.ticks, c ? c.limits : null);
-    var parts = [[s.hosts, "host"], [s.networks, "network"], [s.attached, "attachment"], [s.routers, "router"], [s.firewalls, "firewall"], [s.services, "service"], [s.products, "product"], [s.flows, "flow"]].filter(function (x) { return x[0]; }).map(function (x) {
-      return x[0] + " " + x[1] + (x[0] === 1 ? "" : "s");
-    });
-    var marks = s.unpatched ? "marks " + s.unpatched + " product" + (s.unpatched === 1 ? "" : "s") + " unpatched" : "";
-    var said = parts.length ? "Adds " + parts.join(", ") + (marks ? ", " + marks : "") + "." : marks ? marks[0].toUpperCase() + marks.slice(1) + "." : "Nothing new to add.";
-    $("nmap-summary").textContent = s.tooMany || said;
+    $("nmap-summary").textContent = s.tooMany || N.said(s);
     $("nmap-add").disabled = !!s.tooMany;
   }
 
@@ -392,6 +393,8 @@
     file.text().then(function (t) {
       paste.value = t;
       read();
+    }, function () {
+      app.say("the file could not be read");
     });
   });
 })();
