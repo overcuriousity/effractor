@@ -638,6 +638,28 @@ test('Tab offers every way the Link menu offers, fields included, and writes the
   assert.deepEqual(holds.doc.associations['h-holds-data'], { kind: 'holds', from: 'h', to: 'data', privilege: 'user', decrypts: false });
 });
 
+test('a firewall\'s permission goes when its router no longer filters the flow', () => {
+  // Unlinking the firewall from its router.
+  const unfiltered = L.remove(lecture(), 'associations', 'bridge-filter');
+  assert.equal('allow-ssh' in unfiltered.doc.associations, false);
+  assert.deepEqual(unfiltered.doc.scenarios.deny.changes, []);
+  assert.match(unfiltered.notice, /^deleted “filters Router → Firewall” and 1 link · Ctrl\+Z undoes$/);
+  // The router taken off the route: the − on the route.
+  const f = lecture().flows.ssh;
+  const shorter = L.putFlow(lecture(), 'ssh', Object.assign({}, f, { route: ['client-net'] }));
+  assert.equal('allow-ssh' in shorter.doc.associations, false);
+  assert.deepEqual(shorter.doc.scenarios.deny.changes, []);
+  assert.match(shorter.notice, /^permission of “.*” removed · Ctrl\+Z undoes$/);
+  // A route that still crosses the router keeps it, and says nothing.
+  const same = L.putFlow(lecture(), 'ssh', Object.assign({}, f, { protocol: 'tcp/2222' }));
+  assert.ok('allow-ssh' in same.doc.associations);
+  assert.equal(same.notice, undefined);
+  // A permission the file already had without its router is the validator's to name.
+  const stray = lecture();
+  stray.flows.ssh.route = ['client-net'];
+  assert.ok('allow-ssh' in L.putFlow(stray, 'ssh', Object.assign({}, stray.flows.ssh, { protocol: 'tcp/2222' })).doc.associations);
+});
+
 test('renaming an id renames it in its cluster', () => {
   const doc = Clusters.build(require('./fixtures/nmap/imported.doc.json')).doc;
   const edit = L.renameId(doc, 'entities', 'sshd', 'openssh-server');

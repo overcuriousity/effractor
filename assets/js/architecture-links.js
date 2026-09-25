@@ -104,7 +104,49 @@
     Object.assign(f, extensions(old));
     if (old && JSON.stringify(old) === JSON.stringify(f)) return null;
     next.flows[id] = f;
-    return { doc: next, select: "flow/" + id };
+    var edit = { doc: next, select: "flow/" + id };
+    // A router off the route takes its firewall's permission along.
+    var dropped = strayPermits(doc, next, id);
+    if (dropped.length) {
+      var firewalls = dropped.map(function (k) {
+        return "“" + labelOf(next, next.associations[k].from) + "”";
+      });
+      dropAssociations(next, dropped);
+      edit.notice = (dropped.length === 1 ? "permission of " : "permissions of ") + firewalls.join(", ") + " removed · Ctrl+Z undoes";
+    }
+    return edit;
+  }
+
+  // Does a permission's firewall filter a router on its flow's route?
+  function filtered(doc, permit) {
+    var flow = has(doc.flows, permit.to) ? doc.flows[permit.to] : null;
+    return !!flow && (flow.route || []).some(function (router) {
+      return linked(doc, "filters", router, permit.from);
+    });
+  }
+
+  // The permissions (of flow `only`, when given) that `before` filtered and
+  // `after` no longer does. One the file had without its router is left for
+  // the validator to name.
+  function strayPermits(before, after, only) {
+    return Object.keys(after.associations || {}).filter(function (k) {
+      var a = after.associations[k];
+      if (a.kind !== "permits" || (only != null && a.to !== only) || !has(before.associations, k)) return false;
+      return filtered(before, before.associations[k]) && !filtered(after, a);
+    });
+  }
+
+  // Deletes associations and the scenario changes on them.
+  function dropAssociations(next, ids) {
+    ids.forEach(function (k) {
+      delete next.associations[k];
+    });
+    Object.keys(next.scenarios || {}).forEach(function (k) {
+      var s = next.scenarios[k];
+      s.changes = (s.changes || []).filter(function (c) {
+        return !(has(c, "association") && ids.indexOf(c.association) >= 0);
+      });
+    });
   }
 
   function sameState(a, entity, state) {
@@ -306,6 +348,12 @@
       });
     });
     if (collection !== "entities") links--;
+    // A firewall that no longer filters a flow's router loses its permission.
+    strayPermits(doc, next).forEach(function (k) {
+      gone.associations[k] = true;
+      delete next.associations[k];
+      links++;
+    });
     var was = [];
     var attacker = next.attacker || {};
     if (collection === "entities") {
