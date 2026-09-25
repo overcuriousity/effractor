@@ -767,3 +767,44 @@ test('an IPv6 link-local address may name its interface; nothing else gets throu
   }
   assert.match(N.command('standard', 'fe80::/64%eth0').note, /too wide/);
 });
+
+test('the summary says what Add does, a merge that only fills addresses included', () => {
+  const d = lab();
+  const one = { args: '', silentUdp: 0, hosts: [{ addresses: ['10.0.1.7'], hostname: null, os: null, ports: [] }] };
+  const p = N.plan(d, 'nmap', one, '10.0.1.0/24', { h0: 'printer' });
+  const t = N.defaults(p);
+  const s = N.summary(d, p, t, null);
+  assert.equal(s.filled, 1);
+  assert.equal(N.said(s), 'Adds 1 attachment, addresses for 1 drawn host.');
+  assert.equal(N.said(Object.assign({}, s, { attached: 0 })), 'Adds addresses for 1 drawn host.');
+  assert.equal(N.said(Object.assign({}, s, { attached: 0, filled: 0 })), 'Nothing new to add.');
+  assert.equal(N.said(Object.assign({}, s, { attached: 0, filled: 0, unpatched: 2 })), 'Marks 2 products unpatched.');
+  assert.equal(N.said(Object.assign({}, s, { hosts: 2, services: 1, attached: 0, filled: 0, unpatched: 1 })), 'Adds 2 hosts, 1 service, marks 1 product unpatched.');
+  t.hosts.h0 = false;
+  assert.equal(N.summary(d, p, t, null).filled, 0);
+});
+
+test('past the limits the summary says what to untick: hosts, or ports of the one host', () => {
+  const d = lab();
+  const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', {});
+  const t = N.defaults(p);
+  assert.match(N.summary(d, p, t, { entities: 10, relationships: 2000 }).tooMany, /Untick some hosts, or scan a smaller range\.$/);
+  t.hosts.h1 = false;
+  assert.match(N.summary(d, p, t, { entities: 10, relationships: 2000 }).tooMany, /Untick some ports\.$/);
+});
+
+test('ticking a host ticks what it offers; all hosts at once', () => {
+  const d = lab();
+  const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', {});
+  const t = N.defaults(p);
+  N.tickHosts(p, t, false);
+  assert.deepEqual(t.hosts, { h0: false, h1: false });
+  assert.ok(Object.values(t.ports).every(v => !v));
+  assert.equal(N.summary(d, p, t, null).hosts, 0);
+  N.tickHosts(p, t, true);
+  const on = o => Object.keys(o).filter(k => o[k]);
+  const d0 = N.defaults(p);
+  assert.deepEqual([on(t.hosts), on(t.ports), on(t.findings)], [on(d0.hosts), on(d0.ports), on(d0.findings)], 'back to what was offered');
+  N.tickHost(p.hosts[1], t, false);
+  assert.deepEqual([t.hosts.h0, t.hosts.h1, t.ports['h1/tcp/22']], [true, false, false]);
+});

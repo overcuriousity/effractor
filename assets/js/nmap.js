@@ -675,13 +675,17 @@
   }
 
   function summary(doc, p, ticks, limits) {
-    var s = { hosts: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0 };
+    var s = { hosts: 0, filled: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0 };
     var rel = 0, newProducts = Object.create(null), marked = Object.create(null);
     var network = !!(p.network && ticks.network);
+    var ticked = 0;
     p.hosts.forEach(function (h) {
       if (!ticks.hosts[h.key]) return;
+      ticked++;
       var added = !h.known && !h.merged;
       if (added) s.hosts++;
+      // A merge writes the scanned addresses into the drawn host.
+      if (h.merged) s.filled++;
       h.networks.forEach(function (n) {
         if (n === "new" && !network) return;
         rel++;
@@ -717,9 +721,41 @@
     s.entities = Object.keys(doc.entities || {}).length + s.hosts + s.networks + s.routers + s.firewalls + s.services + s.products;
     s.relationships = Object.keys(doc.associations || {}).length + Object.keys(doc.flows || {}).length + rel;
     s.tooMany = null;
-    if (limits && s.entities > limits.entities) s.tooMany = "That makes " + s.entities + " components; the limit is " + limits.entities + ". Untick some hosts.";
-    else if (limits && s.relationships > limits.relationships) s.tooMany = "That makes " + s.relationships + " links and flows; the limit is " + limits.relationships + ". Untick some hosts.";
+    // Many hosts: fewer, or a smaller range; one host: its ports.
+    var fix = ticked > 1 ? " Untick some hosts, or scan a smaller range." : " Untick some ports.";
+    if (limits && s.entities > limits.entities) s.tooMany = "That makes " + s.entities + " components; the limit is " + limits.entities + "." + fix;
+    else if (limits && s.relationships > limits.relationships) s.tooMany = "That makes " + s.relationships + " links and flows; the limit is " + limits.relationships + "." + fix;
     return s;
+  }
+
+  // The summary in words: "Adds 4 hosts, 11 services, marks 2 products
+  // unpatched."; a merge counts, as it writes the drawn host's addresses.
+  function said(s) {
+    function n(k, one) {
+      return k + " " + one + (k === 1 ? "" : "s");
+    }
+    var parts = [[s.hosts, "host"], [s.networks, "network"], [s.attached, "attachment"], [s.routers, "router"], [s.firewalls, "firewall"], [s.services, "service"], [s.products, "product"], [s.flows, "flow"]].filter(function (x) { return x[0]; }).map(function (x) {
+      return n(x[0], x[1]);
+    });
+    if (s.filled) parts.push("addresses for " + n(s.filled, "drawn host"));
+    var marks = s.unpatched ? "marks " + n(s.unpatched, "product") + " unpatched" : "";
+    if (parts.length) return "Adds " + parts.join(", ") + (marks ? ", " + marks : "") + ".";
+    return marks ? marks[0].toUpperCase() + marks.slice(1) + "." : "Nothing new to add.";
+  }
+
+  // Ticking a host ticks what it offers: its new ports, the flows its known
+  // ports lack, their findings; unticking takes them all along.
+  function tickHost(h, ticks, on) {
+    ticks.hosts[h.key] = on;
+    h.ports.forEach(function (r) {
+      ticks.ports[r.key] = on && (!r.known || r.addsFlow);
+      r.findings.forEach(function (f) { ticks.findings[f.key] = on && !f.known && !f.patchedByAuthor; });
+    });
+    return ticks;
+  }
+  function tickHosts(p, ticks, on) {
+    p.hosts.forEach(function (h) { tickHost(h, ticks, on); });
+    return ticks;
   }
 
   // ---- applying (spec §4) ----
@@ -866,7 +902,7 @@
     return !Object.keys(entities).some(function (id) { return entities[id].tool === "nmap"; });
   }
 
-  var api = { LEVELS: LEVELS, CHECKS: CHECKS, checksOffered: checksOffered, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, apply: apply, addNmap: addNmap, stampLine: stampLine, stampFor: stampFor, hintWanted: hintWanted };
+  var api = { LEVELS: LEVELS, CHECKS: CHECKS, checksOffered: checksOffered, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, said: said, tickHost: tickHost, tickHosts: tickHosts, apply: apply, addNmap: addNmap, stampLine: stampLine, stampFor: stampFor, hintWanted: hintWanted };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmap = api;
 })();
