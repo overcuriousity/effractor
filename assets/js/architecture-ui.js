@@ -756,9 +756,14 @@
     }
     if (!wasArch) {
       var had = !!catalog;
+      // Its arrival names the pins and fills the form's states and words.
       loadCatalog().then(function () {
-        if (!had && P.isArchitecture(app.state.doc)) app.redraw();
-      }, function () {});
+        if (had || !P.isArchitecture(app.state.doc)) return;
+        app.redraw();
+        renderProperties();
+      }, function () {
+        app.say("the component library could not be read");
+      });
       // Only the results tab has a meaning here, and it says so.
       if (window.effractorTabs) window.effractorTabs.show("results");
     }
@@ -810,6 +815,7 @@
     },
     // For architecture-links-ui.js: the same edit queue, form parts and hooks.
     apply: apply,
+    typingElsewhere: typingElsewhere,
     field: field,
     input: input,
     parameters: parameters,

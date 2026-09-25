@@ -50,17 +50,6 @@
     return b;
   }
 
-  var catalog = null;
-  function withCatalog(then) {
-    U.loadCatalog().then(function (c) {
-      catalog = c;
-      then(c);
-    }, function () {
-      app.say("the component library could not be read");
-    });
-  }
-
-  // Where a menu opens: beside a control, or in the canvas.
   // Where a menu opens: beside the button that opened it, else beside the
   // component on the canvas, else in the canvas.
   function at(anchor, id) {
@@ -86,7 +75,6 @@
   // that says why.
   function linkItems(id) {
     return U.loadCatalog().then(function (c) {
-      catalog = c;
       var items = [];
       L.linkChoices(doc(), c, id).forEach(function (choice) {
         var ends = function (other) {
@@ -138,19 +126,25 @@
     });
   }
 
+  // The services a flow from `source` can go to, as menu items.
+  function serviceItems(source) {
+    return Object.keys(doc().entities).filter(function (o) {
+      return o !== source && kindOf(o) === "service";
+    }).map(function (target) {
+      return [name(target), "", function () { flow(source, target); }, { hint: "service" }];
+    });
+  }
+
   // Software to a service, and a service from software: a flow with an empty
   // route, whose networks and routers are said, never guessed.
   function flowItems(id) {
-    var others = Object.keys(doc().entities).filter(function (o) { return o !== id; });
     var out = [];
     if (executable(id)) {
-      var to = others.filter(function (o) { return kindOf(o) === "service"; });
-      if (to.length) out.push([L.phrase("flow", "out"), "", to.map(function (o) {
-        return [name(o), "", function () { flow(id, o); }, { hint: "service" }];
-      }), { title: "flow" }]);
+      var to = serviceItems(id);
+      if (to.length) out.push([L.phrase("flow", "out"), "", to, { title: "flow" }]);
     }
     if (kindOf(id) === "service") {
-      var from = others.filter(executable);
+      var from = Object.keys(doc().entities).filter(function (o) { return o !== id && executable(o); });
       if (from.length) out.push([L.phrase("flow", "in"), "", from.map(function (o) {
         return [name(o), "", function () { flow(o, id); }, { hint: kindOf(o) }];
       }), { title: "flow" }]);
@@ -174,13 +168,9 @@
   }
 
   function pickFlowTarget(source, where) {
-    var services = Object.keys(doc().entities).filter(function (o) {
-      return o !== source && kindOf(o) === "service";
-    });
+    var services = serviceItems(source);
     if (!services.length) return app.say(L.emptyFlow(doc(), source));
-    app.showMenu(services.map(function (target) {
-      return [name(target), "", function () { flow(source, target); }, { hint: "service" }];
-    }), where.x, where.y, where.box);
+    app.showMenu(services, where.x, where.y, where.box);
   }
 
   // ---- in a component's form: links, flows, foothold, target ----
@@ -259,14 +249,17 @@
     attacker(form, id);
   }
 
-  function statesOf(id) {
-    var spec = catalog ? (catalog.entities || []).filter(function (e) { return e.kind === kindOf(id); })[0] : null;
+  function statesOf(catalog, id) {
+    var spec = (catalog.entities || []).filter(function (e) { return e.kind === kindOf(id); })[0];
     return spec ? spec.states : [];
   }
 
+  // Before the catalog has arrived there are no states to offer; the form
+  // is built again when it comes.
   function attacker(form, id) {
-    if (!catalog) return withCatalog(function () { U.render(); });
-    var states = statesOf(id);
+    var catalog = U.catalog();
+    if (!catalog) return;
+    var states = statesOf(catalog, id);
     if (!states.length) return;
     var a = doc().attacker || {};
     var options = [["", "—"]].concat(states.map(function (s) { return [s, window.effractorWords.state(catalog, s)]; }));
@@ -490,7 +483,7 @@
 
   document.addEventListener("keydown", function (e) {
     if (e.defaultPrevented || !P.isArchitecture(doc()) || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName) || e.target.closest(".menu") || document.querySelector("dialog[open]")) return;
+    if (U.typingElsewhere(e)) return;
     if (e.key.toLowerCase() !== "l" || !selectedEntity()) return;
     e.preventDefault();
     startLink(selectedEntity(), null);
