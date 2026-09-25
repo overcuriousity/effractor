@@ -92,7 +92,9 @@ fn document(w: &mut Writer, m: &Architecture) {
             w.line(4, "tool", word(&TOOLS, tool));
         }
         let slots = entity.kind.slots();
-        if !slots.is_empty() {
+        let extended = format!("{path}.parameters");
+        // A kind without slots writes the map only for what an editor kept in it.
+        if !slots.is_empty() || w.has_extensions(&extended) {
             w.open(4, "parameters");
             for slot in slots {
                 let unknown = Parameter::unknown();
@@ -100,16 +102,20 @@ fn document(w: &mut Writer, m: &Architecture) {
                 let at = format!("{path}.parameters.{}", slot.as_str());
                 parameter(w, 6, slot.as_str(), p, &at);
             }
-            w.extension_lines(6, &format!("{path}.parameters"));
+            w.extension_lines(6, &extended);
         }
-        if let Some(defense) = entity.kind.defense() {
-            let value = entity.defenses.get(defense).unwrap_or(Switch::Unknown);
-            let mut fields = vec![format!(
-                "{}: {}",
-                word(&DEFENSES, &defense),
-                word(&SWITCHES, &value)
-            )];
-            w.extension_fields(&format!("{path}.defenses"), &mut fields);
+        let extended = format!("{path}.defenses");
+        if entity.kind.defense().is_some() || w.has_extensions(&extended) {
+            let mut fields: Vec<String> = entity
+                .kind
+                .defense()
+                .map(|defense| {
+                    let value = entity.defenses.get(defense).unwrap_or(Switch::Unknown);
+                    format!("{}: {}", word(&DEFENSES, &defense), word(&SWITCHES, &value))
+                })
+                .into_iter()
+                .collect();
+            w.extension_fields(&extended, &mut fields);
             w.line(4, "defenses", &format!("{{{}}}", fields.join(", ")));
         }
         w.extension_lines(4, &path);

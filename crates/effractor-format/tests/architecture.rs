@@ -1690,3 +1690,20 @@ fn ids_that_yaml_would_read_as_something_else_are_quoted_where_they_are_values()
     assert_eq!(canonicalize(&text).unwrap(), text);
     assert_eq!(self::image(&text), image);
 }
+
+#[test]
+fn extensions_survive_where_a_kind_has_no_parameters_or_defence() {
+    // A network has neither: its maps hold only what an editor put there.
+    let mut image = image(LECTURE);
+    image["entities"]["client-net"]["parameters"] = serde_json::json!({"x-a": 1});
+    image["entities"]["client-net"]["defenses"] = serde_json::json!({"x-b": 2});
+    let text = from_document(&image).unwrap();
+    assert!(
+        text.contains(
+            "    label: Client network\n    parameters:\n      x-a: 1\n    defenses: {x-b: 2}\n"
+        ),
+        "{text}"
+    );
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    assert_eq!(self::image(&text), image);
+}
