@@ -421,6 +421,7 @@ impl Solve {
 
         // The model as written, then each control flipped on its own.
         let mut scenarios = Vec::new();
+        let mut losses = false;
         if no_numbers.is_none() {
             let flips = std::iter::once(None).chain((0..written.len()).map(Some));
             for flip in flips {
@@ -457,13 +458,18 @@ impl Solve {
                         &ds.iter().map(|d| cdf(d, model.horizon)).collect::<Vec<_>>(),
                     )
                 });
-                let sampler = Sampler::new(model, &plan, ds, config.seed, config.samples);
                 // A flip is sampled only when sampling is what measures it.
-                let needed = flip.is_none() || sampler.has_losses() || p_top_exact.is_none();
+                let needed = flip.is_none() || losses || p_top_exact.is_none();
+                let sampler =
+                    needed.then(|| Sampler::new(model, &plan, ds, config.seed, config.samples));
+                if flip.is_none() {
+                    // Whether any loss is booked does not depend on the controls.
+                    losses = sampler.as_ref().is_some_and(Sampler::has_losses);
+                }
                 scenarios.push(Scenario {
                     flip,
                     p_top_exact,
-                    sampler: needed.then_some(sampler),
+                    sampler,
                     chunks: vec![],
                     unavailable: None,
                 });
