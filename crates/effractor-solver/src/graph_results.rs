@@ -10,7 +10,7 @@
 use effractor_components::{
     Binding, GeneratedGraph, GeneratedKind, ResolvedGraph, ResolvedTtc, SEMANTICS, resolve,
 };
-use effractor_core::architecture::Architecture;
+use effractor_core::architecture::{Architecture, MAX_SAMPLES};
 use effractor_core::{Code, Diagnostic, Distribution, ScenarioId, TimeUnit};
 use libm::sqrt;
 use serde::Serialize;
@@ -21,9 +21,6 @@ use crate::graph_support::{GraphSupport, Status, analyze};
 use crate::mc::{GRID, wilson};
 use crate::results::Progress;
 use crate::special::phi_inv;
-
-/// The most samples a graph solve takes.
-pub const MAX_SAMPLES: u64 = 100_000;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraphConfig {
