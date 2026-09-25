@@ -5,6 +5,21 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — sample collection (2026-09-25)
+
+`assets/examples/` holds thirteen models again (README there is the catalog):
+fault trees 01–03, attack trees 04–06, architectures 07–13. At the owner's
+word 01–12 are set in **Sodium City**, an invented cyberpunk megacity (invented
+corporations and products; no franchise-specific terms); re-theming changed
+names only, never structure or numbers. Every architecture carries clusters
+(closed and open, labelled and not, `shown` footholds and targets), since
+clustering was demonstrated nowhere. 13 (owner: "hyperrealistic blue-teaming,
+crypto wallet on a machine") is realistic, not cyberpunk: a fund's hot wallet
+on a workstation, seven defence scenarios; multisig is the one that moves the
+number. `crates/effractor-solver/tests/examples.rs` holds every file
+canonical, diagnostic-free and solving (baseline and each scenario); add a new
+file there.
+
 ## Repository cleanup (2026-09-25)
 
 At the owner's word, specs and plans of what is built were deleted, and so
