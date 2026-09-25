@@ -68,7 +68,9 @@
       return Promise.resolve(false);
     }
     change.select = app.state.selected;
-    change.parent = app.state.parent;
+    // The edge it was reached along only when one was chosen: a guessed
+    // one does not become chosen by an edit elsewhere.
+    change.parent = app.state.parentChosen ? app.state.parent : null;
     return app.applyEdit(change).then(function (applied) {
       if (!applied) render(); // the fields go back to what the document says
       return applied;
@@ -147,6 +149,7 @@
       remove.className = "btn btn-ghost btn-small";
       remove.textContent = "×";
       remove.title = "Remove this effect";
+      remove.id = "effect-remove-" + index;
       remove.setAttribute("aria-label", "Remove the effect on " + nodeLabel(effect.node));
       remove.addEventListener("click", function () {
         edit(E.removeEffect(app.state.doc, id, index));
@@ -175,6 +178,7 @@
       var go = document.createElement("button");
       go.type = "button";
       go.className = "btn btn-ghost btn-small";
+      go.id = "effect-add";
       go.textContent = "Add";
       var commit = function () {
         if (!to.value.trim()) return to.focus();
@@ -200,6 +204,7 @@
 
     var removeControl = document.createElement("button");
     removeControl.type = "button";
+    removeControl.id = "control-remove";
     removeControl.className = "btn btn-ghost btn-small asset-remove";
     removeControl.textContent = "Remove";
     removeControl.addEventListener("click", function () {
@@ -215,11 +220,7 @@
 
   // The new state is solved by itself, like every edit.
   function toggle(id) {
-    var edit = E.toggleControl(app.state.doc, id);
-    if (!edit) return;
-    edit.select = app.state.selected;
-    edit.parent = app.state.parent;
-    app.applyEdit(edit);
+    edit(E.toggleControl(app.state.doc, id));
   }
 
   function render() {
@@ -246,6 +247,8 @@
       head.className = "control-head";
       var box = document.createElement("input");
       box.type = "checkbox";
+      // Ids throughout, so the list drawn again gives the focus back.
+      box.id = "control-enabled-" + row.id;
       box.checked = row.enabled;
       box.addEventListener("change", function () {
         toggle(row.id);
@@ -256,6 +259,7 @@
       var name = document.createElement("button");
       name.type = "button";
       name.className = "control-name disclosure";
+      name.id = "control-name-" + row.id;
       name.textContent = row.label;
       name.title = row.id;
       name.setAttribute("aria-expanded", String(openControl === row.id));
