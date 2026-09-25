@@ -126,6 +126,32 @@ fn json_this_format_cannot_hold() {
     );
 }
 
+/// JSON and text agree on how deep is too deep: what one takes, the other
+/// reads back.
+#[test]
+fn json_and_text_share_one_depth_limit() {
+    for (lists, fits) in [(63, true), (64, false)] {
+        // Innermost an empty list, and a scalar in the one around it.
+        let mut deep = json!([]);
+        for _ in 1..lists {
+            deep = json!([deep, "beside"]);
+        }
+        let mut d = doc(WEBSERVER);
+        // The document is one map; `x-deep` adds `lists` more.
+        d["x-deep"] = deep;
+        match from_document(&d) {
+            Ok(text) => {
+                assert!(fits, "{lists} lists were taken");
+                assert_eq!(doc(&text), d);
+            }
+            Err(e) => {
+                assert!(!fits, "{lists} lists were refused: {e:?}");
+                assert_eq!(e[0].code.as_str(), "unsupported");
+            }
+        }
+    }
+}
+
 /// The page's JavaScript is tested against this file; this keeps the file
 /// what `document` really returns for the reference tree.
 #[test]

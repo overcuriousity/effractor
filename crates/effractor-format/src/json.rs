@@ -47,8 +47,10 @@ pub fn tree(json: &Json) -> Result<Node, Diagnostic> {
     node(json, 0)
 }
 
+/// `depth` counts the maps and lists around `json`, as the text parser does:
+/// the document is one, and at most [`MAX_DEPTH`] may be open at once.
 fn node(json: &Json, depth: usize) -> Result<Node, Diagnostic> {
-    if depth > MAX_DEPTH {
+    if depth >= MAX_DEPTH && (json.is_array() || json.is_object()) {
         let message = format!("nested more than {MAX_DEPTH} levels deep");
         return Err(Diagnostic::error(Code::Unsupported, "", message));
     }
