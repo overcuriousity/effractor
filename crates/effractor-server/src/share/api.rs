@@ -90,6 +90,17 @@ impl Shares {
             .filter(|(_, meta)| !meta.expired((self.clock)()))
             .map(|(blob, meta)| (id, blob, meta)))
     }
+
+    /// As `live`, without reading the blob.
+    async fn live_meta(&self, id: &str) -> Result<Option<(ShareId, ShareMeta)>, StorageError> {
+        let Ok(id) = id.parse::<ShareId>() else {
+            return Ok(None);
+        };
+        let found = self.storage.meta(&id).await?;
+        Ok(found
+            .filter(|meta| !meta.expired((self.clock)()))
+            .map(|meta| (id, meta)))
+    }
 }
 
 pub fn routes(shares: Shares) -> Router {
@@ -104,10 +115,7 @@ pub fn routes(shares: Shares) -> Router {
 }
 
 fn hash(token: &str) -> String {
-    Sha256::digest(token.as_bytes())
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
+    crate::hex(&Sha256::digest(token.as_bytes()))
 }
 
 /// Without an early exit, so the time taken says nothing about where two
@@ -152,11 +160,10 @@ async fn create(
     let ip = extensions
         .get::<ConnectInfo<SocketAddr>>()
         .map_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED), |info| info.0.ip());
-    let taken = shares
-        .limiter
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .take(ip, now);
+    let limiter = || shares.limiter.lock().unwrap_or_else(|e| e.into_inner());
+    // Taken before the write, so that concurrent requests cannot all pass the
+    // check; given back if the write fails, which is not the client's doing.
+    let taken = limiter().take(ip, now);
     if let Err(seconds) = taken {
         let retry = [(header::RETRY_AFTER, seconds.to_string())];
         return (StatusCode::TOO_MANY_REQUESTS, retry).into_response();
@@ -171,6 +178,7 @@ async fn create(
         size: blob.len() as u64,
     };
     if let Err(err) = shares.storage.put(&id, blob, meta).await {
+        limiter().give_back(ip);
         return failed(&err);
     }
     let body = serde_json::json!({
@@ -205,8 +213,8 @@ async fn remove(
     Path(id): Path<String>,
     headers: HeaderMap,
 ) -> Response {
-    let (id, meta) = match shares.live(&id).await {
-        Ok(Some((id, _, meta))) => (id, meta),
+    let (id, meta) = match shares.live_meta(&id).await {
+        Ok(Some(found)) => found,
         Ok(None) => return StatusCode::NOT_FOUND.into_response(),
         Err(err) => return failed(&err),
     };

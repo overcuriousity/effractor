@@ -15,6 +15,7 @@ use crate::{AssociationId, ClusterId, Code, Diagnostic, EntityId, FlowId};
 pub fn validate_architecture(model: &Architecture) -> Vec<Diagnostic> {
     let mut cx = Cx {
         m: model,
+        links: Links::new(model),
         out: Vec::new(),
     };
     cx.header();
@@ -30,7 +31,50 @@ pub fn validate_architecture(model: &Architecture) -> Vec<Diagnostic> {
 
 struct Cx<'a> {
     m: &'a Architecture,
+    links: Links<'a>,
     out: Vec<Diagnostic>,
+}
+
+/// The associations a route is checked against, found once rather than at
+/// every hop.
+struct Links<'a> {
+    /// An executable's machine: the first `hosts` that names it.
+    host: HashMap<&'a EntityId, &'a EntityId>,
+    /// `(machine, network)`.
+    attached: HashSet<(&'a EntityId, &'a EntityId)>,
+    /// A router's firewall: the first `filters` it manages.
+    firewall: HashMap<&'a EntityId, &'a EntityId>,
+    /// `(firewall, flow)`.
+    permits: HashSet<(&'a EntityId, &'a FlowId)>,
+}
+
+impl<'a> Links<'a> {
+    fn new(m: &'a Architecture) -> Self {
+        let mut links = Self {
+            host: HashMap::new(),
+            attached: HashSet::new(),
+            firewall: HashMap::new(),
+            permits: HashSet::new(),
+        };
+        for a in m.associations.values() {
+            match &a.relation {
+                Relation::Hosts { from, to, .. } => {
+                    links.host.entry(to).or_insert(from);
+                }
+                Relation::Attached { from, to } => {
+                    links.attached.insert((from, to));
+                }
+                Relation::Filters { from, to } => {
+                    links.firewall.entry(from).or_insert(to);
+                }
+                Relation::Permits { from, to, .. } => {
+                    links.permits.insert((from, to));
+                }
+                _ => {}
+            }
+        }
+        links
+    }
 }
 
 impl Cx<'_> {
@@ -58,16 +102,15 @@ impl Cx<'_> {
 
     /// The entity at `path`, or an `unknown-reference` error.
     fn entity(&mut self, id: &EntityId, path: &str) -> Option<&'_ Entity> {
-        if self.m.entities.contains_key(id) {
-            self.m.entities.get(id)
-        } else {
+        let entity = self.m.entities.get(id);
+        if entity.is_none() {
             self.error(
                 Code::UnknownReference,
                 path,
                 format!("\"{id}\" is not an entity"),
             );
-            None
         }
+        entity
     }
 
     /// The entity at `path`, which must be one of `kinds`.
@@ -265,125 +308,7 @@ impl Cx<'_> {
                     .to_entity()
                     .and_then(|to| self.entity_of(to, &format!("{at}.to"), kind.to_kinds())),
             };
-            match (r, from, to) {
-                // Unknown only where a host runs software: a router's or a
-                // guest's escape needs the privilege it lands at.
-                (
-                    Relation::Hosts {
-                        privilege: Privilege::Unknown,
-                        ..
-                    },
-                    Some(from),
-                    Some(to),
-                ) if from != EntityKind::Host
-                    || !matches!(to, EntityKind::Application | EntityKind::Service) =>
-                {
-                    self.error(
-                        Code::AssociationType,
-                        format!("{at}.privilege"),
-                        "only a host's software may run at an unknown privilege; say `user` or `admin`",
-                    )
-                }
-                (
-                    Relation::Grants {
-                        privilege: Privilege::User,
-                        ..
-                    },
-                    _,
-                    Some(EntityKind::Router),
-                ) => self.error(
-                    Code::AssociationType,
-                    format!("{at}.privilege"),
-                    "a router has no user privilege; an account on a router is granted `admin`",
-                ),
-                (
-                    Relation::Hosts {
-                        privilege: Privilege::User,
-                        ..
-                    },
-                    Some(EntityKind::Router),
-                    _,
-                ) => self.error(
-                    Code::AssociationType,
-                    format!("{at}.privilege"),
-                    "a router has no user privilege; what it runs, it runs as `admin`",
-                ),
-                (Relation::Hosts { .. }, Some(from), Some(EntityKind::Router))
-                    if from != EntityKind::Host =>
-                {
-                    self.error(
-                        Code::AssociationType,
-                        format!("{at}.from"),
-                        "a router runs on a host, not on another router",
-                    )
-                }
-                (Relation::Hosts { .. }, Some(from), Some(EntityKind::Host))
-                    if from != EntityKind::Host =>
-                {
-                    self.error(
-                        Code::AssociationType,
-                        format!("{at}.from"),
-                        "a host runs on a host, not on a router",
-                    )
-                }
-                (Relation::Assumes { from, to }, _, _) if from == to => self.error(
-                    Code::AssociationType,
-                    format!("{at}.to"),
-                    "an account does not assume itself",
-                ),
-                (
-                    Relation::RunsAs {
-                        privilege: Privilege::Admin,
-                        ..
-                    },
-                    Some(k),
-                    _,
-                ) if k != EntityKind::Host => self.error(
-                    Code::AssociationType,
-                    format!("{at}.privilege"),
-                    "software uses its identity as `user`; only a host names `admin`",
-                ),
-                (
-                    Relation::Holds {
-                        privilege: Privilege::Admin,
-                        ..
-                    },
-                    Some(k),
-                    _,
-                ) if k != EntityKind::Host => self.error(
-                    Code::AssociationType,
-                    format!("{at}.privilege"),
-                    "software holds data as `user`; only a host holds it as `admin`",
-                ),
-                (
-                    Relation::Holds {
-                        decrypts: None,
-                        from,
-                        to,
-                        ..
-                    },
-                    _,
-                    _,
-                ) => self.incomplete(
-                    at.clone(),
-                    format!(
-                        "say whether \"{from}\" sees \"{to}\" in plaintext: `decrypts: true | false`"
-                    ),
-                ),
-                (
-                    Relation::Stores {
-                        privilege: Privilege::Admin,
-                        ..
-                    },
-                    Some(EntityKind::Application),
-                    _,
-                ) => self.error(
-                    Code::AssociationType,
-                    format!("{at}.privilege"),
-                    "an application stores a credential as `user`; only a host stores one as `admin`",
-                ),
-                _ => {}
-            }
+            self.association_rules(r, from, to, &at);
             if let (
                 Relation::Hosts {
                     contained: true, ..
@@ -428,19 +353,23 @@ impl Cx<'_> {
         for (what, by, one) in [
             (
                 "an executable, router or guest host has one host",
-                hosts_of,
+                &hosts_of,
                 "hosts",
             ),
-            ("a router manages one firewall", filters_from, "filters"),
-            ("a firewall is managed by one router", filters_to, "filters"),
+            ("a router manages one firewall", &filters_from, "filters"),
+            (
+                "a firewall is managed by one router",
+                &filters_to,
+                "filters",
+            ),
             (
                 "a service is an instance of one product",
-                instances_of,
+                &instances_of,
                 "instance-of",
             ),
         ] {
-            let mut by: Vec<_> = by.into_iter().filter(|(_, ids)| ids.len() > 1).collect();
-            by.sort_by_key(|(entity, _)| (*entity).clone());
+            let mut by: Vec<_> = by.iter().filter(|(_, ids)| ids.len() > 1).collect();
+            by.sort_by(|a, b| a.0.cmp(b.0));
             for (entity, ids) in by {
                 let names: Vec<&str> = ids.iter().map(|i| i.as_str()).collect();
                 self.error(
@@ -456,34 +385,10 @@ impl Cx<'_> {
 
         // What is missing, once: the executable without a host, the firewall
         // without a router. A router without a firewall filters nothing.
-        let hosted: HashSet<&EntityId> = m
-            .associations
-            .values()
-            .filter_map(|a| match &a.relation {
-                Relation::Hosts { to, .. } => Some(to),
-                _ => None,
-            })
-            .collect();
-        let instances: HashSet<&EntityId> = m
-            .associations
-            .values()
-            .filter_map(|a| match &a.relation {
-                Relation::InstanceOf { from, .. } => Some(from),
-                _ => None,
-            })
-            .collect();
-        let filtered: HashSet<&EntityId> = m
-            .associations
-            .values()
-            .filter_map(|a| match &a.relation {
-                Relation::Filters { to, .. } => Some(to),
-                _ => None,
-            })
-            .collect();
         for (id, entity) in &m.entities {
             let at = format!("entities.{id}");
             // A service may lack its host and its product at once: both are said.
-            if entity.kind == EntityKind::Service && !instances.contains(id) {
+            if entity.kind == EntityKind::Service && !instances_of.contains_key(id) {
                 self.incomplete(
                     at.clone(),
                     format!(
@@ -492,11 +397,11 @@ impl Cx<'_> {
                 );
             }
             match entity.kind {
-                k if k.is_executable() && !hosted.contains(id) => self.incomplete(
+                k if k.is_executable() && !hosts_of.contains_key(id) => self.incomplete(
                     at,
                     format!("\"{id}\" runs nowhere yet: no `hosts` association names it"),
                 ),
-                EntityKind::Firewall if !filtered.contains(id) => self.incomplete(
+                EntityKind::Firewall if !filters_to.contains_key(id) => self.incomplete(
                     at,
                     format!("\"{id}\" belongs to no router yet: no `filters` association names it"),
                 ),
@@ -504,6 +409,119 @@ impl Cx<'_> {
             }
         }
         self.hosting_cycles();
+    }
+
+    /// What an association's kinds and fields cannot say together. Each rule
+    /// is its own: one broken does not hide another.
+    fn association_rules(
+        &mut self,
+        r: &Relation,
+        from: Option<EntityKind>,
+        to: Option<EntityKind>,
+        at: &str,
+    ) {
+        let privilege = r.privilege();
+        let router = Some(EntityKind::Router);
+        // Unknown only where a host runs software: a router's or a guest's
+        // escape needs the privilege it lands at.
+        if let (Relation::Hosts { .. }, Some(from), Some(to)) = (r, from, to)
+            && privilege == Some(Privilege::Unknown)
+            && (from != EntityKind::Host
+                || !matches!(to, EntityKind::Application | EntityKind::Service))
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.privilege"),
+                "only a host's software may run at an unknown privilege; say `user` or `admin`",
+            );
+        }
+        if matches!(r, Relation::Grants { .. })
+            && privilege == Some(Privilege::User)
+            && to == router
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.privilege"),
+                "a router has no user privilege; an account on a router is granted `admin`",
+            );
+        }
+        if matches!(r, Relation::Hosts { .. })
+            && privilege == Some(Privilege::User)
+            && from == router
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.privilege"),
+                "a router has no user privilege; what it runs, it runs as `admin`",
+            );
+        }
+        if let (
+            Relation::Hosts { .. },
+            Some(from),
+            Some(to @ (EntityKind::Router | EntityKind::Host)),
+        ) = (r, from, to)
+            && from != EntityKind::Host
+        {
+            let message = if to == EntityKind::Router {
+                "a router runs on a host, not on another router"
+            } else {
+                "a host runs on a host, not on a router"
+            };
+            self.error(Code::AssociationType, format!("{at}.from"), message);
+        }
+        if let Relation::Assumes { from, to } = r
+            && from == to
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.to"),
+                "an account does not assume itself",
+            );
+        }
+        if matches!(r, Relation::RunsAs { .. })
+            && privilege == Some(Privilege::Admin)
+            && from.is_some_and(|k| k != EntityKind::Host)
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.privilege"),
+                "software uses its identity as `user`; only a host names `admin`",
+            );
+        }
+        if matches!(r, Relation::Holds { .. })
+            && privilege == Some(Privilege::Admin)
+            && from.is_some_and(|k| k != EntityKind::Host)
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.privilege"),
+                "software holds data as `user`; only a host holds it as `admin`",
+            );
+        }
+        if let Relation::Holds {
+            decrypts: None,
+            from,
+            to,
+            ..
+        } = r
+        {
+            self.incomplete(
+                at,
+                format!(
+                    "say whether \"{from}\" sees \"{to}\" in plaintext: `decrypts: true | false`"
+                ),
+            );
+        }
+        if matches!(r, Relation::Stores { .. })
+            && privilege == Some(Privilege::Admin)
+            && from == Some(EntityKind::Application)
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.privilege"),
+                "an application stores a credential as `user`; only a host stores one as `admin`",
+            );
+        }
     }
 
     /// Guest hosts follow their host upwards; returning to the start is a cycle,
@@ -550,35 +568,19 @@ impl Cx<'_> {
 
     /// The machine an executable runs on, if any.
     fn host_of(&self, executable: &EntityId) -> Option<&EntityId> {
-        self.m
-            .associations
-            .values()
-            .find_map(|a| match &a.relation {
-                Relation::Hosts { from, to, .. } if to == executable => Some(from),
-                _ => None,
-            })
+        self.links.host.get(executable).copied()
     }
 
     fn is_attached(&self, machine: &EntityId, network: &EntityId) -> bool {
-        self.m.associations.values().any(|a| {
-            matches!(&a.relation, Relation::Attached { from, to } if from == machine && to == network)
-        })
+        self.links.attached.contains(&(machine, network))
     }
 
     fn firewall_of(&self, router: &EntityId) -> Option<&EntityId> {
-        self.m
-            .associations
-            .values()
-            .find_map(|a| match &a.relation {
-                Relation::Filters { from, to } if from == router => Some(to),
-                _ => None,
-            })
+        self.links.firewall.get(router).copied()
     }
 
     fn permits(&self, firewall: &EntityId, flow: &FlowId) -> bool {
-        self.m.associations.values().any(|a| {
-            matches!(&a.relation, Relation::Permits { from, to, .. } if from == firewall && to == flow)
-        })
+        self.links.permits.contains(&(firewall, flow))
     }
 
     fn flows(&mut self) {

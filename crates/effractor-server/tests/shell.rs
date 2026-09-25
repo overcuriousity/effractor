@@ -67,13 +67,18 @@ async fn embedded_asset_is_served_with_type_etag_and_headers() {
     let revalidated = effractor_server::app(effractor_server::share::Shares::in_memory())
         .oneshot(
             Request::get("/assets/vendor/fonts/inter-400.woff2")
-                .header(header::IF_NONE_MATCH, etag)
+                .header(header::IF_NONE_MATCH, etag.clone())
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
     assert_eq!(revalidated.status(), StatusCode::NOT_MODIFIED);
+    // A 304 carries what the 200 would have said about caching (RFC 9110
+    // §15.4.5), or the cache's stored copy loses them.
+    assert_eq!(revalidated.headers()[header::ETAG], etag);
+    assert_eq!(revalidated.headers()[header::CACHE_CONTROL], "no-cache");
+    assert_security_headers(&revalidated);
 }
 
 #[tokio::test]
@@ -174,4 +179,17 @@ async fn shared_links_serve_the_local_editor_with_security_headers() {
     assert_eq!(res.status(), StatusCode::OK);
     assert_security_headers(&res);
     assert!(text(res).await.contains("<title>effractor</title>"));
+}
+
+#[tokio::test]
+async fn shell_shows_the_version_the_binary_reports() {
+    // The release stamp, `+<sha>` included, not just the Cargo version.
+    let html = text(get("/").await).await;
+    let version = effractor_server::VERSION;
+    assert!(version.contains('+'), "{version}");
+    assert!(
+        html.contains(&format!("data-version=\"{version}\"")),
+        "{version}"
+    );
+    assert!(html.contains(&format!(">{version}</span>")), "{version}");
 }

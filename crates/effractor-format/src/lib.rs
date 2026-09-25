@@ -95,50 +95,37 @@ pub fn save_document(document: &Document) -> String {
 }
 
 /// What a tree-only caller is told when the text is an architecture: it is
-/// not wrong, it is the other kind of document.
-fn not_a_tree(text: &str) -> Diagnostic {
-    let mut d = Diagnostic::error(
-        Code::Unsupported,
-        "profile",
-        "this is an architecture; this analysis reads a fault tree or an attack tree",
-    );
-    if let Ok(root) = tree::parse(text) {
-        d.pos = Some(tree::locate(&root, "profile"));
+/// not wrong, it is the other kind of document. `at` is its `profile`.
+fn not_a_tree(at: effractor_core::Pos) -> Diagnostic {
+    Diagnostic {
+        pos: Some(at),
+        ..Diagnostic::error(
+            Code::Unsupported,
+            "profile",
+            "this is an architecture; this analysis reads a fault tree or an attack tree",
+        )
     }
-    d
 }
 
 /// Everything there is to say about a text, each with its line and column, and
 /// the model if nothing said was an error. Trees only: an architecture is
 /// reported as one, not read.
 pub fn diagnose(text: &str) -> (Option<Model>, Vec<Diagnostic>) {
-    match diagnose_document(text) {
-        (Some(Document::Tree(model)), diagnostics) => (Some(model), diagnostics),
-        (Some(Document::Architecture(_)), mut diagnostics) => {
-            diagnostics.insert(0, not_a_tree(text));
+    let root = match tree::parse(text) {
+        Ok(root) => root,
+        Err(diagnostics) => return (None, diagnostics),
+    };
+    // Valid or not, an architecture is first of all not a tree.
+    let architecture = lower::is_architecture(&root).then(|| tree::locate(&root, "profile"));
+    let (read, mut diagnostics) = read_tree(root, true);
+    match (read.map(|r| r.lowered.document), architecture) {
+        (Some(Document::Tree(model)), _) => (Some(model), diagnostics),
+        (_, Some(at)) => {
+            diagnostics.insert(0, not_a_tree(at));
             (None, diagnostics)
         }
-        // Valid or not, an architecture is first of all not a tree.
-        (None, mut diagnostics) => {
-            if says_architecture(text) {
-                diagnostics.insert(0, not_a_tree(text));
-            }
-            (None, diagnostics)
-        }
+        (_, None) => (None, diagnostics),
     }
-}
-
-fn says_architecture(text: &str) -> bool {
-    let Ok(root) = tree::parse(text) else {
-        return false;
-    };
-    let tree::Value::Map(entries) = &root.value else {
-        return false;
-    };
-    entries.iter().any(|e| {
-        e.key == "profile"
-            && matches!(&e.value.value, tree::Value::Scalar { text, .. } if text == lower::ARCHITECTURE)
-    })
 }
 
 /// The model a text describes. Warnings do not stop a load — [`diagnose`]
@@ -170,14 +157,21 @@ pub fn canonicalize(text: &str) -> Result<String, Vec<Diagnostic>> {
 
 /// A text as JSON, for an editor that is not written in Rust: an image of the
 /// document — the same maps, lists and keys, `x-` keys included, migrated to the
-/// current version — and not of the `Model`, which has no place for what it
+/// current version and in canonical form — and not of the `Model`, which has no place for what it
 /// does not understand. `None` if the text has errors.
 ///
 /// A whole number above 2^53 is a string in the image, because its reader is
 /// JavaScript; [`from_document`] takes it back either way.
 pub fn document(text: &str) -> (Option<serde_json::Value>, Vec<Diagnostic>) {
     let (read, diagnostics) = read(text);
-    (read.map(|r| json::image(&r.root)), diagnostics)
+    // Of the canonical text: every number in it is written the one way that
+    // comes back from JSON as written, and every text that could be taken
+    // for a number is quoted.
+    let image = read.map(|r| {
+        let canonical = write::write_document(&r.lowered.document, &r.lowered.extras);
+        tree::parse(&canonical).map_or_else(|_| json::image(&r.root), |root| json::image(&root))
+    });
+    (image, diagnostics)
 }
 
 /// The canonical text of an edited [`document`]. It is read exactly as a text
