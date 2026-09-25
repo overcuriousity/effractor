@@ -65,8 +65,14 @@ pub fn phi_inv(p: f64) -> f64 {
         (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q
             / (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1.0)
     };
+    // Below p of about 1e-310 the step's 1 / density overflows; Acklam's own
+    // relative error there is still 1.15e-9.
+    let scale = exp(x * x / 2.0);
+    if !scale.is_finite() {
+        return x;
+    }
     let e = phi(x) - p;
-    let u = e * SQRT_2PI * exp(x * x / 2.0);
+    let u = e * SQRT_2PI * scale;
     x - u / (1.0 + x * u / 2.0)
 }
 
@@ -199,6 +205,18 @@ mod tests {
         }
         assert_eq!(phi_inv(0.5), 0.0);
         assert!((phi_inv(0.975) - 1.959_963_984_540_054).abs() < 1e-14);
+    }
+
+    /// A truncated normal draws `phi_inv(U * Q(a))` with Q(a) down to 1e-300:
+    /// p can be subnormal, and the quantile must still be a number.
+    #[test]
+    fn quantile_of_a_subnormal_is_a_number() {
+        for p in [1e-305, 1e-311, 1e-315, 5e-324] {
+            let x = phi_inv(p);
+            assert!(x.is_finite() && x < -37.0, "p = {p:e}: {x}");
+            let back = phi(x);
+            assert!((back - p).abs() <= p * 1e-4, "p = {p:e}: back = {back:e}");
+        }
     }
 
     /// Near its mean a gamma of large shape needs about sqrt(shape) terms,
