@@ -1,6 +1,6 @@
 name: pages
 
-# Independent of binary releases: documentation-only pushes also deploy.
+# Beside the binary release, behind the same gate.
 on:
   push:
     branches: [master]
@@ -17,7 +17,25 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  gate:
+    # As in release.yml: only a commit whose pull request passed ci is
+    # deployed. A documentation-only push has no ci run and deploys nothing —
+    # the site is the app, so the one already live is still the right one.
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    steps:
+      - name: this commit passed ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          green=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml \
+            --commit "$GITHUB_SHA" --status success --json databaseId --jq length)
+          echo "successful ci runs for $GITHUB_SHA: $green"
+          test "$green" -ge 1
+
   build:
+    needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
