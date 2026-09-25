@@ -226,6 +226,7 @@
 .canvas {
   grid-area: canvas;
   position: relative;
+  display: flex;
   overflow: hidden;
   background: var(--viz-canvas);
 }
@@ -268,7 +269,6 @@
 .legend-group { display: inline-flex; align-items: center; gap: 5px; }
 .legend a { color: var(--color-fg-secondary); text-underline-offset: 2px; }
 .legend a:hover { color: var(--color-fg-primary); }
-.legend-title { margin-right: 3px; }
 .legend .num { margin-right: 5px; }
 /* The outline is what makes the pale steps a shape at all; see 00-tokens.css. */
 .swatch { width: 11px; height: 11px; border-radius: 50%; border: 1px solid var(--viz-outline); }
@@ -304,7 +304,6 @@
    The HUD steps aside while it is open. There while something is selected.
    Its scrollbar's room is always kept: a bar that came and went would change
    the width, the wrapping, the height, and bring the bar back — a flicker. */
-.canvas { position: relative; display: flex; }
 .stage { position: relative; flex: 1; min-width: 0; }
 .inspector {
   position: absolute; top: 8px; right: 8px; z-index: 2;

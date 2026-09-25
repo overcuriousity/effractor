@@ -72,11 +72,11 @@ not confidence in the invented assumptions.
 
 ## Reading the architectures
 
-Examples 14–16 are architectures: components and how they are linked, from
+Examples 14–18 are architectures: components and how they are linked, from
 which the bundled component library generates the attack steps. The app opens
-and edits them; generating and simulating their routes in the browser follows
-in a later release. The numbers are teaching inputs, marked `illustrative`
-(or `assumed`), never calibrated.
+and edits them, generates their attack graph and simulates its routes in the
+browser, and compares each file's scenarios with the baseline. The numbers are
+teaching inputs, marked `illustrative` (or `assumed`), never calibrated.
 
 - An action starts once all it needs has happened and adds its own time;
   unlike a tree's AND gate, times accumulate along a route.
@@ -93,3 +93,13 @@ in a later release. The numbers are teaching inputs, marked `illustrative`
   stays possible, the target gets no number at all, not a number that ignores
   it. The vendor patch blocks the route and the remaining login route is
   solved; shorter-lived tokens alone leave the unknown in place.
+- 17: no single scenario closes every route. Guarding the agent against its
+  content, a second factor, training the administrator, patching the API
+  gateway and client-side encryption each lower the chance or leave it; none
+  brings it to zero. With the bucket encrypted, the route goes through the
+  bucket key instead.
+- 18: every route starts by taking over HAProxy at the edge, so patching it
+  (or the whole web stack) leaves nothing. Patching Nextcloud closes the fast
+  application route; the slower one, escaping to the hypervisor and reading
+  the volume on disk, remains. Encrypting the volume at rest leaves the number
+  unchanged: the running application still serves the file.

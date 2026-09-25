@@ -1,7 +1,6 @@
-// The app's own pop-up lists, in place of the browser's: a dropdown that
+// The app's own pop-up list, in place of the browser's: a dropdown that
 // stands in for <select> (same `value`, same `change` event, so the forms do
-// not care), and suggestions under a text field in place of <datalist>. Both
-// use the one list element, styled like the context menu.
+// not care), styled like the context menu.
 (function () {
   if (typeof document === "undefined") return;
   var list = document.createElement("div");
@@ -17,9 +16,8 @@
     owner = null;
   }
 
-  // `items`: [[value, label]], `chosen(value)` on a pick. `keepFocus`: the
-  // owner is a text field that must not lose the caret to a click in the list.
-  function open(anchor, items, current, chosen, keepFocus) {
+  // `items`: [[value, label]], `chosen(value)` on a pick.
+  function open(anchor, items, current, chosen) {
     close();
     if (!items.length) return;
     // A modal makes body siblings inert; keep its popup in the same layer.
@@ -33,12 +31,6 @@
       option.setAttribute("role", "option");
       option.setAttribute("aria-selected", String(item[0] === current));
       option.textContent = item[1];
-      if (keepFocus) {
-        option.tabIndex = -1;
-        option.addEventListener("pointerdown", function (e) {
-          e.preventDefault();
-        });
-      }
       option.addEventListener("click", function () {
         close();
         chosen(item[0]);
@@ -69,7 +61,11 @@
       var back = owner;
       close();
       if (back) back.focus();
-      if (e.key === "Escape") e.stopPropagation();
+      // Esc closes the list and nothing else: not the dialog around it.
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     }
   });
   document.addEventListener("pointerdown", function (e) {
@@ -124,36 +120,5 @@
     return button;
   }
 
-  // ---- in place of <datalist> ----
-
-  function suggest(input, words) {
-    input.setAttribute("autocomplete", "off");
-    function show() {
-      var typed = input.value.trim().toLowerCase();
-      var matching = words.filter(function (w) {
-        return w.toLowerCase().indexOf(typed) >= 0 && w.toLowerCase() !== typed;
-      });
-      open(input, matching.map(function (w) { return [w, w]; }), null, function (w) {
-        input.value = w;
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-      }, true);
-    }
-    // On focus only for an empty field: a field that has its value is not asking.
-    input.addEventListener("focus", function () {
-      if (!input.value.trim()) show();
-    });
-    input.addEventListener("input", show);
-    input.addEventListener("blur", function () {
-      if (owner === input) close();
-    });
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && owner === input) {
-        e.stopPropagation();
-        close();
-      }
-    });
-    return input;
-  }
-
-  window.effractorMenu = { dropdown: dropdown, suggest: suggest, close: close };
+  window.effractorMenu = { dropdown: dropdown };
 })();

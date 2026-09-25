@@ -41,6 +41,12 @@
     shareId('/s/' + id); decode(key);
     return origin + '/s/' + id + '#' + key;
   }
+  // What My shares says about a share's end: none, the date, or that it is past.
+  function expiry(expiresAt, now) {
+    if (expiresAt === null || expiresAt === undefined) return 'No expiry';
+    var date = new Date(expiresAt * 1000).toLocaleDateString();
+    return expiresAt * 1000 < now ? 'Expired · ' + date : date;
+  }
   function createPath(ttl) { return '/api/share' + (ttl === 'default' ? '' : '?ttl=' + encodeURIComponent(ttl)); }
   async function boundedBytes(stream, limit, message) {
     var reader = stream.getReader(), chunks = [], size = 0;
@@ -97,7 +103,7 @@
       state = 'cancelled'; cancel(timer); return true;
     }, state: function () { return state; } };
   }
-  var api = { inlineLink: inlineLink, inlineText: inlineText, createPath: createPath, adoptLocal: adoptLocal, deferredDelete: deferredDelete, encrypt: encrypt, decrypt: decrypt, shareId: shareId, link: link };
+  var api = { inlineLink: inlineLink, inlineText: inlineText, createPath: createPath, expiry: expiry, adoptLocal: adoptLocal, deferredDelete: deferredDelete, encrypt: encrypt, decrypt: decrypt, shareId: shareId, link: link };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window !== 'undefined') window.effractorShare = api;
 })();

@@ -22,9 +22,6 @@
   --text-sm: 0.8125rem;
   --text-base: 0.875rem;
   --text-md: 0.9375rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.375rem;
-  --text-2xl: 1.75rem;
 
   --radius-sm: 3px;
   --radius-md: 6px;
@@ -51,21 +48,14 @@
   --color-border-strong: #c9c3b4;
   --color-border-subtle: #eae7de;
 
-  /* Each of these is painted as text over its own tint — the checked chip,
-     the `ready` badge, the loose flag — and each was under AA there: accent
-     4.24, success 4.05, warning 3.68. Darkened along their own hues until
-     the tinted case clears it, which also lifts every link on the page. */
-  --color-accent: #386889;
-  --color-accent-dim: rgba(56, 104, 137, 0.1);
-  --color-accent-muted: rgba(56, 104, 137, 0.25);
-  --color-accent-fg: #ffffff;
+  /* Accent is text on every ground, the selected row's `bg-active` the
+     darkest of them: 4.59 there (it was 4.45 at #386889, one step lighter). */
+  --color-accent: #366687;
+  --color-accent-dim: rgba(54, 102, 135, 0.1);
+  --color-accent-muted: rgba(54, 102, 135, 0.25);
 
-  --color-danger: #b3382c;  --color-danger-dim: rgba(179, 56, 44, 0.1);
-  --color-warning: #845b16; --color-warning-dim: rgba(132, 91, 22, 0.1);
-  /* The `due` badge and the intent echo under the box, both on the plain
-     ground rather than on a tint: 3.80 at #b5651d. Dark is 7.43 already. */
-  --color-due: #a15a1a;
-  --color-success: #2b7048; --color-success-dim: rgba(43, 112, 72, 0.1);
+  --color-danger: #b3382c;
+  --color-warning: #845b16;
 
   /* Visualization. Importance is a magnitude, so the ramp is sequential: one
      hue (the danger hue, OKLCH h = 27), lightness strictly monotone, anchored
@@ -129,16 +119,10 @@
     --color-accent: #5aa8b0;
     --color-accent-dim: rgba(90, 168, 176, 0.15);
     --color-accent-muted: rgba(90, 168, 176, 0.35);
-    --color-accent-fg: #0e1015;
 
-    /* `.btn-danger` and `.badge-danger` paint this over their own 15% tint,
-       and at #e05252 that composited to 3.71:1 — a destructive control that
-       fails AA is the last one that should. 4.61 over the tint, 5.75 on a
-       plain surface for `.btn-icon-danger`. */
-    --color-danger: #e77676;  --color-danger-dim: rgba(231, 118, 118, 0.15);
-    --color-warning: #e8a839; --color-warning-dim: rgba(232, 168, 57, 0.15);
-    --color-due: #e0a060;
-    --color-success: #4caf7d; --color-success-dim: rgba(76, 175, 125, 0.15);
+    /* 5.75:1 or better on every ground. */
+    --color-danger: #e77676;
+    --color-warning: #e8a839;
 
     /* See the light half. Selected for this canvas, not flipped: 5.38:1 for
        the outline, and the ramp runs dark to light. */
@@ -184,16 +168,10 @@
     --color-accent: #5aa8b0;
     --color-accent-dim: rgba(90, 168, 176, 0.15);
     --color-accent-muted: rgba(90, 168, 176, 0.35);
-    --color-accent-fg: #0e1015;
 
-    /* `.btn-danger` and `.badge-danger` paint this over their own 15% tint,
-       and at #e05252 that composited to 3.71:1 — a destructive control that
-       fails AA is the last one that should. 4.61 over the tint, 5.75 on a
-       plain surface for `.btn-icon-danger`. */
-    --color-danger: #e77676;  --color-danger-dim: rgba(231, 118, 118, 0.15);
-    --color-warning: #e8a839; --color-warning-dim: rgba(232, 168, 57, 0.15);
-    --color-due: #e0a060;
-    --color-success: #4caf7d; --color-success-dim: rgba(76, 175, 125, 0.15);
+    /* 5.75:1 or better on every ground. */
+    --color-danger: #e77676;
+    --color-warning: #e8a839;
 
     /* See the light half. Selected for this canvas, not flipped: 5.38:1 for
        the outline, and the ramp runs dark to light. */

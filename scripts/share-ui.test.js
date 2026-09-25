@@ -111,3 +111,12 @@ test('existing encrypted server links still load and detach to the app root', as
   assert.deepEqual(ui.detached, ['https://example.test/']);
   assert.equal(ui.requests[0][0], '/api/share/' + 'a'.repeat(22));
 });
+
+test('an expired share is marked in My shares', async () => {
+  const ui = mount({ server: true, page: 'https://example.test/', fetcher: async () => ({
+    ok: true, json: async () => ({ id: 'b'.repeat(22), delete_token: 'token', expires_at: 1 }),
+  }) }); await ui.ready();
+  await ui.fire(ui.nodes['share-create']);
+  const row = ui.nodes['my-shares'].children[0];
+  assert.match(row.children[1].textContent, /^Expired/);
+});

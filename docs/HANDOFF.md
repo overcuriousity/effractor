@@ -852,8 +852,9 @@ today, all of it after seeing the alternative:
   other product is named** in the product (securiCAD is our orientation, not the
   user's; the preset names stay because they are the file format).
 - **No native form pop-ups.** `menu.js` has the app's own dropdown (answers to
-  `value` / `change` like a select) and suggestions under a text field; use
-  them, not `<select>` / `<datalist>`.
+  `value` / `change` like a select); use it, not `<select>`, and no
+  `<datalist>` (its suggestions under a text field went unused and were
+  removed; write them into `menu.js` again if one is needed).
 - **No confirm dialogs.** Destructive things are undoable and say so in the
   canvas notice (`app.say`): delete, unlink, remove asset/control, New/Open.
 - **No made-up numbers.** A likelihood kind opens an empty field; a leaf without
@@ -927,7 +928,7 @@ to try. What worked today:
   `renderer-svg` (interface of spec 7.1, plus `zoomBy`, pressable edges, refit
   on resize), `layout` (ELK worker), `results-view`, `edit` (every document
   edit, pure), `solver`, `store`, `app` (state, solve, undo, file menu, notice),
-  `menu` (dropdown, suggestions), `editor` (keys, rail, context menu, property
+  `menu` (dropdown), `editor` (keys, rail, context menu, property
   panel, model tree, assets), `source`, `controls` (tabs, controls).
 - `window.effractor` is how they talk: `state`, `select`, `applyEdit`,
   `adoptSource`, `solve`, `undo`/`redo`, `say`, `format`, `onChange`.

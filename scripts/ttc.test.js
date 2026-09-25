@@ -16,7 +16,7 @@ test('the common shapes split into a chance and an average time, and join back',
   }
   assert.equal(ttc.join({ chance: 100, mean: 4 }), 'Exponential(mean 4)');
   assert.equal(ttc.join({ chance: null, mean: null }), '');
-  for (const other of ['Never', 'Immediate', 'Gamma(2, 4)', 'nonsense', '50% * Gamma(2, 4)']) {
+  for (const other of ['Never', 'Immediate', 'Gamma(2, 4)', 'nonsense', '50% * Gamma(2, 4)', '50% *', '50%*', '* Exponential(mean 3)', '*']) {
     assert.equal(ttc.split(other), null, other);
   }
 });
@@ -65,7 +65,7 @@ function form(initial) {
   input.value = initial;
   const wrap = ttc.attach(input, 'd');
   const parts = wrap.children[1];
-  const fields = { input, parts, chance: parts.children[0].children[1], mean: parts.children[1].children[1] };
+  const fields = { input, parts, picker: wrap.children[0], chance: parts.children[0].children[1], mean: parts.children[1].children[1] };
   fields.type = (field, text) => {
     field.value = '';
     for (const ch of text) {
@@ -84,6 +84,13 @@ test('typing a number into Chance or Average time keeps every key', () => {
   f.type(f.mean, '12.05');
   assert.equal(f.mean.value, '12.05');
   assert.equal(f.input.value, '0.05% * Exponential(mean 12.05)');
+});
+
+test('the preset and the parts have ids from the field, so a redrawn form keeps the focus', () => {
+  const f = form('50% * Exponential(mean 10)');
+  assert.equal(f.chance.id, 'ttc-chance');
+  assert.equal(f.mean.id, 'ttc-mean');
+  assert.equal(f.picker.id, 'ttc-preset');
 });
 
 test('a certain chance with no time is written, not dropped', () => {

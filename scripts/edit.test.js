@@ -244,3 +244,73 @@ test('changing the horizon preserves timings and the original document', () => {
   assert.equal(E.setHorizon(original, 'Infinity'), null);
   assert.equal(E.setHorizon(original, 'not a number'), null);
 });
+
+test("an id needs a letter or a digit; punctuation alone is refused, not made up", () => {
+  assert.equal(E.setId(attack, "phish", ""), null);
+  assert.equal(E.setId(attack, "phish", "  ***  "), null);
+  assert.equal(E.setId(attack, "phish", "-"), null);
+  assert.equal(E.setId(attack, "phish", "Spear 2").select, "spear-2");
+});
+
+test("a cost and a horizon are plain finite numbers", () => {
+  const doc = { nodes: {}, controls: { c: { label: "C", cost: 1, enabled: false, effects: [] } } };
+  for (const typed of ["Infinity", "1e999", "0x10", "1,5", " ", "-0x1"]) {
+    assert.equal(E.setControl(doc, "c", "cost", typed), null, typed);
+    assert.equal(E.setHorizon({ nodes: {}, horizon: 1 }, typed), null, typed);
+  }
+  assert.equal(E.setControl(doc, "c", "cost", " 2.5e3 ").doc.controls.c.cost, 2500);
+  assert.equal(E.setControl(doc, "c", "cost", "0").doc.controls.c.cost, 0);
+  assert.equal(E.setHorizon({ nodes: {}, horizon: 1 }, ".5").doc.horizon, 0.5);
+});
+
+// A tree with some nodes reused under a second parent.
+function big(n) {
+  const nodes = { top: { label: "T", gate: "or", children: [] } };
+  for (let i = 0; i < n; i++) {
+    const id = "n" + i;
+    const parent = i < 4 ? "top" : "n" + Math.floor(i / 3);
+    if (!nodes[parent].gate) { delete nodes[parent].leaf; nodes[parent].gate = "and"; nodes[parent].children = []; }
+    nodes[parent].children.push(id);
+    const again = nodes["n" + (i - 5)];
+    if (i % 7 === 0 && i > 8 && again && again.gate) again.children.push(id);
+    nodes[id] = { label: id, leaf: "basic" };
+  }
+  return { top: "top", nodes };
+}
+
+test("what a removal would take is counted without making the edit, and matches it", () => {
+  for (const doc of [attack, big(60)]) {
+    for (const id of Object.keys(doc.nodes)) {
+      const gone = E.deleteNode(doc, id);
+      const said = E.removal(doc, id);
+      if (!gone) { assert.equal(said, null, id); continue; }
+      assert.equal(said.below, gone.removed - 1, id);
+      assert.deepEqual(said.parents, E.parentsOf(doc, id), id);
+    }
+  }
+});
+
+test("a leaf a control acts on is not made a gate: it says why", () => {
+  const doc = JSON.parse(JSON.stringify(attack));
+  doc.controls = { c: { label: "C", cost: 1, enabled: true, effects: [{ node: "key", ttc: "Never" }] } };
+  assert.equal(E.addChild(doc, "key"), null);
+  assert.equal(E.link(doc, "key", "mfa"), null);
+  assert.equal(E.reparent(doc, "mfa", "account", "key"), null);
+  assert.match(E.gateRefusal(doc, "key"), /control acts on this leaf/);
+  assert.equal(E.gateRefusal(doc, "mfa"), null);
+  assert.equal(E.gateRefusal(doc, "files"), null, "a gate stays a gate");
+  assert.ok(E.addChild(doc, "mfa"), "a leaf nothing acts on still can");
+});
+
+test("the nodes the link and move dialogs offer are the ones the edit takes", () => {
+  const doc = JSON.parse(JSON.stringify(big(40)));
+  doc.controls = { c: { label: "C", cost: 1, enabled: true, effects: [{ node: "n20", ttc: "Never" }] } };
+  const ids = Object.keys(doc.nodes);
+  for (const at of ids) {
+    assert.deepEqual(E.linkCandidates(doc, at), ids.filter((c) => E.link(doc, at, c)), "link under " + at);
+    for (const from of E.parentsOf(doc, at).concat([null])) {
+      assert.deepEqual(E.moveCandidates(doc, at, from), ids.filter((to) => E.reparent(doc, at, from, to)), "move " + at + " from " + from);
+    }
+  }
+  assert.deepEqual(E.linkCandidates(attack, "account"), ["physical", "key", "alarm"]);
+});
