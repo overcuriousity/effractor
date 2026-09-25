@@ -310,6 +310,45 @@ fn a_mistaken_expression_is_named_at_its_column() {
 }
 
 #[test]
+fn every_key_that_is_read_is_written_so_that_it_reads_back() {
+    // As written in a double-quoted YAML key; whether it may be read.
+    let cases = [
+        ("a".repeat(254), true),
+        ("é".repeat(254), true),
+        ("\u{1F600}".repeat(254), true),
+        ("\\\"".repeat(254), true),
+        ("\\\\".repeat(254), true),
+        // Six characters written for each one read.
+        ("\\u0001".repeat(166), true),
+        ("\\u0001".repeat(167), false),
+        ("\\u0001".repeat(254), false),
+        ("\\t".repeat(254), true),
+        ("a".repeat(255), false),
+    ];
+    for (written, fits) in cases {
+        // An explicit key may be as long as it likes; a canonical file
+        // writes it implicit, where YAML stops at 1024 characters.
+        let text = doc(&format!(
+            "  t:\n    label: T\n    leaf: basic\n    ? \"x-{written}\"\n    : 1\n"
+        ));
+        let (model, diagnostics) = diagnose(&text);
+        if !fits {
+            assert!(model.is_none(), "{written:?} was read");
+            assert_eq!(
+                diagnostics[0].code.as_str(),
+                "unsupported",
+                "{diagnostics:?}"
+            );
+            continue;
+        }
+        assert!(model.is_some(), "{written:?}: {diagnostics:?}");
+        let canonical = effractor_format::canonicalize(&text).unwrap();
+        let again = effractor_format::canonicalize(&canonical);
+        assert_eq!(again.as_ref(), Ok(&canonical), "{written:?}");
+    }
+}
+
+#[test]
 fn a_map_with_many_keys_is_checked_for_duplicates_in_one_pass() {
     // Every key compared with every other took seconds at this size.
     let keys: String = (0..200_000).map(|i| format!("k{i}: {i}, ")).collect();

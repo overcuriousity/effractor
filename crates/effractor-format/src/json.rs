@@ -6,7 +6,7 @@ use effractor_mal::number;
 use serde_json::{Map, Number, Value as Json};
 
 use crate::lower::parse_number;
-use crate::tree::{Entry, MAX_DEPTH, Node, Value};
+use crate::tree::{Entry, MAX_DEPTH, Node, Value, fits_as_key, too_long_key};
 
 /// The largest whole number JavaScript holds exactly: 2^53.
 const JS_EXACT: u64 = 1 << 53;
@@ -84,6 +84,9 @@ fn node(json: &Json, depth: usize) -> Result<Node, Diagnostic> {
 fn entries(map: &Map<String, Json>, depth: usize) -> Result<Vec<Entry>, Diagnostic> {
     map.iter()
         .map(|(key, value)| {
+            if !fits_as_key(key) {
+                return Err(Diagnostic::error(Code::Unsupported, "", too_long_key()));
+            }
             Ok(Entry {
                 key: key.clone(),
                 key_pos: Pos { line: 0, col: 0 },

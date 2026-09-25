@@ -299,6 +299,15 @@ fn needs_escape(c: char) -> bool {
     c.is_control() || matches!(c, '\u{85}' | '\u{2028}' | '\u{2029}' | '\u{feff}')
 }
 
+/// How many characters `c` takes in [`quoted`] text.
+pub(crate) fn written_width(c: char) -> usize {
+    match c {
+        '"' | '\\' | '\n' | '\t' | '\r' => 2,
+        c if needs_escape(c) => 6,
+        _ => 1,
+    }
+}
+
 fn quoted(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 2);
     out.push('"');

@@ -126,6 +126,30 @@ fn json_this_format_cannot_hold() {
     );
 }
 
+/// JSON and text agree on how long a key may be.
+#[test]
+fn json_and_text_share_one_key_limit() {
+    for (key, fits) in [
+        (format!("x-{}", "a".repeat(254)), true),
+        (format!("x-{}", "a".repeat(255)), false),
+        (format!("x-{}", "\u{1}".repeat(166)), true),
+        (format!("x-{}", "\u{1}".repeat(167)), false),
+    ] {
+        let mut d = doc(WEBSERVER);
+        d["analysis"][&key] = json!(1);
+        match from_document(&d) {
+            Ok(text) => {
+                assert!(fits, "{key:?} was taken");
+                assert_eq!(doc(&text), d);
+            }
+            Err(e) => {
+                assert!(!fits, "{key:?} was refused: {e:?}");
+                assert_eq!(e[0].code.as_str(), "unsupported");
+            }
+        }
+    }
+}
+
 /// JSON and text agree on how deep is too deep: what one takes, the other
 /// reads back.
 #[test]
