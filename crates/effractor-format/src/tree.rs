@@ -16,6 +16,21 @@ pub const MAX_DEPTH: usize = 64;
 /// writing a file that cannot be read back.
 const MAX_KEY: usize = 256;
 
+pub fn too_long_key() -> String {
+    format!(
+        "a key may be at most {MAX_KEY} characters long, and fewer if they are control characters"
+    )
+}
+
+/// The same as written: a control character is written as six (`\u0001`), and
+/// YAML reads no implicit key longer than 1024.
+const MAX_WRITTEN_KEY: usize = 1000;
+
+pub fn fits_as_key(text: &str) -> bool {
+    text.chars().count() <= MAX_KEY
+        && text.chars().map(crate::write::written_width).sum::<usize>() <= MAX_WRITTEN_KEY
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node {
     pub value: Value,
@@ -182,13 +197,9 @@ pub fn parse(text: &str) -> Result<Node, Vec<Diagnostic>> {
                 }),
                 None => {
                     let key = match node.value {
-                        Value::Scalar { text, .. } if text.chars().count() <= MAX_KEY => text,
+                        Value::Scalar { text, .. } if fits_as_key(&text) => text,
                         Value::Scalar { .. } => {
-                            out.push(at(
-                                Code::Unsupported,
-                                node.pos,
-                                format!("a key may be at most {MAX_KEY} characters long"),
-                            ));
+                            out.push(at(Code::Unsupported, node.pos, too_long_key()));
                             String::new()
                         }
                         _ => {

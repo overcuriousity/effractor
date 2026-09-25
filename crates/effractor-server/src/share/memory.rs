@@ -35,6 +35,10 @@ impl Storage for MemoryStorage {
         Ok(self.shares().get(id).cloned())
     }
 
+    async fn meta(&self, id: &ShareId) -> Result<Option<ShareMeta>, StorageError> {
+        Ok(self.shares().get(id).map(|(_, meta)| meta.clone()))
+    }
+
     async fn delete(&self, id: &ShareId) -> Result<bool, StorageError> {
         Ok(self.shares().remove(id).is_some())
     }

@@ -98,7 +98,8 @@ impl CutSets {
             if !used[i] {
                 continue;
             }
-            let (var, lo, hi) = bdd.decision(index_ref(bdd, i, f));
+            // `Ref` has no public constructor; every index here is one `f` reaches.
+            let (var, lo, hi) = bdd.decision(bdd.ref_at(i, f));
             let k0 = minimal[Bdd::index(lo)];
             let k1 = z.without(minimal[Bdd::index(hi)], k0, &mut without_cache)?;
             minimal[i] = z.make(var, k0, k1)?;
@@ -296,9 +297,4 @@ impl CutSets {
         }
         Ok((whole[self.root.0 as usize], containing))
     }
-}
-
-/// `Ref` has no public constructor; every index we iterate is one `f` reaches.
-fn index_ref(bdd: &Bdd, i: usize, f: Ref) -> Ref {
-    bdd.ref_at(i, f)
 }

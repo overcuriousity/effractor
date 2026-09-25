@@ -56,43 +56,52 @@ fn origin(o: &Origin) -> Value {
     })
 }
 
-/// `{status, expression, note, paths}`. `status` is `logical`, `foothold`,
-/// `policy` (a firewall rule), `defense` (a switch that opens or closes a
-/// way), `unknown` or the active parameter's evidence; `expression` is
-/// canonical TTC text, `allowed`/`denied` for a firewall rule, `off`/`on` for
-/// a defence switch.
-fn timing(binding: &Binding, resolved: &ResolvedGraph, i: usize) -> Value {
-    let paths = &resolved.paths[i];
-    let ttc = &resolved.ttc[i];
-    let (status, expression, note) = match (binding, ttc) {
-        (Binding::Logical, _) => ("logical", None, None),
+/// What node `i`'s time rests on under `resolved`, as `(status,
+/// expression)`. `status` is `logical`, `foothold`, `policy` (a firewall
+/// rule), `defense` (a switch that opens or closes a way), `unknown` or the
+/// active parameter's evidence; `expression` is canonical TTC text,
+/// `allowed`/`denied` for a firewall rule, `off`/`on` for a defence switch.
+pub fn timing_status(
+    binding: &Binding,
+    resolved: &ResolvedGraph,
+    i: usize,
+) -> (&'static str, Option<String>) {
+    match (binding, &resolved.ttc[i]) {
+        (Binding::Logical, _) => ("logical", None),
         (_, ResolvedTtc::Unknown(_))
-        | (Binding::Unfinished { .. } | Binding::UnknownPrivilege(_), _) => ("unknown", None, None),
-        (Binding::Foothold(_), _) => ("foothold", None, None),
+        | (Binding::Unfinished { .. } | Binding::UnknownPrivilege(_), _) => ("unknown", None),
+        (Binding::Foothold(_), _) => ("foothold", None),
         (Binding::Permission(_), ResolvedTtc::Known(d)) => {
             let allowed = !matches!(d, effractor_core::Distribution::Infinity);
             (
                 "policy",
                 Some(if allowed { "allowed" } else { "denied" }.to_owned()),
-                None,
             )
         }
         (Binding::Policy { .. }, ResolvedTtc::Known(d)) => {
             let on = matches!(d, effractor_core::Distribution::Infinity);
-            (
-                "defense",
-                Some(if on { "on" } else { "off" }.to_owned()),
-                None,
-            )
+            ("defense", Some(if on { "on" } else { "off" }.to_owned()))
         }
-        (Binding::Parameter { .. }, ResolvedTtc::Known(d)) => {
-            let p = resolved.evidence[i].first();
-            (
-                p.map_or("unknown", |p| p.status.as_str()),
-                Some(effractor_format::expr::write(d)),
-                p.and_then(|p| p.note.clone()),
-            )
+        (Binding::Parameter { .. }, ResolvedTtc::Known(d)) => (
+            resolved.evidence[i]
+                .first()
+                .map_or("unknown", |p| p.status.as_str()),
+            Some(effractor_format::expr::write(d)),
+        ),
+    }
+}
+
+/// `{status, expression, note, paths}`, see [`timing_status`]; `note` is the
+/// active parameter's.
+fn timing(binding: &Binding, resolved: &ResolvedGraph, i: usize) -> Value {
+    let paths = &resolved.paths[i];
+    let ttc = &resolved.ttc[i];
+    let (status, expression) = timing_status(binding, resolved, i);
+    let note = match (binding, ttc) {
+        (Binding::Parameter { .. }, ResolvedTtc::Known(_)) => {
+            resolved.evidence[i].first().and_then(|p| p.note.clone())
         }
+        _ => None,
     };
     let missing = match ttc {
         ResolvedTtc::Unknown(m) => m.clone(),

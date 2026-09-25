@@ -1,5 +1,5 @@
 use effractor_core::{Distribution as D, Shorthand};
-use effractor_mal::{ParseError, parse_expr, to_expr};
+use effractor_mal::{ParseError, number, parse_expr};
 use proptest::prelude::*;
 
 fn err(src: &str) -> ParseError {
@@ -57,7 +57,6 @@ fn every_distribution() {
 fn every_shorthand_stays_named() {
     for s in Shorthand::ALL {
         assert_eq!(parse_expr(s.name()), Ok(D::Named(s)));
-        assert_eq!(to_expr(&D::Named(s)), s.name());
     }
 }
 
@@ -72,7 +71,6 @@ fn product_form_in_either_order() {
         parse_expr("Exponential(0.1)*Bernoulli(0.5)"),
         Ok(want.clone())
     );
-    assert_eq!(to_expr(&want), "Bernoulli(0.5) * Exponential(0.1)");
 }
 
 #[test]
@@ -178,17 +176,10 @@ fn domains_are_not_the_parsers_business() {
 
 #[test]
 fn small_and_large_numbers_print_in_scientific_notation() {
-    assert_eq!(to_expr(&D::Exponential(2.5e-6)), "Exponential(2.5e-6)");
-    assert_eq!(to_expr(&D::Exponential(0.002)), "Exponential(0.002)");
-    assert_eq!(to_expr(&D::Const(120000.0)), "120000");
-    assert_eq!(
-        to_expr(&D::Pert {
-            min: 1.0,
-            mode: 2.0,
-            max: 3e15
-        }),
-        "Pert(1, 2, 3e15)"
-    );
+    assert_eq!(number(2.5e-6), "2.5e-6");
+    assert_eq!(number(0.002), "0.002");
+    assert_eq!(number(120000.0), "120000");
+    assert_eq!(number(3e15), "3e15");
 }
 
 fn num() -> impl Strategy<Value = f64> {
@@ -201,32 +192,11 @@ fn num() -> impl Strategy<Value = f64> {
     ]
 }
 
-fn simple() -> impl Strategy<Value = D> {
-    prop_oneof![
-        num().prop_map(D::Exponential),
-        (num(), num()).prop_map(|(shape, scale)| D::Gamma { shape, scale }),
-        (num(), num()).prop_map(|(mu, sigma)| D::LogNormal { mu, sigma }),
-        (num(), num()).prop_map(|(xm, alpha)| D::Pareto { xm, alpha }),
-        (num(), num()).prop_map(|(mean, sd)| D::TruncatedNormal { mean, sd }),
-        Just(D::Zero),
-        Just(D::Infinity),
-    ]
-}
-
-fn any_dist() -> impl Strategy<Value = D> {
-    prop_oneof![
-        simple(),
-        num().prop_map(D::Bernoulli),
-        (num(), simple()).prop_map(|(p, d)| D::Product(p, Box::new(d))),
-        (num(), num(), num()).prop_map(|(min, mode, max)| D::Pert { min, mode, max }),
-        proptest::sample::select(Shorthand::ALL.to_vec()).prop_map(D::Named),
-    ]
-}
-
 proptest! {
     #[test]
-    fn printing_then_parsing_is_the_identity(d in any_dist()) {
-        prop_assert_eq!(parse_expr(&to_expr(&d)), Ok(d));
+    fn a_printed_number_reads_back(v in num()) {
+        let text = format!("Gamma({}, {})", number(v), number(-v));
+        prop_assert_eq!(parse_expr(&text), Ok(D::Gamma { shape: v, scale: -v }));
     }
 
     #[test]

@@ -21,9 +21,11 @@ pub const GRID: usize = 65;
 /// twin, so that giving a model assets cannot move a single fault. A leaf
 /// therefore sees the same random numbers whatever else is going on — so when a control changes
 /// one leaf's distribution, every other leaf's draws stay put, and the
-/// difference between two runs is the control rather than noise. 256 words is
-/// 32 draws; the hungriest sampler (a rejection loop) needs more than that
-/// about once in 10^20 iterations.
+/// difference between two runs is the control rather than noise. A window is
+/// 256 of the stream's 32-bit words, and a uniform takes two: 128 uniforms. The
+/// hungriest sampler, PERT, runs two gamma rejection loops at two uniforms a
+/// try, each rejecting under 5 % of the time; it needs more than 128 less than
+/// once in 10^80 iterations.
 const WINDOW: u128 = 256;
 
 /// Stream ids with this bit set belong to loss magnitudes.
@@ -141,7 +143,8 @@ impl Sampler {
             n,
             hits: vec![0; self.plan.steps.len()],
             top_by: vec![0; GRID],
-            losses: Vec::with_capacity(n as usize),
+            // Nothing to keep without money: a chunk holds no per-iteration row.
+            losses: Vec::with_capacity(if self.has_losses() { n as usize } else { 0 }),
             booked: vec![0.0; self.magnitudes.len()],
         };
         let (mut leaf_times, mut times, mut scratch) =
@@ -191,7 +194,9 @@ impl Sampler {
                 out.booked[slot] += part;
                 loss += part;
             }
-            out.losses.push(loss);
+            if self.has_losses() {
+                out.losses.push(loss);
+            }
         }
         out
     }
@@ -326,4 +331,25 @@ fn exceedance(sorted: &[f64]) -> Vec<(f64, f64)> {
         curve.push((x, (n - first) as f64 / n as f64));
     }
     curve
+}
+
+#[cfg(test)]
+mod tests {
+    use effractor_core::{LeafKind, Model, Node, Profile, Ttc};
+
+    use super::*;
+
+    #[test]
+    fn without_money_a_chunk_keeps_no_losses() {
+        let mut m = Model::new("t", Profile::FaultTree, "top".parse().unwrap());
+        m.nodes.insert(
+            "top".parse().unwrap(),
+            Node::leaf("top", LeafKind::Basic, Some(Ttc::P(0.5))),
+        );
+        let plan = Plan::build(&m).unwrap();
+        let s = Sampler::new(&m, &plan, vec![Distribution::Bernoulli(0.5)], 1, 5000);
+        let chunk = s.run_chunk(0);
+        assert_eq!((chunk.n, chunk.losses.len()), (CHUNK as u64, 0));
+        assert!(s.merge(&[chunk, s.run_chunk(1)], 0.95).loss.is_none());
+    }
 }
