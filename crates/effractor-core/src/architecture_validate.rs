@@ -265,125 +265,7 @@ impl Cx<'_> {
                     .to_entity()
                     .and_then(|to| self.entity_of(to, &format!("{at}.to"), kind.to_kinds())),
             };
-            match (r, from, to) {
-                // Unknown only where a host runs software: a router's or a
-                // guest's escape needs the privilege it lands at.
-                (
-                    Relation::Hosts {
-                        privilege: Privilege::Unknown,
-                        ..
-                    },
-                    Some(from),
-                    Some(to),
-                ) if from != EntityKind::Host
-                    || !matches!(to, EntityKind::Application | EntityKind::Service) =>
-                {
-                    self.error(
-                        Code::AssociationType,
-                        format!("{at}.privilege"),
-                        "only a host's software may run at an unknown privilege; say `user` or `admin`",
-                    )
-                }
-                (
-                    Relation::Grants {
-                        privilege: Privilege::User,
-                        ..
-                    },
-                    _,
-                    Some(EntityKind::Router),
-                ) => self.error(
-                    Code::AssociationType,
-                    format!("{at}.privilege"),
-                    "a router has no user privilege; an account on a router is granted `admin`",
-                ),
-                (
-                    Relation::Hosts {
-                        privilege: Privilege::User,
-                        ..
-                    },
-                    Some(EntityKind::Router),
-                    _,
-                ) => self.error(
-                    Code::AssociationType,
-                    format!("{at}.privilege"),
-                    "a router has no user privilege; what it runs, it runs as `admin`",
-                ),
-                (Relation::Hosts { .. }, Some(from), Some(EntityKind::Router))
-                    if from != EntityKind::Host =>
-                {
-                    self.error(
-                        Code::AssociationType,
-                        format!("{at}.from"),
-                        "a router runs on a host, not on another router",
-                    )
-                }
-                (Relation::Hosts { .. }, Some(from), Some(EntityKind::Host))
-                    if from != EntityKind::Host =>
-                {
-                    self.error(
-                        Code::AssociationType,
-                        format!("{at}.from"),
-                        "a host runs on a host, not on a router",
-                    )
-                }
-                (Relation::Assumes { from, to }, _, _) if from == to => self.error(
-                    Code::AssociationType,
-                    format!("{at}.to"),
-                    "an account does not assume itself",
-                ),
-                (
-                    Relation::RunsAs {
-                        privilege: Privilege::Admin,
-                        ..
-                    },
-                    Some(k),
-                    _,
-                ) if k != EntityKind::Host => self.error(
-                    Code::AssociationType,
-                    format!("{at}.privilege"),
-                    "software uses its identity as `user`; only a host names `admin`",
-                ),
-                (
-                    Relation::Holds {
-                        privilege: Privilege::Admin,
-                        ..
-                    },
-                    Some(k),
-                    _,
-                ) if k != EntityKind::Host => self.error(
-                    Code::AssociationType,
-                    format!("{at}.privilege"),
-                    "software holds data as `user`; only a host holds it as `admin`",
-                ),
-                (
-                    Relation::Holds {
-                        decrypts: None,
-                        from,
-                        to,
-                        ..
-                    },
-                    _,
-                    _,
-                ) => self.incomplete(
-                    at.clone(),
-                    format!(
-                        "say whether \"{from}\" sees \"{to}\" in plaintext: `decrypts: true | false`"
-                    ),
-                ),
-                (
-                    Relation::Stores {
-                        privilege: Privilege::Admin,
-                        ..
-                    },
-                    Some(EntityKind::Application),
-                    _,
-                ) => self.error(
-                    Code::AssociationType,
-                    format!("{at}.privilege"),
-                    "an application stores a credential as `user`; only a host stores one as `admin`",
-                ),
-                _ => {}
-            }
+            self.association_rules(r, from, to, &at);
             if let (
                 Relation::Hosts {
                     contained: true, ..
@@ -504,6 +386,119 @@ impl Cx<'_> {
             }
         }
         self.hosting_cycles();
+    }
+
+    /// What an association's kinds and fields cannot say together. Each rule
+    /// is its own: one broken does not hide another.
+    fn association_rules(
+        &mut self,
+        r: &Relation,
+        from: Option<EntityKind>,
+        to: Option<EntityKind>,
+        at: &str,
+    ) {
+        let privilege = r.privilege();
+        let router = Some(EntityKind::Router);
+        // Unknown only where a host runs software: a router's or a guest's
+        // escape needs the privilege it lands at.
+        if let (Relation::Hosts { .. }, Some(from), Some(to)) = (r, from, to)
+            && privilege == Some(Privilege::Unknown)
+            && (from != EntityKind::Host
+                || !matches!(to, EntityKind::Application | EntityKind::Service))
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.privilege"),
+                "only a host's software may run at an unknown privilege; say `user` or `admin`",
+            );
+        }
+        if matches!(r, Relation::Grants { .. })
+            && privilege == Some(Privilege::User)
+            && to == router
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.privilege"),
+                "a router has no user privilege; an account on a router is granted `admin`",
+            );
+        }
+        if matches!(r, Relation::Hosts { .. })
+            && privilege == Some(Privilege::User)
+            && from == router
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.privilege"),
+                "a router has no user privilege; what it runs, it runs as `admin`",
+            );
+        }
+        if let (
+            Relation::Hosts { .. },
+            Some(from),
+            Some(to @ (EntityKind::Router | EntityKind::Host)),
+        ) = (r, from, to)
+            && from != EntityKind::Host
+        {
+            let message = if to == EntityKind::Router {
+                "a router runs on a host, not on another router"
+            } else {
+                "a host runs on a host, not on a router"
+            };
+            self.error(Code::AssociationType, format!("{at}.from"), message);
+        }
+        if let Relation::Assumes { from, to } = r
+            && from == to
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.to"),
+                "an account does not assume itself",
+            );
+        }
+        if matches!(r, Relation::RunsAs { .. })
+            && privilege == Some(Privilege::Admin)
+            && from.is_some_and(|k| k != EntityKind::Host)
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.privilege"),
+                "software uses its identity as `user`; only a host names `admin`",
+            );
+        }
+        if matches!(r, Relation::Holds { .. })
+            && privilege == Some(Privilege::Admin)
+            && from.is_some_and(|k| k != EntityKind::Host)
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.privilege"),
+                "software holds data as `user`; only a host holds it as `admin`",
+            );
+        }
+        if let Relation::Holds {
+            decrypts: None,
+            from,
+            to,
+            ..
+        } = r
+        {
+            self.incomplete(
+                at,
+                format!(
+                    "say whether \"{from}\" sees \"{to}\" in plaintext: `decrypts: true | false`"
+                ),
+            );
+        }
+        if matches!(r, Relation::Stores { .. })
+            && privilege == Some(Privilege::Admin)
+            && from == Some(EntityKind::Application)
+        {
+            self.error(
+                Code::AssociationType,
+                format!("{at}.privilege"),
+                "an application stores a credential as `user`; only a host stores one as `admin`",
+            );
+        }
     }
 
     /// Guest hosts follow their host upwards; returning to the start is a cycle,
