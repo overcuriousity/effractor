@@ -95,41 +95,37 @@ pub fn save_document(document: &Document) -> String {
 }
 
 /// What a tree-only caller is told when the text is an architecture: it is
-/// not wrong, it is the other kind of document.
-fn not_a_tree(text: &str) -> Diagnostic {
-    let mut d = Diagnostic::error(
-        Code::Unsupported,
-        "profile",
-        "this is an architecture; this analysis reads a fault tree or an attack tree",
-    );
-    if let Ok(root) = tree::parse(text) {
-        d.pos = Some(tree::locate(&root, "profile"));
+/// not wrong, it is the other kind of document. `at` is its `profile`.
+fn not_a_tree(at: effractor_core::Pos) -> Diagnostic {
+    Diagnostic {
+        pos: Some(at),
+        ..Diagnostic::error(
+            Code::Unsupported,
+            "profile",
+            "this is an architecture; this analysis reads a fault tree or an attack tree",
+        )
     }
-    d
 }
 
 /// Everything there is to say about a text, each with its line and column, and
 /// the model if nothing said was an error. Trees only: an architecture is
 /// reported as one, not read.
 pub fn diagnose(text: &str) -> (Option<Model>, Vec<Diagnostic>) {
-    match diagnose_document(text) {
-        (Some(Document::Tree(model)), diagnostics) => (Some(model), diagnostics),
-        (Some(Document::Architecture(_)), mut diagnostics) => {
-            diagnostics.insert(0, not_a_tree(text));
+    let root = match tree::parse(text) {
+        Ok(root) => root,
+        Err(diagnostics) => return (None, diagnostics),
+    };
+    // Valid or not, an architecture is first of all not a tree.
+    let architecture = lower::is_architecture(&root).then(|| tree::locate(&root, "profile"));
+    let (read, mut diagnostics) = read_tree(root, true);
+    match (read.map(|r| r.lowered.document), architecture) {
+        (Some(Document::Tree(model)), _) => (Some(model), diagnostics),
+        (_, Some(at)) => {
+            diagnostics.insert(0, not_a_tree(at));
             (None, diagnostics)
         }
-        // Valid or not, an architecture is first of all not a tree.
-        (None, mut diagnostics) => {
-            if says_architecture(text) {
-                diagnostics.insert(0, not_a_tree(text));
-            }
-            (None, diagnostics)
-        }
+        (_, None) => (None, diagnostics),
     }
-}
-
-fn says_architecture(text: &str) -> bool {
-    tree::parse(text).is_ok_and(|root| lower::is_architecture(&root))
 }
 
 /// The model a text describes. Warnings do not stop a load — [`diagnose`]
