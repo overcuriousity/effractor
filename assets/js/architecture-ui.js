@@ -781,7 +781,9 @@
     });
     renderRail();
     renderOutline();
-    if (!sameKey(rendered, formKey())) renderProperties();
+    // Several selected: rebuilt always, as select() renames the inspector
+    // after the selection; that list holds nothing to type in.
+    if (picked().length > 1 || !sameKey(rendered, formKey())) renderProperties();
   });
 
   window.effractorArchitectureUi = {
