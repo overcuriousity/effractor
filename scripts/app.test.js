@@ -889,6 +889,16 @@ test('review: source of another mode typed here keeps that mode’s document a C
   assert.equal(h.app.canUndo(), false, 'the tree’s history gained nothing');
 });
 
+test('review: typing back to the document’s own text lists its remarks again', async () => {
+  const h = racePage('original');
+  await h.app.ready; await h.settle();
+  const remark = { severity: 'warning', code: 'incomplete', message: 'no target yet', path: 'attacker.target' };
+  h.app.state.diagnostics = [remark];
+  h.app.markSourceDirty();
+  assert.deepEqual(await h.app.adoptSource('original'), [remark]);
+  assert.equal(h.app.state.sourceValid, true);
+});
+
 test('review: several selected stay selected when results arrive', async () => {
   const h = racePage('arch two', null, { view: { describe: doc => ({ name: doc.name, nodes: [] }), route: () => [] } });
   await h.app.ready; await h.tick();

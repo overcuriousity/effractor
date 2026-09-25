@@ -103,7 +103,7 @@
     if (on) window.effractorWorkspace.open("left");
     if (on) {
       area.value = app.state.text || "";
-      problems([]);
+      problems(app.state.diagnostics || []);
       area.focus();
     } else if (!app.state.sourceValid && app.state.text !== null) {
       // Closed on text that did not parse: the document is what stays.
@@ -208,6 +208,6 @@
     if ($("view-source").hidden || app.state.text === null || area.value === app.state.text) return;
     if (document.activeElement === area && timer !== null) return; // mid-typing: the pause will settle it
     area.value = app.state.text;
-    problems([]);
+    problems(app.state.diagnostics || []);
   });
 })();

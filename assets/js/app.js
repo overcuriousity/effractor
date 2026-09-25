@@ -819,7 +819,7 @@
         // The attack graph it gave up while the source was not valid.
         if (state.mode === "attack" && !state.generated) followGraph(false).then(notify);
       }
-      return Promise.resolve([]);
+      return Promise.resolve(state.diagnostics.slice());
     }
     return solver.parse(text).then(function (parsed) {
       if (!gate.accept(token)) return null;
