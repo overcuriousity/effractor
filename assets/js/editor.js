@@ -30,11 +30,15 @@
   }
 
   // An edit that fails says so on the canvas: nothing is refused in silence.
-  function apply(edit, then) {
+  // `why`: what to say when there is no edit, if the caller knows better.
+  function apply(edit, then, why) {
     if (!edit) {
-      app.say("that edit is not possible here");
+      app.say(why || "that edit is not possible here");
       return Promise.resolve(false);
     }
+    // An edit that names no edge keeps the one the selection was reached
+    // along: a shared node's chosen parent stays chosen.
+    if (edit.parent === undefined && app.state.parentChosen) edit.parent = app.state.parent;
     return app.applyEdit(edit).then(
       function (applied) {
         if (applied && then) then();
@@ -62,6 +66,7 @@
     addChild: function () {
       if (!selected()) return;
       var edit = E.addChild(doc(), selected());
+      if (!edit) return apply(null, null, E.gateRefusal(doc(), selected()));
       edit.parent = selected();
       apply(edit, function () {
         fresh[edit.fresh] = true;
@@ -69,6 +74,8 @@
       });
     },
     addSibling: function () {
+      if (!selected()) return;
+      if (!app.state.parent) return app.say("the " + P.words(doc()).top + " has no siblings");
       var edit = E.addSibling(doc(), selected(), app.state.parent);
       if (!edit) return;
       edit.parent = app.state.parent;
@@ -283,10 +290,14 @@
 
   app.renderer.on("drop", function (e) {
     if (arch()) return;
-    if (e.ctrl) return apply(E.link(doc(), e.target, e.id));
-    var edit = E.reparent(doc(), e.id, E.parentsOf(doc(), e.id)[0] || null, e.target);
+    var why = E.gateRefusal(doc(), e.target);
+    if (e.ctrl) return apply(E.link(doc(), e.target, e.id), null, why);
+    // Away from the parent it was reached along, when that was said.
+    var chosen = e.id === selected() && app.state.parentChosen;
+    var from = chosen ? app.state.parent : E.parentsOf(doc(), e.id)[0] || null;
+    var edit = E.reparent(doc(), e.id, from, e.target);
     if (edit) edit.parent = e.target;
-    apply(edit);
+    apply(edit, null, why);
   });
 
   // ---- context menu ----
@@ -353,16 +364,19 @@
     lists.push(list);
     openers.push(button);
     button.setAttribute("aria-expanded", "true");
-    Promise.resolve(typeof children === "function" ? children() : children).then(function (items) {
+    function show(items) {
       if (lists[depth + 1] !== list) return; // closed, or another opened since
-      // Nothing to offer is still a list: it says why.
-      fill(list, items && items.length ? items : [["Nothing here", "", null]], depth + 1);
+      fill(list, items, depth + 1);
       var box = button.getBoundingClientRect();
       var edge = lists[depth].getBoundingClientRect();
       place(list, { left: edge.left, right: edge.right, top: box.top - 4 });
       if (focus) focusFirst(list);
+    }
+    Promise.resolve(typeof children === "function" ? children() : children).then(function (items) {
+      // Nothing to offer is still a list: it says why.
+      show(items && items.length ? items : [["Nothing here", "", null]]);
     }, function () {
-      if (lists[depth + 1] === list) fill(list, [["Could not be read", "", null]], depth + 1);
+      show([["Could not be read", "", null]]);
     });
   }
 
@@ -528,20 +542,23 @@
     return linked;
   }
 
+  // What the dialog can offer, found once when it opens; typing filters it.
+  var linkOffered = [];
+  var SHOWN = 50;
+
   function linkCandidates(query) {
     var q = query.trim().toLowerCase();
-    return Object.keys(doc().nodes).filter(function (id) {
-      if (!linkEdit(id)) return false;
+    return linkOffered.filter(function (id) {
       return !q || id.indexOf(q) >= 0 || String(doc().nodes[id].label).toLowerCase().indexOf(q) >= 0;
     });
   }
 
   function renderLinkResults() {
     var ids = linkCandidates($("link-search").value);
-    linkChoice = Math.max(0, Math.min(linkChoice, ids.length - 1));
+    linkChoice = Math.max(0, Math.min(linkChoice, Math.min(ids.length, SHOWN) - 1));
     var list = $("link-results");
     list.replaceChildren();
-    ids.slice(0, 50).forEach(function (id, i) {
+    ids.slice(0, SHOWN).forEach(function (id, i) {
       var item = document.createElement("li");
       item.setAttribute("role", "option");
       item.setAttribute("aria-selected", String(i === linkChoice));
@@ -556,16 +573,18 @@
         chooseLink(id);
       });
       list.appendChild(item);
+      if (i === linkChoice) item.scrollIntoView({ block: "nearest" });
     });
     // An empty list says why, not nothing.
     if (!ids.length) {
       var why = document.createElement("li");
       why.className = "empty";
-      why.textContent = $("link-search").value.trim()
+      var refused = linkMode === "link" && E.gateRefusal(doc(), selected());
+      why.textContent = refused || ($("link-search").value.trim()
         ? "no node matches"
         : linkMode === "move"
           ? "no other node can take it without making a cycle"
-          : "every other node is above it, below it already, or would make a cycle";
+          : "every other node is above it, below it already, or would make a cycle");
       list.appendChild(why);
     }
     return ids;
@@ -582,6 +601,7 @@
     $("link-search").value = "";
     $("link-search").placeholder = mode === "move" ? "Move under which node…" : "Reuse which node under this one…";
     linkChoice = 0;
+    linkOffered = mode === "move" ? E.moveCandidates(doc(), selected(), app.state.parent) : E.linkCandidates(doc(), selected());
     renderLinkResults();
     $("link-dialog").showModal();
   }
@@ -688,6 +708,10 @@
 
   function consequences(form, n) {
     var assets = Object.keys(doc().assets || {});
+    var assetName = function (a) {
+      var asset = (doc().assets || {})[a];
+      return (asset && asset.label) || a;
+    };
     if (!assets.length && !(n.consequences || []).length) {
       // Said where it is looked for: a consequence needs something to cost.
       hint(form, "Consequences need an asset.");
@@ -702,9 +726,11 @@
     (n.consequences || []).forEach(function (c, index) {
       var item = document.createElement("li");
       var text = document.createElement("span");
-      text.textContent = c.asset + " · " + c.dim + (c.fraction == null ? "" : " · " + c.fraction);
+      text.textContent = assetName(c.asset) + " · " + c.dim + (c.fraction == null ? "" : " · " + c.fraction);
+      text.title = c.asset;
       var remove = document.createElement("button");
       remove.type = "button";
+      remove.id = "prop-consequence-remove-" + index;
       remove.className = "btn btn-ghost btn-small";
       remove.textContent = "Remove";
       remove.addEventListener("click", function () {
@@ -719,15 +745,20 @@
     if (!assets.length) return;
     var row = document.createElement("div");
     row.className = "consequence-add";
-    var asset = choice(assets.map(function (a) { return [a, a]; }), assets[0]);
+    var asset = choice(assets.map(function (a) { return [a, assetName(a)]; }), assets[0]);
     var dim = choice([["c", "C"], ["i", "I"], ["a", "A"]], "a");
     var fraction = input("number", "");
+    // Ids, so a form drawn again gives the focus back where it was.
+    asset.id = "prop-consequence-asset";
+    dim.id = "prop-consequence-dim";
+    fraction.id = "prop-consequence-fraction";
     fraction.placeholder = "1";
     fraction.setAttribute("aria-label", "Fraction");
     asset.setAttribute("aria-label", "Asset");
     dim.setAttribute("aria-label", "Dimension");
     var add = document.createElement("button");
     add.type = "button";
+    add.id = "prop-consequence-add";
     add.className = "btn btn-ghost btn-small";
     add.textContent = "Add";
     add.addEventListener("click", function () {
@@ -752,6 +783,7 @@
     });
     var summary = document.createElement("summary");
     summary.textContent = "More";
+    summary.id = "prop-more";
     details.appendChild(summary);
     var inner = document.createElement("div");
     inner.className = "properties-inner";
@@ -764,7 +796,9 @@
     idField.classList.add("mono");
     idField.title = "The name this node has in the YAML; made from its first label";
     idField.addEventListener("change", function () {
-      apply(E.setId(doc(), id, idField.value)).then(function (applied) {
+      var next = E.slug(idField.value);
+      var why = E.slug("a " + idField.value) === "a" ? "an id needs a letter or a digit" : next === id ? "that changes nothing" : "the id “" + next + "” is taken";
+      apply(E.setId(doc(), id, idField.value), null, why).then(function (applied) {
         if (!applied) idField.value = id;
       });
     });
@@ -823,6 +857,7 @@
       every.min = 0; every.placeholder = "e.g. 10";
       var per = choice([["h", "hours"], ["d", "days"], ["y", "years"]], mean ? mean.unit : "y");
       per.setAttribute("aria-label", "Unit");
+      per.id = "prop-every-unit";
       row.appendChild(every);
       row.appendChild(per);
       var l = document.createElement("label");
@@ -1030,12 +1065,9 @@
 
   var openAsset = null;
 
-  // An asset edit leaves the selection where it was.
+  // An asset edit leaves the selection where it was (apply keeps its edge).
   function applyAsset(edit, then) {
-    if (edit) {
-      edit.select = selected();
-      edit.parent = app.state.parent;
-    }
+    if (edit) edit.select = selected();
     return apply(edit, then);
   }
 
