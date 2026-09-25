@@ -34,10 +34,6 @@ effractor            # http://127.0.0.1:8080
 effractor --bind 0.0.0.0:9000
 ```
 
-The [sample collection](assets/examples/README.md) includes twelve fault and attack
-trees across different domains, plus a playful date-night bonus. Download a YAML
-file and use **Open** in the app. The files ship with both the server and static site.
-
 The [course walkthrough](docs/course/README.md) includes fault-tree and attack-tree
 files, timing explanations, and a step-by-step analysis exercise.
 
@@ -62,8 +58,8 @@ These references describe the methods; they do not establish DIN/IEC conformity.
 
 ## Status
 
-Early. What is left is in [ROADMAP.md](ROADMAP.md); what it is meant to be is in
-the [design](docs/superpowers/specs/2026-09-20-effractor-v1-design.md).
+Early. What is left is in [ROADMAP.md](ROADMAP.md); where things stand is in
+[docs/HANDOFF.md](docs/HANDOFF.md).
 
 ## Build
 

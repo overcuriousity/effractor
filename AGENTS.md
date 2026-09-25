@@ -9,7 +9,9 @@ Read, in this order, before changing anything:
 3. `docs/HANDOFF.md` — where things stand, how the owner wants the UI, how UI
    work is verified (the owner looks; do not drive their browser), and the
    mistakes already made once.
-4. `docs/superpowers/specs/2026-09-20-effractor-v1-design.md` — the design.
+4. `docs/superpowers/specs/` — the design of what is still to be built. Specs
+   and plans of what is built are deleted once built; `docs/HANDOFF.md` lists
+   them and how to read them from history (code comments cite their sections).
 
 Checks: `npm test`, `cargo test --workspace`, `cargo fmt --all --check`,
 `cargo clippy --workspace --all-targets -- -D warnings`,

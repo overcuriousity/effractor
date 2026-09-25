@@ -355,16 +355,16 @@ fn every_lecture_step_has_exactly_its_prerequisites() {
 }
 
 #[test]
-fn every_rule_is_used_by_a_shipped_file_and_names_what_it_bound() {
-    const SHIPPED: [&str; 5] = [
-        include_str!("../../../assets/examples/14-branch-office-architecture.yaml"),
-        include_str!("../../../assets/examples/15-web-shop-architecture.yaml"),
-        include_str!("../../../assets/examples/16-clinic-records-architecture.yaml"),
-        include_str!("../../../assets/examples/17-cloud-support-agent-architecture.yaml"),
-        include_str!("../../../assets/examples/18-self-hosted-nextcloud-architecture.yaml"),
+fn every_rule_is_used_by_a_fixture_and_names_what_it_bound() {
+    const FIXTURES: [&str; 5] = [
+        include_str!("fixtures/architectures/branch-office.yaml"),
+        include_str!("fixtures/architectures/web-shop.yaml"),
+        include_str!("fixtures/architectures/clinic-records.yaml"),
+        include_str!("fixtures/architectures/cloud-support-agent.yaml"),
+        include_str!("fixtures/architectures/self-hosted-nextcloud.yaml"),
     ];
     let mut used: BTreeSet<String> = BTreeSet::new();
-    for text in std::iter::once(LECTURE).chain(SHIPPED) {
+    for text in std::iter::once(LECTURE).chain(FIXTURES) {
         let g = generate(&architecture(text)).unwrap();
         used.extend(
             g.nodes

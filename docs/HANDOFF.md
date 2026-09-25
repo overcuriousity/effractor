@@ -5,6 +5,28 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Repository cleanup (2026-09-25)
+
+At the owner's word, specs and plans of what is built were deleted, and so
+were all shipped examples (to be renewed in another session).
+
+- **Deleted specs and plans**, all built: v1 design (trees, sharing, charts,
+  Pareto; v1 accepted), readable time notation, library extension, nmap import
+  (routers, checks, network choice included), clustering. Code comments and
+  the sections below still cite them ("spec §4.2", "clustering spec §5.3");
+  read them from history, e.g.
+  `git show 9bbfa73:docs/superpowers/specs/2026-09-24-clustering-design.md`
+  (`git show 9bbfa73 --stat -- docs/superpowers` lists them). The nmap spec's
+  last amendment (the network row) is in `ec9dd1e`.
+- **Kept:** the lecture-workflow spec and plan: Task 8 (course docs,
+  `LECTURE-ACCEPTANCE.md`, `check-graph-performance.js`, the owner's
+  walkthrough) is not done and `lecture-workflow` is on the roadmap.
+- **Examples:** `assets/examples/` is gone (fault/attack trees 01–13, the
+  catalog). The five architectures 14–18 are test fixtures now,
+  `crates/effractor-components/tests/fixtures/architectures/` — they are what
+  proves every generation rule is used, and two graph-agreement cases. The
+  share and notation tests read the templates and course files instead.
+
 ## Continuation — full code review (2026-09-25)
 
 The owner asked for a review of the whole application with every finding

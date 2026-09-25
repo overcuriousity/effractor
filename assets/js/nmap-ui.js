@@ -1,5 +1,5 @@
-// The nmap dialog (docs/superpowers/specs/2026-09-24-nmap-import-design.md
-// §3): choose a level, copy the command, paste the XML, tick the preview,
+// The nmap dialog (the nmap import design §3, in history: see
+// docs/HANDOFF.md): choose a level, copy the command, paste the XML, tick the preview,
 // add. What it decides is nmap.js's; this file only shows it. Everything
 // from a scan is set as text.
 (function () {

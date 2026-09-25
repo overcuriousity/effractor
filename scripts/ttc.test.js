@@ -117,8 +117,10 @@ test('no page copy or example tells people to write a refused spelling', () => {
   for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
     assert.doesNotMatch(fs.readFileSync(path.join(dir, f), 'utf8'), refused, f);
   }
-  const ex = path.join(__dirname, '../assets/examples');
-  for (const f of fs.readdirSync(ex).filter(f => f.endsWith('.yaml'))) {
-    assert.doesNotMatch(fs.readFileSync(path.join(ex, f), 'utf8'), /\b(Infinity|Bernoulli)\b/, f);
+  for (const dir of ['../assets/templates', '../docs/course']) {
+    const ex = path.join(__dirname, dir);
+    for (const f of fs.readdirSync(ex).filter(f => f.endsWith('.yaml'))) {
+      assert.doesNotMatch(fs.readFileSync(path.join(ex, f), 'utf8'), /\b(Infinity|Bernoulli)\b/, f);
+    }
   }
 });

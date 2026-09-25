@@ -1,8 +1,9 @@
 # Roadmap
 
-Remaining work for effractor, as a DAG. The existing tree profiles are specified
-in `docs/superpowers/specs/2026-09-20-effractor-v1-design.md`; the approved
-successor design is linked below. How work lands is in `CONTRIBUTING.md`.
+Remaining work for effractor, as a DAG. The approved successor design is linked
+below; the specs of what is built were removed once built (2026-09-25) and are
+read from history (`docs/HANDOFF.md` says how). How work lands is in
+`CONTRIBUTING.md`.
 
 Approved successor spec:
 [`2026-09-21-lecture-workflow-design.md`](docs/superpowers/specs/2026-09-21-lecture-workflow-design.md).

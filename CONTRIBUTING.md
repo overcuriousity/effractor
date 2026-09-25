@@ -3,7 +3,9 @@
 **What to work on** is in [ROADMAP.md](ROADMAP.md): a DAG of items with
 `needs`, `cost` and `benefit`. An item is ready when everything it needs has
 been deleted; take the ready item with the best benefit/cost. The design they
-argue from is `docs/superpowers/specs/2026-09-20-effractor-v1-design.md`.
+argue from is in `docs/superpowers/specs/`; a spec and its plan are deleted
+once what they describe is built (they stay readable in history, see
+`docs/HANDOFF.md`).
 
 **How it lands.** One branch per item, built test-first. The PR that completes
 an item deletes it from the roadmap (`scripts/dev/roadmap-done.py <id>`).

@@ -15,11 +15,11 @@ const unknown = fs.readFileSync(
   'utf8',
 );
 const cloud = fs.readFileSync(
-  path.join(root, 'assets/examples/17-cloud-support-agent-architecture.yaml'),
+  path.join(root, 'crates/effractor-components/tests/fixtures/architectures/cloud-support-agent.yaml'),
   'utf8',
 );
 const nextcloud = fs.readFileSync(
-  path.join(root, 'assets/examples/18-self-hosted-nextcloud-architecture.yaml'),
+  path.join(root, 'crates/effractor-components/tests/fixtures/architectures/self-hosted-nextcloud.yaml'),
   'utf8',
 );
 

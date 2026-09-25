@@ -66,20 +66,6 @@ The TTC picker explains its presets and retains custom expressions:
 Control effects replace a leaf's TTC while the control is enabled; the same
 preset meanings apply there.
 
-## Beyond the lecture
-
-The lecture's ideas — identities, people, content-processing software and data
-as a target — carry into a small transparent component library for
-architectures. Open these from the app's Examples:
-
-- [Cloud support agent](../../assets/examples/17-cloud-support-agent-architecture.yaml)
-  — an AI support agent reading a public queue, a phishable administrator with
-  MFA, role assumption, a VM escape to a key and a shared product.
-- [Self-hosted Nextcloud](../../assets/examples/18-self-hosted-nextcloud-architecture.yaml)
-  — an adversary AI agent from a remote network reaches a file on a Nextcloud
-  instance through OPNsense/HAProxy and nginx; compare patching the edge proxy,
-  patching the application and encrypting the volume at rest.
-
 ## Sharing and installation
 
 Share creates an encrypted immutable snapshot. Open the link in another browser

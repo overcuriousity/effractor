@@ -1,5 +1,5 @@
-// nmap results into the architecture (docs/superpowers/specs/
-// 2026-09-24-nmap-import-design.md): the commands the dialog offers, the XML
+// nmap results into the architecture (the nmap import design, in history:
+// see docs/HANDOFF.md): the commands the dialog offers, the XML
 // they print read into a scan, the preview planned against the document, and
 // the ticked rows applied as one edit with the contract of
 // architecture-edit.js. Pure: no DOM, no wasm; wasm says whether the result

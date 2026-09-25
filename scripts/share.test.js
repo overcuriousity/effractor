@@ -18,9 +18,11 @@ test('self-contained links preserve Unicode YAML in a versioned fragment at the 
   assert.equal(await share.inlineText(link.hash), text);
 });
 
-test('every shipped example fits a self-contained link and round-trips exactly', async () => {
-  for (const name of readdirSync('assets/examples').filter(name => name.endsWith('.yaml'))) {
-    const yaml = readFileSync('assets/examples/' + name, 'utf8');
+test('every template and course file fits a self-contained link and round-trips exactly', async () => {
+  const files = ['assets/templates', 'docs/course'].flatMap(dir =>
+    readdirSync(dir).filter(name => name.endsWith('.yaml')).map(name => dir + '/' + name));
+  for (const name of files) {
+    const yaml = readFileSync(name, 'utf8');
     const link = await share.inlineLink(yaml, 'https://overcuriousity.github.io/effractor/');
     assert.ok(link.length <= 8192, name);
     assert.equal(await share.inlineText(new URL(link).hash), yaml, name);

@@ -1,5 +1,5 @@
-//! The shipped architecture examples open cleanly, are canonical, and show
-//! what the examples README says they show.
+//! The architecture fixtures (once the shipped examples) open cleanly, are
+//! canonical, and show what each was built to show.
 
 use effractor_components::generate;
 use effractor_core::Document;
@@ -7,13 +7,18 @@ use effractor_core::architecture::Architecture;
 use effractor_solver::graph_results::{GraphConfig, GraphSolve};
 use serde_json::Value;
 
-const BRANCH: &str = include_str!("../../../assets/examples/14-branch-office-architecture.yaml");
-const SHOP: &str = include_str!("../../../assets/examples/15-web-shop-architecture.yaml");
-const CLINIC: &str = include_str!("../../../assets/examples/16-clinic-records-architecture.yaml");
-const CLOUD: &str =
-    include_str!("../../../assets/examples/17-cloud-support-agent-architecture.yaml");
-const NEXTCLOUD: &str =
-    include_str!("../../../assets/examples/18-self-hosted-nextcloud-architecture.yaml");
+const BRANCH: &str =
+    include_str!("../../effractor-components/tests/fixtures/architectures/branch-office.yaml");
+const SHOP: &str =
+    include_str!("../../effractor-components/tests/fixtures/architectures/web-shop.yaml");
+const CLINIC: &str =
+    include_str!("../../effractor-components/tests/fixtures/architectures/clinic-records.yaml");
+const CLOUD: &str = include_str!(
+    "../../effractor-components/tests/fixtures/architectures/cloud-support-agent.yaml"
+);
+const NEXTCLOUD: &str = include_str!(
+    "../../effractor-components/tests/fixtures/architectures/self-hosted-nextcloud.yaml"
+);
 
 fn open(text: &str) -> Architecture {
     let (_, diagnostics) = effractor_format::diagnose_document(text);
