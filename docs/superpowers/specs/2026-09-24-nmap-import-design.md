@@ -240,6 +240,12 @@ summary counts these attachments. A flow's
 route is the first network nmap's host and the target share after the
 import; when nmap's host is left unticked, its flows have no route.
 
+The plan can instead take a drawn network without `addresses` as the
+proposed one (`merges.network`, like a host's merge): its empty `addresses`
+are filled and hosts are attached to it, so the network is not drawn twice.
+The default stays a new network; the preview does not offer the choice yet
+(open question for the owner, review 2026-09-25).
+
 ### 4.3 Services and products
 
 Each port with `<state state="open">` is a candidate; `open|filtered`,

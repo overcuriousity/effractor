@@ -423,6 +423,10 @@
     var proposed = cidr && !networks.some(function (n) {
       return (doc.entities[n].addresses || []).some(function (c) { return networkOf(c) === cidr; });
     }) ? { label: cidr, addresses: [cidr] } : null;
+    // A drawn network without addresses may be the proposed one, when the
+    // author says so (merges.network): it is filled instead of drawn twice.
+    var netCandidates = networks.filter(function (n) { return !(doc.entities[n].addresses || []).length; });
+    if (proposed && has(merges, "network") && netCandidates.indexOf(merges.network) >= 0) proposed.merged = merges.network;
     var products = Object.create(null);
     ids(doc, "product").forEach(function (p) { products[doc.entities[p].label] = products[doc.entities[p].label] || p; });
 
@@ -461,6 +465,7 @@
     // Where each one is attached that it is not yet: every network whose
     // range holds one of its addresses, else the proposed one.
     var usedNew = false;
+    var into = proposed ? proposed.merged || "new" : null;
     rows.forEach(function (r) {
       var target = r.known || r.merged;
       var have = target ? attachedNetworks(doc, target) : [];
@@ -469,7 +474,11 @@
           return r.scan.addresses.some(function (a) { return inCidr(a, c); });
         });
       });
-      if (!nets.length && proposed && r.scan.addresses.some(function (a) { return inCidr(a, cidr); })) nets = ["new"];
+      if (!nets.length && proposed && r.scan.addresses.some(function (a) { return inCidr(a, cidr); })) {
+        nets = [into];
+        // A drawn one is filled even when everyone in it is attached already.
+        if (proposed.merged) usedNew = true;
+      }
       r.networks = nets.filter(function (n) { return have.indexOf(n) < 0; });
       r.on = have.concat(r.networks);
       if (r.networks.indexOf("new") >= 0) usedNew = true;
@@ -531,6 +540,7 @@
       tcpwrapped: tcpwrapped,
       appHost: appHost,
       network: usedNew ? proposed : null,
+      networkCandidates: usedNew ? netCandidates : [],
       candidates: candidates,
       silentUdp: scan.silentUdp || 0,
       hosts: planned,
@@ -675,9 +685,12 @@
   }
 
   function summary(doc, p, ticks, limits) {
-    var s = { hosts: 0, filled: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0 };
+    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0 };
     var rel = 0, newProducts = Object.create(null), marked = Object.create(null);
     var network = !!(p.network && ticks.network);
+    // The proposed network as the rows name it: "new", or the drawn one chosen.
+    var proposed = p.network ? p.network.merged || "new" : null;
+    if (network && p.network.merged) s.filledNetworks = 1;
     var ticked = 0;
     p.hosts.forEach(function (h) {
       if (!ticks.hosts[h.key]) return;
@@ -687,7 +700,7 @@
       // A merge writes the scanned addresses into the drawn host.
       if (h.merged) s.filled++;
       h.networks.forEach(function (n) {
-        if (n === "new" && !network) return;
+        if (n === proposed && !network) return;
         rel++;
         if (n === "new") s.networks = 1;
         if (!added) s.attached++;
@@ -696,7 +709,7 @@
       if (role !== "host") {
         s.routers++;
         // hosts, and one attachment per network the box is on afterwards
-        rel += 1 + h.on.filter(function (n) { return n !== "new" || network; }).length;
+        rel += 1 + h.on.filter(function (n) { return n !== proposed || network; }).length;
         if (role === "firewall") {
           s.firewalls++;
           rel++; // filters
@@ -738,6 +751,7 @@
       return n(x[0], x[1]);
     });
     if (s.filled) parts.push("addresses for " + n(s.filled, "drawn host"));
+    if (s.filledNetworks) parts.push("addresses for " + n(s.filledNetworks, "drawn network"));
     var marks = s.unpatched ? "marks " + n(s.unpatched, "product") + " unpatched" : "";
     if (parts.length) return "Adds " + parts.join(", ") + (marks ? ", " + marks : "") + ".";
     return marks ? marks[0].toUpperCase() + marks.slice(1) + "." : "Nothing new to add.";
@@ -787,7 +801,7 @@
   function apply(doc, p, ticks, specOf, stamp) {
     var s = summary(doc, p, ticks, null);
     var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged; });
-    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.attached && !s.routers && !s.unpatched && !merging) return null;
+    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging) return null;
     var next = JSON.parse(JSON.stringify(doc));
     function step(edit) {
       if (!edit) throw new Error("the nmap import could not be applied");
@@ -801,7 +815,11 @@
     if (s.networks) {
       network = step(A.addEntity(next, "network", p.network.label, specOf("network"))).entity;
       next.entities[network].addresses = p.network.addresses.slice();
+    } else if (s.filledNetworks) {
+      network = p.network.merged;
+      next.entities[network].addresses = p.network.addresses.slice();
     }
+    var skipped = p.network && p.network.merged && !s.filledNetworks ? p.network.merged : null;
     var madeProducts = Object.create(null);
     var flows = [], marks = [];
     p.hosts.forEach(function (h) {
@@ -815,7 +833,7 @@
         next.entities[host].addresses = h.addresses.slice();
       }
       h.networks.forEach(function (n) {
-        var to = n === "new" ? network : n;
+        var to = n === "new" ? network : n === skipped ? null : n;
         if (to) link("attached", host, to);
       });
       var role = roleChosen(h, ticks);

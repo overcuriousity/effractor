@@ -793,6 +793,38 @@ test('past the limits the summary says what to untick: hosts, or ports of the on
   assert.match(N.summary(d, p, t, { entities: 10, relationships: 2000 }).tooMany, /Untick some ports\.$/);
 });
 
+test('a drawn network without addresses may be the proposed one: filled, not drawn twice', () => {
+  const d = lab();
+  delete d.entities.lan.addresses; // admin-box and srv are attached to it
+  const p0 = N.plan(d, 'nmap', deep(), '10.0.1.0/24', {});
+  assert.deepEqual(p0.networkCandidates, ['lan']);
+  assert.ok(!p0.network.merged, 'new unless chosen, as the spec says');
+
+  const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', { network: 'lan' });
+  assert.equal(p.network.merged, 'lan');
+  assert.deepEqual(p.hosts.map(h => h.networks), [[], ['lan']], 'the server is on it already');
+  assert.deepEqual(p.hosts.map(h => h.route), [['lan'], ['lan']]);
+  const t = N.defaults(p);
+  const s = N.summary(d, p, t, null);
+  assert.deepEqual([s.networks, s.filledNetworks, s.attached, s.hosts], [0, 1, 0, 1]);
+  assert.equal(N.said({ hosts: 0, filled: 0, filledNetworks: 1 }), 'Adds addresses for 1 drawn network.');
+  const out = N.apply(d, p, t, specOf, STAMP).doc;
+  assert.equal(Object.values(out.entities).filter(e => e.kind === 'network').length, 1);
+  assert.deepEqual(out.entities.lan.addresses, ['10.0.1.0/24']);
+  const h = Object.keys(out.entities).find(id => out.entities[id].label === '10.0.1.7');
+  assert.ok(Object.values(out.associations).some(a => a.kind === 'attached' && a.from === h && a.to === 'lan'));
+  assert.ok(Object.values(out.flows).every(f => f.route.length === 1 && f.route[0] === 'lan'));
+
+  // Unticked, the drawn network is left as it is and nobody joins it.
+  t.network = false;
+  const s2 = N.summary(d, p, t, null);
+  assert.deepEqual([s2.filledNetworks, s2.attached], [0, 0]);
+  const kept = N.apply(d, p, t, specOf, STAMP).doc;
+  assert.equal(kept.entities.lan.addresses, undefined);
+  // A chosen network with addresses, or not a network, is no choice.
+  assert.ok(!N.plan(d, 'nmap', deep(), '10.0.1.0/24', { network: 'srv' }).network.merged);
+});
+
 test('ticking a host ticks what it offers; all hosts at once', () => {
   const d = lab();
   const p = N.plan(d, 'nmap', deep(), '10.0.1.0/24', {});
