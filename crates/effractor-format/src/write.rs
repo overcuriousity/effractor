@@ -18,6 +18,8 @@ use crate::tree::{Entry, Node, Value};
 /// A list of ids stays on one line up to here, then goes block.
 pub const WIDTH: usize = 80;
 
+/// A tree's word for `value`. The tables name every value (a test holds them
+/// to it); the architecture's words are its enums' own `as_str`.
 pub fn word<T: PartialEq>(words: &[(&'static str, T)], value: &T) -> &'static str {
     words
         .iter()
@@ -374,5 +376,35 @@ fn flow(node: &Node, context: Context) -> String {
             let entries: Vec<String> = entries.iter().map(flow_entry).collect();
             format!("{{{}}}", entries.join(", "))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use effractor_core::{Dim, LeafKind, Profile, TimeUnit};
+
+    use super::word;
+    use crate::lower::{DIMS, LEAVES, PROFILES, TIME_UNITS};
+
+    /// The matches stop compiling when a value is added, which sends whoever
+    /// adds it to its table.
+    #[test]
+    fn every_value_has_a_word() {
+        let profiles = [Profile::FaultTree, Profile::AttackTree].map(|p| match p {
+            Profile::FaultTree | Profile::AttackTree => p,
+        });
+        let units = [TimeUnit::Hours, TimeUnit::Days, TimeUnit::Years].map(|u| match u {
+            TimeUnit::Hours | TimeUnit::Days | TimeUnit::Years => u,
+        });
+        let leaves = [LeafKind::Basic, LeafKind::Undeveloped].map(|l| match l {
+            LeafKind::Basic | LeafKind::Undeveloped => l,
+        });
+        let dims = [Dim::C, Dim::I, Dim::A].map(|d| match d {
+            Dim::C | Dim::I | Dim::A => d,
+        });
+        assert!(profiles.iter().all(|v| !word(&PROFILES, v).is_empty()));
+        assert!(units.iter().all(|v| !word(&TIME_UNITS, v).is_empty()));
+        assert!(leaves.iter().all(|v| !word(&LEAVES, v).is_empty()));
+        assert!(dims.iter().all(|v| !word(&DIMS, v).is_empty()));
     }
 }

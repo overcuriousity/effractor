@@ -10,46 +10,29 @@ use effractor_core::architecture::{
     RelationKind, Scenario, Slot, State, StateRef, Switch, Tool,
 };
 use effractor_core::{Code, EntityId, Pos};
+use std::sync::LazyLock;
+
 use indexmap::IndexMap;
 
 use crate::lower::{Cx, TIME_UNITS};
 use crate::tree::{Entry, Node};
 
-pub const KINDS: [(&str, EntityKind); 11] = [
-    ("network", EntityKind::Network),
-    ("router", EntityKind::Router),
-    ("firewall", EntityKind::Firewall),
-    ("host", EntityKind::Host),
-    ("application", EntityKind::Application),
-    ("service", EntityKind::Service),
-    ("product", EntityKind::Product),
-    ("account", EntityKind::Account),
-    ("credential", EntityKind::Credential),
-    ("person", EntityKind::Person),
-    ("data", EntityKind::Data),
-];
+/// A core enum's words, in its order, from its own names: the one list.
+fn words<T: Copy>(all: &[T], name: fn(T) -> &'static str) -> Vec<(&'static str, T)> {
+    all.iter().map(|&v| (name(v), v)).collect()
+}
+
+static KINDS: LazyLock<Vec<(&str, EntityKind)>> =
+    LazyLock::new(|| words(&EntityKind::ALL, EntityKind::as_str));
+static RELATIONS: LazyLock<Vec<(&str, RelationKind)>> =
+    LazyLock::new(|| words(&RelationKind::ALL, RelationKind::as_str));
+static STATES: LazyLock<Vec<(&str, State)>> = LazyLock::new(|| words(&State::ALL, State::as_str));
+static EVIDENCE: LazyLock<Vec<(&str, Evidence)>> =
+    LazyLock::new(|| words(&Evidence::ALL, Evidence::as_str));
+static DEFENSES: LazyLock<Vec<(&str, Defense)>> =
+    LazyLock::new(|| words(&Defense::ALL, Defense::as_str));
+
 pub const TOOLS: [(&str, Tool); 1] = [("nmap", Tool::Nmap)];
-pub const RELATIONS: [(&str, RelationKind); 19] = [
-    ("attached", RelationKind::Attached),
-    ("hosts", RelationKind::Hosts),
-    ("filters", RelationKind::Filters),
-    ("stores", RelationKind::Stores),
-    ("authenticates", RelationKind::Authenticates),
-    ("authorizes", RelationKind::Authorizes),
-    ("grants", RelationKind::Grants),
-    ("administration", RelationKind::Administration),
-    ("permits", RelationKind::Permits),
-    ("instance-of", RelationKind::InstanceOf),
-    ("runs-as", RelationKind::RunsAs),
-    ("assumes", RelationKind::Assumes),
-    ("knows", RelationKind::Knows),
-    ("operates", RelationKind::Operates),
-    ("delivers", RelationKind::Delivers),
-    ("holds", RelationKind::Holds),
-    ("accesses", RelationKind::Accesses),
-    ("encrypted-with", RelationKind::EncryptedWith),
-    ("reads", RelationKind::Reads),
-];
 pub const PRIVILEGES: [(&str, Privilege); 2] =
     [("user", Privilege::User), ("admin", Privilege::Admin)];
 /// A `hosts` link may also not know its privilege (nmap import spec §4.3);
@@ -59,27 +42,10 @@ pub const HOSTING_PRIVILEGES: [(&str, Privilege); 3] = [
     ("admin", Privilege::Admin),
     ("unknown", Privilege::Unknown),
 ];
-pub const STATES: [(&str, State); 9] = [
-    ("access", State::Access),
-    ("user", State::User),
-    ("admin", State::Admin),
-    ("control", State::Control),
-    ("possessed", State::Possessed),
-    ("contacted", State::Contacted),
-    ("deceived", State::Deceived),
-    ("read", State::Read),
-    ("modified", State::Modified),
-];
 pub const SWITCHES: [(&str, Switch); 3] = [
     ("unknown", Switch::Unknown),
     ("true", Switch::On),
     ("false", Switch::Off),
-];
-pub const EVIDENCE: [(&str, Evidence); 4] = [
-    ("unknown", Evidence::Unknown),
-    ("illustrative", Evidence::Illustrative),
-    ("assumed", Evidence::Assumed),
-    ("calibrated", Evidence::Calibrated),
 ];
 /// The fields an association may carry beside kind/from/to/description.
 const EXTRAS: [&str; 6] = [
@@ -90,33 +56,21 @@ const EXTRAS: [&str; 6] = [
     "decrypts",
     "mode",
 ];
+const ASSOCIATION_KEYS: [&str; 10] = [
+    "kind",
+    "from",
+    "to",
+    EXTRAS[0],
+    EXTRAS[1],
+    EXTRAS[2],
+    EXTRAS[3],
+    EXTRAS[4],
+    EXTRAS[5],
+    "description",
+];
 pub const MODES: [(&str, Mode); 2] = [("read", Mode::Read), ("write", Mode::Write)];
 pub const BOOLS: [(&str, bool); 2] = [("true", true), ("false", false)];
 pub const FACTORS: [(&str, Factor); 2] = [("first", Factor::First), ("second", Factor::Second)];
-pub const SLOTS: [(&str, Slot); 14] = [
-    ("connect", Slot::Connect),
-    ("find-exploit", Slot::FindExploit),
-    ("find-exploit-patched", Slot::FindExploitPatched),
-    ("deploy-exploit", Slot::DeployExploit),
-    ("login", Slot::Login),
-    ("extract", Slot::Extract),
-    ("extract-protected", Slot::ExtractProtected),
-    ("admin-login", Slot::AdminLogin),
-    ("escape", Slot::Escape),
-    ("mfa-bypass", Slot::MfaBypass),
-    ("phish", Slot::Phish),
-    ("phish-trained", Slot::PhishTrained),
-    ("take-over", Slot::TakeOver),
-    ("take-over-guarded", Slot::TakeOverGuarded),
-];
-pub const DEFENSES: [(&str, Defense); 6] = [
-    ("patched", Defense::Patched),
-    ("protected", Defense::Protected),
-    ("mfa", Defense::Mfa),
-    ("trained", Defense::Trained),
-    ("guarded", Defense::Guarded),
-    ("encrypted", Defense::Encrypted),
-];
 
 pub fn document(cx: &mut Cx, root: &Node) -> Option<Architecture> {
     let f = cx.fields(
@@ -333,7 +287,7 @@ fn parameters(
     let mut map = IndexMap::new();
     let mut ok = true;
     for e in &f.entries {
-        let Some((_, slot)) = SLOTS.iter().find(|(w, _)| *w == e.key) else {
+        let Some(slot) = allowed.iter().find(|s| s.as_str() == e.key) else {
             continue;
         };
         match parameter(cx, e, &f.path(&e.key)) {
@@ -373,7 +327,8 @@ fn defenses(cx: &mut Cx, entry: &Entry, path: &str, kind: EntityKind) -> Option<
     let none = format!("a {} has no defence", kind.as_str());
     let f = cx.fields_or(&entry.value, path, entry.key_pos, &allowed, &none)?;
     let mut defenses = Defenses::default();
-    for (word, defense) in DEFENSES {
+    for defense in Defense::ALL {
+        let word = defense.as_str();
         if let Some(e) = f.get(word) {
             let value = cx.word(&e.value, &f.path(word), &SWITCHES)?;
             defenses.set(defense, Some(value));
@@ -383,23 +338,7 @@ fn defenses(cx: &mut Cx, entry: &Entry, path: &str, kind: EntityKind) -> Option<
 }
 
 fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
-    let f = cx.fields(
-        &entry.value,
-        path,
-        entry.key_pos,
-        &[
-            "kind",
-            "from",
-            "to",
-            "privilege",
-            "allowed",
-            "factor",
-            "contained",
-            "decrypts",
-            "mode",
-            "description",
-        ],
-    )?;
+    let f = cx.fields(&entry.value, path, entry.key_pos, &ASSOCIATION_KEYS)?;
     let kind = cx
         .required(&f, "kind")
         .and_then(|e| cx.word(&e.value, &f.path("kind"), &RELATIONS));
