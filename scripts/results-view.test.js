@@ -65,6 +65,21 @@ test("whatever is missing or cut short is said, with the solver's reason", () =>
   assert.ok(!reasons(partial).some((r) => r.includes("no controls")));
 });
 
+test("a diagram with no room for Fussell-Vesely says so; Birnbaum stays", () => {
+  const results = { exact: { available: { p_top: 0.1, fussell_vesely_unavailable: "Fussell–Vesely gave up: NodeLimit(12)" } } };
+  assert.deepEqual(reasons(results), ["Fussell–Vesely gave up: NodeLimit(12)"]);
+});
+
+test("a control whose flip has no numbers carries the solver's reason", () => {
+  const doc = { controls: { mfa: { enabled: true, effects: [{}] } } };
+  const results = { controls: { available: { controls: [
+    { id: "mfa", enabled: true, flipped: null, value: null, value_ci: null, value_per_cost: null, rank: null, unavailable: "switched off, it leaves no distribution on: a" },
+  ] } } };
+  const [row] = view.controlRows(doc, results);
+  assert.equal(row.unavailable, "switched off, it leaves no distribution on: a");
+  assert.equal(row.rank, null);
+});
+
 test("a node's facts are what the solver said about it", () => {
   assert.deepEqual(nodeFacts(snapshot, "server"), [
     ["P within horizon", "0.0217"],
