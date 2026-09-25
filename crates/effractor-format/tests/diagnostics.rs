@@ -308,3 +308,20 @@ fn a_mistaken_expression_is_named_at_its_column() {
         diagnostics[0].message
     );
 }
+
+#[test]
+fn a_map_with_many_keys_is_checked_for_duplicates_in_one_pass() {
+    // Every key compared with every other took seconds at this size.
+    let keys: String = (0..200_000).map(|i| format!("k{i}: {i}, ")).collect();
+    let text = doc(&format!(
+        "  t: {{label: T, leaf: basic, p: 0.5, x-many: {{{keys}k7: again}}}}\n"
+    ));
+    let started = std::time::Instant::now();
+    let all = report(&text);
+    assert!(started.elapsed().as_secs() < 20, "{:?}", started.elapsed());
+    assert_eq!(all.len(), 1, "{all:?}");
+    assert_eq!(
+        (all[0].0, all[0].1.as_str()),
+        ("duplicate-key", "nodes.t.x-many.k7")
+    );
+}

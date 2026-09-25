@@ -5,7 +5,7 @@
 //! problem, so it keeps going with whatever it could read; the caller discards
 //! the model if any error was reported.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
 use effractor_core::{
@@ -130,9 +130,10 @@ impl Cx {
             self.wrong_type(node, path, want);
             return None;
         };
+        let mut keys: HashSet<&str> = HashSet::with_capacity(entries.len());
         let mut seen: Vec<&Entry> = Vec::with_capacity(entries.len());
         for entry in entries {
-            if seen.iter().any(|e| e.key == entry.key) {
+            if !keys.insert(entry.key.as_str()) {
                 let message = format!("`{}` is written twice", entry.key);
                 self.error(
                     Code::DuplicateKey,
