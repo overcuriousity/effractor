@@ -1,6 +1,6 @@
 name: pages
 
-# Independent of binary releases: documentation-only pushes also deploy.
+# Beside the binary release, behind the same gate.
 on:
   push:
     branches: [master]
@@ -17,7 +17,30 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  gate:
+    # As in release.yml: only a commit whose pull request passed ci is
+    # deployed. A documentation-only push has no ci run and deploys nothing —
+    # the site is the app, so the one already live is still the right one.
+    # Such a push is skipped, not failed: nothing is wrong with it.
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      tested: ${{ steps.ci.outputs.tested }}
+    steps:
+      - name: this commit passed ci
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          green=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml \
+            --commit "$GITHUB_SHA" --status success --json databaseId --jq length)
+          echo "successful ci runs for $GITHUB_SHA: $green"
+          if [ "$green" -ge 1 ]; then echo "tested=true" >> "$GITHUB_OUTPUT"; fi
+
   build:
+    needs: gate
+    if: needs.gate.outputs.tested == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -27,6 +50,11 @@ jobs:
           key: pages
       - uses: actions/configure-pages@v5
       - run: scripts/build-wasm.sh --fetch-cli
+      # The footer shows the same stamp as the release binary.
+      - name: version
+        run: |
+          base=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "effractor-server") | .version')
+          echo "EFFRACTOR_VERSION=$base+$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
       - run: scripts/build-site.sh
       - uses: actions/upload-pages-artifact@v4
         with:

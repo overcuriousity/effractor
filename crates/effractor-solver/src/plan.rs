@@ -1,7 +1,7 @@
 //! The model, flattened once: everything reachable from top, children before
 //! parents, leaves numbered in the order every analysis uses.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use effractor_core::{Gate, Model, NodeId, NodeKind};
 
@@ -39,10 +39,10 @@ impl Plan {
             ids: vec![],
             index: HashMap::new(),
         };
-        let mut on_path: HashMap<&NodeId, ()> = HashMap::new();
+        let mut on_path: HashSet<&NodeId> = HashSet::new();
         let (top, _) = model.nodes.get_key_value(&model.top).ok_or(InvalidModel)?;
         let mut path: Vec<(&NodeId, usize)> = vec![(top, 0)];
-        on_path.insert(top, ());
+        on_path.insert(top);
         while let Some((id, next)) = path.last_mut() {
             let id = *id;
             let children: &[NodeId] = match &model.nodes[id].kind {
@@ -55,7 +55,7 @@ impl Plan {
                 if plan.index.contains_key(child) {
                     continue;
                 }
-                if on_path.insert(child, ()).is_some() {
+                if !on_path.insert(child) {
                     return Err(InvalidModel);
                 }
                 path.push((child, 0));

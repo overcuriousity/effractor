@@ -59,6 +59,27 @@ fn version_one_trees_migrate_by_version_alone_and_cannot_hold_an_architecture() 
     assert_eq!(errors[0].code, effractor_core::Code::Unsupported);
     assert_eq!(errors[1].code, effractor_core::Code::UnknownLibrary);
 
+    // The first `profile` is the one that counts, to the tree-only readers
+    // too: a second is a duplicate, not an architecture.
+    let webserver = include_str!("fixtures/canonical/webserver.yaml");
+    let twice = webserver.replacen(
+        "profile: fault-tree\n",
+        "profile: fault-tree\nprofile: architecture\n",
+        1,
+    );
+    let errors = effractor_format::load(&twice).unwrap_err();
+    assert_eq!(
+        errors[0].code,
+        effractor_core::Code::DuplicateKey,
+        "{errors:?}"
+    );
+    assert!(
+        errors
+            .iter()
+            .all(|d| d.code != effractor_core::Code::Unsupported),
+        "{errors:?}"
+    );
+
     // A version this build does not know is refused, whatever the profile.
     let future = EMPTY.replacen("effractor: 2", "effractor: 3", 1);
     assert_eq!(
@@ -1300,6 +1321,11 @@ fn data_holdings_access_keys_and_readers_round_trip() {
     // An unsaid `decrypts` loads (it is incomplete, not unreadable).
     let unsaid = text.replace("    decrypts: false\n", "");
     assert_eq!(canonicalize(&unsaid).unwrap(), unsaid);
+    // Quoted, as some links shared since 2026-09-24 may say it: read, and
+    // written bare. (`closed` and `enabled` never took quotes.)
+    let quoted = text.replace("    decrypts: false\n", "    decrypts: \"false\"\n");
+    assert_ne!(quoted, text);
+    assert_eq!(canonicalize(&quoted).unwrap(), text);
     for (from, to, path, code) in [
         (
             "mode: write",
@@ -1639,4 +1665,130 @@ fn a_closed_cluster_may_show_members_beside_it() {
         let errors = errors_of(&image);
         assert!(has(&errors, "cardinality", path), "{path}: {errors:?}");
     }
+}
+
+/// Every id in `image` renamed, keys and values alike.
+fn renamed(image: &serde_json::Value, names: &[(&str, &str)]) -> serde_json::Value {
+    let mut json = image.to_string();
+    for (old, new) in names {
+        json = json.replace(&format!("\"{old}\""), &format!("\"{new}\""));
+    }
+    serde_json::from_str(&json).unwrap()
+}
+
+#[test]
+fn ids_that_yaml_would_read_as_something_else_are_quoted_where_they_are_values() {
+    // `slug("Null")` is `null`: a valid id, and nothing at all when bare.
+    let mut image = image(LECTURE);
+    clustered(&mut image);
+    let image = renamed(
+        &image,
+        &[
+            ("allow-ssh", "null"),
+            ("openssh", "yes"),
+            ("ssh-client", "on"),
+            ("sshd", "off"),
+            ("bridge-fw", "true"),
+            ("bridge", "y"),
+            ("ssh", "false"),
+            ("workstation", "n"),
+            ("server", "no"),
+        ],
+    );
+    let text = from_document(&image).unwrap();
+    for line in [
+        "    to: \"yes\"\n",
+        "    to: \"false\"\n",
+        "    from: \"true\"\n",
+        "    source: \"on\"\n",
+        "    target: \"off\"\n",
+        "    route: [client-net, \"y\", server-net]\n",
+        "    members: [\"n\", \"on\"]\n",
+        "    - {entity: \"n\", state: admin}\n",
+        "  target: {entity: \"no\", state: admin}\n",
+        "      - {association: \"null\", field: allowed, value: false}\n",
+    ] {
+        assert!(text.contains(line), "{line:?} in {text}");
+    }
+    // Keys stay bare: a key is text whatever it looks like.
+    assert!(text.contains("\n  null:\n    kind: permits\n"), "{text}");
+    load_document(&text).unwrap();
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    assert_eq!(self::image(&text), image);
+}
+
+#[test]
+fn extensions_survive_where_a_kind_has_no_parameters_or_defence() {
+    // A network has neither: its maps hold only what an editor put there.
+    let mut image = image(LECTURE);
+    image["entities"]["client-net"]["parameters"] = serde_json::json!({"x-a": 1});
+    image["entities"]["client-net"]["defenses"] = serde_json::json!({"x-b": 2});
+    let text = from_document(&image).unwrap();
+    assert!(
+        text.contains(
+            "    label: Client network\n    parameters:\n      x-a: 1\n    defenses: {x-b: 2}\n"
+        ),
+        "{text}"
+    );
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    assert_eq!(self::image(&text), image);
+}
+
+#[test]
+fn every_problem_in_one_association_is_reported_at_once() {
+    let cases = [
+        (
+            serde_json::json!({"kind": "linked", "from": "server", "to": "Bad Id"}),
+            vec![("wrong-type", "kind"), ("invalid-id", "to")],
+        ),
+        (
+            serde_json::json!({"kind": "attached", "from": "Bad Id", "to": "Also Bad"}),
+            vec![("invalid-id", "from"), ("invalid-id", "to")],
+        ),
+        (
+            serde_json::json!({"kind": "attached", "from": "Bad Id", "to": "server-net", "mode": "read"}),
+            vec![("invalid-id", "from"), ("misplaced-key", "mode")],
+        ),
+        (
+            serde_json::json!({"kind": "permits", "from": "Bad Id", "to": "Bad Flow", "allowed": true}),
+            vec![("invalid-id", "from"), ("invalid-id", "to")],
+        ),
+        (
+            serde_json::json!({"kind": "hosts", "from": "server", "privilege": "root"}),
+            vec![("missing-key", "to"), ("wrong-type", "privilege")],
+        ),
+    ];
+    for (association, want) in cases {
+        let mut image = image(LECTURE);
+        image["associations"]["a"] = association;
+        let errors = errors_of(&image);
+        for (code, key) in want {
+            let path = format!("associations.a.{key}");
+            assert!(has(&errors, code, &path), "{code} at {path}: {errors:?}");
+        }
+    }
+}
+
+#[test]
+fn a_kind_without_parameters_or_defence_says_so() {
+    let mut image = image(LECTURE);
+    image["entities"]["client-net"]["parameters"] =
+        serde_json::json!({"login": {"status": "unknown"}});
+    image["entities"]["client-net"]["defenses"] = serde_json::json!({"patched": true});
+    let errors = from_document(&image).unwrap_err();
+    let message = |path: &str| {
+        errors
+            .iter()
+            .find(|d| d.path == path)
+            .map(|d| d.message.clone())
+            .unwrap_or_else(|| panic!("{path}: {errors:?}"))
+    };
+    assert_eq!(
+        message("entities.client-net.parameters.login"),
+        "`login` is not a key here; a network has no parameters"
+    );
+    assert_eq!(
+        message("entities.client-net.defenses.patched"),
+        "`patched` is not a key here; a network has no defence"
+    );
 }

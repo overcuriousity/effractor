@@ -58,11 +58,11 @@ fn a_quoted_scalar_is_a_string_and_stays_one() {
 #[test]
 fn an_edit_in_json_is_an_edit_in_the_text() {
     let mut d = doc(WEBSERVER);
-    d["analysis"]["samples"] = json!(500000);
+    d["analysis"]["samples"] = json!(50000);
     d["controls"]["redundant-psu"]["enabled"] = json!(true);
     d["nodes"]["malware"]["x-note"] = json!({"seen": [2024, 2025], "by": "SOC"});
     let text = from_document(&d).unwrap();
-    assert!(text.contains("  samples: 500000\n"));
+    assert!(text.contains("  samples: 50000\n"));
     assert!(text.contains("    enabled: true\n"));
     assert!(text.contains("    x-note: {seen: [2024, 2025], by: SOC}\n"));
     assert_eq!(canonicalize(&text).unwrap(), text);
@@ -104,6 +104,45 @@ fn whole_numbers_too_big_for_javascript_travel_as_strings() {
 }
 
 #[test]
+fn a_bare_scalar_is_a_number_only_if_it_comes_back_as_written() {
+    let text = WEBSERVER
+        .replace("label: Malware", "label: 007")
+        .replace("label: Hardware defect", "label: 1.50")
+        .replace(
+            "  confidence: 0.95\n",
+            "  confidence: 0.95\n  x-a: 007\n  x-b: 1.50\n  x-c: 12345678901234567890\n  x-d: 42\n  x-e: 2.5e-6\n",
+        );
+    let d = doc(&text);
+    assert_eq!(d["nodes"]["malware"]["label"], json!("007"));
+    assert_eq!(d["nodes"]["hardware"]["label"], json!("1.50"));
+    let analysis = &d["analysis"];
+    assert_eq!(analysis["x-a"], json!("007"));
+    assert_eq!(analysis["x-b"], json!("1.50"));
+    assert_eq!(analysis["x-c"], json!("12345678901234567890"));
+    assert_eq!(analysis["x-d"], json!(42));
+    assert_eq!(analysis["x-e"], json!(2.5e-6));
+    // What a label says is what it says after an edit elsewhere.
+    let back = from_document(&d).unwrap();
+    assert!(back.contains("    label: \"007\"\n"), "{back}");
+    assert!(back.contains("    label: \"1.50\"\n"), "{back}");
+    assert!(back.contains("  x-a: \"007\"\n  x-b: \"1.50\"\n"), "{back}");
+    assert_eq!(doc(&back), d);
+}
+
+#[test]
+fn a_number_written_another_way_is_still_a_number_in_the_image() {
+    // The image is of the canonical text, where every number is written
+    // one way; a hand-written file's `8760.0` or `4e-3` is still a number.
+    let text = WEBSERVER
+        .replace("horizon: 8760", "horizon: 8760.0")
+        .replace("p: 0.004", "p: 4e-3");
+    let d = doc(&text);
+    assert_eq!(d["horizon"], json!(8760));
+    assert_eq!(d["nodes"]["malware"]["p"], json!(0.004));
+    assert_eq!(from_document(&d).unwrap(), WEBSERVER);
+}
+
+#[test]
 fn an_invalid_text_has_no_image() {
     let (d, diagnostics) = document("effractor: 1\nprofile: fault-tree\n");
     assert!(d.is_none());
@@ -124,6 +163,56 @@ fn json_this_format_cannot_hold() {
         from_document(&d).unwrap_err()[0].code.as_str(),
         "unsupported"
     );
+}
+
+/// JSON and text agree on how long a key may be.
+#[test]
+fn json_and_text_share_one_key_limit() {
+    for (key, fits) in [
+        (format!("x-{}", "a".repeat(254)), true),
+        (format!("x-{}", "a".repeat(255)), false),
+        (format!("x-{}", "\u{1}".repeat(166)), true),
+        (format!("x-{}", "\u{1}".repeat(167)), false),
+    ] {
+        let mut d = doc(WEBSERVER);
+        d["analysis"][&key] = json!(1);
+        match from_document(&d) {
+            Ok(text) => {
+                assert!(fits, "{key:?} was taken");
+                assert_eq!(doc(&text), d);
+            }
+            Err(e) => {
+                assert!(!fits, "{key:?} was refused: {e:?}");
+                assert_eq!(e[0].code.as_str(), "unsupported");
+            }
+        }
+    }
+}
+
+/// JSON and text agree on how deep is too deep: what one takes, the other
+/// reads back.
+#[test]
+fn json_and_text_share_one_depth_limit() {
+    for (lists, fits) in [(63, true), (64, false)] {
+        // Innermost an empty list, and a scalar in the one around it.
+        let mut deep = json!([]);
+        for _ in 1..lists {
+            deep = json!([deep, "beside"]);
+        }
+        let mut d = doc(WEBSERVER);
+        // The document is one map; `x-deep` adds `lists` more.
+        d["x-deep"] = deep;
+        match from_document(&d) {
+            Ok(text) => {
+                assert!(fits, "{lists} lists were taken");
+                assert_eq!(doc(&text), d);
+            }
+            Err(e) => {
+                assert!(!fits, "{lists} lists were refused: {e:?}");
+                assert_eq!(e[0].code.as_str(), "unsupported");
+            }
+        }
+    }
 }
 
 /// The page's JavaScript is tested against this file; this keeps the file

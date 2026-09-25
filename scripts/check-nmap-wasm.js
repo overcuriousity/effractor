@@ -5,9 +5,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { loadWasm } = require('./wasm.js');
+
 const root = path.resolve(__dirname, '..');
-const api = new Function(fs.readFileSync(path.join(root, 'assets/wasm/effractor_wasm.js'), 'utf8') + '; return wasm_bindgen;')();
-api.initSync({ module: fs.readFileSync(path.join(root, 'assets/wasm/effractor_wasm_bg.wasm')) });
+const api = loadWasm();
 
 const load = name => JSON.parse(fs.readFileSync(path.join(root, 'scripts/fixtures/nmap', name), 'utf8'));
 const image = load('imported.doc.json');

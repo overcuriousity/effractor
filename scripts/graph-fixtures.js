@@ -9,6 +9,7 @@
 // scripts/fixtures/, which Rust tests pin to the real module the same way.
 const fs = require('node:fs');
 const path = require('node:path');
+const { loadWasm } = require('./wasm.js');
 
 const root = path.resolve(__dirname, '..');
 const DIR = path.join(root, 'scripts/fixtures/graph');
@@ -76,14 +77,8 @@ function stale(api) {
   });
 }
 
-function loadApi() {
-  const api = new Function(fs.readFileSync(path.join(root, 'assets/wasm/effractor_wasm.js'), 'utf8') + '; return wasm_bindgen;')();
-  api.initSync({ module: fs.readFileSync(path.join(root, 'assets/wasm/effractor_wasm_bg.wasm')) });
-  return api;
-}
-
 if (require.main === module) {
-  const api = loadApi();
+  const api = loadWasm();
   if (process.argv.includes('--write')) {
     fs.mkdirSync(DIR, { recursive: true });
     const all = build(api);
@@ -109,4 +104,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { build, stale, loadApi };
+module.exports = { build, stale, loadApi: loadWasm };

@@ -14,28 +14,26 @@ pub async fn asset(Path(path): Path<String>, request: HeaderMap) -> Response {
     let Some(file) = Assets::get(&path) else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    let etag = format!("\"{}\"", hex(&file.metadata.sha256_hash()));
-    if request
+    let etag = format!("\"{}\"", crate::hex(&file.metadata.sha256_hash()));
+    let unchanged = request
         .get(header::IF_NONE_MATCH)
         .and_then(|v| v.to_str().ok())
-        == Some(etag.as_str())
-    {
-        return StatusCode::NOT_MODIFIED.into_response();
+        == Some(etag.as_str());
+    // Revalidate every time, cheaply: a new binary is a new app, and the hash
+    // makes the unchanged case a 304 — which carries the same caching headers
+    // as the 200 it stands in for (RFC 9110 §15.4.5).
+    let caching = [
+        (header::CACHE_CONTROL, "no-cache".to_owned()),
+        (header::ETAG, etag),
+    ];
+    if unchanged {
+        return (StatusCode::NOT_MODIFIED, caching).into_response();
     }
     let mime = mime_guess::from_path(&path).first_or_octet_stream();
     (
-        [
-            (header::CONTENT_TYPE, mime.as_ref().to_owned()),
-            // Revalidate every time, cheaply: a new binary is a new app, and
-            // the hash makes the unchanged case a 304.
-            (header::CACHE_CONTROL, "no-cache".to_owned()),
-            (header::ETAG, etag),
-        ],
+        [(header::CONTENT_TYPE, mime.as_ref().to_owned())],
+        caching,
         file.data,
     )
         .into_response()
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
