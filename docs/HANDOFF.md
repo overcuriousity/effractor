@@ -93,7 +93,7 @@ reached) could become further rings; none is asked for yet.
 **Exposed** (owner, 2026-09-25, after Reactor's exposure colours: three
 equal red rings read as three findings): only the product with the finding
 is `vulnerable` (red); the software running it and its host are `exposed`,
-in orange (`--color-exposed`), and a closed cluster's sectors say the same.
+in magenta (`--color-exposed`; orange could not be told from the red), and a closed cluster's sectors say the same.
 Amber stays for unknown inputs.
 
 ## Continuation — nmap hint (2026-09-24)
