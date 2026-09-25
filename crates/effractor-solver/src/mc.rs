@@ -141,7 +141,8 @@ impl Sampler {
             n,
             hits: vec![0; self.plan.steps.len()],
             top_by: vec![0; GRID],
-            losses: Vec::with_capacity(n as usize),
+            // Nothing to keep without money: a chunk holds no per-iteration row.
+            losses: Vec::with_capacity(if self.has_losses() { n as usize } else { 0 }),
             booked: vec![0.0; self.magnitudes.len()],
         };
         let (mut leaf_times, mut times, mut scratch) =
@@ -191,7 +192,9 @@ impl Sampler {
                 out.booked[slot] += part;
                 loss += part;
             }
-            out.losses.push(loss);
+            if self.has_losses() {
+                out.losses.push(loss);
+            }
         }
         out
     }
@@ -326,4 +329,25 @@ fn exceedance(sorted: &[f64]) -> Vec<(f64, f64)> {
         curve.push((x, (n - first) as f64 / n as f64));
     }
     curve
+}
+
+#[cfg(test)]
+mod tests {
+    use effractor_core::{LeafKind, Model, Node, Profile, Ttc};
+
+    use super::*;
+
+    #[test]
+    fn without_money_a_chunk_keeps_no_losses() {
+        let mut m = Model::new("t", Profile::FaultTree, "top".parse().unwrap());
+        m.nodes.insert(
+            "top".parse().unwrap(),
+            Node::leaf("top", LeafKind::Basic, Some(Ttc::P(0.5))),
+        );
+        let plan = Plan::build(&m).unwrap();
+        let s = Sampler::new(&m, &plan, vec![Distribution::Bernoulli(0.5)], 1, 5000);
+        let chunk = s.run_chunk(0);
+        assert_eq!((chunk.n, chunk.losses.len()), (CHUNK as u64, 0));
+        assert!(s.merge(&[chunk, s.run_chunk(1)], 0.95).loss.is_none());
+    }
 }
