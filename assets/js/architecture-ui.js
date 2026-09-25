@@ -335,10 +335,6 @@
       e.preventDefault();
       return firstParameter();
     }
-    if (key === "Delete" || key === "Backspace") {
-      e.preventDefault();
-      return remove();
-    }
   });
 
   // ---- pointer ----
