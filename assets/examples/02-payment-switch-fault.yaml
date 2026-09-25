@@ -1,0 +1,149 @@
+effractor: 2
+profile: fault-tree
+name: Neobank card switch cannot authorise payments
+time_unit: h
+horizon: 720
+currency: EUR
+top: authorisation-down
+
+nodes:
+  authorisation-down:
+    label: Card payments cannot be authorised for a month-long stretch
+    description: A challenger bank's card switch over one 30-day month, no repair credited. Authorisation needs the switch cluster, a working signing path through the hardware security modules, and a way out to the card schemes. The three HSMs vote two-of-three; both scheme links share one carrier's metro ring and one DNS provider, which are modelled as shared events rather than copied. Illustrative inputs, not an operator's incident history.
+    gate: or
+    children:
+      - switch-cluster-down
+      - signing-lost
+      - scheme-unreachable
+      - bad-config-push
+    consequences:
+      - {asset: card-revenue, dim: a}
+      - {asset: customer-trust, dim: a}
+  switch-cluster-down:
+    label: Both switch nodes are down
+    gate: and
+    children: [switch-node-a, switch-node-b]
+  switch-node-a:
+    label: Switch node A (Frankfurt rack) fails
+    gate: or
+    children: [node-a-hardware, shared-kernel-bug]
+  switch-node-b:
+    label: Switch node B (Amsterdam rack) fails
+    gate: or
+    children: [node-b-hardware, shared-kernel-bug]
+  node-a-hardware:
+    label: Node A hardware fault
+    leaf: basic
+    rate: 6e-5
+  node-b-hardware:
+    label: Node B hardware fault
+    leaf: basic
+    rate: 6e-5
+  shared-kernel-bug:
+    label: A kernel regression in the common OS image crashes both nodes
+    description: One event shared by both nodes; the same image runs everywhere.
+    leaf: undeveloped
+    ttc: "2% * Exponential(mean 300)"
+  signing-lost:
+    label: Fewer than two HSMs can sign
+    description: The switch needs two of three HSMs for key quorum, so two failures stop signing.
+    gate: vote
+    k: 2
+    children: [hsm-1, hsm-2, hsm-3]
+  hsm-1:
+    label: HSM 1 fails or tampers itself out
+    leaf: basic
+    rate: 5e-5
+  hsm-2:
+    label: HSM 2 fails or tampers itself out
+    leaf: basic
+    rate: 5e-5
+  hsm-3:
+    label: HSM 3 fails or tampers itself out
+    leaf: basic
+    rate: 5e-5
+  scheme-unreachable:
+    label: Neither card scheme can be reached
+    gate: or
+    children: [both-links-down, dns-provider-outage]
+  both-links-down:
+    label: Both scheme links are down
+    gate: and
+    children: [link-primary, link-secondary]
+  link-primary:
+    label: Primary scheme link fails
+    gate: or
+    children: [primary-circuit, metro-ring-cut]
+  link-secondary:
+    label: Secondary scheme link fails
+    gate: or
+    children: [secondary-circuit, metro-ring-cut]
+  primary-circuit:
+    label: Primary leased circuit fails
+    leaf: basic
+    rate: 0.0001
+  secondary-circuit:
+    label: Secondary leased circuit fails
+    leaf: basic
+    rate: 0.0001
+  metro-ring-cut:
+    label: The one carrier metro ring both circuits ride on is cut
+    description: Diverse on the contract, not in the duct.
+    leaf: basic
+    rate: 2e-5
+  dns-provider-outage:
+    label: Managed DNS provider outage hides the scheme endpoints
+    leaf: undeveloped
+    ttc: "1.5% * LogNormal(2.5, 0.8)"
+  bad-config-push:
+    label: A faulty routing config reaches production
+    gate: and
+    children: [config-error, canary-misses]
+  config-error:
+    label: An engineer ships a wrong routing table
+    leaf: basic
+    rate: 0.0008
+  canary-misses:
+    label: The canary stage does not catch it
+    leaf: basic
+    p: 0.1
+
+assets:
+  card-revenue:
+    label: Interchange lost while cards decline
+    loss: {a: "Pert(150000, 400000, 2500000)"}
+  customer-trust:
+    label: Customers leaving after a public outage
+    description: Churn and regulator attention; counted separately from interchange.
+    loss: {a: "LogNormal(12.5, 0.9)"}
+
+controls:
+  diverse-carrier:
+    label: Move the secondary link to a second carrier with its own duct
+    cost: 6000
+    enabled: false
+    effects:
+      - {node: metro-ring-cut, ttc: "Exponential(mean 400000)"}
+  secondary-dns:
+    label: Second DNS provider with pinned scheme endpoints
+    cost: 1200
+    enabled: false
+    effects:
+      - {node: dns-provider-outage, ttc: "0.1% * LogNormal(2.5, 0.8)"}
+  staged-os-rollout:
+    label: Roll the OS image out one node at a time, a week apart
+    cost: 3500
+    enabled: false
+    effects:
+      - {node: shared-kernel-bug, ttc: "0.5% * Exponential(mean 300)"}
+  two-person-config:
+    label: Second-engineer review for routing changes
+    cost: 2500
+    enabled: true
+    effects:
+      - {node: config-error, ttc: "Exponential(mean 5000)"}
+
+analysis:
+  seed: 102
+  samples: 10000
+  confidence: 0.95

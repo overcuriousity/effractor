@@ -1,0 +1,243 @@
+effractor: 2
+profile: architecture
+name: Remote building-automation operator
+time_unit: d
+horizon: 60
+library: {id: core-components, version: 1}
+
+entities:
+  internet:
+    kind: network
+    label: Internet
+  corp-net:
+    kind: network
+    label: Operator corporate network
+    description: The facilities company's office network, where the engineers sit
+  ot-net:
+    kind: network
+    label: Building automation network
+    description: The controllers and sensors in the managed building
+  edge-router:
+    kind: router
+    label: Site edge router
+    parameters:
+      escape:
+        status: unknown
+  edge-rules:
+    kind: firewall
+    label: Site firewall
+    description: Only the operator's supervisory link is meant to reach the OT network
+  engineer-pc:
+    kind: host
+    label: Engineer workstation
+    description: A facilities engineer's PC on the corporate network
+    parameters:
+      escape:
+        status: unknown
+  scada-client:
+    kind: application
+    label: Supervisory client
+    description: The SCADA/HMI client the engineer drives the building with
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  bas-host:
+    kind: host
+    label: Automation controller
+    description: The programmable controller that runs HVAC, lifts and access control
+    parameters:
+      escape:
+        status: unknown
+  bas-service:
+    kind: service
+    label: Controller management service
+    description: The controller's web management interface on tcp/443
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 3)"
+        note: Teaching input
+      login:
+        status: illustrative
+        ttc: "Exponential(mean 0.3)"
+        note: "Teaching input: a management login with valid credentials"
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  bas-firmware:
+    kind: product
+    label: Controller firmware 7.1
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 25)"
+        note: "Teaching input: an OT controller with a slow patch cycle"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: firmware 7.2 closes the modelled bug"
+    defenses: {patched: false}
+  ops-account:
+    kind: account
+    label: Operations login
+    description: The shared operations login on the controller
+    parameters:
+      admin-login:
+        status: illustrative
+        ttc: "Exponential(mean 0.5)"
+        note: "Teaching input: management authentication once the network is reached"
+      mfa-bypass:
+        status: illustrative
+        ttc: "Exponential(mean 30)"
+        note: "Teaching input: the controller only offers a weak second factor"
+    defenses: {mfa: false}
+  ops-password:
+    kind: credential
+    label: Operations password
+    description: Saved in the engineer workstation's credential store
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: Teaching input
+      extract-protected:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: an OS-bound store gives nothing up"
+    defenses: {protected: false}
+  building-controls:
+    kind: data
+    label: Building control state
+    description: Setpoints, door schedules and lift logic — changing it is the attacker's goal
+    defenses: {encrypted: false}
+
+associations:
+  router-internet:
+    kind: attached
+    from: edge-router
+    to: internet
+  router-corp:
+    kind: attached
+    from: edge-router
+    to: corp-net
+  router-ot:
+    kind: attached
+    from: edge-router
+    to: ot-net
+  engineer-on-corp:
+    kind: attached
+    from: engineer-pc
+    to: corp-net
+  bas-on-ot:
+    kind: attached
+    from: bas-host
+    to: ot-net
+  router-filters:
+    kind: filters
+    from: edge-router
+    to: edge-rules
+  engineer-runs-client:
+    kind: hosts
+    from: engineer-pc
+    to: scada-client
+    privilege: user
+  bas-runs-service:
+    kind: hosts
+    from: bas-host
+    to: bas-service
+    privilege: admin
+  service-is-firmware:
+    kind: instance-of
+    from: bas-service
+    to: bas-firmware
+  password-stored:
+    kind: stores
+    from: engineer-pc
+    to: ops-password
+    privilege: user
+  password-authenticates:
+    kind: authenticates
+    from: ops-password
+    to: ops-account
+  ops-authorizes:
+    kind: authorizes
+    from: ops-account
+    to: bas-service
+  ops-grant:
+    kind: grants
+    from: ops-account
+    to: bas-host
+    privilege: admin
+    description: The operations login is an administrator on the controller
+  corp-administers-ot:
+    kind: administration
+    from: corp-net
+    to: bas-host
+    description: The supervisory link lets the corporate network manage the controller
+  supervisory-flow:
+    kind: permits
+    from: edge-rules
+    to: supervise
+    allowed: true
+  bas-holds-controls:
+    kind: holds
+    from: bas-service
+    to: building-controls
+    privilege: user
+    decrypts: true
+  ops-writes-controls:
+    kind: accesses
+    from: ops-account
+    to: building-controls
+    mode: write
+
+flows:
+  supervise:
+    label: Supervisory client to the controller
+    source: scada-client
+    target: bas-service
+    route: [corp-net, edge-router, ot-net]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: Teaching input
+
+attacker:
+  footholds:
+    - {entity: engineer-pc, state: admin}
+  target: {entity: building-controls, state: modified}
+
+scenarios:
+  deny-supervisory:
+    label: Deny the supervisory flow at the firewall
+    changes:
+      - {association: supervisory-flow, field: allowed, value: false}
+  patch-firmware:
+    label: Update the controller to firmware 7.2
+    changes:
+      - {entity: bas-firmware, defense: patched, value: true}
+  require-mfa:
+    label: Require multi-factor login on the controller
+    changes:
+      - {entity: ops-account, defense: mfa, value: true}
+  protect-password:
+    label: Move the operations password to an OS-bound store
+    changes:
+      - {entity: ops-password, defense: protected, value: true}
+  segment-and-protect:
+    label: Protect the password and deny the supervisory flow
+    changes:
+      - {entity: ops-password, defense: protected, value: true}
+      - {association: supervisory-flow, field: allowed, value: false}
+
+analysis:
+  seed: 109
+  samples: 10000
+  confidence: 0.95

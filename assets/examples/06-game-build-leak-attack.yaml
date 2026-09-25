@@ -1,0 +1,175 @@
+effractor: 2
+profile: attack-tree
+name: Unreleased game build leaks before launch
+time_unit: d
+horizon: 120
+currency: EUR
+top: build-leaked
+
+nodes:
+  build-leaked:
+    label: A playable build of the studio's unannounced sequel is posted online
+    description: A 600-person game studio is four months from revealing its next open-world title. Leak groups pay well for playable builds. The routes are the studio's own build farm and artifact store, the platform holder's certification portal, an outsourcing partner that receives nightly builds over a legacy file share, and the review-copy programme. A studio SSO identity is shared by the internal routes and sampled once; the artifact store needs two of three findings before a build can be pulled. Costs are the leak group's in EUR; detection is the chance the studio's security team notices in time to act. Illustrative inputs.
+    gate: or
+    children:
+      - build-farm-route
+      - cert-portal-route
+      - partner-route
+      - review-copy-route
+    consequences:
+      - {asset: launch-revenue, dim: c}
+      - {asset: reveal-campaign, dim: c}
+      - {asset: studio-reputation, dim: c, fraction: 0.4}
+  build-farm-route:
+    label: Pull a build from the studio's artifact store
+    gate: and
+    children: [studio-identity, artifact-store-access]
+  studio-identity:
+    label: Control a developer's studio SSO identity
+    gate: or
+    children: [developer-session, contractor-account, reused-password-and-push]
+  developer-session:
+    label: Obtain a developer's authenticated session
+    leaf: basic
+    ttc: "35% * LogNormal(3, 0.7)"
+    cost: 4000
+    detection: 0.3
+  contractor-account:
+    label: Obtain a short-term QA contractor's account
+    leaf: undeveloped
+    ttc: "30% * Exponential(mean 20)"
+    cost: 2000
+    detection: 0.1
+  reused-password-and-push:
+    label: A reused password plus an accepted push prompt
+    gate: and
+    children: [reused-password, push-accepted]
+  reused-password:
+    label: A developer's password is reused from an old breach
+    leaf: basic
+    ttc: "20% * Exponential(mean 3)"
+    cost: 100
+    detection: 0.02
+  push-accepted:
+    label: The developer accepts an unexpected push prompt
+    leaf: basic
+    ttc: "25% * Exponential(mean 4)"
+    cost: 50
+    detection: 0.5
+  artifact-store-access:
+    label: Get read access to nightly builds in the artifact store
+    description: Any two of these three give read access to the release channel.
+    gate: vote
+    k: 2
+    children: [ci-token-in-logs, over-broad-group, store-misconfig]
+  ci-token-in-logs:
+    label: A CI read token is found in old build logs
+    leaf: basic
+    ttc: "40% * Gamma(2, 10)"
+    cost: 800
+    detection: 0.15
+  over-broad-group:
+    label: The identity sits in an over-broad "all-dev" group
+    leaf: basic
+    ttc: "Immediate"
+    cost: 0
+    detection: 0
+  store-misconfig:
+    label: The store's release channel inherits permissions it should not
+    leaf: undeveloped
+    ttc: "15% * Exponential(mean 30)"
+    cost: 1500
+    detection: 0.05
+  cert-portal-route:
+    label: Download the submission from the platform holder's certification portal
+    gate: and
+    children: [studio-identity, cert-portal-role]
+  cert-portal-role:
+    label: The identity holds a submission role on the certification portal
+    leaf: basic
+    ttc: "10% * Exponential(mean 15)"
+    cost: 500
+    detection: 0.2
+  partner-route:
+    label: Take a nightly build from the outsourcing partner
+    gate: or
+    children: [legacy-share, partner-workstation]
+  legacy-share:
+    label: Reach the legacy file share the partner syncs builds from
+    leaf: basic
+    ttc: "20% * Pareto(15, 1.7)"
+    cost: 6000
+    detection: 0.1
+  partner-workstation:
+    label: Control an artist workstation at the partner
+    leaf: basic
+    ttc: "25% * Gamma(3, 12)"
+    cost: 9000
+    detection: 0.08
+  review-copy-route:
+    label: A review copy is passed on before embargo
+    gate: and
+    children: [review-copies-sent, reviewer-passes-on]
+  review-copies-sent:
+    label: Review copies have gone out
+    description: Scheduled three weeks before launch.
+    leaf: basic
+    ttc: "TruncatedNormal(100, 5)"
+    cost: 0
+    detection: 0
+  reviewer-passes-on:
+    label: A reviewer or their contact passes the copy on
+    leaf: undeveloped
+    ttc: "4% * Exponential(mean 5)"
+    cost: 20000
+    detection: 0.6
+
+assets:
+  launch-revenue:
+    label: Sales lost to a leaked, pirated build
+    loss: {c: "Pert(1000000, 6000000, 30000000)"}
+  reveal-campaign:
+    label: Marketing reveal that no longer lands
+    loss: {c: 2500000}
+  studio-reputation:
+    label: Talent and partner trust after a public leak
+    loss: {c: "LogNormal(13.5, 0.8)"}
+
+controls:
+  passkeys:
+    label: Passkeys for every studio identity, contractors included
+    cost: 45000
+    enabled: false
+    effects:
+      - {node: developer-session, ttc: "8% * LogNormal(3.5, 0.7)"}
+      - {node: push-accepted, ttc: "Never"}
+  retire-legacy-share:
+    label: Retire the legacy partner share; deliver builds over the studio's own portal
+    description: Removes that one path; it does not make the partner itself safe.
+    cost: 15000
+    enabled: false
+    effects:
+      - {node: legacy-share, ttc: "Never"}
+  scoped-release-channel:
+    label: Named-person access to the release channel, reviewed monthly
+    cost: 8000
+    enabled: false
+    effects:
+      - {node: over-broad-group, ttc: "10% * Exponential(mean 30)"}
+  log-secret-scanning:
+    label: Scan and scrub secrets from build logs
+    cost: 5000
+    enabled: true
+    effects:
+      - {node: ci-token-in-logs, ttc: "10% * Gamma(2, 20)"}
+  watermarked-reviews:
+    label: Per-reviewer watermarked review builds
+    cost: 12000
+    enabled: false
+    effects:
+      - {node: reviewer-passes-on, ttc: "1.5% * Exponential(mean 5)"}
+
+analysis:
+  seed: 106
+  samples: 10000
+  confidence: 0.95

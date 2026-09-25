@@ -1,0 +1,349 @@
+effractor: 2
+profile: architecture
+name: Exchange KYC vault
+time_unit: d
+horizon: 30
+library: {id: core-components, version: 1}
+
+entities:
+  internet:
+    kind: network
+    label: Internet
+  dmz:
+    kind: network
+    label: DMZ
+  core-net:
+    kind: network
+    label: Core network
+  vault-net:
+    kind: network
+    label: Vault network
+  edge:
+    kind: router
+    label: Edge router
+    parameters:
+      escape:
+        status: unknown
+  edge-rules:
+    kind: firewall
+    label: Edge rules
+  core-router:
+    kind: router
+    label: Core router
+    parameters:
+      escape:
+        status: unknown
+  core-rules:
+    kind: firewall
+    label: Core rules
+  attacker-box:
+    kind: host
+    label: Attacker workstation
+    parameters:
+      escape:
+        status: unknown
+  attacker-client:
+    kind: application
+    label: Attacker client
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  ops-workstation:
+    kind: host
+    label: Compromised ops workstation
+    description: An internal machine on the core network the attacker already holds
+    parameters:
+      escape:
+        status: unknown
+  db-client:
+    kind: application
+    label: Database client
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  api-host:
+    kind: host
+    label: API node
+    parameters:
+      escape:
+        status: unknown
+  kyc-api:
+    kind: service
+    label: KYC API
+    description: The internet-facing service that serves identity documents to the compliance app
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 3)"
+        note: Teaching input
+      login:
+        status: illustrative
+        ttc: "Exponential(mean 0.3)"
+        note: Teaching input
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  api-software:
+    kind: product
+    label: KYCPortal 4
+    parameters:
+      find-exploit:
+        status: unknown
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: the pending vendor patch is taken to close this route"
+    defenses: {patched: false}
+  db-host:
+    kind: host
+    label: Vault database node
+    parameters:
+      escape:
+        status: unknown
+  vault-db:
+    kind: service
+    label: Vault database
+    description: The database process on the vault node; it stores the documents encrypted
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 6)"
+        note: Teaching input
+      login:
+        status: illustrative
+        ttc: "Exponential(mean 0.3)"
+        note: Teaching input
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  db-software:
+    kind: product
+    label: VaultDB 9
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 18)"
+        note: Teaching input
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: Teaching input
+    defenses: {patched: false}
+  hsm-host:
+    kind: host
+    label: HSM appliance
+    parameters:
+      escape:
+        status: unknown
+  document-key:
+    kind: credential
+    label: Document encryption key
+    description: The key the documents are encrypted with, kept in the HSM
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(mean 4)"
+        note: "Teaching input: an unsealed key the vault node can read from the HSM"
+      extract-protected:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: a sealed HSM key that never leaves the appliance"
+    defenses: {protected: false}
+  kyc-documents:
+    kind: data
+    label: Customer identity documents
+    description: Passports and proof-of-address for every customer — the attacker's goal
+    defenses: {encrypted: false}
+
+associations:
+  attacker-internet:
+    kind: attached
+    from: attacker-box
+    to: internet
+  edge-internet:
+    kind: attached
+    from: edge
+    to: internet
+  edge-dmz:
+    kind: attached
+    from: edge
+    to: dmz
+  api-dmz:
+    kind: attached
+    from: api-host
+    to: dmz
+  core-router-dmz:
+    kind: attached
+    from: core-router
+    to: dmz
+  core-router-core:
+    kind: attached
+    from: core-router
+    to: core-net
+  db-core:
+    kind: attached
+    from: db-host
+    to: core-net
+  ops-core:
+    kind: attached
+    from: ops-workstation
+    to: core-net
+  db-vault:
+    kind: attached
+    from: db-host
+    to: vault-net
+  hsm-vault:
+    kind: attached
+    from: hsm-host
+    to: vault-net
+  edge-filters:
+    kind: filters
+    from: edge
+    to: edge-rules
+  core-filters:
+    kind: filters
+    from: core-router
+    to: core-rules
+  attacker-runs-client:
+    kind: hosts
+    from: attacker-box
+    to: attacker-client
+    privilege: user
+  ops-runs-client:
+    kind: hosts
+    from: ops-workstation
+    to: db-client
+    privilege: user
+  api-runs:
+    kind: hosts
+    from: api-host
+    to: kyc-api
+    privilege: admin
+  api-is-software:
+    kind: instance-of
+    from: kyc-api
+    to: api-software
+  db-runs:
+    kind: hosts
+    from: db-host
+    to: vault-db
+    privilege: admin
+  db-is-software:
+    kind: instance-of
+    from: vault-db
+    to: db-software
+  key-store:
+    kind: stores
+    from: db-host
+    to: document-key
+    privilege: admin
+  doc-encrypted-with:
+    kind: encrypted-with
+    from: kyc-documents
+    to: document-key
+  api-holds-documents:
+    kind: holds
+    from: kyc-api
+    to: kyc-documents
+    privilege: user
+    decrypts: true
+    description: The API serves the documents, so it holds plaintext while running
+  db-holds-documents:
+    kind: holds
+    from: db-host
+    to: kyc-documents
+    privilege: admin
+    decrypts: false
+    description: On the vault node the documents sit encrypted at rest
+  api-to-db-flow:
+    kind: permits
+    from: core-rules
+    to: api-to-db
+    allowed: true
+  ws-to-db-flow:
+    kind: permits
+    from: core-rules
+    to: ws-to-db
+    allowed: true
+  api-flow:
+    kind: permits
+    from: edge-rules
+    to: reach-api
+    allowed: true
+
+flows:
+  reach-api:
+    label: Client to the KYC API
+    source: attacker-client
+    target: kyc-api
+    route: [internet, edge, dmz]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: Teaching input
+  api-to-db:
+    label: API to the vault database
+    source: kyc-api
+    target: vault-db
+    route: [dmz, core-router, core-net]
+    protocol: tcp/5432
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: Teaching input
+  ws-to-db:
+    label: Ops workstation to the vault database
+    source: db-client
+    target: vault-db
+    route: [core-net]
+    protocol: tcp/5432
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.1)"
+        note: Teaching input
+
+attacker:
+  footholds:
+    - {entity: attacker-box, state: admin}
+    - {entity: ops-workstation, state: admin}
+  target: {entity: kyc-documents, state: read}
+
+scenarios:
+  vendor-patch:
+    label: Apply the pending KYC API patch
+    changes:
+      - {entity: api-software, defense: patched, value: true}
+  encrypt-at-rest:
+    label: Turn on encryption at rest
+    changes:
+      - {entity: kyc-documents, defense: encrypted, value: true}
+  patch-and-encrypt:
+    label: Patch the API and encrypt at rest
+    changes:
+      - {entity: api-software, defense: patched, value: true}
+      - {entity: kyc-documents, defense: encrypted, value: true}
+  patch-encrypt-seal:
+    label: Patch, encrypt at rest and seal the HSM key
+    changes:
+      - {entity: api-software, defense: patched, value: true}
+      - {entity: kyc-documents, defense: encrypted, value: true}
+      - {entity: document-key, defense: protected, value: true}
+
+analysis:
+  seed: 112
+  samples: 10000
+  confidence: 0.95

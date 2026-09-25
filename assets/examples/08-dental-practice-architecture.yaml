@@ -1,0 +1,250 @@
+effractor: 2
+profile: architecture
+name: Dental practice on a cloud records system
+time_unit: d
+horizon: 30
+library: {id: core-components, version: 1}
+
+entities:
+  internet:
+    kind: network
+    label: Internet
+  cloud-host:
+    kind: host
+    label: PMS cloud host
+    description: The provider's internet-facing server the practice management portal runs on
+    parameters:
+      escape:
+        status: unknown
+  pms-software:
+    kind: product
+    label: DentCloud PMS
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: no portal exploit is modelled here"
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: no portal exploit is modelled here"
+    defenses: {patched: false}
+  practice-lan:
+    kind: network
+    label: Practice LAN
+  fibre-router:
+    kind: router
+    label: Fibre router
+    parameters:
+      escape:
+        status: unknown
+  fibre-router-rules:
+    kind: firewall
+    label: Router rules
+  reception-pc:
+    kind: host
+    label: Reception PC
+    description: The front-desk machine the receptionist reads mail and books appointments on
+    parameters:
+      escape:
+        status: unknown
+  mail-client:
+    kind: application
+    label: Mail and calendar client
+    parameters:
+      take-over:
+        status: illustrative
+        ttc: "Exponential(mean 14)"
+        note: "Teaching input: a malicious attachment that runs when opened"
+      take-over-guarded:
+        status: illustrative
+        ttc: "Exponential(mean 90)"
+        note: "Teaching input: attachment sandboxing slows it, it does not stop it"
+    defenses: {guarded: false}
+  receptionist:
+    kind: person
+    label: Receptionist
+    description: Opens booking requests and supplier mail all day
+    parameters:
+      phish:
+        status: illustrative
+        ttc: "Exponential(mean 12)"
+        note: "Teaching input: a convincing booking-portal lure"
+      phish-trained:
+        status: illustrative
+        ttc: "Exponential(mean 45)"
+        note: "Teaching input: training slows deception, it does not remove it"
+    defenses: {trained: false}
+  pms-portal:
+    kind: service
+    label: Practice management portal
+    description: The cloud dental records system the practice logs in to
+    parameters:
+      deploy-exploit:
+        status: unknown
+      login:
+        status: illustrative
+        ttc: "Exponential(mean 0.2)"
+        note: "Teaching input: a normal web login with valid credentials"
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  pms-account:
+    kind: account
+    label: Reception PMS login
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: illustrative
+        ttc: "Exponential(mean 40)"
+        note: "Teaching input: number-matching makes push fatigue slow and unlikely"
+    defenses: {mfa: false}
+  portal-password:
+    kind: credential
+    label: PMS portal password
+    description: Known by the receptionist and saved in the reception PC's browser
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: "Teaching input: a saved browser password is read once the PC is controlled"
+      extract-protected:
+        status: illustrative
+        ttc: "Never"
+        note: "Teaching input: a managed password manager with OS binding gives nothing up"
+    defenses: {protected: false}
+  patient-records:
+    kind: data
+    label: Patient records
+    description: Dental and medical histories of about 8,000 patients
+    defenses: {encrypted: false}
+
+associations:
+  router-internet:
+    kind: attached
+    from: fibre-router
+    to: internet
+  router-lan:
+    kind: attached
+    from: fibre-router
+    to: practice-lan
+  reception-on-lan:
+    kind: attached
+    from: reception-pc
+    to: practice-lan
+  cloud-host-internet:
+    kind: attached
+    from: cloud-host
+    to: internet
+  cloud-runs-portal:
+    kind: hosts
+    from: cloud-host
+    to: pms-portal
+    privilege: admin
+  portal-is-dentcloud:
+    kind: instance-of
+    from: pms-portal
+    to: pms-software
+  router-filters:
+    kind: filters
+    from: fibre-router
+    to: fibre-router-rules
+  reception-runs-mail:
+    kind: hosts
+    from: reception-pc
+    to: mail-client
+    privilege: user
+  mail-from-internet:
+    kind: delivers
+    from: internet
+    to: receptionist
+    description: Booking requests and supplier mail reach the receptionist
+  attachments-from-internet:
+    kind: delivers
+    from: internet
+    to: mail-client
+    description: The same mail carries attachments the client opens
+  password-stored:
+    kind: stores
+    from: reception-pc
+    to: portal-password
+    privilege: user
+  receptionist-operates-mail:
+    kind: operates
+    from: receptionist
+    to: mail-client
+    description: Deceived, the receptionist opens what they are sent in the mail client
+  receptionist-knows-password:
+    kind: knows
+    from: receptionist
+    to: portal-password
+  password-authenticates:
+    kind: authenticates
+    from: portal-password
+    to: pms-account
+  account-authorizes:
+    kind: authorizes
+    from: pms-account
+    to: pms-portal
+  portal-holds-records:
+    kind: holds
+    from: pms-portal
+    to: patient-records
+    privilege: user
+    decrypts: true
+    description: The portal serves the records, so it sees plaintext
+  reception-reads-records:
+    kind: accesses
+    from: pms-account
+    to: patient-records
+    mode: read
+  allow-portal:
+    kind: permits
+    from: fibre-router-rules
+    to: portal-login
+    allowed: true
+
+flows:
+  portal-login:
+    label: Reception PC to the cloud portal
+    source: mail-client
+    target: pms-portal
+    route: [practice-lan, fibre-router, internet]
+    protocol: tcp/443
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.05)"
+        note: "Teaching input: the portal is public"
+
+attacker:
+  footholds:
+    - {entity: internet, state: access}
+  target: {entity: patient-records, state: read}
+
+scenarios:
+  train-receptionist:
+    label: Train the receptionist
+    changes:
+      - {entity: receptionist, defense: trained, value: true}
+  require-mfa:
+    label: Require multi-factor login on the portal
+    changes:
+      - {entity: pms-account, defense: mfa, value: true}
+  guard-mail:
+    label: Sandbox mail attachments
+    changes:
+      - {entity: mail-client, defense: guarded, value: true}
+  train-and-mfa:
+    label: Train the receptionist and require MFA
+    changes:
+      - {entity: receptionist, defense: trained, value: true}
+      - {entity: pms-account, defense: mfa, value: true}
+
+analysis:
+  seed: 108
+  samples: 10000
+  confidence: 0.95

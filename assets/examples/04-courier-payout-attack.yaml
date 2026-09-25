@@ -1,0 +1,72 @@
+effractor: 2
+profile: attack-tree
+name: Drone-courier payouts redirected
+time_unit: d
+horizon: 30
+currency: EUR
+top: payouts-redirected
+
+nodes:
+  payouts-redirected:
+    label: A courier's weekly payouts land in an account the fraudster controls
+    description: A gig-delivery platform pays drone and bike couriers weekly to an IBAN set in the courier app. A fraud crew wants to change that IBAN for one mid-volume courier within a month. Two routes — through the courier's own login, or by talking the support desk into the change. Costs are the crew's, in EUR; detection is the chance the platform's fraud team notices the attempt. Illustrative inputs.
+    gate: or
+    children: [account-route, support-route]
+    consequences:
+      - {asset: courier-earnings, dim: i}
+  account-route:
+    label: Change the IBAN through the courier's own login
+    gate: and
+    children: [courier-password, second-factor]
+  courier-password:
+    label: Obtain the courier's password
+    gate: or
+    children: [credential-reuse, lookalike-login]
+  credential-reuse:
+    label: The password is reused from an earlier breach
+    leaf: basic
+    ttc: "25% * Exponential(mean 2)"
+    cost: 40
+    detection: 0.05
+  lookalike-login:
+    label: The courier types it into a lookalike login page
+    leaf: basic
+    ttc: "30% * Exponential(mean 6)"
+    cost: 300
+    detection: 0.2
+  second-factor:
+    label: Get past the SMS code
+    leaf: basic
+    ttc: "35% * LogNormal(1.5, 0.7)"
+    cost: 600
+    detection: 0.3
+  support-route:
+    label: Convince the support desk to change the IBAN
+    leaf: basic
+    ttc: "15% * Exponential(mean 8)"
+    cost: 150
+    detection: 0.45
+
+assets:
+  courier-earnings:
+    label: Diverted payouts, refund and support time
+    loss: {i: "Pert(400, 1800, 6000)"}
+
+controls:
+  app-passkey:
+    label: Passkeys in the courier app instead of SMS codes
+    cost: 1200
+    enabled: false
+    effects:
+      - {node: second-factor, ttc: "2% * LogNormal(2.5, 0.7)"}
+  payout-change-hold:
+    label: Hold payouts for 72 hours after an IBAN change and notify the old address
+    cost: 400
+    enabled: false
+    effects:
+      - {node: support-route, ttc: "4% * Exponential(mean 8)"}
+
+analysis:
+  seed: 104
+  samples: 10000
+  confidence: 0.95

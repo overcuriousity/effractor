@@ -34,8 +34,10 @@ effractor            # http://127.0.0.1:8080
 effractor --bind 0.0.0.0:9000
 ```
 
-The [course walkthrough](docs/course/README.md) includes fault-tree and attack-tree
-files, timing explanations, and a step-by-step analysis exercise.
+The [sample collection](assets/examples/README.md) includes three fault trees,
+three attack trees and six architectures in rising order of complexity. Download
+a YAML file and use **Open** in the app; the files ship with both the server and
+the static site.
 
 ## Fault-tree methods and references
 

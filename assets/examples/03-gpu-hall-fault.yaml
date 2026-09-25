@@ -1,0 +1,207 @@
+effractor: 2
+profile: fault-tree
+name: Sovereign AI compute hall loses its training run
+time_unit: d
+horizon: 90
+currency: EUR
+top: training-run-lost
+
+nodes:
+  training-run-lost:
+    label: The 90-day foundation-model training run is lost or must restart from an old checkpoint
+    description: A 20 MW GPU hall on direct liquid cooling, run for a national AI lab over one training quarter. The run dies when the racks lose heat rejection, lose power beyond what the batteries ride through, lose their building controls, or lose the checkpoint store. Several events are shared on purpose — the heat wave stresses chillers and the grid at once, the building-management controller sits under every cooling loop — and appear once in the tree. Gamma, log-normal and truncated-normal clocks stand for wear-out and seasonal hazards; nothing is repaired within the quarter. All numbers are illustrative.
+    gate: or
+    children: [heat-rejection-lost, power-lost, controls-lost, checkpoints-lost]
+    consequences:
+      - {asset: training-run, dim: a}
+      - {asset: gpu-fleet, dim: a, fraction: 0.05}
+  heat-rejection-lost:
+    label: Racks can no longer reject their heat
+    gate: or
+    children: [cdu-capacity-lost, chiller-plant-lost, leak-shutdown]
+  cdu-capacity-lost:
+    label: Two of four coolant distribution units are out
+    description: Three CDUs carry the full load; the fourth is the N+1.
+    gate: vote
+    k: 2
+    children: [cdu-1, cdu-2, cdu-3, cdu-4]
+  cdu-1:
+    label: CDU 1 pump or heat exchanger fails
+    leaf: basic
+    ttc: "Gamma(2, 250)"
+  cdu-2:
+    label: CDU 2 pump or heat exchanger fails
+    leaf: basic
+    ttc: "Gamma(2, 250)"
+  cdu-3:
+    label: CDU 3 pump or heat exchanger fails
+    leaf: basic
+    ttc: "Gamma(2, 250)"
+  cdu-4:
+    label: CDU 4 pump or heat exchanger fails
+    leaf: basic
+    ttc: "Gamma(2, 250)"
+  chiller-plant-lost:
+    label: The dry-cooler and chiller plant cannot hold supply temperature
+    gate: or
+    children: [both-chillers-lost, heat-wave-overload]
+  both-chillers-lost:
+    label: Both chiller trains are down
+    gate: and
+    children: [chiller-a-compressor, chiller-b-compressor]
+  chiller-a-compressor:
+    label: Chiller A compressor fails
+    leaf: basic
+    ttc: "LogNormal(6, 0.7)"
+  chiller-b-compressor:
+    label: Chiller B compressor fails
+    leaf: basic
+    ttc: "LogNormal(6, 0.7)"
+  heat-wave-stress:
+    label: A heat wave trips the chillers on high condenser pressure
+    description: One weather event shared by the cooling plant and the grid branch.
+    leaf: undeveloped
+    ttc: "18% * TruncatedNormal(55, 15)"
+  heat-wave-overload:
+    label: Heat wave and a fouled dry cooler together exceed plant capacity
+    gate: and
+    children: [heat-wave-stress, dry-cooler-fouled]
+  dry-cooler-fouled:
+    label: Dry-cooler fins are clogged with pollen and dust
+    leaf: basic
+    p: 0.3
+  leak-shutdown:
+    label: A coolant leak at the racks forces an emergency shutdown
+    gate: and
+    children: [manifold-leak, leak-detection-misses]
+  manifold-leak:
+    label: A quick-disconnect or manifold weeps coolant
+    leaf: basic
+    ttc: "Gamma(1.5, 400)"
+  leak-detection-misses:
+    label: Leak rope misses it before it reaches a power shelf
+    leaf: basic
+    p: 0.15
+  power-lost:
+    label: The hall loses power beyond battery ride-through
+    gate: and
+    children: [grid-lost, backup-lost]
+  grid-lost:
+    label: Both utility feeds are lost
+    gate: or
+    children: [substation-trip, heat-wave-grid, feeds-both-down]
+  substation-trip:
+    label: The shared 110 kV substation trips
+    leaf: basic
+    ttc: "Exponential(mean 1500)"
+  heat-wave-grid:
+    label: Grid operator sheds the site's load during the heat wave
+    gate: and
+    children: [heat-wave-stress, load-shed-order]
+  load-shed-order:
+    label: The site is on the curtailment list when the order comes
+    leaf: basic
+    p: 0.25
+  feeds-both-down:
+    label: Both medium-voltage feeds fail independently
+    gate: and
+    children: [feed-a, feed-b]
+  feed-a:
+    label: Feed A fails
+    leaf: basic
+    ttc: "Exponential(mean 400)"
+  feed-b:
+    label: Feed B fails
+    leaf: basic
+    ttc: "Exponential(mean 400)"
+  backup-lost:
+    label: Generators do not carry the hall
+    gate: or
+    children: [generators-fail-start, fuel-contaminated, transfer-switch]
+  generators-fail-start:
+    label: Too few generators start on demand
+    leaf: basic
+    p: 0.04
+  fuel-contaminated:
+    label: Stored diesel is contaminated with microbial growth
+    description: A common cause for every generator; it only shows on a long run.
+    leaf: basic
+    p: 0.03
+  transfer-switch:
+    label: Automatic transfer switch fails to transfer
+    leaf: basic
+    p: 0.01
+  controls-lost:
+    label: The building-management system stops running the cooling loops
+    gate: or
+    children: [bms-controller, bms-ransomware]
+  bms-controller:
+    label: The one BMS supervisory controller fails in a way the loops do not survive
+    leaf: basic
+    ttc: "Exponential(mean 4000)"
+  bms-ransomware:
+    label: Ransomware on the facilities network encrypts the BMS servers
+    description: Undeveloped here; the attack-tree examples show how one would develop it.
+    leaf: undeveloped
+    ttc: "3% * Pareto(20, 1.5)"
+  checkpoints-lost:
+    label: The latest usable checkpoint is weeks old
+    gate: and
+    children: [checkpoint-store-corrupt, offsite-copy-stale]
+    consequences:
+      - {asset: training-run, dim: i}
+  checkpoint-store-corrupt:
+    label: The parallel file system corrupts recent checkpoints
+    leaf: basic
+    ttc: "Exponential(mean 900)"
+  offsite-copy-stale:
+    label: The off-site checkpoint copy has silently stopped syncing
+    leaf: basic
+    p: 0.2
+
+assets:
+  training-run:
+    label: Compute time and schedule of the training run
+    description: Availability is the GPU-hours burned again; integrity is the cost of reconstructing lost checkpoints.
+    loss: {i: "Pert(300000, 900000, 3000000)", a: "Pert(1500000, 4000000, 12000000)"}
+  gpu-fleet:
+    label: GPU accelerators damaged in a thermal or leak event
+    loss: {a: 180000000}
+
+controls:
+  adiabatic-assist:
+    label: Adiabatic pre-cooling on the dry coolers for heat waves
+    cost: 220000
+    enabled: false
+    effects:
+      - {node: heat-wave-stress, ttc: "6% * TruncatedNormal(55, 15)"}
+  fuel-polishing:
+    label: Monthly diesel polishing and lab tests
+    cost: 9000
+    enabled: false
+    effects:
+      - {node: fuel-contaminated, ttc: "0.3%"}
+  redundant-bms:
+    label: Hot-standby BMS controller and segregated facilities network
+    cost: 140000
+    enabled: false
+    effects:
+      - {node: bms-controller, ttc: "Exponential(mean 20000)"}
+      - {node: bms-ransomware, ttc: "0.5% * Pareto(20, 1.5)"}
+  sync-alerting:
+    label: Alert when the off-site checkpoint copy falls behind
+    cost: 1500
+    enabled: false
+    effects:
+      - {node: offsite-copy-stale, ttc: "1%"}
+  cooler-cleaning:
+    label: Clean dry-cooler fins before summer
+    cost: 12000
+    enabled: true
+    effects:
+      - {node: dry-cooler-fouled, ttc: "5%"}
+
+analysis:
+  seed: 103
+  samples: 10000
+  confidence: 0.95
