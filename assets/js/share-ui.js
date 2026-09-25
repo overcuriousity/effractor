@@ -45,7 +45,7 @@
       var item = document.createElement('li'), a = document.createElement('a');
       a.href = s.url; a.textContent = s.name || 'Untitled'; item.appendChild(a);
       var expires = document.createElement('span'); expires.className = 'hint';
-      expires.textContent = s.expires_at === null ? 'No expiry' : new Date(s.expires_at * 1000).toLocaleDateString();
+      expires.textContent = crypto.expiry(s.expires_at, Date.now());
       item.appendChild(expires);
       if (pending.has(s.id) && pending.get(s.id).state() === 'deleting') {
         var busy = document.createElement('span'); busy.textContent = 'Deleting…'; item.appendChild(busy);

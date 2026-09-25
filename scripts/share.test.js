@@ -106,3 +106,10 @@ test('deletion can be undone during grace, never after the request starts', asyn
   assert.equal(removed, 1);
   resolve(); await running;
 });
+
+test('a share past its expiry says so; one without says that', () => {
+  const now = Date.UTC(2026, 8, 25);
+  assert.equal(share.expiry(null, now), 'No expiry');
+  assert.match(share.expiry(now / 1000 - 60, now), /^Expired · /);
+  assert.doesNotMatch(share.expiry(now / 1000 + 60, now), /Expired/);
+});
