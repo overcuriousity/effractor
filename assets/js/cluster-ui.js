@@ -305,9 +305,19 @@
     document.body.classList.remove("is-pinning");
     drag = null;
   }
+  // The member in hand is still one of its cluster's, in the document on
+  // the page (an undo mid-drag may have taken either away).
+  function held() {
+    var c = drag && doc() ? own(doc().clusters, drag.cid) : null;
+    return !!c && (c.members || []).indexOf(drag.member) >= 0 && !!own(doc().entities, drag.member);
+  }
+  app.onChange(function () {
+    if (drag && !held()) endDrag();
+  });
   document.addEventListener("pointermove", function (e) {
     if (!drag) return;
     if (!drag.moved && Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) < DRAG_PX) return;
+    if (!held()) return endDrag();
     if (!drag.moved) {
       drag.moved = true;
       drag.ghost = document.createElement("div");
@@ -327,8 +337,9 @@
   document.addEventListener("pointerup", function (e) {
     if (!drag) return;
     var d = drag;
+    var still = held();
     endDrag();
-    if (!d.moved) return; // a click: the row's own click selects it
+    if (!d.moved || !still) return; // a click: the row's own click selects it
     var into = clusterAt(e.clientX, e.clientY);
     if (into) return dropInto(d.member, into);
     if (!overCanvas(e.clientX, e.clientY)) return;
@@ -340,9 +351,17 @@
     var put = {};
     put[key] = { x: Math.round(p.x - SIZE.width / 2), y: Math.round(p.y - SIZE.plate / 2) };
     app.putPositions(put);
-    if (!doc().clusters[d.cid].closed) return app.redraw();
-    // Refused, it goes back where it was.
-    act(function () { return C.peel(doc(), d.cid, d.member); }).then(function (applied) {
+    var c = doc().clusters[d.cid];
+    // Open, or already beside its stack: it only moves there.
+    if (!c.closed || (c.shown || []).indexOf(d.member) >= 0) return app.redraw();
+    // Out of the stack, it stands where it was dropped, even as the last
+    // one, which opens the cluster. Refused, it goes back where it was.
+    act(function () {
+      var edit = C.peel(doc(), d.cid, d.member);
+      if (edit) app.placedByHand(put);
+      return edit;
+    }).then(function (applied) {
+      app.placedByHand(null);
       if (applied) return;
       put[key] = was;
       app.putPositions(put);

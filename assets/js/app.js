@@ -1195,6 +1195,11 @@
   window.effractor.pick = pick;
   window.effractor.positionsOf = positionsOf;
   window.effractor.putPositions = putPositions;
+  // Places set by hand for the edit about to be drawn (or null again once
+  // it is): opening a cluster in place leaves them where they are.
+  window.effractor.placedByHand = function (places) {
+    handPlaced = places || null;
+  };
   window.effractor.storedPositions = function () {
     return positions.load(state.doc.name);
   };
