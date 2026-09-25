@@ -103,7 +103,8 @@ each of the owner's decisions with its date; read it before changing any.
 - **Selecting:** `state.picked` (qualified ids) beside `state.selected`;
   Ctrl-click, Shift + drag, Esc; Del and dragging act on all.
 - **`cluster-ui.js` (DOM):** K (nothing selected: cluster · uncluster all;
-  one cluster or member: open/close; several: merge), C, the rail icon, the
+  one cluster or member: open/close; several: merge; C was dropped as a
+  narrower copy of it, owner 2026-09-25), the rail icon, the
   menus (component, cluster — also on a right-click anywhere inside an
   outline —, selection, background incl. *Hide cluster outlines*), the
   cluster inspector (label, shown, members: click selects, right-click is
@@ -111,7 +112,9 @@ each of the owner's decisions with its date; read it before changing any.
   the stack), and merging by dragging one onto another. Places kept in place
   on open/close are `app.js` `paint`'s (`clusters.inPlace` from the glide's
   transitions), so undo, redo and source edits get them too, and only
-  accepted edits write them (`positions.moveAll`, one write). The bottom bar's *cluster outline* switch hides
+  accepted edits write them (`positions.moveAll`, one write). Everything else
+  drawn before keeps its place too (`clusters.held`, owner 2026-09-25: only
+  what is involved moves), so opening or closing counts as arranging by hand. The bottom bar's *cluster outline* switch hides
   outlines (`effractor.outlines`). Pins dropped on a cluster ask which member.
 - **nmap import:** clusters what it brought in by host, open (`gather`), and
   arranges a drawing nobody arranged by hand.

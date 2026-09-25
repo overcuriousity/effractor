@@ -74,7 +74,7 @@
   }
 
   function toggleAll() {
-    if (!C.toggleAll(doc())) return app.say("nothing runs together here · select two or more and press C");
+    if (!C.toggleAll(doc())) return app.say("nothing runs together here · select two or more and press K");
     act(function () { return C.toggleAll(doc()); });
   }
   // K and the rail (owner, 2026-09-25): nothing selected, everything; one
@@ -141,17 +141,12 @@
       e.preventDefault();
       return pressK();
     }
-    var cid = selectedCluster();
-    if (key === "c") {
-      e.preventDefault();
-      return cid ? openClose(cid) : clusterPicked();
-    }
-    if (key === "F2" && cid) {
+    if (key === "F2" && selectedCluster()) {
       e.preventDefault();
       return focusName();
     }
   });
-  U.keyList.push(["C", "Cluster the selected; open or close a cluster"], ["K", "Nothing selected: cluster · uncluster all; one: open or close its cluster; several: merge into one"]);
+  U.keyList.push(["K", "Nothing selected: cluster · uncluster all; one: open or close its cluster; several: merge into one"]);
 
   // ---- menus ----
 
@@ -174,7 +169,7 @@
     var name = C.label(doc(), cid);
     var members = c.members.filter(function (m) { return own(doc().entities, m); });
     app.showMenu([
-      [c.closed ? "Open" : "Close", "C", function () { openClose(cid); }],
+      [c.closed ? "Open" : "Close", "K", function () { openClose(cid); }],
       ["Dissolve", "", function () { act(function () { return C.dissolve(doc(), cid); }); }],
       ["Rename", "F2", focusName],
       ["Take out", "", members.map(function (m) {
@@ -190,7 +185,7 @@
   function pickedMenu(x, y) {
     var members = C.entitiesOf(doc(), app.state.picked);
     app.showMenu([
-      ["Cluster " + members.length + " components", "C", clusterPicked],
+      ["Cluster " + members.length + " components", "K", clusterPicked],
       ["Delete " + members.length + " components", "Del", function () {
         U.apply(function () { return L.removeAll(doc(), members); }, null, true);
       }],

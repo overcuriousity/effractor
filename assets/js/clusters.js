@@ -609,6 +609,22 @@
     return out;
   }
 
+  // When clusters close or open, what else was drawn stays where it was
+  // (owner, 2026-09-25: only what is involved moves): the layout of the new
+  // drawing would place it afresh. `before`: the nodes last drawn; `now`:
+  // the new layout's. Places already stored are left as they are. Returns
+  // places to write.
+  function held(before, now, stored) {
+    var out = {};
+    if (!before) return out;
+    var drawn = Object.create(null);
+    now.forEach(function (n) { drawn[n.id] = true; });
+    before.forEach(function (n) {
+      if (drawn[n.id] && !has(stored, n.id)) out[n.id] = { x: n.x, y: n.y };
+    });
+    return out;
+  }
+
   // The clusters a glide opens: drawn as a stack before, not after (a
   // member dragged out beside its stack does not open it).
   function opened(motion) {
@@ -696,6 +712,7 @@
     SPECIFIC: SPECIFIC,
     opened: opened,
     inPlace: inPlace,
+    held: held,
     spread: spread,
     pickable: pickable,
     drawnLine: drawnLine,

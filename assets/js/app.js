@@ -461,6 +461,8 @@
           prev[n.id] = Object.prototype.hasOwnProperty.call(stored, n.id) ? stored[n.id] : { x: n.x, y: n.y };
         });
         keep(C.inPlace(motion, prev, stored, handPlaced));
+        // The rest stays where it was, not where the new layout puts it.
+        keep(C.held(state.placed.nodes, state.laid.nodes, stored));
       }
       var options = { permits: permits.on(), outlines: outlines.on() };
       // A cluster that just opened pushes what it now covers out of its way,

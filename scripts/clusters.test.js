@@ -402,3 +402,17 @@ test('review: a cluster dissolved by deleting a member comes back where it stood
   const back = C.inPlace(C.transitions({}, { a: 'cluster/c', b: 'cluster/c' }), { 'entity/b': stored['entity/b'] }, stored);
   assert.deepEqual(back['cluster/c'], { x: 500, y: 500 });
 });
+
+test('opening or closing a cluster leaves everything else where it was drawn', () => {
+  const before = [
+    { id: 'entity/a', x: 0, y: 0 },
+    { id: 'entity/b', x: 100, y: 50 },
+    { id: 'entity/far', x: 900, y: 40 },
+    { id: 'entity/dragged', x: 300, y: 300 },
+  ];
+  // Closing a and b into k: the new layout would put far and dragged elsewhere.
+  const now = [{ id: 'cluster/k' }, { id: 'entity/far' }, { id: 'entity/dragged' }];
+  const stored = { 'entity/dragged': { x: 300, y: 300 } };
+  assert.deepEqual(C.held(before, now, stored), { 'entity/far': { x: 900, y: 40 } }, 'what was drawn and still is stays; stored places stay stored');
+  assert.deepEqual(C.held(null, now, stored), {});
+});
