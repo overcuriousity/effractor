@@ -223,4 +223,17 @@ proptest! {
         let got = bdd.prob(bdd.root(), &p);
         prop_assert!((got - want).abs() <= 1e-12, "got {got}, want {want}");
     }
+
+    /// One pass for every node gives each the bits a pass of its own would.
+    #[test]
+    fn every_nodes_probability_at_once_is_each_ones_own(m in dag(10)) {
+        let bdd = Bdd::compile(&m, LIMIT).unwrap();
+        let p: Vec<f64> = (0..bdd.vars().len()).map(|i| 0.05 + 0.09 * i as f64).collect();
+        let all = bdd.prob_all(&p);
+        for id in m.nodes.keys() {
+            if let Some(f) = bdd.node(id) {
+                prop_assert_eq!(all[Bdd::index(f)].to_bits(), bdd.prob(f, &p).to_bits());
+            }
+        }
+    }
 }

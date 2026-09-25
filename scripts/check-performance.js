@@ -28,8 +28,7 @@ if (require.main === module) {
   try {
     const root = path.resolve(__dirname, '..');
     const source = fs.readFileSync(process.argv[2] || path.join(root, 'docs/course/reference-fault-tree.yaml'), 'utf8');
-    const api = new Function(fs.readFileSync(path.join(root, 'assets/wasm/effractor_wasm.js'), 'utf8') + '; return wasm_bindgen;')();
-    api.initSync({ module: fs.readFileSync(path.join(root, 'assets/wasm/effractor_wasm_bg.wasm')) });
+    const api = require('./wasm.js').loadWasm();
     const runs = Array.from({ length: 6 }, () => measure(api, source));
     console.log(JSON.stringify({ runtime: process.version, platform: process.platform, arch: process.arch, includes: 'parse, exact, baseline sampling, control comparisons, serialization', runs }, null, 2));
     if (!runs.every(withinBudget)) process.exitCode = 1;

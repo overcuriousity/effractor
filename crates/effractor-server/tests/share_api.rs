@@ -5,11 +5,13 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::Router;
-use axum::body::Body;
+use axum::body::{Body, Bytes};
 use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use axum::response::Response;
-use effractor_server::share::{Limits, MemoryStorage, Shares, Storage, Ttl};
+use effractor_server::share::{
+    Limits, MemoryStorage, ShareId, ShareMeta, Shares, Storage, StorageError, Timestamp, Ttl,
+};
 use http_body_util::BodyExt;
 use serde_json::Value;
 use tower::ServiceExt;
@@ -283,4 +285,93 @@ async fn creation_is_rate_limited_per_address() {
         post([10, 0, 0, 1]).await.status(),
         StatusCode::TOO_MANY_REQUESTS
     );
+}
+
+/// Memory storage whose writes fail while `broken` is set, and which counts
+/// the blobs read.
+#[derive(Default)]
+struct Flaky {
+    inner: MemoryStorage,
+    broken: std::sync::atomic::AtomicBool,
+    gets: AtomicU64,
+}
+
+#[async_trait::async_trait]
+impl Storage for Flaky {
+    async fn put(&self, id: &ShareId, blob: Bytes, meta: ShareMeta) -> Result<(), StorageError> {
+        if self.broken.load(Ordering::Relaxed) {
+            return Err(std::io::Error::other("disk full").into());
+        }
+        self.inner.put(id, blob, meta).await
+    }
+    async fn get(&self, id: &ShareId) -> Result<Option<(Bytes, ShareMeta)>, StorageError> {
+        self.gets.fetch_add(1, Ordering::Relaxed);
+        self.inner.get(id).await
+    }
+    async fn meta(&self, id: &ShareId) -> Result<Option<ShareMeta>, StorageError> {
+        self.inner.meta(id).await
+    }
+    async fn delete(&self, id: &ShareId) -> Result<bool, StorageError> {
+        self.inner.delete(id).await
+    }
+    async fn sweep(&self, now: Timestamp) -> Result<u64, StorageError> {
+        self.inner.sweep(now).await
+    }
+}
+
+#[tokio::test]
+async fn a_share_that_failed_to_be_written_costs_no_allowance() {
+    let storage = Arc::new(Flaky::default());
+    let app = effractor_server::app(Shares::new(
+        storage.clone(),
+        Limits {
+            creates_per_hour: 1,
+            ..Limits::default()
+        },
+    ));
+    let post = || {
+        let mut req = Request::post("/api/share").body(Body::from("x")).unwrap();
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([10, 0, 0, 1], 40000))));
+        app.clone().oneshot(req)
+    };
+    storage.broken.store(true, Ordering::Relaxed);
+    for _ in 0..3 {
+        assert_eq!(
+            post().await.unwrap().status(),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+    }
+    storage.broken.store(false, Ordering::Relaxed);
+    assert_eq!(post().await.unwrap().status(), StatusCode::CREATED);
+    assert_eq!(
+        post().await.unwrap().status(),
+        StatusCode::TOO_MANY_REQUESTS
+    );
+}
+
+#[tokio::test]
+async fn deleting_reads_the_metadata_and_not_the_blob() {
+    let storage = Arc::new(Flaky::default());
+    let app = effractor_server::app(Shares::new(storage.clone(), Limits::default()));
+    let send = |mut req: Request<Body>| {
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([10, 0, 0, 1], 40000))));
+        app.clone().oneshot(req)
+    };
+    let made = send(Request::post("/api/share").body(Body::from("x")).unwrap());
+    let made = json(made.await.unwrap()).await;
+    let id = made["id"].as_str().unwrap();
+    let token = made["delete_token"].as_str().unwrap();
+    let delete = |token: &str| {
+        Request::delete(format!("/api/share/{id}"))
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .body(Body::empty())
+            .unwrap()
+    };
+    let wrong = send(delete("AAAAAAAAAAAAAAAAAAAAAA")).await.unwrap();
+    assert_eq!(wrong.status(), StatusCode::FORBIDDEN);
+    let right = send(delete(token)).await.unwrap();
+    assert_eq!(right.status(), StatusCode::NO_CONTENT);
+    assert_eq!(storage.gets.load(Ordering::Relaxed), 0);
 }

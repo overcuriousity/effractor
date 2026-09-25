@@ -221,7 +221,8 @@ impl Bdd {
         Ref(i as u32)
     }
 
-    pub(crate) fn index(f: Ref) -> usize {
+    /// Where `f` sits in [`Bdd::prob_all`]'s answer.
+    pub fn index(f: Ref) -> usize {
         f.0 as usize
     }
 
@@ -247,12 +248,21 @@ impl Bdd {
     /// P(f), given independent leaf probabilities in `vars()` order: Shannon
     /// expansion, bottom-up. Exact up to floating point, however leaves are shared.
     pub fn prob(&self, f: Ref, leaf_p: &[f64]) -> f64 {
+        self.probs_upto(f.0 as usize, leaf_p)[f.0 as usize]
+    }
+
+    /// P(f) for every function in the diagram at once, by [`Bdd::index`]: the
+    /// same pass as [`Bdd::prob`], so the same bits, once instead of per node.
+    pub fn prob_all(&self, leaf_p: &[f64]) -> Vec<f64> {
+        self.probs_upto(self.b.nodes.len() - 1, leaf_p)
+    }
+
+    fn probs_upto(&self, upto: usize, leaf_p: &[f64]) -> Vec<f64> {
         assert_eq!(
             leaf_p.len(),
             self.vars.len(),
             "one probability per variable"
         );
-        let upto = f.0 as usize;
         let mut value = vec![0.0; upto + 1];
         if upto >= 1 {
             value[1] = 1.0;
@@ -262,6 +272,6 @@ impl Bdd {
             let p = leaf_p[n.var as usize];
             value[i] = (1.0 - p) * value[n.lo.0 as usize] + p * value[n.hi.0 as usize];
         }
-        value[upto]
+        value
     }
 }

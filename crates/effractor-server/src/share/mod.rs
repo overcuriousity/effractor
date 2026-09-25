@@ -112,6 +112,8 @@ pub enum StorageError {
 pub trait Storage: Send + Sync + 'static {
     async fn put(&self, id: &ShareId, blob: Bytes, meta: ShareMeta) -> Result<(), StorageError>;
     async fn get(&self, id: &ShareId) -> Result<Option<(Bytes, ShareMeta)>, StorageError>;
+    /// What `get` would return beside the blob, without reading the blob.
+    async fn meta(&self, id: &ShareId) -> Result<Option<ShareMeta>, StorageError>;
     /// Whether there was something to delete.
     async fn delete(&self, id: &ShareId) -> Result<bool, StorageError>;
     /// Remove everything expired at `now`; how many shares that was.

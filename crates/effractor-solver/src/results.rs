@@ -13,7 +13,7 @@ use serde::Serialize;
 use crate::attacker::{self, attacker};
 use crate::bdd::Bdd;
 use crate::dist::cdf;
-use crate::importance::importance;
+use crate::importance::{birnbaum, fussell_vesely};
 use crate::mc::{Chunk, GRID, Sampled, Sampler, paired_difference};
 use crate::mcs::{CutSets, Truncated};
 use crate::plan::Plan;
@@ -129,7 +129,13 @@ pub struct Exact {
     pub p_top: f64,
     /// (t, P(top <= t)) on the grid.
     pub ttc_cdf: Vec<(f64, f64)>,
+    /// The size of the model's diagram, terminals included.
     pub bdd_nodes: usize,
+    /// Why the leaves have no Fussell–Vesely, if they have none: it needs the
+    /// cut sets and room in the diagram for a function per leaf. Birnbaum
+    /// needs neither.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fussell_vesely_unavailable: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -208,11 +214,12 @@ pub struct ControlResult {
     pub id: String,
     pub enabled: bool,
     pub cost: f64,
-    /// The measure with this one control flipped.
-    pub flipped: f64,
+    /// The measure with this one control flipped; `null` when that cannot be
+    /// measured, and then `unavailable` says why.
+    pub flipped: Option<f64>,
     /// What the control is worth: for a disabled control, the risk enabling it
     /// removes; for an enabled one, the risk removing it would add.
-    pub value: f64,
+    pub value: Option<f64>,
     /// Present when the value is a sampled loss. The scenarios share their
     /// random numbers, so this is the interval of a paired difference — and if
     /// it straddles another control's value, more samples will settle it.
@@ -221,6 +228,10 @@ pub struct ControlResult {
     pub value_per_cost: Option<f64>,
     /// 1 is the best buy. Disabled controls only.
     pub rank: Option<usize>,
+    /// Why this flip has no numbers: switching the control off can take away
+    /// the only distribution a leaf has.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unavailable: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -235,6 +246,8 @@ struct Scenario {
     p_top_exact: Option<f64>,
     sampler: Option<Sampler>,
     chunks: Vec<Chunk>,
+    /// Why this flip cannot be measured, if so.
+    unavailable: Option<String>,
 }
 
 pub struct Solve {
@@ -315,21 +328,33 @@ impl Solve {
                 Outcome::unavailable(no_numbers.clone().unwrap_or_default())
             }
             (Ok(bdd), Some(dists), Some(p)) => {
+                // The model's own diagram, before importance adds to it.
+                let bdd_nodes = bdd.size();
                 let top = bdd.root();
+                let all = bdd.prob_all(p);
                 p_node_exact = Some(
                     plan.ids
                         .iter()
-                        .map(|id| bdd.prob(bdd.node(id).expect("planned"), p))
+                        .map(|id| all[Bdd::index(bdd.node(id).expect("planned"))])
                         .collect(),
                 );
-                if let Ok(z) = &cut_sets
-                    && let Ok(imp) = importance(bdd, top, z, p)
-                {
-                    for (leaf, i) in leaves.iter_mut().zip(imp) {
-                        leaf.birnbaum = Some(i.birnbaum);
-                        leaf.fussell_vesely = Some(i.fussell_vesely);
-                    }
+                for (leaf, b) in leaves.iter_mut().zip(birnbaum(bdd, top, p)) {
+                    leaf.birnbaum = Some(b);
                 }
+                let fv = match &cut_sets {
+                    Ok(z) => fussell_vesely(bdd, top, z, p)
+                        .map_err(|e| format!("Fussell–Vesely gave up: {e:?}")),
+                    Err(_) => Err("Fussell–Vesely needs cut sets".to_owned()),
+                };
+                let fussell_vesely_unavailable = match fv {
+                    Ok(fv) => {
+                        for (leaf, f) in leaves.iter_mut().zip(fv) {
+                            leaf.fussell_vesely = Some(f);
+                        }
+                        None
+                    }
+                    Err(reason) => Some(reason),
+                };
                 let ttc_cdf = (0..GRID)
                     .map(|j| {
                         let t = model.horizon * j as f64 / (GRID - 1) as f64;
@@ -340,7 +365,8 @@ impl Solve {
                 Outcome::Available(Exact {
                     p_top: bdd.prob(top, p),
                     ttc_cdf,
-                    bdd_nodes: bdd.size(),
+                    bdd_nodes,
+                    fussell_vesely_unavailable,
                 })
             }
         };
@@ -414,6 +440,7 @@ impl Solve {
 
         // The model as written, then each control flipped on its own.
         let mut scenarios = Vec::new();
+        let mut losses = false;
         if no_numbers.is_none() {
             let flips = std::iter::once(None).chain((0..written.len()).map(Some));
             for flip in flips {
@@ -421,24 +448,49 @@ impl Solve {
                 if let Some(i) = flip {
                     enabled[i] = !enabled[i];
                 }
-                let ds: Vec<Distribution> = leaf_distributions(model, &plan, &enabled)
-                    .into_iter()
-                    .map(|d| d.expect("checked above"))
+                let ds = leaf_distributions(model, &plan, &enabled);
+                let lacking: Vec<String> = ds
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, d)| d.is_none())
+                    .map(|(i, _)| name(&i))
                     .collect();
+                let Some(ds) = ds.into_iter().collect::<Option<Vec<Distribution>>>() else {
+                    // As written every leaf has numbers, and an effect only
+                    // ever replaces them: this is a control switched off that
+                    // was a leaf's only source.
+                    scenarios.push(Scenario {
+                        flip,
+                        p_top_exact: None,
+                        sampler: None,
+                        chunks: vec![],
+                        unavailable: Some(format!(
+                            "switched off, it leaves no distribution on: {}",
+                            lacking.join(", ")
+                        )),
+                    });
+                    continue;
+                };
                 let p_top_exact = bdd.as_ref().ok().map(|b| {
                     b.prob(
                         b.root(),
                         &ds.iter().map(|d| cdf(d, model.horizon)).collect::<Vec<_>>(),
                     )
                 });
-                let sampler = Sampler::new(model, &plan, ds, config.seed, config.samples);
                 // A flip is sampled only when sampling is what measures it.
-                let needed = flip.is_none() || sampler.has_losses() || p_top_exact.is_none();
+                let needed = flip.is_none() || losses || p_top_exact.is_none();
+                let sampler =
+                    needed.then(|| Sampler::new(model, &plan, ds, config.seed, config.samples));
+                if flip.is_none() {
+                    // Whether any loss is booked does not depend on the controls.
+                    losses = sampler.as_ref().is_some_and(Sampler::has_losses);
+                }
                 scenarios.push(Scenario {
                     flip,
                     p_top_exact,
-                    sampler: needed.then_some(sampler),
+                    sampler,
                     chunks: vec![],
+                    unavailable: None,
                 });
             }
         }
@@ -576,6 +628,19 @@ impl Solve {
                             .controls
                             .get_index(c)
                             .expect("one scenario per control");
+                        if let Some(reason) = &self.scenarios[i].unavailable {
+                            return ControlResult {
+                                id: id.to_string(),
+                                enabled: control.enabled,
+                                cost: control.cost,
+                                flipped: None,
+                                value: None,
+                                value_ci: None,
+                                value_per_cost: None,
+                                rank: None,
+                                unavailable: Some(reason.clone()),
+                            };
+                        }
                         let flipped = measure(i).expect("measured like the baseline");
                         let value = if control.enabled {
                             flipped - baseline
@@ -601,19 +666,26 @@ impl Solve {
                             id: id.to_string(),
                             enabled: control.enabled,
                             cost: control.cost,
-                            flipped,
-                            value,
+                            flipped: Some(flipped),
+                            value: Some(value),
                             value_ci,
                             value_per_cost,
                             rank: None,
+                            unavailable: None,
                         }
                     })
                     .collect();
                 // Best buy first; something for nothing beats any ratio.
-                let mut order: Vec<usize> = (0..out.len()).filter(|i| !out[*i].enabled).collect();
+                let mut order: Vec<usize> = (0..out.len())
+                    .filter(|i| !out[*i].enabled && out[*i].value.is_some())
+                    .collect();
                 let score = |c: &ControlResult| {
                     c.value_per_cost
-                        .unwrap_or(if c.value > 0.0 { f64::INFINITY } else { 0.0 })
+                        .unwrap_or(if c.value.is_some_and(|v| v > 0.0) {
+                            f64::INFINITY
+                        } else {
+                            0.0
+                        })
                 };
                 order.sort_by(|a, b| score(&out[*b]).total_cmp(&score(&out[*a])).then(a.cmp(b)));
                 for (rank, i) in order.into_iter().enumerate() {

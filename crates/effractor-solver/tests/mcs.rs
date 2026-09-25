@@ -3,7 +3,7 @@ mod common;
 use common::*;
 use effractor_core::*;
 use effractor_solver::bdd::Bdd;
-use effractor_solver::importance::importance;
+use effractor_solver::importance::{birnbaum, fussell_vesely};
 use effractor_solver::mcs::{CutSets, Truncated};
 use proptest::prelude::*;
 
@@ -189,9 +189,10 @@ fn importance_on_the_reference_tree() {
     let (mut bdd, z) = cut_sets(&m);
     let p = leaf_p(&m, &bdd);
     let top = bdd.root();
-    let imp = importance(&mut bdd, top, &z, &p).unwrap();
+    let b = birnbaum(&bdd, top, &p);
+    let fv = fussell_vesely(&mut bdd, top, &z, &p).unwrap();
     let p_top = 1.0 - p.iter().map(|p| 1.0 - p).product::<f64>();
-    for (v, i) in imp.iter().enumerate() {
+    for v in 0..p.len() {
         // In a pure OR tree: Birnbaum is the product of the other survivals,
         // and the only cut set containing a leaf is the leaf itself.
         let others: f64 = p
@@ -200,8 +201,8 @@ fn importance_on_the_reference_tree() {
             .filter(|(w, _)| *w != v)
             .map(|(_, p)| 1.0 - p)
             .product();
-        assert!((i.birnbaum - others).abs() < 1e-14, "{i:?}");
-        assert!((i.fussell_vesely - p[v] / p_top).abs() < 1e-14, "{i:?}");
+        assert!((b[v] - others).abs() < 1e-14, "{}", b[v]);
+        assert!((fv[v] - p[v] / p_top).abs() < 1e-14, "{}", fv[v]);
     }
     let server = bdd
         .vars()
@@ -209,8 +210,7 @@ fn importance_on_the_reference_tree() {
         .position(|v| v.as_str() == "server")
         .unwrap();
     assert!(
-        imp.iter()
-            .all(|i| i.fussell_vesely <= imp[server].fussell_vesely),
+        fv.iter().all(|f| *f <= fv[server]),
         "the shared server matters most"
     );
 }
@@ -231,16 +231,12 @@ fn fussell_vesely_is_the_definition_not_the_rare_event_shortcut() {
     let (mut bdd, z) = cut_sets(&m);
     let p = leaf_p(&m, &bdd);
     let top = bdd.root();
-    let imp = importance(&mut bdd, top, &z, &p).unwrap();
+    let fv = fussell_vesely(&mut bdd, top, &z, &p).unwrap();
     let b = bdd.vars().iter().position(|v| v.as_str() == "b").unwrap();
     let p_top = 0.9 * (1.0 - 0.2 * 0.3);
     let definition = (0.9 * 0.8) / p_top; // P(a and b) / P(top)
     let shortcut = 1.0 - (0.9 * 0.7) / p_top; // 1 - P(top | b = 0) / P(top)
-    assert!(
-        (imp[b].fussell_vesely - definition).abs() < 1e-14,
-        "{:?}",
-        imp[b]
-    );
+    assert!((fv[b] - definition).abs() < 1e-14, "{}", fv[b]);
     assert!(
         (definition - shortcut).abs() > 0.4,
         "the fixture must tell them apart"
@@ -281,20 +277,21 @@ proptest! {
         let p = leaf_p(&m, &bdd);
         let leaves = bdd.vars().to_vec();
         let top = bdd.root();
-        let imp = importance(&mut bdd, top, &z, &p).unwrap();
+        let b = birnbaum(&bdd, top, &p);
+        let fv = fussell_vesely(&mut bdd, top, &z, &p).unwrap();
         let sets = minimal_by_brute_force(&m, &leaves);
         let n = leaves.len();
         let weight = |bits: u32| (0..n).map(|i| if bits >> i & 1 == 1 { p[i] } else { 1.0 - p[i] }).product::<f64>();
         let p_top = brute_force(&m, &leaves, &p);
         for v in 0..n {
             let force = |on: bool| { let mut q = p.clone(); q[v] = if on { 1.0 } else { 0.0 }; brute_force(&m, &leaves, &q) };
-            prop_assert!((imp[v].birnbaum - (force(true) - force(false))).abs() < 1e-12);
+            prop_assert!((b[v] - (force(true) - force(false))).abs() < 1e-12);
             let through_v: f64 = (0u32..1 << n)
                 .filter(|bits| sets.iter().any(|s| s.contains(&v) && s.iter().all(|i| bits >> i & 1 == 1)))
                 .map(weight)
                 .sum();
             let want = if p_top > 0.0 { through_v / p_top } else { 0.0 };
-            prop_assert!((imp[v].fussell_vesely - want).abs() < 1e-9, "leaf {}: got {}, want {}", v, imp[v].fussell_vesely, want);
+            prop_assert!((fv[v] - want).abs() < 1e-9, "leaf {}: got {}, want {}", v, fv[v], want);
         }
     }
 }

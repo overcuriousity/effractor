@@ -188,12 +188,14 @@ pub fn analyze(graph: &GeneratedGraph, resolved: &ResolvedGraph) -> GraphSupport
             }
         }
     };
+    let unknown = |i: usize| expands(i) && own[i] == Own::Unknown;
+    let edges: Vec<Vec<usize>> = (0..n).map(support_inputs).collect();
     let support_of = |start: usize| -> Vec<usize> {
         let mut seen = vec![false; n];
         let mut stack = vec![start];
         seen[start] = true;
         while let Some(i) = stack.pop() {
-            for j in support_inputs(i) {
+            for &j in &edges[i] {
                 if !seen[j] {
                     seen[j] = true;
                     stack.push(j);
@@ -202,8 +204,6 @@ pub fn analyze(graph: &GeneratedGraph, resolved: &ResolvedGraph) -> GraphSupport
         }
         (0..n).filter(|&i| seen[i]).collect()
     };
-    let unknown = |i: usize| expands(i) && own[i] == Own::Unknown;
-    let edges: Vec<Vec<usize>> = (0..n).map(support_inputs).collect();
     let missing = missing_paths(&edges, &|i| {
         if !unknown(i) {
             return &[][..];
