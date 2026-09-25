@@ -849,7 +849,9 @@
       if (!gate.accept(token)) return null;
       if (!parsed.ok) return parsed.diagnostics;
       return adopt(text, state.selected, state.parent, false, function () {
-        if (state.text !== null) undoStack.push(state.text);
+        // Text of another mode goes into that mode: what it replaces there
+        // is one Ctrl+Z away, as for a file opened (replaceDocument).
+        keepReplaced(parsed.ok.profile);
         return true;
       }).then(function (applied) {
         return applied ? parsed.diagnostics || [] : null;
@@ -865,6 +867,12 @@
     return histories[profile] || (histories[profile] = window.effractorEdit.createHistory());
   }
   var undoStack = historyOf("fault-tree");
+  // A text of mode `into` is about to replace that mode's document: the one
+  // it replaces goes into that mode's history.
+  function keepReplaced(into) {
+    var before = state.doc && state.doc.profile === into ? state.text : slots[into];
+    if (before !== undefined && before !== null) historyOf(into).push(before);
+  }
   // One step at a time: a Ctrl+Z repeated while the last is still on its
   // way is ignored, and a step that is overtaken goes back into the history.
   var travelling = false;
@@ -1216,9 +1224,7 @@
           // Check before touching either the document or its undo history.
           if (isCurrent && !isCurrent()) return false;
           // Opened into its own mode: what it replaces there is one Ctrl+Z away.
-          var into = parsed.ok.profile;
-          var before = state.doc && state.doc.profile === into ? state.text : slots[into];
-          if (before !== undefined && before !== null) historyOf(into).push(before);
+          keepReplaced(parsed.ok.profile);
           return true;
         }).then(function (applied) {
           if (!applied || (isCurrent && !isCurrent())) return false;

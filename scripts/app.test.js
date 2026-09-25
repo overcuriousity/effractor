@@ -69,15 +69,19 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
 // A page whose worker and layout answer when a test says so: texts listed in
 // `slow` are parsed only on release, and so are layouts while `holdLayout`.
 // Everything else answers at once. Nothing here is a browser.
-function racePage(kept = 'original', legacy = null) {
+// `opts`: `docOf(text, doc)` reshapes the documents, `view` and `positions`
+// stand in for the architecture's drawing and this browser's places.
+function racePage(kept = 'original', legacy = null, opts = {}) {
   const nodes = new Map(), writes = [], held = [], renders = [], runs = [], timers = [], reveals = [], layouts = [];
+  const handlers = {};
   const slow = new Set();
   const generated = [];
   let holdLayout = false;
   let holdGenerate = false;
-  const docOf = text => text.startsWith('arch')
-    ? { name: text, profile: 'architecture', entities: { web: { kind: 'service', label: 'Web' } }, associations: {}, flows: {}, attacker: { footholds: [] }, scenarios: text.includes('scen') ? { deny: { label: 'Deny', changes: [] } } : {}, analysis: { seed: 1, samples: 10 } }
+  const plain = text => text.startsWith('arch')
+    ? { name: text, profile: 'architecture', entities: text.includes('two') ? { web: { kind: 'service', label: 'Web' }, db: { kind: 'service', label: 'Db' } } : { web: { kind: 'service', label: 'Web' } }, associations: {}, flows: {}, attacker: { footholds: [] }, scenarios: text.includes('scen') ? { deny: { label: 'Deny', changes: [] } } : {}, analysis: { seed: 1, samples: 10 } }
     : { name: text, profile: 'fault-tree', nodes: { top: { label: 'Top', leaf: 'basic' } }, analysis: { seed: 1, samples: 10 } };
+  const docOf = text => (opts.docOf ? opts.docOf(text, plain(text)) : plain(text));
   // What the browser keeps: the one text in its mode, or the text from before modes.
   const kept_ = kept === null ? {} : { [docOf(kept).profile]: kept };
   let mode_ = kept === null ? null : docOf(kept).profile;
@@ -90,7 +94,7 @@ function racePage(kept = 'original', legacy = null) {
         : { ok: docOf(text), diagnostics: [] };
       return slow.has(text) ? later('parse ' + text, answer) : Promise.resolve(answer);
     },
-    async serialize(value) { return { ok: value.name }; },
+    async serialize(value) { return { ok: value.src || value.name }; },
     solve(text, on, options) { return new Promise(resolve => runs.push({ text, on, options, resolve })); },
     cancel() {},
     // Held until released: `generate <text>`. A text holding "gone" has no
@@ -115,17 +119,17 @@ function racePage(kept = 'original', legacy = null) {
   const window = {
     effractorStore: { createStore: () => ({ load: async profile => kept_[profile] ?? null, save(text, profile) { writes.push(text); kept_[profile] = text; }, mode: async () => mode_, setMode(p) { mode_ = p; }, legacy: async () => legacy, dropLegacy() { legacy = null; } }) },
     createSolver: () => solver,
-    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render(laid) { renders.push(laid.name); }, highlight() {}, reveal(id) { reveals.push(id); }, on() {}, fit() {} }) },
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render(laid) { renders.push(laid.name); }, highlight() {}, reveal(id) { reveals.push(id); }, on(name, f) { (handlers[name] = handlers[name] || []).push(f); }, fit() {} }) },
     effractorLayout: { createLayout: () => described => (layouts.push(described), holdLayout ? later('layout ' + described.name, described) : Promise.resolve(described)) },
     effractorGraph: { describe: doc => ({ name: doc.name }) },
     effractorProfiles: require('../assets/js/profiles.js'),
     effractorRevisions: require('../assets/js/revisions.js'),
-    effractorArchitectureView: { describe: doc => ({ name: doc.name }), route: () => [] },
+    effractorArchitectureView: opts.view || { describe: doc => ({ name: doc.name }), route: () => [] },
     effractorAttackView: require('../assets/js/attack-view.js'),
     effractorGraphResults: require('../assets/js/graph-results.js'),
     effractorProblems: require('../assets/js/problems.js'),
     // Positions pass the layout through: these tests follow which layout is drawn.
-    effractorPositions: { createStore: () => ({ load: () => ({}), move() {}, moveAll() {}, clear() {} }), place: laid => laid },
+    effractorPositions: opts.positions || { createStore: () => ({ load: () => ({}), moveAll() {}, clear() {} }), place: laid => laid },
     effractorClusters: require('../assets/js/clusters.js'),
     effractorEdit: require('../assets/js/edit.js'),
     effractorResults: require('../assets/js/results-view.js'),
@@ -142,6 +146,7 @@ function racePage(kept = 'original', legacy = null) {
   const settle = () => new Promise(setImmediate);
   return {
     app: window.effractor, writes, renders, runs, slow, nodes, settle, docOf, generated, reveals, layouts,
+    emit(name, e) { (handlers[name] || []).forEach(f => f(e)); },
     holdLayout(on) { holdLayout = on; },
     holdGenerate(on) { holdGenerate = on; },
     async release(what) { const i = held.findIndex(h => h.what === what); assert.ok(i >= 0, 'nothing held: ' + what); held.splice(i, 1)[0].release(); await settle(); await settle(); },
@@ -867,4 +872,19 @@ test('a chosen scenario is solved with the baseline, and one the document no lon
   assert.equal(h.app.state.scenario, '');
   await h.tick();
   assert.equal(h.runs[h.runs.length - 1].options.scenario, '');
+});
+
+test('review: source of another mode typed here keeps that mode’s document a Ctrl+Z away', async () => {
+  const h = racePage('original');
+  await h.app.ready; await h.settle();
+  assert.equal(await h.app.switchMode('architecture'), true); await h.settle();
+  assert.equal(await h.app.applyEdit({ doc: h.docOf('arch-A') }), true);
+  assert.equal(await h.app.switchMode('fault-tree'), true); await h.settle();
+  assert.deepEqual(await h.app.adoptSource('arch-B'), []);
+  assert.equal(h.app.state.text, 'arch-B');
+  h.app.undo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'arch-A', 'the architecture it replaced');
+  assert.equal(await h.app.switchMode('fault-tree'), true); await h.settle();
+  assert.equal(h.app.state.text, 'original');
+  assert.equal(h.app.canUndo(), false, 'the tree’s history gained nothing');
 });
