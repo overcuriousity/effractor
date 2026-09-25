@@ -16,6 +16,14 @@
     return JSON.parse(JSON.stringify(doc));
   }
 
+  // A number as people write one — no hex, no words — and finite; else null.
+  function plainNumber(typed) {
+    typed = String(typed == null ? "" : typed).trim();
+    if (!/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(typed)) return null;
+    var n = Number(typed);
+    return Number.isFinite(n) ? n : null;
+  }
+
   // `[a-z0-9][a-z0-9-]*`, readable: umlauts spelled out, the rest dashed.
   function slug(label) {
     var s = String(label)
@@ -89,6 +97,21 @@
     node.leaf = "basic";
   }
 
+  // The controls whose effects name `id`: an effect replaces a leaf's
+  // likelihood, so such a leaf cannot become a gate while they do.
+  function actedOn(doc, id) {
+    return Object.keys(doc.controls || {}).filter(function (c) {
+      return (doc.controls[c].effects || []).some(function (e) { return e.node === id; });
+    });
+  }
+
+  // Why `id` cannot be given a child, or null when it can.
+  function gateRefusal(doc, id) {
+    var node = (doc.nodes || {})[id];
+    if (!node || node.gate || !actedOn(doc, id).length) return null;
+    return "a control acts on this leaf; remove its effect first";
+  }
+
   function newLeaf(doc) {
     var id = uniqueId(doc, slug(PLACEHOLDER));
     doc.nodes[id] = { label: PLACEHOLDER, leaf: "basic" };
@@ -97,7 +120,7 @@
 
   // Tab. On a leaf: it becomes an `or` gate first.
   function addChild(doc, id) {
-    if (!has(doc.nodes, id)) return null;
+    if (!has(doc.nodes, id) || gateRefusal(doc, id)) return null;
     doc = clone(doc);
     toGate(doc.nodes[id]);
     var child = newLeaf(doc);
@@ -139,8 +162,11 @@
     return { doc: doc, select: next };
   }
 
-  // The id field of the panel.
+  // The id field of the panel. Without a letter or a digit there is nothing
+  // to make an id of: refused, not named "node" (slug's fallback, which a
+  // prefix keeps out of the question).
   function setId(doc, id, wanted) {
+    if (slug("a " + wanted) === "a") return null;
     var next = slug(wanted);
     if (!has(doc.nodes, id) || next === id || has(doc.nodes, next)) return null;
     doc = clone(doc);
@@ -182,7 +208,7 @@
   function link(doc, parent, child) {
     if (!has(doc.nodes, parent) || !has(doc.nodes, child) || parent === child) return null;
     if ((doc.nodes[parent].children || []).indexOf(child) >= 0) return null;
-    if (reaches(doc, child, parent)) return null;
+    if (gateRefusal(doc, parent) || reaches(doc, child, parent)) return null;
     doc = clone(doc);
     toGate(doc.nodes[parent]);
     doc.nodes[parent].children.push(child);
@@ -237,11 +263,82 @@
 
   // What removing would mean, for whoever words the button: a shared node can
   // be unlinked from one parent and stay; `below` is what goes with the node.
+  // Counted, not done: it is asked on every change, and a deleteNode clones
+  // the document once per parent. The same rule as dropNodes — a node goes
+  // with its last parent edge — over a count of the edges into each node.
   function removal(doc, id) {
-    var gone = deleteNode(doc, id);
-    if (!gone) return null;
+    if (!has(doc.nodes, id) || id === doc.top) return null;
     var parents = parentsOf(doc, id);
-    return { shared: parents.length > 1, parents: parents, below: gone.removed - 1 };
+    if (!parents.length) return null;
+    var into = Object.create(null);
+    Object.keys(doc.nodes).forEach(function (p) {
+      (doc.nodes[p].children || []).forEach(function (c) {
+        into[c] = (into[c] || 0) + 1;
+      });
+    });
+    // deleteNode takes one edge from each parent.
+    into[id] -= parents.length;
+    var gone = Object.create(null);
+    var below = -1;
+    var stack = into[id] ? [] : [id];
+    while (stack.length) {
+      var at = stack.pop();
+      if (gone[at]) continue;
+      gone[at] = true;
+      below++;
+      (doc.nodes[at].children || []).forEach(function (c) {
+        if (--into[c] === 0 && c !== doc.top && has(doc.nodes, c)) stack.push(c);
+      });
+    }
+    return { shared: parents.length > 1, parents: parents, below: below };
+  }
+
+  // Who points at whom, once: a map from each node to its parents.
+  function parentMap(doc) {
+    var up = Object.create(null);
+    Object.keys(doc.nodes).forEach(function (p) {
+      (doc.nodes[p].children || []).forEach(function (c) {
+        (up[c] = up[c] || []).push(p);
+      });
+    });
+    return up;
+  }
+
+  // Everything reachable from `from` along `next`, `from` included. Iterative.
+  function closure(from, next) {
+    var seen = Object.create(null);
+    var stack = [from];
+    while (stack.length) {
+      var at = stack.pop();
+      if (seen[at]) continue;
+      seen[at] = true;
+      next(at).forEach(function (n) { stack.push(n); });
+    }
+    return seen;
+  }
+
+  // What the link dialog offers under `parent`: exactly the nodes `link`
+  // takes, found in one sweep instead of one edit per node.
+  function linkCandidates(doc, parent) {
+    if (!has(doc.nodes, parent) || gateRefusal(doc, parent)) return [];
+    var up = parentMap(doc);
+    var above = closure(parent, function (at) { return up[at] || []; });
+    var children = doc.nodes[parent].children || [];
+    return Object.keys(doc.nodes).filter(function (c) {
+      return !above[c] && children.indexOf(c) < 0;
+    });
+  }
+
+  // What the move dialog offers `id` (now under `from`): the nodes `reparent`
+  // takes.
+  function moveCandidates(doc, id, from) {
+    if (!has(doc.nodes, id)) return [];
+    var below = closure(id, function (at) {
+      return has(doc.nodes, at) ? doc.nodes[at].children || [] : [];
+    });
+    return Object.keys(doc.nodes).filter(function (to) {
+      return to !== from && !below[to] && (doc.nodes[to].children || []).indexOf(id) < 0 && !gateRefusal(doc, to);
+    });
   }
 
 
@@ -302,7 +399,7 @@
     ["c", "i", "a"].forEach(function (d) {
       var v = d === dim ? typed : (asset.loss || {})[d];
       if (v === undefined || v === "") return;
-      loss[d] = d === dim && /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(typed) ? Number(typed) : v;
+      loss[d] = d === dim && plainNumber(typed) !== null ? Number(typed) : v;
     });
     Object.keys(asset.loss || {}).forEach(function (k) {
       if (!has(loss, k) && ["c", "i", "a"].indexOf(k) < 0) loss[k] = asset.loss[k]; // x- keys
@@ -364,9 +461,10 @@
   function setControl(doc, id, key, value) {
     if (!has(doc.controls || {}, id)) return null;
     var typed = String(value == null ? "" : value).trim();
-    if (key === "label" ? !typed : key !== "cost" || typed === "" || !(Number(typed) >= 0)) return null;
+    var cost = plainNumber(typed);
+    if (key === "label" ? !typed : key !== "cost" || cost === null || cost < 0) return null;
     doc = clone(doc);
-    doc.controls[id][key] = key === "cost" ? Number(typed) : typed;
+    doc.controls[id][key] = key === "cost" ? cost : typed;
     return { doc: doc, select: null, control: id };
   }
 
@@ -496,15 +594,16 @@
   }
 
   function setHorizon(doc, value) {
-    var typed = String(value == null ? "" : value).trim();
-    if (!typed || !Number.isFinite(Number(typed))) return null;
-    doc = clone(doc); doc.horizon = Number(typed);
+    var horizon = plainNumber(value);
+    if (horizon === null) return null;
+    doc = clone(doc); doc.horizon = horizon;
     return { doc: doc, select: null };
   }
 
   var api = { setHorizon: setHorizon,
     slug: slug, parentsOf: parentsOf, addChild: addChild, addSibling: addSibling, rename: rename, setId: setId,
     cycleGate: cycleGate, setLeafKind: setLeafKind, link: link, removeEdge: removeEdge, deleteNode: deleteNode, removal: removal,
+    gateRefusal: gateRefusal, linkCandidates: linkCandidates, moveCandidates: moveCandidates,
     reparent: reparent, setAttribute: setAttribute, outline: outline, rateFrom: rateFrom, meanTime: meanTime,
     addAsset: addAsset, setAssetLabel: setAssetLabel, setAssetLoss: setAssetLoss, removeAsset: removeAsset, usesOfAsset: usesOfAsset, toggleControl: toggleControl, addControl: addControl, setControl: setControl, effectTargets: effectTargets,
     addEffect: addEffect, setEffect: setEffect, removeEffect: removeEffect, removeControl: removeControl, walk: walk, createHistory: createHistory,
