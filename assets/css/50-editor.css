@@ -14,6 +14,8 @@
 .outline li.is-selected { background: var(--color-bg-active); box-shadow: inset 2px 0 0 var(--color-accent); }
 .outline .kind { flex: none; width: 2.6em; color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); text-align: center; }
 .outline .repeat { flex: none; color: var(--color-fg-muted); font-size: var(--text-xs); }
+/* On a hovered or selected row muted is under AA; the signs step up. */
+.outline li:is(:hover, .is-selected) :is(.kind, .repeat) { color: var(--color-fg-secondary); }
 
 .label-action { float: right; margin: -3px 0; padding: 0 6px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--color-fg-muted); font: 400 1rem/1.2 var(--font-sans); cursor: pointer; }
 .label-action:hover { background: var(--color-bg-hover); color: var(--color-fg-primary); }
@@ -32,7 +34,7 @@
 
 .properties { display: grid; grid-template-columns: auto 1fr; gap: 5px 8px; align-items: center; margin-bottom: 10px; font-size: var(--text-sm); }
 .properties label { color: var(--color-fg-muted); }
-.properties input, .properties select, .properties textarea {
+.properties input, .properties textarea {
   width: 100%; min-width: 0;
   padding: 3px 5px;
   border: 1px solid var(--color-border); border-radius: var(--radius-sm);
@@ -43,8 +45,6 @@
 .properties input[type="number"] { text-align: right; }
 .properties textarea { resize: vertical; min-height: 3.2em; }
 .properties :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 0; }
-.properties .wide { grid-column: 1 / -1; }
-.properties .pair { display: grid; grid-template-columns: auto 1fr; gap: 4px; }
 .properties .hint { grid-column: 1 / -1; margin: 0; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .properties .problem { color: var(--color-danger); }
 
@@ -70,6 +70,7 @@
 .link-results li[aria-selected="true"] { background: var(--color-bg-active); }
 .link-results li.empty { color: var(--color-fg-muted); cursor: default; }
 .link-results .id { color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
+.link-results li[aria-selected="true"] .id { color: var(--color-fg-secondary); }
 
 .menu {
   position: fixed; left: var(--menu-x, 0); top: var(--menu-y, 0); z-index: 20;
@@ -90,7 +91,8 @@
 .menu button[aria-expanded="true"] .menu-arrow { color: var(--color-accent); }
 .menu button.is-note { color: var(--color-fg-muted); cursor: default; background: none; }
 .menu .menu-hint { margin-left: 8px; color: var(--color-fg-muted); font-size: var(--text-xs); }
-.menu kbd { color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
+/* Muted is under AA on the active item's ground: its quiet text steps up. */
+.menu button:is(:hover, :focus) :is(kbd, .menu-hint) { color: var(--color-fg-secondary); }
 
 /* Every action as a button with its key, and the list of all keys. */
 kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-fg-muted); }
@@ -108,7 +110,6 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--col
 /* Likelihood in words, and what the canvas does not need behind "More". */
 .properties .field-hint { line-height: 1.35; }
 .every { display: grid; grid-template-columns: 1fr auto; gap: 4px; }
-.properties .every select { width: auto; }
 .more { grid-column: 1 / -1; margin-top: 4px; }
 .more summary { color: var(--color-fg-muted); font-size: var(--text-xs); cursor: pointer; }
 .properties-inner { display: grid; grid-template-columns: auto 1fr; gap: 5px 8px; align-items: center; margin-top: 6px; }
@@ -129,8 +130,8 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--col
 .source-problems li { padding: 2px 4px; border-radius: var(--radius-sm); white-space: pre-wrap; }
 .source-problems li[tabindex] { cursor: pointer; }
 .source-problems li[tabindex]:hover { background: var(--color-bg-hover); }
-.source-problems .problem-error { color: var(--color-danger, #b3261e); }
-.source-problems .problem-blocking { color: var(--color-warning, #b26a00); }
+.source-problems .problem-error { color: var(--color-danger); }
+.source-problems .problem-blocking { color: var(--color-warning); }
 .canvas.is-stale .graph { opacity: 0.45; }
 .canvas.is-stale::after {
   content: "stale — the source is not valid";

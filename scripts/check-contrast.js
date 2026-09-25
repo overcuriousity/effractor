@@ -42,6 +42,12 @@ const TEXT = [
   ["--color-fg-muted", "--color-bg-base"],
   ["--color-fg-muted", "--color-bg-surface"],
   ["--color-fg-muted", "--color-bg-elevated"],
+  // A hovered or selected row, a menu's active item: muted is under AA there
+  // (3.6–4.4), so their quiet text turns secondary, and a selected cut set
+  // names the canvas's node in the accent.
+  ["--color-fg-secondary", "--color-bg-hover"],
+  ["--color-fg-secondary", "--color-bg-active"],
+  ["--color-accent", "--color-bg-active"],
   ...STEPS.map((n) => [`--viz-imp-${n}-ink`, `--viz-imp-${n}`]),
 ];
 const FAMILIES = ["network", "compute", "identity", "data"];

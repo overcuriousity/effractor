@@ -27,7 +27,7 @@
 .legend-measure { padding: 1px 6px; font-size: var(--text-xs); }
 
 /* The right panel's tabs, and the controls under the second one. */
-.tabs { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--color-border-subtle); }
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--color-border-subtle); }
 .tab { padding: 4px 8px 5px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--color-fg-muted); font: 600 0.625rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
 .tab:hover { color: var(--color-fg-primary); }
 .tab[aria-selected="true"] { border-bottom-color: var(--color-accent); color: var(--color-fg-primary); }
@@ -48,10 +48,8 @@
 .control-form .hint { grid-column: 1 / -1; }
 .effect { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto; gap: 4px; align-items: center; }
 .effect-node { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs); }
-.effect select { min-width: 0; padding: 3px 4px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-base); color: var(--color-fg-primary); font: inherit; font-size: var(--text-xs); }
 .effect-add { margin-top: 2px; }
 
-.tabs { flex-wrap: wrap; }
 .analysis-chart { display: block; width: 100%; overflow: visible; }
 .analysis-chart text { fill: var(--color-fg-muted); font: 10px var(--font-mono); font-variant-numeric: tabular-nums; }
 .chart-grid { stroke: var(--color-border-subtle); stroke-width: 1; }
@@ -82,7 +80,7 @@
 .pareto-sort { display: block; width: 100%; }
 .pareto-table th .pareto-sort { text-align: right; }
 .pareto-table th:first-child .pareto-sort { text-align: left; }
-.pareto-sort, .pareto-path { border: 0; padding: 0; background: none; color: inherit; font: inherit; text-align: inherit; cursor: pointer; }
+.pareto-sort, .pareto-path { border: 0; padding: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 .pareto-sort:hover, .pareto-path:hover { text-decoration: underline; }
 .pareto-path { display: block; width: 100%; min-width: 140px; text-align: left; }
 .pareto-table .cheapest { background: var(--color-bg-elevated); }

@@ -113,7 +113,7 @@
 .diagnostics { grid-column: 1 / -1; margin: 0; padding: 0; list-style: none; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .diagnostics li::before { content: "· "; }
 .diagnostics li.is-blocking { color: var(--color-fg); }
-.diagnostics li.is-blocking::before { content: "■ "; color: var(--color-warning, #b26a00); }
+.diagnostics li.is-blocking::before { content: "■ "; color: var(--color-warning); }
 .diagnostic-hint { display: block; padding-left: 1ch; color: var(--color-accent); }
 
 /* Relationship lines carry a few words: the relation, a flow's name — and an
