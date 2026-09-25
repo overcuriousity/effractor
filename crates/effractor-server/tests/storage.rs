@@ -29,8 +29,15 @@ async fn contract<S: Storage, F: Future<Output = S>>(make: impl Fn() -> F) {
         Some((blob.clone(), meta(Some(100), blob.len())))
     );
 
+    // The metadata alone, without reading the blob.
+    assert_eq!(
+        s.meta(&id).await.unwrap(),
+        Some(meta(Some(100), blob.len()))
+    );
+
     // Unknown is `None`, not an error.
     assert_eq!(s.get(&ShareId::random()).await.unwrap(), None);
+    assert_eq!(s.meta(&ShareId::random()).await.unwrap(), None);
 
     // A share is immutable: the same id cannot be written twice.
     let again = s
@@ -43,6 +50,7 @@ async fn contract<S: Storage, F: Future<Output = S>>(make: impl Fn() -> F) {
     assert!(s.delete(&id).await.unwrap());
     assert!(!s.delete(&id).await.unwrap());
     assert_eq!(s.get(&id).await.unwrap(), None);
+    assert_eq!(s.meta(&id).await.unwrap(), None);
 
     // Storage keeps what it is given until told otherwise: expiry is `sweep`,
     // and `sweep` takes what has expired at `now`, and nothing else.

@@ -33,11 +33,11 @@ impl FsStorage {
         self.root.join(&id.as_str()[..2])
     }
 
-    fn blob(&self, id: &ShareId) -> PathBuf {
+    fn blob_path(&self, id: &ShareId) -> PathBuf {
         self.dir(id).join(format!("{id}.bin"))
     }
 
-    fn meta(&self, id: &ShareId) -> PathBuf {
+    fn meta_path(&self, id: &ShareId) -> PathBuf {
         self.dir(id).join(format!("{id}.meta.json"))
     }
 }
@@ -85,29 +85,35 @@ async fn is_debris(path: &Path) -> bool {
 impl Storage for FsStorage {
     async fn put(&self, id: &ShareId, blob: Bytes, meta: ShareMeta) -> Result<(), StorageError> {
         fs::create_dir_all(self.dir(id)).await?;
-        if fs::try_exists(self.meta(id)).await? {
+        if fs::try_exists(self.meta_path(id)).await? {
             return Err(StorageError::Exists);
         }
-        write_atomically(&self.blob(id), &blob).await?;
-        write_atomically(&self.meta(id), &serde_json::to_vec(&meta)?).await?;
+        write_atomically(&self.blob_path(id), &blob).await?;
+        write_atomically(&self.meta_path(id), &serde_json::to_vec(&meta)?).await?;
         Ok(())
     }
 
     async fn get(&self, id: &ShareId) -> Result<Option<(Bytes, ShareMeta)>, StorageError> {
-        let Some(meta) = read(&self.meta(id)).await? else {
+        let Some(meta) = self.meta(id).await? else {
             return Ok(None);
         };
-        let meta: ShareMeta = serde_json::from_slice(&meta)?;
         // Gone between the two reads: deleted, which is an answer, not an error.
-        Ok(read(&self.blob(id))
+        Ok(read(&self.blob_path(id))
             .await?
             .map(|blob| (Bytes::from(blob), meta)))
     }
 
+    async fn meta(&self, id: &ShareId) -> Result<Option<ShareMeta>, StorageError> {
+        match read(&self.meta_path(id)).await? {
+            Some(bytes) => Ok(Some(serde_json::from_slice(&bytes)?)),
+            None => Ok(None),
+        }
+    }
+
     async fn delete(&self, id: &ShareId) -> Result<bool, StorageError> {
-        let existed = remove(&self.meta(id)).await?;
+        let existed = remove(&self.meta_path(id)).await?;
         if existed {
-            remove(&self.blob(id)).await?;
+            remove(&self.blob_path(id)).await?;
         }
         Ok(existed)
     }
@@ -203,7 +209,7 @@ impl FsStorage {
         }
         // A blob without its metadata, or a temporary file.
         let orphan = match share(".bin") {
-            Some(id) => !fs::try_exists(self.meta(&id)).await?,
+            Some(id) => !fs::try_exists(self.meta_path(&id)).await?,
             None => name.ends_with(".bin.tmp") || name.ends_with(".meta.json.tmp"),
         };
         if orphan && is_debris(path).await {

@@ -287,11 +287,13 @@ async fn creation_is_rate_limited_per_address() {
     );
 }
 
-/// Memory storage whose writes fail while `broken` is set.
+/// Memory storage whose writes fail while `broken` is set, and which counts
+/// the blobs read.
 #[derive(Default)]
 struct Flaky {
     inner: MemoryStorage,
     broken: std::sync::atomic::AtomicBool,
+    gets: AtomicU64,
 }
 
 #[async_trait::async_trait]
@@ -303,7 +305,11 @@ impl Storage for Flaky {
         self.inner.put(id, blob, meta).await
     }
     async fn get(&self, id: &ShareId) -> Result<Option<(Bytes, ShareMeta)>, StorageError> {
+        self.gets.fetch_add(1, Ordering::Relaxed);
         self.inner.get(id).await
+    }
+    async fn meta(&self, id: &ShareId) -> Result<Option<ShareMeta>, StorageError> {
+        self.inner.meta(id).await
     }
     async fn delete(&self, id: &ShareId) -> Result<bool, StorageError> {
         self.inner.delete(id).await
@@ -342,4 +348,30 @@ async fn a_share_that_failed_to_be_written_costs_no_allowance() {
         post().await.unwrap().status(),
         StatusCode::TOO_MANY_REQUESTS
     );
+}
+
+#[tokio::test]
+async fn deleting_reads_the_metadata_and_not_the_blob() {
+    let storage = Arc::new(Flaky::default());
+    let app = effractor_server::app(Shares::new(storage.clone(), Limits::default()));
+    let send = |mut req: Request<Body>| {
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([10, 0, 0, 1], 40000))));
+        app.clone().oneshot(req)
+    };
+    let made = send(Request::post("/api/share").body(Body::from("x")).unwrap());
+    let made = json(made.await.unwrap()).await;
+    let id = made["id"].as_str().unwrap();
+    let token = made["delete_token"].as_str().unwrap();
+    let delete = |token: &str| {
+        Request::delete(format!("/api/share/{id}"))
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .body(Body::empty())
+            .unwrap()
+    };
+    let wrong = send(delete("AAAAAAAAAAAAAAAAAAAAAA")).await.unwrap();
+    assert_eq!(wrong.status(), StatusCode::FORBIDDEN);
+    let right = send(delete(token)).await.unwrap();
+    assert_eq!(right.status(), StatusCode::NO_CONTENT);
+    assert_eq!(storage.gets.load(Ordering::Relaxed), 0);
 }

@@ -90,6 +90,17 @@ impl Shares {
             .filter(|(_, meta)| !meta.expired((self.clock)()))
             .map(|(blob, meta)| (id, blob, meta)))
     }
+
+    /// As `live`, without reading the blob.
+    async fn live_meta(&self, id: &str) -> Result<Option<(ShareId, ShareMeta)>, StorageError> {
+        let Ok(id) = id.parse::<ShareId>() else {
+            return Ok(None);
+        };
+        let found = self.storage.meta(&id).await?;
+        Ok(found
+            .filter(|meta| !meta.expired((self.clock)()))
+            .map(|meta| (id, meta)))
+    }
 }
 
 pub fn routes(shares: Shares) -> Router {
@@ -205,8 +216,8 @@ async fn remove(
     Path(id): Path<String>,
     headers: HeaderMap,
 ) -> Response {
-    let (id, meta) = match shares.live(&id).await {
-        Ok(Some((id, _, meta))) => (id, meta),
+    let (id, meta) = match shares.live_meta(&id).await {
+        Ok(Some(found)) => found,
         Ok(None) => return StatusCode::NOT_FOUND.into_response(),
         Err(err) => return failed(&err),
     };
