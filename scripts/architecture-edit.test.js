@@ -88,6 +88,9 @@ test('a supplied parameter is status, TTC and note together; clearing makes it u
   assert.equal(E.setParameter(doc, { entity: 'ssh' }, 'extract', { status: 'unknown' }), null, 'not a slot of a service');
   assert.equal(E.setParameter(doc, { entity: 'nowhere' }, 'login', { status: 'unknown' }), null);
   assert.equal(E.setParameter(doc, { entity: 'ssh' }, 'login', { status: 'certain' }), null);
+  // What changes nothing is no edit: unknown again, or the same value retyped.
+  assert.equal(E.setParameter(doc, { entity: 'ssh' }, 'login', { status: 'unknown', ttc: '', note: '' }), null);
+  assert.equal(E.setParameter(set.doc, { entity: 'ssh' }, 'login', { status: 'illustrative', ttc: 'Exponential(mean 1)', note: 'Exercise ' }), null);
 });
 
 test('a flow owns its connect parameter', () => {

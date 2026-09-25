@@ -526,24 +526,24 @@
     applyButton.type = "button";
     applyButton.className = "btn btn-small";
     applyButton.textContent = "Apply";
+    function close() {
+      delete drafts[key];
+      openSlot = null;
+      renderProperties();
+    }
+    // Applying what is there already closes the form, quietly.
     applyButton.addEventListener("click", function () {
       apply(function () {
-        return A.setParameter(doc(), owner, slot, draft);
-      }, function () {
-        delete drafts[key];
-        openSlot = null;
-        renderProperties();
-      });
+        var edit = A.setParameter(doc(), owner, slot, draft);
+        if (!edit) close();
+        return edit;
+      }, close, true);
     });
     var cancel = document.createElement("button");
     cancel.type = "button";
     cancel.className = "btn btn-ghost btn-small";
     cancel.textContent = "Cancel";
-    cancel.addEventListener("click", function () {
-      delete drafts[key];
-      openSlot = null;
-      renderProperties();
-    });
+    cancel.addEventListener("click", close);
     actions.appendChild(applyButton);
     actions.appendChild(cancel);
     form.appendChild(actions);

@@ -135,7 +135,10 @@
       if (ttc) parameter.ttc = ttc;
       if (note) parameter.note = note;
     }
-    at.record.parameters[slot] = Object.assign(parameter, extensions(at.record.parameters[slot]));
+    var was = at.record.parameters[slot];
+    Object.assign(parameter, extensions(was));
+    if (JSON.stringify(was) === JSON.stringify(parameter)) return null;
+    at.record.parameters[slot] = parameter;
     return { doc: next, select: at.select };
   }
 
