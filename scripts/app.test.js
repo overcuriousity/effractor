@@ -888,3 +888,14 @@ test('review: source of another mode typed here keeps that mode’s document a C
   assert.equal(h.app.state.text, 'original');
   assert.equal(h.app.canUndo(), false, 'the tree’s history gained nothing');
 });
+
+test('review: several selected stay selected when results arrive', async () => {
+  const h = racePage('arch two', null, { view: { describe: doc => ({ name: doc.name, nodes: [] }), route: () => [] } });
+  await h.app.ready; await h.tick();
+  const run = h.runs[h.runs.length - 1];
+  h.app.pick(['entity/web', 'entity/db']);
+  run.resolve(graphResult('arch two', run.options.revision, 0.5)); await h.settle();
+  assert.ok(h.app.state.results, 'the result is shown');
+  assert.deepEqual(h.app.state.picked, ['entity/web', 'entity/db']);
+  assert.equal(h.nodes.get('inspector').hidden, false);
+});

@@ -240,6 +240,12 @@
     facts.hidden = said.length === 0 && (arch || !state.selected);
   }
 
+  // The same selection shown again (new numbers): the several selected, and
+  // an edge that was named, stay.
+  function reselect() {
+    select(state.selected, state.parentChosen ? state.parent : undefined, true);
+  }
+
   // Canvas → table: the rows holding the selected node.
   function markRows() {
     var rows = $("cutsets-body").children;
@@ -1025,7 +1031,7 @@
     showResults(results);
     showNotices(results);
     paint();
-    select(state.selected);
+    reselect();
     markRows();
     mark("current");
   }
@@ -1040,7 +1046,7 @@
     hud("hud-p", h.p === null ? "—" : probability(h.p));
     hud("hud-p-ci", h.qualifier);
     paint();
-    select(state.selected);
+    reselect();
     mark("current");
   }
 
