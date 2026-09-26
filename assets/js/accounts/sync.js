@@ -9,7 +9,7 @@
   var store = window.effractorStore.createStore(window.indexedDB);
   var $ = function (id) { return document.getElementById(id); };
   var WORDS = {
-    saved: "saved", saving: "saving…", retrying: "not saved · retrying", conflict: "not saved",
+    saved: "saved", saving: "saving…", retrying: "not saved · retrying", conflict: "not saved · changed elsewhere",
     lost: "not saved", loggedout: "not saved · logged out", refused: "not saved",
   };
 
@@ -26,6 +26,11 @@
     });
   }
 
+  var shownOpen = null;
+  // The conflict's choices can be lost under a later notice: the save state
+  // brings them back.
+  $("save-state").addEventListener("click", function () { core.showConflict(); });
+
   function showPath() {
     var id = core.openId(), el = $("model-path");
     var listing = A.documentsUi && A.documentsUi.listing();
@@ -40,7 +45,6 @@
     page: {
       text: function () { return app.state.text; },
       profile: function () { return app.state.doc ? app.state.doc.profile : null; },
-      name: function () { return app.state.doc ? app.state.doc.name : ""; },
       folder: function () { return A.documentsUi ? A.documentsUi.selectedFolder() : null; },
       say: function (text, actions, sticky) { app.say(text, actions, sticky); },
       replace: function (text, said, opts) { return app.replaceDocument(text, said, null, opts); },
@@ -53,7 +57,15 @@
     onState: function (s) {
       $("save-state").hidden = !s;
       if (s) $("save-state").textContent = WORDS[s] || s;
+      $("save-state").classList.toggle("is-action", s === "conflict");
+      $("save-state").title = s === "conflict" ? "Show the choices again" : "";
       showPath();
+      // Another document on the page: the list marks the open row anew.
+      var id = core.openId();
+      if (id !== shownOpen) {
+        shownOpen = id;
+        if (A.documentsUi) A.documentsUi.redraw();
+      }
     },
     onSaved: function (id, fields) {
       if (A.documentsUi) A.documentsUi.saved(id, fields);
@@ -70,8 +82,12 @@
   });
 
   app.onText(core.text);
+  core.init();
   A.session.onChange(function (user) {
-    if (user) return app.ready.then(function () { return core.login(user); }).then(function () {
+    // Only a login in this page offers local work, not a page load.
+    var fresh = !!A.session.justLoggedIn;
+    A.session.justLoggedIn = false;
+    if (user) return app.ready.then(function () { return core.login(user, { fresh: fresh }); }).then(function () {
       if (A.documentsUi) A.documentsUi.refresh().then(showPath);
     });
     return core.logout();
@@ -88,6 +104,10 @@
   }
 
   function rename(id, name) {
+    // Open in another mode: renamed there, where its text is.
+    if (core.modeOf(id) && !core.isOpen(id)) {
+      return open(id).then(function () { return rename(id, name); });
+    }
     if (core.isOpen(id)) {
       // Saved at once, not after the pause edits wait for: a rename is one act.
       return renameText(app.state.text, name)
@@ -105,7 +125,10 @@
   }
 
   function download(id) {
-    client.request("GET", "/api/documents/" + id).then(function (res) {
+    // The open document as it is on the page, unsaved edits included.
+    var here = core.isOpen(id) ? Promise.resolve({ ok: true, data: { body: app.state.text, name: app.state.doc.name } })
+      : client.request("GET", "/api/documents/" + id);
+    here.then(function (res) {
       if (!res.ok) return app.say("not downloaded");
       var url = URL.createObjectURL(new Blob([res.data.body], { type: "text/yaml" }));
       var a = document.createElement("a");
@@ -128,6 +151,6 @@
 
   A.sync = {
     open: open, createNew: createNew, rename: rename, download: download,
-    isOpen: core.isOpen, openId: core.openId, forget: core.forget,
+    isOpen: core.isOpen, openId: core.openId, forget: core.forget, showPath: showPath,
   };
 })();

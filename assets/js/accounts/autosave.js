@@ -10,7 +10,7 @@
     var timers = o.timers || { set: setTimeout, clear: clearTimeout };
     var delay = o.delay == null ? 800 : o.delay;
     var version = null, saved = null, pending = null, name = null;
-    var timer = null, inflight = null, state = "saved", tries = 0, stopped = false;
+    var timer = null, inflight = null, state = "saved", tries = 0, stopped = false, refused = null;
 
     function set(s) {
       if (state === s) return;
@@ -55,6 +55,7 @@
         // same text would be refused again.
         if (res.status === 400 || res.status === 413) {
           stopped = true;
+          refused = body;
           set("refused");
           if (o.onRefused) o.onRefused(res.data);
           return;
@@ -78,6 +79,11 @@
         set("saved");
       },
       change: function (text, docName) {
+        // A refusal was about that text: another one may be taken.
+        if (stopped && state === "refused" && text !== refused) {
+          stopped = false;
+          set("saved");
+        }
         if (stopped || version === null) return;
         pending = text;
         name = docName;

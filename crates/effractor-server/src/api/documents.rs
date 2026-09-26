@@ -243,6 +243,10 @@ async fn change_folder(
     Path(id): Path<Id>,
     Json(body): Json<Value>,
 ) -> Result<StatusCode, ApiError> {
+    let role = accounts
+        .blocking(move |db| db.read(|c| perms::folder_role(c, user.id, id)))
+        .await?;
+    need(role, Role::Owner)?;
     let name = body.get("name").and_then(Value::as_str).map(str::to_owned);
     let parent = body.get("parent").map(destination).transpose()?;
     accounts
@@ -266,6 +270,10 @@ async fn delete_folder(
     CurrentUser(user, _): CurrentUser,
     Path(id): Path<Id>,
 ) -> Result<StatusCode, ApiError> {
+    let role = accounts
+        .blocking(move |db| db.read(|c| perms::folder_role(c, user.id, id)))
+        .await?;
+    need(role, Role::Owner)?;
     accounts
         .blocking(move |db| {
             let now = db.now();

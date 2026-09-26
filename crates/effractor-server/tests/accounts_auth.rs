@@ -365,3 +365,48 @@ async fn behind_a_trusted_proxy_failed_logins_count_per_forwarded_address() {
         StatusCode::TOO_MANY_REQUESTS
     );
 }
+
+/// Spec §11: every route that needs a session refuses one without.
+#[tokio::test]
+async fn every_account_route_needs_a_session() {
+    let h = harness();
+    for (method, path) in [
+        ("GET", "/api/documents"),
+        ("POST", "/api/documents"),
+        ("GET", "/api/documents/1"),
+        ("PUT", "/api/documents/1"),
+        ("PATCH", "/api/documents/1"),
+        ("DELETE", "/api/documents/1"),
+        ("POST", "/api/documents/1/restore"),
+        ("POST", "/api/folders"),
+        ("PATCH", "/api/folders/1"),
+        ("DELETE", "/api/folders/1"),
+        ("POST", "/api/folders/1/restore"),
+        ("GET", "/api/documents/1/shares"),
+        ("POST", "/api/documents/1/shares"),
+        ("GET", "/api/folders/1/shares"),
+        ("POST", "/api/folders/1/shares"),
+        ("DELETE", "/api/shares/1"),
+        ("GET", "/api/directory"),
+        ("PATCH", "/api/account"),
+        ("POST", "/api/auth/logout-others"),
+        ("GET", "/api/admin/users"),
+        ("POST", "/api/admin/users"),
+        ("PATCH", "/api/admin/users/1"),
+        ("DELETE", "/api/admin/users/1"),
+        ("GET", "/api/admin/groups"),
+        ("POST", "/api/admin/groups"),
+        ("PATCH", "/api/admin/groups/1"),
+        ("DELETE", "/api/admin/groups/1"),
+        ("PUT", "/api/admin/groups/1/members/1"),
+        ("DELETE", "/api/admin/groups/1/members/1"),
+        ("DELETE", "/api/account/oidc"),
+    ] {
+        let body = matches!(method, "POST" | "PUT" | "PATCH").then(|| json!({}));
+        let status = h.call(method, path, None, body).await.status();
+        assert!(
+            status == StatusCode::UNAUTHORIZED || status == StatusCode::UNPROCESSABLE_ENTITY,
+            "{method} {path}: {status}"
+        );
+    }
+}

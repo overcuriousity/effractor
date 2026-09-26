@@ -5,7 +5,7 @@
   if (typeof document === "undefined") return;
   var A = window.effractorAccounts, D = A.documents, client = A.client, app = window.effractor;
   var $ = function (id) { return document.getElementById(id); };
-  var listing = null, query = "", expanded = Object.create(null), selectedFolder = null;
+  var listing = null, query = "", expanded = Object.create(null), selectedFolder = null, renderLater = false;
   var ICONS = { "fault-tree": "mode-fault-tree", "attack-tree": "mode-attack-tree", architecture: "mode-architecture" };
 
   // ---- the left panel's tabs ----
@@ -59,6 +59,7 @@
       }
       listing = res.data;
       render();
+      if (A.sync && A.sync.showPath) A.sync.showPath();
       return listing;
     });
   }
@@ -83,6 +84,16 @@
     return svg ? svg.cloneNode(true) : document.createElement("span");
   }
 
+  // A key on a row is the tree's: the canvas must not also act on it
+  // (Enter adds a node, Del deletes one, a letter renames). Esc and Tab
+  // keep their page-wide meaning.
+  function ownKey(e) {
+    if (e.key === "Escape" || e.key === "Tab" || e.ctrlKey || e.metaKey || e.altKey) return false;
+    e.stopPropagation();
+    e.preventDefault();
+    return true;
+  }
+
   function docRow(d, depth) {
     var li = document.createElement("li");
     li.className = "doc-row doc-document";
@@ -99,7 +110,13 @@
     li.appendChild(name);
     if (A.sync && A.sync.isOpen(d.id)) li.classList.add("is-open");
     li.addEventListener("click", function () { A.sync.open(d.id); });
-    li.addEventListener("keydown", function (e) { if (e.key === "Enter") A.sync.open(d.id); });
+    li.addEventListener("keydown", function (e) {
+      if (!ownKey(e)) return;
+      if (e.key === "Enter") A.sync.open(d.id);
+      if ((e.key === "Delete" || e.key === "Backspace") && d.role === "owner") remove("document", d.id, d.name);
+    });
+    // Dropped on a document: into the folder it is in.
+    if (d.owner === (listing && listing.me)) dropTarget(li, d.folder == null ? null : d.folder);
     li.addEventListener("contextmenu", function (e) { e.preventDefault(); docMenu(d, e); });
     li.addEventListener("dragstart", function (e) { e.dataTransfer.setData("text/x-effractor", "document:" + d.id); });
     return li;
@@ -118,9 +135,20 @@
     li.draggable = f.role === "owner";
     li.textContent = (open ? "▾ " : "▸ ") + f.name;
     li.addEventListener("click", function () {
-      expanded[f.id] = !expanded[f.id];
-      if (f.role === "owner") selectedFolder = f.id;
+      // Closing the chosen folder lets go of it: New then goes to the top.
+      if (expanded[f.id] && selectedFolder === f.id) {
+        expanded[f.id] = false;
+        selectedFolder = null;
+      } else {
+        expanded[f.id] = true;
+        if (f.role === "owner") selectedFolder = f.id;
+      }
       render();
+    });
+    li.addEventListener("keydown", function (e) {
+      if (!ownKey(e)) return;
+      if (e.key === "Enter") li.click();
+      if ((e.key === "Delete" || e.key === "Backspace") && f.role === "owner") remove("folder", f.id, f.name);
     });
     li.addEventListener("contextmenu", function (e) { e.preventDefault(); folderMenu(f, e); });
     li.addEventListener("dragstart", function (e) { e.dataTransfer.setData("text/x-effractor", "folder:" + f.id); });
@@ -144,6 +172,9 @@
 
   function render() {
     if (!listing) return;
+    // Not under an open name field: drawing would take it away mid-word.
+    if (document.querySelector(".doc-rename")) { renderLater = true; return; }
+    renderLater = false;
     var t = D.build(listing);
     var mine = query ? D.prune(t.mine) : t.mine;
     $("documents-recent-section").hidden = !!query || !t.recent.length;
@@ -160,7 +191,9 @@
       shared.appendChild(head);
       var rows = [];
       group.nodes.forEach(function (n) {
-        if (n.folder) folderRows(query ? D.prune(n) : n, 1, rows);
+        var shown = query && n.folder ? D.prune(n) : n;
+        if (n.folder && query && !shown.folders.length && !shown.documents.length) return;
+        if (n.folder) folderRows(shown, 1, rows);
         else n.documents.forEach(function (d) { rows.push(docRow(d, 1)); });
       });
       rows.forEach(function (r) { shared.appendChild(r); });
@@ -236,8 +269,8 @@
       ["New folder", "", function () { newFolder(selectedFolder); }],
     ], e.clientX, e.clientY);
   });
-  $("documents-mine").addEventListener("contextmenu", function (e) {
-    if (e.target !== $("documents-mine")) return;
+  $("documents-mine-section").addEventListener("contextmenu", function (e) {
+    if (e.target.closest(".doc-row, input, button")) return;
     e.preventDefault();
     app.showMenu([
       ["New document", "", function () { A.sync.createNew(null); }],
@@ -260,6 +293,7 @@
       if (finished) return;
       finished = true;
       li.remove();
+      if (renderLater) render();
       if (keep && input.value.trim()) done(input.value.trim());
     }
     input.addEventListener("keydown", function (e) {
@@ -294,6 +328,7 @@
 
   function remove(kind, id, name) {
     var path = (kind === "document" ? "/api/documents/" : "/api/folders/") + id;
+    var wasOpen = kind === "document" && A.sync.isOpen(id);
     client.request("DELETE", path).then(function (res) {
       if (!res.ok) return app.say("not deleted");
       if (kind === "document") A.sync.forget(id);
@@ -302,6 +337,8 @@
       app.say('Deleted "' + name + '"', [["Undo", function () {
         client.request("POST", path + "/restore").then(function (r) {
           if (!r.ok) app.say(r.status === 409 ? "not restored · the name is taken" : "not restored");
+          // It was on the page: bound again, so it saves again.
+          if (r.ok && wasOpen) A.sync.open(id);
           refresh();
         });
       }]]);
@@ -315,7 +352,8 @@
       if (!l) return;
       D.ancestors(l, docId).forEach(function (id) { expanded[id] = true; });
       render();
-      var row = document.querySelector('.doc-row[data-kind="document"][data-id="' + docId + '"]');
+      var sel = '.doc-row[data-kind="document"][data-id="' + docId + '"]';
+      var row = document.querySelector("#documents-mine " + sel) || document.querySelector("#documents-shared " + sel) || document.querySelector(sel);
       if (row) { row.scrollIntoView({ block: "nearest" }); row.focus(); }
     });
   }
@@ -325,21 +363,17 @@
   });
   document.querySelector("[data-documents]").addEventListener("click", function () {
     $("file-menu").hidden = true;
+    $("file").setAttribute("aria-expanded", "false");
     if (A.sync && A.sync.openId()) reveal(A.sync.openId()); else openTab();
   });
-  document.addEventListener("keydown", function (e) {
-    if (e.key.toLowerCase() !== "o" || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || document.querySelector("dialog[open]")) return;
-    e.preventDefault();
-    openTab();
-  });
   // The top of My documents takes drops once, not once per drawing.
-  dropTarget($("documents-mine"), null);
+  dropTarget($("documents-mine-section"), null);
   $("documents-login").addEventListener("click", function () { $("login-open").click(); });
   A.session.onChange(function () { listing = null; refresh(); });
 
   A.documentsUi = { show: openTab, reveal: reveal, refresh: refresh, selectedFolder: function () { return selectedFolder; },
     selectFolder: function (id) { selectedFolder = id; }, listing: function () { return listing; },
+    redraw: function () { render(); },
     // A save changed this document: its row shows it at once.
     saved: function (id, fields) {
       var next = D.patch(listing, id, fields);

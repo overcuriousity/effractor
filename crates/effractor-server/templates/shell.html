@@ -126,7 +126,7 @@
 {% if accounts %}
 <div class="tabs left-tabs" role="tablist" aria-label="Left panel">
   <button class="tab" type="button" role="tab" id="left-tab-model" data-left-tab="model" aria-selected="true" aria-controls="left-model">Model</button>
-  <button class="tab" type="button" role="tab" id="left-tab-documents" data-left-tab="documents" aria-selected="false" aria-controls="view-documents" title="Documents (O)">Documents</button>
+  <button class="tab" type="button" role="tab" id="left-tab-documents" data-left-tab="documents" aria-selected="false" aria-controls="view-documents">Documents</button>
 </div>
 {% endif %}
     {% if accounts %}<div id="left-model">{% endif %}
@@ -367,7 +367,7 @@
 </dialog>
 {% endif %}
 <div class="menu" id="file-menu" role="menu" hidden>
-  {% if accounts %}<button type="button" role="menuitem" data-documents>Documents<kbd>O</kbd></button>{% endif %}
+  {% if accounts %}<button type="button" role="menuitem" data-documents>Documents</button>{% endif %}
   <button type="button" role="menuitem" data-file="new">New</button>
   <button type="button" role="menuitem" data-file="open">Open a .yaml file…<kbd>Ctrl+O</kbd></button>
   <button type="button" role="menuitem" data-file="save">Save as .yaml<kbd>Ctrl+S</kbd></button>

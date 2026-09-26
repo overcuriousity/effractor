@@ -66,6 +66,9 @@ pub fn provision(
     now: Timestamp,
 ) -> Result<Id> {
     let base = name_from(preferred);
+    // As users::set_display_name allows: at most 100 characters.
+    let display: String = display.trim().chars().take(100).collect();
+    let display = display.as_str();
     let mut n = 1;
     let id = loop {
         let name = if n == 1 {

@@ -104,15 +104,15 @@ function tab(server, opts = {}) {
     current: null,
     text: () => (page.current ? slots[page.current] : null),
     profile: () => page.current,
-    name: () => (page.current ? nameOf(slots[page.current]) : ""),
     folder: () => (opts.folder ? opts.folder() : null),
     say: (text, actions, sticky) => said.push({ text, actions: actions || [], sticky: !!sticky }),
     // As app.replaceDocument: lands in the text's own mode, then tells the core.
     replace: async (text, _said, o) => {
       const p = profileOf(text);
+      // As app.js: the listeners first, then the page's state.
+      core.text(text, p, (o && o.origin) || "other", nameOf(text));
       slots[p] = text;
       page.current = p;
-      core.text(text, p, (o && o.origin) || "other");
       return true;
     },
   };
@@ -136,14 +136,21 @@ function tab(server, opts = {}) {
     // An edit, as app.js's onText reports it.
     edit(text) {
       const p = profileOf(text);
+      core.text(text, p, null, nameOf(text));
       slots[p] = text;
       page.current = p;
-      core.text(text, p, null);
     },
     // A mode switch: the mode's last text comes back (app.switchMode).
     switchTo(p) {
+      core.text(slots[p], p, null, nameOf(slots[p]));
       page.current = p;
-      core.text(slots[p], p, null);
+    },
+    // The page's first text, as app.js's load() announces it.
+    load(text, origin) {
+      const p = profileOf(text);
+      core.text(text, p, origin || "load", nameOf(text));
+      slots[p] = text;
+      page.current = p;
     },
     click(label) {
       const note = [...said].reverse().find((s) => s.actions.some((a) => a[0] === label));
@@ -239,8 +246,8 @@ test("a conflicted tab that reloads does not overwrite the other tab's save", as
   // Tab two reloads instead of choosing: a new core on the same storage,
   // with tab two's text on the page.
   const again = tab(server, { shared });
-  again.page.current = "fault-tree";
-  again.edit.call(again, doc("fault-tree", "F", "from two"));
+  await again.core.init();
+  again.load(doc("fault-tree", "F", "from two"));
   await again.core.login(USER);
   await again.timers.advance(5000);
   assert.equal(server.body(F), doc("fault-tree", "F", "from one"), "tab one's save stands");
@@ -396,4 +403,147 @@ test("the conflict line says who saved and when (spec §6.2)", async () => {
   t.edit(doc("fault-tree", "F", "mine"));
   await t.timers.advance(1000);
   assert.ok(t.said.some((s) => s.text === "Changed by alice · t1"), JSON.stringify(t.said.map((s) => s.text)));
+});
+
+// ---- second review: logged out, reopening, names ----
+
+test("work done while logged out is kept and saved at the next login", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  t.edit(doc("fault-tree", "F", "f1"));
+  await t.core.logout();
+  t.edit(doc("fault-tree", "F", "offline work"));
+  await t.core.login(USER);
+  await t.timers.advance(5000);
+  assert.equal(t.page.text(), doc("fault-tree", "F", "offline work"), "the page keeps it");
+  assert.equal(server.body(F), doc("fault-tree", "F", "offline work"), "and the server gets it");
+});
+
+test("work logged out survives a reload before logging in", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const shared = new Map();
+  const t = tab(server, { shared });
+  await t.core.login(USER);
+  await t.core.open(F);
+  await t.core.logout();
+  t.edit(doc("fault-tree", "F", "offline work"));
+  const again = tab(server, { shared });
+  await again.core.init();
+  again.load(doc("fault-tree", "F", "offline work"));
+  await again.core.login(USER);
+  await again.timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "offline work"));
+});
+
+test("a file or link opened while logged out is not replaced at login", async () => {
+  for (const origin of ["file", "link"]) {
+    const server = fakeServer();
+    const F = server.add("fault-tree", "F", "f0");
+    const t = tab(server);
+    await t.core.login(USER);
+    await t.core.open(F);
+    await t.core.logout();
+    await t.page.replace(doc("fault-tree", "Other", "o0"), "opened", { origin });
+    await t.core.login(USER);
+    await t.timers.advance(5000);
+    assert.equal(t.page.text(), doc("fault-tree", "Other", "o0"), origin);
+    assert.equal(server.body(F), doc("fault-tree", "F", "f0"), `${origin}: F untouched`);
+    assert.equal(t.core.openId(), null, origin);
+  }
+});
+
+test("a page started with ?new= is not the document the mode held", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const shared = new Map();
+  const t = tab(server, { shared });
+  await t.core.login(USER);
+  await t.core.open(F);
+  const again = tab(server, { shared });
+  await again.core.init();
+  again.load(doc("fault-tree", "Untitled", ""), "new");
+  await again.core.login(USER);
+  again.edit(doc("fault-tree", "Untitled", "typed"));
+  await again.timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "f0"));
+});
+
+test("opening the document that is open saves its waiting edit first", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  t.edit(doc("fault-tree", "F", "typed"));
+  await t.core.open(F);
+  await t.timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "typed"));
+  assert.equal(t.page.text(), doc("fault-tree", "F", "typed"));
+});
+
+test("New and a file are kept under their own name, not the one they replaced", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "Payment", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  await t.page.replace(doc("fault-tree", "Untitled", "n0"), "new", { origin: "new" });
+  await t.timers.advance(100);
+  const post = server.log.find((r) => r.method === "POST");
+  assert.equal(post.body.name, "Untitled");
+});
+
+test("a save after a rename carries the new name", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "Old", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  t.edit(doc("fault-tree", "New name", "f0"));
+  await t.core.flush();
+  assert.equal(server.docs.get(F).name, "New name");
+});
+
+test("a conflict whose notice was replaced can be shown again", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  server.docs.get(F).version = 4;
+  t.edit(doc("fault-tree", "F", "mine"));
+  await t.timers.advance(1000);
+  t.said.length = 0;
+  assert.equal(t.core.showConflict(), true);
+  assert.ok(t.said.some((s) => /Changed by/.test(s.text) && s.actions.length === 2));
+  await t.click("Keep mine as copy");
+  await t.timers.advance(1000);
+  t.said.length = 0;
+  assert.equal(t.core.showConflict(), false, "resolved: nothing to show");
+});
+
+test("the offer to save local work comes at a login, not at every page load", async () => {
+  const server = fakeServer();
+  const t = tab(server);
+  await t.core.init();
+  t.load(doc("fault-tree", "Untitled", ""));
+  await t.core.login(USER, { fresh: false });
+  assert.ok(!t.said.some((s) => /to your documents/.test(s.text)), "a page load with a session");
+  await t.core.logout();
+  await t.core.login(USER, { fresh: true });
+  assert.ok(t.said.some((s) => /Save "Untitled" to your documents/.test(s.text)), "a login");
+});
+
+test("where a document is bound: the mode, or null", async () => {
+  const server = fakeServer();
+  const F = server.add("attack-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  assert.equal(t.core.modeOf(F), "attack-tree");
+  assert.equal(t.core.modeOf(12345), null);
 });

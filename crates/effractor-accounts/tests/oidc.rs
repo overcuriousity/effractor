@@ -64,3 +64,20 @@ fn linking_takes_an_identity_once_and_the_last_way_in_stays() {
     db.write(|t| oidc::unlink(t, a)).unwrap();
     assert_eq!(db.read(|c| oidc::find(c, ISS, "sub-a")).unwrap(), None);
 }
+
+#[test]
+fn a_provisioned_display_name_is_capped_like_any_other() {
+    let (_d, db) = db();
+    let id = db
+        .write(|t| oidc::provision(t, ISS, "sub-x", Some("x"), &"n".repeat(500), 0))
+        .unwrap();
+    assert_eq!(
+        db.read(|c| users::get(c, id))
+            .unwrap()
+            .unwrap()
+            .display_name
+            .chars()
+            .count(),
+        100
+    );
+}

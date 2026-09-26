@@ -204,3 +204,56 @@ async fn the_directory_finds_users_and_groups_but_not_oneself_or_the_disabled() 
     assert!(!names.contains(&"alice".to_owned()), "not oneself");
     assert!(!names.contains(&"alfred".to_owned()), "not the disabled");
 }
+
+/// Spec §5: a role that is not enough is 403, as for documents; no role is 404.
+#[tokio::test]
+async fn a_shared_folder_cannot_be_renamed_or_deleted_by_its_viewer() {
+    let h = harness();
+    h.add_user("alice");
+    h.add_user("bob");
+    let (a, b) = (h.login("alice").await, h.login("bob").await);
+    let f = json(
+        h.call(
+            "POST",
+            "/api/folders",
+            Some(&a),
+            Some(json!({"name": "Team"})),
+        )
+        .await,
+    )
+    .await["id"]
+        .as_i64()
+        .unwrap();
+    h.call(
+        "POST",
+        &format!("/api/folders/{f}/shares"),
+        Some(&a),
+        Some(json!({"kind": "user", "name": "bob", "role": "editor"})),
+    )
+    .await;
+    assert_eq!(
+        h.call(
+            "PATCH",
+            &format!("/api/folders/{f}"),
+            Some(&b),
+            Some(json!({"name": "Mine"}))
+        )
+        .await
+        .status(),
+        403
+    );
+    assert_eq!(
+        h.call("DELETE", &format!("/api/folders/{f}"), Some(&b), None)
+            .await
+            .status(),
+        403
+    );
+    h.add_user("eve");
+    let e = h.login("eve").await;
+    assert_eq!(
+        h.call("DELETE", &format!("/api/folders/{f}"), Some(&e), None)
+            .await
+            .status(),
+        404
+    );
+}

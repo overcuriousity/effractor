@@ -22,8 +22,12 @@
     var recs = {};              // profile -> record, or absent
     var queues = new Map();     // document id -> {autosave, profile}
     var lastText = {};          // profile -> the last text the page had there
+    var names = {};             // profile -> that text's document name
+    var loaded = null;          // the records read from storage, once
+    var early = [];             // texts told before they were read
     var seq = {};               // profile -> bumped whenever its binding changes
     var pendingOpen = null;     // a server document on its way onto the page
+    var conflicts = new Map();  // document id -> the notice's arguments, until resolved
 
     function persist(p) { return o.store.bind(p, recs[p] || null); }
     function bump(p) { seq[p] = (seq[p] || 0) + 1; return seq[p]; }
@@ -104,7 +108,7 @@
       persist(p);
       var q = queueFor(rec, p);
       q.autosave.bind({ version: rec.base, saved: rec.saved });
-      if (rec.text !== rec.saved && p === current) q.autosave.change(rec.text, o.page.name());
+      if (rec.text !== rec.saved && p === current) q.autosave.change(rec.text, names[p]);
       showState();
       return q;
     }
@@ -119,7 +123,7 @@
     // folder or, if that is gone, at the top.
     function create(text, p) {
       var token = bump(p);
-      var name = o.page.name();
+      var name = names[p] || "Untitled";
       function post(folder) {
         return o.request("POST", "/api/documents", { name: name, profile: p, body: text, folder: folder });
       }
@@ -140,18 +144,26 @@
     }
 
     function offer(p, text) {
-      var name = p === current ? o.page.name() : "";
+      var name = names[p] || "";
       o.page.say(text || 'Save "' + name + '" to your documents', [["Save", function () {
         return create(lastText[p], p);
       }]], true);
     }
 
     function conflict(id, q, c) {
-      var when = o.time ? " · " + o.time(c.theirs.updated_at) : "";
-      o.page.say("Changed by " + (c.theirs.updated_by || "someone") + when, [
-        ["Load theirs", function () { return open(id); }],
-        ["Keep mine as copy", function () { return copy(q, c.mine); }],
+      conflicts.set(id, { q: q, c: c });
+      sayConflict(id);
+    }
+
+    function sayConflict(id) {
+      var k = conflicts.get(id);
+      if (!k) return false;
+      var when = o.time ? " · " + o.time(k.c.theirs.updated_at) : "";
+      o.page.say("Changed by " + (k.c.theirs.updated_by || "someone") + when, [
+        ["Load theirs", function () { conflicts.delete(id); return open(id); }],
+        ["Keep mine as copy", function () { conflicts.delete(id); return copy(k.q, k.c.mine); }],
       ], true);
+      return true;
     }
 
     function copy(q, text) {
@@ -166,7 +178,12 @@
     }
 
     function open(id) {
-      return o.request("GET", "/api/documents/" + id).then(function (res) {
+      // Its waiting edit first: reopening must not drop what was typed.
+      var q = queues.get(id);
+      var first = q ? q.autosave.flush() : Promise.resolve();
+      return first.then(function () {
+        return o.request("GET", "/api/documents/" + id);
+      }).then(function (res) {
         if (!res.ok) return o.page.say(res.status === 0 ? "server unreachable" : "not opened");
         var d = res.data;
         pendingOpen = { id: d.id, version: d.version, body: d.body, role: d.role, profile: d.profile };
@@ -187,19 +204,41 @@
       var q = queues.get(id);
       if (q) q.autosave.stop();
       queues.delete(id);
+      conflicts.delete(id);
       showState();
     }
 
     // Every accepted text of the page: an edit (origin null), a mode switch
     // (null too), or a replacement with where it came from.
-    function text(t, p, origin) {
+    function text(t, p, origin, name) {
+      if (!loaded || loaded.pending) {
+        early.push([t, p, origin, name]);
+        return;
+      }
       var switched = p !== current;
       current = p;
       lastText[p] = t;
-      if (!user) return;
+      names[p] = name;
+      // Logged out, the records follow the page, to be saved at the next
+      // login: an edit updates its mode's record, anything that replaces
+      // the text ends it. (The first text of a page is kept as it is.)
+      if (!user) {
+        var own = recs[p];
+        if (!own || origin === "load") return;
+        if (origin || (switched && t !== own.text)) {
+          delete recs[p];
+          persist(p);
+        } else {
+          own.text = t;
+          persist(p);
+        }
+        return;
+      }
+      if (origin === "load") return showState();
       if (origin === "server" && pendingOpen && pendingOpen.profile === p) {
         var b = pendingOpen;
         pendingOpen = null;
+        conflicts.delete(b.id);
         // A viewer's copy is theirs to change in this browser, never saved.
         if (b.role === "viewer") return detach(p);
         bind(p, { user: user.id, id: b.id, base: b.version, saved: b.body, text: t });
@@ -224,28 +263,46 @@
       }
       r.text = t;
       persist(p);
-      queueFor(r, p).autosave.change(t, o.page.name());
+      queueFor(r, p).autosave.change(t, name);
       showState();
     }
 
-    // Logging in: this user's records come back; another user's go. The
-    // mode on the page is checked against the server.
-    function login(u) {
-      user = u;
-      current = o.page.profile();
-      return Promise.all(PROFILES.map(function (p) {
-        return o.store.binding(p).then(function (r) {
-          if (r && r.user === u.id) recs[p] = r;
-          else {
+    // The records of every mode, read once; texts told meanwhile follow.
+    function init() {
+      if (loaded) return loaded.promise;
+      loaded = { pending: true };
+      loaded.promise = Promise.all(PROFILES.map(function (p) {
+        return o.store.binding(p).then(function (r) { if (r) recs[p] = r; });
+      })).then(function () {
+        loaded.pending = false;
+        var told = early;
+        early = [];
+        told.forEach(function (args) { text.apply(null, args); });
+      });
+      return loaded.promise;
+    }
+
+    // Logging in: this user's records stay, another user's go. The mode on
+    // the page is checked against the server; what the page shows is what
+    // was last worked on, so it is saved on the record's version — a newer
+    // save by somebody else makes that a conflict, never a loss.
+    // opts.fresh: somebody just logged in (not a page load with a session),
+    // the one moment local work is offered (spec §6.6).
+    function login(u, opts) {
+      var fresh = !opts || opts.fresh !== false;
+      return init().then(function () {
+        user = u;
+        current = o.page.profile();
+        PROFILES.forEach(function (p) {
+          if (recs[p] && recs[p].user !== u.id) {
             delete recs[p];
-            if (r) o.store.bind(p, null);
+            persist(p);
           }
         });
-      })).then(function () {
         var p = current, r = p && recs[p], pageText = o.page.text();
         if (!p) return;
         if (!r) {
-          if (pageText) offer(p);
+          if (pageText && fresh) offer(p);
           return showState();
         }
         return o.request("GET", "/api/documents/" + r.id).then(function (res) {
@@ -262,12 +319,7 @@
             persist(p);
             return showState();
           }
-          // The page shows another text than the record: the record, built
-          // on its own base, is what this mode is.
-          if (pageText !== r.text) {
-            pendingOpen = { id: r.id, version: r.base, body: r.saved, role: d.role, profile: p };
-            return o.page.replace(r.text, "restored", { origin: "server", fresh: true });
-          }
+          if (pageText !== null && pageText !== r.text) r.text = pageText;
           // Nothing unsaved and somebody saved since: theirs, quietly.
           if (r.text === r.saved && d.version !== r.base) {
             pendingOpen = { id: r.id, version: d.version, body: d.body, role: d.role, profile: p };
@@ -285,13 +337,13 @@
       queues.forEach(function (q) { waiting.push(q.autosave.flush()); });
       return Promise.all(waiting).then(function () {
         stopAll();
-        recs = {};
         user = null;
         showState();
       });
     }
 
     return {
+      init: init,
       text: text,
       login: login,
       logout: logout,
@@ -302,6 +354,14 @@
         var r = current && recs[current];
         var q = r && queues.get(r.id);
         return q ? q.autosave.flush() : Promise.resolve();
+      },
+      // The conflict of the document on the page, shown again.
+      showConflict: function () {
+        var r = current && recs[current];
+        return r ? sayConflict(r.id) : false;
+      },
+      modeOf: function (id) {
+        return PROFILES.filter(function (p) { return recs[p] && recs[p].id === id; })[0] || null;
       },
       openId: function () { return current && recs[current] ? recs[current].id : null; },
       isOpen: function (id) { return !!(current && recs[current] && recs[current].id === id); },

@@ -35,6 +35,9 @@
       $("admin-new").hidden = tab === "users" ? !mayCreate : !user.admin;
       $("admin-new").textContent = tab === "users" ? "New user" : "New group";
       draw();
+      // The selected row's detail shows what the action just did.
+      var fresh = rows.filter(function (r) { return r.id === selected; })[0];
+      if (fresh) detail(fresh);
     });
   }
 
@@ -102,6 +105,15 @@
     // a group
     d.appendChild(el("h3", row.name, "label"));
     if (admin) {
+      var gname = el("input");
+      gname.value = row.name;
+      gname.setAttribute("aria-label", "Group name");
+      gname.addEventListener("change", function () {
+        client.request("PATCH", "/api/admin/groups/" + row.id, { name: gname.value }).then(function (res) {
+          say(res.ok ? "renamed" : refused(res)); load();
+        });
+      });
+      d.appendChild(gname);
       var flag = M.dropdown([["no", "Group admins add members only"], ["yes", "Group admins may create users"]], row.admins_may_create_users ? "yes" : "no");
       flag.addEventListener("change", function () {
         client.request("PATCH", "/api/admin/groups/" + row.id, { admins_may_create_users: flag.value === "yes" }).then(load);
@@ -138,8 +150,16 @@
     add.placeholder = "Add a user by name"; add.setAttribute("aria-label", "Add a user by name");
     add.addEventListener("keydown", function (e) {
       if (e.key !== "Enter" || !add.value.trim()) return;
-      client.request("GET", "/api/directory?q=" + encodeURIComponent(add.value.trim())).then(function (res) {
-        var hit = res.ok && res.data.filter(function (x) { return x.kind === "user" && x.name.toLowerCase() === add.value.trim().toLowerCase(); })[0];
+      var wanted = add.value.trim().toLowerCase();
+      // Admins look among all users (themselves and the disabled included);
+      // a group's admins through the directory.
+      var lookup = admin
+        ? client.request("GET", "/api/admin/users").then(function (res) {
+          return { ok: res.ok, data: (res.data || []).map(function (u) { return { kind: "user", id: u.id, name: u.name }; }) };
+        })
+        : client.request("GET", "/api/directory?q=" + encodeURIComponent(wanted));
+      lookup.then(function (res) {
+        var hit = res.ok && res.data.filter(function (x) { return x.kind === "user" && x.name.toLowerCase() === wanted; })[0];
         if (!hit) return say("no user of that name");
         client.request("PUT", "/api/admin/groups/" + row.id + "/members/" + hit.id, { role: "member" }).then(function (r) {
           say(r.ok ? "" : refused(r)); load();

@@ -47,6 +47,7 @@
       if (res.ok) {
         $("login-password").value = "";
         $("login-dialog").close();
+        session.justLoggedIn = true;
         return refresh();
       }
       $("login-problem").textContent = res.status === 429 ? "too many tries · wait a while"
@@ -67,7 +68,15 @@
     items.push(["Log out", "", function () {
       // What is waiting is saved first, while the session still counts.
       var before = A.beforeLogout ? A.beforeLogout() : Promise.resolve();
-      before.then(function () { return client.logout(); }).then(refresh);
+      before.then(function () { return client.logout(); }).then(function (res) {
+        if (res.status !== 0) return refresh();
+        // The server is unreachable: logged out here all the same.
+        var was = session.user;
+        session.user = null;
+        show();
+        listeners.forEach(function (f) { f(null, was); });
+        app.say("logged out here · the server was unreachable");
+      });
     }]);
     var box = $("account").getBoundingClientRect();
     app.showMenu(items, box.left, box.bottom + 4);
@@ -101,8 +110,12 @@
     }
     client.updateAccount({ password: pw, current_password: $("account-password-current").value }).then(function (res) {
       $("account-problem").textContent = res.ok ? "password changed · other sessions ended" : String(res.data || "not changed");
-      if (res.ok) $("account-password").value = $("account-password-again").value = $("account-password-current").value = "";
-      if (res.ok) refresh();
+      if (res.ok) {
+        $("account-password").value = $("account-password-again").value = $("account-password-current").value = "";
+        // Now there is a password: the next change asks for it.
+        $("account-password-current").hidden = false;
+        refresh();
+      }
     });
   });
   $("account-logout-others").addEventListener("click", function () {
@@ -120,7 +133,7 @@
         return client.request("POST", "/api/auth/passkey/finish", { ceremony: start.data.ceremony, credential: W.credentialJSON(cred) });
       });
     }).then(function (res) {
-      if (res.ok) { $("login-dialog").close(); return refresh(); }
+      if (res.ok) { $("login-dialog").close(); session.justLoggedIn = true; return refresh(); }
       $("login-problem").textContent = res.status === 429 ? "too many tries · wait a while" : "passkey not accepted";
     }).catch(function () {
       $("login-problem").textContent = "no passkey used";
@@ -143,7 +156,9 @@
         label.value = p.label;
         label.setAttribute("aria-label", "Passkey name");
         label.addEventListener("change", function () {
-          client.request("PATCH", "/api/account/passkeys/" + p.id, { label: label.value });
+          client.request("PATCH", "/api/account/passkeys/" + p.id, { label: label.value }).then(function (r) {
+            $("account-problem").textContent = r.ok ? "renamed" : String(r.data || "not renamed");
+          });
         });
         var x = document.createElement("button");
         x.type = "button"; x.className = "icon-button"; x.textContent = "×";
@@ -229,5 +244,7 @@
     history.replaceState(null, "", location.pathname + location.hash);
     app.ready.then(function () { app.say("login failed"); });
   }
-  refresh();
+  // After every deferred script: the listeners of documents-ui.js and
+  // sync.js must exist before the first answer arrives.
+  document.addEventListener("DOMContentLoaded", function () { refresh(); });
 })();

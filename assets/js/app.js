@@ -72,6 +72,7 @@
   // Told every accepted text with where it came from (accounts: sync.js).
   var textListeners = [];
   var replacing = null; // the origin of the replacement being adopted
+  var firstText = null; // the page's first text, for listeners that come later
 
   var P = window.effractorProfiles;
   // Every asynchronous answer (parse, layout, solve) carries a token of the
@@ -772,7 +773,8 @@
       store.setMode(parsed.ok.profile);
       var origin = replacing;
       replacing = null;
-      textListeners.forEach(function (f) { f(text, parsed.ok.profile, origin); });
+      // The name goes with it: the page's state is only updated after.
+      textListeners.forEach(function (f) { f(text, parsed.ok.profile, origin, parsed.ok.name); });
       return loaded(text, parsed.ok, !!fit).then(function (outcome) {
         // A newer text overtook this one's attack graph: the selection, and
         // what is solved, are that text's to settle.
@@ -912,13 +914,21 @@
           state.diagnostics = parsed.diagnostics || [];
           undoStack = historyOf(parsed.ok.profile);
           var samples = samplesOverride(location.search);
-          if (samples === null) return loaded(text, parsed.ok, true);
+          // The page's first text is announced too: "new" when ?new= asked
+          // for an empty one, else "load" — the text this browser kept.
+          var first = wanted ? "new" : "load";
+          function told(outcome, t) {
+            firstText = [t, parsed.ok.profile, first, parsed.ok.name];
+            textListeners.forEach(function (f) { f.apply(null, firstText); });
+            return outcome;
+          }
+          if (samples === null) return Promise.resolve(loaded(text, parsed.ok, true)).then(function (v) { return told(v, text); });
           // The edit goes the way every edit will: through the document and
           // back into canonical text.
           parsed.ok.analysis.samples = samples;
           return solver.serialize(parsed.ok).then(function (written) {
             if (!written.ok) throw new Error(describe(written.diagnostics[0]));
-            return loaded(written.ok, parsed.ok, true);
+            return Promise.resolve(loaded(written.ok, parsed.ok, true)).then(function (v) { return told(v, written.ok); });
           });
         });
       });
@@ -1341,6 +1351,8 @@
   window.effractor.solve = solve;
   window.effractor.onText = function (f) {
     textListeners.push(f);
+    // A listener that comes after the first text still hears of it.
+    if (firstText) f.apply(null, firstText);
   };
   window.effractor.onChange = function (f) {
     listeners.push(f);

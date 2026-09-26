@@ -141,3 +141,18 @@ test("the queue remembers the name it last saved under", () => {
   a.change("b", "Plant");
   assert.equal(a.name(), "Plant");
 });
+
+test("after a refused save, a different text is saved again", async () => {
+  const timers = fakeTimers();
+  const put = server([{ ok: false, status: 400, data: "too large" }]);
+  const a = createAutosave({ put, delay: 800, timers });
+  a.bind({ version: 1, saved: "a" });
+  a.change("huge", "N");
+  await timers.advance(1000);
+  assert.equal(a.state(), "refused");
+  a.change("small", "N");
+  await timers.advance(1000);
+  assert.equal(put.calls.length, 2);
+  assert.equal(put.calls[1].body, "small");
+  assert.equal(a.state(), "saved");
+});

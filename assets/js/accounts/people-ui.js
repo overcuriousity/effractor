@@ -82,11 +82,23 @@
     });
   });
 
+  // A fresh dialog: no name, suggestions or link from the last time.
+  function reset() {
+    $("share-people-name").value = "";
+    $("share-people-suggest").hidden = true;
+    $("share-people-problem").textContent = "";
+    $("share-created").hidden = true;
+    $("share-link").value = "";
+    picked = null;
+  }
+
   A.openPeople = function (kind, id, name) {
     target = { kind: kind, id: id, name: name };
+    reset();
     $("share-people").hidden = false;
     $("share-people-scope").hidden = kind !== "folder";
-    $("share-public").hidden = kind === "folder";
+    // The public link is of the document on the page: only when it is this one.
+    $("share-public").hidden = kind === "folder" || !(A.sync && A.sync.openId() === id);
     $("share-title").textContent = kind === "folder" ? 'Share "' + name + '"' : "Share snapshot";
     $("share-people-problem").textContent = "";
     load();
@@ -100,6 +112,7 @@
     var doc = id && listing && listing.documents.filter(function (d) { return d.id === id; })[0];
     $("share-public").hidden = false;
     $("share-title").textContent = "Share snapshot";
+    reset();
     if (doc && doc.role === "owner") {
       target = { kind: "document", id: id, name: doc.name };
       $("share-people").hidden = false;

@@ -25,7 +25,7 @@
 .doc-row:hover, .doc-row:focus-visible { background: var(--color-bg-hover); }
 .doc-row.is-open { background: var(--color-bg-active); }
 .doc-row.is-selected { outline: 1px solid var(--color-border-strong); }
-.doc-row.is-drop, #documents-mine.is-drop { outline: 1px dashed var(--color-accent); }
+.doc-row.is-drop, #documents-mine-section.is-drop { outline: 1px dashed var(--color-accent); }
 .doc-row svg { width: 14px; height: 14px; flex: none; }
 .doc-name-text { overflow: hidden; text-overflow: ellipsis; }
 .doc-owner { margin-top: 8px; }
@@ -57,3 +57,9 @@
 .admin-members li { display: flex; gap: 8px; align-items: center; padding: 2px 0; }
 .admin-members li > span:first-child { flex: 1; }
 .btn-danger { color: var(--color-danger); border-color: var(--color-danger); }
+
+/* The save state is a button while there is a conflict to settle. */
+.save-state.is-action { cursor: pointer; text-decoration: underline; }
+/* The Documents tab's own edges, as the panel's sections have. */
+.view-documents > .documents-search { display: block; width: calc(100% - 22px); margin: 8px 11px; }
+.view-documents > #documents-logged-out { padding: 11px; }
