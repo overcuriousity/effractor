@@ -132,6 +132,7 @@
           offer(p, "not kept on the server · " + why(res));
           return null;
         }
+        if (o.onCreated) o.onCreated(res.data.id);
         if (seq[p] !== token || !user) return res.data.id; // the mode moved on; the document is in the tree
         bind(p, { user: user.id, id: res.data.id, base: res.data.version, saved: text, text: lastText[p] });
         return res.data.id;

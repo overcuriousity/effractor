@@ -118,6 +118,7 @@ function tab(server, opts = {}) {
   };
   const states = [];
   const loggedOut = [];
+  const created = [];
   const core = createSyncCore({
     request: server.request,
     store,
@@ -127,9 +128,10 @@ function tab(server, opts = {}) {
     onState: (s) => states.push(s),
     onSaved: () => {},
     onLoggedOut: () => loggedOut.push(1),
+    onCreated: (id) => created.push(id),
   });
   return {
-    core, page, timers, said, states, loggedOut, store,
+    core, page, timers, said, states, loggedOut, store, created,
     // An edit, as app.js's onText reports it.
     edit(text) {
       const p = profileOf(text);
@@ -370,4 +372,15 @@ test("a viewer's copy is never saved", async () => {
   t.edit(doc("fault-tree", "V", "mine"));
   await t.timers.advance(5000);
   assert.equal(server.log.filter((r) => r.method === "PUT").length, 0);
+});
+
+test("a new document is announced, so the Documents list can show it", async () => {
+  const server = fakeServer();
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.page.replace(doc("fault-tree", "New", "n0"), "new", { origin: "new" });
+  await t.timers.advance(100);
+  assert.equal(t.created.length, 1);
+  assert.ok(server.docs.has(t.created[0]));
+  assert.equal(t.core.openId(), t.created[0]);
 });

@@ -55,6 +55,10 @@
     onSaved: function (id, fields) {
       if (A.documentsUi) A.documentsUi.saved(id, fields);
     },
+    // A new document: the list shows it, and the crumb its folder.
+    onCreated: function () {
+      if (A.documentsUi) A.documentsUi.refresh().then(showPath);
+    },
     // A save found the session gone: say so, and let the bar show it.
     onLoggedOut: function () {
       A.session.refresh();
@@ -111,8 +115,16 @@
     });
   }
 
+  // Opening fills Recent and marks the open row: the list is drawn again.
+  function open(id) {
+    return core.open(id).then(function (ok) {
+      if (A.documentsUi) A.documentsUi.refresh().then(showPath);
+      return ok;
+    });
+  }
+
   A.sync = {
-    open: core.open, createNew: createNew, rename: rename, download: download,
+    open: open, createNew: createNew, rename: rename, download: download,
     isOpen: core.isOpen, openId: core.openId, forget: core.forget,
   };
 })();
