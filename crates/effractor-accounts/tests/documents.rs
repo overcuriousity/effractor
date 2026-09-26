@@ -154,6 +154,47 @@ fn restoring_a_folder_restores_what_was_inside_and_its_shares() {
     );
 }
 
+/// A folder whose name was taken while it was deleted comes back under a
+/// free one, with what was in it, instead of not at all.
+#[test]
+fn a_folder_whose_name_was_taken_comes_back_under_a_free_one() {
+    let (_d, db) = db();
+    let alice = user(&db, "alice");
+    let name_of = |id| {
+        db.read(|c| perms::visible(c, alice, None))
+            .unwrap()
+            .folders
+            .into_iter()
+            .find(|f| f.id == id)
+            .map(|f| (f.name, f.parent))
+    };
+    let a = db
+        .write(|t| folders::create(t, alice, None, "Projects"))
+        .unwrap();
+    let d = db
+        .write(|t| documents::create(t, alice, Some(a), "D", "fault-tree", "x", 0))
+        .unwrap();
+    db.write(|t| folders::delete(t, alice, a, 100)).unwrap();
+    db.write(|t| folders::create(t, alice, None, "projects"))
+        .unwrap();
+    db.write(|t| folders::create(t, alice, None, "Projects (2)"))
+        .unwrap();
+    db.write(|t| folders::restore(t, alice, a)).unwrap();
+    assert_eq!(name_of(a), Some(("Projects (3)".into(), None)));
+    assert!(db.read(|c| documents::get(c, d)).unwrap().is_some());
+
+    // A subfolder whose folder is gone lands at the root, where the name
+    // may be taken too.
+    let p = db.write(|t| folders::create(t, alice, None, "P")).unwrap();
+    let b = db
+        .write(|t| folders::create(t, alice, Some(p), "Projects"))
+        .unwrap();
+    db.write(|t| folders::delete(t, alice, b, 200)).unwrap();
+    db.write(|t| folders::delete(t, alice, p, 300)).unwrap();
+    db.write(|t| folders::restore(t, alice, b)).unwrap();
+    assert_eq!(name_of(b), Some(("Projects (4)".into(), None)));
+}
+
 #[test]
 fn a_document_deleted_on_its_own_stays_deleted_when_its_folder_comes_back() {
     let (_d, db) = db();

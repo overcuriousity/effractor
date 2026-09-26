@@ -51,16 +51,13 @@ impl Passkeys {
         })
     }
 
-    /// Kept for CEREMONY_TTL; refused when too many are in progress.
-    fn keep(&self, now: Timestamp, c: Ceremony) -> Result<String, ApiError> {
+    /// Kept for CEREMONY_TTL.
+    fn keep(&self, now: Timestamp, c: Ceremony) -> String {
         let id = token();
         let mut map = self.ceremonies.lock().unwrap_or_else(|e| e.into_inner());
-        map.retain(|_, (at, _)| now.saturating_sub(*at) < CEREMONY_TTL);
-        if map.len() >= crate::accounts::MAX_PENDING {
-            return Err(ApiError::TooMany(60));
-        }
+        crate::accounts::make_room(&mut map, now, CEREMONY_TTL, |(at, _)| *at);
         map.insert(id.clone(), (now, c));
-        Ok(id)
+        id
     }
 
     fn take(&self, now: Timestamp, id: &str) -> Option<Ceremony> {
@@ -122,7 +119,7 @@ async fn register_start(
             user: user.id,
             state,
         },
-    )?;
+    );
     Ok(Json(json!({ "ceremony": ceremony, "options": options })))
 }
 
@@ -174,7 +171,7 @@ async fn login_start(
     // webauthn-rs asks for conditional mediation (autofill only); the page
     // asks from a button, where the browser shows its own passkey picker.
     options.mediation = None;
-    let ceremony = pk.keep(accounts.db().now(), Ceremony::Login(state))?;
+    let ceremony = pk.keep(accounts.db().now(), Ceremony::Login(state));
     Ok(Json(json!({ "ceremony": ceremony, "options": options })))
 }
 

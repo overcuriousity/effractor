@@ -4,7 +4,7 @@ use axum::extract::State;
 use axum::http::{Extensions, HeaderMap, StatusCode};
 use axum::routing::{get, patch};
 use axum::{Json, Router};
-use effractor_accounts::{Error, sessions, users};
+use effractor_accounts::{Error, groups, sessions, users};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -37,12 +37,7 @@ async fn me(
         .blocking(move |db| {
             db.read(|c| {
                 let m = users::login_methods(c, id)?;
-                let ga: bool = c.query_row(
-                    "SELECT EXISTS (SELECT 1 FROM memberships WHERE user_id = ?1 AND role = 'admin')",
-                    [id],
-                    |r| r.get(0),
-                )?;
-                Ok((m, ga))
+                Ok((m, !groups::administered(c, id)?.is_empty()))
             })
         })
         .await?;

@@ -55,6 +55,12 @@ pub enum Error {
     Conflict(Conflict),
     #[error("the database is schema {found}; this effractor knows up to {known}")]
     TooNew { found: i64, known: i64 },
+    /// Typically made by root for a service that runs as another user.
+    #[error(
+        "{0} cannot be written by this user; it must belong to the user the server runs as \
+         (for the systemd service: sudo -u effractor effractor user … or chown effractor)"
+    )]
+    ReadOnly(String),
     #[error(transparent)]
     Sqlite(#[from] rusqlite::Error),
 }
@@ -109,6 +115,11 @@ impl Db {
     /// database from a newer effractor is refused rather than guessed at.
     pub fn open(path: &Path) -> Result<Db> {
         let mut writer = connect(path)?;
+        // SQLite opens a file it may not write read-only, quietly; every
+        // login would then fail. Better not to start.
+        if writer.is_readonly(rusqlite::MAIN_DB)? {
+            return Err(Error::ReadOnly(path.display().to_string()));
+        }
         let found: i64 = writer.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         if found > SCHEMA_VERSION {
             return Err(Error::TooNew {

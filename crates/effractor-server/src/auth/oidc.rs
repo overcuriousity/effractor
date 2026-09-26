@@ -172,10 +172,7 @@ async fn start(
     let now = accounts.db().now();
     {
         let mut p = o.pending.lock().unwrap_or_else(|e| e.into_inner());
-        p.retain(|_, v| now.saturating_sub(v.at) < PENDING_TTL);
-        if p.len() >= crate::accounts::MAX_PENDING {
-            return Err(ApiError::TooMany(60));
-        }
+        crate::accounts::make_room(&mut p, now, PENDING_TTL, |v| v.at);
         p.insert(
             state.secret().clone(),
             Pending {
@@ -242,9 +239,17 @@ async fn callback(
         "{COOKIE}=; Path={path}; HttpOnly; SameSite=Lax; Max-Age=0"
     ))
     .expect("checked in Oidc::new");
-    match finish(&accounts, &headers, q).await {
-        Ok(Some(token)) => go(&home, vec![clear, set_cookie(&accounts, &token)]),
-        Ok(None) => go(&home, vec![clear]),
+    // The page says how a link went: linked, the identity is somebody
+    // else's, or it failed.
+    let mut linking = false;
+    match finish(&accounts, &headers, q, &mut linking).await {
+        Ok(Done::Session(token)) => go(&home, vec![clear, set_cookie(&accounts, &token)]),
+        Ok(Done::Linked) => go(&format!("{home}?linked=ok"), vec![clear]),
+        Ok(Done::Taken) => go(&format!("{home}?linked=taken"), vec![clear]),
+        Err(err) if linking => {
+            tracing::warn!(?err, "OIDC link failed");
+            go(&format!("{home}?linked=failed"), vec![clear])
+        }
         Err(err) => {
             tracing::warn!(?err, "OIDC login failed");
             go(&format!("{home}?login=failed"), vec![clear])
@@ -252,13 +257,22 @@ async fn callback(
     }
 }
 
-/// A new session's token, or None when an identity was linked to the
-/// session that is already there.
+enum Done {
+    /// A login: the new session's token.
+    Session(String),
+    /// The identity is now linked to the session that is already there.
+    Linked,
+    /// The identity is linked to another account already.
+    Taken,
+}
+
+/// `linking` is set as soon as the pending login says it links.
 async fn finish(
     accounts: &Accounts,
     headers: &HeaderMap,
     q: Callback,
-) -> Result<Option<String>, ApiError> {
+    linking: &mut bool,
+) -> Result<Done, ApiError> {
     let o = accounts.oidc().ok_or(ApiError::NotFound)?;
     let (Some(code), Some(state)) = (q.code, q.state) else {
         return Err(ApiError::Bad("no code".into()));
@@ -274,6 +288,7 @@ async fn finish(
         .remove(&state)
         .filter(|p| now.saturating_sub(p.at) < PENDING_TTL)
         .ok_or_else(|| ApiError::Bad("expired".into()))?;
+    *linking = pending.link.is_some();
     let client = client_from(o, metadata(o).await?)?;
     let tokens = client
         .exchange_code(AuthorizationCode::new(code))
@@ -298,10 +313,15 @@ async fn finish(
         .unwrap_or_default();
 
     if let Some(user) = pending.link {
-        accounts
-            .blocking(move |db| db.write(|t| oidc::link(t, user, &issuer, &subject)))
-            .await?;
-        return Ok(None);
+        return accounts
+            .blocking(
+                move |db| match db.write(|t| oidc::link(t, user, &issuer, &subject)) {
+                    Ok(()) => Ok(Done::Linked),
+                    Err(effractor_accounts::Error::Exists) => Ok(Done::Taken),
+                    Err(err) => Err(err),
+                },
+            )
+            .await;
     }
     let token = accounts
         .blocking(move |db| {
@@ -320,5 +340,5 @@ async fn finish(
             })
         })
         .await?;
-    Ok(Some(token))
+    Ok(Done::Session(token))
 }

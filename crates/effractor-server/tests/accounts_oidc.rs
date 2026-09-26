@@ -263,7 +263,7 @@ async fn a_logged_in_user_links_the_issuer_and_logs_in_with_it_later() {
     .await;
     assert_eq!(
         res.headers()[header::LOCATION],
-        "https://effractor.example/"
+        "https://effractor.example/?linked=ok"
     );
     let me = json(h.call("GET", "/api/me", Some(&b), None).await).await;
     assert_eq!(me["user"]["methods"]["oidc"], true);
@@ -272,6 +272,71 @@ async fn a_logged_in_user_links_the_issuer_and_logs_in_with_it_later() {
             .await
             .status(),
         204
+    );
+}
+
+/// An identity that is somebody else's account already is not moved: the
+/// page hears that it is taken; a link that fails otherwise says so too,
+/// not "login failed" to somebody logged in.
+#[tokio::test]
+async fn linking_an_identity_that_is_taken_or_fails_says_so() {
+    let (h, iss) = with_oidc().await;
+    let (url, bind) = start(&h, None, false).await;
+    iss.codes.lock().unwrap().push((
+        "c1".into(),
+        "sub-1".into(),
+        "alice".into(),
+        query(&url, "nonce"),
+    ));
+    callback(&h, "c1", &query(&url, "state"), &bind).await;
+    h.add_user("bob");
+    let res = public(
+        &h,
+        "POST",
+        "/api/auth/password",
+        None,
+        json!({"name": "bob", "password": PW}),
+    )
+    .await;
+    let b = cookie_of(&res).expect("bob logs in");
+    let (url, bind) = start(&h, Some(&b), true).await;
+    iss.codes.lock().unwrap().push((
+        "c2".into(),
+        "sub-1".into(),
+        "alice".into(),
+        query(&url, "nonce"),
+    ));
+    let res = callback(
+        &h,
+        "c2",
+        &query(&url, "state"),
+        &format!("{bind}; effractor_session={b}"),
+    )
+    .await;
+    assert_eq!(
+        res.headers()[header::LOCATION],
+        "https://effractor.example/?linked=taken"
+    );
+    let me = json(h.call("GET", "/api/me", Some(&b), None).await).await;
+    assert_eq!(me["user"]["methods"]["oidc"], false);
+
+    let (url, bind) = start(&h, Some(&b), true).await;
+    iss.codes.lock().unwrap().push((
+        "c3".into(),
+        "sub-2".into(),
+        "robert".into(),
+        "not-the-nonce".into(),
+    ));
+    let res = callback(
+        &h,
+        "c3",
+        &query(&url, "state"),
+        &format!("{bind}; effractor_session={b}"),
+    )
+    .await;
+    assert_eq!(
+        res.headers()[header::LOCATION],
+        "https://effractor.example/?linked=failed"
     );
 }
 

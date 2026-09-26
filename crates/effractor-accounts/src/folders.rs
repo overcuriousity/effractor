@@ -134,26 +134,43 @@ pub fn delete(t: &Transaction, owner: Id, id: Id, now: Timestamp) -> Result<()> 
     Ok(())
 }
 
+/// `name`, or "name (2)", "name (3)" … whichever no live folder beside it has.
+fn free_name(t: &Transaction, owner: Id, parent: Option<Id>, name: &str) -> Result<String> {
+    let mut s = t.prepare(
+        "SELECT 1 FROM folders WHERE owner_id = ?1 AND ifnull(parent_id, 0) = ifnull(?2, 0)
+         AND name_key = ?3 AND deleted_at IS NULL",
+    )?;
+    let mut candidate = name.to_owned();
+    // Ends: each taken name is a live sibling, and there are finitely many.
+    for n in 2.. {
+        if !s.exists(params![owner, parent, crate::fold(&candidate)])? {
+            break;
+        }
+        candidate = format!("{name} ({n})");
+    }
+    Ok(candidate)
+}
+
 /// Brings back what went with this folder. If the folder it was in is gone
-/// too, it comes back at the root.
+/// too, it comes back at the root; if its name was taken meanwhile, under a
+/// free one.
 pub fn restore(t: &Transaction, owner: Id, id: Id) -> Result<()> {
-    let found: Option<(Timestamp, Option<Id>)> = t
+    let found: Option<(Timestamp, Option<Id>, String)> = t
         .query_row(
-            "SELECT deleted_at, parent_id FROM folders WHERE id = ?1 AND owner_id = ?2 AND deleted_at IS NOT NULL",
+            "SELECT deleted_at, parent_id, name FROM folders WHERE id = ?1 AND owner_id = ?2 AND deleted_at IS NOT NULL",
             params![id, owner],
-            |r| Ok((r.get(0)?, r.get(1)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
         .optional()?;
-    let Some((at, parent)) = found else {
+    let Some((at, parent, name)) = found else {
         return Err(Error::NotFound);
     };
-    let parent_gone = match parent {
-        Some(p) => own(t, owner, p).is_err(),
-        None => false,
-    };
-    if parent_gone {
-        t.execute("UPDATE folders SET parent_id = NULL WHERE id = ?1", [id])?;
-    }
+    let parent = parent.filter(|&p| own(t, owner, p).is_ok());
+    let name = free_name(t, owner, parent, &name)?;
+    t.execute(
+        "UPDATE folders SET parent_id = ?2, name = ?3, name_key = ?4 WHERE id = ?1",
+        params![id, parent, name, crate::fold(&name)],
+    )?;
     t.execute(
         "WITH RECURSIVE down(id, n) AS (
            SELECT ?1, 0 UNION ALL

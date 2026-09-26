@@ -192,6 +192,15 @@ pub fn opened(t: &Transaction, user: Id, id: Id, now: Timestamp) -> Result<()> {
     Ok(())
 }
 
+/// How many live documents `owner` keeps.
+pub fn count(c: &Connection, owner: Id) -> Result<i64> {
+    Ok(c.query_row(
+        "SELECT count(*) FROM documents WHERE owner_id = ?1 AND deleted_at IS NULL",
+        [owner],
+        |r| r.get(0),
+    )?)
+}
+
 pub fn recent(c: &Connection, user: Id) -> Result<Vec<Id>> {
     let mut s =
         c.prepare("SELECT document_id FROM recent WHERE user_id = ?1 ORDER BY opened_at DESC")?;

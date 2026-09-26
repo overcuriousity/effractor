@@ -1,6 +1,6 @@
 //! Groups and memberships (spec §5, §8).
 
-use rusqlite::{Connection, Transaction, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde::Serialize;
 
 use crate::folders::check_name;
@@ -68,7 +68,18 @@ pub fn flag(c: &Connection, id: Id) -> Result<bool> {
         [id],
         |r| r.get(0),
     )
-    .map_err(|_| Error::NotFound)
+    .optional()?
+    .ok_or(Error::NotFound)
+}
+
+/// The group of this name, whatever its case.
+pub fn by_name(c: &Connection, name: &str) -> Result<Option<Id>> {
+    Ok(c.query_row(
+        "SELECT id FROM groups WHERE name_key = ?1",
+        [crate::fold(name)],
+        |r| r.get(0),
+    )
+    .optional()?)
 }
 
 pub fn set_member(t: &Transaction, group: Id, user: Id, role: &str) -> Result<()> {
@@ -99,13 +110,37 @@ pub fn remove_member(t: &Transaction, group: Id, user: Id) -> Result<()> {
 }
 
 pub fn role_in(c: &Connection, group: Id, user: Id) -> Result<Option<String>> {
-    use rusqlite::OptionalExtension;
     Ok(c.query_row(
         "SELECT role FROM memberships WHERE group_id = ?1 AND user_id = ?2",
         params![group, user],
         |r| r.get(0),
     )
     .optional()?)
+}
+
+/// A user's groups by name, with their role in each.
+#[derive(Debug, Clone, Serialize)]
+pub struct Membership {
+    pub id: Id,
+    pub name: String,
+    pub role: String,
+}
+
+pub fn of_user(c: &Connection, user: Id) -> Result<Vec<Membership>> {
+    let mut s = c.prepare(
+        "SELECT g.id, g.name, m.role FROM memberships m JOIN groups g ON g.id = m.group_id
+         WHERE m.user_id = ?1 ORDER BY g.name",
+    )?;
+    let out = s
+        .query_map([user], |r| {
+            Ok(Membership {
+                id: r.get(0)?,
+                name: r.get(1)?,
+                role: r.get(2)?,
+            })
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(out)
 }
 
 pub fn administered(c: &Connection, user: Id) -> Result<Vec<Id>> {

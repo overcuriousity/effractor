@@ -167,6 +167,45 @@ async fn with_an_https_public_url_the_cookie_is_secure_and_the_origin_must_match
     );
 }
 
+/// The public url as typed need not be as the browser spells its origin.
+#[tokio::test]
+async fn a_public_url_typed_in_capitals_or_with_its_default_port_still_matches() {
+    let h = harness_with(Some("HTTPS://Effractor.Example:443/Tools/"));
+    assert_eq!(
+        h.accounts.public_url(),
+        Some("https://effractor.example/Tools")
+    );
+    h.add_user("alice");
+    let req = Request::post("/api/auth/password")
+        .header(header::HOST, "internal:8080")
+        .header(header::ORIGIN, "https://effractor.example")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            json!({"name": "alice", "password": PW}).to_string(),
+        ))
+        .unwrap();
+    let res = h.send(req).await;
+    assert_eq!(res.status(), StatusCode::NO_CONTENT);
+    assert!(
+        res.headers()[header::SET_COOKIE]
+            .to_str()
+            .unwrap()
+            .contains("Secure")
+    );
+}
+
+#[test]
+fn a_public_url_that_is_no_web_address_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    for bad in ["effractor.example", "file:///srv", "not a url"] {
+        let db = effractor_accounts::Db::open(&dir.path().join("a.db")).unwrap();
+        assert!(
+            effractor_server::accounts::Accounts::with_db(db, Some(bad.into())).is_err(),
+            "{bad}"
+        );
+    }
+}
+
 #[tokio::test]
 async fn cookie_is_not_secure_without_an_https_public_url() {
     let h = harness();
