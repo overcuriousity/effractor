@@ -5,3 +5,12 @@
 .login-dialog form, .account-dialog form { display: grid; gap: 8px; }
 .login-actions, .account-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .login-other { width: 100%; margin-top: 8px; }
+/* Every account input in the app's own font, as the inspector's fields. */
+.login-dialog input, .account-dialog input, .admin-dialog input,
+.share-people input, .documents-search, .doc-rename {
+  width: 100%; min-width: 0;
+  padding: 3px 5px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  background: var(--color-bg-base); color: var(--color-fg-primary);
+  font: inherit;
+}
