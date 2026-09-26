@@ -41,7 +41,9 @@ fn error(message: &str) -> String {
 }
 
 fn value(v: &impl serde::Serialize) -> Value {
-    serde_json::to_value(v).expect("results hold only finite numbers, strings and lists")
+    // Only maps with non-string keys fail, and results have none. A number
+    // that is not finite becomes `null`; results say why wherever one can be.
+    serde_json::to_value(v).expect("results are plain structs, lists and strings")
 }
 
 /// Is this text a document — a tree or an architecture? `ok` is `true` or
@@ -98,8 +100,8 @@ pub fn ttc_sketch(expression: &str, horizon: f64) -> String {
     json!({"ok": {"p_horizon": cdf[32], "cdf": cdf}}).to_string()
 }
 
-/// One solve at a time: begun, stepped a chunk at a time so the caller can
-/// show progress and stop between chunks, finished.
+/// One solve at a time: begun, stepped a short piece at a time so the caller
+/// can show progress and stop between pieces, finished.
 #[derive(Default)]
 pub struct Session {
     solve: Option<Running>,
@@ -158,7 +160,7 @@ impl Session {
         }
     }
 
-    /// One chunk of samples.
+    /// A short piece of sampling: `{done, total}` in samples.
     pub fn step(&mut self) -> String {
         let progress = match &mut self.solve {
             Some(Running::Tree(solve)) => solve.step(),

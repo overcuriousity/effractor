@@ -25,12 +25,15 @@ fn main() {
     let mut session = api::Session::default();
     let begun = session.begin_graph(&text, &scenario, "agreement");
     println!("{begun}");
-    let total = serde_json::from_str::<serde_json::Value>(&begun).expect("an answer is JSON")["ok"]
-        ["progress"]["total"]
+    let json = |answer: &str| serde_json::from_str::<serde_json::Value>(answer).expect("JSON");
+    let total = json(&begun)["ok"]["progress"]["total"]
         .as_u64()
         .unwrap_or(0);
-    for _ in 0..total {
-        println!("{}", session.step());
+    let mut done = 0;
+    while done < total {
+        let step = session.step();
+        println!("{step}");
+        done = json(&step)["ok"]["done"].as_u64().unwrap_or(total);
     }
     println!("{}", session.finish());
 }

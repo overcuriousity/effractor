@@ -144,6 +144,24 @@ fn counting_does_not_need_listing() {
         (50, Some(Truncated::MaxSets(50)))
     );
     assert!(e.sets.iter().all(|s| s.len() == 100));
+    assert!(!e.saturated);
+}
+
+#[test]
+fn a_count_past_u128_says_it_is_a_floor() {
+    let (_, z) = cut_sets(&wide(130));
+    let e = z.enumerate(None, 1);
+    assert_eq!((e.total, e.saturated), (u128::MAX, true));
+}
+
+#[test]
+fn a_truncated_list_is_the_start_of_the_whole_one() {
+    let (_, z) = cut_sets(&wide(4));
+    let all = z.enumerate(None, 100).sets;
+    assert_eq!(all.len(), 16);
+    for n in 1..16 {
+        assert_eq!(z.enumerate(None, n).sets, all[..n], "{n}");
+    }
 }
 
 #[test]

@@ -1,6 +1,6 @@
 // The solver's worker: the wasm module and a message loop around it.
 //
-// in   {id, type: "validate" | "parse", text}    out  {id, type: "result", result}
+// in   {id, type: "parse", text}                  out  {id, type: "result", result}
 //      {id, type: "serialize", document}              {id, type: "result", result}
 //      {id, type: "sketch", expression, horizon}      {id, type: "result", result}
 //      {id, type: "catalog"}                          {id, type: "result", result}
@@ -93,9 +93,12 @@
         env.post({ id: m.id, type: "result", result: JSON.parse(api.component_catalog()) });
       } else if (m.type === "crash") {
         api.crash();
+      } else if (m.type === "parse") {
+        env.post({ id: m.id, type: "result", result: JSON.parse(api.parse(m.text)) });
+      } else if (m.type === "serialize") {
+        env.post({ id: m.id, type: "result", result: JSON.parse(api.serialize(JSON.stringify(m.document))) });
       } else {
-        var input = m.type === "serialize" ? JSON.stringify(m.document) : m.text;
-        env.post({ id: m.id, type: "result", result: JSON.parse(api[m.type](input)) });
+        env.post({ id: m.id, type: "result", result: { error: "unknown request: " + m.type } });
       }
     }
 

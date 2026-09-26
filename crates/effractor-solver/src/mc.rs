@@ -9,12 +9,18 @@ use effractor_core::{AssetId, Dim, Distribution, Model};
 use libm::sqrt;
 use rand_chacha::ChaCha8Rng;
 
-use crate::dist::{CHUNK, chunk_rng, sample};
+use crate::dist::{CHUNK, STEP_WORK, chunk_rng, sample};
 use crate::plan::Plan;
 use crate::special::phi_inv;
 
 /// Points on the time axis, 0 and the horizon included.
 pub const GRID: usize = 65;
+
+/// Grid time `j`: the horizon split without an intermediate overflow. `j / 64`
+/// is exact, so below overflow this is the same bits as `horizon * j / 64`.
+pub(crate) fn grid_time(horizon: f64, j: usize) -> f64 {
+    horizon * (j as f64 / (GRID - 1) as f64)
+}
 
 /// Each random quantity draws from its own window of a stream, addressed by
 /// (iteration, slot). Leaves use the chunk's stream and loss magnitudes its
@@ -44,7 +50,10 @@ pub struct Sampler {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chunk {
+    index: u64,
     n: u64,
+    /// Iterations computed so far; the chunk is complete at `n`.
+    done: u64,
     /// Per plan step: iterations in which it completed within the horizon.
     hits: Vec<u64>,
     /// Per grid interval: iterations in which top completed in it.
@@ -84,6 +93,12 @@ pub struct Loss {
     /// (loss, P(loss >= that)), ascending in loss: the exceedance curve.
     pub curve: Vec<(f64, f64)>,
     pub by_asset: Vec<(AssetId, Dim, f64)>,
+}
+
+impl Chunk {
+    pub fn is_complete(&self) -> bool {
+        self.done == self.n
+    }
 }
 
 impl Sampler {
@@ -131,22 +146,47 @@ impl Sampler {
         !self.magnitudes.is_empty()
     }
 
+    pub fn samples(&self) -> u64 {
+        self.samples
+    }
+
     pub fn chunks(&self) -> u64 {
         self.samples.div_ceil(CHUNK as u64)
     }
 
-    pub fn run_chunk(&self, chunk: u64) -> Chunk {
+    /// Iterations of one step that do about [`STEP_WORK`] draws and gates.
+    pub fn step_iterations(&self) -> u64 {
+        (STEP_WORK / self.plan.steps.len().max(1) as u64).max(1)
+    }
+
+    /// Chunk `chunk`, with nothing computed yet: see [`Sampler::advance`].
+    pub fn start_chunk(&self, chunk: u64) -> Chunk {
         let n = (self.samples - chunk * CHUNK as u64).min(CHUNK as u64);
-        let mut faults = chunk_rng(self.seed, chunk);
-        let mut money = chunk_rng(self.seed, chunk | MONEY);
-        let mut out = Chunk {
+        Chunk {
+            index: chunk,
             n,
+            done: 0,
             hits: vec![0; self.plan.steps.len()],
             top_by: vec![0; GRID],
             // Nothing to keep without money: a chunk holds no per-iteration row.
             losses: Vec::with_capacity(if self.has_losses() { n as usize } else { 0 }),
             booked: vec![0.0; self.magnitudes.len()],
-        };
+        }
+    }
+
+    pub fn run_chunk(&self, chunk: u64) -> Chunk {
+        let mut out = self.start_chunk(chunk);
+        self.advance(&mut out, u64::MAX);
+        out
+    }
+
+    /// Up to `budget` more iterations of `out`; returns how many. Every draw
+    /// is addressed by its iteration, so a chunk computed in pieces is the
+    /// same chunk to the bit.
+    pub fn advance(&self, out: &mut Chunk, budget: u64) -> u64 {
+        let (from, to) = (out.done, out.n.min(out.done.saturating_add(budget)));
+        let mut faults = chunk_rng(self.seed, out.index);
+        let mut money = chunk_rng(self.seed, out.index | MONEY);
         let (mut leaf_times, mut times, mut scratch) =
             (vec![0.0; self.leaves.len()], Vec::new(), Vec::new());
         let mut fraction = vec![0.0f64; self.magnitudes.len()];
@@ -156,7 +196,7 @@ impl Sampler {
                 sample(d, rng)
             };
 
-        for iteration in 0..u128::from(n) {
+        for iteration in u128::from(from)..u128::from(to) {
             for (leaf, d) in self.leaves.iter().enumerate() {
                 leaf_times[leaf] = draw(&mut faults, iteration, self.leaves.len(), leaf, d);
             }
@@ -166,10 +206,9 @@ impl Sampler {
             }
             let top = times[self.plan.top()];
             if top <= self.horizon {
-                // The first grid point at or after it. Multiplying before
-                // dividing keeps this exact at the grid points themselves.
+                // The first grid point at or after it.
                 let at = (0..GRID)
-                    .find(|j| top * (GRID - 1) as f64 <= self.horizon * *j as f64)
+                    .find(|&j| top <= grid_time(self.horizon, j))
                     .unwrap_or(GRID - 1);
                 out.top_by[at] += 1;
             }
@@ -198,7 +237,8 @@ impl Sampler {
                 out.losses.push(loss);
             }
         }
-        out
+        out.done = to;
+        to - from
     }
 
     /// `chunks` in index order, all of them.
@@ -215,7 +255,7 @@ impl Sampler {
             .map(|j| {
                 running += column(&|c| &c.top_by, j);
                 (
-                    self.horizon * j as f64 / (GRID - 1) as f64,
+                    grid_time(self.horizon, j),
                     running as f64 / n as f64,
                     wilson(running, n, z),
                 )
@@ -351,5 +391,47 @@ mod tests {
         let chunk = s.run_chunk(0);
         assert_eq!((chunk.n, chunk.losses.len()), (CHUNK as u64, 0));
         assert!(s.merge(&[chunk, s.run_chunk(1)], 0.95).loss.is_none());
+    }
+
+    #[test]
+    fn a_chunk_computed_in_pieces_is_the_same_chunk() {
+        let mut m = Model::new("t", Profile::FaultTree, "top".parse().unwrap());
+        m.nodes.insert(
+            "top".parse().unwrap(),
+            Node::leaf("top", LeafKind::Basic, Some(Ttc::Rate(0.5))),
+        );
+        m.assets.insert(
+            "a".parse().unwrap(),
+            effractor_core::Asset {
+                label: "a".into(),
+                description: None,
+                loss: effractor_core::Loss {
+                    c: Some(Distribution::LogNormal {
+                        mu: 10.0,
+                        sigma: 1.0,
+                    }),
+                    i: None,
+                    a: None,
+                },
+            },
+        );
+        m.nodes[&"top".parse::<effractor_core::NodeId>().unwrap()]
+            .consequences
+            .push(effractor_core::Consequence {
+                asset: "a".parse().unwrap(),
+                dim: Dim::C,
+                fraction: 1.0,
+            });
+        let plan = Plan::build(&m).unwrap();
+        let d = Distribution::Exponential(0.5);
+        let s = Sampler::new(&m, &plan, vec![d], 3, CHUNK as u64 + 7);
+        assert!(s.has_losses());
+        for chunk in 0..2 {
+            let mut pieces = s.start_chunk(chunk);
+            while !pieces.is_complete() {
+                assert!(s.advance(&mut pieces, 999) <= 999);
+            }
+            assert_eq!(pieces, s.run_chunk(chunk));
+        }
     }
 }

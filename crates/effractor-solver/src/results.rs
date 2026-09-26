@@ -2,7 +2,8 @@
 //!
 //! [`Solve`] is the same thing in steps, for a caller that wants to show
 //! progress and be able to stop: everything exact is ready as soon as
-//! [`Solve::begin`] returns, and each [`Solve::step`] is one chunk of sampling.
+//! [`Solve::begin`] returns, and each [`Solve::step`] is a short piece of
+//! sampling.
 //! One thread, no clock, no I/O — a browser worker calls exactly this.
 
 use effractor_core::{
@@ -14,7 +15,7 @@ use crate::attacker::{self, attacker};
 use crate::bdd::Bdd;
 use crate::dist::cdf;
 use crate::importance::{birnbaum, fussell_vesely};
-use crate::mc::{Chunk, GRID, Sampled, Sampler, paired_difference};
+use crate::mc::{Chunk, GRID, Loss, Sampled, Sampler, grid_time, paired_difference};
 use crate::mcs::{CutSets, Truncated};
 use crate::plan::Plan;
 use crate::scenario::{as_written, leaf_distributions};
@@ -114,6 +115,9 @@ pub struct NodeResult {
 pub struct CutSetsResult {
     /// A decimal string: the count can exceed what JSON numbers hold.
     pub total: String,
+    /// The count outgrew what is counted: there are at least `total`.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub saturated: bool,
     pub truncated: Option<String>,
     pub sets: Vec<CutSetResult>,
 }
@@ -154,6 +158,9 @@ pub struct SampledResult {
     /// (t, P(top <= t), lo, hi) on the grid.
     pub ttc_cdf: Vec<(f64, f64, f64, f64)>,
     pub loss: Option<LossResult>,
+    /// Why there is no `loss` although the model books losses.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub loss_unavailable: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -234,6 +241,7 @@ pub struct ControlResult {
     pub unavailable: Option<String>,
 }
 
+/// Samples drawn, and to draw, over every scenario that is sampled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct Progress {
     pub done: u64,
@@ -299,9 +307,9 @@ impl Solve {
             .as_ref()
             .map(|ds| ds.iter().map(|d| cdf(d, model.horizon)).collect());
 
-        let mut bdd = Bdd::from_plan(&plan, config.bdd_node_limit).map_err(|e| format!("{e:?}"));
+        let mut bdd = Bdd::from_plan(&plan, config.bdd_node_limit).map_err(|e| e.to_string());
         let cut_sets = bdd.as_ref().map_err(Clone::clone).and_then(|b| {
-            CutSets::of(b, b.root(), config.bdd_node_limit).map_err(|e| format!("{e:?}"))
+            CutSets::of(b, b.root(), config.bdd_node_limit).map_err(|e| e.to_string())
         });
         let listed = cut_sets
             .as_ref()
@@ -343,7 +351,7 @@ impl Solve {
                 }
                 let fv = match &cut_sets {
                     Ok(z) => fussell_vesely(bdd, top, z, p)
-                        .map_err(|e| format!("Fussell–Vesely gave up: {e:?}")),
+                        .map_err(|e| format!("Fussell–Vesely gave up: {e}")),
                     Err(_) => Err("Fussell–Vesely needs cut sets".to_owned()),
                 };
                 let fussell_vesely_unavailable = match fv {
@@ -357,7 +365,7 @@ impl Solve {
                 };
                 let ttc_cdf = (0..GRID)
                     .map(|j| {
-                        let t = model.horizon * j as f64 / (GRID - 1) as f64;
+                        let t = grid_time(model.horizon, j);
                         let at_t: Vec<f64> = dists.iter().map(|d| cdf(d, t)).collect();
                         (t, bdd.prob(top, &at_t))
                     })
@@ -374,6 +382,7 @@ impl Solve {
         let cut_sets_out = match (&cut_sets, &listed) {
             (Ok(_), Some(l)) => Outcome::Available(CutSetsResult {
                 total: l.total.to_string(),
+                saturated: l.saturated,
                 truncated: l.truncated.map(|t| match t {
                     Truncated::MaxOrder(k) => format!("only cut sets of order <= {k} are listed"),
                     Truncated::MaxSets(n) => format!("only the {n} smallest cut sets are listed"),
@@ -497,7 +506,7 @@ impl Solve {
         let total = scenarios
             .iter()
             .filter_map(|s| s.sampler.as_ref())
-            .map(Sampler::chunks)
+            .map(Sampler::samples)
             .sum();
 
         let base = Base {
@@ -541,15 +550,21 @@ impl Solve {
         }
     }
 
-    /// One chunk of sampling. Returns progress; does nothing once complete.
+    /// A piece of sampling, never past the end of a chunk. Returns progress;
+    /// does nothing once complete.
     pub fn step(&mut self) -> Progress {
         let next = self.scenarios.iter_mut().find_map(|s| {
             let sampler = s.sampler.as_ref()?;
-            ((s.chunks.len() as u64) < sampler.chunks()).then_some((sampler, &mut s.chunks))
+            let open = s.chunks.last().is_some_and(|c| !c.is_complete());
+            (open || (s.chunks.len() as u64) < sampler.chunks()).then_some((sampler, &mut s.chunks))
         });
         if let Some((sampler, chunks)) = next {
-            chunks.push(sampler.run_chunk(chunks.len() as u64));
-            self.done += 1;
+            if chunks.last().is_none_or(Chunk::is_complete) {
+                chunks.push(sampler.start_chunk(chunks.len() as u64));
+            }
+            if let Some(chunk) = chunks.last_mut() {
+                self.done += sampler.advance(chunk, sampler.step_iterations());
+            }
         }
         self.progress()
     }
@@ -582,7 +597,7 @@ impl Solve {
                     .iter()
                     .map(|(t, f, b)| (*t, *f, b.lo, b.hi))
                     .collect(),
-                loss: s.loss.as_ref().map(|l| LossResult {
+                loss: s.loss.as_ref().filter(|l| finite(l)).map(|l| LossResult {
                     mean: l.mean,
                     mean_ci: band(&l.mean_ci),
                     p50: l.p50,
@@ -600,6 +615,11 @@ impl Solve {
                         })
                         .collect(),
                 }),
+                loss_unavailable: s
+                    .loss
+                    .as_ref()
+                    .is_some_and(|l| !finite(l))
+                    .then(|| INFINITE_LOSS.to_owned()),
             }),
             (None, reason) => Outcome::unavailable(reason.clone().unwrap_or_default()),
         };
@@ -608,7 +628,12 @@ impl Solve {
         let by_loss = baseline.is_some_and(|s| s.loss.is_some());
         let measure = |i: usize| -> Option<f64> {
             if by_loss {
-                merged[i].as_ref()?.loss.as_ref().map(|l| l.mean)
+                merged[i]
+                    .as_ref()?
+                    .loss
+                    .as_ref()
+                    .filter(|l| finite(l))
+                    .map(|l| l.mean)
             } else {
                 self.scenarios[i]
                     .p_top_exact
@@ -616,6 +641,7 @@ impl Solve {
             }
         };
         let controls = match (measure_at(&self.scenarios, &measure), &self.base.no_numbers) {
+            (None, _) if by_loss => Outcome::unavailable(INFINITE_LOSS),
             (Some(baseline), _) => {
                 let mut out: Vec<ControlResult> = self
                     .scenarios
@@ -628,40 +654,48 @@ impl Solve {
                             .controls
                             .get_index(c)
                             .expect("one scenario per control");
+                        let unmeasured = |reason: &str| ControlResult {
+                            id: id.to_string(),
+                            enabled: control.enabled,
+                            cost: control.cost,
+                            flipped: None,
+                            value: None,
+                            value_ci: None,
+                            value_per_cost: None,
+                            rank: None,
+                            unavailable: Some(reason.to_owned()),
+                        };
                         if let Some(reason) = &self.scenarios[i].unavailable {
-                            return ControlResult {
-                                id: id.to_string(),
-                                enabled: control.enabled,
-                                cost: control.cost,
-                                flipped: None,
-                                value: None,
-                                value_ci: None,
-                                value_per_cost: None,
-                                rank: None,
-                                unavailable: Some(reason.clone()),
-                            };
+                            return unmeasured(reason);
                         }
-                        let flipped = measure(i).expect("measured like the baseline");
+                        // The baseline was finite: flipping this control is
+                        // what lets the heavy tail in.
+                        let Some(flipped) = measure(i) else {
+                            return unmeasured(INFINITE_LOSS);
+                        };
                         let value = if control.enabled {
                             flipped - baseline
                         } else {
                             baseline - flipped
                         };
-                        let value_ci = by_loss.then(|| {
-                            let (with, without) =
-                                (&self.scenarios[i].chunks, &self.scenarios[0].chunks);
-                            let (_, ci) = if control.enabled {
-                                paired_difference(with, without, self.config.confidence)
-                            } else {
-                                paired_difference(without, with, self.config.confidence)
-                            };
-                            Band {
-                                lo: ci.lo,
-                                hi: ci.hi,
-                            }
-                        });
-                        let value_per_cost =
-                            (!control.enabled && control.cost > 0.0).then(|| value / control.cost);
+                        let value_ci = by_loss
+                            .then(|| {
+                                let (with, without) =
+                                    (&self.scenarios[i].chunks, &self.scenarios[0].chunks);
+                                let (_, ci) = if control.enabled {
+                                    paired_difference(with, without, self.config.confidence)
+                                } else {
+                                    paired_difference(without, with, self.config.confidence)
+                                };
+                                Band {
+                                    lo: ci.lo,
+                                    hi: ci.hi,
+                                }
+                            })
+                            .filter(|b| b.lo.is_finite() && b.hi.is_finite());
+                        let value_per_cost = (!control.enabled && control.cost > 0.0)
+                            .then(|| value / control.cost)
+                            .filter(|v| v.is_finite());
                         ControlResult {
                             id: id.to_string(),
                             enabled: control.enabled,
@@ -734,6 +768,29 @@ impl Solve {
             controls,
         }
     }
+}
+
+/// A loss distribution with a heavy enough tail has no finite mean, and its
+/// samples add up to infinity or worse. Such numbers are not shown or ranked.
+const INFINITE_LOSS: &str = "the sampled losses do not add up to a finite amount: a loss \
+     distribution has so heavy a tail that its expected value is infinite or beyond what \
+     can be counted";
+
+/// Is every number in this loss statistic a number?
+fn finite(l: &Loss) -> bool {
+    [
+        l.mean,
+        l.mean_ci.lo,
+        l.mean_ci.hi,
+        l.p50,
+        l.p90,
+        l.p95,
+        l.p99,
+    ]
+    .into_iter()
+    .chain(l.curve.iter().map(|(x, _)| *x))
+    .chain(l.by_asset.iter().map(|(_, _, m)| *m))
+    .all(f64::is_finite)
 }
 
 fn measure_at(scenarios: &[Scenario], measure: &dyn Fn(usize) -> Option<f64>) -> Option<f64> {

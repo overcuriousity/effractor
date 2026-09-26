@@ -43,8 +43,10 @@ pub struct Enumerated {
     /// variable order — so single points of failure lead, and under
     /// truncation it is the large sets that are dropped.
     pub sets: Vec<Vec<usize>>,
-    /// How many there are in all, saturating.
+    /// How many there are in all, saturating at `u128::MAX`.
     pub total: u128,
+    /// `total` saturated: there are at least that many.
+    pub saturated: bool,
     /// Why `sets` is shorter than `total`, if it is.
     pub truncated: Option<Truncated>,
 }
@@ -214,6 +216,7 @@ impl CutSets {
         let mut out = Enumerated {
             sets: vec![],
             total,
+            saturated: total == u128::MAX,
             truncated: None,
         };
         if total == 0 {
@@ -245,9 +248,11 @@ impl CutSets {
                     out.sets.push(path.clone());
                     continue;
                 }
-                // lo first keeps variable order; the re-entry frame takes hi afterwards.
-                stack.push((f, depth, true));
+                // hi first: sets with this variable come before sets without
+                // it, so the walk meets them in the order they are listed,
+                // and a truncated list is the start of the whole one.
                 stack.push((self.nodes[f.0 as usize].lo, depth, false));
+                stack.push((f, depth, true));
             }
         }
         if out.truncated.is_none() && (out.sets.len() as u128) < total {

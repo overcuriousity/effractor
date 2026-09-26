@@ -1,6 +1,6 @@
 //! A generated graph's results: `(architecture, graph, scenario?) -> GraphResults`,
-//! in steps, one chunk of samples each, so a caller can show progress and
-//! stop between chunks.
+//! in short steps of sampling, so a caller can show progress and stop between
+//! them.
 //!
 //! The baseline and at most one scenario are sampled together on the same
 //! draws. What needs no draw — a target seeded or unreachable by structure —
@@ -16,10 +16,10 @@ use effractor_core::{Code, Diagnostic, Distribution, ScenarioId, TimeUnit};
 use libm::sqrt;
 use serde::Serialize;
 
-use crate::graph_mc::{Draw, GraphChunk, GraphSampler, Merged, grid_time, merge};
+use crate::graph_mc::{Draw, GraphChunk, GraphSampler, Merged, merge};
 use crate::graph_plan::{EventPlan, GraphOp};
 use crate::graph_support::{GraphSupport, Status, analyze};
-use crate::mc::{GRID, wilson};
+use crate::mc::{GRID, grid_time, wilson};
 use crate::results::Progress;
 use crate::special::phi_inv;
 
@@ -292,22 +292,27 @@ impl GraphSolve {
 
     pub fn progress(&self) -> Progress {
         Progress {
-            done: self.chunks.len() as u64,
-            total: self.sampler.chunks(),
+            done: self.chunks.iter().map(|c| c.done).sum(),
+            total: self.sampler.samples,
         }
     }
 
-    /// One chunk of samples, for every side. Does nothing once complete.
+    /// A piece of sampling, for every side, never past the end of a chunk.
+    /// Does nothing once complete.
     pub fn step(&mut self) -> Progress {
-        let next = self.chunks.len() as u64;
-        if next < self.sampler.chunks() {
-            self.chunks.push(self.sampler.run_chunk(next));
+        let open = self.chunks.last().is_some_and(|c| c.done < c.n);
+        if !open && (self.chunks.len() as u64) < self.sampler.chunks() {
+            let next = self.sampler.start_chunk(self.chunks.len() as u64);
+            self.chunks.push(next);
+        }
+        if let Some(chunk) = self.chunks.last_mut() {
+            self.sampler.advance(chunk, self.sampler.step_iterations());
         }
         self.progress()
     }
 
     pub fn finish(mut self) -> GraphResults {
-        while self.step().done < self.sampler.chunks() {}
+        while self.step().done < self.sampler.samples {}
         let nodes = self.graph.nodes.len();
         let z = phi_inv((1.0 + self.config.confidence) / 2.0);
         let reports: Vec<ScenarioReport> = self
@@ -593,7 +598,15 @@ impl GraphSolve {
             });
         }
         let variance = ((q - nf * mean * mean) / (nf - 1.0)).max(0.0);
-        let half = z * sqrt(variance / nf);
+        // No iteration came out differently: the paired variance is 0 and
+        // would claim [0, 0]. The difference is at most the share of
+        // iterations that differ, and that share is bounded by its own
+        // interval — the rule of three, done properly.
+        let half = if plus + minus == 0 {
+            wilson(0, n, z).hi
+        } else {
+            z * sqrt(variance / nf)
+        };
         GraphOutcome::Available(Delta {
             mean,
             ci: Some(Band {
