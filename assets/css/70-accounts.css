@@ -39,3 +39,21 @@
 .share-people-list { list-style: none; margin: 8px 0 0; padding: 0; }
 .share-people-list li { display: flex; gap: 6px; align-items: center; padding: 2px 0; }
 .share-people-list li > span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Administration (spec §9.4): the list, and the selected row's detail. */
+.admin-dialog { width: min(820px, 94vw); }
+.admin-body { display: grid; grid-template-columns: 2fr 3fr; gap: 12px; min-height: 320px; margin-top: 8px; }
+@media (max-width: 640px) { .admin-body { grid-template-columns: 1fr; } }
+.admin-list { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.admin-list ul { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow: auto; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); }
+.admin-row { display: flex; gap: 8px; align-items: baseline; padding: 4px 8px; cursor: pointer; font-size: var(--text-sm); }
+.admin-row:hover, .admin-row:focus-visible { background: var(--color-bg-hover); }
+.admin-row.is-selected { background: var(--color-bg-active); }
+.admin-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-meta { color: var(--color-fg-muted); font-size: var(--text-xs); white-space: nowrap; }
+.admin-detail { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; min-width: 0; }
+.admin-detail input { max-width: 320px; }
+.admin-members { list-style: none; margin: 0; padding: 0; width: 100%; }
+.admin-members li { display: flex; gap: 8px; align-items: center; padding: 2px 0; }
+.admin-members li > span:first-child { flex: 1; }
+.btn-danger { color: var(--color-danger); border-color: var(--color-danger); }

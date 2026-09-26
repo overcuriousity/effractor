@@ -72,6 +72,7 @@
 <script src="{{ asset_prefix }}assets/js/accounts/autosave.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/accounts/sync.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/accounts/people-ui.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/accounts/admin-ui.js" defer></script>
 {% endif %}
 </head>
 <body>
@@ -344,6 +345,22 @@
   <section id="account-oidc" hidden></section>
   <p class="hint" id="account-problem" role="status"></p>
   <div class="account-actions"><button class="btn btn-ghost" id="account-logout-others" type="button">Log out everywhere else</button><button class="btn btn-ghost" id="account-close" type="button">Close <kbd>Esc</kbd></button></div>
+</dialog>
+{% endif %}
+{% if accounts %}
+<dialog class="help-dialog admin-dialog" id="admin-dialog" aria-labelledby="admin-title">
+  <h2 class="label" id="admin-title">Administration</h2>
+  <div class="tabs" role="tablist" aria-label="Administration">
+    <button class="tab" type="button" role="tab" data-admin-tab="users" aria-selected="true">Users</button>
+    <button class="tab" type="button" role="tab" data-admin-tab="groups" aria-selected="false">Groups</button>
+  </div>
+  <div class="admin-body">
+    <div class="admin-list"><ul id="admin-rows" role="listbox" aria-label="Users or groups"></ul>
+      <button class="btn btn-ghost" id="admin-new" type="button">New user</button></div>
+    <div class="admin-detail" id="admin-detail"><p class="empty">Select a row</p></div>
+  </div>
+  <p class="hint" id="admin-problem" role="status"></p>
+  <button class="btn btn-ghost" id="admin-close" type="button">Close <kbd>Esc</kbd></button>
 </dialog>
 {% endif %}
 <div class="menu" id="file-menu" role="menu" hidden>

@@ -187,6 +187,19 @@ mod tests {
             assert!(html.contains(&format!("id=\"{id}\"")), "{id}");
         }
         assert!(at("js/accounts/sync.js") < at("js/accounts/people-ui.js"));
+        // Administration (spec §9.4): its own tab attribute, as the left panel.
+        for id in [
+            "admin-dialog",
+            "admin-rows",
+            "admin-new",
+            "admin-detail",
+            "admin-problem",
+            "admin-close",
+        ] {
+            assert!(html.contains(&format!("id=\"{id}\"")), "{id}");
+        }
+        assert!(html.contains("data-admin-tab=\"users\""));
+        assert!(at("js/accounts/people-ui.js") < at("js/accounts/admin-ui.js"));
     }
 
     #[test]
@@ -204,6 +217,7 @@ mod tests {
                 "model-path",
                 "save-state",
                 "share-people",
+                "admin-dialog",
             ] {
                 assert!(!html.contains(needle), "{needle} with sharing={sharing}");
             }
