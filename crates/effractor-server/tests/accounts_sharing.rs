@@ -297,3 +297,22 @@ async fn an_editor_renames_a_shared_document() {
         "Bob's name"
     );
 }
+
+/// The directory suggests names; it is not a list of everybody.
+#[tokio::test]
+async fn the_directory_wants_two_letters() {
+    let h = harness();
+    h.add_user("alice");
+    h.add_user("albert");
+    let a = h.login("alice").await;
+    for q in ["", "a"] {
+        let found = json(
+            h.call("GET", &format!("/api/directory?q={q}"), Some(&a), None)
+                .await,
+        )
+        .await;
+        assert_eq!(found, json!([]), "{q:?}");
+    }
+    let found = json(h.call("GET", "/api/directory?q=al", Some(&a), None).await).await;
+    assert_eq!(found.as_array().unwrap().len(), 1);
+}

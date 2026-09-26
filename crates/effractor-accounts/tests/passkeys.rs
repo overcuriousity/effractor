@@ -41,3 +41,17 @@ fn passkeys_are_kept_listed_found_by_handle_and_the_last_way_in_stays() {
         Err(Error::Exists)
     ));
 }
+
+#[test]
+fn another_users_passkey_is_not_found_before_anything_else() {
+    let (_d, db) = db();
+    let (alice, bob) = (user(&db, "alice"), user(&db, "bob"));
+    let id = db
+        .write(|t| passkeys::add(t, alice, b"cred-a", "{}", "Laptop", 5))
+        .unwrap();
+    // bob has no other way in either: still NotFound, not "the last way in".
+    assert!(matches!(
+        db.write(|t| passkeys::remove(t, bob, id)),
+        Err(Error::NotFound)
+    ));
+}

@@ -137,6 +137,23 @@ async fn the_listing_has_folders_documents_recent_and_search() {
     h.call("GET", &format!("/api/documents/{d}"), Some(&a), None)
         .await;
     let list = json(h.call("GET", "/api/documents", Some(&a), None).await).await;
+    assert_eq!(
+        list["recent"],
+        json!([]),
+        "reading is not opening: a GET writes nothing"
+    );
+    assert_eq!(
+        h.call(
+            "POST",
+            &format!("/api/documents/{d}/opened"),
+            Some(&a),
+            None
+        )
+        .await
+        .status(),
+        204
+    );
+    let list = json(h.call("GET", "/api/documents", Some(&a), None).await).await;
     assert_eq!(list["me"], "alice");
     assert_eq!(list["folders"].as_array().unwrap().len(), 1);
     assert_eq!(list["documents"].as_array().unwrap().len(), 2);

@@ -51,12 +51,16 @@ impl Passkeys {
         })
     }
 
-    fn keep(&self, now: Timestamp, c: Ceremony) -> String {
+    /// Kept for CEREMONY_TTL; refused when too many are in progress.
+    fn keep(&self, now: Timestamp, c: Ceremony) -> Result<String, ApiError> {
         let id = token();
         let mut map = self.ceremonies.lock().unwrap_or_else(|e| e.into_inner());
         map.retain(|_, (at, _)| now.saturating_sub(*at) < CEREMONY_TTL);
+        if map.len() >= crate::accounts::MAX_PENDING {
+            return Err(ApiError::TooMany(60));
+        }
         map.insert(id.clone(), (now, c));
-        id
+        Ok(id)
     }
 
     fn take(&self, now: Timestamp, id: &str) -> Option<Ceremony> {
@@ -118,7 +122,7 @@ async fn register_start(
             user: user.id,
             state,
         },
-    );
+    )?;
     Ok(Json(json!({ "ceremony": ceremony, "options": options })))
 }
 
@@ -156,8 +160,13 @@ async fn register_finish(
     Ok((StatusCode::CREATED, Json(json!({ "id": id }))))
 }
 
-async fn login_start(State(accounts): State<Accounts>) -> Result<Json<Value>, ApiError> {
+async fn login_start(
+    State(accounts): State<Accounts>,
+    extensions: Extensions,
+    headers: HeaderMap,
+) -> Result<Json<Value>, ApiError> {
     let pk = enabled(&accounts)?;
+    accounts.start(peer(&accounts, &extensions, &headers))?;
     let (mut options, state) = pk
         .webauthn
         .start_discoverable_authentication()
@@ -165,7 +174,7 @@ async fn login_start(State(accounts): State<Accounts>) -> Result<Json<Value>, Ap
     // webauthn-rs asks for conditional mediation (autofill only); the page
     // asks from a button, where the browser shows its own passkey picker.
     options.mediation = None;
-    let ceremony = pk.keep(accounts.db().now(), Ceremony::Login(state));
+    let ceremony = pk.keep(accounts.db().now(), Ceremony::Login(state))?;
     Ok(Json(json!({ "ceremony": ceremony, "options": options })))
 }
 

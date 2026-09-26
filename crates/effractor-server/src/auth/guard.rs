@@ -18,7 +18,7 @@ pub async fn same_origin(State(accounts): State<Accounts>, req: Request, next: N
         .headers()
         .get(header::ORIGIN)
         .and_then(|v| v.to_str().ok());
-    let allowed = match (origin, accounts.public_url()) {
+    let allowed = match (origin, accounts.public_origin()) {
         (Some(o), Some(public)) => o == public,
         (Some(o), None) => {
             let host = req

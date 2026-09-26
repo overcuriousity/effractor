@@ -30,6 +30,9 @@ struct Inner {
     db: Db,
     public_url: Option<String>,
     logins: Mutex<Limiter>,
+    /// Started passkey and OIDC logins, per address: each costs a pending
+    /// entry here (and for OIDC a request to the issuer).
+    starts: Mutex<Limiter>,
     oidc: std::sync::OnceLock<crate::auth::oidc::Oidc>,
     passkeys: Option<crate::auth::passkey::Passkeys>,
     /// A reverse proxy on this host: believe its X-Forwarded-For.
@@ -41,6 +44,10 @@ pub struct Accounts(Arc<Inner>);
 
 /// Failed logins per address and hour (spec §7.1).
 const LOGINS_PER_HOUR: u32 = 30;
+/// Passkey or OIDC logins started per address and hour.
+const STARTS_PER_HOUR: u32 = 60;
+/// Logins in progress kept at most, all addresses together.
+pub(crate) const MAX_PENDING: usize = 10_000;
 
 impl Accounts {
     pub fn open(cfg: AccountsConfig) -> anyhow::Result<Accounts> {
@@ -64,6 +71,7 @@ impl Accounts {
             db,
             public_url,
             logins: Mutex::new(Limiter::new(LOGINS_PER_HOUR)),
+            starts: Mutex::new(Limiter::new(STARTS_PER_HOUR)),
             oidc: std::sync::OnceLock::new(),
             passkeys,
             trusted_proxy: false,
@@ -123,8 +131,28 @@ impl Accounts {
         self.0.oidc.get()
     }
 
+    /// The public url's origin (scheme and host): what a browser sends as
+    /// Origin, whatever path the server sits under.
+    pub fn public_origin(&self) -> Option<&str> {
+        self.public_url().map(|u| {
+            let after = u.find("://").map_or(0, |i| i + 3);
+            u[after..].find('/').map_or(u, |slash| &u[..after + slash])
+        })
+    }
+
     pub fn secure_cookie(&self) -> bool {
         self.public_url().is_some_and(|u| u.starts_with("https://"))
+    }
+
+    /// One more started login from `ip`, or how long to wait.
+    pub(crate) fn start(&self, ip: std::net::IpAddr) -> Result<(), ApiError> {
+        let now = self.db().now();
+        self.0
+            .starts
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take(ip, now)
+            .map_err(ApiError::TooMany)
     }
 
     pub(crate) fn logins(&self) -> std::sync::MutexGuard<'_, Limiter> {

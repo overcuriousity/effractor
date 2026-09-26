@@ -38,9 +38,17 @@ struct Pending {
 pub struct Oidc {
     cfg: OidcConfig,
     redirect: String,
+    /// Where people come back to: the public url, its path included.
+    home: String,
     http: reqwest::Client,
     pending: Mutex<HashMap<String, Pending>>,
+    /// The issuer's discovery document, for a few minutes.
+    meta: Mutex<Option<(std::time::Instant, CoreProviderMetadata)>>,
 }
+
+/// How long discovery is trusted: an issuer that changes keys is followed
+/// soon, and a flood of starts does not become a flood of requests to it.
+const META_TTL: std::time::Duration = std::time::Duration::from_secs(300);
 
 impl Oidc {
     pub fn new(cfg: OidcConfig, public_url: &str) -> anyhow::Result<Oidc> {
@@ -50,9 +58,11 @@ impl Oidc {
             .build()?;
         Ok(Oidc {
             redirect: format!("{public_url}/api/auth/oidc/callback"),
+            home: format!("{public_url}/"),
             cfg,
             http,
             pending: Mutex::new(HashMap::new()),
+            meta: Mutex::new(None),
         })
     }
 
@@ -64,11 +74,19 @@ impl Oidc {
 /// Discovery on each login: an issuer that was down at startup works as soon
 /// as it is up, and its keys are never stale.
 async fn metadata(o: &Oidc) -> Result<CoreProviderMetadata, ApiError> {
+    if let Some((at, meta)) = o.meta.lock().unwrap_or_else(|e| e.into_inner()).as_ref()
+        && at.elapsed() < META_TTL
+    {
+        return Ok(meta.clone());
+    }
     let issuer =
         IssuerUrl::new(o.cfg.issuer.clone()).map_err(|e| ApiError::Internal(e.to_string()))?;
-    CoreProviderMetadata::discover_async(issuer, &o.http)
+    let meta = CoreProviderMetadata::discover_async(issuer, &o.http)
         .await
-        .map_err(|e| ApiError::Internal(format!("OIDC discovery: {e}")))
+        .map_err(|e| ApiError::Internal(format!("OIDC discovery: {e}")))?;
+    *o.meta.lock().unwrap_or_else(|e| e.into_inner()) =
+        Some((std::time::Instant::now(), meta.clone()));
+    Ok(meta)
 }
 
 fn client_from(
@@ -110,9 +128,12 @@ struct Start {
 async fn start(
     State(accounts): State<Accounts>,
     MaybeUser(who): MaybeUser,
+    extensions: axum::http::Extensions,
+    headers: HeaderMap,
     Json(body): Json<Start>,
 ) -> Result<Response, ApiError> {
     let o = accounts.oidc().ok_or(ApiError::NotFound)?;
+    accounts.start(super::password::peer(&accounts, &extensions, &headers))?;
     let link = if body.link {
         let (user, token) = who.ok_or(ApiError::LoggedOut)?;
         super::session::fresh(&accounts, &token).await?;
@@ -135,6 +156,9 @@ async fn start(
     {
         let mut p = o.pending.lock().unwrap_or_else(|e| e.into_inner());
         p.retain(|_, v| now.saturating_sub(v.at) < PENDING_TTL);
+        if p.len() >= crate::accounts::MAX_PENDING {
+            return Err(ApiError::TooMany(60));
+        }
         p.insert(
             state.secret().clone(),
             Pending {
@@ -192,15 +216,18 @@ async fn callback(
     headers: HeaderMap,
     Query(q): Query<Callback>,
 ) -> Response {
+    let home = accounts
+        .oidc()
+        .map_or_else(|| "/".to_owned(), |o| o.home.clone());
     let clear = HeaderValue::from_static(
         "effractor_oidc=; Path=/api/auth/oidc; HttpOnly; SameSite=Lax; Max-Age=0",
     );
     match finish(&accounts, &headers, q).await {
-        Ok(Some(token)) => go("/", vec![clear, set_cookie(&accounts, &token)]),
-        Ok(None) => go("/", vec![clear]),
+        Ok(Some(token)) => go(&home, vec![clear, set_cookie(&accounts, &token)]),
+        Ok(None) => go(&home, vec![clear]),
         Err(err) => {
             tracing::warn!(?err, "OIDC login failed");
-            go("/?login=failed", vec![clear])
+            go(&format!("{home}?login=failed"), vec![clear])
         }
     }
 }

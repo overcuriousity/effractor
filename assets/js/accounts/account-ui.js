@@ -51,7 +51,11 @@
         return refresh();
       }
       $("login-problem").textContent = res.status === 429 ? "too many tries · wait a while"
-        : res.status === 0 ? "server unreachable" : "wrong name or password";
+        : res.status === 0 ? "server unreachable"
+        // The Origin guard: the page was reached at another address than
+        // the server's --public-url.
+        : res.status === 403 ? "use the server's own address (" + location.host + " is not it)"
+        : "wrong name or password";
     });
   });
 
@@ -202,7 +206,12 @@
   // ---- OIDC (spec §7.1–7.2) ----
   $("login-oidc").addEventListener("click", function () {
     client.request("POST", "/api/auth/oidc/start", { link: false }).then(function (res) {
-      if (res.ok) location.assign(res.data.url);
+      // Coming back from the issuer is a login too (the offer to save
+      // local work); the page is reloaded on the way, so it is noted here.
+      if (res.ok) {
+        try { sessionStorage.setItem("effractor.oidc-login", "1"); } catch (e) { /* only the offer is lost */ }
+        location.assign(res.data.url);
+      }
       else $("login-problem").textContent = res.status === 0 ? "server unreachable" : "not available";
     });
   });
@@ -239,6 +248,12 @@
     box.appendChild(b);
   });
 
+  try {
+    if (sessionStorage.getItem("effractor.oidc-login")) {
+      sessionStorage.removeItem("effractor.oidc-login");
+      if (!/[?&]login=failed/.test(location.search)) session.justLoggedIn = true;
+    }
+  } catch (e) { /* no storage: no offer */ }
   // An OIDC login that failed comes back as ?login=failed.
   if (/[?&]login=failed/.test(location.search)) {
     history.replaceState(null, "", location.pathname + location.hash);

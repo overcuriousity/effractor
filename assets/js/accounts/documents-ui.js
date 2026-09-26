@@ -328,17 +328,21 @@
 
   function remove(kind, id, name) {
     var path = (kind === "document" ? "/api/documents/" : "/api/folders/") + id;
-    var wasOpen = kind === "document" && A.sync.isOpen(id);
+    // The open document, if this is it or a folder it is in.
+    var openId = A.sync.openId();
+    var wasOpen = openId != null && (kind === "document" ? openId === id
+      : listing && D.ancestors(listing, openId).indexOf(id) >= 0);
     client.request("DELETE", path).then(function (res) {
       if (!res.ok) return app.say("not deleted");
       if (kind === "document") A.sync.forget(id);
+      else if (wasOpen) A.sync.forget(openId);
       if (kind === "folder" && selectedFolder === id) selectedFolder = null;
       refresh();
       app.say('Deleted "' + name + '"', [["Undo", function () {
         client.request("POST", path + "/restore").then(function (r) {
           if (!r.ok) app.say(r.status === 409 ? "not restored · the name is taken" : "not restored");
           // It was on the page: bound again, so it saves again.
-          if (r.ok && wasOpen) A.sync.open(id);
+          if (r.ok && wasOpen) A.sync.open(openId);
           refresh();
         });
       }]]);

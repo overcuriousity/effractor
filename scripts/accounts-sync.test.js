@@ -493,7 +493,7 @@ test("New and a file are kept under their own name, not the one they replaced", 
   await t.core.open(F);
   await t.page.replace(doc("fault-tree", "Untitled", "n0"), "new", { origin: "new" });
   await t.timers.advance(100);
-  const post = server.log.find((r) => r.method === "POST");
+  const post = server.log.find((r) => r.method === "POST" && r.path === "/api/documents");
   assert.equal(post.body.name, "Untitled");
 });
 
@@ -546,4 +546,13 @@ test("where a document is bound: the mode, or null", async () => {
   await t.core.open(F);
   assert.equal(t.core.modeOf(F), "attack-tree");
   assert.equal(t.core.modeOf(12345), null);
+});
+
+test("opening a document tells the server, for Recent", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  assert.ok(server.log.some((r) => r.method === "POST" && r.path === `/api/documents/${F}/opened`));
 });

@@ -80,6 +80,15 @@ pub fn rename(t: &Transaction, user: Id, id: Id, name: &str) -> Result<()> {
 }
 
 pub fn remove(t: &Transaction, user: Id, id: Id) -> Result<()> {
+    // Whose it is comes first: another user's passkey is simply not found.
+    let mine: bool = t.query_row(
+        "SELECT EXISTS (SELECT 1 FROM passkeys WHERE id = ?1 AND user_id = ?2)",
+        params![id, user],
+        |r| r.get(0),
+    )?;
+    if !mine {
+        return Err(Error::NotFound);
+    }
     let m = users::login_methods(t, user)?;
     if m.passkeys <= 1 && !m.password && !m.oidc {
         return Err(Error::Refused("the last way to log in stays"));

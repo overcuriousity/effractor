@@ -30,11 +30,6 @@ jobs:
       # and its tests ask for it.
       - name: wasm bundle
         run: scripts/build-wasm.sh --fetch-cli
-      # The release links OpenSSL (for passkeys) vendored into a static musl
-      # binary; prove it builds before master does.
-      - run: sudo apt-get update && sudo apt-get install -y musl-tools
-      - run: rustup target add x86_64-unknown-linux-musl
-      - run: cargo build --locked --target x86_64-unknown-linux-musl -p effractor-server
       - run: cargo clippy --workspace --all-targets --locked
       - run: cargo test --workspace --locked
       # The browser module and the native build answer generated graphs alike.
@@ -51,6 +46,29 @@ jobs:
           cargo build --locked --target wasm32-unknown-unknown
           -p effractor-core -p effractor-mal -p effractor-format -p effractor-components
           -p effractor-solver -p effractor-wasm
+
+  musl:
+    # The release links OpenSSL (for passkeys) vendored into static musl
+    # binaries on both architectures; prove both build, and stay static,
+    # before master does.
+    strategy:
+      matrix:
+        include:
+          - { target: x86_64-unknown-linux-musl, runner: ubuntu-latest }
+          - { target: aarch64-unknown-linux-musl, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: musl-${{ matrix.target }}
+      - run: cargo build --locked --target ${{ matrix.target }} -p effractor-server
+      - name: static
+        run: |
+          bin=target/${{ matrix.target }}/debug/effractor
+          if ldd "$bin" 2>&1 | grep -q '=>'; then echo "$bin is dynamically linked"; exit 1; fi
 
   wasm-determinism:
     # The solver's tests, fingerprints included, run as wasm. They hold the

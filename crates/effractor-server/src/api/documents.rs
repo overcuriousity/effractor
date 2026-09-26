@@ -23,6 +23,7 @@ pub fn routes() -> Router<Accounts> {
             get(open).put(save).patch(move_doc).delete(delete),
         )
         .route("/api/documents/{id}/restore", post(restore))
+        .route("/api/documents/{id}/opened", post(opened))
         .route("/api/folders", post(create_folder))
         .route(
             "/api/folders/{id}",
@@ -129,10 +130,6 @@ async fn open(
         .blocking(move |db| {
             let role = db.read(|c| perms::document_role(c, user.id, id))?;
             let doc = db.read(|c| documents::get(c, id))?;
-            if role.is_some() && doc.is_some() {
-                let now = db.now();
-                db.write(|t| documents::opened(t, user.id, id, now))?;
-            }
             Ok((doc, role))
         })
         .await?;
@@ -142,6 +139,26 @@ async fn open(
     let mut v = serde_json::to_value(&doc).map_err(|e| ApiError::Internal(e.to_string()))?;
     v["role"] = json!(role.as_str());
     Ok(Json(v))
+}
+
+/// The page opened it: Recent (spec §9.2). A POST, so that reading a
+/// document never writes.
+async fn opened(
+    State(accounts): State<Accounts>,
+    CurrentUser(user, _): CurrentUser,
+    Path(id): Path<Id>,
+) -> Result<StatusCode, ApiError> {
+    let role = accounts
+        .blocking(move |db| db.read(|c| perms::document_role(c, user.id, id)))
+        .await?;
+    need(role, Role::Viewer)?;
+    accounts
+        .blocking(move |db| {
+            let now = db.now();
+            db.write(|t| documents::opened(t, user.id, id, now))
+        })
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize)]

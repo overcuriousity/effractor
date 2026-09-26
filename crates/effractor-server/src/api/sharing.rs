@@ -173,6 +173,10 @@ async fn directory(
     Query(q): Query<Q>,
 ) -> Result<Json<Value>, ApiError> {
     let q = q.q.unwrap_or_default().trim().to_lowercase();
+    // Suggestions for a name being typed, not a list of everybody.
+    if q.chars().count() < 2 {
+        return Ok(Json(Value::Array(vec![])));
+    }
     let rows = accounts
         .blocking(move |db| {
             db.read(|c| {

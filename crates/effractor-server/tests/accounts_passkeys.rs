@@ -170,3 +170,49 @@ async fn adding_a_passkey_needs_a_login_from_the_last_fifteen_minutes() {
     assert_eq!(res.status(), 403);
     assert!(text(res).await.contains("log in again"));
 }
+
+/// Starting logins costs memory here: limited per address, as failed logins are.
+#[tokio::test]
+async fn starting_passkey_logins_is_limited_per_address() {
+    let h = harness_with(Some(PUBLIC));
+    let mut last = 0;
+    for _ in 0..61 {
+        last = post(&h, "/api/auth/passkey/start", None, json!({}))
+            .await
+            .status()
+            .as_u16();
+    }
+    assert_eq!(last, 429);
+}
+
+/// Under a path prefix the passkey's origin is still scheme and host.
+#[tokio::test]
+async fn passkeys_work_under_a_path_prefix() {
+    let h = harness_with(Some("https://effractor.example/tools"));
+    h.add_user("alice");
+    let res = post(
+        &h,
+        "/api/auth/password",
+        None,
+        json!({"name": "alice", "password": PW}),
+    )
+    .await;
+    let cookie = cookie_of(&res).unwrap();
+    let start = json(post(&h, "/api/account/passkeys/start", Some(&cookie), json!({})).await).await;
+    let store: Option<Passkey> = None;
+    let mut client = Client::new(Authenticator::new(Aaguid::new_empty(), store, Present));
+    let origin = Url::parse(PUBLIC).unwrap();
+    let ccr: CredentialCreationOptions = serde_json::from_value(start["options"].clone()).unwrap();
+    let credential = client
+        .register(&origin, ccr, DefaultClientData)
+        .await
+        .unwrap();
+    let res = post(
+        &h,
+        "/api/account/passkeys/finish",
+        Some(&cookie),
+        json!({"ceremony": start["ceremony"], "credential": credential, "label": "Laptop"}),
+    )
+    .await;
+    assert_eq!(res.status(), 201);
+}

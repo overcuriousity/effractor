@@ -170,7 +170,10 @@ async fn a_first_login_through_the_issuer_makes_an_account_and_logs_in() {
     ));
     let res = callback(&h, "c1", &query(&url, "state"), &bind).await;
     assert_eq!(res.status(), 303);
-    assert_eq!(res.headers()[header::LOCATION], "/");
+    assert_eq!(
+        res.headers()[header::LOCATION],
+        "https://effractor.example/"
+    );
     let session = res
         .headers()
         .get_all(header::SET_COOKIE)
@@ -208,7 +211,10 @@ async fn a_callback_without_the_starting_browsers_cookie_fails() {
         "effractor_oidc=someone-else",
     )
     .await;
-    assert_eq!(res.headers()[header::LOCATION], "/?login=failed");
+    assert_eq!(
+        res.headers()[header::LOCATION],
+        "https://effractor.example/?login=failed"
+    );
 }
 
 #[tokio::test]
@@ -222,7 +228,10 @@ async fn a_wrong_nonce_fails() {
         "not-the-nonce".into(),
     ));
     let res = callback(&h, "c1", &query(&url, "state"), &bind).await;
-    assert_eq!(res.headers()[header::LOCATION], "/?login=failed");
+    assert_eq!(
+        res.headers()[header::LOCATION],
+        "https://effractor.example/?login=failed"
+    );
 }
 
 #[tokio::test]
@@ -252,7 +261,10 @@ async fn a_logged_in_user_links_the_issuer_and_logs_in_with_it_later() {
         &format!("{bind}; effractor_session={b}"),
     )
     .await;
-    assert_eq!(res.headers()[header::LOCATION], "/");
+    assert_eq!(
+        res.headers()[header::LOCATION],
+        "https://effractor.example/"
+    );
     let me = json(h.call("GET", "/api/me", Some(&b), None).await).await;
     assert_eq!(me["user"]["methods"]["oidc"], true);
     assert_eq!(
@@ -299,4 +311,57 @@ async fn linking_needs_a_login_from_the_last_fifteen_minutes() {
     )
     .await;
     assert_eq!(res.status(), 200);
+}
+
+/// Back to the public url, path included: a server under a prefix works.
+#[tokio::test]
+async fn the_callback_goes_back_to_the_public_url() {
+    let iss = issuer().await;
+    let h = harness_with(Some("https://effractor.example/tools"));
+    h.accounts
+        .with_oidc(OidcConfig {
+            issuer: iss.url.lock().unwrap().clone(),
+            client_id: "effractor".into(),
+            secret: "s3cret".into(),
+            label: "Nextcloud".into(),
+        })
+        .unwrap();
+    let req = Request::post("/api/auth/oidc/start")
+        .header(header::HOST, "effractor.example")
+        .header(header::ORIGIN, "https://effractor.example")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(json!({"link": false}).to_string()))
+        .unwrap();
+    let res = h.send(req).await;
+    assert_eq!(res.status(), 200);
+    let url = json(res).await["url"].as_str().unwrap().to_owned();
+    assert!(
+        query(&url, "redirect_uri")
+            .starts_with("https://effractor.example/tools/api/auth/oidc/callback")
+    );
+    let res = callback(&h, "nope", "nope", "effractor_oidc=x").await;
+    assert_eq!(
+        res.headers()[header::LOCATION],
+        "https://effractor.example/tools/?login=failed"
+    );
+}
+
+/// Starting logins costs a pending entry and an issuer request: limited per address.
+#[tokio::test]
+async fn starting_oidc_logins_is_limited_per_address() {
+    let (h, _iss) = with_oidc().await;
+    let mut last = 0;
+    for _ in 0..61 {
+        last = public(
+            &h,
+            "POST",
+            "/api/auth/oidc/start",
+            None,
+            json!({"link": false}),
+        )
+        .await
+        .status()
+        .as_u16();
+    }
+    assert_eq!(last, 429);
 }

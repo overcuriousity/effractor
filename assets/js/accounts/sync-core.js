@@ -186,6 +186,8 @@
       }).then(function (res) {
         if (!res.ok) return o.page.say(res.status === 0 ? "server unreachable" : "not opened");
         var d = res.data;
+        // Recent (spec §9.2): opening is said with a POST; reading writes nothing.
+        o.request("POST", "/api/documents/" + d.id + "/opened");
         pendingOpen = { id: d.id, version: d.version, body: d.body, role: d.role, profile: d.profile };
         return o.page.replace(d.body, "opened " + d.name, { origin: "server", fresh: true }).then(function (ok) {
           if (!ok) pendingOpen = null;
