@@ -24,11 +24,13 @@ build and port, since debug builds read `assets/` and the compiled-in
   a find field over the outline (#143, `model-find`); attack graph tags that
   fit, a grey ground for what is held at once, a legend of every state
   (#144).
-- **Left:** the fold of `attack-graph-density` — a fact with one producer
-  drawn in its producer's box, the drawn node and line carrying the step ids
-  they stand for (`aliases`; the renderer lights and reveals by them). It
-  deletes the roadmap item; once it lands the review spec is built and goes.
-  Not done, optional in §11: re-windowing keeps positions or glides.
+- **Then** the fold that finished `attack-graph-density`: a fact with one
+  producer drawn in its producer's box, the drawn node and line carrying the
+  step ids they stand for (`aliases`; the renderer lights and reveals by
+  them). With it the review is built and its spec deleted: `git show
+  70b3b3e:docs/superpowers/specs/2026-09-26-ui-review-design.md` prints it
+  (code comments cite its sections, "UI review §11"). Not done, optional in
+  §11: re-windowing keeps positions or glides.
 - **Owner decisions (2026-09-26/27):** routes ranked by how often they occur;
   chokepoints marked (structural, exact); family plates low-chroma, the icon
   carries the kind, saturated colour only for states and selection; flows drawn

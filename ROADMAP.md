@@ -73,14 +73,6 @@ agreement in CI, and the workflow by the owner's browser walkthrough. Numerical
 agreement with the lecture's screenshots is not an acceptance criterion without
 the underlying rules and calibrated inputs.
 
-## Visual and ergonomic review
-
-Owner, 2026-09-26: a review of inputs, attacker paths, colour and where
-information is shown, with the owner's decisions (ranked routes, chokepoints,
-low-chroma family plates, flows redrawn, canvas switch renamed), is
-[`2026-09-26-ui-review-design.md`](docs/superpowers/specs/2026-09-26-ui-review-design.md).
-Each item is one or a few small PRs; the owner looks at each before it lands.
-
 ## Compatibility after the lecture milestone
 
 ### mal-securicad-compatibility — Reuse existing models and libraries
