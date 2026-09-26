@@ -636,24 +636,13 @@
     });
   }
 
-  // The form, built again. The field being typed in keeps its focus, and —
-  // where the document still holds what it started from — the text not yet
-  // committed and the caret.
+  // The form, built again: what is being typed stays (app.rebuild).
   function renderProperties() {
     var form = $("properties");
-    var active = document.activeElement && form.contains(document.activeElement) ? document.activeElement : null;
-    var typing = active && active.id && (active.tagName === "TEXTAREA" || (active.tagName === "INPUT" && active.type === "text")) && active.value !== active.defaultValue
-      ? { id: active.id, value: active.value, base: active.defaultValue, start: active.selectionStart, end: active.selectionEnd, selected: rendered && rendered.selected }
-      : null;
-    buildProperties(form);
+    app.rebuild(form, app.state.selected, function () {
+      buildProperties(form);
+    });
     rendered = formKey();
-    var again = active && active.id ? $(active.id) : null;
-    if (!again) return;
-    again.focus();
-    if (typing && typing.selected === app.state.selected && again.defaultValue === typing.base && again.value === typing.base) {
-      again.value = typing.value;
-      again.setSelectionRange(typing.start, typing.end);
-    }
   }
 
   function buildProperties(form) {

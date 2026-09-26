@@ -705,7 +705,7 @@
         bar.setAttribute("height", h);
         svg.appendChild(bar);
       });
-      note.textContent = "within the horizon: " + window.effractorResults.number(answer.ok.p_horizon);
+      note.textContent = "within the horizon: " + window.effractorResults.probability(answer.ok.p_horizon);
     }, function () {});
   }
 
