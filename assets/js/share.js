@@ -31,15 +31,25 @@
       return new TextDecoder('utf-8', { fatal: true }).decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12) }, key, bytes.slice(12)));
     } catch (e) { throw new Error(BROKEN); }
   }
-  function shareId(path) {
-    if (path.indexOf('/s/') !== 0) return null;
-    var match = /^\/s\/([A-Za-z0-9_-]{22})$/.exec(path);
+  // A share link's id, from a path below root, the page's base path.
+  function shareId(path, root) {
+    var prefix = (root || '/') + 's/';
+    if (path.indexOf(prefix) !== 0) return null;
+    var match = /^([A-Za-z0-9_-]{22})$/.exec(path.slice(prefix.length));
     if (!match) throw new Error(BROKEN);
     return match[1];
   }
-  function link(origin, id, key) {
+  // base: the page's address, ending in '/'.
+  function link(base, id, key) {
     shareId('/s/' + id); decode(key);
-    return origin + '/s/' + id + '#' + key;
+    return base + 's/' + id + '#' + key;
+  }
+  var TTLS = [['1d', '1 day'], ['30d', '30 days'], ['90d', '90 days'], ['1y', '1 year'], ['never', 'Never']];
+  // The expiries a server with this cap accepts; 90 days first, or the cap.
+  function ttlChoices(max) {
+    var end = Math.max(TTLS.map(function (t) { return t[0]; }).indexOf(max), 0);
+    var options = TTLS.slice(0, end + 1);
+    return { options: options, value: options[Math.min(end, 2)][0] };
   }
   // What My shares says about a share's end: none, the date, or that it is past.
   function expiry(expiresAt, now) {
@@ -47,7 +57,8 @@
     var date = new Date(expiresAt * 1000).toLocaleDateString();
     return expiresAt * 1000 < now ? 'Expired · ' + date : date;
   }
-  function createPath(ttl) { return '/api/share' + (ttl === 'default' ? '' : '?ttl=' + encodeURIComponent(ttl)); }
+  // Relative to the page's base.
+  function createPath(ttl) { return 'api/share?ttl=' + encodeURIComponent(ttl); }
   async function boundedBytes(stream, limit, message) {
     var reader = stream.getReader(), chunks = [], size = 0;
     try {
@@ -103,7 +114,7 @@
       state = 'cancelled'; cancel(timer); return true;
     }, state: function () { return state; } };
   }
-  var api = { inlineLink: inlineLink, inlineText: inlineText, createPath: createPath, expiry: expiry, adoptLocal: adoptLocal, deferredDelete: deferredDelete, encrypt: encrypt, decrypt: decrypt, shareId: shareId, link: link };
+  var api = { inlineLink: inlineLink, inlineText: inlineText, createPath: createPath, expiry: expiry, adoptLocal: adoptLocal, deferredDelete: deferredDelete, encrypt: encrypt, decrypt: decrypt, shareId: shareId, link: link, ttlChoices: ttlChoices };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window !== 'undefined') window.effractorShare = api;
 })();

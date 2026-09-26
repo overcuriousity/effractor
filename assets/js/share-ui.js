@@ -3,15 +3,17 @@
   var $ = function (id) { return document.getElementById(id); };
   var dialog = $('share-dialog'), pending = new Map(), volatile = new Map();
   var server = dialog.dataset.serverSharing === 'true';
-  // Script-relative, so Pages keeps its project prefix and /s/id uses root.
-  var base = new URL('../../', document.currentScript.src).href;
+  // Script-relative, so Pages keeps its project path and a server its prefix
+  // (the shell links assets under it, at / and at /s/id alike).
+  var base = new URL('../../', document.currentScript.src).href, root = new URL(base).pathname;
   var store = server ? window.effractorStore.createStore(window.indexedDB) : null;
   var mode = { value: 'inline' }, ttl;
   if (server) {
     mode = window.effractorMenu.dropdown([['server', 'Encrypted server link'], ['inline', 'Self-contained link']], 'server');
     mode.setAttribute('aria-label', 'Sharing mode');
     $('share-mode').appendChild(mode);
-    ttl = window.effractorMenu.dropdown([['default', '90 days · server cap'], ['1d', '1 day'], ['30d', '30 days'], ['90d', '90 days'], ['1y', '1 year'], ['never', 'Never']], 'default');
+    var choices = crypto.ttlChoices(dialog.dataset.maxTtl);
+    ttl = window.effractorMenu.dropdown(choices.options, choices.value);
     ttl.id = 'share-ttl'; ttl.setAttribute('aria-label', 'Expiry');
     $('share-expiry').appendChild(ttl);
     mode.addEventListener('change', showMode);
@@ -56,7 +58,7 @@
           pending.set(s.id, crypto.deferredDelete(async function () {
             list();
             try {
-              var res = await fetch('/api/share/' + s.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + s.delete_token } });
+              var res = await fetch(base + 'api/share/' + s.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + s.delete_token } });
               if (!res.ok && res.status !== 404) throw failure(res);
               volatile.delete(s.id);
               if (!await store.removeShare(s.id)) say('share deleted · local list unavailable');
@@ -92,10 +94,10 @@
       }
       if (!window.crypto || !window.crypto.subtle) throw new Error('sharing needs HTTPS or localhost');
       var encrypted = await crypto.encrypt(text, window.crypto);
-      var res = await fetch(crypto.createPath(ttl.value), { method: 'POST', body: encrypted.blob, headers: { 'Content-Type': 'application/octet-stream' } });
+      var res = await fetch(base + crypto.createPath(ttl.value), { method: 'POST', body: encrypted.blob, headers: { 'Content-Type': 'application/octet-stream' } });
       if (!res.ok) throw failure(res);
       var record = await res.json();
-      record.url = crypto.link(location.origin, record.id, encrypted.key); record.name = name;
+      record.url = crypto.link(base, record.id, encrypted.key); record.name = name;
       volatile.set(record.id, record);
       var kept = await store.saveShare(record);
       $('share-link').value = record.url; $('share-created').hidden = false;
@@ -112,9 +114,9 @@
         var url = new URL(requested);
         var text = await crypto.inlineText(url.hash);
         if (text === null) {
-          var id = server ? crypto.shareId(url.pathname) : null;
+          var id = server ? crypto.shareId(url.pathname, root) : null;
           if (!id) return;
-          var res = await fetch('/api/share/' + id, { cache: 'no-store' });
+          var res = await fetch(base + 'api/share/' + id, { cache: 'no-store' });
           if (!res.ok) throw failure(res);
           text = await crypto.decrypt(await res.arrayBuffer(), url.hash.slice(1), window.crypto);
         }

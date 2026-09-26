@@ -37,8 +37,7 @@ main() {
   (cd "$tmp" && sha256sum -c expected >/dev/null 2>&1) || die "checksum mismatch — not installing"
 
   mkdir -p "$dir"
-  chmod +x "$tmp/$asset"
-  mv "$tmp/$asset" "$dir/effractor"
+  place "$tmp/$asset" "$dir/effractor"
   echo "installed $dir/effractor"
 
   case ":$PATH:" in
@@ -54,10 +53,26 @@ main() {
 # the answer is no. EFFRACTOR_SYSTEMD=yes|no answers without asking.
 offer_service() {
   bin=$1
+  if [ "${EFFRACTOR_UID:-$(id -u)}" = 0 ]; then
+    scope=system
+    units=${EFFRACTOR_SYSTEMD_DIR:-/etc/systemd/system}
+  else
+    scope=user
+    units=${EFFRACTOR_USER_UNIT_DIR:-$HOME/.config/systemd/user}
+  fi
+  # Installed before: the new binary replaces the old, the unit stays as the
+  # operator left it (--accounts and all), and the service restarts on it.
+  if [ -f "$units/effractor.service" ] && command -v systemctl >/dev/null; then
+    [ "$scope" = user ] || system_binary "$bin"
+    restart "$scope service updated"
+    return 0
+  fi
   answer=${EFFRACTOR_SYSTEMD:-}
   if [ -z "$answer" ]; then
     tty=${EFFRACTOR_TTY:-/dev/tty}
-    if [ -r "$tty" ] && printf 'Install a systemd service? [y/N] ' && read -r answer < "$tty"; then
+    # Readable is not enough: without a controlling terminal /dev/tty exists
+    # but will not open, so try opening it before asking.
+    if (exec < "$tty") 2>/dev/null && printf 'Install a systemd service? [y/N] ' && read -r answer < "$tty"; then
       :
     else
       echo "no terminal to ask on — no service installed (EFFRACTOR_SYSTEMD=yes installs one)"
@@ -69,10 +84,39 @@ offer_service() {
     *) return 0 ;;
   esac
   command -v systemctl >/dev/null || { echo "systemctl not found — no service installed"; return 0; }
-  if [ "${EFFRACTOR_UID:-$(id -u)}" = 0 ]; then
+  if [ "$scope" = system ]; then
     system_service "$bin"
   else
     user_service "$bin"
+  fi
+}
+
+# Copy beside the target and rename over it: a running binary cannot be
+# written to (ETXTBSY), but it can be replaced.
+place() {
+  cp "$1" "$2.new"
+  chmod 755 "$2.new"
+  mv -f "$2.new" "$2"
+}
+
+# Start it, or restart it on a new binary; say so either way.
+restart() {
+  how=systemctl
+  if [ "$scope" = user ]; then how="systemctl --user"; fi
+  if $how restart effractor; then
+    echo "$1: http://127.0.0.1:8080 (or as its unit says)"
+  else
+    echo "$1, but it did not start — see: $how status effractor"
+  fi
+}
+
+# ProtectHome hides /root, where a root install put the binary; the system
+# service runs a copy from /usr/local/bin. (Tests set the unit dir and keep
+# the binary where it is.)
+system_binary() {
+  if [ -z "${EFFRACTOR_SYSTEMD_DIR:-}" ]; then
+    place "$1" /usr/local/bin/effractor
+    bin=/usr/local/bin/effractor
   fi
 }
 
@@ -82,7 +126,6 @@ accounts_hint() {
 }
 
 user_service() {
-  units=${EFFRACTOR_USER_UNIT_DIR:-$HOME/.config/systemd/user}
   data=${XDG_DATA_HOME:-$HOME/.local/share}/effractor
   mkdir -p "$units" "$data"
   cat > "$units/effractor.service" <<EOF
@@ -98,20 +141,13 @@ Restart=on-failure
 WantedBy=default.target
 EOF
   systemctl --user daemon-reload
-  systemctl --user enable --now effractor
-  echo "user service installed: http://127.0.0.1:8080"
+  systemctl --user enable effractor
+  restart "user service installed"
   echo "to keep it running without a login session: loginctl enable-linger $(id -un 2>/dev/null || echo "\$USER")"
 }
 
 system_service() {
-  units=${EFFRACTOR_SYSTEMD_DIR:-/etc/systemd/system}
-  # ProtectHome hides /root, where a root install put the binary; the
-  # service runs a copy from /usr/local/bin. (Tests set the unit dir and
-  # keep the binary where it is.)
-  if [ -z "${EFFRACTOR_SYSTEMD_DIR:-}" ]; then
-    cp "$bin" /usr/local/bin/effractor
-    bin=/usr/local/bin/effractor
-  fi
+  system_binary "$1"
   mkdir -p "$units"
   if ! id effractor >/dev/null 2>&1; then
     useradd --system --no-create-home --shell /usr/sbin/nologin effractor
@@ -126,6 +162,8 @@ User=effractor
 StateDirectory=effractor
 ExecStart=$bin --bind 127.0.0.1:8080 --data /var/lib/effractor/shares
 $(accounts_hint /var/lib/effractor)
+# Manage users as the service's user, which owns the database:
+#   sudo -u effractor $bin user add NAME --accounts /var/lib/effractor/effractor.db
 Restart=on-failure
 NoNewPrivileges=yes
 ProtectSystem=strict
@@ -137,8 +175,8 @@ PrivateDevices=yes
 WantedBy=multi-user.target
 EOF
   systemctl daemon-reload
-  systemctl enable --now effractor
-  echo "system service installed: http://127.0.0.1:8080"
+  systemctl enable effractor
+  restart "system service installed"
 }
 
 die() {

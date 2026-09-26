@@ -16,7 +16,9 @@ node scripts/check-roadmap.js
 cargo fmt --all --check
 RUSTFLAGS="-D warnings" cargo clippy --workspace --all-targets --locked -q
 
-git add -A
+# Tracked changes, and new files the author staged by name: never every
+# untracked file (a local data/ of shares, a node_modules link).
+git add -u
 git commit -qF "$message"
 git push -qu origin "$branch"
 url=$(gh pr create --title "$title" --body-file "$body")

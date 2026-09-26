@@ -2,3 +2,6 @@
 target/
 node_modules
 assets/wasm/
+# Shares, where a server started in the checkout kept them before --data
+# had a default outside it.
+/data/

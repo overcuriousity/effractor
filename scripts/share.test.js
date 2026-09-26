@@ -76,15 +76,34 @@ test('wrong keys, altered blobs and incomplete links cannot decrypt', async () =
 
 test('share links keep keys in the fragment and reject invalid ids', () => {
   const id = 'a'.repeat(22), key = 'A'.repeat(43);
-  assert.equal(share.link('https://example.test', id, key), `https://example.test/s/${id}#${key}`);
+  assert.equal(share.link('https://example.test/', id, key), `https://example.test/s/${id}#${key}`);
   assert.equal(share.shareId('/s/' + id), id);
   assert.equal(share.shareId('/'), null);
   assert.throws(() => share.shareId('/s/../oops'), /incomplete or corrupted/);
 });
 
-test('the default TTL lets the server apply its cap', () => {
-  assert.equal(share.createPath('default'), '/api/share');
-  assert.equal(share.createPath('30d'), '/api/share?ttl=30d');
+test('under a path prefix, links and ids are found below it', () => {
+  const id = 'a'.repeat(22), key = 'A'.repeat(43);
+  assert.equal(share.link('https://example.org/effractor/', id, key), `https://example.org/effractor/s/${id}#${key}`);
+  assert.equal(share.shareId('/effractor/s/' + id, '/effractor/'), id);
+  assert.equal(share.shareId('/effractor/', '/effractor/'), null);
+  assert.equal(share.shareId('/s/' + id, '/effractor/'), null);
+});
+
+test('the create path is relative to the page base', () => {
+  assert.equal(share.createPath('30d'), 'api/share?ttl=30d');
+});
+
+test('expiry choices stop at the server cap and start at 90 days or the cap', () => {
+  const values = (max) => share.ttlChoices(max).options.map((o) => o[0]);
+  assert.deepEqual(values('1y'), ['1d', '30d', '90d', '1y']);
+  assert.deepEqual(values('never'), ['1d', '30d', '90d', '1y', 'never']);
+  assert.deepEqual(values('30d'), ['1d', '30d']);
+  assert.equal(share.ttlChoices('1y').value, '90d');
+  assert.equal(share.ttlChoices('30d').value, '30d');
+  assert.equal(share.ttlChoices('1d').value, '1d');
+  // An unknown cap (an older page) offers what every server allows.
+  assert.deepEqual(values(undefined), ['1d']);
 });
 
 test('opening detaches from the immutable link only after successful adoption', async () => {

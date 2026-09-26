@@ -65,7 +65,8 @@ unit="$work/units5/effractor.service"
 [ -f "$unit" ] || fail "no user unit written"
 grep -q "ExecStart=$work/b5/effractor --bind 127.0.0.1:8080 --data " "$unit" || fail "user unit runs the binary on loopback"
 grep -q "^# .*--accounts" "$unit" || fail "user unit shows how to turn on accounts, commented"
-grep -q "systemctl --user enable --now effractor" "$work/log" || fail "user service not enabled"
+grep -q "systemctl --user enable effractor" "$work/log" || fail "user service not enabled"
+grep -q "systemctl --user restart effractor" "$work/log" || fail "user service not started"
 grep -q "enable-linger" "$work/out" || fail "linger not mentioned"
 echo "ok - yes installs and enables a user service"
 
@@ -75,7 +76,9 @@ unit="$work/units6/effractor.service"
 grep -q "^ProtectSystem=strict" "$unit" || fail "system unit is not hardened"
 grep -q "^StateDirectory=effractor" "$unit" || fail "system unit has no state directory"
 grep -q "^User=effractor" "$unit" || fail "system unit does not run as effractor"
-grep -q "systemctl enable --now effractor" "$work/log" || fail "system service not enabled"
+grep -q "systemctl enable effractor" "$work/log" || fail "system service not enabled"
+grep -q "systemctl restart effractor" "$work/log" || fail "system service not started"
+grep -q "sudo -u effractor .* user add" "$unit" || fail "system unit does not say to manage users as effractor"
 echo "ok - as root, a hardened system service"
 
 : > "$work/log"
@@ -89,13 +92,40 @@ sysinstall "$work/nonexistent-tty" 1000 "$work/good" "$work/b8" "$work/units8" >
 grep -q "no terminal" "$work/out" || fail "did not say why no service"
 echo "ok - without a terminal the answer is no"
 
+# /dev/tty without a controlling terminal is readable but will not open, as a
+# socket will not: no question may be printed then.
+if command -v python3 >/dev/null; then
+  python3 -c 'import socket, sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])' "$work/tty.sock"
+  sysinstall "$work/tty.sock" 1000 "$work/good" "$work/b11" "$work/units11" > "$work/out" 2>&1 || fail "unopenable terminal"
+  ! grep -q "Install a systemd service" "$work/out" || fail "asked on a terminal that does not open"
+  grep -q "no terminal" "$work/out" || fail "did not say why no service"
+  echo "ok - a terminal that does not open is no terminal"
+fi
+
+# Re-running upgrades: the binary is replaced by a rename (never written in
+# place, which a running one refuses), the unit is kept, the service restarts.
+before=$(ls -i "$work/b5/effractor" | cut -d' ' -f1)
+echo "# edited by the operator" >> "$work/units5/effractor.service"
+: > "$work/log"
+sysinstall "$work/nonexistent-tty" 1000 "$work/good" "$work/b5" "$work/units5" > "$work/out" || fail "re-run"
+[ "$(ls -i "$work/b5/effractor" | cut -d' ' -f1)" != "$before" ] || fail "binary written in place"
+[ ! -e "$work/b5/effractor.new" ] || fail "left the new binary beside the old"
+grep -q "edited by the operator" "$work/units5/effractor.service" || fail "rewrote the operator's unit"
+grep -q "systemctl --user restart effractor" "$work/log" || fail "user service not restarted"
+grep -q "updated" "$work/out" || fail "did not say the service was updated"
+: > "$work/log"
+sysinstall "$work/nonexistent-tty" 0 "$work/good" "$work/b6" "$work/units6" >/dev/null || fail "re-run as root"
+grep -q "^systemctl restart effractor" "$work/log" || fail "system service not restarted"
+! grep -q "useradd" "$work/log" || fail "re-run made the user again"
+echo "ok - re-running replaces the binary and restarts the service"
+
 : > "$work/log"
 EFFRACTOR_SYSTEMD=yes sysinstall "$work/nonexistent-tty" 1000 "$work/good" "$work/b9" "$work/units9" >/dev/null || fail "env yes"
 [ -f "$work/units9/effractor.service" ] || fail "EFFRACTOR_SYSTEMD=yes did not install"
 echo "ok - EFFRACTOR_SYSTEMD answers without asking"
 
 nosys="$work/nosys"; mkdir -p "$nosys"
-for tool in sh mkdir chmod mv mktemp rm grep sha256sum curl uname cat id dirname; do
+for tool in sh mkdir chmod cp mv mktemp rm grep sha256sum curl uname cat id dirname; do
   ln -sf "$(command -v "$tool")" "$nosys/$tool"
 done
 HOME="$work/home" EFFRACTOR_SYSTEMD=yes PATH="$nosys" EFFRACTOR_UID=1000 EFFRACTOR_USER_UNIT_DIR="$work/units10" \

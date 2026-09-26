@@ -18,7 +18,12 @@ tools=target/tools/wasm-bindgen-$version
 
 cli=${WASM_BINDGEN:-}
 if [ -z "$cli" ] && [ -x "$tools/wasm-bindgen" ]; then cli=$tools/wasm-bindgen; fi
-if [ -z "$cli" ]; then cli=$(command -v wasm-bindgen || true); fi
+# PATH's only in the right version: a wrong one must not keep --fetch-cli
+# from fetching.
+stale=
+if [ -z "$cli" ] && on_path=$(command -v wasm-bindgen); then
+  if [ "$("$on_path" --version | cut -d' ' -f2)" = "$version" ]; then cli=$on_path; else stale=$on_path; fi
+fi
 
 if [ -z "$cli" ] && [ "${1:-}" = --fetch-cli ]; then
   case $(uname -m) in
@@ -38,7 +43,8 @@ if [ -z "$cli" ] && [ "${1:-}" = --fetch-cli ]; then
 fi
 
 have=
-if [ -n "$cli" ]; then have=$("$cli" --version | cut -d' ' -f2); fi
+if [ -n "$cli" ]; then have=$("$cli" --version | cut -d' ' -f2)
+elif [ -n "$stale" ]; then have="$("$stale" --version | cut -d' ' -f2) at $stale"; fi
 if [ "$have" != "$version" ]; then
   echo "wasm-bindgen CLI $version is needed (found: ${have:-none})."
   echo "  cargo install wasm-bindgen-cli --version $version --locked"

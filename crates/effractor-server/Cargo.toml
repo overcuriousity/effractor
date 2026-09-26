@@ -43,7 +43,6 @@ thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "fs", "io-util", "time"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-uuid = "1"
 webauthn-rs = { version = "0.5", features = ["conditional-ui"] }
 # For ResidentKeyRequirement, which webauthn-rs does not re-export.
 webauthn-rs-proto = "0.5"
@@ -54,7 +53,6 @@ http-body-util = "0.1"
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 # A software authenticator that answers usernameless requests, for the tests.
-async-trait = "0.1"
 passkey = "0.5"
 url = "2"
 

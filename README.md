@@ -3,8 +3,12 @@
 Security architecture analysis in the browser. Model a fault tree or an attack
 tree as text, and get minimal cut sets, single points of failure, exact and
 sampled probabilities, time-to-compromise, a loss exceedance curve, and controls
-ranked by risk reduction per cost. Solving runs locally in WebAssembly: a model
-never leaves your machine unless you share it. No accounts, no telemetry.
+ranked by risk reduction per cost. Or draw an architecture — hosts, networks,
+the flows between them, an nmap scan imported — and see the attack graph: the
+paths an attacker takes from where they start to what they want, and which
+defense cuts them. Solving runs locally in WebAssembly: a model never leaves
+your machine unless you share it. No telemetry; accounts only on a
+self-hosted server that turns them on.
 
 *effractor* — Latin: one who breaks in.
 
@@ -29,12 +33,21 @@ curl -fsSL https://raw.githubusercontent.com/overcuriousity/effractor/master/ins
 Linux x86_64 and aarch64, one static binary, SHA-256 verified, installed to
 `~/.local/bin`. The installer asks whether to install a systemd service (a user
 service, or a hardened system service as root); `EFFRACTOR_SYSTEMD=yes|no`
-answers without asking. Then:
+answers without asking. Running it again upgrades: the binary is replaced and
+an installed service restarts on it, its unit left as it was. Then:
 
 ```sh
 effractor            # http://127.0.0.1:8080
 effractor --bind 0.0.0.0:9000
 ```
+
+Encrypted shares are kept in `--data` (default
+`~/.local/share/effractor/shares`, or under `$XDG_DATA_HOME`). Behind a
+reverse proxy, `--public-url` is the address people use, and may carry a path
+(`https://example.org/effractor`) when the proxy strips it before passing
+requests on; the page then links everything under that path. With the proxy
+on the same host, `--trusted-proxy` counts failed logins and new shares per
+client, not all as the proxy.
 
 The [sample collection](assets/examples/README.md) includes three fault trees,
 three attack trees and seven architectures in rising order of complexity. Download
@@ -49,19 +62,23 @@ groups. It is off unless you give it a database; without one, nothing changes.
 The GitHub Pages build never has accounts.
 
 ```sh
-effractor user add alice --accounts /var/lib/effractor/effractor.db   # asks for a password
-effractor user promote alice --accounts /var/lib/effractor/effractor.db
-effractor --accounts /var/lib/effractor/effractor.db --public-url https://effractor.example
+effractor user add alice --accounts ~/effractor.db   # asks for a password
+effractor user promote alice --accounts ~/effractor.db
+effractor --accounts ~/effractor.db --public-url https://effractor.example
+```
+
+With the installed system service, add `--accounts
+/var/lib/effractor/effractor.db` to its unit's `ExecStart`, and manage users as
+the service's user, which owns the database:
+
+```sh
+sudo -u effractor effractor user add alice --accounts /var/lib/effractor/effractor.db
 ```
 
 - `effractor user list | add | promote | demote | passwd` manage users from the
   shell; admins manage users and groups in the page. There is no public sign-up.
-- `--public-url` is the address people use. Passkeys need it, and it makes the
-  session cookie `Secure` when it is `https`. Put a TLS proxy in front, and
-  start with `--trusted-proxy` when it runs on the same host, so failed logins
-  are counted per client and not all as the proxy. The address may carry a
-  path (`https://example.org/effractor`) when the proxy strips it before
-  passing requests on.
+- `--public-url` (see above) is also what passkeys need, and it makes the
+  session cookie `Secure` when it is `https`. Put a TLS proxy in front.
 - OIDC: `--oidc-issuer URL --oidc-client-id ID --oidc-name Nextcloud` and the
   secret in `--oidc-secret-file FILE` or `EFFRACTOR_OIDC_SECRET`. Register
   `<public url>/api/auth/oidc/callback` as the redirect URI at the issuer. A
@@ -113,8 +130,9 @@ Serve `target/site/` with any static web server. The export uses the server's
 own HTML template and assets; no separate UI is maintained. Asset paths work
 at a domain root or under a repository path.
 
-The `pages` workflow builds and deploys it on every push to `master`, including
-documentation-only pushes. Repository Settings → Pages → Source must be
+The `pages` workflow builds and deploys it on every push to `master` whose
+commit passed CI; a documentation-only push has no CI run and deploys nothing,
+leaving the live site as it is. Repository Settings → Pages → Source must be
 **GitHub Actions** (one-time setup). The workflow can also be run manually.
 
 AGPL-3.0-or-later.

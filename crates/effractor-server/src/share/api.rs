@@ -5,12 +5,11 @@
 //! once existed. Nothing here logs an id.
 
 use std::collections::HashMap;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::body::Bytes;
-use axum::extract::{ConnectInfo, DefaultBodyLimit, Path, Query, State};
+use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{Extensions, HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -47,6 +46,8 @@ pub struct Shares {
     limits: Limits,
     limiter: Arc<Mutex<Limiter>>,
     clock: Arc<dyn Fn() -> Timestamp + Send + Sync>,
+    /// A reverse proxy on this host: count shares per X-Forwarded-For.
+    trust_proxy: bool,
 }
 
 impl Shares {
@@ -60,7 +61,20 @@ impl Shares {
                     .duration_since(UNIX_EPOCH)
                     .map_or(0, |d| d.as_secs())
             }),
+            trust_proxy: false,
         }
+    }
+
+    /// Behind a reverse proxy on this host, as `--trusted-proxy` says: the
+    /// limit counts the address the proxy forwards, not the proxy's own.
+    pub fn trusting_proxy(mut self) -> Self {
+        self.trust_proxy = true;
+        self
+    }
+
+    /// The longest a share may be asked to live.
+    pub fn max_ttl(&self) -> Ttl {
+        self.limits.max_ttl
     }
 
     /// Shares that live as long as the process.
@@ -137,6 +151,7 @@ async fn create(
     State(shares): State<Shares>,
     Query(query): Query<HashMap<String, String>>,
     extensions: Extensions,
+    headers: HeaderMap,
     blob: Bytes,
 ) -> Response {
     let limits = shares.limits;
@@ -155,11 +170,7 @@ async fn create(
     }
 
     let now = (shares.clock)();
-    // The peer's address. Behind a reverse proxy that is the proxy, and the
-    // limit is then one for everybody — which a proxy can do better itself.
-    let ip = extensions
-        .get::<ConnectInfo<SocketAddr>>()
-        .map_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED), |info| info.0.ip());
+    let ip = crate::client_ip(shares.trust_proxy, &extensions, &headers);
     let limiter = || shares.limiter.lock().unwrap_or_else(|e| e.into_inner());
     // Taken before the write, so that concurrent requests cannot all pass the
     // check; given back if the write fails, which is not the client's doing.

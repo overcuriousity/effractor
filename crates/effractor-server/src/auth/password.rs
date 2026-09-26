@@ -1,7 +1,7 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::IpAddr;
 
 use axum::Json;
-use axum::extract::{ConnectInfo, State};
+use axum::extract::State;
 use axum::http::{Extensions, HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use effractor_accounts::{sessions, users};
@@ -17,24 +17,9 @@ pub struct Login {
     password: String,
 }
 
-/// Who is asking, for the login limit. Behind a trusted proxy on this host,
-/// the address it appended last to X-Forwarded-For; a request from anywhere
-/// else cannot choose its address that way.
+/// Who is asking, for the login limit (see `crate::client_ip`).
 pub(crate) fn peer(accounts: &Accounts, extensions: &Extensions, headers: &HeaderMap) -> IpAddr {
-    let ip = extensions
-        .get::<ConnectInfo<SocketAddr>>()
-        .map_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED), |i| i.0.ip());
-    if !(accounts.trusts_proxy() && ip.to_canonical().is_loopback()) {
-        return ip;
-    }
-    headers
-        .get_all("x-forwarded-for")
-        .iter()
-        .filter_map(|v| v.to_str().ok())
-        .flat_map(|v| v.split(','))
-        .filter_map(|a| a.trim().parse::<IpAddr>().ok())
-        .next_back()
-        .unwrap_or(ip)
+    crate::client_ip(accounts.trusts_proxy(), extensions, headers)
 }
 
 /// A token is taken per attempt and given back on success, so only failures count.

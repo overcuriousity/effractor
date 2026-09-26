@@ -879,7 +879,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
- "uuid",
  "webauthn-rs",
  "webauthn-rs-proto",
 ]
