@@ -129,4 +129,41 @@ mod tests {
         assert!(html.contains("id=\"share-expiry\""));
         assert_script_order(&html, "/");
     }
+
+    #[test]
+    fn an_accounts_shell_loads_the_account_modules_and_shows_the_bar_parts() {
+        let html = render(true, true).unwrap();
+        assert!(html.contains("data-accounts=\"true\""));
+        assert!(html.contains("src=\"/assets/js/accounts/client.js\""));
+        assert!(html.contains("src=\"/assets/js/accounts/account-ui.js\""));
+        assert!(html.contains("href=\"/assets/css/70-accounts.css\""));
+        for id in [
+            "local-only",
+            "login-open",
+            "account",
+            "login-dialog",
+            "account-dialog",
+        ] {
+            assert!(html.contains(&format!("id=\"{id}\"")), "{id}");
+        }
+        let at = |s: &str| html.find(s).unwrap();
+        assert!(at("js/share-ui.js") < at("js/accounts/client.js"));
+        assert!(at("js/accounts/client.js") < at("js/accounts/account-ui.js"));
+    }
+
+    #[test]
+    fn without_accounts_the_shell_has_no_trace_of_them() {
+        for sharing in [true, false] {
+            let html = render(sharing, false).unwrap();
+            for needle in [
+                "data-accounts",
+                "js/accounts/",
+                "70-accounts.css",
+                "login-dialog",
+                "local-only",
+            ] {
+                assert!(!html.contains(needle), "{needle} with sharing={sharing}");
+            }
+        }
+    }
 }

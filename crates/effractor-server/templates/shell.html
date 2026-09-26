@@ -17,7 +17,8 @@
 <link rel="stylesheet" href="{{ asset_prefix }}assets/css/40-results.css">
 <link rel="stylesheet" href="{{ asset_prefix }}assets/css/50-editor.css">
 <link rel="stylesheet" href="{{ asset_prefix }}assets/css/60-architecture.css">
-<script src="{{ asset_prefix }}assets/js/theme.js"></script>
+{% if accounts %}<link rel="stylesheet" href="{{ asset_prefix }}assets/css/70-accounts.css">
+{% endif %}<script src="{{ asset_prefix }}assets/js/theme.js"></script>
 <script src="{{ asset_prefix }}assets/js/workspace.js" defer></script>
 <script src="{{ asset_prefix }}assets/vendor/elk/elk-api.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/graph.js" defer></script>
@@ -63,6 +64,10 @@
 <script src="{{ asset_prefix }}assets/js/comparison-ui.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/share.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/share-ui.js" defer></script>
+{% if accounts %}
+<script src="{{ asset_prefix }}assets/js/accounts/client.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/accounts/account-ui.js" defer></script>
+{% endif %}
 </head>
 <body>
 <div class="workspace" id="app" data-version="{{ version }}"{% if accounts %} data-accounts="true"{% endif %}>
@@ -75,10 +80,12 @@
       <button class="mode" id="mode-architecture" type="button" role="radio" aria-checked="false" title="Architecture (3)"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.500" cy="8" r="1.800"/><circle cx="12.500" cy="3.500" r="1.800"/><circle cx="12.500" cy="12.500" r="1.800"/><path d="M5.100 7.200l5.800-2.900M5.100 8.800l5.800 2.900"/></svg>Architecture</button>
     </span>
     <button class="doc-name" id="file" type="button" aria-haspopup="menu" aria-controls="file-menu" title="New, open, save"><b id="model-name">Untitled</b><span aria-hidden="true">▾</span></button>
+    {% if accounts %}<span class="local-only" id="local-only" hidden>local only · <button class="link-button" id="login-open" type="button">Log in</button></span>{% endif %}
     <input id="open-file" type="file" accept=".yaml,.yml,text/yaml" hidden>
     <span class="spacer"></span>
     <button class="quiet horizon-chip" id="horizon" type="button" title="Analysis horizon" disabled>Horizon —</button>
     <span class="status" id="analysis-chip" role="status">not calculated</span>
+    {% if accounts %}<button class="quiet account-chip" id="account" type="button" hidden aria-haspopup="menu"></button>{% endif %}
     <button class="icon-button" id="theme-switch" type="button" aria-label="Theme"><svg viewBox="0 0 16 16" aria-hidden="true"><circle class="theme-disc" cx="8" cy="8" r="3.2"/><path class="theme-rays" d="M8 1.500v1.600M8 12.900v1.600M1.500 8h1.600M12.900 8h1.600M3.400 3.400l1.100 1.100M11.500 11.500l1.100 1.100M3.400 12.600l1.100-1.100M11.500 4.500l1.100-1.100"/><path class="theme-moon" d="M12.500 10A5 5 0 016 3.500a5 5 0 106.500 6.500z"/><path class="theme-half" d="M8 3a5 5 0 000 10z"/><circle class="theme-ring" cx="8" cy="8" r="5"/></svg></button>
     <button class="btn btn-ghost" id="share" type="button" disabled>Share</button>
     <button class="btn" id="solve" type="button" disabled>Calculate</button>
@@ -270,6 +277,36 @@
   </div>
   <button class="btn btn-ghost" id="help-close" type="button">Close <kbd>Esc</kbd></button>
 </dialog>
+{% if accounts %}
+<dialog class="help-dialog login-dialog" id="login-dialog" aria-labelledby="login-title">
+  <h2 class="label" id="login-title">Log in</h2>
+  <form id="login-form" method="dialog">
+    <label for="login-name">Name</label>
+    <input id="login-name" name="name" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+    <label for="login-password">Password</label>
+    <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+    <p class="hint" id="login-problem" role="status"></p>
+    <div class="login-actions"><button class="btn" type="submit">Log in</button><button class="btn btn-ghost" id="login-close" type="button">Cancel</button></div>
+  </form>
+  <button class="btn btn-ghost login-other" id="login-passkey" type="button" hidden>Passkey</button>
+  <button class="btn btn-ghost login-other" id="login-oidc" type="button" hidden></button>
+</dialog>
+<dialog class="help-dialog account-dialog" id="account-dialog" aria-labelledby="account-title">
+  <h2 class="label" id="account-title">Account</h2>
+  <label for="account-display-name">Display name</label>
+  <input id="account-display-name" type="text" autocomplete="name">
+  <form id="account-password-form" method="dialog">
+    <h3 class="label">Password</h3>
+    <input id="account-password" type="password" autocomplete="new-password" placeholder="12 characters or more" aria-label="New password">
+    <input id="account-password-again" type="password" autocomplete="new-password" placeholder="again" aria-label="New password again">
+    <button class="btn btn-ghost" type="submit">Change</button>
+  </form>
+  <section id="account-passkeys" hidden></section>
+  <section id="account-oidc" hidden></section>
+  <p class="hint" id="account-problem" role="status"></p>
+  <div class="account-actions"><button class="btn btn-ghost" id="account-logout-others" type="button">Log out everywhere else</button><button class="btn btn-ghost" id="account-close" type="button">Close <kbd>Esc</kbd></button></div>
+</dialog>
+{% endif %}
 <div class="menu" id="file-menu" role="menu" hidden>
   <button type="button" role="menuitem" data-file="new">New</button>
   <button type="button" role="menuitem" data-file="open">Open a .yaml file…<kbd>Ctrl+O</kbd></button>

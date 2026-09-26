@@ -47,6 +47,11 @@ fn exports_a_self_contained_site_without_overwriting_existing_files() {
     ] {
         assert!(site.join("assets").join(asset).is_file(), "missing {asset}");
     }
+    assert!(
+        !site.join("assets/js/accounts").exists(),
+        "the static site ships no account code"
+    );
+    assert!(!site.join("assets/css/70-accounts.css").exists());
     let css = fs::read_to_string(site.join("assets/css/00-tokens.css")).unwrap();
     for part in css.split("url(\"").skip(1) {
         let url = part.split('"').next().unwrap();

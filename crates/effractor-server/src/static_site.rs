@@ -16,6 +16,10 @@ pub fn export_static(destination: &Path) -> anyhow::Result<()> {
     let html = shell::render(false, false)?;
     fs::create_dir(destination)?;
     for name in Assets::iter() {
+        // The static site has no server to keep accounts on (spec §2).
+        if name.starts_with("js/accounts/") || name == "css/70-accounts.css" {
+            continue;
+        }
         let file = Assets::get(&name)
             .ok_or_else(|| anyhow::anyhow!("asset disappeared during export: {name}"))?;
         let path = destination.join("assets").join(name.as_ref());
