@@ -490,7 +490,7 @@
     }), 0, 0, { left: box.left, right: box.right, top: box.top });
   }
 
-  // [ and ]: the simulated path, a step at a time — its steps in the attack
+  // ← and →: the simulated path, a step at a time — its steps in the attack
   // graph, their components in the architecture. Where it was is kept.
   var pathAt = null;
   function stepPath(forward) {
@@ -526,9 +526,9 @@
         e.preventDefault();
         return toggle();
       }
-      if ((key === "[" || key === "]") && (attack() || app.state.mode !== "attack")) {
+      if ((key === "ArrowLeft" || key === "ArrowRight") && (attack() || app.state.mode !== "attack")) {
         e.preventDefault();
-        return stepPath(key === "]");
+        return stepPath(key === "ArrowRight");
       }
       if (!attack()) return;
       var step = stepOf(app.state.selected);
@@ -551,8 +551,8 @@
 
   U.keyList.push(["G", "Attack graph or architecture"]);
   U.keyList.push(["Enter", "From a step to its component"]);
-  U.keyList.push(["↑ ↓ on a step", "What needs it, what it needs"]);
-  U.keyList.push(["[  ]", "Back, on along the simulated path"]);
+  U.keyList.push(["↑ ↓ on a step", "Towards the target, towards the start"]);
+  U.keyList.push(["← →", "Back, on along the simulated path"]);
   U.keyList.push(["right-click a step", "Its sources and component"]);
 
   // ---- the attack view's pointer ----
