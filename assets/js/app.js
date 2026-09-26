@@ -287,7 +287,8 @@
     // While Compare is open on a current comparison: what the scenario
     // blocks, dotted; in the attack graph what stays open to the target
     // too, the rest receding.
-    var compared = compareOpen() && routeGraph && GR.isGraphResults(state.results) && state.results.scenario && window.effractorComparison &&
+    compareWasOpen = compareOpen();
+    var compared = compareWasOpen && routeGraph && GR.isGraphResults(state.results) && state.results.scenario && window.effractorComparison &&
       window.effractorComparison.state(state.results, state.results.scenario.id, state.solvedRevision, state.revision) === "current"
       ? window.effractorComparison.routes(routeGraph, state.results, state.doc, state.results.scenario.id) : null;
     if (compared && attackShown()) {
@@ -349,7 +350,12 @@
   // The same selection shown again (new numbers): the several selected, and
   // an edge that was named, stay.
   function reselect() {
-    select(state.selected, state.parentChosen ? state.parent : undefined, true);
+    selecting = true;
+    try {
+      select(state.selected, state.parentChosen ? state.parent : undefined, true);
+    } finally {
+      selecting = false;
+    }
   }
 
   // Canvas → table: the rows holding the selected node.
@@ -1493,7 +1499,13 @@
     var tab = $("tab-compare");
     return !!tab && !tab.hidden && $("app").getAttribute("data-right") !== "closed";
   }
+  // Drawn again only when Compare comes into or goes out of sight, and
+  // never from inside a drawing: a tab switched by a change handler (an
+  // architecture opening shows Results) must not loop back into select.
+  var compareWasOpen = false;
+  var selecting = false;
   window.effractor.tabShown = function () {
+    if (selecting || compareOpen() === compareWasOpen) return;
     reselect();
   };
 
