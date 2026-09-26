@@ -58,6 +58,8 @@
         return null;
       }
       listing = res.data;
+      // A chosen folder deleted meanwhile is chosen no more.
+      if (selectedFolder != null && !(listing.folders || []).some(function (f) { return f.id === selectedFolder; })) selectedFolder = null;
       render();
       if (A.sync && A.sync.showPath) A.sync.showPath();
       return listing;
@@ -251,12 +253,13 @@
     ], e.clientX, e.clientY);
   }
 
+  // A folder is changed by its owner only; an editor edits what is in it.
   function folderMenu(f, e) {
-    var o = D.offers(f.role);
+    var o = D.offers(f.role), own = f.role === "owner";
     app.showMenu([
-      ["New document here", "", o.rename ? function () { A.sync.createNew(f.id); } : null, why(f.role)],
-      ["New folder here", "", o.rename ? function () { newFolder(f.id); } : null, why(f.role)],
-      ["Rename", "", o.rename ? function () { renameFolder(f); } : null, why(f.role)],
+      ["New document here", "", own ? function () { A.sync.createNew(f.id); } : null, why(f.role)],
+      ["New folder here", "", own ? function () { newFolder(f.id); } : null, why(f.role)],
+      ["Rename", "", own ? function () { renameFolder(f); } : null, why(f.role)],
       ["Move to", "", o.move ? moveMenu("folder", f.id) : null, why(f.role)],
       ["Share…", "", o.share ? function () { A.openPeople && A.openPeople("folder", f.id, f.name); } : null, why(f.role)],
       ["Delete", "Del", o.remove ? function () { remove("folder", f.id, f.name); } : null, why(f.role)],
@@ -332,17 +335,22 @@
     var openId = A.sync.openId();
     var wasOpen = openId != null && (kind === "document" ? openId === id
       : listing && D.ancestors(listing, openId).indexOf(id) >= 0);
-    client.request("DELETE", path).then(function (res) {
+    // The document bound to a mode that the delete takes along.
+    var bound = kind === "document" ? id : wasOpen ? openId : null;
+    // Its waiting edit first: the delete must not drop what was typed.
+    A.sync.flush(bound).then(function () {
+      return client.request("DELETE", path);
+    }).then(function (res) {
       if (!res.ok) return app.say("not deleted");
-      if (kind === "document") A.sync.forget(id);
-      else if (wasOpen) A.sync.forget(openId);
+      if (bound != null) A.sync.forget(bound);
       if (kind === "folder" && selectedFolder === id) selectedFolder = null;
       refresh();
       app.say('Deleted "' + name + '"', [["Undo", function () {
         client.request("POST", path + "/restore").then(function (r) {
           if (!r.ok) app.say(r.status === 409 ? "not restored · the name is taken" : "not restored");
-          // It was on the page: bound again, so it saves again.
-          if (r.ok && wasOpen) A.sync.open(openId);
+          // Where it was, it is bound again, so it saves again; the page
+          // keeps what was typed meanwhile.
+          if (r.ok && bound != null) A.sync.restore(bound);
           refresh();
         });
       }]]);

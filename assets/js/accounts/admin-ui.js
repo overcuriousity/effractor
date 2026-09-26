@@ -25,8 +25,9 @@
 
   function load() {
     say("");
-    var path = tab === "users" ? "/api/admin/users" : "/api/admin/groups";
-    return Promise.all([client.request("GET", path), client.request("GET", "/api/admin/groups")]).then(function (r) {
+    var groups = client.request("GET", "/api/admin/groups");
+    var list = tab === "users" ? client.request("GET", "/api/admin/users") : groups;
+    return Promise.all([list, groups]).then(function (r) {
       if (!r[0].ok) return say(refused(r[0]));
       rows = r[0].data;
       groupsCache = r[1].ok ? r[1].data : [];

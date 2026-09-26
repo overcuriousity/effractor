@@ -18,7 +18,6 @@
 /* The Documents tab (spec §9.2). The Model wrapper stays out of the layout. */
 #left-model:not([hidden]) { display: contents; }
 .left-tabs { margin-bottom: 4px; }
-.documents-search { width: 100%; margin: 4px 0 8px; }
 .doc-tree { list-style: none; margin: 0; padding: 0; }
 .doc-row { display: flex; align-items: center; gap: 6px; padding: 3px 6px 3px calc(6px + var(--depth, 0) * 14px);
   border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm); white-space: nowrap; overflow: hidden; }

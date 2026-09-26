@@ -87,8 +87,12 @@
         if (stopped || version === null) return;
         pending = text;
         name = docName;
-        if (text === saved) return;
-        schedule(delay);
+        if (text !== saved) return schedule(delay);
+        // Back to what the server has (an undo): nothing waits any more.
+        if (timer) timers.clear(timer);
+        timer = null;
+        tries = 0;
+        if (!inflight) set("saved");
       },
       flush: function () {
         if (timer) timers.clear(timer);
