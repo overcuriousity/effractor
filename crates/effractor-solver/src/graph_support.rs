@@ -49,7 +49,15 @@ pub struct GraphSupport {
     pub zero: Vec<bool>,
     /// The target's support, ascending; empty when the target cannot happen.
     pub target_support: Vec<usize>,
+    /// The steps every way to the target needs, ascending: blocked alone,
+    /// each leaves the target impossible. Not the target itself, nor what
+    /// happens at once. `None` when the support is too large to check.
+    pub chokepoints: Option<Vec<usize>>,
 }
+
+/// Above this many steps in the target's support, chokepoints are not
+/// checked: each check is a closure over the whole graph.
+pub const CHOKEPOINT_LIMIT: usize = 2000;
 
 /// A node's own contribution to its time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,8 +124,9 @@ pub fn analyze(graph: &GeneratedGraph, resolved: &ResolvedGraph) -> GraphSupport
     }
 
     // What can happen, and what happens at once: the same closure, with a
-    // different test for a node's own part.
-    let closure = |allowed: &dyn Fn(Own) -> bool| -> Vec<bool> {
+    // different test for a node's own part. `without`: one node that is not
+    // allowed to happen, whatever it is (a chokepoint's test).
+    let closure = |allowed: &dyn Fn(Own) -> bool, without: Option<usize>| -> Vec<bool> {
         let mut holds = vec![false; n];
         let mut waiting: Vec<usize> = graph
             .nodes
@@ -128,14 +137,18 @@ pub fn analyze(graph: &GeneratedGraph, resolved: &ResolvedGraph) -> GraphSupport
             })
             .collect();
         let mut work: Vec<usize> = (0..n)
-            .filter(|&i| matches!(graph.nodes[i].kind, GeneratedKind::Input) && allowed(own[i]))
+            .filter(|&i| {
+                matches!(graph.nodes[i].kind, GeneratedKind::Input)
+                    && allowed(own[i])
+                    && Some(i) != without
+            })
             .collect();
         for &i in &work {
             holds[i] = true;
         }
         while let Some(i) = work.pop() {
             for &j in &dependents[i] {
-                if holds[j] {
+                if holds[j] || Some(j) == without {
                     continue;
                 }
                 let ready = match graph.nodes[j].kind {
@@ -154,8 +167,8 @@ pub fn analyze(graph: &GeneratedGraph, resolved: &ResolvedGraph) -> GraphSupport
         }
         holds
     };
-    let possible = closure(&|o| o != Own::Never);
-    let zero = closure(&|o| o == Own::Zero);
+    let possible = closure(&|o| o != Own::Never, None);
+    let zero = closure(&|o| o == Own::Zero, None);
 
     let status: Vec<Status> = (0..n)
         .map(|i| {
@@ -219,11 +232,27 @@ pub fn analyze(graph: &GeneratedGraph, resolved: &ResolvedGraph) -> GraphSupport
     } else {
         Vec::new()
     };
+    // A step the target cannot do without: blocked alone, the target is
+    // impossible. Only steps of its support can be; what happens at once
+    // is not a step anyone takes.
+    let chokepoints = if target_support.len() > CHOKEPOINT_LIMIT {
+        None
+    } else {
+        Some(
+            target_support
+                .iter()
+                .copied()
+                .filter(|&c| c != graph.target && !zero[c])
+                .filter(|&c| !closure(&|o| o != Own::Never, Some(c))[graph.target])
+                .collect(),
+        )
+    };
     GraphSupport {
         status,
         missing,
         zero,
         target_support,
+        chokepoints,
     }
 }
 

@@ -322,3 +322,58 @@ fn an_unknown_on_a_route_a_known_step_blocks_costs_the_target_nothing() {
     assert!(b.missing("action/service-deploy-exploit/sshd").is_empty());
     assert!(b.missing(TARGET).is_empty());
 }
+
+#[test]
+fn a_chokepoint_is_a_step_every_route_to_the_target_needs() {
+    let a = Analyzed::of(LECTURE, None);
+    let named: Vec<&str> = a
+        .support
+        .chokepoints
+        .as_ref()
+        .expect("a small graph is checked")
+        .iter()
+        .map(|&i| a.graph.nodes[i].id.as_str())
+        .collect();
+    // Both routes connect over SSH first: that is needed whatever follows.
+    assert!(named.contains(&"action/flow-connect/ssh"), "{named:?}");
+    assert!(named.contains(&"state/service/sshd/reachable"), "{named:?}");
+    // Either route will do after it: neither alternative is needed.
+    assert!(
+        !named.contains(&"action/product-find-exploit/openssh"),
+        "{named:?}"
+    );
+    assert!(
+        !named.contains(&"action/credential-extract/workstation/server-key"),
+        "{named:?}"
+    );
+    // Not the target itself, and nothing that holds from the start.
+    assert!(!named.contains(&TARGET));
+    assert!(!named.iter().any(|id| id.starts_with("input/")));
+    // Every one really is needed: blocked alone, the target cannot happen.
+    let mut sorted = a.support.chokepoints.clone().unwrap();
+    sorted.sort_unstable();
+    assert_eq!(sorted, a.support.chokepoints.clone().unwrap(), "ascending");
+
+    // With the exploit patched only the key route is left: its steps are
+    // needed now too.
+    let patched = Analyzed::of(LECTURE, Some("patch"));
+    let named: Vec<&str> = patched
+        .support
+        .chokepoints
+        .as_ref()
+        .unwrap()
+        .iter()
+        .map(|&i| patched.graph.nodes[i].id.as_str())
+        .collect();
+    assert!(
+        named.contains(&"action/credential-extract/workstation/server-key"),
+        "{named:?}"
+    );
+}
+
+#[test]
+fn an_unreachable_target_has_no_chokepoints() {
+    let a = Analyzed::of(UNKNOWN, Some("deny"));
+    assert_eq!(a.status(TARGET), Status::Unreachable);
+    assert_eq!(a.support.chokepoints, Some(Vec::new()));
+}

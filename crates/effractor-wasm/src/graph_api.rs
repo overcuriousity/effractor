@@ -76,9 +76,11 @@ pub fn generate(text: &str, revision: &str) -> String {
     answer(Some(ok), &warnings)
 }
 
-/// `{nodes: [{id, status, missing}], target_support: [id]}`, the nodes aligned
-/// with the graph's: whether each step is seeded, possible, blocked or
-/// unreachable, and which unknown source fields its time would rest on.
+/// `{nodes: [{id, status, missing}], target_support: [id], chokepoints:
+/// [id] | null}`, the nodes aligned with the graph's: whether each step is
+/// seeded, possible, blocked or unreachable, and which unknown source fields
+/// its time would rest on; the steps every way to the target needs, or null
+/// when the graph was too large to check.
 fn support_image(graph: &GeneratedGraph, support: &GraphSupport) -> Value {
     let nodes: Vec<Value> = graph
         .nodes
@@ -97,7 +99,11 @@ fn support_image(graph: &GeneratedGraph, support: &GraphSupport) -> Value {
         .iter()
         .map(|&i| graph.nodes[i].id.as_str())
         .collect();
-    json!({"nodes": nodes, "target_support": target})
+    let chokepoints: Option<Vec<&str>> = support
+        .chokepoints
+        .as_ref()
+        .map(|c| c.iter().map(|&i| graph.nodes[i].id.as_str()).collect());
+    json!({"nodes": nodes, "target_support": target, "chokepoints": chokepoints})
 }
 
 /// A graph solve of `text`'s baseline, beside `scenario` unless that is

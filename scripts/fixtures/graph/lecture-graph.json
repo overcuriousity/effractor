@@ -1690,6 +1690,11 @@
    "state/service/sshd/control",
    "state/service/sshd/reachable",
    "state/session/server-account/sshd"
+  ],
+  "chokepoints": [
+   "action/flow-connect/ssh",
+   "state/flow/ssh/connected",
+   "state/service/sshd/reachable"
   ]
  }
 }
