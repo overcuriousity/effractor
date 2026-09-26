@@ -534,6 +534,13 @@
       openSlot = null;
       renderProperties();
     }
+    // Cancel drops what was typed, and says so: it was never in the
+    // document, so no undo brings it back.
+    function drop() {
+      var typed = draft.ttc !== (current.ttc || "") || draft.note !== (current.note || "") || draft.status !== current.status;
+      close();
+      if (typed) app.say("draft dropped");
+    }
     // Applying what is there already closes the form, quietly.
     // What is missing is said at its field, and nothing is applied: an
     // Unknown would drop the time typed, a known one needs a time, a
@@ -557,18 +564,16 @@
     cancel.type = "button";
     cancel.className = "btn btn-ghost btn-small";
     cancel.textContent = "Cancel";
-    cancel.addEventListener("click", close);
+    cancel.addEventListener("click", drop);
     actions.appendChild(applyButton);
     actions.appendChild(cancel);
     form.appendChild(actions);
     form.addEventListener("keydown", function (e) {
+      // Enter applies the whole form; Esc only puts back the field (the
+      // page's rule): the draft stays, and Cancel is what drops it.
       if (e.key === "Enter" && e.target.tagName === "INPUT") {
         e.preventDefault();
         applyButton.click();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        cancel.click();
       }
     });
     return form;

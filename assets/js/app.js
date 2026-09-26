@@ -1310,6 +1310,37 @@
   window.effractor.keyElsewhere = function (e) {
     return keyElsewhere(document, e);
   };
+  // One rule for every field of the inspector and the results panel: Esc
+  // puts back what the field held when it was entered and leaves it; Enter
+  // commits it and leaves (a textarea keeps Enter for its lines). A form
+  // whose Enter does more (Apply, Add) says so by taking the key first.
+  var entered = new WeakMap();
+  function ruled(t) {
+    return !!t && t.closest && !!t.closest("#inspector, #panel-right") && !t.closest("dialog") &&
+      (t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && textField(t)));
+  }
+  document.addEventListener("focusin", function (e) {
+    if (ruled(e.target)) entered.set(e.target, e.target.value);
+  });
+  // Captured, so it comes before the page's own Esc (which would drop the
+  // selection) and a field's own.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape" || !ruled(e.target) || !entered.has(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var t = e.target;
+    t.value = entered.get(t);
+    // What listens to typing (a timing's parts, a problem line) hears it back.
+    t.dispatchEvent(new Event("input", { bubbles: true }));
+    t.blur();
+  }, true);
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (!ruled(e.target) || e.target.tagName !== "INPUT") return;
+    e.preventDefault();
+    e.target.blur();
+  });
+
   window.effractor.putPositions = putPositions;
   // Places set by hand for the edit about to be drawn (or null again once
   // it is): opening a cluster in place leaves them where they are.
