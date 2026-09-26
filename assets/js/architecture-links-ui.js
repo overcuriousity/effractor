@@ -284,7 +284,10 @@
       }, null, true);
     });
     var targeted = a.target && a.target.entity === id ? a.target.state : "";
-    var target = U.field(form, "prop-target", "Target", M.dropdown(options, targeted));
+    // The one target, when it is elsewhere, is named: choosing moves it.
+    var elsewhere = a.target && a.target.entity !== id && own(doc().entities, a.target.entity);
+    var targetOptions = elsewhere ? [["", "no · on “" + name(a.target.entity) + "”"]].concat(options.slice(1)) : options;
+    var target = U.field(form, "prop-target", "Target", M.dropdown(targetOptions, targeted));
     target.addEventListener("change", function () {
       var v = target.value;
       U.apply(function () {

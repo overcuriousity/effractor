@@ -362,3 +362,10 @@ test('review: a permission stays on the flow line when the firewall shares a clu
   assert.equal(d.permits[0].firewall, 'cluster/edge');
   assert.ok(d.permits[0].flow, 'on the flow line');
 });
+
+test('a component with something to finish carries how many', () => {
+  const g = V.describe(lecture(), null, { sshd: ['a', 'b'] });
+  const node = id => g.nodes.find(n => n.id === 'entity/' + id);
+  assert.equal(node('sshd').blocking, 2);
+  assert.equal(node('srv').blocking, 0);
+});

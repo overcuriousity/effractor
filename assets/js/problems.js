@@ -29,6 +29,25 @@
     });
   }
 
+  // The validator's message in the form's words: Time and Reason, not the
+  // file's ttc and note; the file's clause after the colon left to the
+  // tooltip. What is not known here keeps its words, without backticks.
+  var PLAIN = [
+    [/^`(\w+)` needs a `ttc`$/, "$1 needs a time"],
+    [/^`calibrated` needs a nonempty `note`.*$/, "calibrated needs a reason"],
+    [/^an unknown parameter has no `ttc`.*$/, "Unknown keeps no time"],
+    [/ is an instance of no product yet:.*$/, " has no product yet"],
+    [/ has no `permits` association for this flow.*$/, " neither allows nor blocks this flow"],
+    [/ (yet|in plaintext): (no `|`).*$/, " $1"],
+  ];
+  function plain(message) {
+    var text = String(message);
+    for (var i = 0; i < PLAIN.length; i++) {
+      if (PLAIN[i][0].test(text)) return text.replace(PLAIN[i][0], PLAIN[i][1]);
+    }
+    return text.replace(/`/g, "");
+  }
+
   function list(words) {
     return words.length < 2 ? words.join("") : words.slice(0, -1).join(", ") + " or " + words[words.length - 1];
   }
@@ -69,7 +88,7 @@
       var key = d.path + "\u0000" + d.message;
       if (seen[key]) return;
       seen[key] = true;
-      out.push({ text: named(doc, d.message), hint: hint(doc, d), blocks: blocks(d), path: d.path });
+      out.push({ text: named(doc, plain(d.message)), raw: d.message, hint: hint(doc, d), blocks: blocks(d), path: d.path });
     });
     return out.filter(function (i) { return i.blocks; }).concat(out.filter(function (i) { return !i.blocks; }));
   }
@@ -81,7 +100,19 @@
     return "no attack graph · " + n + (n === 1 ? " thing" : " things") + " to finish";
   }
 
-  var api = { blocks: blocks, named: named, hint: hint, items: items, headline: headline };
+  // What blocks, by the component it is set on: {id: [message]}, for the
+  // canvas and the outline to mark before anyone asks for the graph.
+  function perComponent(diagnostics) {
+    var out = Object.create(null);
+    (diagnostics || []).forEach(function (d) {
+      var m = blocks(d) && /^entities\.([a-z0-9][a-z0-9-]*)(?:[.[]|$)/.exec(d.path || "");
+      if (!m) return;
+      (out[m[1]] = out[m[1]] || []).push(d.message);
+    });
+    return out;
+  }
+
+  var api = { blocks: blocks, perComponent: perComponent, plain: plain, named: named, hint: hint, items: items, headline: headline };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorProblems = api;
 })();

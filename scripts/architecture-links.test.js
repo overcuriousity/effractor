@@ -28,6 +28,12 @@ test('footholds and the target are explicit states', () => {
   doc = L.setTarget(doc, 'workstation', null).doc;
   assert.equal('target' in doc.attacker, false);
   assert.equal(L.setTarget(doc, 'absent', 'admin'), null);
+  // A target set on another component moves, and says from where.
+  doc = E.addEntity(doc, 'host', 'Server', { parameters: [] }).doc;
+  doc = L.setTarget(doc, 'workstation', 'admin').doc;
+  const moved = L.setTarget(doc, 'server', 'admin');
+  assert.equal(moved.notice, 'target moved from “Workstation” · Ctrl+Z undoes');
+  assert.equal(L.setTarget(moved.doc, 'server', 'user').notice, undefined, 'another state of the same component is no move');
 });
 
 test('a pin dropped on a component places, moves or replaces the attacker there', () => {

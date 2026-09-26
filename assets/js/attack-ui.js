@@ -73,8 +73,26 @@
 
   // Each thing that stops the attack graph, in plain words, with what to do
   // next where that is known; choosing one goes to where it is set.
+  // The inputs the target's number still waits for, once there is a graph.
+  function unknownInputs() {
+    var r = app.state.results;
+    return arch() && R.isGraphResults(r) ? R.headline(r).missing : [];
+  }
+  function offerUnknowns(anchor) {
+    var open = unknownInputs();
+    if (!open.length) return;
+    var items = open.map(function (path) {
+      return [W.path(doc(), U.catalog(), path), null, function () {
+        follow(path);
+      }];
+    });
+    items.unshift([open.length + (open.length === 1 ? " unknown input" : " unknown inputs"), null, null]);
+    app.showMenu(items, 0, 0, anchor.getBoundingClientRect());
+  }
+
   function offerBlockers(anchor) {
     var blockers = app.state.blockers;
+    if (arch() && !(blockers && blockers.length && !generated())) return offerUnknowns(anchor);
     if (!arch() || generated() || !blockers || !blockers.length) return;
     var items = window.effractorProblems.items(doc(), blockers).map(function (p) {
       // No target or foothold yet: the components to choose from, nested.
@@ -407,7 +425,7 @@
       b.type = "button";
       b.appendChild(el("span", p.text, "assumption-what"));
       if (p.hint) b.appendChild(el("span", p.hint, "assumption-how"));
-      b.title = p.path || "";
+      b.title = p.raw || "";
       b.addEventListener("click", function () {
         follow(p.path, b);
       });
@@ -530,8 +548,9 @@
     var blocked = arch() && !generated() && app.state.blockers && app.state.blockers.length;
     $("view-attack").title = generated() ? "Attack graph (G)" : blocked ? window.effractorProblems.headline(app.state.blockers) + " (G)" : "Build the attack graph (G)";
     $("view-attack").classList.toggle("is-blocked", !!blocked);
-    $("analysis-chip").classList.toggle("is-blocked", !!blocked);
-    $("analysis-chip").title = blocked ? "what to finish" : "";
+    var open = !blocked && unknownInputs().length;
+    $("analysis-chip").classList.toggle("is-blocked", !!blocked || !!open);
+    $("analysis-chip").title = blocked || open ? "what to finish" : "";
     var count = app.state.stepCount;
     $("attack-count").textContent = !count ? "" : count.shown === count.total ? count.total + " steps" : count.shown + " of " + count.total + " steps shown";
     if (!arch()) {

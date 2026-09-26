@@ -58,6 +58,8 @@
 /* The name reads over lines that pass under it. */
 .node-component .label-line { paint-order: stroke; stroke: var(--viz-canvas); stroke-width: 3px; stroke-linejoin: round; }
 .node-component .count { fill: var(--viz-canvas); stroke: var(--viz-outline); stroke-width: 1; stroke-dasharray: 3 2; }
+.node-component .blocked-mark { fill: var(--color-warning); stroke: var(--viz-canvas); stroke-width: 1.5; }
+.outline .blocked { flex: none; color: var(--color-warning); font-size: var(--text-xs); }
 .node-component .count-text { fill: var(--color-fg-secondary); font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; text-anchor: middle; }
 
 /* The icons outside the canvas — the Add menu, the legend — are lines in the

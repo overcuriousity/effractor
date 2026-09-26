@@ -81,13 +81,6 @@ low-chroma family plates, flows redrawn, canvas switch renamed), is
 [`2026-09-26-ui-review-design.md`](docs/superpowers/specs/2026-09-26-ui-review-design.md).
 Each item is one or a few small PRs; the owner looks at each before it lands.
 
-### form-inputs — Inputs that keep, refuse and explain at the field
-needs: —            cost: 3   benefit: 4
-Spec §4. Done when a solve never wipes typed text, no number field deletes a
-value it cannot read, a refused value is explained under its field and
-reverts, chance is % everywhere, Esc/Enter mean one thing in every form, and
-what is left to finish shows on the canvas and in the chip before Calculate.
-
 ### step-navigation — Follow a step on the canvas
 needs: —            cost: 2   benefit: 4
 Spec §5. Done when any selected step is brought into view, its derivation is

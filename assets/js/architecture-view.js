@@ -131,7 +131,9 @@
   }
 
   // `word(state)`: optional, the pins' words for a state (the catalog's).
-  function describe(doc, word) {
+  // `blocking`: {id: [message]} of what stops the attack graph, per
+  // component (problems.perComponent); counted on its plate.
+  function describe(doc, word, blocking) {
     var entities = doc.entities || {};
     var edges = [];
     var permits = [];
@@ -182,6 +184,7 @@
         // The kind is the icon; what is still unknown is a count on it.
         attributes: null,
         unknown: open,
+        blocking: blocking && blocking[id] ? blocking[id].length : 0,
         badge: null,
         pins: pinned[id] || [],
         rings: found.why[id] ? [{ state: found.own[id] ? "vulnerable" : "exposed", why: found.why[id].join("\n") }] : [],

@@ -399,6 +399,7 @@
     var ids = Object.keys(doc().entities);
     $("outline-empty").hidden = ids.length > 0;
     $("outline-empty").textContent = "No components.";
+    var blocking = window.effractorProblems.perComponent(app.state.diagnostics);
     ids.forEach(function (id) {
       var e = doc().entities[id];
       var item = document.createElement("li");
@@ -413,6 +414,13 @@
       item.appendChild(kind);
       item.appendChild(name);
       item.title = e.label + " · " + id;
+      if (blocking[id]) {
+        var mark = document.createElement("span");
+        mark.className = "blocked";
+        mark.textContent = "■";
+        item.appendChild(mark);
+        item.title += "\n" + blocking[id].map(function (m) { return window.effractorProblems.named(doc(), window.effractorProblems.plain(m)); }).join("\n");
+      }
       item.addEventListener("click", function () {
         app.select("entity/" + id);
       });
@@ -627,9 +635,10 @@
     window.effractorProblems.items(doc(), here).forEach(function (p) {
       var item = document.createElement("li");
       item.textContent = p.text;
+      item.title = p.raw;
       if (p.blocks) {
         item.className = "is-blocking";
-        item.title = "blocks the attack graph";
+        item.title += "\nblocks the attack graph";
       }
       if (p.hint) {
         var hint = document.createElement("span");

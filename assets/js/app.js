@@ -570,7 +570,7 @@
     } else {
       state.shownSteps = null;
       state.stepCount = null;
-      described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc, stateWord) : window.effractorGraph.describe(state.doc);
+      described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc, stateWord, PR.perComponent(state.diagnostics)) : window.effractorGraph.describe(state.doc);
     }
     return layout(described).then(function (laid) {
       if (!gate.accept(token)) return;
@@ -1257,7 +1257,10 @@
           showGraph(answer.result);
         }
         else showAll(answer);
-        chip(analysisLabel(state.doc.analysis));
+        // What is still unknown is what is left to do: counted where the
+        // blockers were, and listed from there (attack-ui.js).
+        var open = arch ? GR.headline(answer.result).missing.length : 0;
+        chip(open ? open + (open === 1 ? " unknown input" : " unknown inputs") : analysisLabel(state.doc.analysis));
       })
       .catch(function (e) {
         finished();

@@ -159,7 +159,11 @@
     var next = clone(doc);
     next.attacker = next.attacker || { footholds: [] };
     next.attacker.target = { entity: entity, state: state };
-    return { doc: next, select: "entity/" + entity };
+    var edit = { doc: next, select: "entity/" + entity };
+    // Only one target: taking it from another component is said.
+    var from = attacker.target && attacker.target.entity !== entity && has(doc.entities, attacker.target.entity) ? attacker.target.entity : null;
+    if (from) edit.notice = "target moved from “" + labelOf(doc, from) + "” · Ctrl+Z undoes";
+    return edit;
   }
 
   function labelOf(doc, entity) {
@@ -188,7 +192,7 @@
       return null;
     }
     if (!edit) return null;
-    edit.notice = role + ": " + labelOf(doc, entity) + " · " + state;
+    edit.notice = edit.notice || role + ": " + labelOf(doc, entity) + " · " + state;
     return edit;
   }
 

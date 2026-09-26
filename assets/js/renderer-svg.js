@@ -428,6 +428,9 @@
         el("rect", { x: at - cw / 2, y: r * 0.3 - 16, width: cw, height: 16, rx: 8 }, ["count"], g);
         text(g, at, r * 0.3 - 4.5, n.unknown + "?", "count-text");
       }
+      // Something to finish before there is an attack graph: the square the
+      // inspector marks it with, opposite the count.
+      if (n.blocking) el("rect", { x: cx - r * 0.7 - 5, y: r * 0.3 - 13, width: 10, height: 10, rx: 1.5 }, ["blocked-mark"], g);
       // Pins stack beside the plate; each can be picked up (attacker-pins.js).
       (n.pins || []).forEach(function (p, i) {
         var words = p.role + " · " + (p.word || p.state);
@@ -458,7 +461,7 @@
       var tip = el("title", {}, [], g);
       tip.textContent = n.label;
       if (n.symbol === "component") {
-        tip.textContent = n.label + " — " + (n.cluster ? n.cluster.count + " components" : n.component) + (n.unknown ? " · " + n.unknown + " unknown" : "") + (n.rings || []).map(function (ring) { return "\n" + ring.why; }).join("");
+        tip.textContent = n.label + " — " + (n.cluster ? n.cluster.count + " components" : n.component) + (n.unknown ? " · " + n.unknown + " unknown" : "") + (n.blocking ? " · " + n.blocking + " to finish" : "") + (n.rings || []).map(function (ring) { return "\n" + ring.why; }).join("");
         return drawComponent(g, n);
       }
 
