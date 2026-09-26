@@ -2,6 +2,7 @@
 
 pub mod guard;
 pub mod oidc;
+pub mod passkey;
 pub mod password;
 pub mod session;
 
@@ -16,4 +17,5 @@ pub fn routes() -> Router<Accounts> {
         .route("/api/auth/logout", post(password::logout))
         .route("/api/auth/logout-others", post(password::logout_others))
         .merge(oidc::routes())
+        .merge(passkey::routes())
 }

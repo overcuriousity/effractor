@@ -31,6 +31,7 @@ struct Inner {
     public_url: Option<String>,
     logins: Mutex<Limiter>,
     oidc: std::sync::OnceLock<crate::auth::oidc::Oidc>,
+    passkeys: Option<crate::auth::passkey::Passkeys>,
 }
 
 #[derive(Clone)]
@@ -47,11 +48,22 @@ impl Accounts {
 
     pub fn with_db(db: Db, public_url: Option<String>) -> Accounts {
         let public_url = public_url.map(|u| u.trim_end_matches('/').to_owned());
+        // Passkeys are bound to the origin people use, so only with one.
+        let passkeys = public_url.as_deref().and_then(
+            |u| match crate::auth::passkey::Passkeys::new(u) {
+                Ok(p) => Some(p),
+                Err(err) => {
+                    tracing::error!(%err, "passkeys are off: --public-url is not usable for them");
+                    None
+                }
+            },
+        );
         Accounts(Arc::new(Inner {
             db,
             public_url,
             logins: Mutex::new(Limiter::new(LOGINS_PER_HOUR)),
             oidc: std::sync::OnceLock::new(),
+            passkeys,
         }))
     }
 
@@ -63,9 +75,13 @@ impl Accounts {
         self.0.public_url.as_deref()
     }
 
-    /// Passkeys need `--public-url` (the passkeys milestone fills this in).
+    /// Passkeys need `--public-url`.
     pub fn passkeys_enabled(&self) -> bool {
-        false
+        self.passkeys().is_some()
+    }
+
+    pub(crate) fn passkeys(&self) -> Option<&crate::auth::passkey::Passkeys> {
+        self.0.passkeys.as_ref()
     }
 
     /// The OIDC button's word, when an issuer is configured.

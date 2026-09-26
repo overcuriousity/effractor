@@ -30,6 +30,11 @@ jobs:
       # and its tests ask for it.
       - name: wasm bundle
         run: scripts/build-wasm.sh --fetch-cli
+      # The release links OpenSSL (for passkeys) vendored into a static musl
+      # binary; prove it builds before master does.
+      - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: rustup target add x86_64-unknown-linux-musl
+      - run: cargo build --locked --target x86_64-unknown-linux-musl -p effractor-server
       - run: cargo clippy --workspace --all-targets --locked
       - run: cargo test --workspace --locked
       # The browser module and the native build answer generated graphs alike.

@@ -25,6 +25,9 @@ clap = { version = "4", features = ["derive"] }
 # The operating system's randomness, for share ids and delete tokens.
 getrandom = "0.3"
 mime_guess = "2"
+# WebAuthn needs OpenSSL; vendored, so the static musl builds stay static and
+# no system library is linked. Building it needs perl, make and a C compiler.
+openssl = { version = "0.10", features = ["vendored"] }
 # OIDC login against the operator's own issuer; rustls only, no system TLS.
 openidconnect = { version = "4", default-features = false, features = ["reqwest", "rustls-tls"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
@@ -40,12 +43,19 @@ thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "fs", "io-util", "time"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = "1"
+webauthn-rs = { version = "0.5", features = ["conditional-ui"] }
+# For ResidentKeyRequirement, which webauthn-rs does not re-export.
+webauthn-rs-proto = "0.5"
 
 [dev-dependencies]
 chrono = "0.4"
 http-body-util = "0.1"
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
+# A software authenticator that answers usernameless requests, for the tests.
+async-trait = "0.1"
+passkey = "0.5"
 url = "2"
 
 [lints]
