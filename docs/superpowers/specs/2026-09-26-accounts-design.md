@@ -1,7 +1,6 @@
 # effractor — accounts, stored documents and sharing with people
 
-Date: 2026-09-26 · Status: designed with the owner in conversation, 2026-09-26;
-awaiting the owner's review of this document.
+Date: 2026-09-26 · Status: approved by the owner, 2026-09-26.
 
 ## 1. Purpose and boundary
 
