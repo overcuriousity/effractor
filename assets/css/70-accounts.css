@@ -35,7 +35,11 @@
 .share-people { margin-bottom: 12px; }
 .share-people-add { display: flex; gap: 6px; align-items: center; }
 .share-people-add input { flex: 1; }
-.share-people-suggest { position: static; margin-top: 4px; }
+/* The suggestions are a list shaped as the app's menu: no list bullets. */
+.share-people-suggest { position: static; list-style: none; margin: 4px 0 0; }
+.share-people-suggest .empty { padding: 4px 8px; }
+.account-passkeys { list-style: none; margin: 0; padding: 0; }
+.account-passkeys li { display: flex; gap: 6px; align-items: center; padding: 2px 0; }
 .share-people-list { list-style: none; margin: 8px 0 0; padding: 0; }
 .share-people-list li { display: flex; gap: 6px; align-items: center; padding: 2px 0; }
 .share-people-list li > span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
