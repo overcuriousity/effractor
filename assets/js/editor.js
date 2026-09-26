@@ -637,12 +637,59 @@
     return control;
   }
 
+  // A number is typed as text: the browser's number field reads "1,5" as
+  // nothing at all. What it holds is read by E.readNumber.
   function input(type, value) {
     var i = document.createElement(type === "textarea" ? "textarea" : "input");
-    if (type !== "textarea") i.type = type;
-    if (type === "number") i.step = "any";
+    if (type === "number") {
+      i.type = "text";
+      i.inputMode = "decimal";
+      i.classList.add("number");
+    } else if (type !== "textarea") i.type = type;
     i.value = value == null ? "" : value;
     return i;
+  }
+
+  // Why a field's value was not taken, said under it; null takes it back.
+  // It stands after the field's row where the field shares one.
+  function flag(control, text) {
+    var id = control.id + "-problem";
+    var old = document.getElementById(id);
+    control.toggleAttribute("aria-invalid", !!text);
+    if (!text) {
+      if (old) old.remove();
+      control.removeAttribute("aria-describedby");
+      return;
+    }
+    var p = old || document.createElement("p");
+    p.id = id;
+    p.className = "hint field-problem";
+    p.setAttribute("role", "alert");
+    p.textContent = text;
+    control.setAttribute("aria-describedby", id);
+    if (!old) {
+      var after = control.closest(".every, .consequence-add, .compare-row") || control;
+      after.after(p);
+    }
+  }
+
+  // A number field that commits what it reads: `spec` for E.readNumber,
+  // `commit(value)`, and `empty()` for a cleared field (omitted: nothing).
+  // What does not read stays as typed with the reason under it.
+  function checked(control, spec, commit, empty) {
+    control.addEventListener("input", function () {
+      if (control.hasAttribute("aria-invalid")) flag(control, null);
+    });
+    control.addEventListener("change", function () {
+      var r = E.readNumber(control.value, spec);
+      if (r.error) return flag(control, r.error);
+      flag(control, null);
+      if (r.empty) {
+        if (empty) empty();
+        return;
+      }
+      commit(r.value);
+    });
   }
 
   // The app's own dropdown; it answers to `value` and `change` like a select.
@@ -650,11 +697,16 @@
     return window.effractorMenu.dropdown(options, value == null ? "" : value);
   }
 
+  // For the other forms: the same number fields and the same problem line.
+  app.flagField = flag;
+  app.checkedNumber = checked;
+
   // A number field commits a number; an empty one removes the key.
-  function numeric(control, key) {
-    control.addEventListener("change", function () {
-      var v = control.value.trim();
-      apply(E.setAttribute(doc(), selected(), key, v === "" ? "" : Number(v)));
+  function numeric(control, key, spec) {
+    checked(control, spec, function (v) {
+      apply(E.setAttribute(doc(), selected(), key, v));
+    }, function () {
+      apply(E.setAttribute(doc(), selected(), key, ""));
     });
   }
 
@@ -766,7 +818,10 @@
     add.textContent = "Add";
     add.addEventListener("click", function () {
       var c = { asset: asset.value, dim: dim.value };
-      if (fraction.value.trim() !== "") c.fraction = Number(fraction.value);
+      var r = E.readNumber(fraction.value, { min: 0, max: 1, above: true });
+      if (r.error) return flag(fraction, r.error);
+      flag(fraction, null);
+      if (!r.empty) c.fraction = r.value;
       apply(E.setAttribute(doc(), selected(), "consequences", (n.consequences || []).concat([c])));
     });
     [asset, dim, fraction, add].forEach(function (el) { row.appendChild(el); });
@@ -846,9 +901,9 @@
       hint(form, "No number: cut sets only.");
     } else if (quantity === "p") {
       var p = field(form, "prop-value", "p", input("number", given === "p" ? n.p : ""));
-      p.min = 0; p.max = 1; p.placeholder = "0 … 1";
-      p.addEventListener("change", function () {
-        if (p.value.trim() !== "") commit("p", Number(p.value));
+      p.placeholder = "0 … 1";
+      checked(p, { min: 0, max: 1 }, function (v) {
+        commit("p", v);
       });
       hint(form, "Chance within the horizon (" + horizon + ").");
     } else if (quantity === "rate") {
@@ -857,7 +912,7 @@
       row.className = "every";
       var every = input("number", mean ? mean.every : "");
       every.id = "prop-every";
-      every.min = 0; every.placeholder = "e.g. 10";
+      every.placeholder = "e.g. 10";
       var per = choice([["h", "hours"], ["d", "days"], ["y", "years"]], mean ? mean.unit : "y");
       per.setAttribute("aria-label", "Unit");
       per.id = "prop-every-unit";
@@ -868,15 +923,18 @@
       l.textContent = "once every";
       form.appendChild(l);
       form.appendChild(row);
-      var fromEvery = function () {
-        var rate = E.rateFrom(Number(every.value), per.value, unit);
+      var fromEvery = function (n) {
+        var rate = E.rateFrom(n, per.value, unit);
         if (rate) commit("rate", Number(rate.toPrecision(6)));
       };
-      every.addEventListener("change", fromEvery);
-      per.addEventListener("change", fromEvery);
+      checked(every, { min: 0, above: true }, fromEvery);
+      per.addEventListener("change", function () {
+        var r = E.readNumber(every.value, { min: 0, above: true });
+        if (r.value !== undefined) fromEvery(r.value);
+      });
       var rate = field(form, "prop-value", "rate / " + unit, input("number", given === "rate" ? n.rate : ""));
-      rate.addEventListener("change", function () {
-        if (rate.value.trim() !== "") commit("rate", Number(rate.value));
+      checked(rate, { min: 0, above: true }, function (v) {
+        commit("rate", v);
       });
       hint(form, "Mean time between occurrences; stored as a rate per " + UNIT[unit] + ".");
     } else {
@@ -928,7 +986,7 @@
         for (var i = 0; i < 3 && edit.doc.nodes[id].gate !== gate.value; i++) edit = E.cycleGate(edit.doc, id);
         apply(edit);
       });
-      if (n.gate === "vote") numeric(field(form, "prop-k", "k of " + n.children.length, input("number", n.k)), "k");
+      if (n.gate === "vote") numeric(field(form, "prop-k", "k of " + n.children.length, input("number", n.k)), "k", { min: 1, max: n.children.length, integer: true });
     } else {
       var kind = field(form, "prop-leaf", doc().profile === "attack-tree" ? "Step" : "Event", choice([["basic", "basic"], ["undeveloped", "undeveloped"]], n.leaf));
       kind.addEventListener("change", function () {
@@ -938,11 +996,11 @@
       if (doc().profile === "attack-tree") {
         var cost = field(form, "prop-cost", "Cost", input("number", n.cost));
         cost.title = "What this step costs the attacker";
-        numeric(cost, "cost");
+        numeric(cost, "cost", { min: 0 });
         var detection = field(form, "prop-detection", "Detection", input("number", n.detection));
         detection.title = "The chance that this step is noticed: 0 never, 1 always";
         detection.placeholder = "0 … 1";
-        numeric(detection, "detection");
+        numeric(detection, "detection", { min: 0, max: 1 });
       }
     }
     consequences(form, n);

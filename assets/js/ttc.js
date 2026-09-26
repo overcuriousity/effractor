@@ -70,7 +70,8 @@
     function part(label, suffix, title) {
       var box = document.createElement('label'); box.className = 'ttc-part'; box.title = title;
       var name = document.createElement('span'); name.className = 'hint'; name.textContent = label;
-      var field = document.createElement('input'); field.type = 'number'; field.min = '0'; field.step = 'any'; field.className = 'num';
+      // Text, not a number field: that one reads "1,5" as nothing at all.
+      var field = document.createElement('input'); field.type = 'text'; field.inputMode = 'decimal'; field.className = 'num number';
       var tail = document.createElement('span'); tail.className = 'hint'; tail.textContent = suffix;
       box.append(name, field, tail);
       return { box: box, field: field };
@@ -102,8 +103,25 @@
     // While a field writes the text, the text's own listener must leave that
     // field alone too, or "0.0" would be read back as "0" mid-number.
     var typing = null;
+    // Each part as it reads, or why it does not: said on the hint line.
+    var SPECS = [[chance, { min: 0, max: 100 }, 'Chance'], [mean, { min: 0, above: true }, 'Average time']];
+    function readParts() {
+      var read = window.effractorEdit.readNumber, out = { problem: null };
+      SPECS.forEach(function (x) {
+        var r = read(x[0].field.value, x[1]);
+        x[0].field.toggleAttribute('aria-invalid', !!r.error);
+        if (r.error && !out.problem) out.problem = x[2] + ': ' + r.error;
+        out[x[0] === chance ? 'chance' : 'mean'] = r.value === undefined ? null : String(r.value);
+      });
+      return out;
+    }
     function fromParts(e) {
-      input.value = join({ chance: chance.field.value === '' ? null : chance.field.value, mean: mean.field.value === '' ? null : mean.field.value });
+      // Half-typed ("." on the way to ".5") is not yet a problem: the text
+      // waits, and leaving the field says why if it still does not read.
+      var parts_ = readParts();
+      if (parts_.problem) return;
+      hint.classList.remove('field-problem');
+      input.value = join({ chance: parts_.chance, mean: parts_.mean });
       typing = e.target;
       try {
         explain(typing);
@@ -114,7 +132,16 @@
     }
     [chance.field, mean.field].forEach(function (f) {
       f.addEventListener('input', fromParts);
-      f.addEventListener('change', function () { input.dispatchEvent(new Event('change', { bubbles: true })); });
+      // Only what reads is committed; what does not stays, said on the hint line.
+      f.addEventListener('change', function () {
+        var problem = readParts().problem;
+        if (problem) {
+          hint.textContent = problem;
+          hint.classList.add('field-problem');
+          return;
+        }
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
     });
     picker.addEventListener('change', function () {
       if (picker.value === 'custom' || picker.value === '') { input.focus(); input.select(); return; }

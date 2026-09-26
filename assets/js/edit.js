@@ -603,7 +603,29 @@
     return { doc: doc, select: null };
   }
 
-  var api = { setHorizon: setHorizon,
+  // What a number field holds: {value}, {empty} or {error} — the words the
+  // field shows under it. A comma reads as a decimal point; what does not
+  // read is refused, never taken for empty. `spec`: min, max, above (min
+  // itself excluded), integer.
+  function readNumber(text, spec) {
+    spec = spec || {};
+    var t = String(text == null ? "" : text).trim();
+    if (t === "") return { empty: true };
+    if (t.indexOf(",") >= 0) t = t.indexOf(".") >= 0 ? "" : t.replace(",", ".");
+    var v = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(t) ? Number(t) : NaN;
+    var what = spec.integer ? "a whole number" : "a number";
+    var range = "";
+    if (spec.min != null && spec.max != null) range = spec.above ? " above " + spec.min + ", up to " + spec.max : ", " + spec.min + " … " + spec.max;
+    else if (spec.min != null) range = spec.above ? " above " + spec.min : " ≥ " + spec.min;
+    else if (spec.max != null) range = " ≤ " + spec.max;
+    if (!isFinite(v)) return { error: "a number" };
+    var out = (spec.integer && v !== Math.floor(v)) ||
+      (spec.min != null && (spec.above ? v <= spec.min : v < spec.min)) ||
+      (spec.max != null && v > spec.max);
+    return out ? { error: what + range } : { value: v };
+  }
+
+  var api = { setHorizon: setHorizon, readNumber: readNumber,
     slug: slug, parentsOf: parentsOf, addChild: addChild, addSibling: addSibling, rename: rename, setId: setId,
     cycleGate: cycleGate, setLeafKind: setLeafKind, link: link, removeEdge: removeEdge, deleteNode: deleteNode, removal: removal,
     gateRefusal: gateRefusal, linkCandidates: linkCandidates, moveCandidates: moveCandidates,

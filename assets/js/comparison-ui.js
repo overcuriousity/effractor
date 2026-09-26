@@ -157,15 +157,11 @@
     speed.placeholder = "1";
     speed.value = set.speed === null ? "" : String(set.speed);
     speed.title = "2: twice as fast · 0.5: half · empty: as written";
-    speed.addEventListener("change", function () {
-      var text = speed.value.trim();
-      if (!text) return apply(C.setSpeed(doc(), id, null));
-      var v = Number(text);
-      if (!(isFinite(v) && v > 0)) {
-        speed.value = set.speed === null ? "" : String(set.speed);
-        return app.say("a speed is a number above 0: 2 is twice as fast");
-      }
+    speed.id = "compare-speed";
+    app.checkedNumber(speed, { min: 0, above: true }, function (v) {
       apply(C.setSpeed(doc(), id, v));
+    }, function () {
+      apply(C.setSpeed(doc(), id, null));
     });
     speed.addEventListener("keydown", function (e) {
       if (e.key === "Enter") speed.blur();

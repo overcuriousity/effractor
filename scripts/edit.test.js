@@ -314,3 +314,25 @@ test("the nodes the link and move dialogs offer are the ones the edit takes", ()
   }
   assert.deepEqual(E.linkCandidates(attack, "account"), ["physical", "key", "alarm"]);
 });
+
+test('a number field reads what is typed, a comma too, and says what it wants', () => {
+  const r = (text, spec) => E.readNumber(text, spec);
+  assert.deepEqual(r('0.5'), { value: 0.5 });
+  assert.deepEqual(r(' 1,5 '), { value: 1.5 });
+  assert.deepEqual(r(''), { empty: true });
+  assert.deepEqual(r('   '), { empty: true });
+  assert.deepEqual(r('1e3'), { value: 1000 });
+  // Never read as empty: what does not read is refused, in a few words.
+  assert.deepEqual(r('abc'), { error: 'a number' });
+  assert.deepEqual(r('1,000.5'), { error: 'a number' });
+  assert.deepEqual(r('1.2.3'), { error: 'a number' });
+  assert.deepEqual(r('Infinity'), { error: 'a number' });
+  // Ranges, said as the field's placeholder says them.
+  assert.deepEqual(r('1.5', { min: 0, max: 1 }), { error: 'a number, 0 … 1' });
+  assert.deepEqual(r('-1', { min: 0 }), { error: 'a number ≥ 0' });
+  assert.deepEqual(r('0', { min: 0, above: true }), { error: 'a number above 0' });
+  assert.deepEqual(r('0', { min: 0, max: 1, above: true }), { error: 'a number above 0, up to 1' });
+  assert.deepEqual(r('2.5', { min: 1, integer: true }), { error: 'a whole number ≥ 1' });
+  assert.deepEqual(r('3', { min: 1, integer: true }), { value: 3 });
+  assert.deepEqual(r('1', { min: 0, max: 1 }), { value: 1 });
+});

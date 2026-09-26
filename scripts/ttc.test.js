@@ -56,11 +56,13 @@ function form(initial) {
     set value(v) { this._v = String(v); }
     append(...c) { this.children.push(...c); }
     setAttribute() {}
+    toggleAttribute(name, on) { this[name] = on; }
+    get classList() { const el = this; return { add() {}, remove() {}, toggle() {} }; }
     focus() {}
     select() {}
   }
   global.document = { createElement: t => new El(t) };
-  global.window = { effractorMenu: { dropdown: () => new El('select') } };
+  global.window = { effractorMenu: { dropdown: () => new El('select') }, effractorEdit: require('../assets/js/edit.js') };
   const input = new El('input');
   input.id = 'ttc';
   input.value = initial;
@@ -85,6 +87,16 @@ test('typing a number into Chance or Average time keeps every key', () => {
   f.type(f.mean, '12.05');
   assert.equal(f.mean.value, '12.05');
   assert.equal(f.input.value, '0.05% * Exponential(mean 12.05)');
+});
+
+test('a comma reads as a point, and what does not read is not written', () => {
+  const f = form('50% * Exponential(mean 10)');
+  f.type(f.chance, '2,5');
+  assert.equal(f.input.value, '2.5% * Exponential(mean 10)');
+  f.type(f.chance, '150');
+  f.chance.dispatchEvent(new Event('change'));
+  assert.equal(f.input.value, '15% * Exponential(mean 10)', 'the last text that read stays');
+  assert.equal(f.chance['aria-invalid'], true);
 });
 
 test('the preset and the parts have ids from the field, so a redrawn form keeps the focus', () => {

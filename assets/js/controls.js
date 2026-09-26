@@ -122,8 +122,11 @@
     cost.classList.add("mono");
     cost.inputMode = "decimal";
     cost.title = "What the control costs over the horizon";
-    cost.addEventListener("change", function () {
-      edit(E.setControl(app.state.doc, id, "cost", cost.value));
+    cost.placeholder = "≥ 0";
+    app.checkedNumber(cost, { min: 0 }, function (v) {
+      edit(E.setControl(app.state.doc, id, "cost", v));
+    }, function () {
+      app.flagField(cost, "a number ≥ 0");
     });
 
     var title = document.createElement("p");

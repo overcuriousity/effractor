@@ -43,8 +43,11 @@
   background: var(--color-bg-base); color: var(--color-fg-primary);
   font: inherit;
 }
-.properties input[type="number"], .properties .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.properties input[type="number"] { text-align: right; }
+.properties input.number, .properties .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.properties input.number { text-align: right; }
+/* A value not taken: the field keeps it, the reason is said under it. */
+input[aria-invalid], input[aria-invalid]:focus-visible { border-color: var(--color-danger); }
+.field-problem, .properties .hint.field-problem { grid-column: 1 / -1; margin: 0; color: var(--color-danger); font-size: var(--text-xs); }
 .properties textarea { resize: vertical; min-height: 3.2em; }
 .properties :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 0; }
 .properties .hint { grid-column: 1 / -1; margin: 0; color: var(--color-fg-muted); font-size: var(--text-xs); }

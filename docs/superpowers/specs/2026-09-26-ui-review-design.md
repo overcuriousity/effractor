@@ -57,18 +57,17 @@ code (no browser: the owner looks, see `docs/HANDOFF.md`) found, in short:
 
 ## 4. Inputs — item `form-inputs`
 
-- **Keep what is typed.** The tree inspector, Controls and Assets rebuild on
-  every `onChange` (`editor.js:1187-1192`, `controls.js:342-349`); a solve
-  arriving mid-typing wipes the field. One shared helper carries the
-  architecture's `formKey`/`sameKey` guard and value-and-caret restore
-  (`architecture-ui.js:627-657`).
+- **Keep what is typed.** Every form already rebuilds through `app.rebuild`,
+  which carries the field being typed in; what it lost was a browser number
+  field's text that does not read ("1,5" reads as ""). Number fields become
+  text fields (below).
 - **One numeric field.** `type=text inputmode=decimal`; a comma reads as a
   point; what does not read is refused *at the field* and never means
   "remove the key" (`editor.js:652-654`). Clearing a field is the only way to
   remove a value.
-- **Errors at the field.** A refused edit shows its reason under the field
-  (as `#horizon-error` does), the field reverts; the notice keeps undo
-  messages. A `.field-problem` style.
+- **Errors at the field.** A value that does not read or is out of range is
+  not committed: the field keeps what was typed, marked, with the reason
+  under it (as `#horizon-error` does); the notice keeps undo messages.
 - **One convention.** Chance in % everywhere; labels say meaning (Chance,
   Time, How often, Noticed), not file keys; one "not said" word for an empty
   dropdown; Average time gets the unit picker the rate has; the rate has one
