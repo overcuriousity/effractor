@@ -287,6 +287,45 @@ async fn creation_is_rate_limited_per_address() {
     );
 }
 
+/// Behind a trusted proxy the limit is per forwarded client, not one for the
+/// proxy; without the flag a forwarded address changes nothing.
+#[tokio::test]
+async fn behind_a_trusted_proxy_the_limit_is_per_client() {
+    for trusted in [true, false] {
+        let mut shares = Shares::new(
+            Arc::new(MemoryStorage::default()),
+            Limits {
+                creates_per_hour: 1,
+                ..Limits::default()
+            },
+        );
+        if trusted {
+            shares = shares.trusting_proxy();
+        }
+        let app = effractor_server::app(shares);
+        let post = |client: &str| {
+            let mut req = Request::post("/api/share")
+                .header("x-forwarded-for", client)
+                .body(Body::from("x"))
+                .unwrap();
+            req.extensions_mut()
+                .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 40000))));
+            app.clone().oneshot(req)
+        };
+        assert_eq!(
+            post("203.0.113.1").await.unwrap().status(),
+            StatusCode::CREATED
+        );
+        let other = post("203.0.113.2").await.unwrap().status();
+        let expected = if trusted {
+            StatusCode::CREATED
+        } else {
+            StatusCode::TOO_MANY_REQUESTS
+        };
+        assert_eq!(other, expected, "trusted={trusted}");
+    }
+}
+
 /// Memory storage whose writes fail while `broken` is set, and which counts
 /// the blobs read.
 #[derive(Default)]

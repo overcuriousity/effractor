@@ -107,6 +107,42 @@ async fn everything_the_shell_links_is_embedded() {
     );
 }
 
+/// Behind a proxy that strips `/effractor`: the page, at `/` and at a share
+/// link, names every asset under the prefix, and each is there once the
+/// proxy has stripped it again.
+#[tokio::test]
+async fn under_a_prefix_the_shell_links_its_assets_through_it() {
+    let app = || {
+        effractor_server::app_at(
+            "/effractor/",
+            effractor_server::share::Shares::in_memory(),
+            None,
+        )
+    };
+    let fetch = |path: String| async move {
+        app()
+            .oneshot(Request::get(path).body(Body::empty()).unwrap())
+            .await
+            .unwrap()
+    };
+    for page in ["/", "/s/AAAAAAAAAAAAAAAAAAAAAA"] {
+        let html = text(fetch(page.to_owned()).await).await;
+        let mut linked = 0;
+        for attr in ["href=\"", "src=\""] {
+            for part in html.split(attr).skip(1) {
+                let url = part.split('"').next().unwrap();
+                let stripped = url
+                    .strip_prefix("/effractor")
+                    .unwrap_or_else(|| panic!("{url} on {page} misses the prefix"));
+                let res = fetch(stripped.to_owned()).await;
+                assert_eq!(res.status(), StatusCode::OK, "{url}");
+                linked += 1;
+            }
+        }
+        assert!(linked >= 3, "{page}");
+    }
+}
+
 #[tokio::test]
 async fn shell_has_the_workspace_regions_and_no_inline_style_or_script() {
     let html = text(get("/").await).await;

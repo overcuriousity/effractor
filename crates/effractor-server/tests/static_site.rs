@@ -64,5 +64,7 @@ fn exports_a_self_contained_site_without_overwriting_existing_files() {
         .output()
         .unwrap();
     assert!(!again.status.success(), "must refuse an existing directory");
+    let said = String::from_utf8_lossy(&again.stderr);
+    assert!(said.contains(&site.display().to_string()), "{said}");
     assert_eq!(fs::read_to_string(site.join("index.html")).unwrap(), html);
 }

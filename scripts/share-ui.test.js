@@ -8,12 +8,13 @@ const { element } = require('./fixtures/fake-dom.js');
 const share = require('../assets/js/share.js');
 const store = require('../assets/js/store.js');
 
-function mount({ server = false, page = 'https://example.test/effractor/', accept = true, fetcher } = {}) {
+function mount({ server = false, page = 'https://example.test/effractor/', accept = true, fetcher, maxTtl = '1y',
+  script = (server ? 'https://example.test/' : 'https://example.test/effractor/') + 'assets/js/share-ui.js' } = {}) {
   const ids = ['share', 'share-dialog', 'share-mode', 'share-hint', 'share-created', 'share-link',
     'share-copy', 'share-create', 'share-close', 'share-status'];
   if (server) ids.push('share-expiry', 'share-server-list', 'shares-empty', 'my-shares');
   const nodes = Object.fromEntries(ids.map(id => [id, element('div')]));
-  nodes['share-dialog'].dataset = { serverSharing: String(server) };
+  nodes['share-dialog'].dataset = { serverSharing: String(server), maxTtl };
   nodes['share-dialog'].showModal = () => {};
   nodes['share-dialog'].close = () => {};
   nodes['share-created'].hidden = true;
@@ -28,12 +29,12 @@ function mount({ server = false, page = 'https://example.test/effractor/', accep
   const window = {
     effractor: app, effractorShare: share, effractorStore: store, crypto: webcrypto,
     addEventListener: (type, fn) => { events[type] = fn; },
-    effractorMenu: { dropdown(options, value) { const el = element('button'); el.value = value; return el; } },
+    effractorMenu: { dropdown(options, value) { const el = element('button'); el.value = value; el.options = options; return el; } },
   };
   vm.runInNewContext(readFileSync('assets/js/share-ui.js', 'utf8'), {
     window, URL, location, setTimeout, clearTimeout,
     document: { getElementById: id => nodes[id] || null, createElement: element,
-      currentScript: { src: (server ? 'https://example.test/' : 'https://example.test/effractor/') + 'assets/js/share-ui.js' } },
+      currentScript: { src: script } },
     history: { replaceState: (_state, _title, url) => detached.push(url) },
     fetch: async (...args) => { requests.push(args); if (fetcher) return fetcher(...args); throw new Error('unexpected network request'); },
     navigator: { clipboard: { writeText: async () => {} } },
@@ -91,7 +92,7 @@ test('server sharing still encrypts uploads, and switching modes clears the old 
   }) }); await ui.ready();
   await ui.fire(ui.nodes['share-create']);
   const old = new URL(ui.nodes['share-link'].value);
-  assert.equal(ui.requests[0][0], '/api/share');
+  assert.equal(ui.requests[0][0], 'https://example.test/api/share?ttl=90d');
   assert.equal(await share.decrypt(ui.requests[0][1].body, old.hash.slice(1), webcrypto), ui.app.state.text);
   const mode = ui.nodes['share-mode'].children[0]; mode.value = 'inline';
   await ui.fire(mode, 'change');
@@ -105,11 +106,34 @@ test('server sharing still encrypts uploads, and switching modes clears the old 
 
 test('existing encrypted server links still load and detach to the app root', async () => {
   const encrypted = await share.encrypt('name: encrypted\n', webcrypto);
-  const ui = mount({ server: true, page: share.link('https://example.test', 'a'.repeat(22), encrypted.key),
+  const ui = mount({ server: true, page: share.link('https://example.test/', 'a'.repeat(22), encrypted.key),
     fetcher: async () => ({ ok: true, arrayBuffer: async () => encrypted.blob }) }); await ui.ready();
   assert.equal(ui.adopted[0].text, 'name: encrypted\n');
   assert.deepEqual(ui.detached, ['https://example.test/']);
-  assert.equal(ui.requests[0][0], '/api/share/' + 'a'.repeat(22));
+  assert.equal(ui.requests[0][0], 'https://example.test/api/share/' + 'a'.repeat(22));
+});
+
+test('under a path prefix, sharing uploads, links and opens below it', async () => {
+  const encrypted = await share.encrypt('name: prefixed\n', webcrypto);
+  const script = 'https://example.org/effractor/assets/js/share-ui.js';
+  const created = mount({ server: true, script, page: 'https://example.org/effractor/', fetcher: async () => ({
+    ok: true, json: async () => ({ id: 'c'.repeat(22), delete_token: 'token', expires_at: null }),
+  }) }); await created.ready();
+  await created.fire(created.nodes['share-create']);
+  assert.equal(created.requests[0][0], 'https://example.org/effractor/api/share?ttl=90d');
+  assert.match(created.nodes['share-link'].value, /^https:\/\/example\.org\/effractor\/s\/c{22}#/);
+  const opened = mount({ server: true, script, page: share.link('https://example.org/effractor/', 'a'.repeat(22), encrypted.key),
+    fetcher: async () => ({ ok: true, arrayBuffer: async () => encrypted.blob }) }); await opened.ready();
+  assert.equal(opened.requests[0][0], 'https://example.org/effractor/api/share/' + 'a'.repeat(22));
+  assert.equal(opened.adopted[0].text, 'name: prefixed\n');
+  assert.deepEqual(opened.detached, ['https://example.org/effractor/']);
+});
+
+test('the expiry offers only what the server keeps', async () => {
+  const ui = mount({ server: true, page: 'https://example.test/', maxTtl: '30d' }); await ui.ready();
+  const ttl = ui.nodes['share-expiry'].children[0];
+  assert.deepEqual(ttl.options.map((o) => o[0]), ['1d', '30d']);
+  assert.equal(ttl.value, '30d');
 });
 
 test('an expired share is marked in My shares', async () => {

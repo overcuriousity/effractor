@@ -26,9 +26,10 @@ struct Args {
     bind: SocketAddr,
 
     /// Where shared models are kept — as ciphertext; the key never gets here.
-    /// Created when the first model is shared.
-    #[arg(long, default_value = "data")]
-    data: PathBuf,
+    /// Created when the first model is shared. [default:
+    /// $XDG_DATA_HOME/effractor/shares, or ~/.local/share/effractor/shares]
+    #[arg(long, value_name = "DIRECTORY")]
+    data: Option<PathBuf>,
 
     /// The longest a share may be kept: 1d, 30d, 90d, 1y, or never.
     #[arg(long, default_value = "1y")]
@@ -39,13 +40,15 @@ struct Args {
     #[arg(long, value_name = "FILE", global = true)]
     accounts: Option<PathBuf>,
 
-    /// The origin people reach this server at (https://…). Needed for
-    /// passkeys; makes the session cookie Secure when it is https.
+    /// The address people reach this server at (https://…), with a path when
+    /// a proxy strips one. Needed for passkeys; makes the session cookie
+    /// Secure when it is https.
     #[arg(long, value_name = "URL")]
     public_url: Option<String>,
 
     /// A reverse proxy on this host (nginx, Caddy) forwards the requests:
-    /// count failed logins per the address it puts in X-Forwarded-For.
+    /// count failed logins and new shares per the address it puts in
+    /// X-Forwarded-For.
     #[arg(long)]
     trusted_proxy: bool,
 
@@ -99,6 +102,53 @@ fn oidc_config(args: &Args) -> anyhow::Result<Option<OidcConfig>> {
     }))
 }
 
+/// `--data`, or the XDG data directory the user service uses too. A `data`
+/// directory here is where versions before this default kept shares: its
+/// links keep opening.
+fn data_dir(given: Option<PathBuf>) -> anyhow::Result<PathBuf> {
+    if let Some(dir) = given {
+        return Ok(dir);
+    }
+    let old = PathBuf::from("data");
+    if old.is_dir() {
+        tracing::warn!(
+            "keeping shares in ./data, as before; pass --data to choose where they live"
+        );
+        return Ok(old);
+    }
+    let xdg = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute());
+    let home = std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share"));
+    let root = xdg
+        .or(home)
+        .context("no HOME to keep shares under: pass --data DIRECTORY")?;
+    Ok(root.join("effractor/shares"))
+}
+
+/// Ctrl-C, or SIGTERM from systemd or docker: finish what is in flight.
+async fn shutdown() {
+    let interrupt = async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
+    #[cfg(unix)]
+    let terminate = async {
+        use tokio::signal::unix::{SignalKind, signal};
+        match signal(SignalKind::terminate()) {
+            Ok(mut term) => {
+                term.recv().await;
+            }
+            Err(_) => std::future::pending().await,
+        }
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+    tokio::select! {
+        () = interrupt => {}
+        () = terminate => {}
+    }
+}
+
 #[derive(clap::Subcommand)]
 enum Command {
     /// Manage the users of an accounts database.
@@ -133,7 +183,12 @@ async fn main() -> anyhow::Result<()> {
         max_ttl: args.max_ttl,
         ..Limits::default()
     };
-    let shares = Shares::new(Arc::new(FsStorage::new(args.data)), limits);
+    let data = data_dir(args.data.clone())?;
+    tracing::info!("shares are kept in {}", data.display());
+    let mut shares = Shares::new(Arc::new(FsStorage::new(data)), limits);
+    if args.trusted_proxy {
+        shares = shares.trusting_proxy();
+    }
     let accounts = match &args.accounts {
         Some(db) => {
             if args.public_url.is_none() && !args.bind.ip().is_loopback() {
@@ -170,7 +225,7 @@ async fn main() -> anyhow::Result<()> {
                 Ok(n) => tracing::info!("removed {n} expired shares"),
                 Err(err) => tracing::error!(%err, "sweeping expired shares failed"),
             }
-            // Ended sessions, and (stored-documents) what was deleted a week ago.
+            // Ended sessions, and documents deleted a week ago.
             if let Some(accounts) = sweep_accounts.clone() {
                 let swept = tokio::task::spawn_blocking(move || {
                     let now = accounts.db().now();
@@ -181,22 +236,29 @@ async fn main() -> anyhow::Result<()> {
                 })
                 .await;
                 match swept {
-                    Ok(Ok(0)) | Err(_) => {}
+                    Ok(Ok(0)) => {}
                     Ok(Ok(n)) => tracing::info!("purged {n} deleted documents and folders"),
                     Ok(Err(err)) => tracing::error!(%err, "sweeping accounts failed"),
+                    Err(err) => tracing::error!(%err, "sweeping accounts panicked"),
                 }
             }
         }
     });
 
-    let listener = tokio::net::TcpListener::bind(args.bind).await?;
+    let listener = tokio::net::TcpListener::bind(args.bind)
+        .await
+        .with_context(|| {
+            format!(
+                "cannot listen on {} — is effractor (perhaps the installed service) already running there? Choose another address with --bind",
+                args.bind
+            )
+        })?;
     tracing::info!("listening on http://{}", listener.local_addr()?);
-    let app = effractor_server::app_with(shares, accounts)
+    let base = effractor_server::base_path(args.public_url.as_deref());
+    let app = effractor_server::app_at(&base, shares, accounts)
         .into_make_service_with_connect_info::<SocketAddr>();
     axum::serve(listener, app)
-        .with_graceful_shutdown(async {
-            let _ = tokio::signal::ctrl_c().await;
-        })
+        .with_graceful_shutdown(shutdown())
         .await?;
     Ok(())
 }

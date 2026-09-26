@@ -260,7 +260,7 @@
     <button class="btn" type="submit">Apply</button><button class="btn btn-ghost" id="horizon-close" type="button">Cancel</button>
   </form>
 </dialog>
-<dialog class="help-dialog share-dialog" id="share-dialog" aria-labelledby="share-title" data-server-sharing="{{ sharing }}">
+<dialog class="help-dialog share-dialog" id="share-dialog" aria-labelledby="share-title" data-server-sharing="{{ sharing }}"{% if sharing %} data-max-ttl="{{ max_ttl }}"{% endif %}>
   <h2 class="label" id="share-title">Share snapshot</h2>
 {% if accounts %}
 <section class="share-people" id="share-people" hidden>

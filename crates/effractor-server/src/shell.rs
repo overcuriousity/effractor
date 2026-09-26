@@ -1,23 +1,41 @@
+use std::sync::Arc;
+
 use askama::Template;
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
 
+use crate::share::Ttl;
+
 #[derive(Template)]
 #[template(path = "shell.html")]
-struct Shell {
+struct Shell<'a> {
     version: &'static str,
-    asset_prefix: &'static str,
+    asset_prefix: &'a str,
     sharing: bool,
     accounts: bool,
+    max_ttl: Ttl,
     csp: &'static str,
 }
 
-pub(crate) fn render(sharing: bool, accounts: bool) -> Result<String, askama::Error> {
+/// What a served shell knows of its server.
+pub(crate) struct Server {
+    /// The path people reach the page at (`lib::base_path`). Absolute, so
+    /// `/s/<id>` finds the assets as `/` does.
+    pub base: String,
+    pub accounts: bool,
+    /// The share dialog offers no expiry the server would refuse.
+    pub max_ttl: Ttl,
+}
+
+/// The static export (`None`) links its assets relative to itself, which
+/// works at a domain root and under a repository path alike.
+pub(crate) fn render(server: Option<&Server>) -> Result<String, askama::Error> {
     Shell {
         version: super::VERSION,
-        asset_prefix: if sharing { "/" } else { "./" },
-        sharing,
-        accounts,
+        asset_prefix: server.map_or("./", |s| &s.base),
+        sharing: server.is_some(),
+        accounts: server.is_some_and(|s| s.accounts),
+        max_ttl: server.map_or(Ttl::Never, |s| s.max_ttl),
         // Pages cannot set response headers. This directive only works in a
         // header; the remaining policy is also supported in a meta element.
         csp: super::headers::CSP
@@ -27,8 +45,8 @@ pub(crate) fn render(sharing: bool, accounts: bool) -> Result<String, askama::Er
     .render()
 }
 
-pub async fn shell(accounts: bool) -> Response {
-    match render(true, accounts) {
+pub(crate) async fn shell(server: Arc<Server>) -> Response {
+    match render(Some(&server)) {
         Ok(html) => Html(html).into_response(),
         Err(err) => {
             tracing::error!(%err, "shell template failed to render");
@@ -103,9 +121,18 @@ mod tests {
         }
     }
 
+    fn served(accounts: bool) -> String {
+        render(Some(&Server {
+            base: "/".to_owned(),
+            accounts,
+            max_ttl: Ttl::Year1,
+        }))
+        .unwrap()
+    }
+
     #[test]
     fn static_shell_offers_self_contained_sharing_without_server_controls() {
-        let html = render(false, false).unwrap();
+        let html = render(None).unwrap();
         assert!(html.contains("id=\"canvas\""));
         assert!(html.contains("src=\"./assets/js/app.js\""));
         assert!(!html.contains("src=\"/assets/"));
@@ -121,18 +148,34 @@ mod tests {
 
     #[test]
     fn server_shell_keeps_sharing_and_root_paths_for_shared_links() {
-        let html = render(true, false).unwrap();
+        let html = served(false);
         assert!(html.contains("src=\"/assets/js/app.js\""));
         assert!(html.contains("/assets/js/share-ui.js"));
         assert!(html.contains("id=\"share-dialog\""));
         assert!(html.contains("data-server-sharing=\"true\""));
+        assert!(html.contains("data-max-ttl=\"1y\""));
         assert!(html.contains("id=\"share-expiry\""));
         assert_script_order(&html, "/");
     }
 
     #[test]
+    fn under_a_prefix_every_asset_carries_it() {
+        let html = render(Some(&Server {
+            base: "/effractor/".to_owned(),
+            accounts: true,
+            max_ttl: Ttl::Days30,
+        }))
+        .unwrap();
+        assert!(!html.contains("\"/assets/"));
+        assert!(!html.contains("\"./assets/"));
+        assert!(html.contains("src=\"/effractor/assets/js/accounts/client.js\""));
+        assert!(html.contains("data-max-ttl=\"30d\""));
+        assert_script_order(&html, "/effractor/");
+    }
+
+    #[test]
     fn an_accounts_shell_loads_the_account_modules_and_shows_the_bar_parts() {
-        let html = render(true, true).unwrap();
+        let html = served(true);
         assert!(html.contains("data-accounts=\"true\""));
         assert!(html.contains("src=\"/assets/js/accounts/client.js\""));
         assert!(html.contains("src=\"/assets/js/accounts/account-ui.js\""));
@@ -208,8 +251,7 @@ mod tests {
 
     #[test]
     fn without_accounts_the_shell_has_no_trace_of_them() {
-        for sharing in [true, false] {
-            let html = render(sharing, false).unwrap();
+        for (sharing, html) in [(true, served(false)), (false, render(None).unwrap())] {
             for needle in [
                 "data-accounts",
                 "js/accounts/",
