@@ -369,3 +369,11 @@ test('a component with something to finish carries how many', () => {
   assert.equal(node('sshd').blocking, 2);
   assert.equal(node('srv').blocking, 0);
 });
+
+test('the legend names only the rings the drawing carries', () => {
+  const none = V.ringsIn({ nodes: [{ rings: [] }, { cluster: { states: [null, null] } }] });
+  assert.deepEqual(none, { vulnerable: false, exposed: false, unknown: false });
+  const some = V.ringsIn({ nodes: [{ rings: [{ state: 'exposed' }] }, { cluster: { states: ['vulnerable', 'unknown'] } }] });
+  assert.deepEqual(some, { vulnerable: true, exposed: true, unknown: true });
+  assert.deepEqual(V.ringsIn(null), { vulnerable: false, exposed: false, unknown: false });
+});

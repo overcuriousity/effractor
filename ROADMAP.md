@@ -98,12 +98,6 @@ grammar hold across views, edges reach 3:1, flows are redrawn, charts have
 series tokens, real legends and readable ticks, and the contrast check covers
 the new pairs.
 
-### canvas-start — A canvas that says how to begin
-needs: —            cost: 1   benefit: 2
-Spec §10. Done when the switch reads *Components | Attack graph*, an empty
-canvas says how to start, examples open from File, the legend shows only rings
-present, and an nmap import says what it added.
-
 ### attack-graph-density — A lighter attack graph
 needs: —            cost: 3   benefit: 3
 Spec §11. Done when single-producer facts fold into their producer, seeded

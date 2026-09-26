@@ -398,7 +398,9 @@
     list.replaceChildren();
     var ids = Object.keys(doc().entities);
     $("outline-empty").hidden = ids.length > 0;
-    $("outline-empty").textContent = "No components.";
+    $("outline-empty").textContent = "A adds a component";
+    // An empty canvas says how to begin.
+    $("canvas-empty").hidden = ids.length > 0;
     var blocking = window.effractorProblems.perComponent(app.state.diagnostics);
     ids.forEach(function (id) {
       var e = doc().entities[id];

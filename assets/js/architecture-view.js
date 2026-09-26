@@ -385,7 +385,22 @@
     return { why: out, own: own };
   }
 
-  var api = { describe: describe, route: route, shownSlots: shownSlots, shownDefense: shownDefense };
+  // Which rings a drawing carries (a component's own, a cluster's
+  // sectors): the legend names those and no others.
+  function ringsIn(described) {
+    var out = { vulnerable: false, exposed: false, unknown: false };
+    ((described && described.nodes) || []).forEach(function (n) {
+      (n.rings || []).forEach(function (r) {
+        if (r.state in out) out[r.state] = true;
+      });
+      ((n.cluster && n.cluster.states) || []).forEach(function (st) {
+        if (st in out) out[st] = true;
+      });
+    });
+    return out;
+  }
+
+  var api = { describe: describe, route: route, shownSlots: shownSlots, shownDefense: shownDefense, ringsIn: ringsIn };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureView = api;
 })();

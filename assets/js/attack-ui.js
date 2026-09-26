@@ -593,13 +593,13 @@
       }
       if (EDITS[key]) {
         e.preventDefault();
-        app.say(step ? V.refuse(EDITS[key]) : "edits are made in the architecture · G");
+        app.say(step ? V.refuse(EDITS[key]) : "edits are made in Components · G");
       }
     },
     true
   );
 
-  U.keyList.push(["G", "Attack graph or architecture"]);
+  U.keyList.push(["G", "Attack graph or components"]);
   U.keyList.push(["Enter", "From a step to its component"]);
   U.keyList.push(["↑ ↓ on a step", "Towards the target, towards the start"]);
   U.keyList.push(["← →", "Back, on along the route drawn (else route A)"]);
@@ -683,7 +683,7 @@
     if (on) {
       Object.keys(rail).forEach(function (k) {
         rail[k].disabled = true;
-        rail[k].title = "Edits are made in the architecture (G)";
+        rail[k].title = "Edits are made in Components (G)";
       });
     }
     if (shownResults !== app.state.results || shownGraph !== generated() || shownBlockers !== blockersNow() || shownRouteNo !== app.state.route) {

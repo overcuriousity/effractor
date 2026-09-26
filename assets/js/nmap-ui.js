@@ -312,6 +312,7 @@
       app.say("the nmap import could not be applied");
       return;
     }
+    var said = N.said(N.summary(doc(), at.plan, at.ticks, null));
     dialog.close();
     if (!edit) return app.say("nothing new to add");
     // What came in is clustered by host, open; a drawing nobody arranged by
@@ -319,7 +320,17 @@
     edit.doc = window.effractorClusters.gather(doc(), edit.doc);
     var untouched = !Object.keys(app.storedPositions()).length;
     U.apply(function () { return edit; }).then(function (applied) {
-      if (applied && untouched) app.arrange();
+      if (!applied) return;
+      if (untouched) app.arrange();
+      // What came in, said; the unpatched products one click from selected.
+      var unpatched = Object.keys(doc().entities || {}).filter(function (id) {
+        var e = doc().entities[id];
+        return e.kind === "product" && e.defenses && e.defenses.patched === false;
+      });
+      var text = said.replace(/^Adds /, "added ").replace(/\.$/, "") + " · Ctrl+Z undoes";
+      app.say(text, unpatched.length ? [["Show vulnerable", function () {
+        app.pick(unpatched.map(function (id) { return "entity/" + id; }));
+      }]] : null);
     });
   }
 

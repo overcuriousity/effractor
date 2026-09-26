@@ -652,6 +652,12 @@
       state.shownSteps = null;
       state.stepCount = null;
       described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc, stateWord, PR.perComponent(state.diagnostics)) : window.effractorGraph.describe(state.doc);
+      if (P.isArchitecture(state.doc) && window.effractorArchitectureView.ringsIn && $("legend-vulnerable")) {
+        var rings = window.effractorArchitectureView.ringsIn(described);
+        ["vulnerable", "exposed", "unknown"].forEach(function (r) {
+          $("legend-" + r).hidden = !rings[r];
+        });
+      }
     }
     return layout(described).then(function (laid) {
       if (!gate.accept(token)) return;
@@ -1524,6 +1530,7 @@
   });
 
   window.effractor.putPositions = putPositions;
+  window.effractor.pick = pick;
   // Places set by hand for the edit about to be drawn (or null again once
   // it is): opening a cluster in place leaves them where they are.
   window.effractor.placedByHand = function (places) {
@@ -1673,14 +1680,36 @@
     $("file-menu").hidden = true;
     $("file").setAttribute("aria-expanded", "false");
   }
+  // The shipped examples (assets/examples/README.md), by mode; opened as a
+  // file is: opt-in, never on a first visit.
+  var EXAMPLES = [
+    ["Fault trees", [["01-relay-mast-fault", "Undercity relay mast"], ["02-cred-switch-fault", "Kestrel Clearing cred switch"], ["03-ai-core-fault", "Arcology Nine AI core"]]],
+    ["Attack trees", [["04-drone-payout-attack", "Drone-courier payouts"], ["05-cyberware-telemetry-attack", "Cyberware telemetry"], ["06-simstim-leak-attack", "Sim-stim build leak"]]],
+    ["Architectures", [["07-noodle-stall-architecture", "Undercity noodle stall"], ["08-chrome-clinic-architecture", "Street surgeon's chrome clinic"], ["09-arcology-life-support-architecture", "Arcology Nine life support"], ["10-data-broker-architecture", "Tessellate Data profile broker"], ["11-ops-construct-architecture", "Arcology Nine ops construct"], ["12-identity-vault-architecture", "Kestrel Clearing identity vault"], ["13-hot-wallet-architecture", "Treasury hot wallet on a workstation"]]],
+  ];
+  function openExample(file, name) {
+    template(new URL("examples/" + file + ".yaml", assets).href).then(function (text) {
+      replaceDocument(text, "opened the example “" + name + "”", null, { origin: "file", fresh: freshFor("file") });
+    }).catch(function (e) {
+      console.error(e);
+      say("could not open the example · " + e.message);
+    });
+  }
+  // The file crumb's menu: the page's own menu, so Examples nests beside
+  // it. Its items are the buttons in #file-menu, which other scripts hook.
   $("file").addEventListener("click", function () {
-    var menu = $("file-menu");
-    if (!menu.hidden) return closeFileMenu();
+    if (!window.effractor.showMenu) return;
+    var items = Array.prototype.map.call($("file-menu").querySelectorAll("button"), function (b) {
+      var key = b.querySelector("kbd");
+      return [b.childNodes[0].textContent.trim(), key ? key.textContent : "", function () { b.click(); }];
+    });
+    items.push(["Examples", "", EXAMPLES.map(function (group) {
+      return [group[0], "", group[1].map(function (x) {
+        return [x[1], "", function () { openExample(x[0], x[1]); }];
+      })];
+    })]);
     var box = $("file").getBoundingClientRect();
-    menu.style.setProperty("--menu-x", box.left + "px");
-    menu.style.setProperty("--menu-y", box.bottom + 4 + "px");
-    menu.hidden = false;
-    $("file").setAttribute("aria-expanded", "true");
+    window.effractor.showMenu(items, 0, 0, { left: box.left, right: box.left - 2, top: box.bottom + 4 });
   });
   document.querySelectorAll("[data-file]").forEach(function (button) {
     button.addEventListener("click", function () {
