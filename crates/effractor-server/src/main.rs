@@ -3,9 +3,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::Context;
 use clap::Parser;
 use effractor_accounts::{documents, sessions};
-use effractor_server::accounts::{Accounts, AccountsConfig};
+use effractor_server::accounts::{Accounts, AccountsConfig, OidcConfig};
 use effractor_server::share::{FsStorage, Limits, Shares, Ttl};
 
 /// Security architecture analysis, served locally. Models are solved in the
@@ -42,6 +43,55 @@ struct Args {
     /// passkeys; makes the session cookie Secure when it is https.
     #[arg(long, value_name = "URL")]
     public_url: Option<String>,
+
+    /// OIDC login against this issuer (e.g. your Nextcloud). Needs
+    /// --public-url, --oidc-client-id and a secret.
+    #[arg(long, value_name = "URL")]
+    oidc_issuer: Option<String>,
+
+    /// The client id registered at the issuer.
+    #[arg(long, value_name = "ID")]
+    oidc_client_id: Option<String>,
+
+    /// The login button's word.
+    #[arg(long, value_name = "LABEL", default_value = "OIDC")]
+    oidc_name: String,
+
+    /// A file holding the client secret (or set EFFRACTOR_OIDC_SECRET); never
+    /// on the command line, where ps shows it.
+    #[arg(long, value_name = "FILE")]
+    oidc_secret_file: Option<PathBuf>,
+}
+
+/// The OIDC settings, or why they are not enough.
+fn oidc_config(args: &Args) -> anyhow::Result<Option<OidcConfig>> {
+    let Some(issuer) = args.oidc_issuer.clone() else {
+        return Ok(None);
+    };
+    anyhow::ensure!(args.accounts.is_some(), "--oidc-issuer needs --accounts");
+    anyhow::ensure!(
+        args.public_url.is_some(),
+        "--oidc-issuer needs --public-url: the issuer sends people back to it"
+    );
+    let client_id = args
+        .oidc_client_id
+        .clone()
+        .context("--oidc-issuer needs --oidc-client-id")?;
+    let secret = match &args.oidc_secret_file {
+        Some(path) => std::fs::read_to_string(path)
+            .with_context(|| format!("reading the OIDC secret from {}", path.display()))?
+            .trim()
+            .to_owned(),
+        None => std::env::var("EFFRACTOR_OIDC_SECRET")
+            .context("--oidc-issuer needs a secret: --oidc-secret-file or EFFRACTOR_OIDC_SECRET")?,
+    };
+    anyhow::ensure!(!secret.is_empty(), "the OIDC secret is empty");
+    Ok(Some(OidcConfig {
+        issuer,
+        client_id,
+        secret,
+        label: args.oidc_name.clone(),
+    }))
 }
 
 #[derive(clap::Subcommand)]
@@ -72,6 +122,8 @@ async fn main() -> anyhow::Result<()> {
     if let Some(destination) = args.export_static {
         return effractor_server::export_static(&destination);
     }
+    // Before anything starts: a half-configured OIDC is refused, not ignored.
+    let oidc = oidc_config(&args)?;
     let limits = Limits {
         max_ttl: args.max_ttl,
         ..Limits::default()
@@ -85,10 +137,14 @@ async fn main() -> anyhow::Result<()> {
                     args.bind
                 );
             }
-            Some(Accounts::open(AccountsConfig {
+            let accounts = Accounts::open(AccountsConfig {
                 db: db.clone(),
                 public_url: args.public_url.clone(),
-            })?)
+            })?;
+            if let Some(cfg) = oidc {
+                accounts.with_oidc(cfg)?;
+            }
+            Some(accounts)
         }
         None => None,
     };

@@ -1,6 +1,7 @@
 //! Logging in and out (spec §7).
 
 pub mod guard;
+pub mod oidc;
 pub mod password;
 pub mod session;
 
@@ -14,4 +15,5 @@ pub fn routes() -> Router<Accounts> {
         .route("/api/auth/password", post(password::login))
         .route("/api/auth/logout", post(password::logout))
         .route("/api/auth/logout-others", post(password::logout_others))
+        .merge(oidc::routes())
 }

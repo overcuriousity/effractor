@@ -64,6 +64,9 @@ Owner decisions, 2026-09-26:
   <label>` (the button's word, e.g. "Nextcloud"). The client secret comes from
   `--oidc-secret-file <path>` or `EFFRACTOR_OIDC_SECRET`, never from argv,
   where `ps` shows it. Without an issuer there is no OIDC button.
+  *Amended 2026-09-26 (plan):* OIDC also needs `--public-url` — the issuer
+  sends people back to `<public url>/api/auth/oidc/callback` — and the server
+  refuses to start with an issuer but no public url, client id or secret.
 - **Passkeys:** `--public-url <https://…>`, the origin WebAuthn binds
   credentials to. Without it, passkeys are not offered.
 - **CLI** against the same database; safe while the server runs (WAL):
@@ -194,6 +197,11 @@ methods:
   after a password.
 - **OIDC** (*Sign in with Nextcloud*): authorization code with PKCE, `state`
   and `nonce`; the pending state is kept server-side for 10 minutes.
+  *Amended 2026-09-26 (plan):* the page starts it with
+  `POST /api/auth/oidc/start` (`{link}` → `{url}`), which also sets a
+  10-minute `effractor_oidc` cookie holding the state; the callback is refused
+  unless that cookie matches, so a login cannot be finished in a browser that
+  did not start it.
 
 A wrong password, an unknown user and a disabled user get the same message.
 Failed attempts are limited per address (the share API's `Limiter`).
@@ -313,8 +321,9 @@ when accounts are off.
 - `POST /auth/passkey/start` · `POST /auth/passkey/finish` (login);
   `POST /account/passkeys/start` · `…/finish` (register) · `PATCH|DELETE
   /account/passkeys/{id}`
-- `GET /auth/oidc` (redirect) · `GET /auth/oidc/callback` ·
-  `POST /account/oidc/link` · `DELETE /account/oidc`
+- `POST /auth/oidc/start` (`{link}` → `{url}`) · `GET /auth/oidc/callback` ·
+  `DELETE /account/oidc` (amended 2026-09-26: one start route for login and
+  linking)
 - `PATCH /account` (display name, password)
 - `GET /documents?q=` (tree: recent, mine, shared) · `POST /documents` ·
   `GET|PUT|PATCH|DELETE /documents/{id}` · `POST /documents/{id}/restore`

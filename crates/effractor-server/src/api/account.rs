@@ -16,6 +16,7 @@ pub fn routes() -> Router<Accounts> {
     Router::new()
         .route("/api/me", get(me))
         .route("/api/account", patch(update))
+        .route("/api/account/oidc", axum::routing::delete(unlink_oidc))
 }
 
 async fn me(
@@ -99,6 +100,16 @@ async fn update(
                 Ok(())
             })
         })
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn unlink_oidc(
+    State(accounts): State<Accounts>,
+    CurrentUser(user, _): CurrentUser,
+) -> Result<StatusCode, ApiError> {
+    accounts
+        .blocking(move |db| db.write(|t| effractor_accounts::oidc::unlink(t, user.id)))
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }

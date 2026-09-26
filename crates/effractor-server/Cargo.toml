@@ -25,6 +25,9 @@ clap = { version = "4", features = ["derive"] }
 # The operating system's randomness, for share ids and delete tokens.
 getrandom = "0.3"
 mime_guess = "2"
+# OIDC login against the operator's own issuer; rustls only, no system TLS.
+openidconnect = { version = "4", default-features = false, features = ["reqwest", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 # Asks for a password on the terminal without echoing it (`effractor user`).
 rpassword = "7"
 # The whole app ships inside the binary: no asset directory to deploy, and no
@@ -39,9 +42,11 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
+chrono = "0.4"
 http-body-util = "0.1"
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
+url = "2"
 
 [lints]
 workspace = true

@@ -10,6 +10,16 @@ use effractor_accounts::Db;
 use crate::api::ApiError;
 use crate::limiter::Limiter;
 
+/// The operator's OIDC issuer (spec §7.1), e.g. their Nextcloud.
+#[derive(Clone)]
+pub struct OidcConfig {
+    pub issuer: String,
+    pub client_id: String,
+    pub secret: String,
+    /// The login button's word.
+    pub label: String,
+}
+
 pub struct AccountsConfig {
     pub db: PathBuf,
     /// The origin people reach the server at, e.g. `https://effractor.example`.
@@ -20,6 +30,7 @@ struct Inner {
     db: Db,
     public_url: Option<String>,
     logins: Mutex<Limiter>,
+    oidc: std::sync::OnceLock<crate::auth::oidc::Oidc>,
 }
 
 #[derive(Clone)]
@@ -40,6 +51,7 @@ impl Accounts {
             db,
             public_url,
             logins: Mutex::new(Limiter::new(LOGINS_PER_HOUR)),
+            oidc: std::sync::OnceLock::new(),
         }))
     }
 
@@ -56,9 +68,26 @@ impl Accounts {
         false
     }
 
-    /// The OIDC button's word, when an issuer is configured (the oidc milestone).
+    /// The OIDC button's word, when an issuer is configured.
     pub fn oidc_label(&self) -> Option<String> {
-        None
+        self.oidc().map(|o| o.label().to_owned())
+    }
+
+    /// OIDC needs the public url: the issuer sends people back to it. Set
+    /// once, at startup (tests set it on a running app's state).
+    pub fn with_oidc(&self, cfg: OidcConfig) -> anyhow::Result<()> {
+        let public = self
+            .public_url()
+            .ok_or_else(|| anyhow::anyhow!("--oidc-issuer needs --public-url"))?;
+        let oidc = crate::auth::oidc::Oidc::new(cfg, public)?;
+        self.0
+            .oidc
+            .set(oidc)
+            .map_err(|_| anyhow::anyhow!("OIDC is configured already"))
+    }
+
+    pub(crate) fn oidc(&self) -> Option<&crate::auth::oidc::Oidc> {
+        self.0.oidc.get()
     }
 
     pub fn secure_cookie(&self) -> bool {
