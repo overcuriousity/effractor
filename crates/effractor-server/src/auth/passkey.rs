@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use axum::extract::{Path, State};
-use axum::http::{Extensions, StatusCode, header};
+use axum::http::{Extensions, HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, patch, post};
 use axum::{Json, Router};
@@ -83,9 +83,10 @@ fn enabled(accounts: &Accounts) -> Result<&Passkeys, ApiError> {
 
 async fn register_start(
     State(accounts): State<Accounts>,
-    CurrentUser(user, _): CurrentUser,
+    CurrentUser(user, token): CurrentUser,
 ) -> Result<Json<Value>, ApiError> {
     let pk = enabled(&accounts)?;
+    super::session::fresh(&accounts, &token).await?;
     let id = user.id;
     let existing = accounts
         .blocking(move |db| db.read(|c| passkeys::credentials(c, id)))
@@ -177,11 +178,12 @@ struct LoginFinish {
 async fn login_finish(
     State(accounts): State<Accounts>,
     extensions: Extensions,
+    headers: HeaderMap,
     Json(body): Json<LoginFinish>,
 ) -> Result<Response, ApiError> {
     let pk = enabled(&accounts)?;
     let now = accounts.db().now();
-    let ip = peer(&extensions);
+    let ip = peer(&accounts, &extensions, &headers);
     accounts.logins().take(ip, now).map_err(ApiError::TooMany)?;
     let Some(Ceremony::Login(state)) = pk.take(now, &body.ceremony) else {
         return Err(ApiError::Unauthorized);

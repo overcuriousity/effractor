@@ -30,6 +30,24 @@ pub fn harness() -> H {
     harness_with(None)
 }
 
+/// As behind nginx or Caddy started with --trusted-proxy.
+pub fn harness_trusting_proxy() -> H {
+    let dir = tempfile::tempdir().unwrap();
+    let clock = Arc::new(AtomicU64::new(1_000_000));
+    let c = clock.clone();
+    let db = Db::open(&dir.path().join("a.db"))
+        .unwrap()
+        .with_clock(move || c.load(Ordering::Relaxed));
+    let accounts = Accounts::with_db(db, None).trusting_proxy();
+    let app = effractor_server::app_with(Shares::in_memory(), Some(accounts.clone()));
+    H {
+        app,
+        accounts,
+        clock,
+        _dir: dir,
+    }
+}
+
 pub fn harness_with(public_url: Option<&str>) -> H {
     let dir = tempfile::tempdir().unwrap();
     let clock = Arc::new(AtomicU64::new(1_000_000));

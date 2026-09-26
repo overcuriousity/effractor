@@ -114,7 +114,9 @@ async fn start(
 ) -> Result<Response, ApiError> {
     let o = accounts.oidc().ok_or(ApiError::NotFound)?;
     let link = if body.link {
-        Some(who.ok_or(ApiError::LoggedOut)?.0.id)
+        let (user, token) = who.ok_or(ApiError::LoggedOut)?;
+        super::session::fresh(&accounts, &token).await?;
+        Some(user.id)
     } else {
         None
     };

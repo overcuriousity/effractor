@@ -18,6 +18,10 @@ pub enum ApiError {
     Unauthorized,
     /// No session: a bare 401.
     LoggedOut,
+    /// Adding a way to log in wants a login from the last minutes.
+    Stale,
+    /// Changing the password wants the current one.
+    WrongPassword,
     Forbidden,
     TooMany(u64),
     Bad(String),
@@ -47,6 +51,10 @@ impl IntoResponse for ApiError {
                 (StatusCode::UNAUTHORIZED, "wrong name or password").into_response()
             }
             ApiError::LoggedOut => StatusCode::UNAUTHORIZED.into_response(),
+            ApiError::Stale => (StatusCode::FORBIDDEN, "log in again to do this").into_response(),
+            ApiError::WrongPassword => {
+                (StatusCode::FORBIDDEN, "the current password is wrong").into_response()
+            }
             ApiError::Forbidden => StatusCode::FORBIDDEN.into_response(),
             ApiError::TooMany(s) => (
                 StatusCode::TOO_MANY_REQUESTS,

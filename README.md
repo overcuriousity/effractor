@@ -55,7 +55,9 @@ effractor --accounts /var/lib/effractor/effractor.db --public-url https://effrac
 - `effractor user list | add | promote | demote | passwd` manage users from the
   shell; admins manage users and groups in the page. There is no public sign-up.
 - `--public-url` is the address people use. Passkeys need it, and it makes the
-  session cookie `Secure` when it is `https`. Put a TLS proxy in front.
+  session cookie `Secure` when it is `https`. Put a TLS proxy in front, and
+  start with `--trusted-proxy` when it runs on the same host, so failed logins
+  are counted per client and not all as the proxy.
 - OIDC: `--oidc-issuer URL --oidc-client-id ID --oidc-name Nextcloud` and the
   secret in `--oidc-secret-file FILE` or `EFFRACTOR_OIDC_SECRET`. Register
   `<public url>/api/auth/oidc/callback` as the redirect URI at the issuer. A

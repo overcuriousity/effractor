@@ -143,3 +143,30 @@ async fn a_ceremony_is_used_once() {
         "gone after one try"
     );
 }
+
+/// Adding a way in needs a fresh login: a stolen session cannot plant its
+/// own passkey (review I5).
+#[tokio::test]
+async fn adding_a_passkey_needs_a_login_from_the_last_fifteen_minutes() {
+    let h = harness_with(Some(PUBLIC));
+    h.add_user("alice");
+    let res = post(
+        &h,
+        "/api/auth/password",
+        None,
+        json!({"name": "alice", "password": PW}),
+    )
+    .await;
+    let cookie = cookie_of(&res).unwrap();
+    assert_eq!(
+        post(&h, "/api/account/passkeys/start", Some(&cookie), json!({}))
+            .await
+            .status(),
+        200
+    );
+    h.clock
+        .fetch_add(16 * 60, std::sync::atomic::Ordering::Relaxed);
+    let res = post(&h, "/api/account/passkeys/start", Some(&cookie), json!({})).await;
+    assert_eq!(res.status(), 403);
+    assert!(text(res).await.contains("log in again"));
+}

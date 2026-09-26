@@ -2,7 +2,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use axum::Json;
 use axum::extract::{ConnectInfo, State};
-use axum::http::{Extensions, StatusCode, header};
+use axum::http::{Extensions, HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use effractor_accounts::{sessions, users};
 use serde::Deserialize;
@@ -17,19 +17,34 @@ pub struct Login {
     password: String,
 }
 
-pub(crate) fn peer(extensions: &Extensions) -> IpAddr {
-    extensions
+/// Who is asking, for the login limit. Behind a trusted proxy on this host,
+/// the address it appended last to X-Forwarded-For; a request from anywhere
+/// else cannot choose its address that way.
+pub(crate) fn peer(accounts: &Accounts, extensions: &Extensions, headers: &HeaderMap) -> IpAddr {
+    let ip = extensions
         .get::<ConnectInfo<SocketAddr>>()
-        .map_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED), |i| i.0.ip())
+        .map_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED), |i| i.0.ip());
+    if !(accounts.trusts_proxy() && ip.to_canonical().is_loopback()) {
+        return ip;
+    }
+    headers
+        .get_all("x-forwarded-for")
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .flat_map(|v| v.split(','))
+        .filter_map(|a| a.trim().parse::<IpAddr>().ok())
+        .next_back()
+        .unwrap_or(ip)
 }
 
 /// A token is taken per attempt and given back on success, so only failures count.
 pub async fn login(
     State(accounts): State<Accounts>,
     extensions: Extensions,
+    headers: HeaderMap,
     Json(body): Json<Login>,
 ) -> Result<Response, ApiError> {
-    let ip = peer(&extensions);
+    let ip = peer(&accounts, &extensions, &headers);
     let now = accounts.db().now();
     accounts.logins().take(ip, now).map_err(ApiError::TooMany)?;
     let user = accounts

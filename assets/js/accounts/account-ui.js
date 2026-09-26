@@ -78,7 +78,9 @@
     var user = session.user;
     $("account-display-name").value = user.display_name || "";
     $("account-problem").textContent = "";
-    $("account-password").value = $("account-password-again").value = "";
+    $("account-password").value = $("account-password-again").value = $("account-password-current").value = "";
+    // Somebody without a password (OIDC, passkeys only) sets one without it.
+    $("account-password-current").hidden = !user.methods.password;
     // Passkeys (Task 19) and OIDC (Task 21) add their sections here.
     (A.accountSections || []).forEach(function (fill) { fill(); });
     $("account-dialog").showModal();
@@ -97,9 +99,10 @@
       $("account-problem").textContent = "the two differ";
       return;
     }
-    client.updateAccount({ password: pw }).then(function (res) {
+    client.updateAccount({ password: pw, current_password: $("account-password-current").value }).then(function (res) {
       $("account-problem").textContent = res.ok ? "password changed · other sessions ended" : String(res.data || "not changed");
-      if (res.ok) $("account-password").value = $("account-password-again").value = "";
+      if (res.ok) $("account-password").value = $("account-password-again").value = $("account-password-current").value = "";
+      if (res.ok) refresh();
     });
   });
   $("account-logout-others").addEventListener("click", function () {
@@ -165,7 +168,7 @@
     add.addEventListener("click", function () {
       var W = A.webauthn;
       client.request("POST", "/api/account/passkeys/start", {}).then(function (start) {
-        if (!start.ok) throw new Error("start");
+        if (!start.ok) throw new Error(start.status === 403 ? String(start.data) : "start");
         return navigator.credentials.create(W.creationOptions(start.data.options)).then(function (cred) {
           return client.request("POST", "/api/account/passkeys/finish",
             { ceremony: start.data.ceremony, credential: W.credentialJSON(cred), label: "Passkey" });
@@ -174,7 +177,9 @@
         $("account-problem").textContent = res.ok ? "passkey added" : "passkey not added";
         passkeysSection();
         refresh();
-      }).catch(function () { $("account-problem").textContent = "no passkey made"; });
+      }).catch(function (e) {
+        $("account-problem").textContent = /log in again/.test(e.message) ? e.message : "no passkey made";
+      });
     });
     box.appendChild(add);
   });
@@ -212,7 +217,7 @@
       b.addEventListener("click", function () {
         client.request("POST", "/api/auth/oidc/start", { link: true }).then(function (res) {
           if (res.ok) location.assign(res.data.url);
-          else $("account-problem").textContent = "not available";
+          else $("account-problem").textContent = res.status === 403 ? String(res.data) : "not available";
         });
       });
     }

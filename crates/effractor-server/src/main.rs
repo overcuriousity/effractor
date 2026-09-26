@@ -44,6 +44,11 @@ struct Args {
     #[arg(long, value_name = "URL")]
     public_url: Option<String>,
 
+    /// A reverse proxy on this host (nginx, Caddy) forwards the requests:
+    /// count failed logins per the address it puts in X-Forwarded-For.
+    #[arg(long)]
+    trusted_proxy: bool,
+
     /// OIDC login against this issuer (e.g. your Nextcloud). Needs
     /// --public-url, --oidc-client-id and a secret.
     #[arg(long, value_name = "URL")]
@@ -137,10 +142,13 @@ async fn main() -> anyhow::Result<()> {
                     args.bind
                 );
             }
-            let accounts = Accounts::open(AccountsConfig {
+            let mut accounts = Accounts::open(AccountsConfig {
                 db: db.clone(),
                 public_url: args.public_url.clone(),
             })?;
+            if args.trusted_proxy {
+                accounts = accounts.trusting_proxy();
+            }
             if let Some(cfg) = oidc {
                 accounts.with_oidc(cfg)?;
             }

@@ -3,6 +3,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use common::*;
 use serde_json::json;
+use tower::ServiceExt;
 
 #[tokio::test]
 async fn me_says_nobody_and_which_logins_there_are() {
@@ -219,7 +220,7 @@ async fn changing_ones_password_ends_the_other_sessions() {
             "PATCH",
             "/api/account",
             Some(&here),
-            Some(json!({"password": "a brand new password"})),
+            Some(json!({"password": "a brand new password", "current_password": PW})),
         )
         .await;
     assert_eq!(res.status(), 204);
@@ -232,7 +233,7 @@ async fn changing_ones_password_ends_the_other_sessions() {
             "PATCH",
             "/api/account",
             Some(&here),
-            Some(json!({"password": "short"})),
+            Some(json!({"password": "short", "current_password": "a brand new password"})),
         )
         .await;
     assert_eq!(res.status(), 400);
@@ -248,7 +249,7 @@ async fn the_last_way_to_log_in_cannot_be_removed() {
             "PATCH",
             "/api/account",
             Some(&token),
-            Some(json!({"password": null})),
+            Some(json!({"password": null, "current_password": PW})),
         )
         .await;
     assert_eq!(res.status(), 409);
@@ -275,4 +276,92 @@ async fn without_accounts_every_account_route_is_404() {
         .unwrap();
         assert_eq!(res.status(), StatusCode::NOT_FOUND, "{method} {path}");
     }
+}
+
+/// A session alone does not change a password: an unlocked machine or a
+/// stolen cookie would otherwise take the account over (review I5).
+#[tokio::test]
+async fn changing_a_password_needs_the_current_one() {
+    let h = harness();
+    h.add_user("alice");
+    let token = h.login("alice").await;
+    for body in [
+        json!({"password": "a brand new password"}),
+        json!({"password": "a brand new password", "current_password": "not the password"}),
+        json!({"password": null}),
+    ] {
+        let res = h
+            .call("PATCH", "/api/account", Some(&token), Some(body.clone()))
+            .await;
+        assert_eq!(res.status(), StatusCode::FORBIDDEN, "{body}");
+    }
+    let res = h
+        .call(
+            "POST",
+            "/api/auth/password",
+            None,
+            Some(json!({"name": "alice", "password": PW})),
+        )
+        .await;
+    assert_eq!(
+        res.status(),
+        StatusCode::NO_CONTENT,
+        "the password is unchanged"
+    );
+    // A display name needs no password.
+    let res = h
+        .call(
+            "PATCH",
+            "/api/account",
+            Some(&token),
+            Some(json!({"display_name": "Alice"})),
+        )
+        .await;
+    assert_eq!(res.status(), StatusCode::NO_CONTENT);
+}
+
+/// Behind a TLS proxy every peer is the proxy; with --trusted-proxy the
+/// address it forwards is the one counted (review I4).
+#[tokio::test]
+async fn behind_a_trusted_proxy_failed_logins_count_per_forwarded_address() {
+    let h = harness_trusting_proxy();
+    let attempt = |ip: &'static str, from: [u8; 4]| {
+        let h = &h;
+        async move {
+            let mut req = Request::post("/api/auth/password")
+                .header(header::HOST, "effractor.test")
+                .header(header::ORIGIN, ORIGIN)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-forwarded-for", format!("203.0.113.9, {ip}"))
+                .body(Body::from(
+                    json!({"name": "x", "password": "wrong password!!"}).to_string(),
+                ))
+                .unwrap();
+            req.extensions_mut()
+                .insert(axum::extract::ConnectInfo(std::net::SocketAddr::from((
+                    from, 40000,
+                ))));
+            h.app.clone().oneshot(req).await.unwrap().status()
+        }
+    };
+    for _ in 0..30 {
+        attempt("198.51.100.1", [127, 0, 0, 1]).await;
+    }
+    assert_eq!(
+        attempt("198.51.100.1", [127, 0, 0, 1]).await,
+        StatusCode::TOO_MANY_REQUESTS
+    );
+    assert_eq!(
+        attempt("198.51.100.2", [127, 0, 0, 1]).await,
+        StatusCode::UNAUTHORIZED,
+        "another client is not locked out"
+    );
+    // From anywhere but loopback the header is not believed.
+    for _ in 0..30 {
+        attempt("198.51.100.3", [10, 0, 0, 7]).await;
+    }
+    assert_eq!(
+        attempt("198.51.100.4", [10, 0, 0, 7]).await,
+        StatusCode::TOO_MANY_REQUESTS
+    );
 }

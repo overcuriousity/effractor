@@ -40,6 +40,22 @@ pub fn clear_cookie() -> HeaderValue {
     HeaderValue::from_static("effractor_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0")
 }
 
+/// Adding a way to log in (a passkey, an OIDC identity) needs a login from
+/// the last FRESH seconds: a stolen session must not plant its own way in.
+pub const FRESH: u64 = 15 * 60;
+
+pub async fn fresh(accounts: &Accounts, token: &str) -> Result<(), ApiError> {
+    let t = token.to_owned();
+    let now = accounts.db().now();
+    let created = accounts
+        .blocking(move |db| db.read(|c| sessions::created_at(c, &t)))
+        .await?;
+    match created {
+        Some(at) if now.saturating_sub(at) < FRESH => Ok(()),
+        _ => Err(ApiError::Stale),
+    }
+}
+
 /// Somebody logged in, or 401.
 pub struct CurrentUser(pub User, pub String);
 /// Whoever is asking, logged in or not.

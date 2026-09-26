@@ -60,6 +60,8 @@ struct Update {
     display_name: Option<String>,
     #[serde(default, deserialize_with = "present")]
     password: Option<Value>,
+    /// Needed to change or remove a password that exists (review I5).
+    current_password: Option<String>,
 }
 
 /// A field that is there, `null` included, is `Some`: serde alone would read
@@ -81,6 +83,16 @@ async fn update(
         Some(_) => return Err(ApiError::Bad("a password is text".into())),
     };
     let display_name = body.display_name;
+    if password.is_some() && user.has_password {
+        let (name, current) = (user.name.clone(), body.current_password.unwrap_or_default());
+        let ok = accounts
+            .blocking(move |db| db.read(|c| users::login(c, &name, &current)))
+            .await?
+            .is_some();
+        if !ok {
+            return Err(ApiError::WrongPassword);
+        }
+    }
     accounts
         .blocking(move |db| {
             db.write(|t| {

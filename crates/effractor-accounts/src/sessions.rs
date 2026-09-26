@@ -47,6 +47,16 @@ pub fn lookup(db: &Db, token: &str) -> Result<Option<User>> {
     db.read(|c| users::get(c, user))
 }
 
+/// When the session was made, i.e. when its user last logged in.
+pub fn created_at(c: &rusqlite::Connection, token: &str) -> Result<Option<Timestamp>> {
+    Ok(c.query_row(
+        "SELECT created_at FROM sessions WHERE token_hash = ?1",
+        [hash_token(token)],
+        |r| r.get(0),
+    )
+    .optional()?)
+}
+
 pub fn revoke(t: &Transaction, token: &str) -> Result<()> {
     t.execute(
         "DELETE FROM sessions WHERE token_hash = ?1",

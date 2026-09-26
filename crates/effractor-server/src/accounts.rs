@@ -32,6 +32,8 @@ struct Inner {
     logins: Mutex<Limiter>,
     oidc: std::sync::OnceLock<crate::auth::oidc::Oidc>,
     passkeys: Option<crate::auth::passkey::Passkeys>,
+    /// A reverse proxy on this host: believe its X-Forwarded-For.
+    trusted_proxy: bool,
 }
 
 #[derive(Clone)]
@@ -64,7 +66,22 @@ impl Accounts {
             logins: Mutex::new(Limiter::new(LOGINS_PER_HOUR)),
             oidc: std::sync::OnceLock::new(),
             passkeys,
+            trusted_proxy: false,
         }))
+    }
+
+    /// Behind a reverse proxy on the same host (nginx, Caddy): the client's
+    /// address is the last X-Forwarded-For entry of a request from loopback.
+    /// Set at startup, before the state is shared.
+    pub fn trusting_proxy(mut self) -> Accounts {
+        Arc::get_mut(&mut self.0)
+            .expect("trusting_proxy is set before Accounts is shared")
+            .trusted_proxy = true;
+        self
+    }
+
+    pub(crate) fn trusts_proxy(&self) -> bool {
+        self.0.trusted_proxy
     }
 
     pub fn db(&self) -> &Db {

@@ -262,3 +262,41 @@ async fn a_logged_in_user_links_the_issuer_and_logs_in_with_it_later() {
         204
     );
 }
+
+/// Linking an identity needs a fresh login: a stolen session cannot link
+/// its own Nextcloud account for lasting access (review I5).
+#[tokio::test]
+async fn linking_needs_a_login_from_the_last_fifteen_minutes() {
+    let (h, _iss) = with_oidc().await;
+    h.add_user("bob");
+    let res = public(
+        &h,
+        "POST",
+        "/api/auth/password",
+        None,
+        json!({"name": "bob", "password": PW}),
+    )
+    .await;
+    let b = cookie_of(&res).expect("bob logs in");
+    h.clock
+        .fetch_add(16 * 60, std::sync::atomic::Ordering::Relaxed);
+    let res = public(
+        &h,
+        "POST",
+        "/api/auth/oidc/start",
+        Some(&b),
+        json!({"link": true}),
+    )
+    .await;
+    assert_eq!(res.status(), 403);
+    // Logging in needs no session, fresh or not.
+    let res = public(
+        &h,
+        "POST",
+        "/api/auth/oidc/start",
+        None,
+        json!({"link": false}),
+    )
+    .await;
+    assert_eq!(res.status(), 200);
+}
