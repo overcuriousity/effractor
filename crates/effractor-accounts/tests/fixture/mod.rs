@@ -27,7 +27,10 @@ pub fn user(db: &Db, name: &str) -> Id {
 
 pub fn group(db: &Db, name: &str, members: &[Id]) -> Id {
     db.write(|t| {
-        t.execute("INSERT INTO groups (name) VALUES (?1)", [name])?;
+        t.execute(
+            "INSERT INTO groups (name, name_key) VALUES (?1, ?1)",
+            [name],
+        )?;
         let g = t.last_insert_rowid();
         for m in members {
             t.execute(
@@ -44,7 +47,7 @@ pub fn group(db: &Db, name: &str, members: &[Id]) -> Id {
 pub fn folder(db: &Db, owner: Id, parent: Option<Id>, name: &str) -> Id {
     db.write(|t| {
         t.execute(
-            "INSERT INTO folders (owner_id, parent_id, name) VALUES (?1, ?2, ?3)",
+            "INSERT INTO folders (owner_id, parent_id, name, name_key) VALUES (?1, ?2, ?3, ?3)",
             effractor_accounts::rusqlite::params![owner, parent, name],
         )?;
         Ok(t.last_insert_rowid())

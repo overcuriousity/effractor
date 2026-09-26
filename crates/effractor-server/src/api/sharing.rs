@@ -100,7 +100,7 @@ async fn grant(
                     "group" => {
                         let id: Id = t
                             .query_row(
-                                "SELECT id FROM groups WHERE name = ?1",
+                                "SELECT id FROM groups WHERE name_key = fold(?1)",
                                 [g.name.trim()],
                                 |r| r.get(0),
                             )
@@ -180,8 +180,8 @@ async fn directory(
                     "SELECT kind, id, name, display_name FROM (
                        SELECT 'user' AS kind, id, name, display_name FROM users WHERE NOT disabled AND id != ?1
                        UNION ALL SELECT 'group', id, name, '' FROM groups)
-                     WHERE instr(lower(name), ?2) > 0 OR instr(lower(display_name), ?2) > 0
-                     ORDER BY instr(lower(name), ?2) != 1, name LIMIT 10",
+                     WHERE instr(fold(name), fold(?2)) > 0 OR instr(fold(display_name), fold(?2)) > 0
+                     ORDER BY instr(fold(name), fold(?2)) != 1, name LIMIT 10",
                 )?;
                 let out = s
                     .query_map(effractor_accounts::rusqlite::params![user.id, q], |r| {

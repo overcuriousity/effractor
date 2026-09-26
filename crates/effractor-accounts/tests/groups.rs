@@ -45,3 +45,13 @@ fn deleting_a_group_ends_its_shares() {
         .unwrap();
     assert_eq!(n, 0);
 }
+
+#[test]
+fn group_names_fold_case_beyond_ascii() {
+    let (_d, db) = db();
+    db.write(|t| groups::create(t, "Öffentlich")).unwrap();
+    assert!(matches!(
+        db.write(|t| groups::create(t, "öffentlich")),
+        Err(Error::Exists)
+    ));
+}

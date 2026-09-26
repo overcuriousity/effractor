@@ -121,7 +121,10 @@ async fn a_folder_shared_with_a_group_reaches_its_members() {
     h.accounts
         .db()
         .write(|t| {
-            t.execute("INSERT INTO groups (name) VALUES ('red')", [])?;
+            t.execute(
+                "INSERT INTO groups (name, name_key) VALUES ('red', 'red')",
+                [],
+            )?;
             t.execute(
                 "INSERT INTO memberships (group_id, user_id, role) VALUES (1, ?1, 'member')",
                 [bob],
@@ -187,7 +190,10 @@ async fn the_directory_finds_users_and_groups_but_not_oneself_or_the_disabled() 
         .write(|t| {
             t.execute("UPDATE users SET admin = 1 WHERE name = 'root'", [])?;
             t.execute("UPDATE users SET disabled = 1 WHERE id = ?1", [al])?;
-            t.execute("INSERT INTO groups (name) VALUES ('alpha team')", [])?;
+            t.execute(
+                "INSERT INTO groups (name, name_key) VALUES ('alpha team', 'alpha team')",
+                [],
+            )?;
             Ok(())
         })
         .unwrap();
@@ -255,5 +261,39 @@ async fn a_shared_folder_cannot_be_renamed_or_deleted_by_its_viewer() {
             .await
             .status(),
         404
+    );
+}
+
+/// Owner, 2026-09-26: the name is content; an editor renames a document.
+#[tokio::test]
+async fn an_editor_renames_a_shared_document() {
+    let h = harness();
+    h.add_user("alice");
+    h.add_user("bob");
+    let (a, b) = (h.login("alice").await, h.login("bob").await);
+    let d = doc(&h, &a).await;
+    h.call(
+        "POST",
+        &format!("/api/documents/{d}/shares"),
+        Some(&a),
+        Some(json!({"kind": "user", "name": "bob", "role": "editor"})),
+    )
+    .await;
+    let res = h
+        .call(
+            "PUT",
+            &format!("/api/documents/{d}"),
+            Some(&b),
+            Some(json!({"name": "Bob's name", "body": "x", "base": 1})),
+        )
+        .await;
+    assert_eq!(res.status(), 200);
+    assert_eq!(
+        json(
+            h.call("GET", &format!("/api/documents/{d}"), Some(&a), None)
+                .await
+        )
+        .await["name"],
+        "Bob's name"
     );
 }

@@ -52,7 +52,12 @@ fn opening_again_keeps_what_is_there() {
     let (_dir, path) = temp();
     Db::open(&path)
         .unwrap()
-        .write(|t| Ok(t.execute("INSERT INTO groups (name) VALUES ('red')", [])?))
+        .write(|t| {
+            Ok(t.execute(
+                "INSERT INTO groups (name, name_key) VALUES ('red', 'red')",
+                [],
+            )?)
+        })
         .unwrap();
     let n: i64 = Db::open(&path)
         .unwrap()
@@ -76,7 +81,10 @@ fn a_failed_write_leaves_nothing_behind() {
     let (_dir, path) = temp();
     let db = Db::open(&path).unwrap();
     let _ = db.write(|t| {
-        t.execute("INSERT INTO groups (name) VALUES ('red')", [])?;
+        t.execute(
+            "INSERT INTO groups (name, name_key) VALUES ('red', 'red')",
+            [],
+        )?;
         Err::<(), _>(Error::Refused("no"))
     });
     let n: i64 = db

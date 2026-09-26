@@ -82,8 +82,21 @@ pub struct Db {
     clock: Clock,
 }
 
+/// Case folded beyond ASCII, for names that must be unique whatever their
+/// case and for search. SQLite's own NOCASE and lower() know ASCII only.
+pub fn fold(s: &str) -> String {
+    s.trim().to_lowercase()
+}
+
 fn connect(path: &Path) -> Result<Connection> {
     let c = Connection::open(path)?;
+    c.create_scalar_function(
+        "fold",
+        1,
+        rusqlite::functions::FunctionFlags::SQLITE_UTF8
+            | rusqlite::functions::FunctionFlags::SQLITE_DETERMINISTIC,
+        |ctx| Ok(ctx.get::<Option<String>>(0)?.map(|s| s.to_lowercase())),
+    )?;
     c.pragma_update(None, "journal_mode", "WAL")?;
     c.pragma_update(None, "foreign_keys", "ON")?;
     c.pragma_update(None, "synchronous", "NORMAL")?;

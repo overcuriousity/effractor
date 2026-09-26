@@ -61,8 +61,10 @@ test("reveal and path go from the root down", () => {
 
 test("what each role offers", () => {
   assert.deepEqual(D.offers("owner"), { open: true, rename: true, move: true, share: true, remove: true });
-  assert.deepEqual(D.offers("editor"), { open: true, rename: false, move: false, share: false, remove: false });
-  assert.deepEqual(D.offers("viewer"), D.offers("editor"));
+  // Owner, 2026-09-26: the name is content (the YAML's name:), so an editor
+  // renames too; moving, sharing and deleting stay the owner's.
+  assert.deepEqual(D.offers("editor"), { open: true, rename: true, move: false, share: false, remove: false });
+  assert.deepEqual(D.offers("viewer"), { open: true, rename: false, move: false, share: false, remove: false });
 });
 
 test("a folder cannot be moved into itself or below itself", () => {

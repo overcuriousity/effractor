@@ -104,9 +104,16 @@ pub fn create(t: &Transaction, new: &NewUser, now: Timestamp) -> Result<Id> {
     let mut webauthn_id = [0u8; 16];
     getrandom::fill(&mut webauthn_id).expect("the operating system has randomness");
     t.execute(
-        "INSERT INTO users (name, display_name, password_hash, webauthn_id, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![name, new.display_name.trim(), hash, &webauthn_id[..], now],
+        "INSERT INTO users (name, name_key, display_name, password_hash, webauthn_id, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![
+            name,
+            crate::fold(&name),
+            new.display_name.trim(),
+            hash,
+            &webauthn_id[..],
+            now
+        ],
     )
     .map_err(Error::exists_or)?;
     Ok(t.last_insert_rowid())
@@ -123,8 +130,8 @@ pub fn get(c: &Connection, id: Id) -> Result<Option<User>> {
 
 pub fn by_name(c: &Connection, name: &str) -> Result<Option<User>> {
     Ok(c.query_row(
-        &format!("SELECT {COLUMNS} FROM users WHERE name = ?1"),
-        [name.trim()],
+        &format!("SELECT {COLUMNS} FROM users WHERE name_key = ?1"),
+        [crate::fold(name)],
         row,
     )
     .optional()?)
@@ -141,8 +148,8 @@ pub fn all(c: &Connection) -> Result<Vec<User>> {
 pub fn login(c: &Connection, name: &str, password: &str) -> Result<Option<User>> {
     let found: Option<(User, Option<String>)> = c
         .query_row(
-            &format!("SELECT {COLUMNS}, password_hash FROM users WHERE name = ?1"),
-            [name.trim()],
+            &format!("SELECT {COLUMNS}, password_hash FROM users WHERE name_key = ?1"),
+            [crate::fold(name)],
             |r| Ok((row(r)?, r.get(7)?)),
         )
         .optional()?;

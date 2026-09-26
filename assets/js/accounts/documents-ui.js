@@ -243,7 +243,7 @@
     var o = D.offers(d.role);
     app.showMenu([
       ["Open", "", function () { A.sync.open(d.id); }],
-      ["Rename", "", o.rename ? function () { renameDocument(d); } : null, why(d.role)],
+      ["Rename", "", o.rename ? function () { renameDocument(d); } : null, d.role === "viewer" ? { hint: "view only" } : undefined],
       ["Move to", "", o.move ? moveMenu("document", d.id) : null, why(d.role)],
       ["Share…", "", o.share ? function () { A.openPeople && A.openPeople("document", d.id, d.name); } : null, why(d.role)],
       ["Download YAML", "", function () { A.sync.download(d.id); }],

@@ -215,3 +215,29 @@ fn recent_keeps_the_last_five_opened() {
         vec![ids[0], ids[6], ids[5], ids[4], ids[3]]
     );
 }
+
+#[test]
+fn folder_names_and_search_fold_case_beyond_ascii() {
+    let (_d, db) = db();
+    let alice = user(&db, "alice");
+    db.write(|t| folders::create(t, alice, None, "Äpfel"))
+        .unwrap();
+    assert!(matches!(
+        db.write(|t| folders::create(t, alice, None, "äpfel")),
+        Err(Error::Exists)
+    ));
+    let d = db
+        .write(|t| documents::create(t, alice, None, "Übersicht", "fault-tree", "Straße", 0))
+        .unwrap();
+    let hit = |q: &str| {
+        db.read(|c| perms::visible(c, alice, Some(q)))
+            .unwrap()
+            .documents
+            .iter()
+            .map(|x| x.id)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(hit("ÜBERSICHT"), vec![d], "names");
+    assert_eq!(hit("STRASSE").len(), 0, "no ß→ss folding promised");
+    assert_eq!(hit("STRAßE"), vec![d], "content");
+}

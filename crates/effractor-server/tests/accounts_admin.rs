@@ -242,3 +242,76 @@ async fn a_group_admin_manages_members_and_creates_users_only_where_allowed() {
         "a group admin cannot remove an admin"
     );
 }
+
+/// A group's admin sees their members, but not what else those members are
+/// in, nor how many documents they keep.
+#[tokio::test]
+async fn a_group_admin_sees_only_their_groups_of_each_member() {
+    let h = harness();
+    admin(&h, "root");
+    let lead = h.add_user("lead");
+    let m = h.add_user("member");
+    let r = h.login("root").await;
+    let red = json(
+        h.call(
+            "POST",
+            "/api/admin/groups",
+            Some(&r),
+            Some(json!({"name": "red"})),
+        )
+        .await,
+    )
+    .await["id"]
+        .as_i64()
+        .unwrap();
+    let blue = json(
+        h.call(
+            "POST",
+            "/api/admin/groups",
+            Some(&r),
+            Some(json!({"name": "blue"})),
+        )
+        .await,
+    )
+    .await["id"]
+        .as_i64()
+        .unwrap();
+    h.call(
+        "PUT",
+        &format!("/api/admin/groups/{red}/members/{lead}"),
+        Some(&r),
+        Some(json!({"role": "admin"})),
+    )
+    .await;
+    h.call(
+        "PUT",
+        &format!("/api/admin/groups/{red}/members/{m}"),
+        Some(&r),
+        Some(json!({"role": "member"})),
+    )
+    .await;
+    h.call(
+        "PUT",
+        &format!("/api/admin/groups/{blue}/members/{m}"),
+        Some(&r),
+        Some(json!({"role": "member"})),
+    )
+    .await;
+    let l = h.login("lead").await;
+    let users = json(h.call("GET", "/api/admin/users", Some(&l), None).await).await;
+    let member = users
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|u| u["name"] == "member")
+        .unwrap()
+        .clone();
+    let groups: Vec<_> = member["groups"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| g["name"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(groups, vec!["red"]);
+    assert_eq!(member["documents"], serde_json::Value::Null);
+}

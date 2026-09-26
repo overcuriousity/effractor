@@ -28,8 +28,11 @@ fn changed(n: usize) -> Result<()> {
 
 pub fn create(t: &Transaction, name: &str) -> Result<Id> {
     let name = check_name(name)?;
-    t.execute("INSERT INTO groups (name) VALUES (?1)", [name])
-        .map_err(Error::exists_or)?;
+    t.execute(
+        "INSERT INTO groups (name, name_key) VALUES (?1, ?2)",
+        params![name, crate::fold(&name)],
+    )
+    .map_err(Error::exists_or)?;
     Ok(t.last_insert_rowid())
 }
 
@@ -37,8 +40,8 @@ pub fn rename(t: &Transaction, id: Id, name: &str) -> Result<()> {
     let name = check_name(name)?;
     changed(
         t.execute(
-            "UPDATE groups SET name = ?2 WHERE id = ?1",
-            params![id, name],
+            "UPDATE groups SET name = ?2, name_key = ?3 WHERE id = ?1",
+            params![id, name, crate::fold(&name)],
         )
         .map_err(Error::exists_or)?,
     )

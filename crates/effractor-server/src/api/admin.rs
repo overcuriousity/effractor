@@ -85,14 +85,29 @@ async fn list_users(
                         continue;
                     }
                     let methods = users::login_methods(c, u.id)?;
-                    let documents: i64 = c.query_row(
-                        "SELECT count(*) FROM documents WHERE owner_id = ?1 AND deleted_at IS NULL", [u.id], |r| r.get(0))?;
+                    // A group's admin learns nothing beyond their groups: not
+                    // the member's other groups, nor what they keep.
+                    let documents: Option<i64> = match &scope {
+                        Scope::All => Some(c.query_row(
+                            "SELECT count(*) FROM documents WHERE owner_id = ?1 AND deleted_at IS NULL",
+                            [u.id],
+                            |r| r.get(0),
+                        )?),
+                        Scope::Groups(_) => None,
+                    };
                     let mut s = c.prepare(
                         "SELECT g.id, g.name, m.role FROM memberships m JOIN groups g ON g.id = m.group_id
                          WHERE m.user_id = ?1 ORDER BY g.name")?;
                     let gs: Vec<Value> = s
-                        .query_map([u.id], |r| Ok(json!({"id": r.get::<_, Id>(0)?, "name": r.get::<_, String>(1)?, "role": r.get::<_, String>(2)?})))?
-                        .collect::<effractor_accounts::rusqlite::Result<_>>()?;
+                        .query_map([u.id], |r| Ok((r.get::<_, Id>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?)))?
+                        .collect::<effractor_accounts::rusqlite::Result<Vec<_>>>()?
+                        .into_iter()
+                        .filter(|(g, _, _)| match &scope {
+                            Scope::All => true,
+                            Scope::Groups(mine) => mine.contains(g),
+                        })
+                        .map(|(g, name, role)| json!({"id": g, "name": name, "role": role}))
+                        .collect();
                     out.push(json!({
                         "id": u.id, "name": u.name, "display_name": u.display_name, "admin": u.admin,
                         "disabled": u.disabled, "methods": methods, "groups": gs, "documents": documents,

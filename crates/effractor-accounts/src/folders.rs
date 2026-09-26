@@ -74,8 +74,8 @@ pub fn create(t: &Transaction, owner: Id, parent: Option<Id>, name: &str) -> Res
         }
     }
     t.execute(
-        "INSERT INTO folders (owner_id, parent_id, name) VALUES (?1, ?2, ?3)",
-        params![owner, parent, name],
+        "INSERT INTO folders (owner_id, parent_id, name, name_key) VALUES (?1, ?2, ?3, ?4)",
+        params![owner, parent, name, crate::fold(&name)],
     )
     .map_err(Error::exists_or)?;
     Ok(t.last_insert_rowid())
@@ -85,8 +85,8 @@ pub fn rename(t: &Transaction, owner: Id, id: Id, name: &str) -> Result<()> {
     let name = check_name(name)?;
     own(t, owner, id)?;
     t.execute(
-        "UPDATE folders SET name = ?2 WHERE id = ?1",
-        params![id, name],
+        "UPDATE folders SET name = ?2, name_key = ?3 WHERE id = ?1",
+        params![id, name, crate::fold(&name)],
     )
     .map_err(Error::exists_or)?;
     Ok(())

@@ -121,8 +121,11 @@ tested as a table (§11).
 | action | viewer | editor | owner |
 |---|---|---|---|
 | open, download YAML, make a public link, save a copy of one's own | yes | yes | yes |
-| save content | — | yes | yes |
-| rename, move, delete, share | — | — | yes |
+| save content, rename a document | — | yes | yes |
+| rename a folder, move, delete, share | — | — | yes |
+
+*Amended 2026-09-26 (owner):* an editor renames a document: its name is its
+YAML `name:`, which is content.
 
 Having no role on something means **404**, never 403, as the share API does:
 the API does not tell which documents exist. **Admins** manage people and

@@ -1,7 +1,9 @@
 -- effractor accounts, schema 1 (spec §4). Timestamps are Unix seconds.
 CREATE TABLE users (
   id            INTEGER PRIMARY KEY,
-  name          TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  name          TEXT NOT NULL,
+  -- fold(name): unique whatever the case, beyond ASCII (Ärger = ärger).
+  name_key      TEXT NOT NULL UNIQUE,
   display_name  TEXT NOT NULL DEFAULT '',
   password_hash TEXT,
   admin         INTEGER NOT NULL DEFAULT 0,
@@ -33,7 +35,8 @@ CREATE TABLE sessions (
 );
 CREATE TABLE groups (
   id   INTEGER PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  name TEXT NOT NULL,
+  name_key TEXT NOT NULL UNIQUE,
   admins_may_create_users INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE memberships (
@@ -47,10 +50,11 @@ CREATE TABLE folders (
   owner_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   parent_id  INTEGER REFERENCES folders(id) ON DELETE CASCADE,
   name       TEXT NOT NULL,
+  name_key   TEXT NOT NULL,
   deleted_at INTEGER
 );
 CREATE UNIQUE INDEX folders_unique_name
-  ON folders (owner_id, ifnull(parent_id, 0), name COLLATE NOCASE) WHERE deleted_at IS NULL;
+  ON folders (owner_id, ifnull(parent_id, 0), name_key) WHERE deleted_at IS NULL;
 CREATE TABLE documents (
   id         INTEGER PRIMARY KEY,
   owner_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

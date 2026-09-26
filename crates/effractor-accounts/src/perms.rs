@@ -182,9 +182,9 @@ pub fn visible(c: &Connection, user: Id, query: Option<&str>) -> Result<Visible>
         out.folders.push(f?);
     }
 
-    // SQLite's lower() folds ASCII only: enough for the simple search of
-    // spec §6.5, and no extension to ship.
-    let matches = "(:q IS NULL OR instr(lower(d.name), lower(:q)) > 0 OR instr(lower(d.body), lower(:q)) > 0)";
+    // fold() is lib.rs's: case folded beyond ASCII (SQLite's lower() is not).
+    let matches =
+        "(:q IS NULL OR instr(fold(d.name), fold(:q)) > 0 OR instr(fold(d.body), fold(:q)) > 0)";
     let mut s = c.prepare(&format!(
         "{SHARED_ITEMS}
          SELECT d.id, d.folder_id, d.name, d.profile, d.version, d.updated_at, ub.name, u.name, 3

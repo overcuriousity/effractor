@@ -132,3 +132,23 @@ fn a_user_without_a_password_cannot_log_in_with_one() {
     let m = db.read(|c| users::login_methods(c, 1)).unwrap();
     assert!(!m.password);
 }
+
+#[test]
+fn names_fold_case_beyond_ascii() {
+    let (_d, db) = db();
+    add(&db, "Ärger", Some(PW));
+    assert!(db.read(|c| users::login(c, "ärger", PW)).unwrap().is_some());
+    assert!(db.read(|c| users::by_name(c, "ÄRGER")).unwrap().is_some());
+    let again = db.write(|t| {
+        users::create(
+            t,
+            &NewUser {
+                name: "ärger",
+                display_name: "",
+                password: None,
+            },
+            1,
+        )
+    });
+    assert!(matches!(again, Err(Error::Exists)));
+}

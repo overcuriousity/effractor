@@ -74,9 +74,11 @@
     return ancestors(listing, docId).map(function (id) { return byId[id].name; });
   }
 
+  // The name is content (the YAML's name:), so whoever may edit may rename
+  // (owner, 2026-09-26); moving, sharing and deleting are the owner's.
   function offers(role) {
     var owner = role === "owner";
-    return { open: true, rename: owner, move: owner, share: owner, remove: owner };
+    return { open: true, rename: owner || role === "editor", move: owner, share: owner, remove: owner };
   }
 
   function moveTargets(listing, kind, id) {
