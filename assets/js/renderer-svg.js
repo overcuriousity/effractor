@@ -157,8 +157,8 @@
       var marker = el("marker", { id: "edge-arrow", viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" }, [], defs);
       el("path", { d: "M0 0L10 5L0 10z" }, ["arrow-head"], marker);
       // A flow is traffic: a chevron at its middle says which way it runs.
-      var chevron = el("marker", { id: "flow-chevron", viewBox: "0 0 10 10", refX: "5", refY: "5", markerWidth: "9", markerHeight: "9", orient: "auto", markerUnits: "userSpaceOnUse" }, [], defs);
-      el("path", { d: "M2 1L8 5L2 9" }, ["flow-chevron"], chevron);
+      var chevron = el("marker", { id: "flow-chevron", viewBox: "0 0 10 10", refX: "5", refY: "5", markerWidth: "14", markerHeight: "14", orient: "auto", markerUnits: "userSpaceOnUse" }, [], defs);
+      el("path", { d: "M1.5 1L9 5L1.5 9L4 5z" }, ["flow-chevron"], chevron);
       viewport = el("g", {}, ["viewport"], svg);
       edgeLayer = el("g", {}, ["edges"], viewport);
       // Over the lines, so an outline's edge and name take the pointer.
@@ -520,6 +520,11 @@
     // A flow's line, bent nowhere but given a point at its middle for its
     // chevron to sit on.
     var FLOW = /^flows?\//;
+    // A flow's name sits clear above its chevron; a relationship's word
+    // just above its line.
+    function labelY(r) {
+      return r.mid.y - (FLOW.test(r.id) ? 11 : 4);
+    }
     function linkPath(r) {
       return FLOW.test(r.id) && r.mid ? "M" + r.start.x + " " + r.start.y + "L" + r.mid.x + " " + r.mid.y + "L" + r.end.x + " " + r.end.y : straight(r);
     }
@@ -535,7 +540,7 @@
       if (r.title) el("title", {}, [], hit).textContent = r.title;
       var label = null;
       if (r.label) {
-        label = el("text", { x: r.mid.x, y: r.mid.y - 4, "data-id": r.id }, ["edge-label"], edgeLayer);
+        label = el("text", { x: r.mid.x, y: labelY(r), "data-id": r.id }, ["edge-label"], edgeLayer);
         label.textContent = r.label;
       }
       return { line: line, hit: hit, label: label };
@@ -545,7 +550,7 @@
       item.hit.setAttribute("d", straight(r));
       if (item.label) {
         item.label.setAttribute("x", r.mid.x);
-        item.label.setAttribute("y", r.mid.y - 4);
+        item.label.setAttribute("y", labelY(r));
       }
     }
 

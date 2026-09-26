@@ -79,10 +79,10 @@
 .help-legend dt { display: flex; align-items: center; }
 .help-legend .legend-meaning { display: block; max-width: 46ch; margin: 0 0 4px; }
 
-/* A flow is traffic, not structure: a little heavier, a chevron at its
-   middle for the way it runs (renderer-svg.js). */
-.edge[data-id^="flow/"], .edge[data-id^="flows/"] { stroke-width: 1.9; }
-.flow-chevron { fill: none; stroke: var(--viz-edge); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+/* A flow is traffic, not structure: twice a relationship's weight, a solid
+   chevron at its middle for the way it runs (renderer-svg.js). */
+.edge[data-id^="flow/"], .edge[data-id^="flows/"] { stroke-width: 3; }
+.flow-chevron { fill: var(--viz-edge); stroke: none; }
 /* A firewall's permission on a flow: dotted, in the firewall's own colour,
    ending in a dot where it lands on the flow — so it never reads as another
    flow. Its word says allows, blocks or ?. */
@@ -98,8 +98,8 @@
 .swatch-identity { background: var(--viz-family-identity); border-color: transparent; }
 .swatch-data { background: var(--viz-family-data); border-color: transparent; }
 .line-sample { display: inline-block; width: 18px; height: 0; margin-right: 5px; border-top: 1.5px solid var(--viz-edge); vertical-align: middle; }
-.line-flow { position: relative; border-top-width: 2px; }
-.line-flow::after { content: ""; position: absolute; left: 6px; top: -4.5px; width: 5px; height: 5px; border-top: 1.5px solid var(--viz-edge); border-right: 1.5px solid var(--viz-edge); transform: rotate(45deg); }
+.line-flow { position: relative; border-top-width: 3px; }
+.line-flow::after { content: ""; position: absolute; left: 5px; top: -6.5px; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 8px solid var(--viz-edge); }
 .line-permit { border-top: 2px dotted var(--viz-family-network); }
 .outline-sample { display: inline-block; width: 14px; height: 9px; margin-right: 5px; border: 1.5px dashed var(--color-border-strong); border-radius: 4px; vertical-align: middle; }
 .ring-sample { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; border: 2.5px solid var(--color-danger); vertical-align: middle; }
