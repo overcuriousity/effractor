@@ -169,3 +169,29 @@ test("after a refused save, a different text is saved again", async () => {
   assert.equal(put.calls[1].body, "small");
   assert.equal(a.state(), "saved");
 });
+
+test("the page's own timers are called as functions, not as methods of another object", () => {
+  // A browser refuses setTimeout called on anything but the window
+  // ("Illegal invocation"); node does not, so the test plays the browser.
+  const real = { set: globalThis.setTimeout, clear: globalThis.clearTimeout };
+  const calls = [];
+  function strict(kind) {
+    return function (...args) {
+      if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation");
+      calls.push(kind);
+      return kind === "set" ? real.set(() => {}, 0) : real.clear(args[0]);
+    };
+  }
+  globalThis.setTimeout = strict("set");
+  globalThis.clearTimeout = strict("clear");
+  try {
+    const a = createAutosave({ put: server([]), delay: 800 });
+    a.bind({ version: 1, saved: "v0" });
+    a.change("v1", "N");
+    a.change("v2", "N");
+  } finally {
+    globalThis.setTimeout = real.set;
+    globalThis.clearTimeout = real.clear;
+  }
+  assert.deepEqual(calls, ["set", "clear", "set"]);
+});

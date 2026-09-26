@@ -7,7 +7,12 @@
   var WAITS = [2000, 4000, 8000, 16000, 32000, 60000];
 
   function createAutosave(o) {
-    var timers = o.timers || { set: setTimeout, clear: clearTimeout };
+    // Called as plain functions: a browser refuses setTimeout as a method
+    // of any object but the window.
+    var timers = o.timers || {
+      set: function (fn, ms) { return setTimeout(fn, ms); },
+      clear: function (id) { clearTimeout(id); },
+    };
     var delay = o.delay == null ? 800 : o.delay;
     var version = null, saved = null, pending = null, name = null;
     var timer = null, inflight = null, state = "saved", tries = 0, stopped = false, refused = null;
