@@ -3,6 +3,7 @@
 
 pub mod account;
 pub mod documents;
+pub mod sharing;
 
 use axum::Json;
 use axum::http::StatusCode;
@@ -72,4 +73,5 @@ pub fn routes() -> axum::Router<crate::accounts::Accounts> {
     axum::Router::new()
         .merge(account::routes())
         .merge(documents::routes())
+        .merge(sharing::routes())
 }
