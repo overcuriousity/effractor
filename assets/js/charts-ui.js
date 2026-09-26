@@ -44,7 +44,8 @@
       return;
     }
     var max = cdf ? result.horizon : rows[rows.length - 1][0];
-    var unit = cdf ? result.time_unit : result.currency;
+    // Times carry the model's unit; a loss is a plain number.
+    var unit = cdf ? result.time_unit : null;
     var title = graph ? 'P(target by time)' : cdf ? window.effractorProfiles.words(app.state.doc).p.replace(')', ' ≤ time)') : 'P(loss ≥ amount)';
     var plot = svg('svg', { viewBox: '0 0 360 244', class: 'analysis-chart', role: 'img', tabindex: '0', 'aria-label': title + ' · Left/Right: values' });
     plot.appendChild(svg('title', {}, title));
@@ -55,7 +56,7 @@
     [0, .5, 1].forEach(function (fraction) {
       plot.appendChild(svg('text', { x: data.x(max * fraction, max), y: 220, 'text-anchor': fraction === 1 ? 'end' : fraction === 0 ? 'start' : 'middle' }, number(max * fraction)));
     });
-    plot.appendChild(svg('text', { x: 196, y: 239, 'text-anchor': 'middle' }, unit));
+    plot.appendChild(svg('text', { x: 196, y: 239, 'text-anchor': 'middle' }, unit || 'loss'));
     if (cdf) {
       var band = rows.filter(function (r) { return r[3] !== null && r[4] !== null; });
       if (band.length) {
@@ -85,7 +86,7 @@
       vertical.setAttribute('x1', data.x(row[0], max)); vertical.setAttribute('x2', data.x(row[0], max));
       horizontal.setAttribute('y1', data.y(value)); horizontal.setAttribute('y2', data.y(value));
       var interval = row[3] === null ? '' : ' [' + probability(row[3]) + ', ' + probability(row[4]) + ']';
-      tooltip.textContent = number(row[0]) + ' ' + unit + (graph ? ' · P ' + probability(row[2] === null ? row[1] : row[2]) + interval : cdf ? ' · exact ' + probability(row[1]) + ' · sampled ' + probability(row[2]) + interval : ' · P ≥ ' + probability(row[1]));
+      tooltip.textContent = number(row[0]) + (unit ? ' ' + unit : '') + (graph ? ' · P ' + probability(row[2] === null ? row[1] : row[2]) + interval : cdf ? ' · exact ' + probability(row[1]) + ' · sampled ' + probability(row[2]) + interval : ' · P ≥ ' + probability(row[1]));
     }
     plot.addEventListener('pointermove', function (e) {
       var point = plot.createSVGPoint(); point.x = e.clientX; point.y = e.clientY;
@@ -102,12 +103,12 @@
     root.append(plot, tooltip);
     if (!cdf) {
       var stats = el('dl', null, 'chart-quantiles');
-      model.percentiles.forEach(function (p) { stats.append(el('dt', p[0]), el('dd', app.format.money(p[1], unit), 'num')); });
+      model.percentiles.forEach(function (p) { stats.append(el('dt', p[0]), el('dd', app.format.money(p[1]), 'num')); });
       root.append(stats, el('p', 'At most one event per horizon', 'hint'));
     }
     var equivalent = graph
       ? table(['Time · ' + unit, 'Probability', 'Lower', 'Upper'], model.rows)
-      : table(cdf ? [unit, 'Exact', 'Sampled', 'Lower', 'Upper'] : [unit, 'P(loss ≥)'], rows);
+      : table(cdf ? [unit, 'Exact', 'Sampled', 'Lower', 'Upper'] : ['Loss', 'P(loss ≥)'], rows);
     equivalent.open = !!open; root.appendChild(equivalent);
     if (focused) (focused === "summary" ? equivalent.querySelector("summary") : plot).focus();
   }

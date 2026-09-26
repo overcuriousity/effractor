@@ -1140,8 +1140,8 @@
       hud("hud-p", probability(sampled.p_top));
       hud("hud-p-ci", interval);
     }
-    hud("hud-eal", sampled.loss ? money(sampled.loss.mean, results.currency) : "—");
-    hud("hud-p95", sampled.loss ? "p95 " + money(sampled.loss.p95, results.currency) : sampled.loss_unavailable ? "not finite" : "no assets");
+    hud("hud-eal", sampled.loss ? money(sampled.loss.mean) : "—");
+    hud("hud-p95", sampled.loss ? "p95 " + money(sampled.loss.p95) : sampled.loss_unavailable ? "not finite" : "no assets");
   }
 
   function showAll(results) {

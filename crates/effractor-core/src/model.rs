@@ -22,7 +22,6 @@ pub struct Model {
     pub time_unit: TimeUnit,
     /// "Occurs" means: completes within this many time units.
     pub horizon: f64,
-    pub currency: String,
     pub top: NodeId,
     pub nodes: IndexMap<NodeId, Node>,
     pub assets: IndexMap<AssetId, Asset>,
@@ -37,7 +36,6 @@ impl Model {
             profile,
             time_unit: TimeUnit::Hours,
             horizon: 8760.0,
-            currency: "EUR".into(),
             top,
             nodes: IndexMap::new(),
             assets: IndexMap::new(),

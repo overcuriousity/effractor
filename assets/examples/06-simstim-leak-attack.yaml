@@ -3,13 +3,12 @@ profile: attack-tree
 name: Unreleased sim-stim build leaks before launch
 time_unit: d
 horizon: 120
-currency: EUR
 top: build-leaked
 
 nodes:
   build-leaked:
     label: A playable build of the studio's unannounced sim-stim sequel hits the Undercity boards
-    description: Lotus Reel, a 600-person sim-stim studio on the Glass Mile, is four months from revealing its next full-sensory title. Leak crews pay well for playable builds. The routes are the studio's own render farm and artifact store, the Halcyon Dynamics certification portal every sim-stim release must pass, a Docks outsourcing partner that receives nightly builds over a legacy file share, and the critics' preview programme. A studio SSO identity is shared by the internal routes and sampled once; the artifact store needs two of three findings before a build can be pulled. Costs are the leak crew's in EUR; detection is the chance the studio's ICE team notices in time to act. Illustrative inputs.
+    description: Lotus Reel, a 600-person sim-stim studio on the Glass Mile, is four months from revealing its next full-sensory title. Leak crews pay well for playable builds. The routes are the studio's own render farm and artifact store, the Halcyon Dynamics certification portal every sim-stim release must pass, a Docks outsourcing partner that receives nightly builds over a legacy file share, and the critics' preview programme. A studio SSO identity is shared by the internal routes and sampled once; the artifact store needs two of three findings before a build can be pulled. Costs are the leak crew's, in cred; detection is the chance the studio's ICE team notices in time to act. Illustrative inputs.
     gate: or
     children:
       - render-farm-route

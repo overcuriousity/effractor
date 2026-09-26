@@ -28,10 +28,9 @@ test('SVG coordinates stay finite for zero domains and retain nonzero intercepts
 
 test('partial exact snapshots include the document units and horizon without sampled data', () => {
   const begun = { exact: { available: { ttc_cdf: [[0, 0], [20, .5]] } } };
-  const snapshot = charts.exactSnapshot(begun, { horizon: 20, time_unit: 'h', currency: 'EUR' });
+  const snapshot = charts.exactSnapshot(begun, { horizon: 20, time_unit: 'h' });
   assert.equal(snapshot.horizon, 20);
   assert.equal(snapshot.time_unit, 'h');
-  assert.equal(snapshot.currency, 'EUR');
   assert.deepEqual(charts.cdf(snapshot).rows, [[0, 0, null, null, null], [20, .5, null, null, null]]);
   assert.equal(snapshot.sampled, undefined);
 });

@@ -179,7 +179,6 @@ prop_compose! {
     /// acyclic by construction; `n-0` is the top.
     fn model()(attack in any::<bool>(), gates in 1..6usize, leaves in 1..8usize)(
         name in text(),
-        currency in text(),
         unit in prop::sample::select(vec![TimeUnit::Hours, TimeUnit::Days, TimeUnit::Years]),
         horizon in positive(),
         gate_parts in prop::collection::vec(
@@ -199,7 +198,7 @@ prop_compose! {
         let total = gate_parts.len() + leaf_nodes.len();
         let profile = if attack { Profile::AttackTree } else { Profile::FaultTree };
         let mut m = Model::new(name, profile, id("n", 0));
-        (m.currency, m.time_unit, m.horizon) = (currency, unit, horizon);
+        (m.time_unit, m.horizon) = (unit, horizon);
         m.analysis = Analysis { seed: analysis.0, samples: analysis.1, confidence: analysis.2 };
 
         let gates = gate_parts.len();

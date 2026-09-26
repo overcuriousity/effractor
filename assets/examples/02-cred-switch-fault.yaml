@@ -3,7 +3,6 @@ profile: fault-tree
 name: Kestrel Clearing's cred switch cannot authorise payments
 time_unit: h
 horizon: 720
-currency: EUR
 top: authorisation-down
 
 nodes:

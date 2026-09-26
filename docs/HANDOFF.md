@@ -6,6 +6,23 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — second full review (2026-09-26)
+
+The owner asked again for a review of the whole application, every finding
+fixed ("KISS, your best assumption"). Eight area reviewers, eight fixer
+branches (#116–#123), landed together through `review-fixes`. The owner's
+calls that were left to the agents: a cluster stores only a label someone
+typed (the page says "first +n" otherwise); an IPv6 scan can merge into hosts
+already drawn; `--trusted-proxy` counts shares per client too. Still open: a
+fault tree of ~20,000 leaves takes ~13 s in `Solve::begin` (Birnbaum makes two
+passes over the diagram per leaf) and cannot be cancelled.
+
+**No currency (owner, 2026-09-26):** costs and losses are plain numbers, in
+whatever a model counts in — money, hours, AI tokens. `currency` is gone from
+the model, the writer, the results and the page; the reader still accepts the
+key and forgets it, so files and links written before keep opening
+(`crates/effractor-format/tests/shared.rs`).
+
 ## Continuation — accounts (2026-09-26)
 
 The self-hosted server diverges from the Pages build: opt-in accounts. The

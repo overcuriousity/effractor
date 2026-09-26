@@ -68,3 +68,11 @@ fn the_page_opens_it_in_the_new_spelling() {
     assert!(written.contains("8% * Exponential(mean 250)"), "{written}");
     assert!(!written.contains("Bernoulli"), "{written}");
 }
+
+#[test]
+fn a_currency_written_before_costs_were_plain_numbers_is_read_and_forgotten() {
+    assert!(SATELLITE.contains("\ncurrency: EUR\n"));
+    let (model, diagnostics) = diagnose(SATELLITE);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(!save(&model.unwrap()).contains("currency"));
+}

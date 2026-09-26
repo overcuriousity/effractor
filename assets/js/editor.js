@@ -937,7 +937,7 @@
       likelihood(form, n, id);
       if (doc().profile === "attack-tree") {
         var cost = field(form, "prop-cost", "Cost", input("number", n.cost));
-        cost.title = "What this step costs the attacker, in " + (doc().currency || "money");
+        cost.title = "What this step costs the attacker";
         numeric(cost, "cost");
         var detection = field(form, "prop-detection", "Detection", input("number", n.detection));
         detection.title = "The chance that this step is noticed: 0 never, 1 always";
@@ -1155,7 +1155,7 @@
             });
           });
         });
-        hint(form, "Loss in " + (doc().currency || "money") + ": a number or a distribution.");
+        hint(form, "Loss: a number or a distribution.");
         var remove = document.createElement("button");
         remove.type = "button";
         remove.className = "btn btn-ghost btn-small asset-remove";

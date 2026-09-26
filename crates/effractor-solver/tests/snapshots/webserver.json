@@ -3,7 +3,6 @@
   "profile": "fault-tree",
   "time_unit": "h",
   "horizon": 8760.0,
-  "currency": "EUR",
   "leaves": [
     {
       "id": "admin",

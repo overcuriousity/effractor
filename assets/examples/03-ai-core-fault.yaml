@@ -3,7 +3,6 @@ profile: fault-tree
 name: Arcology Nine's AI core loses its training run
 time_unit: d
 horizon: 90
-currency: EUR
 top: training-run-lost
 
 nodes:

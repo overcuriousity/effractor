@@ -3,13 +3,12 @@ profile: attack-tree
 name: Drone-courier payouts hijacked in Sodium City
 time_unit: d
 horizon: 30
-currency: EUR
 top: payouts-hijacked
 
 nodes:
   payouts-hijacked:
     label: A runner's weekly payouts land in a cred account the crew controls
-    description: A fixer's drone-courier network in the Undercity pays its runners weekly to a cred account set in the courier app. A Stacks fraud crew wants to swap that account for one mid-volume runner within a month. Two routes — through the runner's own login, or by talking the fixer's dispatch desk into the change. Costs are the crew's, in EUR; detection is the chance the fixer's fraud watcher notices the attempt. Illustrative inputs.
+    description: A fixer's drone-courier network in the Undercity pays its runners weekly to a cred account set in the courier app. A Stacks fraud crew wants to swap that account for one mid-volume runner within a month. Two routes — through the runner's own login, or by talking the fixer's dispatch desk into the change. Costs are the crew's, in cred; detection is the chance the fixer's fraud watcher notices the attempt. Illustrative inputs.
     gate: or
     children: [login-route, dispatch-route]
     consequences:

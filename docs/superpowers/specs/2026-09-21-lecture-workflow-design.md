@@ -96,7 +96,7 @@ This is an empty document, not the lecture fixture. An optional
 `attacker.target: {entity: server, state: admin}` names the result to measure.
 Footholds use the same `{entity, state}` form. Metadata defaults above define
 the experiment, never an attack's probability or duration. Schema 2 trees retain
-their existing `currency`, `assets` and `controls`; these fields are not accepted
+their existing `assets` and `controls`; these fields are not accepted
 in architecture documents in this milestone. Architecture loss modelling is
 explicitly unavailable, not silently ignored.
 

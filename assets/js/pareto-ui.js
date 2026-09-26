@@ -25,10 +25,12 @@
   }
   function scatter(result) {
     var section = el('section', null, 'pareto-scatter'), pickers = el('div', null, 'pareto-axes');
-    var units = { cost: result.currency, time: timeUnit(result), detection: 'probability' };
+    var units = { cost: null, time: timeUnit(result), detection: 'probability' };
     var titles = { cost: 'Cost', time: 'Mean time', detection: 'Detection' };
+    // A cost is a plain number: no unit to name.
+    function axisLabel(k) { return units[k] ? titles[k] + ' · ' + units[k] : titles[k]; }
     ['x', 'y'].forEach(function (which) {
-      var picker = window.effractorMenu.dropdown(['cost', 'time', 'detection'].map(function (k) { return [k, titles[k] + ' · ' + units[k]]; }), axis[which]);
+      var picker = window.effractorMenu.dropdown(['cost', 'time', 'detection'].map(function (k) { return [k, axisLabel(k)]; }), axis[which]);
       picker.id = 'pareto-axis-' + which; picker.setAttribute('aria-label', which.toUpperCase() + ' axis');
       picker.addEventListener('change', function () { axis = data.axes(axis, which, picker.value); render(); $('pareto-axis-' + which).focus(); });
       pickers.append(el('span', which.toUpperCase()), picker);
@@ -46,15 +48,15 @@
       plot.appendChild(svg('text', { x: 42, y: y(maxY * f) + 3, 'text-anchor': 'end' }, number(maxY * f)));
       plot.appendChild(svg('text', { x: x(maxX * f), y: 219, 'text-anchor': f === 1 ? 'end' : f === 0 ? 'start' : 'middle' }, number(maxX * f)));
     });
-    plot.appendChild(svg('text', { x: 48, y: 16 }, titles[axis.y] + ' · ' + units[axis.y]));
-    plot.appendChild(svg('text', { x: 196, y: 241, 'text-anchor': 'middle' }, titles[axis.x] + ' · ' + units[axis.x]));
+    plot.appendChild(svg('text', { x: 48, y: 16 }, axisLabel(axis.y)));
+    plot.appendChild(svg('text', { x: 196, y: 241, 'text-anchor': 'middle' }, axisLabel(axis.x)));
     var tooltip = el('p', '◇ Front · · Dominated', 'chart-tooltip'); tooltip.setAttribute('aria-live', 'polite');
     var cross = svg('g', { class: 'chart-cross', visibility: 'hidden' });
     var vertical = svg('line', { y1: 32, y2: 204 }), horizontal = svg('line', { x1: 48, x2: 344 }); cross.append(vertical, horizontal);
     var active = 0;
     function inspect(i) {
       active = (i + points.length) % points.length; var r = points[active];
-      tooltip.textContent = r.leaves.map(label).join(' · ') + ' — cost ' + amount(r, 'cost') + ' ' + result.currency + ' · mean time ' + amount(r, 'time') + ' ' + timeUnit(result) + ' · detection ' + amount(r, 'detection') + ' · success ' + amount(r, 'success');
+      tooltip.textContent = r.leaves.map(label).join(' · ') + ' — cost ' + amount(r, 'cost') + ' · mean time ' + amount(r, 'time') + ' ' + timeUnit(result) + ' · detection ' + amount(r, 'detection') + ' · success ' + amount(r, 'success');
       vertical.setAttribute('x1', x(r[axis.x])); vertical.setAttribute('x2', x(r[axis.x]));
       horizontal.setAttribute('y1', y(r[axis.y])); horizontal.setAttribute('y2', y(r[axis.y])); cross.setAttribute('visibility', 'visible');
     }
@@ -85,7 +87,7 @@
     var rows = data.rows(result, sort, descending, label);
     if (!rows.length) { root.appendChild(el('p', 'No attack paths', 'empty')); return; }
     var scroll = el('div', null, 'analysis-scroll'), table = el('table', null, 'analysis-table pareto-table'), head = el('thead'), header = el('tr');
-    var headings = [['leaves', 'Path'], ['cost', 'Cost · ' + result.currency], ['time', 'Mean time (' + timeUnit(result) + ')'], ['detection', 'Detection'], ['success', 'Success']];
+    var headings = [['leaves', 'Path'], ['cost', 'Cost'], ['time', 'Mean time (' + timeUnit(result) + ')'], ['detection', 'Detection'], ['success', 'Success']];
     headings.forEach(function (h) {
       var th = el('th', null, h[0] === 'leaves' ? '' : 'num'); th.scope = 'col';
       th.setAttribute('aria-sort', sort === h[0] ? descending ? 'descending' : 'ascending' : 'none');

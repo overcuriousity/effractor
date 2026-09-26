@@ -22,8 +22,9 @@
 
   // How the page says its numbers, in one place. A probability keeps three
   // digits, trailing zeros too; a quantity (a time, an amount, a count) is
-  // grouped in threes from 1000 and short below; money is the model's
-  // currency in whole units. What is no number reads "—".
+  // grouped in threes from 1000 and short below; money (a cost, a loss) is
+  // a plain number in whole units of whatever the model counts in. What is
+  // no number reads "—".
   function grouped(n) {
     return String(n).replace(/\B(?=(\d{3})+$)/g, " ");
   }
@@ -44,14 +45,10 @@
     return String(Number(v.toPrecision(3)));
   }
 
-  function money(value, currency) {
+  function money(value) {
     if (typeof value !== "number" || !isFinite(value)) return "—";
-    try {
-      return new Intl.NumberFormat("en", { style: "currency", currency: currency, maximumFractionDigits: 0 }).format(value);
-    } catch (e) {
-      var n = new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(value);
-      return currency ? n + " " + currency : n;
-    }
+    var n = Math.round(value);
+    return (n < 0 ? "−" : "") + grouped(Math.abs(n));
   }
 
   // A count of cut sets as the solver writes it: a decimal string, since it

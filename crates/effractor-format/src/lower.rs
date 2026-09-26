@@ -462,6 +462,8 @@ impl Cx {
                 "name",
                 "time_unit",
                 "horizon",
+                // Written until 2026-09-26: costs are plain numbers now, and
+                // a file that still names a currency opens and forgets it.
                 "currency",
                 "top",
                 "nodes",
@@ -499,7 +501,6 @@ impl Cx {
             .get("time_unit")
             .map(|e| self.word(&e.value, "time_unit", &TIME_UNITS));
         let horizon = f.get("horizon").map(|e| self.number(&e.value, "horizon"));
-        let currency = f.get("currency").map(|e| self.string(&e.value, "currency"));
         let analysis = f.get("analysis").map(|e| self.analysis(e));
 
         let mut model = Model::new(name?, profile?, top?);
@@ -508,9 +509,6 @@ impl Cx {
         }
         if let Some(v) = horizon {
             model.horizon = v?;
-        }
-        if let Some(v) = currency {
-            model.currency = v?;
         }
         if let Some(v) = analysis {
             model.analysis = v?;

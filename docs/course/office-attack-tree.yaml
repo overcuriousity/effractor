@@ -3,7 +3,6 @@ profile: attack-tree
 name: "Office: access to the file server"
 time_unit: d
 horizon: 30
-currency: EUR
 top: fileserver
 
 nodes:

@@ -46,16 +46,16 @@
 
   // ---- the list ----
 
-  function amount(measure, v, currency) {
-    return measure === "expected_loss" ? app.format.money(v, currency) : app.format.probability(v);
+  function amount(measure, v) {
+    return measure === "expected_loss" ? app.format.money(v) : app.format.probability(v);
   }
 
-  function worth(row, solved, currency) {
+  function worth(row, solved) {
     if (row.value === null) return solved ? "not valued" : "not calculated";
     var m = solved.measure;
-    var text = row.enabled ? "adds " + amount(m, row.value, currency) + " if removed" : "saves " + amount(m, row.value, currency);
-    if (row.ci) text += " (" + amount(m, row.ci.lo, currency) + " – " + amount(m, row.ci.hi, currency) + ")";
-    if (row.perCost !== null) text += " · " + view.number(row.perCost) + " per " + (currency || "unit");
+    var text = row.enabled ? "adds " + amount(m, row.value) + " if removed" : "saves " + amount(m, row.value);
+    if (row.ci) text += " (" + amount(m, row.ci.lo) + " – " + amount(m, row.ci.hi) + ")";
+    if (row.perCost !== null) text += " · " + view.number(row.perCost) + " per unit of cost";
     if (row.close) text += " · too close to call";
     return text;
   }
@@ -121,7 +121,7 @@
     var cost = labelled(form, "control-cost", "Cost", textInput(control.cost, false));
     cost.classList.add("mono");
     cost.inputMode = "decimal";
-    cost.title = "What the control costs over the horizon, in " + (doc.currency || "money");
+    cost.title = "What the control costs over the horizon";
     cost.addEventListener("change", function () {
       edit(E.setControl(app.state.doc, id, "cost", cost.value));
     });
@@ -243,7 +243,7 @@
     $("controls-note").hidden = !(rows.length && solved);
     var baseline = $("controls-baseline");
     baseline.hidden = !(rows.length && solved);
-    if (solved) baseline.textContent = (solved.measure === "expected_loss" ? "Expected loss as written: " : window.effractorProfiles.words(app.state.doc).p + " as written: ") + amount(solved.measure, solved.baseline, results.currency);
+    if (solved) baseline.textContent = (solved.measure === "expected_loss" ? "Expected loss as written: " : window.effractorProfiles.words(app.state.doc).p + " as written: ") + amount(solved.measure, solved.baseline);
     var unavailable = results && results.controls && results.controls.unavailable;
 
     rows.forEach(function (row) {
@@ -299,13 +299,13 @@
       item.appendChild(head);
       var facts = document.createElement("p");
       facts.className = "control-facts";
-      var cost = row.cost === null ? "no cost" : app.format.money(row.cost, doc.currency);
+      var cost = row.cost === null ? "no cost" : app.format.money(row.cost);
       var reach = row.effects === 1 ? "1 leaf" : row.effects + " leaves";
       facts.textContent = cost + " · " + reach;
       item.appendChild(facts);
       var value = document.createElement("p");
       value.className = "control-worth";
-      value.textContent = unavailable ? unavailable.reason : row.unavailable || worth(row, solved, results && results.currency);
+      value.textContent = unavailable ? unavailable.reason : row.unavailable || worth(row, solved);
       item.appendChild(value);
       if (openControl === row.id) item.appendChild(editor(row.id));
       list.appendChild(item);

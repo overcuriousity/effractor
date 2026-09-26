@@ -4,7 +4,6 @@
   "name": "Web server unavailable",
   "time_unit": "h",
   "horizon": 8760,
-  "currency": "EUR",
   "top": "loss-of-availability",
   "nodes": {
     "loss-of-availability": {

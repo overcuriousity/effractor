@@ -91,7 +91,6 @@ impl Writer<'_> {
         self.line(0, "name", &string(&m.name, Context::Block));
         self.line(0, "time_unit", word(&TIME_UNITS, &m.time_unit));
         self.line(0, "horizon", &number(m.horizon));
-        self.line(0, "currency", &string(&m.currency, Context::Block));
         self.line(0, "top", &reference(m.top.as_str()));
 
         self.out.push('\n');

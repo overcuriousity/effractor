@@ -27,7 +27,7 @@ fn validate_reports_positions() {
     assert_eq!(d["path"], "nodes.no-function.children[0]");
     assert_eq!(
         (d["line"].as_u64(), d["col"].as_u64()),
-        (Some(23), Some(16))
+        (Some(22), Some(16))
     );
     // `hardware` is now unreachable, which is only a warning, and listed too.
     assert!(

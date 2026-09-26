@@ -3,13 +3,12 @@ profile: attack-tree
 name: Cyberware telemetry sold off the Glass Mile
 time_unit: d
 horizon: 90
-currency: EUR
 top: telemetry-exfiltrated
 
 nodes:
   telemetry-exfiltrated:
     label: Obtain a bulk copy of patients' cyberware telemetry
-    description: A Mirrorlake Biotic chrome clinic in the Stacks streams telemetry from its patients' neural implants into a street-surgeon portal and an analytics warehouse; Mirrorlake keeps a remote-support path into the clinic. A Glass Mile data broker wants the dataset within a quarter. A street surgeon's identity is shared by the portal and the warehouse routes and is sampled and paid for once. The Mirrorlake route needs two of three footholds. Costs are the broker's in EUR; detection is the chance the clinic's ICE team notices. Illustrative inputs.
+    description: A Mirrorlake Biotic chrome clinic in the Stacks streams telemetry from its patients' neural implants into a street-surgeon portal and an analytics warehouse; Mirrorlake keeps a remote-support path into the clinic. A Glass Mile data broker wants the dataset within a quarter. A street surgeon's identity is shared by the portal and the warehouse routes and is sampled and paid for once. The Mirrorlake route needs two of three footholds. Costs are the broker's, in cred; detection is the chance the clinic's ICE team notices. Illustrative inputs.
     gate: or
     children: [portal-route, warehouse-route, mirrorlake-route]
     consequences:

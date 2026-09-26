@@ -32,7 +32,7 @@
     return best;
   }
   function exactSnapshot(begun, doc) {
-    return { exact: begun.exact, horizon: doc.horizon, time_unit: doc.time_unit, currency: doc.currency };
+    return { exact: begun.exact, horizon: doc.horizon, time_unit: doc.time_unit };
   }
   var api = { exactSnapshot: exactSnapshot, cdf: cdf, loss: loss, line: line, nearest: nearest, x: x, y: y };
   if (typeof module !== 'undefined') module.exports = api;

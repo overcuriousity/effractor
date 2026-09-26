@@ -15,6 +15,9 @@ use crate::{
 };
 
 /// One or the other; a text says which with `profile`.
+// One document is held at a time, so the size gap between the two costs
+// nothing; boxing would only add a dereference at every use.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Document {
     Tree(Model),

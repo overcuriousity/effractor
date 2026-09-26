@@ -71,7 +71,8 @@ Trees and architectures share these conventions.
 - Distinct leaves are independent. Reusing a node ID, or naming one component in
   several relationships, represents one shared event or prerequisite, sampled
   and (for attackers) costed once. Common causes are modelled explicitly.
-- Attacker costs are EUR per completed leaf, counted once for shared leaves.
+- Costs and losses are plain numbers in whatever unit a model counts in (cred
+  here). Attacker costs are per completed leaf, counted once for shared leaves.
   Detection is a separate objective; it does not by itself stop a route.
   Defender control costs are allocated to the horizon or demand.
 - Asset C/I/A losses cover separate stated consequences; only the largest

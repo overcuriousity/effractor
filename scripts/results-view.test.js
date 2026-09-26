@@ -145,14 +145,13 @@ test("probabilities keep three significant digits, small ones in e-notation", ()
   assert.equal(probability(2.5e-7), "2.50e-7");
 });
 
-test("money is whole units of the model's currency, whatever that is", () => {
-  assert.equal(money(6370.97, "EUR"), "€6,371");
-  // A currency is free text in the document; not every one is an ISO code.
-  assert.equal(money(1500, "Taler"), "1,500 Taler");
-  assert.equal(money(1500, ""), "1,500");
-  // Unbounded statistics come as null: never "€0".
-  assert.equal(money(null, "EUR"), "—");
-  assert.equal(money(Infinity, "EUR"), "—");
+test("money is a plain number in whole units, grouped like any quantity", () => {
+  assert.equal(money(6370.97), "6\u00a0371");
+  assert.equal(money(999.4), "999");
+  assert.equal(money(-1500), "−1\u00a0500");
+  // Unbounded statistics come as null: never "0".
+  assert.equal(money(null), "—");
+  assert.equal(money(Infinity), "—");
 });
 
 test("quantities are grouped from 1000, short below, and nothing is a dash", () => {
