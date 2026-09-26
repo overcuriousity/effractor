@@ -668,7 +668,7 @@
     p.textContent = text;
     control.setAttribute("aria-describedby", id);
     if (!old) {
-      var after = control.closest(".every, .consequence-add, .compare-row") || control;
+      var after = control.closest(".every, .with-unit, .consequence-add, .compare-row") || control;
       after.after(p);
     }
   }
@@ -695,6 +695,29 @@
   // The app's own dropdown; it answers to `value` and `change` like a select.
   function choice(options, value) {
     return window.effractorMenu.dropdown(options, value == null ? "" : value);
+  }
+
+  // A field with its unit after it ("%", "% by 100 h"), in one grid cell.
+  function withUnit(form, id, label, control, unit) {
+    var row = document.createElement("div");
+    row.className = "with-unit";
+    var tail = document.createElement("span");
+    tail.className = "hint unit";
+    tail.textContent = unit;
+    row.appendChild(control);
+    row.appendChild(tail);
+    control.id = id;
+    var l = document.createElement("label");
+    l.htmlFor = id;
+    l.textContent = label;
+    form.appendChild(l);
+    form.appendChild(row);
+    return control;
+  }
+
+  // A chance in percent over a key the file holds as 0 … 1.
+  function percent(value) {
+    return typeof value === "number" ? window.effractorTtc.showChance(value).replace("%", "") : "";
   }
 
   // For the other forms: the same number fields and the same problem line.
@@ -769,7 +792,7 @@
     };
     if (!assets.length && !(n.consequences || []).length) {
       // Said where it is looked for: a consequence needs something to cost.
-      hint(form, "Consequences need an asset.");
+      hint(form, "no assets yet · + in Assets adds one");
       return;
     }
     var title = document.createElement("p");
@@ -781,7 +804,7 @@
     (n.consequences || []).forEach(function (c, index) {
       var item = document.createElement("li");
       var text = document.createElement("span");
-      text.textContent = assetName(c.asset) + " · " + c.dim + (c.fraction == null ? "" : " · " + c.fraction);
+      text.textContent = assetName(c.asset) + " · " + c.dim.toUpperCase() + (c.fraction == null ? "" : " · " + percent(c.fraction) + "%");
       text.title = c.asset;
       var remove = document.createElement("button");
       remove.type = "button";
@@ -807,8 +830,12 @@
     asset.id = "prop-consequence-asset";
     dim.id = "prop-consequence-dim";
     fraction.id = "prop-consequence-fraction";
-    fraction.placeholder = "1";
-    fraction.setAttribute("aria-label", "Fraction");
+    fraction.placeholder = "100";
+    fraction.setAttribute("aria-label", "Share of the asset lost, in percent");
+    fraction.title = "Share of the asset lost · empty: all of it";
+    var sign = document.createElement("span");
+    sign.className = "hint unit";
+    sign.textContent = "%";
     asset.setAttribute("aria-label", "Asset");
     dim.setAttribute("aria-label", "Dimension");
     var add = document.createElement("button");
@@ -818,13 +845,13 @@
     add.textContent = "Add";
     add.addEventListener("click", function () {
       var c = { asset: asset.value, dim: dim.value };
-      var r = E.readNumber(fraction.value, { min: 0, max: 1, above: true });
+      var r = E.readNumber(fraction.value, { min: 0, max: 100, above: true });
       if (r.error) return flag(fraction, r.error);
       flag(fraction, null);
-      if (!r.empty) c.fraction = r.value;
+      if (!r.empty) c.fraction = E.fromPercent(r.value);
       apply(E.setAttribute(doc(), selected(), "consequences", (n.consequences || []).concat([c])));
     });
-    [asset, dim, fraction, add].forEach(function (el) { row.appendChild(el); });
+    [asset, dim, fraction, sign, add].forEach(function (el) { row.appendChild(el); });
     form.appendChild(row);
   }
 
@@ -884,7 +911,7 @@
     var horizon = doc().horizon + " " + unit;
     var given = quantityOf(n);
     var quantity = pending.id === id && pending.kind ? pending.kind : given;
-    var how = field(form, "prop-quantity", "Likelihood", choice([["", "not given"], ["p", "probability"], ["rate", "how often (rate)"], ["ttc", "time to compromise"]], quantity));
+    var how = field(form, "prop-quantity", "Likelihood", choice([["", "? not said"], ["p", "chance"], ["rate", "how often"], ["ttc", "time"]], quantity));
     how.addEventListener("change", function () {
       pending = { id: id, kind: how.value };
       if (!how.value) return void apply(E.setAttribute(doc(), id, "p", ""));
@@ -900,12 +927,11 @@
     if (!quantity) {
       hint(form, "No number: cut sets only.");
     } else if (quantity === "p") {
-      var p = field(form, "prop-value", "p", input("number", given === "p" ? n.p : ""));
-      p.placeholder = "0 … 1";
-      checked(p, { min: 0, max: 1 }, function (v) {
-        commit("p", v);
+      var p = withUnit(form, "prop-value", "Chance", input("number", given === "p" ? percent(n.p) : ""), "% by " + horizon);
+      p.placeholder = "0 … 100";
+      checked(p, { min: 0, max: 100 }, function (v) {
+        commit("p", E.fromPercent(v));
       });
-      hint(form, "Chance within the horizon (" + horizon + ").");
     } else if (quantity === "rate") {
       var mean = given === "rate" ? E.meanTime(n.rate, unit) : null;
       var row = document.createElement("div");
@@ -932,13 +958,10 @@
         var r = E.readNumber(every.value, { min: 0, above: true });
         if (r.value !== undefined) fromEvery(r.value);
       });
-      var rate = field(form, "prop-value", "rate / " + unit, input("number", given === "rate" ? n.rate : ""));
-      checked(rate, { min: 0, above: true }, function (v) {
-        commit("rate", v);
-      });
-      hint(form, "Mean time between occurrences; stored as a rate per " + UNIT[unit] + ".");
+      // The file's rate, for whoever reads the YAML beside the form.
+      if (given === "rate") row.title = "rate " + n.rate + " per " + UNIT[unit];
     } else {
-      var ttc = field(form, "prop-value", "ttc", input("text", given === "ttc" ? n.ttc : ""));
+      var ttc = field(form, "prop-value", "Time", input("text", given === "ttc" ? n.ttc : ""));
       ttc.classList.add("mono");
       var timing = window.effractorTtc.attach(ttc, unit);
       form.appendChild(timing);
@@ -997,10 +1020,14 @@
         var cost = field(form, "prop-cost", "Cost", input("number", n.cost));
         cost.title = "What this step costs the attacker";
         numeric(cost, "cost", { min: 0 });
-        var detection = field(form, "prop-detection", "Detection", input("number", n.detection));
-        detection.title = "The chance that this step is noticed: 0 never, 1 always";
-        detection.placeholder = "0 … 1";
-        numeric(detection, "detection", { min: 0, max: 1 });
+        var detection = withUnit(form, "prop-detection", "Noticed", input("number", percent(n.detection)), "%");
+        detection.title = "The chance that this step is noticed";
+        detection.placeholder = "0 … 100";
+        checked(detection, { min: 0, max: 100 }, function (v) {
+          apply(E.setAttribute(doc(), selected(), "detection", E.fromPercent(v)));
+        }, function () {
+          apply(E.setAttribute(doc(), selected(), "detection", ""));
+        });
       }
     }
     consequences(form, n);

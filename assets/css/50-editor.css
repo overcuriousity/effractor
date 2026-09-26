@@ -60,7 +60,7 @@ input[aria-invalid], input[aria-invalid]:focus-visible { border-color: var(--col
 
 .consequences { grid-column: 1 / -1; margin: 0; padding: 0; list-style: none; }
 .consequences li { display: flex; gap: 6px; align-items: center; justify-content: space-between; padding: 1px 0; }
-.consequence-add { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto 4.5em auto; gap: 4px; }
+.consequence-add { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto 4.5em auto auto; gap: 4px; align-items: center; }
 .btn-small { padding: 1px 7px; font-size: var(--text-xs); }
 
 .link-dialog {
@@ -115,6 +115,9 @@ kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--col
 /* Likelihood in words, and what the canvas does not need behind "More". */
 .properties .field-hint { line-height: 1.35; }
 .every { display: grid; grid-template-columns: 1fr auto; gap: 4px; }
+/* A number and its unit ("%", "% by 100 h") in one cell. */
+.with-unit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.with-unit .unit, .consequence-add .unit { grid-column: auto; white-space: nowrap; }
 .more { grid-column: 1 / -1; margin-top: 4px; }
 .more summary { color: var(--color-fg-muted); font-size: var(--text-xs); cursor: pointer; }
 .properties-inner { display: grid; grid-template-columns: auto 1fr; gap: 5px 8px; align-items: center; margin-top: 6px; }

@@ -625,7 +625,13 @@
     return out ? { error: what + range } : { value: v };
   }
 
-  var api = { setHorizon: setHorizon, readNumber: readNumber,
+  // A chance typed in percent, as the file holds it: 33.3 → 0.333, not
+  // 0.33299999999999996.
+  function fromPercent(v) {
+    return Number((v / 100).toPrecision(12));
+  }
+
+  var api = { setHorizon: setHorizon, readNumber: readNumber, fromPercent: fromPercent,
     slug: slug, parentsOf: parentsOf, addChild: addChild, addSibling: addSibling, rename: rename, setId: setId,
     cycleGate: cycleGate, setLeafKind: setLeafKind, link: link, removeEdge: removeEdge, deleteNode: deleteNode, removal: removal,
     gateRefusal: gateRefusal, linkCandidates: linkCandidates, moveCandidates: moveCandidates,

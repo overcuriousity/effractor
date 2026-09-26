@@ -336,3 +336,10 @@ test('a number field reads what is typed, a comma too, and says what it wants', 
   assert.deepEqual(r('3', { min: 1, integer: true }), { value: 3 });
   assert.deepEqual(r('1', { min: 0, max: 1 }), { value: 1 });
 });
+
+test('a chance typed in percent is stored as the file writes it', () => {
+  assert.equal(E.fromPercent(33.3), 0.333);
+  assert.equal(E.fromPercent(0.05), 0.0005);
+  assert.equal(E.fromPercent(100), 1);
+  assert.equal(E.fromPercent(0), 0);
+});

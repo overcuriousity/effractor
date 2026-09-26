@@ -27,12 +27,18 @@
     if (c == null || c === '' || Number(c) === 100) return time || (c == null || c === '' ? '' : '100%');
     return time ? c + '% * ' + time : c + '%';
   }
+  var HOURS = { h: 1, d: 24, y: 8760 };
+  // A time in `from` units, in `to` units; twelve digits, so a year typed
+  // as days does not come back as 364.99999999999994.
+  function convert(v, from, to) {
+    return Number((Number(v) * HOURS[from] / HOURS[to]).toPrecision(12));
+  }
   function unitName(unit, count) {
     return ({ h: 'hour', d: 'day', y: 'year' }[unit] || unit) + (Number(count) === 1 ? '' : 's');
   }
   function describe(expr, unit) {
     var text = String(expr || '').trim();
-    if (!text) return 'Choose timing, or write it below.';
+    if (!text) return 'choose a timing · or write one';
     if (text === 'Never') return 'Never succeeds · blocked.';
     if (text === 'Immediate') return 'Succeeds at once.';
     var p = split(text);
@@ -67,21 +73,31 @@
     function chosen() { var v = input.value.trim(); var p = PRESETS.filter(function (x) { return x[1] === v; })[0]; return p ? p[1] : v ? 'custom' : ''; }
     var picker = window.effractorMenu.dropdown(options(unit), chosen());
     picker.setAttribute('aria-label', 'Timing preset');
+    // `suffix`: words, or a control of its own (the time's unit).
     function part(label, suffix, title) {
       var box = document.createElement('label'); box.className = 'ttc-part'; box.title = title;
       var name = document.createElement('span'); name.className = 'hint'; name.textContent = label;
       // Text, not a number field: that one reads "1,5" as nothing at all.
       var field = document.createElement('input'); field.type = 'text'; field.inputMode = 'decimal'; field.className = 'num number';
-      var tail = document.createElement('span'); tail.className = 'hint'; tail.textContent = suffix;
+      var tail = suffix;
+      if (typeof suffix === 'string') { tail = document.createElement('span'); tail.className = 'hint'; tail.textContent = suffix; }
       box.append(name, field, tail);
       return { box: box, field: field };
     }
     var chance = part('Chance', '%', 'How likely the step succeeds at all · empty: certain');
     chance.field.max = '100';
-    var mean = part('Average time', unitName(unit, 2), 'How long it takes on average when it succeeds · empty: at once');
+    // Typed in any unit, written in the document's.
+    // Shown in the largest unit it is at least one of: 730 days reads 2 years.
+    var start = split(input.value);
+    var hours = start && start.mean != null ? start.mean * HOURS[unit] : null;
+    var shown = hours == null || !HOURS[unit] ? unit : hours >= HOURS.y ? 'y' : hours >= HOURS.d ? 'd' : 'h';
+    var per = window.effractorMenu.dropdown([['h', 'hours'], ['d', 'days'], ['y', 'years']], shown);
+    per.setAttribute('aria-label', 'Unit of the average time');
+    per.classList && per.classList.add('ttc-unit');
+    var mean = part('Average time', per, 'How long it takes on average when it succeeds · empty: at once');
     // Ids from the field's, so a form drawn again gives the focus back to
     // the part that had it.
-    if (input.id) { picker.id = input.id + '-preset'; chance.field.id = input.id + '-chance'; mean.field.id = input.id + '-mean'; }
+    if (input.id) { picker.id = input.id + '-preset'; chance.field.id = input.id + '-chance'; mean.field.id = input.id + '-mean'; per.id = input.id + '-unit'; }
     var parts = document.createElement('div'); parts.className = 'ttc-parts';
     parts.append(chance.box, mean.box);
     var hint = document.createElement('p'); hint.className = 'hint ttc-description';
@@ -96,7 +112,7 @@
       parts.hidden = !split_;
       if (split_) {
         if (typing !== chance.field) chance.field.value = split_.chance == null ? '' : split_.chance;
-        if (typing !== mean.field) mean.field.value = split_.mean == null ? '' : split_.mean;
+        if (typing !== mean.field) mean.field.value = split_.mean == null ? '' : String(convert(split_.mean, unit, per.value));
       }
       hint.textContent = describe(text, unit);
     }
@@ -111,7 +127,8 @@
         var r = read(x[0].field.value, x[1]);
         x[0].field.toggleAttribute('aria-invalid', !!r.error);
         if (r.error && !out.problem) out.problem = x[2] + ': ' + r.error;
-        out[x[0] === chance ? 'chance' : 'mean'] = r.value === undefined ? null : String(r.value);
+        var v = r.value === undefined ? null : x[0] === mean ? convert(r.value, per.value, unit) : r.value;
+        out[x[0] === chance ? 'chance' : 'mean'] = v === null ? null : String(v);
       });
       return out;
     }
@@ -143,6 +160,12 @@
         input.dispatchEvent(new Event('change', { bubbles: true }));
       });
     });
+    // Another unit: what is typed is read in it, and written as it now reads.
+    per.addEventListener('change', function () {
+      if (mean.field.value.trim() === '' || readParts().problem) return;
+      fromParts({ target: mean.field });
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
     picker.addEventListener('change', function () {
       if (picker.value === 'custom' || picker.value === '') { input.focus(); input.select(); return; }
       input.value = picker.value; explain();
@@ -152,7 +175,7 @@
     input.addEventListener('change', function () { explain(); });
     wrap.append(picker, parts, input, hint); explain(); return wrap;
   }
-  var api = { PRESETS: PRESETS, split: split, join: join, describe: describe, showChance: showChance, showRate: showRate, options: options, attach: attach };
+  var api = { PRESETS: PRESETS, convert: convert, split: split, join: join, describe: describe, showChance: showChance, showRate: showRate, options: options, attach: attach };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window !== 'undefined') window.effractorTtc = api;
 })();

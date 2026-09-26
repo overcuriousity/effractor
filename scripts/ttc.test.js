@@ -62,13 +62,13 @@ function form(initial) {
     select() {}
   }
   global.document = { createElement: t => new El(t) };
-  global.window = { effractorMenu: { dropdown: () => new El('select') }, effractorEdit: require('../assets/js/edit.js') };
+  global.window = { effractorMenu: { dropdown: (options, value) => { const e = new El('select'); e.value = value; return e; } }, effractorEdit: require('../assets/js/edit.js') };
   const input = new El('input');
   input.id = 'ttc';
   input.value = initial;
   const wrap = ttc.attach(input, 'd');
   const parts = wrap.children[1];
-  const fields = { input, parts, picker: wrap.children[0], chance: parts.children[0].children[1], mean: parts.children[1].children[1] };
+  const fields = { input, parts, picker: wrap.children[0], chance: parts.children[0].children[1], mean: parts.children[1].children[1], per: parts.children[1].children[2] };
   fields.type = (field, text) => {
     field.value = '';
     for (const ch of text) {
@@ -136,4 +136,26 @@ test('no page copy or example tells people to write a refused spelling', () => {
       assert.doesNotMatch(fs.readFileSync(path.join(ex, f), 'utf8'), /\b(Infinity|Bernoulli)\b/, f);
     }
   }
+});
+
+test('an average time converts between hours, days and years', () => {
+  assert.equal(ttc.convert(2, 'y', 'd'), 730);
+  assert.equal(ttc.convert(36, 'h', 'd'), 1.5);
+  assert.equal(ttc.convert(1, 'd', 'y'), 0.00273972602740);
+});
+
+test("the average time is typed in any unit and written in the document's", () => {
+  const f = form('Exponential(mean 730)');
+  assert.equal(f.per.value, 'y', 'the largest unit it is at least one of');
+  assert.equal(f.mean.value, '2');
+  f.type(f.mean, '2');
+  assert.equal(f.input.value, 'Exponential(mean 730)', '2 years is 730 days');
+  f.type(f.mean, '0,5');
+  assert.equal(f.input.value, 'Exponential(mean 182.5)');
+  // Another unit reads what is typed in it.
+  f.per.value = 'd';
+  f.per.dispatchEvent(new Event('change'));
+  assert.equal(f.input.value, 'Exponential(mean 0.5)');
+  assert.equal(form('Exponential(mean 12)').per.value, 'd', 'under a year: days');
+  assert.equal(form('').per.value, 'd', "nothing yet: the document's unit");
 });

@@ -484,7 +484,7 @@
     var unknown = slots.filter(function (s) { return e.parameters[s].status === "unknown"; })[0];
     openSlot = slotKey({ entity: entityId() }, unknown || slots[0]);
     renderProperties();
-    var first = $("param-status") || $("param-ttc");
+    var first = $("param-ttc-preset") || $("param-ttc");
     if (first) first.focus();
   }
 
@@ -496,29 +496,31 @@
     }
     var form = document.createElement("div");
     form.className = "parameter-form";
+    // The time first, then how sure it is: nobody is asked how sure they
+    // are of a number they have not typed yet.
+    var ttc = input("text", draft.ttc);
+    ttc.classList.add("mono");
+    ttc.id = "param-ttc";
+    var timing = window.effractorTtc.attach(ttc, doc().time_unit);
+    var l = document.createElement("label");
+    l.htmlFor = "param-ttc";
+    l.textContent = "Time";
+    l.title = "Time to compromise: how long this takes the attacker";
+    form.appendChild(l);
+    form.appendChild(timing);
+    ttc.addEventListener("input", function () { draft.ttc = ttc.value; keep(); });
+    ttc.addEventListener("change", function () { draft.ttc = ttc.value; keep(); });
     var status = field(form, "param-status", "Confidence", window.effractorMenu.dropdown(STATUS, draft.status));
     status.addEventListener("change", function () {
       draft.status = status.value;
       keep();
       renderProperties();
-      var next = $(draft.status === "unknown" ? "param-status" : "param-ttc");
+      var next = $(draft.status === "calibrated" && !draft.note.trim() ? "param-note" : "param-status");
       if (next) next.focus();
     });
     if (draft.status !== "unknown") {
-      var ttc = input("text", draft.ttc);
-      ttc.classList.add("mono");
-      ttc.id = "param-ttc";
-      var timing = window.effractorTtc.attach(ttc, doc().time_unit);
-      var l = document.createElement("label");
-      l.htmlFor = "param-ttc";
-      l.textContent = "Time";
-      l.title = "Time to compromise: how long this takes the attacker";
-      form.appendChild(l);
-      form.appendChild(timing);
-      ttc.addEventListener("input", function () { draft.ttc = ttc.value; keep(); });
-      ttc.addEventListener("change", function () { draft.ttc = ttc.value; keep(); });
-      var note = field(form, "param-note", "Reason", input("textarea", draft.note));
-      note.placeholder = "why this value · required if calibrated";
+      var note = field(form, "param-note", draft.status === "calibrated" ? "Reason · needed" : "Reason", input("textarea", draft.note));
+      note.placeholder = "why this value";
       note.addEventListener("input", function () { draft.note = note.value; keep(); });
     }
     var actions = document.createElement("div");
@@ -533,7 +535,18 @@
       renderProperties();
     }
     // Applying what is there already closes the form, quietly.
+    // What is missing is said at its field, and nothing is applied: an
+    // Unknown would drop the time typed, a known one needs a time, a
+    // calibrated one its reason.
+    function missing() {
+      var time = draft.ttc.trim();
+      if (draft.status === "unknown" && time) return app.flagField(status, "how sure? · Unknown keeps no time"), true;
+      if (draft.status !== "unknown" && !time) return app.flagField(ttc, "a time · or Confidence Unknown"), true;
+      if (draft.status === "calibrated" && !draft.note.trim()) return app.flagField(note, "calibrated needs a reason"), true;
+      return false;
+    }
     applyButton.addEventListener("click", function () {
+      if (missing()) return;
       apply(function () {
         var edit = A.setParameter(doc(), owner, slot, draft);
         if (!edit) close();
@@ -794,7 +807,7 @@
       if (!record || !Object.prototype.hasOwnProperty.call(record.parameters || {}, slot)) return;
       openSlot = owner + "\u0000" + slot;
       renderProperties();
-      var first = $("param-status");
+      var first = $("param-ttc-preset") || $("param-ttc");
       if (first) first.focus();
     },
     // A control of the selected item's form, by what it sets.

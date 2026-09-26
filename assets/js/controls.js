@@ -176,8 +176,8 @@
       if (targets.indexOf(app.state.selected) >= 0) leaf.value = app.state.selected;
       var to = textInput("", true);
       to.id = "effect-new-ttc";
-      to.placeholder = "likelihood";
-      to.setAttribute("aria-label", "Its likelihood while the control is on");
+      to.placeholder = "time while on";
+      to.setAttribute("aria-label", "Its time while the control is on");
       var go = document.createElement("button");
       go.type = "button";
       go.className = "btn btn-ghost btn-small";
@@ -202,7 +202,7 @@
 
     var hint = document.createElement("p");
     hint.className = "hint";
-    hint.textContent = "Never blocks the step. Overlapping controls: the stronger applies.";
+    hint.textContent = "never blocks a step · overlapping: the stronger applies";
     form.appendChild(hint);
 
     var removeControl = document.createElement("button");

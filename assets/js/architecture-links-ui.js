@@ -262,7 +262,7 @@
     var states = statesOf(catalog, id);
     if (!states.length) return;
     var a = doc().attacker || {};
-    var options = [["", "—"]].concat(states.map(function (s) { return [s, window.effractorWords.state(catalog, s)]; }));
+    var options = [["", "no"]].concat(states.map(function (s) { return [s, window.effractorWords.state(catalog, s)]; }));
     var held = (a.footholds || []).filter(function (s) { return s.entity === id; }).map(function (s) { return s.state; });
     var foothold = U.field(form, "prop-foothold", "Foothold", M.dropdown(options, held[0] || ""));
     foothold.addEventListener("change", function () {
@@ -466,7 +466,7 @@
         open.title = "“" + name(p.router) + "” filters nothing · Tab on it → Firewall to add one";
         return;
       }
-      var options = [["none", "? none"], ["true", "Allowed"], ["false", "Denied"], ["unknown", "Unknown"]];
+      var options = [["none", "? not said"], ["true", "Allowed"], ["false", "Denied"], ["unknown", "Unknown"]];
       var permit = U.field(form, fieldId, name(p.firewall), M.dropdown(options, p.association ? String(p.allowed) : "none"));
       permit.title = "Permission of “" + name(p.firewall) + "” on “" + name(p.router) + "”";
       permit.addEventListener("change", function () {
