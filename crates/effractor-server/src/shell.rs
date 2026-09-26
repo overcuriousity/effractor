@@ -149,6 +149,9 @@ mod tests {
         let at = |s: &str| html.find(s).unwrap();
         assert!(at("js/share-ui.js") < at("js/accounts/client.js"));
         assert!(at("js/accounts/client.js") < at("js/accounts/account-ui.js"));
+        // The account dialog's passkey section uses the conversions.
+        assert!(at("js/accounts/client.js") < at("js/accounts/passkeys.js"));
+        assert!(at("js/accounts/passkeys.js") < at("js/accounts/account-ui.js"));
         // The Documents tab (spec §9.2): its own tab attribute, since
         // controls.js owns every [data-tab] as the right panel's.
         for id in [

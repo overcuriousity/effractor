@@ -106,7 +106,118 @@
     });
   });
 
-  // An OIDC login that failed comes back as ?login=failed (Task 20).
+  // ---- passkeys (spec §7.1, §7.4) ----
+  $("login-passkey").addEventListener("click", function () {
+    var W = A.webauthn;
+    client.request("POST", "/api/auth/passkey/start", {}).then(function (start) {
+      if (!start.ok) throw new Error("start");
+      return navigator.credentials.get(W.requestOptions(start.data.options)).then(function (cred) {
+        return client.request("POST", "/api/auth/passkey/finish", { ceremony: start.data.ceremony, credential: W.credentialJSON(cred) });
+      });
+    }).then(function (res) {
+      if (res.ok) { $("login-dialog").close(); return refresh(); }
+      $("login-problem").textContent = res.status === 429 ? "too many tries · wait a while" : "passkey not accepted";
+    }).catch(function () {
+      $("login-problem").textContent = "no passkey used";
+    });
+  });
+
+  A.accountSections = A.accountSections || [];
+  A.accountSections.push(function passkeysSection() {
+    var box = $("account-passkeys");
+    box.hidden = !session.login.passkey;
+    if (box.hidden) return;
+    box.innerHTML = '<h3 class="label">Passkeys</h3>';
+    var ul = document.createElement("ul");
+    ul.className = "account-passkeys";
+    box.appendChild(ul);
+    client.request("GET", "/api/account/passkeys").then(function (res) {
+      (res.ok ? res.data : []).forEach(function (p) {
+        var li = document.createElement("li");
+        var label = document.createElement("input");
+        label.value = p.label;
+        label.setAttribute("aria-label", "Passkey name");
+        label.addEventListener("change", function () {
+          client.request("PATCH", "/api/account/passkeys/" + p.id, { label: label.value });
+        });
+        var x = document.createElement("button");
+        x.type = "button"; x.className = "icon-button"; x.textContent = "×";
+        x.title = "Remove this passkey"; x.setAttribute("aria-label", x.title);
+        x.addEventListener("click", function () {
+          client.request("DELETE", "/api/account/passkeys/" + p.id).then(function (r) {
+            $("account-problem").textContent = r.ok ? "" : String(r.data || "not removed");
+            passkeysSection();
+            refresh();
+          });
+        });
+        li.appendChild(label); li.appendChild(x); ul.appendChild(li);
+      });
+      if (res.ok && !res.data.length) {
+        var none = document.createElement("li");
+        none.className = "empty"; none.textContent = "None yet";
+        ul.appendChild(none);
+      }
+    });
+    var add = document.createElement("button");
+    add.type = "button"; add.className = "btn btn-ghost"; add.textContent = "Add a passkey";
+    add.addEventListener("click", function () {
+      var W = A.webauthn;
+      client.request("POST", "/api/account/passkeys/start", {}).then(function (start) {
+        if (!start.ok) throw new Error("start");
+        return navigator.credentials.create(W.creationOptions(start.data.options)).then(function (cred) {
+          return client.request("POST", "/api/account/passkeys/finish",
+            { ceremony: start.data.ceremony, credential: W.credentialJSON(cred), label: "Passkey" });
+        });
+      }).then(function (res) {
+        $("account-problem").textContent = res.ok ? "passkey added" : "passkey not added";
+        passkeysSection();
+        refresh();
+      }).catch(function () { $("account-problem").textContent = "no passkey made"; });
+    });
+    box.appendChild(add);
+  });
+
+  // ---- OIDC (spec §7.1–7.2) ----
+  $("login-oidc").addEventListener("click", function () {
+    client.request("POST", "/api/auth/oidc/start", { link: false }).then(function (res) {
+      if (res.ok) location.assign(res.data.url);
+      else $("login-problem").textContent = res.status === 0 ? "server unreachable" : "not available";
+    });
+  });
+
+  A.accountSections.push(function oidcSection() {
+    var box = $("account-oidc"), label = session.login.oidc, user = session.user;
+    box.hidden = !label;
+    if (!label) return;
+    box.innerHTML = "";
+    var h = document.createElement("h3");
+    h.className = "label";
+    h.textContent = label;
+    box.appendChild(h);
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn btn-ghost";
+    if (user.methods.oidc) {
+      b.textContent = "Unlink";
+      b.addEventListener("click", function () {
+        client.request("DELETE", "/api/account/oidc").then(function (res) {
+          $("account-problem").textContent = res.ok ? "unlinked" : String(res.data || "not unlinked");
+          refresh().then(oidcSection);
+        });
+      });
+    } else {
+      b.textContent = "Link";
+      b.addEventListener("click", function () {
+        client.request("POST", "/api/auth/oidc/start", { link: true }).then(function (res) {
+          if (res.ok) location.assign(res.data.url);
+          else $("account-problem").textContent = "not available";
+        });
+      });
+    }
+    box.appendChild(b);
+  });
+
+  // An OIDC login that failed comes back as ?login=failed.
   if (/[?&]login=failed/.test(location.search)) {
     history.replaceState(null, "", location.pathname + location.hash);
     app.ready.then(function () { app.say("login failed"); });
