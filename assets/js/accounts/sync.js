@@ -46,6 +46,9 @@
       replace: function (text, said, opts) { return app.replaceDocument(text, said, null, opts); },
     },
     renameText: renameText,
+    time: function (ts) {
+      return new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    },
     delay: 800,
     onState: function (s) {
       $("save-state").hidden = !s;

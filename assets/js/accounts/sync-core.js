@@ -147,7 +147,8 @@
     }
 
     function conflict(id, q, c) {
-      o.page.say("Changed by " + (c.theirs.updated_by || "someone"), [
+      var when = o.time ? " · " + o.time(c.theirs.updated_at) : "";
+      o.page.say("Changed by " + (c.theirs.updated_by || "someone") + when, [
         ["Load theirs", function () { return open(id); }],
         ["Keep mine as copy", function () { return copy(q, c.mine); }],
       ], true);

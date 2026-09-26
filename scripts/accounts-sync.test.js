@@ -129,6 +129,7 @@ function tab(server, opts = {}) {
     onSaved: () => {},
     onLoggedOut: () => loggedOut.push(1),
     onCreated: (id) => created.push(id),
+    time: (ts) => `t${ts}`,
   });
   return {
     core, page, timers, said, states, loggedOut, store, created,
@@ -383,4 +384,16 @@ test("a new document is announced, so the Documents list can show it", async () 
   assert.equal(t.created.length, 1);
   assert.ok(server.docs.has(t.created[0]));
   assert.equal(t.core.openId(), t.created[0]);
+});
+
+test("the conflict line says who saved and when (spec §6.2)", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  server.docs.get(F).version = 3;
+  t.edit(doc("fault-tree", "F", "mine"));
+  await t.timers.advance(1000);
+  assert.ok(t.said.some((s) => s.text === "Changed by alice · t1"), JSON.stringify(t.said.map((s) => s.text)));
 });
