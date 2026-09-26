@@ -588,7 +588,9 @@
     "note": "Exercise assumption; not calibrated to the lecture"
    }
   ],
-  "witness": null
+  "witness": null,
+  "routes": [],
+  "route_count": 0
  },
  "scenario": null,
  "delta": {

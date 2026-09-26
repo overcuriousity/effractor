@@ -935,7 +935,9 @@
     "note": null
    }
   ],
-  "witness": null
+  "witness": null,
+  "routes": [],
+  "route_count": 0
  },
  "scenario": null,
  "delta": {

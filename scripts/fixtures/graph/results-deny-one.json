@@ -1150,7 +1150,174 @@
      "dependent": "state/host/server/admin"
     }
    ]
-  }
+  },
+  "routes": [
+   {
+    "count": 1,
+    "share": 1,
+    "witness": {
+     "sample": 0,
+     "target_time": 4.641549295373838,
+     "nodes": [
+      {
+       "id": "input/flow-permission/filter/ssh",
+       "time": 0
+      },
+      {
+       "id": "input/foothold/workstation/admin",
+       "time": 0
+      },
+      {
+       "id": "input/policy/server-account/mfa",
+       "time": 0
+      },
+      {
+       "id": "state/account/server-account/mfa-satisfied",
+       "time": 0
+      },
+      {
+       "id": "state/application/ssh-client/control",
+       "time": 0
+      },
+      {
+       "id": "state/host/workstation/admin",
+       "time": 0
+      },
+      {
+       "id": "state/host/workstation/user",
+       "time": 0
+      },
+      {
+       "id": "state/permission/filter/ssh",
+       "time": 0
+      },
+      {
+       "id": "action/flow-connect/ssh",
+       "time": 0.24364585606877515
+      },
+      {
+       "id": "state/flow/ssh/connected",
+       "time": 0.24364585606877515
+      },
+      {
+       "id": "state/service/sshd/reachable",
+       "time": 0.24364585606877515
+      },
+      {
+       "id": "action/account-authenticated/server-account",
+       "time": 4.583038427664114
+      },
+      {
+       "id": "action/credential-extract/workstation/server-key",
+       "time": 4.583038427664114
+      },
+      {
+       "id": "state/account/server-account/authenticated",
+       "time": 4.583038427664114
+      },
+      {
+       "id": "state/account/server-account/material",
+       "time": 4.583038427664114
+      },
+      {
+       "id": "state/credential/server-key/possessed",
+       "time": 4.583038427664114
+      },
+      {
+       "id": "action/service-login/server-account/sshd",
+       "time": 4.641549295373838
+      },
+      {
+       "id": "state/host/server/admin",
+       "time": 4.641549295373838
+      },
+      {
+       "id": "state/session/server-account/sshd",
+       "time": 4.641549295373838
+      }
+     ],
+     "edges": [
+      {
+       "prerequisite": "action/account-authenticated/server-account",
+       "dependent": "state/account/server-account/authenticated"
+      },
+      {
+       "prerequisite": "action/credential-extract/workstation/server-key",
+       "dependent": "state/credential/server-key/possessed"
+      },
+      {
+       "prerequisite": "action/flow-connect/ssh",
+       "dependent": "state/flow/ssh/connected"
+      },
+      {
+       "prerequisite": "action/service-login/server-account/sshd",
+       "dependent": "state/session/server-account/sshd"
+      },
+      {
+       "prerequisite": "input/flow-permission/filter/ssh",
+       "dependent": "state/permission/filter/ssh"
+      },
+      {
+       "prerequisite": "input/foothold/workstation/admin",
+       "dependent": "state/host/workstation/admin"
+      },
+      {
+       "prerequisite": "input/policy/server-account/mfa",
+       "dependent": "state/account/server-account/mfa-satisfied"
+      },
+      {
+       "prerequisite": "state/account/server-account/authenticated",
+       "dependent": "action/service-login/server-account/sshd"
+      },
+      {
+       "prerequisite": "state/account/server-account/material",
+       "dependent": "action/account-authenticated/server-account"
+      },
+      {
+       "prerequisite": "state/account/server-account/mfa-satisfied",
+       "dependent": "action/account-authenticated/server-account"
+      },
+      {
+       "prerequisite": "state/application/ssh-client/control",
+       "dependent": "action/flow-connect/ssh"
+      },
+      {
+       "prerequisite": "state/credential/server-key/possessed",
+       "dependent": "state/account/server-account/material"
+      },
+      {
+       "prerequisite": "state/flow/ssh/connected",
+       "dependent": "state/service/sshd/reachable"
+      },
+      {
+       "prerequisite": "state/host/workstation/admin",
+       "dependent": "state/host/workstation/user"
+      },
+      {
+       "prerequisite": "state/host/workstation/user",
+       "dependent": "action/credential-extract/workstation/server-key"
+      },
+      {
+       "prerequisite": "state/host/workstation/user",
+       "dependent": "state/application/ssh-client/control"
+      },
+      {
+       "prerequisite": "state/permission/filter/ssh",
+       "dependent": "action/flow-connect/ssh"
+      },
+      {
+       "prerequisite": "state/service/sshd/reachable",
+       "dependent": "action/service-login/server-account/sshd"
+      },
+      {
+       "prerequisite": "state/session/server-account/sshd",
+       "dependent": "state/host/server/admin"
+      }
+     ]
+    }
+   }
+  ],
+  "route_count": 1
  },
  "scenario": {
   "id": "deny",
@@ -2076,7 +2243,9 @@
     "note": null
    }
   ],
-  "witness": null
+  "witness": null,
+  "routes": [],
+  "route_count": 0
  },
  "delta": {
   "available": {

@@ -944,7 +944,34 @@
      "dependent": "state/host/workstation/admin"
     }
    ]
-  }
+  },
+  "routes": [
+   {
+    "count": 10000,
+    "share": 1,
+    "witness": {
+     "sample": 0,
+     "target_time": 0,
+     "nodes": [
+      {
+       "id": "input/foothold/workstation/admin",
+       "time": 0
+      },
+      {
+       "id": "state/host/workstation/admin",
+       "time": 0
+      }
+     ],
+     "edges": [
+      {
+       "prerequisite": "input/foothold/workstation/admin",
+       "dependent": "state/host/workstation/admin"
+      }
+     ]
+    }
+   }
+  ],
+  "route_count": 1
  },
  "scenario": null,
  "delta": {

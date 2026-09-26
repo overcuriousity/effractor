@@ -6,10 +6,17 @@
 //! neither a target nor a scenario renumbers another step's draws. Two sides
 //! that give a step the same distribution therefore give it the same time in
 //! every iteration, and their difference is the defence rather than noise.
-//! A chunk keeps counters and at most one route per side, never a
-//! samples × nodes table; chunks merge in index order.
+//! A chunk keeps counters and, per side, how often each route was taken —
+//! a route being the set of steps in a successful sample's derivation, kept
+//! as a fixed 64-bit hash with its count and first sample — never a
+//! samples × nodes table; chunks merge in index order. A route's steps and
+//! times are had again by replaying its first sample: draws are addressed
+//! by sample, so one sample recomputes exactly.
+
+use std::collections::BTreeMap;
 
 use effractor_core::Distribution;
+use rand_chacha::ChaCha8Rng;
 
 use crate::dist::{CHUNK, STEP_WORK, chunk_rng, sample};
 use crate::graph_plan::{EventPlan, Scratch, Witness};
@@ -48,6 +55,26 @@ pub(crate) struct Route {
     pub(crate) times: Vec<f64>,
 }
 
+/// How often one route was taken, and the first sample that took it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Tally {
+    pub(crate) count: u64,
+    pub(crate) first: u64,
+}
+
+/// A route's key: FNV-1a over its steps' indices, ascending. Fixed, so the
+/// same on every platform and run (never a `RandomState`).
+pub(crate) fn route_key(nodes: &[usize]) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for &i in nodes {
+        for b in (i as u64).to_le_bytes() {
+            h ^= u64::from(b);
+            h = h.wrapping_mul(0x0100_0000_01b3);
+        }
+    }
+    h
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct SideCounts {
     /// Per node: iterations in which it completed within the horizon.
@@ -55,8 +82,9 @@ pub(crate) struct SideCounts {
     /// Per grid point: iterations whose target completed at or before it and
     /// after the one before.
     pub(crate) target_by: Vec<u64>,
-    /// The first iteration that reached the target within the horizon.
-    pub(crate) route: Option<Route>,
+    /// Per route taken to the target within the horizon: how often, and
+    /// first when.
+    pub(crate) routes: BTreeMap<u64, Tally>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -95,7 +123,7 @@ impl GraphSampler {
                 .map(|_| SideCounts {
                     hits: vec![0; nodes],
                     target_by: vec![0; GRID],
-                    route: None,
+                    routes: BTreeMap::new(),
                 })
                 .collect(),
             plus: 0,
@@ -122,39 +150,31 @@ impl GraphSampler {
         let mut scratch = Scratch::default();
         let mut reached = [false; 2];
         for iteration in from..to {
-            for (s, side) in self.sides.iter().enumerate() {
-                let speed = self.speeds[s];
-                for (slot, draw) in side.iter().enumerate() {
-                    durations[slot] = match draw {
-                        Draw::Fixed(t) => *t,
-                        Draw::Random(d) => {
-                            rng.set_word_pos(
-                                (u128::from(iteration) * nodes as u128 + slot as u128) * WINDOW,
-                            );
-                            sample(d, &mut rng) / speed
-                        }
-                    };
-                }
+            for (s, reach) in reached.iter_mut().enumerate().take(self.sides.len()) {
+                self.fill(&mut rng, iteration, s, &mut durations);
                 self.plan.evaluate(&durations, &mut scratch);
                 let counts = &mut out.sides[s];
                 for (hit, t) in counts.hits.iter_mut().zip(&scratch.times) {
                     *hit += u64::from(*t <= self.horizon);
                 }
                 let t = scratch.times[self.target];
-                reached[s] = t <= self.horizon;
-                if reached[s] {
+                *reach = t <= self.horizon;
+                if *reach {
                     let at = (0..GRID)
                         .find(|&j| t <= grid_time(self.horizon, j))
                         .unwrap_or(GRID - 1);
                     counts.target_by[at] += 1;
-                    if counts.route.is_none()
-                        && let Some(witness) = self.plan.derivation(&scratch, self.target)
-                    {
-                        counts.route = Some(Route {
-                            sample: chunk * CHUNK as u64 + iteration,
-                            times: witness.nodes.iter().map(|&i| scratch.times[i]).collect(),
-                            witness,
-                        });
+                    if let Some(witness) = self.plan.derivation(&scratch, self.target) {
+                        // Iterations ascend, so the first seen is the first.
+                        let tally =
+                            counts
+                                .routes
+                                .entry(route_key(&witness.nodes))
+                                .or_insert(Tally {
+                                    count: 0,
+                                    first: chunk * CHUNK as u64 + iteration,
+                                });
+                        tally.count += 1;
                     }
                 }
             }
@@ -168,6 +188,41 @@ impl GraphSampler {
         out.done = to;
         to - from
     }
+
+    /// One side's durations for `iteration` of the chunk `rng` is for.
+    fn fill(&self, rng: &mut ChaCha8Rng, iteration: u64, s: usize, durations: &mut [f64]) {
+        let nodes = self.plan.len();
+        let speed = self.speeds[s];
+        for (slot, draw) in self.sides[s].iter().enumerate() {
+            durations[slot] = match draw {
+                Draw::Fixed(t) => *t,
+                Draw::Random(d) => {
+                    rng.set_word_pos(
+                        (u128::from(iteration) * nodes as u128 + slot as u128) * WINDOW,
+                    );
+                    sample(d, rng) / speed
+                }
+            };
+        }
+    }
+
+    /// Global sample `n` of side `s`, evaluated again: its derivation of the
+    /// target and when each of its steps completed. `None` when that sample
+    /// did not reach the target.
+    pub(crate) fn replay(&self, s: usize, n: u64) -> Option<Route> {
+        let (chunk, iteration) = (n / CHUNK as u64, n % CHUNK as u64);
+        let mut rng = chunk_rng(self.seed, chunk);
+        let mut durations = vec![0.0; self.plan.len()];
+        let mut scratch = Scratch::default();
+        self.fill(&mut rng, iteration, s, &mut durations);
+        self.plan.evaluate(&durations, &mut scratch);
+        let witness = self.plan.derivation(&scratch, self.target)?;
+        Some(Route {
+            sample: n,
+            times: witness.nodes.iter().map(|&i| scratch.times[i]).collect(),
+            witness,
+        })
+    }
 }
 
 /// All chunks' counts for one side, merged in chunk order.
@@ -177,7 +232,9 @@ pub(crate) struct Merged {
     pub(crate) hits: Vec<u64>,
     /// Cumulative: iterations whose target completed by grid point `j`.
     pub(crate) target_by: Vec<u64>,
-    pub(crate) route: Option<Route>,
+    /// Every route taken, by key: most taken first; ties by the earlier
+    /// first sample.
+    pub(crate) routes: Vec<(u64, Tally)>,
 }
 
 /// `chunks` in index order, all of them.
@@ -186,8 +243,9 @@ pub(crate) fn merge(chunks: &[GraphChunk], side: usize, nodes: usize) -> Merged 
         n: 0,
         hits: vec![0; nodes],
         target_by: vec![0; GRID],
-        route: None,
+        routes: Vec::new(),
     };
+    let mut routes: BTreeMap<u64, Tally> = BTreeMap::new();
     for chunk in chunks {
         let counts = &chunk.sides[side];
         merged.n += chunk.n;
@@ -197,10 +255,22 @@ pub(crate) fn merge(chunks: &[GraphChunk], side: usize, nodes: usize) -> Merged 
         for (total, hits) in merged.target_by.iter_mut().zip(&counts.target_by) {
             *total += hits;
         }
-        if merged.route.is_none() {
-            merged.route.clone_from(&counts.route);
+        for (key, tally) in &counts.routes {
+            match routes.get_mut(key) {
+                Some(into) => {
+                    into.count += tally.count;
+                    into.first = into.first.min(tally.first);
+                }
+                None => {
+                    routes.insert(*key, *tally);
+                }
+            }
         }
     }
+    merged.routes = routes.into_iter().collect();
+    merged
+        .routes
+        .sort_by(|(_, a), (_, b)| b.count.cmp(&a.count).then(a.first.cmp(&b.first)));
     let mut running = 0;
     for count in &mut merged.target_by {
         running += *count;
@@ -246,6 +316,52 @@ mod tests {
         assert_eq!(forward, backward);
         assert_eq!(merge(&forward, 0, 4), merge(&backward, 0, 4));
         assert_eq!(merge(&forward, 1, 4).n, 3 * CHUNK as u64 + 5);
+    }
+
+    #[test]
+    fn every_success_is_counted_under_its_route_and_a_route_replays_exactly() {
+        let s = sampler(2 * CHUNK as u64 + 17);
+        let chunks: Vec<GraphChunk> = (0..s.chunks()).map(|c| s.run_chunk(c)).collect();
+        for side in 0..2 {
+            let m = merge(&chunks, side, 4);
+            let counted: u64 = m.routes.iter().map(|(_, t)| t.count).sum();
+            assert_eq!(counted, m.target_by[GRID - 1], "one route per success");
+            // Through node 1 or through node 2: two routes, most taken first.
+            assert_eq!(m.routes.len(), 2);
+            assert!(m.routes[0].1.count >= m.routes[1].1.count);
+            for (key, tally) in &m.routes {
+                let route = s
+                    .replay(side, tally.first)
+                    .expect("its first sample reached the target");
+                assert_eq!(route_key(&route.witness.nodes), *key);
+                assert_eq!(route.sample, tally.first);
+                let target = route.witness.nodes.binary_search(&3).unwrap();
+                assert!(route.times[target] <= s.horizon);
+            }
+        }
+        // The slowed side takes the slowed route less.
+        let share = |side: usize, node: usize| {
+            let m = merge(&chunks, side, 4);
+            m.routes
+                .iter()
+                .filter(|(_, t)| {
+                    s.replay(side, t.first)
+                        .unwrap()
+                        .witness
+                        .nodes
+                        .contains(&node)
+                })
+                .map(|(_, t)| t.count)
+                .sum::<u64>()
+        };
+        assert!(share(1, 2) < share(0, 2));
+    }
+
+    #[test]
+    fn a_route_key_is_fixed() {
+        assert_eq!(route_key(&[]), 0xcbf2_9ce4_8422_2325);
+        assert_ne!(route_key(&[0, 1, 3]), route_key(&[0, 2, 3]));
+        assert_eq!(route_key(&[0, 1, 3]), route_key(&[0, 1, 3]));
     }
 
     #[test]

@@ -16,7 +16,10 @@ use effractor_core::{Code, Diagnostic, Distribution, ScenarioId, TimeUnit};
 use libm::sqrt;
 use serde::Serialize;
 
-use crate::graph_mc::{Draw, GraphChunk, GraphSampler, Merged, merge};
+use crate::graph_mc::{Draw, GraphChunk, GraphSampler, Merged, Route, merge, route_key};
+
+/// How many of the routes taken most are reported.
+const ROUTES: usize = 3;
 use crate::graph_plan::{EventPlan, GraphOp};
 use crate::graph_support::{GraphSupport, Status, analyze};
 use crate::mc::{GRID, grid_time, wilson};
@@ -90,8 +93,24 @@ pub struct ScenarioReport {
     pub nodes: Vec<NodeReport>,
     /// What the target's number rests on, by source path.
     pub assumptions: Vec<Assumption>,
-    /// The first sample that reached the target, whole.
+    /// The example of the most taken route (`routes[0].witness`), whole.
     pub witness: Option<WitnessReport>,
+    /// The routes taken most often to the target, at most three: a route is
+    /// the set of steps in a successful sample's derivation; its share is of
+    /// the samples that reached the target. Empty without a sampled answer.
+    pub routes: Vec<RouteReport>,
+    /// How many different routes the samples took.
+    pub route_count: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RouteReport {
+    /// Samples that took it.
+    pub count: u64,
+    /// `count` over the samples that reached the target.
+    pub share: f64,
+    /// Its first sample, replayed: its steps and their times.
+    pub witness: WitnessReport,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -319,7 +338,7 @@ impl GraphSolve {
             .sides
             .iter()
             .enumerate()
-            .map(|(s, side)| self.report(side, &merge(&self.chunks, s, nodes), z))
+            .map(|(s, side)| self.report(s, side, &merge(&self.chunks, s, nodes), z))
             .collect();
         let mut reports = reports.into_iter();
         let baseline = reports.next().expect("the baseline is always solved");
@@ -348,7 +367,7 @@ impl GraphSolve {
         }
     }
 
-    fn report(&self, side: &SideSetup, merged: &Merged, z: f64) -> ScenarioReport {
+    fn report(&self, s: usize, side: &SideSetup, merged: &Merged, z: f64) -> ScenarioReport {
         let support = &side.support;
         let target = self.graph.target;
         let n = merged.n;
@@ -432,40 +451,31 @@ impl GraphSolve {
             }
         };
 
-        let witness = match (&outcome, &merged.route) {
-            (GraphOutcome::Available(_), Some(route)) => {
-                let id = |i: usize| self.graph.nodes[i].id.clone();
-                let mut nodes: Vec<(f64, usize)> = route
-                    .witness
-                    .nodes
-                    .iter()
-                    .zip(&route.times)
-                    .map(|(&i, &t)| (t, i))
-                    .collect();
-                nodes.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
-                Some(WitnessReport {
-                    sample: route.sample,
-                    target_time: route.times[route
-                        .witness
-                        .nodes
-                        .binary_search(&target)
-                        .expect("a witness holds its target")],
-                    nodes: nodes
-                        .into_iter()
-                        .map(|(time, i)| WitnessNode { id: id(i), time })
-                        .collect(),
-                    edges: route
-                        .witness
-                        .edges
-                        .iter()
-                        .map(|&(p, d)| WitnessEdge {
-                            prerequisite: id(p),
-                            dependent: id(d),
-                        })
-                        .collect(),
+        // The three routes taken most, each replayed from its first sample.
+        let reached: u64 = merged.routes.iter().map(|(_, r)| r.count).sum();
+        let routes: Vec<RouteReport> = match &outcome {
+            GraphOutcome::Available(_) => merged
+                .routes
+                .iter()
+                .take(ROUTES)
+                .filter_map(|(key, tally)| {
+                    let route = self.sampler.replay(s, tally.first)?;
+                    // The replay is the sample that was counted.
+                    debug_assert_eq!(route_key(&route.witness.nodes), *key);
+                    Some(RouteReport {
+                        count: tally.count,
+                        share: tally.count as f64 / reached as f64,
+                        witness: self.witness_report(&route, target),
+                    })
                 })
-            }
-            _ => None,
+                .collect(),
+            _ => Vec::new(),
+        };
+        let witness = routes.first().map(|r| r.witness.clone());
+        let route_count = if routes.is_empty() {
+            0
+        } else {
+            merged.routes.len() as u64
         };
 
         ScenarioReport {
@@ -474,6 +484,42 @@ impl GraphSolve {
             nodes,
             assumptions: self.assumptions(side),
             witness,
+            routes,
+            route_count,
+        }
+    }
+
+    /// A replayed sample's derivation, by completion time, then id.
+    fn witness_report(&self, route: &Route, target: usize) -> WitnessReport {
+        let id = |i: usize| self.graph.nodes[i].id.clone();
+        let mut nodes: Vec<(f64, usize)> = route
+            .witness
+            .nodes
+            .iter()
+            .zip(&route.times)
+            .map(|(&i, &t)| (t, i))
+            .collect();
+        nodes.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+        WitnessReport {
+            sample: route.sample,
+            target_time: route.times[route
+                .witness
+                .nodes
+                .binary_search(&target)
+                .expect("a witness holds its target")],
+            nodes: nodes
+                .into_iter()
+                .map(|(time, i)| WitnessNode { id: id(i), time })
+                .collect(),
+            edges: route
+                .witness
+                .edges
+                .iter()
+                .map(|&(p, d)| WitnessEdge {
+                    prerequisite: id(p),
+                    dependent: id(d),
+                })
+                .collect(),
         }
     }
 
