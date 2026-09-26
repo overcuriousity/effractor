@@ -164,6 +164,13 @@
 .edge.hl-steps { stroke: var(--color-accent); stroke-width: 2.5; }
 .graph.has-hl-steps .node:not(.hl-steps):not(.hl-selected),
 .graph.has-hl-steps .edge:not(.hl-steps) { opacity: 0.3; }
+/* A scenario, while Compare is open: what it blocks dotted, as a blocked
+   step is; in the attack graph what stays open to the target stays, the
+   rest recedes. */
+.node.hl-blocked .shape, .node.hl-blocked .stem { stroke: var(--color-fg-primary); stroke-width: 2; stroke-dasharray: 1.5 3; }
+.node-component.hl-blocked .halo { stroke: var(--color-fg-primary); stroke-width: 2.5; stroke-dasharray: 1.5 3.5; stroke-linecap: round; }
+.graph.has-hl-open .node:not(.hl-open):not(.hl-selected),
+.graph.has-hl-open .edge:not(.hl-open) { opacity: 0.3; }
 .node.hl-path .shape, .node.hl-path .stem { stroke: var(--color-accent); stroke-width: 2; }
 .edge.hl-path { stroke: var(--color-accent); stroke-width: 2.25; }
 .node-component.hl-path .halo { stroke: var(--color-accent); stroke-width: 2; }

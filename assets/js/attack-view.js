@@ -251,6 +251,16 @@
     return out;
   }
 
+  // The components (or flows) a list of steps is about, each once, in order.
+  function componentsOf(graph, ids) {
+    var out = [];
+    ids.forEach(function (id) {
+      var at = originOf(graph, id);
+      if (at && out.indexOf(at) < 0) out.push(at);
+    });
+    return out;
+  }
+
   var KIND = { input: "input", any: "fact", all: "action" };
 
   function unique(lists) {
@@ -475,6 +485,7 @@
     pathSteps: pathSteps,
     inOrder: inOrder,
     routeStops: routeStops,
+    componentsOf: componentsOf,
     index: indexOf,
     inspect: inspect,
     search: search,

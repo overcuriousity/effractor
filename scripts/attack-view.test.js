@@ -335,3 +335,8 @@ test('a route is a way: from the foothold, across the networks its flows cross, 
   });
   assert.deepEqual(V.routeStops(graph, null, doc), []);
 });
+
+test('steps are said by the components they are about, each once', () => {
+  assert.deepEqual(V.componentsOf(graph, ['action/product-find-exploit/openssh', 'state/product/openssh/exploit-ready', 'state/host/server/admin', 'nothing']), ['entity/openssh', 'entity/server']);
+  assert.deepEqual(V.componentsOf(graph, []), []);
+});

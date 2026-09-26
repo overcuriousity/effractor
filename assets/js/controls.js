@@ -19,6 +19,8 @@
       tab.tabIndex = on ? 0 : -1;
       $("tab-" + tab.getAttribute("data-tab")).hidden = !on;
     });
+    // What the canvas shows can follow the tab (Compare marks the canvas).
+    if (window.effractor && window.effractor.tabShown) window.effractor.tabShown(name);
   }
   document.querySelectorAll("[data-tab]").forEach(function (tab) {
     tab.tabIndex = tab.getAttribute("aria-selected") === "true" ? 0 : -1;

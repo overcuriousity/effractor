@@ -86,11 +86,6 @@ needs: —            cost: 3   benefit: 4
 Spec §7. Done when the solver returns the steps and components every route to
 the target needs (exact, with a size guard) and the page marks and lists them.
 
-### scenario-on-graph — A defence, seen on the canvas
-needs: —            cost: 2   benefit: 3
-Spec §6 (last paragraph), §8. Done when a current comparison marks blocked and
-still-open steps on both canvases and lists the scenario's routes.
-
 ### colour-grammar — One meaning per colour and line
 needs: —            cost: 3   benefit: 3
 Spec §9. Done when family plates are low-chroma, the state tokens and dash

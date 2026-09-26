@@ -237,7 +237,8 @@
       labels[n.id] = n.label;
     });
     var ul = el("ul", null, "compare-steps");
-    ids.forEach(function (id) {
+    // A dozen said; the rest counted, and drawn on the canvas.
+    ids.slice(0, MAX_STEPS).forEach(function (id) {
       var li = el("li");
       li.appendChild(button(labels[id] || id, id, function () {
         if (attackUi()) attackUi().showStep(id);
@@ -245,7 +246,9 @@
       ul.appendChild(li);
     });
     box.appendChild(ul);
+    if (ids.length > MAX_STEPS) box.appendChild(el("p", "+" + (ids.length - MAX_STEPS) + " more · on the canvas", "hint"));
   }
+  var MAX_STEPS = 12;
 
   function comparison(box, d, id) {
     var results = app.state.results;
@@ -323,6 +326,8 @@
     var changed = C.changedSteps(g.graph, d, id);
     if (changed.speed !== null) box.appendChild(el("p", "every timed step at " + C.speedText(changed.speed), "hint"));
     if (r.targetBlocked) box.appendChild(el("p", "the target is blocked", "hint"));
+    // What the attacker does instead: the scenario's own routes.
+    if (attackUi() && attackUi().routes) attackUi().routes(box, results, "scenario", "Routes under “" + d.scenarios[id].label + "”");
     stepList(box, "Blocked", r.blocked, g.graph, "nothing blocked that was open");
     stepList(box, "Changed, still open", r.changed, g.graph, "no changed step stays open");
     stepList(box, "Still open to the target", r.remaining, g.graph, "no way to the target is left");
@@ -336,7 +341,7 @@
     var box = $("compare-view");
     if (!box) return;
     var d = doc();
-    var key = { doc: d, scenario: app.state.scenario, results: app.state.results, generated: app.state.generated, revision: app.state.revision, solved: app.state.solvedRevision };
+    var key = { doc: d, scenario: app.state.scenario, results: app.state.results, generated: app.state.generated, revision: app.state.revision, solved: app.state.solvedRevision, route: app.state.route + "/" + app.state.routeSide };
     if (!force && Object.keys(key).every(function (k) { return key[k] === shown[k]; })) return;
     // Typing in a field is not interrupted: this is drawn when focus leaves it.
     var active = document.activeElement;

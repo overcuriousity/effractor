@@ -136,7 +136,7 @@
     });
   }
 
-  window.effractorAttackUi = { showStep: showStep, follow: follow };
+  window.effractorAttackUi = { showStep: showStep, follow: follow, routes: function (box, results, side, title) { renderRoutes(box, results, side, title); } };
 
   // Named as the page names it; the file's path is the tooltip.
   function sourceLink(path) {
@@ -360,15 +360,18 @@
   // The routes taken most, by how often: one chosen is drawn on the canvas
   // (its components numbered in the architecture, its steps lit in the
   // attack graph) and its actions listed; chosen again, it goes away.
-  function renderRoutes(box, results) {
+  // `side`: "baseline" (Results) or "scenario" (Compare: what the attacker
+  // does instead); `title` its heading.
+  function renderRoutes(box, results, side, title) {
+    side = side || "baseline";
     var g = generated() ? generated().graph : app.state.lastGraph;
-    var routes = R.routes(results.baseline, g);
+    var routes = R.routes(results[side], g);
     if (!routes.length) return;
-    var total = R.routeCount(results.baseline);
-    heading(box, "Routes", total);
+    var total = R.routeCount(results[side]);
+    heading(box, title || "Routes", total);
     var list = el("ul", null, "routes");
     routes.forEach(function (r, i) {
-      var shown = app.state.route === i;
+      var shown = app.state.route === i && (app.state.routeSide || "baseline") === side;
       var li = el("li", null, shown ? "is-shown" : "");
       var b = el("button", null, "route-row");
       b.type = "button";
@@ -377,7 +380,7 @@
       b.appendChild(el("span", Math.round(r.share * 100) + "%", "route-share num"));
       b.title = r.count + " of the samples that reached the target took it · " + (shown ? "click to hide" : "click to draw it");
       b.addEventListener("click", function () {
-        app.showRoute(shown ? null : i);
+        app.showRoute(shown ? null : i, side);
       });
       li.appendChild(b);
       if (shown) {
@@ -686,8 +689,9 @@
         rail[k].title = "Edits are made in Components (G)";
       });
     }
-    if (shownResults !== app.state.results || shownGraph !== generated() || shownBlockers !== blockersNow() || shownRouteNo !== app.state.route) {
-      shownRouteNo = app.state.route;
+    var routeNow = app.state.route + "/" + (app.state.routeSide || "baseline");
+    if (shownResults !== app.state.results || shownGraph !== generated() || shownBlockers !== blockersNow() || shownRouteNo !== routeNow) {
+      shownRouteNo = routeNow;
       shownResults = app.state.results;
       shownGraph = generated();
       shownBlockers = blockersNow();

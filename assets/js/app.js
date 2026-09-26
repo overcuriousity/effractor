@@ -284,6 +284,22 @@
         });
       }
     }
+    // While Compare is open on a current comparison: what the scenario
+    // blocks, dotted; in the attack graph what stays open to the target
+    // too, the rest receding.
+    var compared = compareOpen() && routeGraph && GR.isGraphResults(state.results) && state.results.scenario && window.effractorComparison &&
+      window.effractorComparison.state(state.results, state.results.scenario.id, state.solvedRevision, state.revision) === "current"
+      ? window.effractorComparison.routes(routeGraph, state.results, state.doc, state.results.scenario.id) : null;
+    if (compared && attackShown()) {
+      renderer.highlight(compared.blocked.map(function (s) { return "step/" + s; }), "blocked");
+      renderer.highlight(compared.blocked.concat(compared.changed, compared.remaining, [state.results.target]).map(function (s) { return "step/" + s; }), "open");
+    } else if (compared && arch) {
+      renderer.highlight(AV.componentsOf(routeGraph, compared.blocked).map(shown), "blocked");
+      renderer.highlight([], "open");
+    } else {
+      renderer.highlight([], "blocked");
+      renderer.highlight([], "open");
+    }
     // A step lights how it was reached: back along the route shown, or the
     // one taken most, when it is on it, else what it needs directly — its
     // lines exactly.
@@ -1296,7 +1312,10 @@
     state.results = results;
     // The route taken most is drawn as soon as there is one, unless the
     // route was put away: then only when one is chosen again.
-    var routes = (results.baseline && results.baseline.routes) || [];
+    // A scenario's route lasts while there is a scenario solved beside.
+    if (state.routeSide === "scenario" && !results.scenario) state.routeSide = "baseline";
+    var side = results[state.routeSide || "baseline"] || results.baseline;
+    var routes = (side && side.routes) || [];
     if (!routes.length || (state.route != null && !routes[state.route])) state.route = null;
     if (routes.length && state.route == null && !state.routeDismissed) state.route = 0;
     state.chartResults = results;
@@ -1469,16 +1488,28 @@
 
   window.effractor.state = state;
   window.effractor.setScenario = setScenario;
+  // The Compare tab in sight: the canvas then shows the comparison.
+  function compareOpen() {
+    var tab = $("tab-compare");
+    return !!tab && !tab.hidden && $("app").getAttribute("data-right") !== "closed";
+  }
+  window.effractor.tabShown = function () {
+    reselect();
+  };
+
   // The route drawn on the canvas: an index into the baseline's routes, or
   // null for none. Set from Results; gone with the results it came from.
   function shownRoute() {
     if (state.route == null) return null;
-    var routes = GR.isGraphResults(state.results) ? state.results.baseline.routes || [] : [];
+    var side = GR.isGraphResults(state.results) ? state.results[state.routeSide || "baseline"] : null;
+    var routes = (side && side.routes) || [];
     return state.route != null && routes[state.route] ? routes[state.route].witness : null;
   }
   window.effractor.shownRoute = shownRoute;
-  window.effractor.showRoute = function (i) {
+  // `side`: "scenario" for a route of the scenario solved beside it.
+  window.effractor.showRoute = function (i, side) {
     state.route = i;
+    state.routeSide = side || "baseline";
     state.routeDismissed = i == null;
     reselect();
   };
