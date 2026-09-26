@@ -226,6 +226,8 @@
     ["drag the background", "Pan"],
     ["wheel", "Zoom at the pointer"],
   ];
+  // With accounts, O opens the Documents tab (accounts spec §9.2).
+  if (document.getElementById("app").dataset.accounts === "true") COMMON_KEYS.splice(5, 0, ["O", "Documents"]);
   var TREE_POINTER = [
     ["click", "Select a node"],
     ["double-click", "Rename it"],

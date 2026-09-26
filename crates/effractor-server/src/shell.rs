@@ -149,6 +149,31 @@ mod tests {
         let at = |s: &str| html.find(s).unwrap();
         assert!(at("js/share-ui.js") < at("js/accounts/client.js"));
         assert!(at("js/accounts/client.js") < at("js/accounts/account-ui.js"));
+        // The Documents tab (spec §9.2): its own tab attribute, since
+        // controls.js owns every [data-tab] as the right panel's.
+        for id in [
+            "left-tab-model",
+            "left-tab-documents",
+            "left-model",
+            "view-documents",
+            "documents-search",
+            "documents-recent",
+            "documents-mine",
+            "documents-shared",
+            "documents-new",
+            "documents-login",
+            "model-path",
+            "save-state",
+        ] {
+            assert!(html.contains(&format!("id=\"{id}\"")), "{id}");
+        }
+        assert!(html.contains("data-left-tab=\"documents\""));
+        assert!(html.contains("data-documents"));
+        assert!(!html.contains("data-tab=\"documents\""));
+        assert!(at("js/accounts/account-ui.js") < at("js/accounts/documents.js"));
+        assert!(at("js/accounts/documents.js") < at("js/accounts/documents-ui.js"));
+        assert!(at("js/accounts/documents-ui.js") < at("js/accounts/autosave.js"));
+        assert!(at("js/accounts/autosave.js") < at("js/accounts/sync.js"));
     }
 
     #[test]
@@ -161,6 +186,10 @@ mod tests {
                 "70-accounts.css",
                 "login-dialog",
                 "local-only",
+                "view-documents",
+                "data-left-tab",
+                "model-path",
+                "save-state",
             ] {
                 assert!(!html.contains(needle), "{needle} with sharing={sharing}");
             }

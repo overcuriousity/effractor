@@ -119,7 +119,7 @@
           text = await crypto.decrypt(await res.arrayBuffer(), url.hash.slice(1), window.crypto);
         }
         if (location.href !== requested) return;
-        await crypto.adoptLocal(text, app.replaceDocument, function () {
+        await crypto.adoptLocal(text, function (t, said, current) { return app.replaceDocument(t, said, current, { origin: 'link' }); }, function () {
           if (location.href === requested) history.replaceState(null, '', base);
         }, function () { return location.href === requested; });
       } catch (e) { if (location.href === requested) app.say(e.message); }

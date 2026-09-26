@@ -99,6 +99,8 @@
     $("app").toggleAttribute("data-source", on);
     $("view-model").hidden = on;
     $("view-source").hidden = !on;
+    // With accounts the left panel has tabs; the source is the Model tab's.
+    if (on && window.effractorLeftTabs) window.effractorLeftTabs.show("model");
     button.setAttribute("aria-pressed", String(on));
     if (on) window.effractorWorkspace.open("left");
     if (on) {

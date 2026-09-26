@@ -69,6 +69,9 @@
   // For the console: effractor.solver.crash() shows the recovery path.
   window.effractor = { solver: solver };
   var listeners = []; // told after every load and every selection
+  // Told every accepted text with where it came from (accounts: sync.js).
+  var textListeners = [];
+  var replacing = null; // the origin of the replacement being adopted
 
   var P = window.effractorProfiles;
   // Every asynchronous answer (parse, layout, solve) carries a token of the
@@ -767,6 +770,9 @@
       }
       store.save(text, parsed.ok.profile);
       store.setMode(parsed.ok.profile);
+      var origin = replacing;
+      replacing = null;
+      textListeners.forEach(function (f) { f(text, parsed.ok.profile, origin); });
       return loaded(text, parsed.ok, !!fit).then(function (outcome) {
         // A newer text overtook this one's attack graph: the selection, and
         // what is solved, are that text's to settle.
@@ -1203,7 +1209,9 @@
   // ---- New, open, save. Another document is an edit like any other: the one
   // it replaces is a Ctrl+Z away, so nothing is asked and nothing is lost.
 
-  function replaceDocument(text, said, isCurrent) {
+  // opts.origin: "new" | "file" | "link" | "server"; opts.fresh starts that
+  // mode's undo history anew (accounts: what the server keeps).
+  function replaceDocument(text, said, isCurrent, opts) {
     gate.issue("mode"); // a mode switch on its way gives way to this document
     return solver.parse(text).then(function (parsed) {
       if (isCurrent && !isCurrent()) return false;
@@ -1216,12 +1224,17 @@
           // Link navigation may have changed during the worker round trips.
           // Check before touching either the document or its undo history.
           if (isCurrent && !isCurrent()) return false;
+          replacing = (opts && opts.origin) || "other";
+          // A document the server keeps starts its own history: the one it
+          // replaces is safe on the server, and an undo must never write one
+          // document's text into another.
+          if (opts && opts.fresh) histories[parsed.ok.profile] = window.effractorEdit.createHistory();
           // Opened into its own mode: what it replaces there is one Ctrl+Z away.
-          keepReplaced(parsed.ok.profile);
+          else keepReplaced(parsed.ok.profile);
           return true;
         }).then(function (applied) {
           if (!applied || (isCurrent && !isCurrent())) return false;
-          say(said + " · Ctrl+Z goes back");
+          say(opts && opts.fresh ? said : said + " · Ctrl+Z goes back");
           return true;
         });
       });
@@ -1259,12 +1272,19 @@
     }, 1000);
   }
 
+  // Logged in, what the server keeps starts afresh (accounts). Without the
+  // account modules this is always false.
+  function freshFor(origin) {
+    var A = window.effractorAccounts;
+    return !!(A && A.documents && A.session && A.documents.startsFresh(origin, !!A.session.user));
+  }
+
   var fileActions = {
     // An empty document in the mode on the page.
     new: function () {
       var profile = state.doc ? state.doc.profile : "fault-tree";
       template(templateOf(profile)).then(function (text) {
-        replaceDocument(text, "new " + MODE_NAMES[profile].toLowerCase());
+        replaceDocument(text, "new " + MODE_NAMES[profile].toLowerCase(), null, { origin: "new", fresh: freshFor("new") });
       }).catch(function (e) {
         console.error(e);
         say("could not start a new one · " + e.message);
@@ -1281,7 +1301,7 @@
     $("open-file").value = ""; // the same file again is a change again
     if (!file) return;
     file.text().then(function (text) {
-      replaceDocument(text, "opened " + file.name);
+      replaceDocument(text, "opened " + file.name, null, { origin: "file", fresh: freshFor("file") });
     }).catch(function (e) {
       console.error(e);
       say("could not read " + file.name + " · " + e.message);
@@ -1319,6 +1339,9 @@
   };
   window.effractor.switchMode = switchMode;
   window.effractor.solve = solve;
+  window.effractor.onText = function (f) {
+    textListeners.push(f);
+  };
   window.effractor.onChange = function (f) {
     listeners.push(f);
   };
