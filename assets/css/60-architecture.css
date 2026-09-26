@@ -25,7 +25,7 @@
 .node-component .glyph { fill: none; stroke: var(--viz-family-ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .node-component .halo { fill: var(--viz-canvas); stroke: transparent; stroke-width: 2; }
 .node-component:hover .halo { stroke: var(--viz-outline); }
-.node-component.is-unquantified .halo { stroke: var(--viz-outline); stroke-dasharray: 3 2.5; }
+.node-component.is-unquantified .halo { stroke: var(--viz-outline); stroke-dasharray: 5 3; }
 /* A ring outside the halo per state a component is in (after Reactor's
    exposure ring): vulnerable, an unpatched product; exposed, what runs it. */
 .node-component .ring { fill: none; stroke-width: 3; }
@@ -41,9 +41,9 @@
 .node-component .sector-exposed { stroke: var(--color-exposed); }
 /* Dashed as well as amber: under red-green colour blindness amber and the
    danger red are nearly one colour (light theme). */
-.node-component .sector-unknown { stroke: var(--color-warning); stroke-dasharray: 4 3; }
+.node-component .sector-unknown { stroke: var(--color-warning); stroke-dasharray: 5 3; }
 .node-component .sector-none { stroke: var(--viz-edge); }
-.edge[data-id^="flows/"] { stroke-dasharray: 5 3; }
+
 /* An open cluster: a quiet outline round its members, taking the pointer
    on its line and its name only. */
 .cluster-outline .outline { fill: none; stroke: var(--viz-edge); stroke-width: 1.5; stroke-dasharray: 6 4; pointer-events: none; }
@@ -57,7 +57,7 @@
 .cluster-outline.hl-selected .outline-label { fill: var(--color-accent); }
 .node-component.hl-selected .halo { stroke: var(--color-accent); stroke-width: 2.5; stroke-dasharray: none; }
 /* A selected flow's route: the networks and routers it passes through. */
-.node-component.hl-route .halo { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 2 2.5; }
+.node-component.hl-route .halo { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 4 2.5; }
 /* The name reads over lines that pass under it. */
 .node-component .label-line { paint-order: stroke; stroke: var(--viz-canvas); stroke-width: 3px; stroke-linejoin: round; }
 .node-component .count { fill: var(--viz-canvas); stroke: var(--viz-outline); stroke-width: 1; stroke-dasharray: 3 2; }
@@ -79,8 +79,10 @@
 .help-legend dt { display: flex; align-items: center; }
 .help-legend .legend-meaning { display: block; max-width: 46ch; margin: 0 0 4px; }
 
-/* A flow is directional traffic, not structure: dashed. */
-.edge[data-id^="flow/"] { stroke-dasharray: 5 3; }
+/* A flow is traffic, not structure: a little heavier, a chevron at its
+   middle for the way it runs (renderer-svg.js). */
+.edge[data-id^="flow/"], .edge[data-id^="flows/"] { stroke-width: 1.9; }
+.flow-chevron { fill: none; stroke: var(--viz-edge); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 /* A firewall's permission on a flow: dotted, in the firewall's own colour,
    ending in a dot where it lands on the flow — so it never reads as another
    flow. Its word says allows, blocks or ?. */
@@ -96,7 +98,8 @@
 .swatch-identity { background: var(--viz-family-identity); border-color: transparent; }
 .swatch-data { background: var(--viz-family-data); border-color: transparent; }
 .line-sample { display: inline-block; width: 18px; height: 0; margin-right: 5px; border-top: 1.5px solid var(--viz-edge); vertical-align: middle; }
-.line-flow { border-top-style: dashed; }
+.line-flow { position: relative; border-top-width: 2px; }
+.line-flow::after { content: ""; position: absolute; left: 6px; top: -4.5px; width: 5px; height: 5px; border-top: 1.5px solid var(--viz-edge); border-right: 1.5px solid var(--viz-edge); transform: rotate(45deg); }
 .line-permit { border-top: 2px dotted var(--viz-family-network); }
 .outline-sample { display: inline-block; width: 14px; height: 9px; margin-right: 5px; border: 1.5px dashed var(--color-border-strong); border-radius: 4px; vertical-align: middle; }
 .ring-sample { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; border: 2.5px solid var(--color-danger); vertical-align: middle; }
@@ -164,9 +167,8 @@
 /* A component's steps, lit from the architecture's selection; a step's own
    component and support, lit from the step's. Lit is a tinted plate and a
    heavy stroke; while anything is lit, the rest recedes. */
-.node.hl-steps .shape, .node.hl-steps .stem { stroke: var(--color-accent); stroke-width: 2.5; }
-.node.hl-steps .shape { fill: color-mix(in srgb, var(--color-accent) 16%, var(--color-bg-elevated)); }
-.edge.hl-steps { stroke: var(--color-accent); stroke-width: 2.5; }
+.node.hl-steps .shape, .node.hl-steps .stem { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 4 2.5; }
+.edge.hl-steps { stroke: var(--color-accent); stroke-width: 2.25; stroke-dasharray: 5 3; }
 .graph.has-hl-steps .node:not(.hl-steps):not(.hl-selected),
 .graph.has-hl-steps .edge:not(.hl-steps) { opacity: 0.3; }
 /* A scenario, while Compare is open: what it blocks dotted, as a blocked
@@ -176,18 +178,18 @@
 .node-component.hl-blocked .halo { stroke: var(--color-fg-primary); stroke-width: 2.5; stroke-dasharray: 1.5 3.5; stroke-linecap: round; }
 .graph.has-hl-open .node:not(.hl-open):not(.hl-selected),
 .graph.has-hl-open .edge:not(.hl-open) { opacity: 0.3; }
-.node.hl-path .shape, .node.hl-path .stem { stroke: var(--color-accent); stroke-width: 2; }
-.edge.hl-path { stroke: var(--color-accent); stroke-width: 2.25; }
-.node-component.hl-path .halo { stroke: var(--color-accent); stroke-width: 2; }
+.node.hl-path .shape, .node.hl-path .stem { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 4 2.5; }
+.edge.hl-path { stroke: var(--color-accent); stroke-width: 2.25; stroke-dasharray: 5 3; }
+.node-component.hl-path .halo { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 4 2.5; }
 .graph.has-hl-path .node:not(.hl-path):not(.hl-selected),
 .graph.has-hl-path .edge:not(.hl-path) { opacity: 0.35; }
 .route-order-disc { fill: var(--color-accent); }
 .route-order-text { fill: var(--viz-canvas); font-family: var(--font-mono); font-size: 10px; font-weight: 600; }
-.node.hl-lineage .shape, .node.hl-lineage .stem { stroke: var(--color-accent); stroke-width: 2; }
-.edge.hl-lineage { stroke: var(--color-accent); stroke-width: 2.25; }
+.node.hl-lineage .shape, .node.hl-lineage .stem { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 4 2.5; }
+.edge.hl-lineage { stroke: var(--color-accent); stroke-width: 2.25; stroke-dasharray: 5 3; }
 .graph.has-hl-lineage .node:not(.hl-lineage):not(.hl-selected),
 .graph.has-hl-lineage .edge:not(.hl-lineage) { opacity: 0.35; }
-.node-component.hl-steps .halo { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 2 2.5; }
+.node-component.hl-steps .halo { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 4 2.5; }
 .line-blocked { border-top: 1.5px dotted var(--viz-outline); }
 .line-unknown { border-top: 1.5px dashed var(--viz-outline); }
 

@@ -28,7 +28,10 @@
 .edge.hl-via { stroke: var(--color-accent); stroke-width: 2.25; stroke-dasharray: 5 3; }
 
 .node { cursor: pointer; }
-.node.is-unquantified .symbol { stroke-dasharray: 3 2.5; }
+/* The line grammar (UI review §9): dashed 5 3 is a value still owed,
+   dotted is blocked, faded is what cannot happen; the selection is solid,
+   and what is lit because it is related to it is dashed. */
+.node.is-unquantified .symbol { stroke-dasharray: 5 3; }
 .node.is-unquantified .value { fill: var(--color-fg-muted); font-size: 13px; }
 .node .shape {
   fill: var(--color-bg-elevated);
@@ -49,7 +52,6 @@
 
 .node.is-top .box { stroke-width: 2.25; }
 .node.is-unreachable { opacity: 0.45; }
-.node.is-unreachable .shape { stroke-dasharray: 4 3; }
 
 
 /* Importance: fixed bins, one hue, ink paired with each step. Leaves only. */
@@ -68,8 +70,9 @@
 .node.hl-selected .shape,
 .node.hl-selected .stem { stroke: var(--color-accent); stroke-width: 2.5; }
 .node.hl-cutset .shape,
-.node.hl-cutset .stem { stroke: var(--color-accent); stroke-width: 2; }
-.edge.hl-cutset, .edge.hl-selected { stroke: var(--color-accent); stroke-width: 2.25; }
+.node.hl-cutset .stem { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 4 2.5; }
+.edge.hl-selected { stroke: var(--color-accent); stroke-width: 2.25; }
+.edge.hl-cutset { stroke: var(--color-accent); stroke-width: 2.25; stroke-dasharray: 5 3; }
 .node:hover .box { stroke-width: 2; }
 
 .hud-bottom-left { left: 10px; bottom: 10px; }

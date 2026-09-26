@@ -156,6 +156,9 @@
       var defs = el("defs", {}, [], svg);
       var marker = el("marker", { id: "edge-arrow", viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" }, [], defs);
       el("path", { d: "M0 0L10 5L0 10z" }, ["arrow-head"], marker);
+      // A flow is traffic: a chevron at its middle says which way it runs.
+      var chevron = el("marker", { id: "flow-chevron", viewBox: "0 0 10 10", refX: "5", refY: "5", markerWidth: "9", markerHeight: "9", orient: "auto", markerUnits: "userSpaceOnUse" }, [], defs);
+      el("path", { d: "M2 1L8 5L2 9" }, ["flow-chevron"], chevron);
       viewport = el("g", {}, ["viewport"], svg);
       edgeLayer = el("g", {}, ["edges"], viewport);
       // Over the lines, so an outline's edge and name take the pointer.
@@ -514,11 +517,19 @@
     function straight(r) {
       return "M" + r.start.x + " " + r.start.y + "L" + r.end.x + " " + r.end.y;
     }
+    // A flow's line, bent nowhere but given a point at its middle for its
+    // chevron to sit on.
+    var FLOW = /^flows?\//;
+    function linkPath(r) {
+      return FLOW.test(r.id) && r.mid ? "M" + r.start.x + " " + r.start.y + "L" + r.mid.x + " " + r.mid.y + "L" + r.end.x + " " + r.end.y : straight(r);
+    }
 
     // A free layout's edge: a straight line from box to box, a wide unseen
     // copy to take the pointer, its label halfway.
     function drawLink(r) {
-      var line = el("path", { d: straight(r), "data-id": r.id, "data-from": r.from, "data-to": r.to, "marker-end": "url(#edge-arrow)" }, ["edge"], edgeLayer);
+      var attrs = { d: linkPath(r), "data-id": r.id, "data-from": r.from, "data-to": r.to, "marker-end": "url(#edge-arrow)" };
+      if (FLOW.test(r.id)) attrs["marker-mid"] = "url(#flow-chevron)";
+      var line = el("path", attrs, ["edge"], edgeLayer);
       var hit = el("path", { d: straight(r), "data-id": r.id, "data-from": r.from, "data-to": r.to }, ["edge-hit"], edgeLayer);
       // The file's own term, where the line says it in other words.
       if (r.title) el("title", {}, [], hit).textContent = r.title;
@@ -530,7 +541,7 @@
       return { line: line, hit: hit, label: label };
     }
     function redrawLink(item, r) {
-      item.line.setAttribute("d", straight(r));
+      item.line.setAttribute("d", linkPath(r));
       item.hit.setAttribute("d", straight(r));
       if (item.label) {
         item.label.setAttribute("x", r.mid.x);
