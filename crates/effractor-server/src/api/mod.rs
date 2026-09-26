@@ -2,6 +2,7 @@
 //! interface; a scripted API with tokens is the later `api-tokens` item.
 
 pub mod account;
+pub mod documents;
 
 use axum::Json;
 use axum::http::StatusCode;
@@ -68,5 +69,7 @@ impl IntoResponse for ApiError {
 }
 
 pub fn routes() -> axum::Router<crate::accounts::Accounts> {
-    axum::Router::new().merge(account::routes())
+    axum::Router::new()
+        .merge(account::routes())
+        .merge(documents::routes())
 }

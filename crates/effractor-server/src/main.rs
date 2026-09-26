@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Parser;
-use effractor_accounts::sessions;
+use effractor_accounts::{documents, sessions};
 use effractor_server::accounts::{Accounts, AccountsConfig};
 use effractor_server::share::{FsStorage, Limits, Shares, Ttl};
 
@@ -110,11 +110,16 @@ async fn main() -> anyhow::Result<()> {
             if let Some(accounts) = sweep_accounts.clone() {
                 let swept = tokio::task::spawn_blocking(move || {
                     let now = accounts.db().now();
-                    accounts.db().write(|t| sessions::sweep(t, now))
+                    accounts.db().write(|t| {
+                        sessions::sweep(t, now)?;
+                        documents::purge(t, now)
+                    })
                 })
                 .await;
-                if let Ok(Err(err)) = swept {
-                    tracing::error!(%err, "sweeping sessions failed");
+                match swept {
+                    Ok(Ok(0)) | Err(_) => {}
+                    Ok(Ok(n)) => tracing::info!("purged {n} deleted documents and folders"),
+                    Ok(Err(err)) => tracing::error!(%err, "sweeping accounts failed"),
                 }
             }
         }
