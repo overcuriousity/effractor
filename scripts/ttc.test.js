@@ -44,7 +44,8 @@ test('a fault-tree leaf shows its p and rate in the same notation', () => {
   assert.equal(ttc.showChance(0.3), '30%');
   assert.equal(ttc.showChance(0.0025), '0.25%');
   assert.equal(ttc.showRate(0.1), 'Exponential(mean 10)');
-  assert.equal(ttc.showRate(0.03), 'Exponential(mean 33.3)');
+  assert.equal(ttc.showRate(0.03), 'Exponential(mean 33.333333333333336)');
+  assert.equal(ttc.showRate(1e-25), 'Exponential(mean 9.999999999999999e+24)'); // the parser takes exponents
 });
 
 // The form, driven through a minimal DOM: what a person types stays typed.

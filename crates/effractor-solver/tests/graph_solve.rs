@@ -245,7 +245,7 @@ fn unknown_inputs_cost_exactly_the_numbers_that_rest_on_them() {
 
 #[test]
 fn sample_counts_around_a_chunk_are_all_counted() {
-    for (samples, chunks) in [(1, 1), (4095, 1), (4096, 1), (4097, 2)] {
+    for samples in [1, 4095, 4096, 4097] {
         let model = architecture(LECTURE);
         let graph = generate(&model).unwrap();
         let config = GraphConfig {
@@ -253,7 +253,7 @@ fn sample_counts_around_a_chunk_are_all_counted() {
             ..GraphConfig::from_model(&model)
         };
         let solve = GraphSolve::begin(&model, &graph, None, &config).unwrap();
-        assert_eq!(solve.progress().total, chunks);
+        assert_eq!(solve.progress().total, samples);
         assert_eq!(solve.progress().done, 0);
         let r = serde_json::to_value(solve.finish()).unwrap();
         let target = stats(&r["baseline"]["outcome"]);
@@ -288,18 +288,24 @@ fn a_solve_is_stepped_and_can_be_dropped_between_chunks() {
         .unwrap()
         .finish();
     let mut stepped = GraphSolve::begin(&model, &graph, None, &config).unwrap();
-    assert_eq!(stepped.step().done, 1);
-    assert_eq!(stepped.step().done, 2);
+    // A step is a piece of a chunk and never runs past its end.
+    let first = stepped.step().done;
+    assert!(0 < first && first < 4096, "{first}");
+    assert_eq!(stepped.step().done, 4096);
     // Finishing does what is left.
     assert_eq!(stepped.finish(), whole);
     let mut dropped = GraphSolve::begin(&model, &graph, None, &config).unwrap();
     dropped.step();
     drop(dropped);
     let mut done = GraphSolve::begin(&model, &graph, None, &config).unwrap();
-    for _ in 0..5 {
+    while done.progress().done < 3 * 4096 {
         done.step();
     }
-    assert_eq!(done.progress().done, 3);
+    assert_eq!(
+        done.step().done,
+        3 * 4096,
+        "stepping past the end is harmless"
+    );
 }
 
 #[test]
@@ -342,8 +348,10 @@ fn a_scenario_that_changes_nothing_differs_by_exactly_nothing() {
     assert_eq!(r["scenario"]["nodes"], r["baseline"]["nodes"]);
     let d = delta(&r);
     assert_eq!(d["mean"], 0.0);
-    assert_eq!(d["ci"]["lo"], 0.0);
-    assert_eq!(d["ci"]["hi"], 0.0);
+    // The interval is not [0, 0]: 10,000 identical pairs bound the share of
+    // differing iterations, they do not rule one out.
+    assert_eq!(d["ci"]["lo"], -d["ci"]["hi"].as_f64().unwrap());
+    assert!(d["ci"]["hi"].as_f64().unwrap() < 0.0004, "{d}");
 }
 
 #[test]
@@ -586,4 +594,8 @@ fn an_attacker_at_speed_one_changes_nothing() {
     assert_eq!(r["scenario"]["outcome"], r["baseline"]["outcome"]);
     assert_eq!(r["scenario"]["nodes"], r["baseline"]["nodes"]);
     assert_eq!(delta(&r)["mean"], 0.0);
+    // Not one iteration differed, which is not proof of no difference.
+    let ci = &delta(&r)["ci"];
+    let (lo, hi) = (ci["lo"].as_f64().unwrap(), ci["hi"].as_f64().unwrap());
+    assert!(lo < 0.0 && hi > 0.0 && hi < 0.001, "{ci}");
 }

@@ -30,6 +30,30 @@ pub enum BddError {
     InvalidModel,
 }
 
+/// What a person reads: a sentence, not a variant name.
+impl std::fmt::Display for BddError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NodeLimit(limit) => {
+                // 1000000 as 1,000,000.
+                let digits = limit.to_string();
+                let mut grouped = String::new();
+                for (i, c) in digits.chars().enumerate() {
+                    if i > 0 && (digits.len() - i) % 3 == 0 {
+                        grouped.push(',');
+                    }
+                    grouped.push(c);
+                }
+                write!(
+                    f,
+                    "the decision diagram outgrew its limit of {grouped} nodes"
+                )
+            }
+            Self::InvalidModel => write!(f, "the model has a cycle or a dangling reference"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct Decision {
     var: u32,
@@ -130,13 +154,19 @@ impl Builder {
     }
 
     fn gate(&mut self, gate: Gate, inputs: &[Ref]) -> Result<Ref, BddError> {
+        // From the back, the input as the condition: inputs come in variable
+        // order, so what is folded so far sits below the next input and each
+        // step adds a node or two. From the front, each step copied the whole
+        // chain built so far: n²/2 nodes that nothing uses.
         match gate {
             Gate::And => inputs
                 .iter()
-                .try_fold(TRUE, |acc, f| self.ite(acc, *f, FALSE)),
+                .rev()
+                .try_fold(TRUE, |acc, f| self.ite(*f, acc, FALSE)),
             Gate::Or => inputs
                 .iter()
-                .try_fold(FALSE, |acc, f| self.ite(acc, TRUE, *f)),
+                .rev()
+                .try_fold(FALSE, |acc, f| self.ite(*f, TRUE, acc)),
             Gate::Vote { k } => {
                 // need[j] = "at least j of the inputs seen so far hold".
                 // Taking inputs from the back: need'[j] = ite(x, need[j-1], need[j]).

@@ -49,8 +49,10 @@
     if (m) s = '0.' + new Array(Number(m[3])).join('0') + m[1] + (m[2] || '');
     return s + '%';
   }
+  // What the solver is handed for a sketch: the whole mean, not a rounded
+  // one, so the sketch is of this rate and not a neighbour's.
   function showRate(rate) {
-    return 'Exponential(mean ' + Number((1 / rate).toPrecision(3)) + ')';
+    return 'Exponential(mean ' + 1 / rate + ')';
   }
   function options(unit) {
     return [['', 'Choose timing…']].concat(PRESETS.map(function (p) {

@@ -61,7 +61,11 @@ function browserLines(api, text, scenario) {
   lines.push(begun);
   const reply = JSON.parse(begun);
   const total = reply.ok ? reply.ok.progress.total : 0;
-  for (let i = 0; i < total; i++) lines.push(api.solve_step());
+  for (let done = 0; done < total; ) {
+    const step = api.solve_step();
+    lines.push(step);
+    done = JSON.parse(step).ok.done;
+  }
   lines.push(api.solve_finish());
   return lines;
 }

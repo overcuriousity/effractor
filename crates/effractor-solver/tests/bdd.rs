@@ -181,6 +181,27 @@ fn the_node_limit_is_an_answer_not_a_crash() {
 }
 
 #[test]
+fn a_wide_gate_stays_small_and_exact() {
+    // Folding from the back keeps the running result below the next input:
+    // one new node per input, not a copy of the whole chain each time.
+    let n = 2000;
+    let names: Vec<String> = (0..n).map(|i| format!("l{i}")).collect();
+    let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+    for (g, want) in [
+        (Gate::Or, 1.0 - libm::pow(0.999, n as f64)),
+        (Gate::And, libm::pow(0.999, n as f64)),
+    ] {
+        let mut nodes = vec![("top", gate(g, &refs))];
+        let p = if g == Gate::Or { 0.001 } else { 0.999 };
+        nodes.extend(refs.iter().map(|r| (*r, leaf(p))));
+        let m = model("top", nodes);
+        let bdd = Bdd::compile(&m, 3 * n).unwrap();
+        assert!(bdd.size() <= 2 * n + 2, "{}", bdd.size());
+        assert!((p_top(&m) - want).abs() <= 1e-12, "{g:?}");
+    }
+}
+
+#[test]
 fn an_invalid_model_is_refused_not_looped_on() {
     let mut m = Model::new("bad", Profile::FaultTree, id("a"));
     m.nodes.insert(id("a"), gate(Gate::Or, &["b"]));

@@ -17,16 +17,16 @@ function harness() {
 test("no worker exists until something is asked of it", () => {
   const h = harness();
   assert.equal(h.workers.length, 0);
-  h.solver.validate("x");
+  h.solver.parse("x");
   assert.equal(h.workers.length, 1);
 });
 
 test("requests resolve by id, in whatever order the answers come", async () => {
   const h = harness();
-  const a = h.solver.validate("a");
+  const a = h.solver.parse("a");
   const b = h.solver.parse("b");
   const [ma, mb] = h.last().sent;
-  assert.deepEqual([ma.type, ma.text, mb.type, mb.text], ["validate", "a", "parse", "b"]);
+  assert.deepEqual([ma.type, ma.text, mb.type, mb.text], ["parse", "a", "parse", "b"]);
   h.reply({ id: mb.id, type: "result", result: { ok: "B" } });
   h.reply({ id: ma.id, type: "result", result: { ok: "A" } });
   assert.deepEqual(await a, { ok: "A" });
@@ -81,14 +81,14 @@ test("a crash rejects what was pending and the next call gets a fresh worker", a
   const crashes = [];
   h.solver.onCrash = (m) => crashes.push(m);
   const solved = h.solver.solve("doc", {});
-  const other = h.solver.validate("x");
+  const other = h.solver.parse("x");
   h.reply({ type: "crashed", message: "panicked: boom" });
   await assert.rejects(solved, /boom/);
   await assert.rejects(other, /boom/);
   assert.deepEqual(crashes, ["panicked: boom"]);
   assert.ok(h.workers[0].terminated);
 
-  const again = h.solver.validate("y");
+  const again = h.solver.parse("y");
   assert.equal(h.workers.length, 2);
   h.reply({ id: h.last().sent[0].id, type: "result", result: { ok: true } });
   assert.deepEqual(await again, { ok: true });
@@ -96,7 +96,7 @@ test("a crash rejects what was pending and the next call gets a fresh worker", a
 
 test("a worker that fails to load is a crash too", async () => {
   const h = harness();
-  const pending = h.solver.validate("x");
+  const pending = h.solver.parse("x");
   h.last().onerror({ message: "script error" });
   await assert.rejects(pending, /script error/);
   assert.ok(h.workers[0].terminated);

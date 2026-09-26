@@ -9,7 +9,6 @@ function fake(total, chunkMs) {
   let done = null;
   const calls = [];
   const api = {
-    validate: (text) => JSON.stringify({ ok: true, diagnostics: [], echo: text }),
     parse: (text) => JSON.stringify({ ok: { name: text }, diagnostics: [] }),
     serialize: (json) => JSON.stringify({ ok: "text of " + json, diagnostics: [] }),
     generate: (text, revision) => {
@@ -70,6 +69,10 @@ test("a request is answered with the parsed result under its id", () => {
   assert.equal(w.posted[1].result.ok, 'text of {"a":1}');
   w.handle({ id: 9, type: "catalog" });
   assert.deepEqual(w.posted[2], { id: 9, type: "result", result: { ok: { library: { id: "core-components", version: 1 } }, diagnostics: [] } });
+  // Only the requests above reach the module; anything else is refused.
+  w.handle({ id: 10, type: "solve_cancel" });
+  assert.deepEqual(w.posted[3], { id: 10, type: "result", result: { error: "unknown request: solve_cancel" } });
+  assert.ok(!w.calls.includes("cancel"));
 });
 
 test("generate passes text and revision to the module and never begins a solve", () => {
@@ -160,7 +163,7 @@ test("a panic is reported with the hook's message, once, and nothing runs after 
   w.text_panics.on = true;
   w.runAll();
   assert.deepEqual(w.posted[w.posted.length - 1], { type: "crashed", message: "panicked at src/lib.rs: boom" });
-  w.handle({ id: 2, type: "validate", text: "x" });
+  w.handle({ id: 2, type: "parse", text: "x" });
   assert.equal(w.posted.filter((m) => m.type === "crashed").length, 1);
   assert.equal(w.posted[w.posted.length - 1].type, "crashed");
 });

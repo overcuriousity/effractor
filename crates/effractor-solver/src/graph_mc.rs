@@ -11,9 +11,9 @@
 
 use effractor_core::Distribution;
 
-use crate::dist::{CHUNK, chunk_rng, sample};
+use crate::dist::{CHUNK, STEP_WORK, chunk_rng, sample};
 use crate::graph_plan::{EventPlan, Scratch, Witness};
-use crate::mc::GRID;
+use crate::mc::{GRID, grid_time};
 
 /// 256 words is 128 uniforms, as for trees.
 const WINDOW: u128 = 256;
@@ -61,7 +61,10 @@ pub(crate) struct SideCounts {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct GraphChunk {
+    index: u64,
     pub(crate) n: u64,
+    /// Iterations computed so far; the chunk is complete at `n`.
+    pub(crate) done: u64,
     pub(crate) sides: Vec<SideCounts>,
     /// Iterations in which the baseline reached the target and the scenario
     /// did not, and the reverse.
@@ -71,22 +74,23 @@ pub(crate) struct GraphChunk {
     pub(crate) indicators: Vec<(bool, bool)>,
 }
 
-/// Grid time `j`: the horizon split without an intermediate overflow.
-pub(crate) fn grid_time(horizon: f64, j: usize) -> f64 {
-    horizon * (j as f64 / (GRID - 1) as f64)
-}
-
 impl GraphSampler {
     pub(crate) fn chunks(&self) -> u64 {
         self.samples.div_ceil(CHUNK as u64)
     }
 
-    pub(crate) fn run_chunk(&self, chunk: u64) -> GraphChunk {
-        let n = (self.samples - chunk * CHUNK as u64).min(CHUNK as u64);
+    /// Iterations of one step that do about [`STEP_WORK`] node evaluations.
+    pub(crate) fn step_iterations(&self) -> u64 {
+        (STEP_WORK / (self.plan.len() * self.sides.len()).max(1) as u64).max(1)
+    }
+
+    /// Chunk `chunk`, with nothing computed yet: see [`GraphSampler::advance`].
+    pub(crate) fn start_chunk(&self, chunk: u64) -> GraphChunk {
         let nodes = self.plan.len();
-        let mut rng = chunk_rng(self.seed, chunk);
-        let mut out = GraphChunk {
-            n,
+        GraphChunk {
+            index: chunk,
+            n: (self.samples - chunk * CHUNK as u64).min(CHUNK as u64),
+            done: 0,
             sides: (0..self.sides.len())
                 .map(|_| SideCounts {
                     hits: vec![0; nodes],
@@ -98,11 +102,26 @@ impl GraphSampler {
             minus: 0,
             #[cfg(test)]
             indicators: Vec::new(),
-        };
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn run_chunk(&self, chunk: u64) -> GraphChunk {
+        let mut out = self.start_chunk(chunk);
+        self.advance(&mut out, u64::MAX);
+        out
+    }
+
+    /// Up to `budget` more iterations of `out`; returns how many. Draws are
+    /// addressed by iteration, so a chunk computed in pieces is the same chunk.
+    pub(crate) fn advance(&self, out: &mut GraphChunk, budget: u64) -> u64 {
+        let (from, to) = (out.done, out.n.min(out.done.saturating_add(budget)));
+        let (chunk, nodes) = (out.index, self.plan.len());
+        let mut rng = chunk_rng(self.seed, chunk);
         let mut durations = vec![0.0; nodes];
         let mut scratch = Scratch::default();
         let mut reached = [false; 2];
-        for iteration in 0..n {
+        for iteration in from..to {
             for (s, side) in self.sides.iter().enumerate() {
                 let speed = self.speeds[s];
                 for (slot, draw) in side.iter().enumerate() {
@@ -146,7 +165,8 @@ impl GraphSampler {
                 out.indicators.push((reached[0], reached[1]));
             }
         }
-        out
+        out.done = to;
+        to - from
     }
 }
 
@@ -226,6 +246,18 @@ mod tests {
         assert_eq!(forward, backward);
         assert_eq!(merge(&forward, 0, 4), merge(&backward, 0, 4));
         assert_eq!(merge(&forward, 1, 4).n, 3 * CHUNK as u64 + 5);
+    }
+
+    #[test]
+    fn a_chunk_computed_in_pieces_is_the_same_chunk() {
+        let s = sampler(CHUNK as u64 + 5);
+        for chunk in 0..2 {
+            let mut pieces = s.start_chunk(chunk);
+            while pieces.done < pieces.n {
+                assert!(s.advance(&mut pieces, 1000) <= 1000);
+            }
+            assert_eq!(pieces, s.run_chunk(chunk));
+        }
     }
 
     #[test]

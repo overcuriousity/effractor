@@ -24,11 +24,10 @@ function replaced(text, from, to) {
   return text.replace(from, to);
 }
 
-// A result: every chunk solved, the finish answer's `ok`.
+// A result: the finish answer's `ok`, which does all the sampling.
 function solved(api, text, scenario) {
   const begun = JSON.parse(api.solve_graph_begin(text, scenario || '', 'fixture'));
   if (!begun.ok) throw new Error('not begun: ' + JSON.stringify(begun.diagnostics));
-  for (let i = 0; i < begun.ok.progress.total; i++) api.solve_step();
   const done = JSON.parse(api.solve_finish());
   if (!done.ok) throw new Error('not finished: ' + JSON.stringify(done.diagnostics));
   return done.ok.result;

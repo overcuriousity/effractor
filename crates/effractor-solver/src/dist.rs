@@ -12,6 +12,12 @@ use crate::special::{beta_i, gamma_p, phi, phi_inv};
 /// every sampled result.
 pub const CHUNK: usize = 4096;
 
+/// About how much work one solve step does: iterations × nodes per iteration.
+/// A step may stop inside a chunk, so a step is short however big the model
+/// and a caller between steps can stop soon. Not part of the reproducibility
+/// contract: where steps stop changes no result.
+pub const STEP_WORK: u64 = 1 << 17;
+
 /// The RNG for chunk `chunk` of a run seeded with `seed`. ChaCha streams are
 /// independent, so chunks can be computed in any order, on any number of
 /// threads, and merged by index into the same result.

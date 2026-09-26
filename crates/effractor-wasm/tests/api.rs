@@ -72,10 +72,10 @@ fn a_solve_is_begun_stepped_and_finished() {
     assert!(leaves[0]["fussell_vesely"].as_f64().is_some(), "{begun}");
     let total = begun["ok"]["progress"]["total"].as_u64().unwrap();
     assert_eq!(begun["ok"]["progress"]["done"], json!(0));
-    // Three chunks of 4096 for the baseline and again for the one control.
-    assert_eq!(total, 6);
-
-    for done in 1..=total {
+    // 9000 samples for the baseline and again for the one control; a tree
+    // this small does a whole chunk of 4096 in a step.
+    assert_eq!(total, 18_000);
+    for done in [4096, 8192, 9000, 13_096, 17_192, 18_000] {
         let step = call(session.step());
         assert_eq!(step["ok"], json!({"done": done, "total": total}));
     }
@@ -397,13 +397,17 @@ fn an_architecture_solves_its_baseline_graph_in_steps() {
     assert_eq!(begun["ok"]["source"], LECTURE);
     // No exact part: nothing about a graph is a tree's exact result.
     assert!(begun["ok"].get("exact").is_none());
-    assert_eq!(begun["ok"]["progress"], json!({"done": 0, "total": 3}));
-    for done in 1..=3 {
-        assert_eq!(
-            call(session.step())["ok"],
-            json!({"done": done, "total": 3})
-        );
+    // The lecture asks for 10,000 samples.
+    let total = 10_000;
+    assert_eq!(begun["ok"]["progress"], json!({"done": 0, "total": total}));
+    let mut done = 0;
+    while done < total {
+        let step = call(session.step())["ok"].clone();
+        assert!(step["done"].as_u64().unwrap() > done, "{step}");
+        assert_eq!(step["total"], total);
+        done = step["done"].as_u64().unwrap();
     }
+    assert_eq!(done, total);
     let finished = session.finish();
     let want = format!(
         r#"{{"ok":{{"revision":"","source":{},"result":{}}},"diagnostics":[]}}"#,

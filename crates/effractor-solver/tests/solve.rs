@@ -2,6 +2,8 @@ mod common;
 
 use common::*;
 use effractor_core::{Distribution as D, *};
+use effractor_solver::bdd::BddError;
+use effractor_solver::results::Outcome;
 use effractor_solver::{Config, Solve, SolveError, solve};
 
 fn rate(r: f64) -> Node {
@@ -185,6 +187,74 @@ fn controls_are_ranked_by_what_they_buy() {
 }
 
 #[test]
+fn an_infinite_expected_loss_is_explained_and_not_ranked() {
+    let heavy = D::Pareto {
+        xm: 1.0,
+        alpha: 0.01,
+    };
+    let mut m = webserver();
+    m.assets[&id::<AssetId>("web")].loss.a = Some(heavy.clone());
+    let r = solve(&m, &cfg(&m)).unwrap();
+    let sampled = r.sampled.available().unwrap();
+    assert_eq!(sampled.loss, None);
+    let reason = sampled.loss_unavailable.as_deref().unwrap();
+    assert!(reason.contains("infinite"), "{reason}");
+    assert_eq!(
+        r.controls,
+        Outcome::Unavailable {
+            reason: reason.into()
+        }
+    );
+
+    // Finite as written; switching the one control off lets the tail in.
+    let mut m = model("top", vec![("top", rate(1.0))]);
+    m.assets = webserver().assets;
+    m.assets[&id::<AssetId>("web")].loss.a = Some(heavy);
+    m.nodes[&id::<NodeId>("top")]
+        .consequences
+        .push(Consequence {
+            asset: id("web"),
+            dim: Dim::A,
+            fraction: 1.0,
+        });
+    m.controls
+        .insert(id("wall"), control(true, 10.0, "top", D::Infinity));
+    let r = solve(&m, &cfg(&m)).unwrap();
+    assert_eq!(
+        r.sampled.available().unwrap().loss.as_ref().unwrap().mean,
+        0.0
+    );
+    let wall = &r.controls.available().unwrap().controls[0];
+    assert_eq!((wall.value, wall.rank), (None, None));
+    assert_eq!(wall.unavailable.as_deref(), Some(reason));
+}
+
+#[test]
+fn a_huge_horizon_keeps_its_time_axis() {
+    let mut m = webserver();
+    m.horizon = 1e308;
+    let r = solve(&m, &cfg(&m)).unwrap();
+    let exact: Vec<f64> = r
+        .exact
+        .available()
+        .unwrap()
+        .ttc_cdf
+        .iter()
+        .map(|p| p.0)
+        .collect();
+    let sampled = &r.sampled.available().unwrap().ttc_cdf;
+    assert_eq!((exact[64], sampled[64].0), (1e308, 1e308));
+    assert!(
+        exact
+            .iter()
+            .zip(sampled)
+            .all(|(e, s)| e.is_finite() && *e == s.0)
+    );
+    // Everything that happens happens by the horizon, and lands on the grid.
+    assert_eq!(sampled[64].1, r.sampled.available().unwrap().p_top);
+}
+
+#[test]
 fn without_losses_controls_are_measured_exactly_and_nothing_extra_is_sampled() {
     let mut m = webserver();
     m.assets.clear();
@@ -192,8 +262,8 @@ fn without_losses_controls_are_measured_exactly_and_nothing_extra_is_sampled() {
     let s = Solve::begin(&m, &cfg(&m)).unwrap();
     assert_eq!(
         s.progress().total,
-        5,
-        "20 000 samples is 5 chunks, for the baseline only"
+        20_000,
+        "20 000 samples, for the baseline only"
     );
     let r = s.finish();
     let c = r.controls.available().unwrap();
@@ -215,14 +285,47 @@ fn stepping_is_the_same_computation() {
     // Everything exact is there before the first sample.
     assert!(s.exact().available().is_some() && s.cut_sets().available().is_some());
     let total = s.progress().total;
-    assert_eq!(total, 5 * 5, "baseline and four flips, five chunks each");
+    assert_eq!(total, 5 * 20_000, "baseline and four flips");
     let mut seen = vec![];
     while s.progress().done < total {
         seen.push(s.step().done);
     }
-    assert_eq!(seen, (1..=total).collect::<Vec<_>>());
+    // A tree this small does a whole chunk in a step: five per scenario.
+    let chunks = [4096, 4096, 4096, 4096, 3616];
+    let want: Vec<u64> = (0..5 * 5)
+        .scan(0, |done, i| {
+            *done += chunks[i % 5];
+            Some(*done)
+        })
+        .collect();
+    assert_eq!(seen, want);
     assert_eq!(s.step().done, total, "stepping past the end is harmless");
     assert_eq!(s.finish(), solve(&m, &cfg(&m)).unwrap());
+}
+
+#[test]
+fn a_big_tree_steps_inside_a_chunk_to_the_same_bits() {
+    // 2000 leaves: a step is some sixty iterations, not a chunk of 4096.
+    let names: Vec<String> = (0..2000).map(|i| format!("l{i}")).collect();
+    let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+    let mut nodes = vec![("top", gate(Gate::Or, &refs))];
+    nodes.extend(refs.iter().map(|r| (*r, rate(1e-6))));
+    let m = model("top", nodes);
+    let config = Config {
+        samples: 5000,
+        ..Config::from_model(&m)
+    };
+    let mut s = Solve::begin(&m, &config).unwrap();
+    let first = s.step().done;
+    assert!(first > 0 && first < 200, "{first}");
+    let mut steps = 1;
+    while s.progress().done < s.progress().total {
+        let before = s.progress().done;
+        assert!(s.step().done - before <= first);
+        steps += 1;
+    }
+    assert!(steps >= 5000 / first, "{steps}");
+    assert_eq!(s.finish(), solve(&m, &config).unwrap());
 }
 
 #[test]
@@ -333,7 +436,14 @@ fn past_the_node_limit_sampling_carries_on_alone() {
         },
     )
     .unwrap();
-    assert!(format!("{:?}", r.exact).contains("NodeLimit(4)"));
+    assert_eq!(
+        r.exact,
+        Outcome::Unavailable {
+            reason: "exact analysis gave up: the decision diagram outgrew its limit of 4 nodes; \
+                     sampled results still hold"
+                .into()
+        }
+    );
     assert!(r.cut_sets.available().is_none());
     assert!(
         r.leaves
@@ -397,7 +507,7 @@ fn a_limit_that_only_fussell_vesely_needs_costs_only_fussell_vesely() {
     }
     assert_eq!(
         exact.fussell_vesely_unavailable.as_deref(),
-        Some(format!("Fussell–Vesely gave up: NodeLimit({base})").as_str())
+        Some(format!("Fussell–Vesely gave up: {}", BddError::NodeLimit(base)).as_str())
     );
     assert_eq!(
         full.exact.available().unwrap().fussell_vesely_unavailable,

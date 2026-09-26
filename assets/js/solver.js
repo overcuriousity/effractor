@@ -9,9 +9,6 @@
 
     var solver = {
       onCrash: null,
-      validate: function (text) {
-        return request({ type: "validate", text: text });
-      },
       parse: function (text) {
         return request({ type: "parse", text: text });
       },
