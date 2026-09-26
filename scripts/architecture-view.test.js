@@ -372,8 +372,17 @@ test('a component with something to finish carries how many', () => {
 
 test('the legend names only the rings the drawing carries', () => {
   const none = V.ringsIn({ nodes: [{ rings: [] }, { cluster: { states: [null, null] } }] });
-  assert.deepEqual(none, { vulnerable: false, exposed: false, unknown: false });
+  assert.deepEqual(none, { vulnerable: false, exposed: false, unknown: false, choke: false });
   const some = V.ringsIn({ nodes: [{ rings: [{ state: 'exposed' }] }, { cluster: { states: ['vulnerable', 'unknown'] } }] });
-  assert.deepEqual(some, { vulnerable: true, exposed: true, unknown: true });
-  assert.deepEqual(V.ringsIn(null), { vulnerable: false, exposed: false, unknown: false });
+  assert.deepEqual(some, { vulnerable: true, exposed: true, unknown: true, choke: false });
+  assert.deepEqual(V.ringsIn(null), { vulnerable: false, exposed: false, unknown: false, choke: false });
+});
+
+test('a component every way to the target passes wears its own ring, and the legend names it', () => {
+  const g = V.describe(lecture(), null, null, ['entity/sshd']);
+  const node = id => g.nodes.find(n => n.id === 'entity/' + id);
+  assert.ok(node('sshd').rings.some(r => r.state === 'choke'));
+  assert.ok(!node('srv').rings.some(r => r.state === 'choke'));
+  assert.equal(V.ringsIn(g).choke, true);
+  assert.equal(V.ringsIn(V.describe(lecture())).choke, false);
 });

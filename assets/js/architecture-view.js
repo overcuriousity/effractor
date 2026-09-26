@@ -133,7 +133,9 @@
   // `word(state)`: optional, the pins' words for a state (the catalog's).
   // `blocking`: {id: [message]} of what stops the attack graph, per
   // component (problems.perComponent); counted on its plate.
-  function describe(doc, word, blocking) {
+  // `choke`: the qualified components every way to the target passes (the
+  // module's chokepoints, by component), each ringed.
+  function describe(doc, word, blocking, choke) {
     var entities = doc.entities || {};
     var edges = [];
     var permits = [];
@@ -187,7 +189,9 @@
         blocking: blocking && blocking[id] ? blocking[id].length : 0,
         badge: null,
         pins: pinned[id] || [],
-        rings: found.why[id] ? [{ state: found.own[id] ? "vulnerable" : "exposed", why: found.why[id].join("\n") }] : [],
+        rings: (found.why[id] ? [{ state: found.own[id] ? "vulnerable" : "exposed", why: found.why[id].join("\n") }] : []).concat(
+          choke && choke.indexOf("entity/" + id) >= 0 ? [{ state: "choke", why: "every way to the target passes here" }] : []
+        ),
         parents: incoming[id] || 0,
         unquantified: open > 0,
         top: false,
@@ -388,7 +392,7 @@
   // Which rings a drawing carries (a component's own, a cluster's
   // sectors): the legend names those and no others.
   function ringsIn(described) {
-    var out = { vulnerable: false, exposed: false, unknown: false };
+    var out = { vulnerable: false, exposed: false, unknown: false, choke: false };
     ((described && described.nodes) || []).forEach(function (n) {
       (n.rings || []).forEach(function (r) {
         if (r.state in out) out[r.state] = true;

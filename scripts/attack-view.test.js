@@ -340,3 +340,12 @@ test('steps are said by the components they are about, each once', () => {
   assert.deepEqual(V.componentsOf(graph, ['action/product-find-exploit/openssh', 'state/product/openssh/exploit-ready', 'state/host/server/admin', 'nothing']), ['entity/openssh', 'entity/server']);
   assert.deepEqual(V.componentsOf(graph, []), []);
 });
+
+test('a step every way to the target needs says so', () => {
+  const drawn = V.describe(graph, support, null).graph.nodes;
+  const at = id => drawn.find(n => n.id === 'step/' + id);
+  assert.equal(at('action/flow-connect/ssh').tag, 'every route');
+  assert.ok(at('action/flow-connect/ssh').classes.includes('is-choke'));
+  assert.notEqual(at('action/product-find-exploit/openssh').tag, 'every route');
+  assert.deepEqual(support.chokepoints.slice().sort(), ['action/flow-connect/ssh', 'state/flow/ssh/connected', 'state/service/sshd/reachable']);
+});

@@ -81,11 +81,6 @@ low-chroma family plates, flows redrawn, canvas switch renamed), is
 [`2026-09-26-ui-review-design.md`](docs/superpowers/specs/2026-09-26-ui-review-design.md).
 Each item is one or a few small PRs; the owner looks at each before it lands.
 
-### chokepoints — What every route passes through
-needs: —            cost: 3   benefit: 4
-Spec §7. Done when the solver returns the steps and components every route to
-the target needs (exact, with a size guard) and the page marks and lists them.
-
 ### colour-grammar — One meaning per colour and line
 needs: —            cost: 3   benefit: 3
 Spec §9. Done when family plates are low-chroma, the state tokens and dash

@@ -411,7 +411,8 @@
       } else {
         // Outside the halo, a ring per state it is in: vulnerable, exposed.
         (n.rings || []).forEach(function (ring) {
-          el("circle", { cx: cx, cy: r, r: ringR }, ["ring", "ring-" + ring.state], g);
+          // Every way passes here: a ring of its own, outside the others.
+          el("circle", { cx: cx, cy: r, r: ring.state === "choke" ? ringR + 5 : ringR }, ["ring", "ring-" + ring.state], g);
         });
       }
       el("circle", { cx: cx, cy: r, r: r }, ["plate"], g);

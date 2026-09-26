@@ -407,6 +407,35 @@
     if (total > routes.length) box.appendChild(el("p", (total - routes.length) + " other routes · " + Math.round((1 - routes.reduce(function (a, r) { return a + r.share; }, 0)) * 100) + "%", "hint"));
   }
 
+  // Where every way to the target passes: the components of the
+  // chokepoints, each selectable; said as not checked on a graph too large.
+  function renderChokepoints(box) {
+    var g = generated();
+    var choke = g && g.support ? g.support.chokepoints : undefined;
+    if (choke === undefined) return;
+    if (choke === null) return box.appendChild(el("p", "every-route steps not checked · graph too large", "hint"));
+    var parts = V.componentsOf(g.graph, choke);
+    if (!parts.length) return;
+    heading(box, "Every route passes", parts.length);
+    var list = el("ul", null, "assumptions");
+    parts.forEach(function (q) {
+      var li = el("li");
+      var cut = q.indexOf("/");
+      var map = q.slice(0, cut) === "flow" ? doc().flows : doc().entities;
+      var item = map && Object.prototype.hasOwnProperty.call(map, q.slice(cut + 1)) ? map[q.slice(cut + 1)] : null;
+      var b = el("button", null, "assumption");
+      b.type = "button";
+      b.appendChild(el("span", item && item.label != null ? item.label : q, "assumption-what"));
+      b.title = "every way to the target passes here · blocking it blocks the target";
+      b.addEventListener("click", function () {
+        app.select(q);
+      });
+      li.appendChild(b);
+      list.appendChild(li);
+    });
+    box.appendChild(list);
+  }
+
   // Every step of the graph, searchable; its state from the graph, its
   // probability from the latest results.
   function renderSteps(box, body) {
@@ -505,6 +534,7 @@
     if (results) {
       renderHeadline(box, results);
       renderRoutes(box, results);
+      renderChokepoints(box);
     } else {
       box.appendChild(el("p", "Calculate (Ctrl+Enter) to see the target's probability.", "empty"));
     }

@@ -675,10 +675,13 @@
     } else {
       state.shownSteps = null;
       state.stepCount = null;
-      described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc, stateWord, PR.perComponent(state.diagnostics)) : window.effractorGraph.describe(state.doc);
+      // Where every way to the target passes, from the attack graph kept.
+      var kept = state.generated;
+      var choke = kept && kept.support && kept.support.chokepoints ? AV.componentsOf(kept.graph, kept.support.chokepoints) : null;
+      described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc, stateWord, PR.perComponent(state.diagnostics), choke) : window.effractorGraph.describe(state.doc);
       if (P.isArchitecture(state.doc) && window.effractorArchitectureView.ringsIn && $("legend-vulnerable")) {
         var rings = window.effractorArchitectureView.ringsIn(described);
-        ["vulnerable", "exposed", "unknown"].forEach(function (r) {
+        ["vulnerable", "exposed", "unknown", "choke"].forEach(function (r) {
           $("legend-" + r).hidden = !rings[r];
         });
       }
@@ -860,7 +863,9 @@
         state.blockers = null;
         state.generated = { graph: answer.ok.graph, support: answer.ok.support, revision: revision };
         notify();
-        reselect();
+        // Chokepoints are drawn on the components: drawn again for them.
+        if ((answer.ok.support.chokepoints || []).length && state.mode !== "attack") draw(false).then(reselect);
+        else reselect();
       }, function (e) {
         console.error(e);
       });

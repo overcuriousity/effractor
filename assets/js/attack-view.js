@@ -431,6 +431,11 @@
         }
       });
     });
+    // The steps every way to the target needs (the module's, when checked).
+    var choke = Object.create(null);
+    ((support && support.chokepoints) || []).forEach(function (c) {
+      choke[c] = true;
+    });
     var drawn = [];
     nodes.forEach(function (n, i) {
       if (!keep[i]) return;
@@ -439,6 +444,7 @@
       var classes = ["kind-" + (KIND[n.kind] || n.kind)];
       if (s.status) classes.push("is-" + s.status);
       if (unknown) classes.push("is-unknown");
+      if (choke[n.id]) classes.push("is-choke");
       drawn.push({
         id: "step/" + n.id,
         label: n.label,
@@ -447,7 +453,7 @@
         inscription: n.kind === "all" ? "ALL" : n.kind === "any" ? "ANY" : null,
         attributes: hidden[i] ? "+" + hidden[i] + " not shown" : null,
         badge: n.id === graph.target ? "target" : n.timing.status === "foothold" ? "foothold" : null,
-        tag: unknown ? "unknown" : TAGS[s.status] || null,
+        tag: unknown ? "unknown" : TAGS[s.status] || (choke[n.id] ? "every route" : null),
         classes: classes,
         parents: dependents[i],
         unquantified: unknown,
