@@ -2,6 +2,7 @@
 //! interface; a scripted API with tokens is the later `api-tokens` item.
 
 pub mod account;
+pub mod admin;
 pub mod documents;
 pub mod sharing;
 
@@ -74,4 +75,5 @@ pub fn routes() -> axum::Router<crate::accounts::Accounts> {
         .merge(account::routes())
         .merge(documents::routes())
         .merge(sharing::routes())
+        .merge(admin::routes())
 }

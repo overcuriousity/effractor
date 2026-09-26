@@ -128,7 +128,7 @@ people section (spec §5, §9.3). Done when the permission table test passes and
 the owner has shared a folder with a group in the preview.
 
 ### administration — Users and groups in the GUI
-needs: accounts-core            cost: 3   benefit: 4
+needs: accounts-core, sharing-people            cost: 3   benefit: 4
 The administration dialog: users (create, disable, delete, reset password,
 promote), groups (members, roles, `admins_may_create_users`), group admins'
 limited view (spec §5, §8, §9.4). Done when the §11 tests for these pass and
