@@ -3,9 +3,13 @@
 //! It never links the solver. Analysis runs in the browser; what this serves
 //! is the application itself and, later, opaque shared blobs.
 
+pub mod accounts;
+pub mod api;
 mod assets;
+pub mod auth;
 pub mod cli;
 mod headers;
+pub(crate) mod limiter;
 pub mod share;
 mod shell;
 mod static_site;
@@ -33,10 +37,27 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
 /// share API limits creation per peer address, and without the address every
 /// client is the same client.
 pub fn app(shares: share::Shares) -> Router {
-    Router::new()
-        .route("/", get(shell::shell))
-        .route("/s/{id}", get(shell::shell))
+    app_with(shares, None)
+}
+
+/// With accounts, the account routes (behind the Origin guard) and a shell
+/// that knows; without, exactly the app as before.
+pub fn app_with(shares: share::Shares, accounts: Option<accounts::Accounts>) -> Router {
+    let on = accounts.is_some();
+    let mut router = Router::new()
+        .route("/", get(move || shell::shell(on)))
+        .route("/s/{id}", get(move || shell::shell(on)))
         .route("/assets/{*path}", get(assets::asset))
-        .merge(share::routes(shares))
-        .layer(axum::middleware::from_fn(headers::security_headers))
+        .merge(share::routes(shares));
+    if let Some(accounts) = accounts {
+        let api = auth::routes()
+            .merge(api::routes())
+            .layer(axum::middleware::from_fn_with_state(
+                accounts.clone(),
+                auth::guard::same_origin,
+            ))
+            .with_state(accounts);
+        router = router.merge(api);
+    }
+    router.layer(axum::middleware::from_fn(headers::security_headers))
 }

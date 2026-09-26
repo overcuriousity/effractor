@@ -65,7 +65,7 @@
 <script src="{{ asset_prefix }}assets/js/share-ui.js" defer></script>
 </head>
 <body>
-<div class="workspace" id="app" data-version="{{ version }}">
+<div class="workspace" id="app" data-version="{{ version }}"{% if accounts %} data-accounts="true"{% endif %}>
 
   <header class="topbar">
     <span class="brand"><span class="brand-mark" aria-hidden="true"></span>effractor</span>

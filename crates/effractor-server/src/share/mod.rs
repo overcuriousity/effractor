@@ -7,7 +7,6 @@
 
 mod api;
 mod fs;
-mod limiter;
 mod memory;
 
 use std::fmt;

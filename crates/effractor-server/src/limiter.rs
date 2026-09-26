@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
 
-use super::Timestamp;
+use crate::share::Timestamp;
 
 /// A token bucket per address: `per_hour` shares at once, refilled evenly over
 /// the hour. In memory and per process, which is all a single binary needs; it

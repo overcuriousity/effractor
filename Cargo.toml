@@ -30,3 +30,9 @@ opt-level = 2
 opt-level = 2
 [profile.dev.package.ppv-lite86]
 opt-level = 2
+# Every login in the account tests hashes a password; argon2 unoptimised
+# takes most of a second per hash.
+[profile.dev.package.argon2]
+opt-level = 2
+[profile.dev.package.blake2]
+opt-level = 2

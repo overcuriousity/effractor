@@ -4,6 +4,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Parser;
+use effractor_accounts::sessions;
+use effractor_server::accounts::{Accounts, AccountsConfig};
 use effractor_server::share::{FsStorage, Limits, Shares, Ttl};
 
 /// Security architecture analysis, served locally. Models are solved in the
@@ -35,6 +37,11 @@ struct Args {
     /// Created on first start. Without it, there are no accounts.
     #[arg(long, value_name = "FILE", global = true)]
     accounts: Option<PathBuf>,
+
+    /// The origin people reach this server at (https://…). Needed for
+    /// passkeys; makes the session cookie Secure when it is https.
+    #[arg(long, value_name = "URL")]
+    public_url: Option<String>,
 }
 
 #[derive(clap::Subcommand)]
@@ -70,10 +77,26 @@ async fn main() -> anyhow::Result<()> {
         ..Limits::default()
     };
     let shares = Shares::new(Arc::new(FsStorage::new(args.data)), limits);
+    let accounts = match &args.accounts {
+        Some(db) => {
+            if args.public_url.is_none() && !args.bind.ip().is_loopback() {
+                tracing::warn!(
+                    "accounts without --public-url on {}: logins travel unencrypted unless a TLS proxy is in front",
+                    args.bind
+                );
+            }
+            Some(Accounts::open(AccountsConfig {
+                db: db.clone(),
+                public_url: args.public_url.clone(),
+            })?)
+        }
+        None => None,
+    };
 
     // Expired shares go at startup and hourly. The API never serves one in
     // between; the sweep is what gives the disk space back.
     let sweeper = shares.clone();
+    let sweep_accounts = accounts.clone();
     tokio::spawn(async move {
         let mut hourly = tokio::time::interval(Duration::from_secs(3600));
         loop {
@@ -83,12 +106,24 @@ async fn main() -> anyhow::Result<()> {
                 Ok(n) => tracing::info!("removed {n} expired shares"),
                 Err(err) => tracing::error!(%err, "sweeping expired shares failed"),
             }
+            // Ended sessions, and (stored-documents) what was deleted a week ago.
+            if let Some(accounts) = sweep_accounts.clone() {
+                let swept = tokio::task::spawn_blocking(move || {
+                    let now = accounts.db().now();
+                    accounts.db().write(|t| sessions::sweep(t, now))
+                })
+                .await;
+                if let Ok(Err(err)) = swept {
+                    tracing::error!(%err, "sweeping sessions failed");
+                }
+            }
         }
     });
 
     let listener = tokio::net::TcpListener::bind(args.bind).await?;
     tracing::info!("listening on http://{}", listener.local_addr()?);
-    let app = effractor_server::app(shares).into_make_service_with_connect_info::<SocketAddr>();
+    let app = effractor_server::app_with(shares, accounts)
+        .into_make_service_with_connect_info::<SocketAddr>();
     axum::serve(listener, app)
         .with_graceful_shutdown(async {
             let _ = tokio::signal::ctrl_c().await;

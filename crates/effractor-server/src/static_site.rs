@@ -13,7 +13,7 @@ pub fn export_static(destination: &Path) -> anyhow::Result<()> {
             "missing {required}: run scripts/build-wasm.sh before building the server"
         );
     }
-    let html = shell::render(false)?;
+    let html = shell::render(false, false)?;
     fs::create_dir(destination)?;
     for name in Assets::iter() {
         let file = Assets::get(&name)

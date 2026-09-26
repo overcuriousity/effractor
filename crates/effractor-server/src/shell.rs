@@ -8,14 +8,16 @@ struct Shell {
     version: &'static str,
     asset_prefix: &'static str,
     sharing: bool,
+    accounts: bool,
     csp: &'static str,
 }
 
-pub(crate) fn render(sharing: bool) -> Result<String, askama::Error> {
+pub(crate) fn render(sharing: bool, accounts: bool) -> Result<String, askama::Error> {
     Shell {
         version: super::VERSION,
         asset_prefix: if sharing { "/" } else { "./" },
         sharing,
+        accounts,
         // Pages cannot set response headers. This directive only works in a
         // header; the remaining policy is also supported in a meta element.
         csp: super::headers::CSP
@@ -25,8 +27,8 @@ pub(crate) fn render(sharing: bool) -> Result<String, askama::Error> {
     .render()
 }
 
-pub async fn shell() -> Response {
-    match render(true) {
+pub async fn shell(accounts: bool) -> Response {
+    match render(true, accounts) {
         Ok(html) => Html(html).into_response(),
         Err(err) => {
             tracing::error!(%err, "shell template failed to render");
@@ -103,7 +105,7 @@ mod tests {
 
     #[test]
     fn static_shell_offers_self_contained_sharing_without_server_controls() {
-        let html = render(false).unwrap();
+        let html = render(false, false).unwrap();
         assert!(html.contains("id=\"canvas\""));
         assert!(html.contains("src=\"./assets/js/app.js\""));
         assert!(!html.contains("src=\"/assets/"));
@@ -119,7 +121,7 @@ mod tests {
 
     #[test]
     fn server_shell_keeps_sharing_and_root_paths_for_shared_links() {
-        let html = render(true).unwrap();
+        let html = render(true, false).unwrap();
         assert!(html.contains("src=\"/assets/js/app.js\""));
         assert!(html.contains("/assets/js/share-ui.js"));
         assert!(html.contains("id=\"share-dialog\""));
