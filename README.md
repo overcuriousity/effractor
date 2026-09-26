@@ -39,6 +39,31 @@ three attack trees and seven architectures in rising order of complexity. Downlo
 a YAML file and use **Open** in the app; the files ship with both the server and
 the static site.
 
+## Accounts (self-hosted)
+
+The server can keep people's documents: accounts with password, passkey or
+OIDC login (e.g. Nextcloud), folders and search, and sharing with users and
+groups. It is off unless you give it a database; without one, nothing changes.
+The GitHub Pages build never has accounts.
+
+```sh
+effractor user add alice --accounts /var/lib/effractor/effractor.db   # asks for a password
+effractor user promote alice --accounts /var/lib/effractor/effractor.db
+effractor --accounts /var/lib/effractor/effractor.db --public-url https://effractor.example
+```
+
+- `effractor user list | add | promote | demote | passwd` manage users from the
+  shell; admins manage users and groups in the page. There is no public sign-up.
+- `--public-url` is the address people use. Passkeys need it, and it makes the
+  session cookie `Secure` when it is `https`. Put a TLS proxy in front.
+- OIDC: `--oidc-issuer URL --oidc-client-id ID --oidc-name Nextcloud` and the
+  secret in `--oidc-secret-file FILE` or `EFFRACTOR_OIDC_SECRET`. Register
+  `<public url>/api/auth/oidc/callback` as the redirect URI at the issuer. A
+  first login makes an account in no group; an admin assigns groups.
+- Documents are stored readable in SQLite (WAL). Protect the file as you
+  would any database; the YAML download is every user's own backup.
+- Public share links stay end-to-end encrypted, as without accounts.
+
 ## Fault-tree methods and references
 
 Effractor analyses static, coherent fault trees with independent basic events.
@@ -70,6 +95,8 @@ scripts/build-wasm.sh            # the solver, as wasm, into assets/wasm/
 cargo run -p effractor-server
 ```
 
+The server builds OpenSSL from source (for passkeys), which needs `perl` with
+its core modules (Fedora: `perl-core`), `make` and a C compiler.
 The first line needs the `wasm-bindgen` CLI in the version `Cargo.lock` names;
 it says how to get it, or fetches it itself with `--fetch-cli`. Run it again
 after changing a crate the browser runs. Other browser assets are vendored; `npm ci && npm run vendor` only after bumping a pin
