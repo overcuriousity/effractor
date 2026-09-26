@@ -166,7 +166,6 @@
       rows.forEach(function (r) { shared.appendChild(r); });
     });
     if (!t.shared.length) shared.appendChild(empty(query ? "Nothing matches" : "Nothing shared with you"));
-    dropTarget($("documents-mine"), null);
   }
 
   // ---- dragging onto folders ----
@@ -297,10 +296,14 @@
     var path = (kind === "document" ? "/api/documents/" : "/api/folders/") + id;
     client.request("DELETE", path).then(function (res) {
       if (!res.ok) return app.say("not deleted");
-      if (kind === "document" && A.sync.isOpen(id)) A.sync.forget(id);
+      if (kind === "document") A.sync.forget(id);
+      if (kind === "folder" && selectedFolder === id) selectedFolder = null;
       refresh();
       app.say('Deleted "' + name + '"', [["Undo", function () {
-        client.request("POST", path + "/restore").then(function () { refresh(); });
+        client.request("POST", path + "/restore").then(function (r) {
+          if (!r.ok) app.say(r.status === 409 ? "not restored · the name is taken" : "not restored");
+          refresh();
+        });
       }]]);
     });
   }
@@ -330,6 +333,8 @@
     e.preventDefault();
     openTab();
   });
+  // The top of My documents takes drops once, not once per drawing.
+  dropTarget($("documents-mine"), null);
   $("documents-login").addEventListener("click", function () { $("login-open").click(); });
   A.session.onChange(function () { listing = null; refresh(); });
 

@@ -176,7 +176,8 @@ mod tests {
         assert!(at("js/accounts/account-ui.js") < at("js/accounts/documents.js"));
         assert!(at("js/accounts/documents.js") < at("js/accounts/documents-ui.js"));
         assert!(at("js/accounts/documents-ui.js") < at("js/accounts/autosave.js"));
-        assert!(at("js/accounts/autosave.js") < at("js/accounts/sync.js"));
+        assert!(at("js/accounts/autosave.js") < at("js/accounts/sync-core.js"));
+        assert!(at("js/accounts/sync-core.js") < at("js/accounts/sync.js"));
         // Sharing with people (spec §9.3), in the share dialog.
         for id in [
             "share-people",

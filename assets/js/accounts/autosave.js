@@ -43,6 +43,22 @@
           if (o.onConflict) o.onConflict({ theirs: res.data, mine: body });
           return;
         }
+        // The session ended (expired, or revoked elsewhere): retrying is
+        // pointless until somebody logs in again.
+        if (res.status === 401) {
+          stopped = true;
+          set("loggedout");
+          if (o.onLoggedOut) o.onLoggedOut();
+          return;
+        }
+        // The server will not take this text (too large, not valid): the
+        // same text would be refused again.
+        if (res.status === 400 || res.status === 413) {
+          stopped = true;
+          set("refused");
+          if (o.onRefused) o.onRefused(res.data);
+          return;
+        }
         if (res.status === 404 || res.status === 403) {
           stopped = true;
           set("lost");
@@ -79,6 +95,7 @@
         timer = null;
       },
       state: function () { return state; },
+      name: function () { return name; },
       version: function () { return version; },
       saved: function () { return saved; },
     };

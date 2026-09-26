@@ -65,7 +65,9 @@
       }]);
     }
     items.push(["Log out", "", function () {
-      client.logout().then(refresh);
+      // What is waiting is saved first, while the session still counts.
+      var before = A.beforeLogout ? A.beforeLogout() : Promise.resolve();
+      before.then(function () { return client.logout(); }).then(refresh);
     }]);
     var box = $("account").getBoundingClientRect();
     app.showMenu(items, box.left, box.bottom + 4);

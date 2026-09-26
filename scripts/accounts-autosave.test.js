@@ -108,3 +108,36 @@ test("flush saves now", async () => {
   await a.flush();
   assert.equal(put.calls.length, 1);
 });
+
+test("logged out (401) stops at once and says so, no retries", async () => {
+  const timers = fakeTimers(), out = [];
+  const put = server([{ ok: false, status: 401 }]);
+  const a = createAutosave({ put, delay: 800, timers, onLoggedOut: () => out.push(1) });
+  a.bind({ version: 1, saved: "a" });
+  a.change("b", "N");
+  await timers.advance(60_000);
+  assert.equal(put.calls.length, 1);
+  assert.equal(a.state(), "loggedout");
+  assert.equal(out.length, 1);
+});
+
+test("a save the server refuses (400, 413) stops with the reason", async () => {
+  for (const status of [400, 413]) {
+    const timers = fakeTimers(), why = [];
+    const put = server([{ ok: false, status, data: "a document is at most 1 MiB" }]);
+    const a = createAutosave({ put, delay: 800, timers, onRefused: (w) => why.push(w) });
+    a.bind({ version: 1, saved: "a" });
+    a.change("b", "N");
+    await timers.advance(60_000);
+    assert.equal(put.calls.length, 1, `status ${status}`);
+    assert.equal(a.state(), "refused");
+    assert.deepEqual(why, ["a document is at most 1 MiB"]);
+  }
+});
+
+test("the queue remembers the name it last saved under", () => {
+  const a = createAutosave({ put: server([]), delay: 800, timers: fakeTimers() });
+  a.bind({ version: 1, saved: "a" });
+  a.change("b", "Plant");
+  assert.equal(a.name(), "Plant");
+});
