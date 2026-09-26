@@ -11,6 +11,7 @@
 }
 .outline .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .outline li:hover { background: var(--color-bg-hover); }
+.outline li .kind-icon { flex: none; align-self: center; color: var(--color-fg-muted); }
 .outline li.is-selected { background: var(--color-bg-active); box-shadow: inset 2px 0 0 var(--color-accent); }
 .outline .kind { flex: none; width: 2.6em; color: var(--color-fg-muted); font-family: var(--font-mono); font-size: var(--text-xs); text-align: center; }
 .outline .repeat { flex: none; color: var(--color-fg-muted); font-size: var(--text-xs); }

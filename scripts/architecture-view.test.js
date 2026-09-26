@@ -386,3 +386,37 @@ test('a component every way to the target passes wears its own ring, and the leg
   assert.equal(V.ringsIn(g).choke, true);
   assert.equal(V.ringsIn(V.describe(lecture())).choke, false);
 });
+
+test('the outline finds components by name, id or kind, grouped under their clusters, and says why when nothing is found', () => {
+  const doc = {
+    profile: 'architecture',
+    entities: {
+      lan: { kind: 'network', label: 'Client network' },
+      ws1: { kind: 'host', label: 'Workstation 1' },
+      ws2: { kind: 'host', label: 'Workstation 2' },
+      srv: { kind: 'host', label: 'Server' },
+      db: { kind: 'data', label: 'Customer records' },
+    },
+    clusters: { desks: { label: 'Desks', members: ['ws1', 'ws2'] } },
+  };
+  const rows = q => V.outlineRows(doc, q).rows.map(r => (r.depth ? '  ' : '') + r.id);
+  // Everything: each cluster with its members under it, where the first
+  // member stood; the rest in the file's order.
+  assert.deepEqual(rows(''), ['entity/lan', 'cluster/desks', '  entity/ws1', '  entity/ws2', 'entity/srv', 'entity/db']);
+  const all = V.outlineRows(doc, '');
+  assert.equal(all.empty, null);
+  assert.deepEqual(all.rows.find(r => r.id === 'cluster/desks'), { id: 'cluster/desks', label: 'Desks', kind: 'host', depth: 0, count: 2 });
+  assert.deepEqual(all.rows.find(r => r.id === 'entity/db'), { id: 'entity/db', label: 'Customer records', kind: 'data', depth: 0 });
+  // A member found keeps its cluster above it; a cluster found, all of it.
+  assert.deepEqual(rows('station 2'), ['cluster/desks', '  entity/ws2']);
+  assert.deepEqual(rows('desks'), ['cluster/desks', '  entity/ws1', '  entity/ws2']);
+  // By kind and by id, in any case.
+  assert.deepEqual(rows('HOST'), ['cluster/desks', '  entity/ws1', '  entity/ws2', 'entity/srv']);
+  assert.deepEqual(rows('db'), ['entity/db']);
+  // Nothing: said why.
+  const none = V.outlineRows(doc, 'printer');
+  assert.deepEqual(none.rows, []);
+  assert.equal(none.empty, 'no component named “printer”');
+  // No components at all is not a search's business.
+  assert.deepEqual(V.outlineRows({ profile: 'architecture', entities: {} }, 'x'), { rows: [], empty: null });
+});

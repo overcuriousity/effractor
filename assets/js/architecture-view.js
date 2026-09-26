@@ -404,7 +404,54 @@
     return out;
   }
 
-  var api = { describe: describe, route: route, shownSlots: shownSlots, shownDefense: shownDefense, ringsIn: ringsIn };
+  // The outline's rows for `query` (model-find, UI review §12): a component
+  // matches by name, id or kind; a cluster's row stands where its first
+  // member would, its members under it (depth 1) — all of them when its
+  // name matches, else those that do. `empty`: why nothing is listed.
+  function outlineRows(doc, query) {
+    var q = String(query || "").trim().toLowerCase();
+    var entities = (doc && doc.entities) || {};
+    var ids = Object.keys(entities);
+    var hit = function (words) {
+      return !q || words.some(function (w) {
+        return String(w).toLowerCase().indexOf(q) >= 0;
+      });
+    };
+    var row = function (id, depth) {
+      var e = entities[id];
+      return { id: "entity/" + id, label: e.label != null ? String(e.label) : id, kind: e.kind, depth: depth };
+    };
+    var rows = [];
+    var done = Object.create(null);
+    ids.forEach(function (id) {
+      if (done[id]) return;
+      var cid = C.clusterOf(doc, id);
+      if (!cid) {
+        done[id] = true;
+        if (hit([entities[id].label, id, entities[id].kind])) rows.push(row(id, 0));
+        return;
+      }
+      var members = (doc.clusters[cid].members || []).filter(function (m) {
+        return Object.prototype.hasOwnProperty.call(entities, m);
+      });
+      members.forEach(function (m) {
+        done[m] = true;
+      });
+      var name = C.label(doc, cid);
+      var whole = hit([name, cid]);
+      var found = members.filter(function (m) {
+        return whole || hit([entities[m].label, m, entities[m].kind]);
+      });
+      if (!found.length) return;
+      rows.push({ id: "cluster/" + cid, label: name, kind: C.lead(doc, members), depth: 0, count: members.length });
+      found.forEach(function (m) {
+        rows.push(row(m, 1));
+      });
+    });
+    return { rows: rows, empty: ids.length && !rows.length ? "no component named “" + String(query).trim() + "”" : null };
+  }
+
+  var api = { outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, shownDefense: shownDefense, ringsIn: ringsIn };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureView = api;
 })();

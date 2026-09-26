@@ -393,29 +393,49 @@
 
   var outlineEmpty = $("outline-empty").textContent;
 
+  // A model this big gets a find field over its outline (UI review §12).
+  var FIND_FROM = 10;
   function renderOutline() {
     var list = $("outline");
     list.replaceChildren();
     var ids = Object.keys(doc().entities);
-    $("outline-empty").hidden = ids.length > 0;
-    $("outline-empty").textContent = "A adds a component";
+    var find = $("outline-find");
+    find.hidden = ids.length < FIND_FROM;
+    var found = window.effractorArchitectureView.outlineRows(doc(), find.hidden ? "" : find.value);
+    $("outline-empty").hidden = ids.length > 0 && !found.empty;
+    $("outline-empty").textContent = found.empty || "A adds a component";
     // An empty canvas says how to begin.
     $("canvas-empty").hidden = ids.length > 0;
     var blocking = window.effractorProblems.perComponent(app.state.diagnostics);
-    ids.forEach(function (id) {
-      var e = doc().entities[id];
+    found.rows.forEach(function (row) {
       var item = document.createElement("li");
       item.setAttribute("role", "treeitem");
-      item.classList.toggle("is-selected", app.state.selected === "entity/" + id);
-      var kind = document.createElement("span");
-      kind.className = "kind-word";
-      kind.textContent = e.kind;
+      item.style.setProperty("--depth", row.depth);
+      item.classList.toggle("is-selected", app.state.selected === row.id);
+      item.appendChild(window.effractorArchitectureIcons.svg(document, row.kind, 14));
       var name = document.createElement("span");
       name.className = "name";
-      name.textContent = e.label;
-      item.appendChild(kind);
+      name.textContent = row.label;
       item.appendChild(name);
-      item.title = e.label + " · " + id;
+      if (row.count) {
+        // A cluster: how many it holds; right-click offers what a cluster can do.
+        var count = document.createElement("span");
+        count.className = "repeat";
+        count.textContent = String(row.count);
+        item.appendChild(count);
+        item.title = row.label + " · cluster of " + row.count;
+        item.addEventListener("click", function () {
+          app.select(row.id);
+        });
+        item.addEventListener("contextmenu", function (ev) {
+          ev.preventDefault();
+          var e = { id: row.id, x: ev.clientX, y: ev.clientY };
+          for (var i = 0; i < contextHooks.length; i++) if (contextHooks[i](e)) return;
+        });
+        return list.appendChild(item);
+      }
+      var id = row.id.slice(7);
+      item.title = row.label + " · " + (row.kind || "") + " · " + id;
       if (blocking[id]) {
         var mark = document.createElement("span");
         mark.className = "blocked";
@@ -433,6 +453,22 @@
       list.appendChild(item);
     });
   }
+  // Typing finds; Enter selects the first component found, Esc lets go.
+  $("outline-find").addEventListener("input", renderOutline);
+  $("outline-find").addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && this.value) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.value = "";
+      return renderOutline();
+    }
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    var first = window.effractorArchitectureView.outlineRows(doc(), this.value).rows.filter(function (r) {
+      return r.id.indexOf("entity/") === 0;
+    })[0];
+    if (first) app.select(first.id);
+  });
 
   // ---- the inspector: label, kind, note, switch, parameters ----
 

@@ -86,11 +86,6 @@ needs: —            cost: 3   benefit: 3
 Spec §11. Done when single-producer facts fold into their producer, seeded
 steps are marked, tags fit their nodes and the legend covers every state.
 
-### model-find — Find a component in a big model
-needs: —            cost: 2   benefit: 2
-Spec §12. Done when the outline has a find field and groups rows under their
-clusters.
-
 ## Compatibility after the lecture milestone
 
 ### mal-securicad-compatibility — Reuse existing models and libraries
