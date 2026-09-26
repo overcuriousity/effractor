@@ -569,6 +569,10 @@
   // text's) or "current". What is out of date is shown faded, not removed.
   function mark(level) {
     $("app").setAttribute("data-results", level);
+    // Said on the card, where the number is read, not only faded.
+    var outdated = level === "updating";
+    $("hud-state").hidden = !outdated;
+    if (outdated) $("hud-state").textContent = "outdated · Ctrl+Enter";
   }
 
   function notify() {
@@ -576,6 +580,33 @@
       f();
     });
   }
+
+  // The card is the answer: a click opens what it rests on, a right-click
+  // offers the rest of the analysis.
+  function openTab(tab) {
+    if (window.effractorWorkspace) window.effractorWorkspace.open("right");
+    if (window.effractorTabs) window.effractorTabs.show(tab);
+  }
+  $("hud-p-card").addEventListener("click", function () {
+    openTab("results");
+  });
+  $("hud-p-card").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    openTab("results");
+  });
+  $("hud-p-card").addEventListener("contextmenu", function (e) {
+    e.preventDefault();
+    if (!window.effractor.showMenu) return;
+    var arch = P.isArchitecture(state.doc);
+    var items = [["Results", "", function () { openTab("results"); }], ["Time", "", function () { openTab("ttc"); }]];
+    if (arch) {
+      items.push(["Compare", "", function () { openTab("compare"); }]);
+      var routes = GR.isGraphResults(state.results) ? state.results.baseline.routes || [] : [];
+      if (routes.length) items.push(state.route != null ? ["Put the route away", "", function () { window.effractor.showRoute(null); }] : ["Draw route A", "", function () { window.effractor.showRoute(0); }]);
+    }
+    window.effractor.showMenu(items, e.clientX, e.clientY);
+  });
 
   renderer.on("select", function (e) {
     // A merged line holds several: cluster-ui.js asks which.
@@ -831,6 +862,9 @@
     state.ranked = [];
     hud("hud-p", "—");
     hud("hud-p-ci", "");
+    hud("hud-p-time", "");
+    $("hud-p-scenario").hidden = true;
+    $("hud-state").hidden = true;
     hud("hud-eal", "—");
     hud("hud-p95", "");
     $("hud-stats").hidden = true;
@@ -1226,9 +1260,31 @@
     var h = GR.headline(results);
     hud("hud-p", h.p === null ? "—" : probability(h.p));
     hud("hud-p-ci", h.qualifier);
+    // What and by when; how soon half the attempts get there.
+    var card = GR.card(results, targetWords());
+    $("hud-p-label").textContent = card.label;
+    $("hud-p-label").title = card.title;
+    hud("hud-p-time", card.time);
+    // A scenario solved beside the baseline: its number and the change.
+    var C = window.effractorComparison;
+    var sum = results.scenario && C ? C.summary(results) : null;
+    $("hud-p-scenario").hidden = !sum;
+    if (sum) {
+      var named = (state.doc.scenarios || {})[results.scenario.id];
+      var p = GR.headline(results, "scenario").p;
+      hud("hud-p-scenario", "“" + (named ? named.label : results.scenario.id) + "” " + (p === null ? "—" : probability(p)) + (sum.benefit === null ? "" : " · " + C.signed(-sum.benefit)));
+    }
     paint();
     reselect();
     mark("current");
+  }
+
+  // The target in words: its component, then its state.
+  function targetWords() {
+    var t = state.doc && state.doc.attacker && state.doc.attacker.target;
+    if (!t) return null;
+    var e = (state.doc.entities || {})[t.entity];
+    return (e && e.label != null ? e.label : t.entity) + " · " + stateWord(t.state);
   }
 
   // A state as the pins say it: the catalog's word once it has arrived.
@@ -1267,7 +1323,10 @@
       $("solve").textContent = "Cancel";
       $("solve").title = "Cancel (Ctrl+Enter)";
       if (window.effractorWorkspace) window.effractorWorkspace.open("right");
-      if (window.effractorTabs) window.effractorTabs.show("results");
+      // An analysis tab already open stays: Calculate from Compare stays there.
+      var open = document.querySelector ? document.querySelector('[data-tab][aria-selected="true"]') : null;
+      var analysis = open && ["results", "ttc", "compare"].indexOf(open.getAttribute("data-tab")) >= 0;
+      if (window.effractorTabs && !analysis) window.effractorTabs.show("results");
     }
     var started = performance.now();
     return solver

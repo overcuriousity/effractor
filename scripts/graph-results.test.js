@@ -201,3 +201,19 @@ test('steps done at the same time are listed prerequisite first', () => {
     times.slice(1).forEach((t, i) => assert.ok(t >= times[i]));
   });
 });
+
+test('the canvas card says what, by when, and how soon half the attempts get there', () => {
+  const c = R.card(available, 'Server · admin control');
+  assert.equal(c.label, 'P(Server · admin control) by ' + available.horizon + ' ' + available.time_unit);
+  assert.equal(c.title, c.label);
+  assert.match(c.time, /^50% by [0-9.]+ d$/);
+  // A long target name is shortened on the card; the tooltip has it whole.
+  const long = R.card(available, 'Client identity dossiers of the vault · read');
+  assert.ok(long.label.length < 40, long.label);
+  assert.ok(long.label.includes('…'));
+  assert.equal(long.title, 'P(Client identity dossiers of the vault · read) by ' + available.horizon + ' ' + available.time_unit);
+  // No target named: the plain label; nothing reached: said.
+  assert.equal(R.card(available, null).label, 'P(target) by ' + available.horizon + ' ' + available.time_unit);
+  assert.match(R.card(unreachable, 'X').time, /^50% not reached by /);
+  assert.equal(R.card(unknown, 'X').time, '');
+});

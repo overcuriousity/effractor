@@ -252,6 +252,12 @@
 .hud-card .label { margin-bottom: 5px; }
 .stat { font-weight: 600; font-size: 1.05rem; line-height: 1.1; letter-spacing: -0.02em; }
 .hud-sub { font-size: 0.6875rem; color: var(--color-fg-muted); }
+/* The answer's card opens Results; its state line says when it is old. */
+.hud-answer { cursor: pointer; }
+.hud-answer:hover { border-color: var(--color-border-strong); }
+.hud-answer:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.hud-answer .label { max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud-state { color: var(--color-fg-secondary); }
 
 /* ---- legend ---- */
 .legend {

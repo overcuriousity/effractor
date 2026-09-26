@@ -86,6 +86,23 @@
     return t === null ? "not reached by " + h.by : number(t) + " " + results.time_unit;
   }
 
+  // The canvas card: P(what) by when, shortened to fit, whole in its
+  // tooltip; and how soon half the attempts reach it. `target`: the
+  // target said in words ("Server · admin control"), or null.
+  var CARD_NAME = 24;
+  function card(results, target, side) {
+    var h = headline(results, side);
+    var name = target || "target";
+    var whole = "P(" + name + ") by " + h.by;
+    var shown = name.length > CARD_NAME ? name.slice(0, CARD_NAME - 1).trim() + "…" : name;
+    var half = timeTo(results, 0.5, side);
+    return {
+      label: "P(" + shown + ") by " + h.by,
+      title: whole,
+      time: !half ? "" : half.indexOf("not") === 0 ? "50% " + half : "50% by " + half,
+    };
+  }
+
   // A side's step results by id, built once for a table of many steps.
   function nodesById(results, side) {
     var r = report(results, side);
@@ -208,6 +225,7 @@
     scenarioAssumptions: scenarioAssumptions,
     witness: witness,
     routes: routes,
+    card: card,
     routeCount: routeCount,
   };
   if (typeof module !== "undefined") module.exports = api;
