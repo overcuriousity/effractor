@@ -415,7 +415,8 @@
     if (choke === undefined) return;
     if (choke === null) return box.appendChild(el("p", "every-route steps not checked · graph too large", "hint"));
     var parts = V.componentsOf(g.graph, choke);
-    if (!parts.length) return;
+    // None is an answer too: said, not left out.
+    if (!parts.length) return box.appendChild(el("p", "no step every route needs · the routes are alternatives", "hint"));
     heading(box, "Every route passes", parts.length);
     var list = el("ul", null, "assumptions");
     parts.forEach(function (q) {
