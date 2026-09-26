@@ -1,8 +1,9 @@
 # Handoff — 2026-09-21, evening
 
 For the next session — whoever or whatever picks it up; everything needed is in
-the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md`, `ROADMAP.md` and the design
-(`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
+the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md`, `ROADMAP.md` and the design still to be built
+(`docs/superpowers/specs/`) first — built designs are read from history, see
+*Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
 ## Continuation — accounts (2026-09-26)
@@ -15,10 +16,10 @@ prints it (the plan likewise, `docs/superpowers/plans/2026-09-26-accounts.md`).
 Code comments cite its sections ("spec §6.2"); the owner's decisions are dated
 in it (amendments: OIDC needs `--public-url`; the OIDC start route; editors
 rename, 2026-09-26).
-**Owner, 2026-09-26: the whole account system is one branch, `accounts`, and
-one PR that stays open until the owner says merge** — no per-item shipping, no
-ship.sh. PR #113 (the installer's systemd question, `install-systemd`) is
-separate and also waits.
+**Owner, 2026-09-26: the whole account system was one branch, `accounts`, and
+one PR (#114) left open until the owner said merge** — merged 2026-09-26 as a
+fast-forward of master. PR #113 (the installer's systemd question,
+`install-systemd`) is separate and still waits for the owner.
 
 - **Off unless `--accounts <db>`.** Then every account route answers 404 and
   the shell has no trace of them; the static export skips `js/accounts/` and
@@ -34,7 +35,8 @@ separate and also waits.
   `guard.rs` same-Origin for every non-GET, password login limited per
   address, `passkey.rs` webauthn-rs with discoverable login and mediation
   cleared, `oidc.rs` PKCE/state/nonce plus an `effractor_oidc` cookie binding
-  the callback to the starting browser), `api/` (account, documents,
+  the callback to the starting browser, its path under `--public-url`'s path),
+  `api/` (account, documents,
   sharing, admin), `cli.rs` (`effractor user list|add|promote|demote|passwd`).
   The hourly sweep also ends sessions and purges what was deleted 7 days ago.
 - **Build** — webauthn-rs needs OpenSSL, vendored: building the server needs
@@ -59,7 +61,13 @@ separate and also waits.
   so; a neater fake hid a real bug once.
 - **Reviews** — two fresh whole-branch reviews (units and security; then
   every flow through the page). Both found data-loss paths in the page's
-  sync layer that unit tests passed; everything they found is fixed.
+  sync layer that unit tests passed; everything they found is fixed. A third
+  (`/code-review` of PR #114) found four, all fixed with tests: the OIDC
+  cookie's path behind a prefix; a first password on a passkey/OIDC-only
+  account needs a fresh login (`session::fresh`, like adding a passkey);
+  a wrong current password in `PATCH /api/account` counts against the login
+  limit; a one-letter directory query matches a whole name only (names may
+  be one letter).
 - **Looks** — owner looked at login (fixed: account inputs used the browser's
   serif) and documents (fixed: a rename showed late). Passkeys need
   `--public-url`; locally use `--public-url http://localhost:8082` and browse
@@ -129,9 +137,8 @@ Afterwards (owner): the nmap preview's network row offers *new* or *same as
 
 ## Continuation — clustering (2026-09-25)
 
-`clustering` is done (spec
-[`2026-09-24-clustering-design.md`](superpowers/specs/2026-09-24-clustering-design.md),
-plan [`2026-09-24-clustering.md`](superpowers/plans/2026-09-24-clustering.md));
+`clustering` is done (spec `2026-09-24-clustering-design.md`, plan
+`2026-09-24-clustering.md`, both deleted and read from history);
 the owner shaped it over eight looks in the 8081 preview. The spec records
 each of the owner's decisions with its date; read it before changing any.
 
@@ -284,9 +291,8 @@ when the args name no single CIDR.
 
 ## Continuation — nmap import (2026-09-24)
 
-`nmap-import` is done (spec
-[`2026-09-24-nmap-import-design.md`](superpowers/specs/2026-09-24-nmap-import-design.md),
-plan [`2026-09-24-nmap-import.md`](superpowers/plans/2026-09-24-nmap-import.md));
+`nmap-import` is done (spec `2026-09-24-nmap-import-design.md`, plan
+`2026-09-24-nmap-import.md`, both deleted and read from history);
 the owner accepted it in the 8082 preview. Three stacked PRs:
 `feature/nmap-fields` (#87), `feature/nmap-module` (#88),
 `feature/nmap-dialog`; master fast-forwards to the dialog branch's tip.
@@ -420,8 +426,8 @@ and for unknowns not to block. One PR, `feature/unfinished-flows`:
 
 ## Continuation — readable time notation (2026-09-24)
 
-Spec: [readable time notation](superpowers/specs/2026-09-23-readable-time-notation-design.md);
-plan: [its implementation](superpowers/plans/2026-09-23-readable-time-notation.md).
+Spec `2026-09-23-readable-time-notation-design.md` and plan
+`2026-09-23-readable-time-notation.md`, both deleted and read from history.
 
 - effractor files write `30%`, `50% * Exponential(mean 12.5)`, `Never`,
   `Immediate`. `expr::parse` refuses MAL's `Bernoulli`, rates, presets,

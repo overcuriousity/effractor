@@ -102,7 +102,8 @@ needs: —            cost: 1   benefit: 3
 root, hardened system unit when root), reading the answer from `/dev/tty`,
 defaulting to no without a terminal, `EFFRACTOR_SYSTEMD` answering without
 asking. Never turns accounts on. Done when `scripts/install.test.sh` covers
-yes, no, no terminal, no `systemctl`, root and not root (spec §13).
+yes, no, no terminal, no `systemctl`, root and not root (accounts spec §13,
+read from history). Built on PR #113, waiting for the owner.
 
 ### e2e-vault — Evaluate end-to-end encrypted storage
 needs: —            cost: 5   benefit: 2
