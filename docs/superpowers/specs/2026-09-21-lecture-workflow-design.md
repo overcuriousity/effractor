@@ -401,6 +401,11 @@ nonfinite JSON number.
 | Defense comparison | Baseline and selected overlay CDFs, probability at horizon and a paired probability difference (§9). |
 | Tree BDD exact CDF, MCS/SPOF, Birnbaum/FV, cost/detection Pareto, loss/EAL and cost-efficiency ranking | Unavailable for generated graphs in this milestone. The tree product-CDF identity does not hold for accumulated durations. UI hides those tabs or gives the specific capability reason; no approximation is presented as that analysis. |
 
+Amended by the owner, 2026-09-26 (`2026-09-26-ui-review-design.md` §2):
+routes are ranked by their share of successful samples (never called "most
+likely path"), and chokepoints — steps every derivation of the target needs —
+are available for generated graphs, exact and structural.
+
 Quantitative results are unavailable if an unknown active input can participate
 in a possible derivation of the target. Return the relevant missing parameter
 and switch paths; do not silently assume zero, infinity or a convenient number.

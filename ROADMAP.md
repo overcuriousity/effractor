@@ -73,6 +73,80 @@ agreement in CI, and the workflow by the owner's browser walkthrough. Numerical
 agreement with the lecture's screenshots is not an acceptance criterion without
 the underlying rules and calibrated inputs.
 
+## Visual and ergonomic review
+
+Owner, 2026-09-26: a review of inputs, attacker paths, colour and where
+information is shown, with the owner's decisions (ranked routes, chokepoints,
+low-chroma family plates, flows redrawn, canvas switch renamed), is
+[`2026-09-26-ui-review-design.md`](docs/superpowers/specs/2026-09-26-ui-review-design.md).
+Each item is one or a few small PRs; the owner looks at each before it lands.
+
+### ui-quick-fixes — Small wrongs the review found
+needs: —            cost: 1   benefit: 3
+Spec §3. Done when blocking problems stand out, unknown inputs and sources
+read as words, a service without a product gets its own hint, Ctrl+Enter is
+listed and on the button's tooltip, and a blocked model's Results panel lists
+what is left to finish.
+
+### form-inputs — Inputs that keep, refuse and explain at the field
+needs: —            cost: 3   benefit: 4
+Spec §4. Done when a solve never wipes typed text, no number field deletes a
+value it cannot read, a refused value is explained under its field and
+reverts, chance is % everywhere, Esc/Enter mean one thing in every form, and
+what is left to finish shows on the canvas and in the chip before Calculate.
+
+### step-navigation — Follow a step on the canvas
+needs: —            cost: 2   benefit: 4
+Spec §5. Done when any selected step is brought into view, its derivation is
+lit, the attack graph shows the target's support by default, and steps can be
+walked by key.
+
+### headline-card — The answer, where the eye is
+needs: —            cost: 2   benefit: 4
+Spec §8. Done when the canvas card names the target, the horizon and the time,
+says when it is outdated or a scenario is chosen, opens Results on a click,
+and no list asks to build the attack graph after an edit.
+
+### ranked-routes — The ways in, and how often each
+needs: step-navigation            cost: 4   benefit: 5
+Spec §6. Done when the solver returns the three routes with the largest share
+of successful samples (native = wasm, fingerprints moved on purpose), Results
+lists them, and a chosen route is drawn on the architecture and on the attack
+graph.
+
+### chokepoints — What every route passes through
+needs: —            cost: 3   benefit: 4
+Spec §7. Done when the solver returns the steps and components every route to
+the target needs (exact, with a size guard) and the page marks and lists them.
+
+### scenario-on-graph — A defence, seen on the canvas
+needs: ranked-routes            cost: 2   benefit: 3
+Spec §6 (last paragraph), §8. Done when a current comparison marks blocked and
+still-open steps on both canvases and lists the scenario's routes.
+
+### colour-grammar — One meaning per colour and line
+needs: —            cost: 3   benefit: 3
+Spec §9. Done when family plates are low-chroma, the state tokens and dash
+grammar hold across views, edges reach 3:1, flows are redrawn, charts have
+series tokens, real legends and readable ticks, and the contrast check covers
+the new pairs.
+
+### canvas-start — A canvas that says how to begin
+needs: —            cost: 1   benefit: 2
+Spec §10. Done when the switch reads *Components | Attack graph*, an empty
+canvas says how to start, examples open from File, the legend shows only rings
+present, and an nmap import says what it added.
+
+### attack-graph-density — A lighter attack graph
+needs: step-navigation            cost: 3   benefit: 3
+Spec §11. Done when single-producer facts fold into their producer, seeded
+steps are marked, tags fit their nodes and the legend covers every state.
+
+### model-find — Find a component in a big model
+needs: —            cost: 2   benefit: 2
+Spec §12. Done when the outline has a find field and groups rows under their
+clusters.
+
 ## Compatibility after the lecture milestone
 
 ### mal-securicad-compatibility — Reuse existing models and libraries

@@ -23,6 +23,16 @@ the model, the writer, the results and the page; the reader still accepts the
 key and forgets it, so files and links written before keep opening
 (`crates/effractor-format/tests/shared.rs`).
 
+## Continuation — visual and ergonomic review (2026-09-26)
+
+A code-only review (four parallel readers: inputs, attacker paths, colour,
+placement) and the owner's answers are
+`docs/superpowers/specs/2026-09-26-ui-review-design.md`; its items are in
+`ROADMAP.md` under *Visual and ergonomic review*. Owner decisions: ranked
+routes and chokepoints (amending the lecture spec §8), low-chroma family
+plates, flows may be redrawn, the canvas switch becomes *Components | Attack
+graph*.
+
 ## Continuation — accounts (2026-09-26)
 
 The self-hosted server diverges from the Pages build: opt-in accounts. The
