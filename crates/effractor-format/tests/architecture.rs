@@ -889,6 +889,16 @@ fn a_long_route_goes_block_and_stays_there() {
     }
     route.push(zones[3].clone());
     image["flows"]["ssh"]["route"] = serde_json::json!(route);
+    // The bridge is off the new route: its permission, and the scenario that
+    // denies it, would change nothing.
+    image["associations"]
+        .as_object_mut()
+        .unwrap()
+        .remove("allow-ssh");
+    image["scenarios"]
+        .as_object_mut()
+        .unwrap()
+        .remove("deny-ssh");
     let text = from_document(&image).unwrap_or_else(|d| panic!("{d:?}"));
     assert!(
         text.contains("    route:\n      - ein-ziemlich-langes-netz-0\n"),
@@ -1790,5 +1800,47 @@ fn a_kind_without_parameters_or_defence_says_so() {
     assert_eq!(
         message("entities.client-net.defenses.patched"),
         "`patched` is not a key here; a network has no defence"
+    );
+}
+
+/// What is said but leads nowhere is warned at the association that says it,
+/// never refused: a permission on a firewall the flow does not cross,
+/// management access to a machine no account is granted on, an account's
+/// access to data no service it logs in to holds.
+#[test]
+fn what_changes_nothing_is_a_warning_where_it_is_said() {
+    let mut image = image(LECTURE);
+    image["entities"]["spare"] = serde_json::json!({"kind": "router", "label": "Spare"});
+    image["entities"]["spare-fw"] = serde_json::json!({"kind": "firewall", "label": "Spare FW"});
+    image["entities"]["notes"] = serde_json::json!({"kind": "data", "label": "Notes"});
+    image["associations"]["spare-filters"] =
+        serde_json::json!({"kind": "filters", "from": "spare", "to": "spare-fw"});
+    image["associations"]["spare-permit"] =
+        serde_json::json!({"kind": "permits", "from": "spare-fw", "to": "ssh", "allowed": true});
+    image["associations"]["manage-workstation"] =
+        serde_json::json!({"kind": "administration", "from": "admin-net", "to": "workstation"});
+    image["associations"]["reads-notes"] = serde_json::json!({"kind": "accesses", "from": "server-account", "to": "notes", "mode": "read"});
+    let text = from_document(&image).unwrap_or_else(|d| panic!("{d:?}"));
+    let (_, diagnostics) = effractor_format::diagnose_document(&text);
+    let got: Vec<(Severity, &str, &str)> = diagnostics
+        .iter()
+        .map(|d| (d.severity, d.code.as_str(), d.path.as_str()))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            (
+                Severity::Warning,
+                "ineffective",
+                "associations.spare-permit"
+            ),
+            (
+                Severity::Warning,
+                "ineffective",
+                "associations.manage-workstation"
+            ),
+            (Severity::Warning, "ineffective", "associations.reads-notes"),
+        ],
+        "{diagnostics:?}"
     );
 }

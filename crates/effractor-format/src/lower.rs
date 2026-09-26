@@ -115,7 +115,7 @@ impl Cx {
     }
 
     pub fn wrong_type(&mut self, node: &Node, path: &str, want: &str) {
-        let message = format!("expected {want}, found {}", node.kind());
+        let message = format!("expected {want}, found {}", node.found());
         self.error(Code::WrongType, path, node.pos, message);
     }
 
@@ -343,11 +343,15 @@ impl Cx {
             Ok(d) => Some(d),
             Err(_) if let Ok(d) = effractor_mal::parse_expr(text) => Some(d),
             Err(e) => {
-                // Into the expression: past the opening quote if there is one.
-                let col = node.pos.col + e.col - 1 + usize::from(!plain);
-                let pos = Pos {
-                    line: node.pos.line,
-                    col,
+                // Into the expression, past the opening quote if there is
+                // one, where the text is the same as written; else at it.
+                let pos = if node.verbatim {
+                    Pos {
+                        line: node.pos.line,
+                        col: node.pos.col + e.col - 1 + usize::from(!plain),
+                    }
+                } else {
+                    node.pos
                 };
                 self.error(Code::Expression, path, pos, e.message);
                 None
@@ -402,7 +406,49 @@ impl Cx {
         if is_architecture(root) {
             return architecture_read::document(self, root).map(Document::Architecture);
         }
+        if self.unsaid_architecture(root) {
+            return None;
+        }
         self.tree(root).map(Document::Tree)
+    }
+
+    /// A document with an architecture's keys but no readable `profile`: read
+    /// as a tree it would be told of every key a tree lacks, and the one
+    /// mistake would be lost among them. Only the profile is reported.
+    fn unsaid_architecture(&mut self, root: &Node) -> bool {
+        let Value::Map(entries) = &root.value else {
+            return false;
+        };
+        let Some(key) = entries
+            .iter()
+            .find(|e| architecture_read::ONLY_KEYS.contains(&e.key.as_str()))
+            .map(|e| e.key.as_str())
+        else {
+            return false;
+        };
+        let hint = format!("`{key}` says this is an architecture: write `profile: architecture`");
+        match entries.iter().find(|e| e.key == "profile") {
+            None => self.error(
+                Code::MissingKey,
+                "profile",
+                Pos { line: 1, col: 1 },
+                format!("`profile` is missing; {hint}"),
+            ),
+            Some(e) => match &e.value.value {
+                Value::Scalar { text, .. } if PROFILES.iter().any(|(w, _)| w == text) => {
+                    return false;
+                }
+                _ => {
+                    self.error(
+                        Code::WrongType,
+                        "profile",
+                        e.value.pos,
+                        format!("`profile` is {}; {hint}", e.value.found()),
+                    );
+                }
+            },
+        }
+        true
     }
 
     fn tree(&mut self, root: &Node) -> Option<Model> {

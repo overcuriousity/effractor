@@ -364,3 +364,69 @@ fn a_map_with_many_keys_is_checked_for_duplicates_in_one_pass() {
         ("duplicate-key", "nodes.t.x-many.k7")
     );
 }
+
+/// Only where the text reads as written is a column inside it a column in
+/// the file: plain, or quoted with nothing escaped. Elsewhere the error is at
+/// the value itself.
+#[test]
+fn an_expression_error_is_inside_only_what_is_written_as_it_reads() {
+    let at = |ttc: &str| {
+        let text = doc(&format!(
+            "  t:\n    label: T\n    leaf: basic\n    ttc: {ttc}\n"
+        ));
+        let (code, _, line, col) = one(&text);
+        assert_eq!(code, "expression", "{ttc}");
+        (line, col)
+    };
+    // `junk` is the 22nd character of the expression, which starts at
+    // column 10, or 11 past a quote.
+    assert_eq!(at("Exponential(mean 10) junk"), (9, 31));
+    assert_eq!(at("\"Exponential(mean 10) junk\""), (9, 32));
+    assert_eq!(at("'Exponential(mean 10) junk'"), (9, 32));
+    for written in [
+        "\"Exp\\u006fnential(mean 10) junk\"",
+        "'Exponential(mean 10) ''junk'''",
+    ] {
+        assert_eq!(at(written), (9, 10), "{written}");
+    }
+    // A block's text starts on the line after its `>-` or `|-`.
+    for written in [
+        ">-\n      Exponential(mean 10)\n      junk",
+        "|-\n      Exponential(mean 10) junk",
+    ] {
+        assert_eq!(at(written), (10, 7), "{written}");
+    }
+}
+
+#[test]
+fn a_wrong_scalar_is_named_by_what_it_says() {
+    let first = |text: &str| diagnose(text).1.remove(0).message;
+    let message = first(&doc("  t: {label: T, leaf: basik}\n"));
+    assert!(message.ends_with("found `basik`"), "{message}");
+    let message = first(&doc("  t: {label: T, leaf: basic, p: \"0.5\"}\n"));
+    assert!(message.ends_with("found `\"0.5\"`"), "{message}");
+    let body = "profile: fault-tree\nname: T\ntop: t\nnodes:\n  t: {label: T, leaf: basic}\n";
+    let message = first(&format!("effractor: \"2\"\n{body}"));
+    assert!(
+        message.contains("without quotes: `effractor: 2`"),
+        "{message}"
+    );
+}
+
+/// An architecture without a readable `profile` is told that, once, not
+/// every key a tree lacks.
+#[test]
+fn an_architecture_without_its_profile_is_told_only_that() {
+    let body = "name: A\nentities: {}\nassociations: {}\n";
+    assert_eq!(
+        one(&format!("effractor: 2\n{body}")),
+        ("missing-key", "profile".into(), 1, 1)
+    );
+    let text = format!("effractor: 2\nprofile: architectur\n{body}");
+    assert_eq!(one(&text), ("wrong-type", "profile".into(), 2, 10));
+    let message = diagnose(&text).1.remove(0).message;
+    assert!(
+        message.contains("`architectur`") && message.contains("`profile: architecture`"),
+        "{message}"
+    );
+}

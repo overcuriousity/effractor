@@ -66,7 +66,7 @@ pub fn migrate(root: Node) -> Result<Node, Diagnostic> {
             ..Diagnostic::error(
                 Code::WrongType,
                 "",
-                format!("expected a map of keys, found {}", root.kind()),
+                format!("expected a map of keys, found {}", root.found()),
             )
         });
     };
@@ -82,7 +82,12 @@ pub fn migrate(root: Node) -> Result<Node, Diagnostic> {
         _ => None,
     };
     let Some(version) = version else {
-        let message = format!("expected a version number, found {}", entry.value.kind());
+        let message = match &entry.value.value {
+            Value::Scalar { text, plain: false } if text.bytes().all(|b| b.is_ascii_digit()) => {
+                format!("the version is a number, written without quotes: `effractor: {text}`")
+            }
+            _ => format!("expected a version number, found {}", entry.value.found()),
+        };
         return Err(error(Code::WrongType, pos, message));
     };
     if version == 0 {

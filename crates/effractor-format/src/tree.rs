@@ -35,6 +35,10 @@ pub fn fits_as_key(text: &str) -> bool {
 pub struct Node {
     pub value: Value,
     pub pos: Pos,
+    /// A scalar written on one line exactly as it reads, plain or in quotes
+    /// with nothing escaped: a column inside its text is `pos.col` on. Not so
+    /// for a block, a folded line or an escape, nor for anything else.
+    pub verbatim: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -62,12 +66,26 @@ impl Node {
             if matches!(text.as_str(), "" | "~" | "null" | "Null" | "NULL"))
     }
 
-    pub fn kind(&self) -> &'static str {
+    /// What was written, as a message says it: a scalar by its text (in
+    /// quotes if it was quoted; its first line, at most 40 characters),
+    /// anything else by its shape.
+    pub fn found(&self) -> String {
         match &self.value {
-            _ if self.is_null() => "nothing",
-            Value::Scalar { .. } => "a scalar",
-            Value::Seq(_) => "a list",
-            Value::Map(_) => "a map",
+            _ if self.is_null() => "nothing".into(),
+            Value::Scalar { text, plain } => {
+                let line = text.lines().next().unwrap_or("");
+                let mut shown: String = line.chars().take(40).collect();
+                if shown.len() < text.len() {
+                    shown.push('…');
+                }
+                if *plain {
+                    format!("`{shown}`")
+                } else {
+                    format!("`\"{shown}\"`")
+                }
+            }
+            Value::Seq(_) => "a list".into(),
+            Value::Map(_) => "a map".into(),
         }
     }
 }
@@ -136,6 +154,7 @@ pub fn parse(text: &str) -> Result<Node, Vec<Diagnostic>> {
                         plain: true,
                     },
                     pos: here,
+                    verbatim: false,
                 })
             }
             Event::Scalar(text, style, anchor, tag) => {
@@ -146,12 +165,22 @@ pub fn parse(text: &str) -> Result<Node, Vec<Diagnostic>> {
                     unsupported(&mut out, here, "tags");
                 }
                 let plain = style == ScalarStyle::Plain;
+                let quotes = match style {
+                    ScalarStyle::Plain => Some(0),
+                    ScalarStyle::SingleQuoted | ScalarStyle::DoubleQuoted => Some(2),
+                    _ => None,
+                };
+                let verbatim = span.start.line() == span.end.line()
+                    && quotes.is_some_and(|q| {
+                        span.end.col() - span.start.col() == text.chars().count() + q
+                    });
                 Some(Node {
                     value: Value::Scalar {
                         text: text.into_owned(),
                         plain,
                     },
                     pos: here,
+                    verbatim,
                 })
             }
             Event::SequenceStart(anchor, ref tag) | Event::MappingStart(anchor, ref tag) => {
@@ -176,10 +205,12 @@ pub fn parse(text: &str) -> Result<Node, Vec<Diagnostic>> {
                 Some(Frame::Seq(items, pos)) => Some(Node {
                     value: Value::Seq(items),
                     pos,
+                    verbatim: false,
                 }),
                 Some(Frame::Map(entries, _, pos)) => Some(Node {
                     value: Value::Map(entries),
                     pos,
+                    verbatim: false,
                 }),
                 None => None,
             },

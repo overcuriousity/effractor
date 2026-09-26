@@ -270,11 +270,6 @@ associations:
     from: floor-ice
     to: api-to-db
     allowed: true
-  terminal-to-db-permit:
-    kind: permits
-    from: floor-ice
-    to: terminal-to-db
-    allowed: true
   api-permit:
     kind: permits
     from: gate-ice

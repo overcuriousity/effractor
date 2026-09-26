@@ -15,16 +15,18 @@ the redundant-power control changes the hardware failure rate.
 1. Build the outline with Tab (child), Enter (sibling), F2 (rename), and G
    (gate). Use L to link the existing server-outage leaf under the other branch.
    P opens properties; Esc returns to the canvas. Enter or Space opens More when focused. The `?` button lists keys.
-2. Fill in the leaf probabilities/rates from the file. Solve. Compare exact and
+2. Fill in the leaf probabilities/rates from the file. Calculate (Ctrl+Enter;
+   the page also recalculates after each change). Compare exact and
    sampled P(top), inspect minimal cut sets, and select a cut-set row.
-3. Open TTC. Compare the solid exact curve with the dashed sampled curve and
+3. Open the Time tab. Compare the solid exact curve with the dashed sampled curve and
    pointwise confidence band. Hover, use Left/Right on the focused plot, or open
    Table for the values.
 4. Open Loss. Read the percentiles and exceedance table. The model represents
    at most one occurrence per horizon; it does not estimate recurring annual
    event frequency.
 5. Toggle the redundant-power control. Compare its risk delta and rank. Undo
-   restores the prior model state; Solve refreshes sampled results.
+   restores the prior model state and recalculates; a sampled run that took
+   more than two seconds is repeated only on Calculate.
 
 ## Office attack tree
 
@@ -35,7 +37,7 @@ for confidentiality and integrity plus a control scenario.
 
 1. Build the gates with the keyboard, then enter the file's leaf attributes.
    A shared event can be added with L without duplicating its random variable.
-2. Solve and open Pareto. The cheapest path is pinned. Sort by cost, time,
+2. Calculate and open Pareto. The cheapest path is pinned. Sort by cost, time,
    detection or success. Mean time shows the model unit and assumes all steps succeed;
    an infinite expected time is shown as ∞.
 3. Switch the scatter axes. Diamonds mark the front and dots the dominated
@@ -47,7 +49,8 @@ for confidentiality and integrity plus a control scenario.
 ## Timing
 
 The top-bar Horizon button edits the analysis window in the document's time
-unit. A horizon edit is undoable; results for the old window are cleared.
+unit. A horizon edit is undoable; results for the old window stay, faded,
+until they are recalculated for the new one, which happens by itself.
 
 The TTC picker explains its presets and retains custom expressions:
 

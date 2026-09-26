@@ -128,7 +128,16 @@ impl Distribution {
     pub fn check_params(&self) -> Result<(), String> {
         match self {
             Self::Bernoulli(p) => probability("p", *p),
-            Self::Exponential(rate) => positive("rate", *rate),
+            // Written as its mean, so the mean must be a number too.
+            Self::Exponential(rate) => positive("rate", *rate).and_then(|()| {
+                if (1.0 / rate).is_finite() {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "rate {rate} is too small: its mean is past any number"
+                    ))
+                }
+            }),
             Self::ExponentialMean(mean) => positive("mean", *mean),
             Self::Gamma { shape, scale } => {
                 positive("shape", *shape).and(positive("scale", *scale))

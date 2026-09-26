@@ -19,7 +19,7 @@ mod validate;
 
 pub use architecture::{Architecture, Document};
 pub use architecture_validate::validate_architecture;
-pub use diagnostic::{Code, Diagnostic, Pos, Severity};
+pub use diagnostic::{Code, Diagnostic, Pos, Severity, article};
 pub use distribution::{Distribution, Shorthand};
 pub use id::{
     ArchitectureIdError, AssetId, AssociationId, ClusterId, ControlId, DigitsOnly, EntityId,

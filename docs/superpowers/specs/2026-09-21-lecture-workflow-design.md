@@ -111,7 +111,7 @@ diagnosed with document paths and source positions as today.
 ## 4. Architecture vocabulary
 
 Every entity has an ID, `kind`, `label`, optional `description` and the
-kind-specific parameters below. There are eight kinds:
+kind-specific parameters below. There are eleven kinds:
 
 | Kind | Meaning and generated states |
 |---|---|
@@ -120,9 +120,12 @@ kind-specific parameters below. There are eight kinds:
 | `firewall` | The filter managed by one router. Permissions apply to named flows. |
 | `host` | A workstation or server; `user` and `admin` control are distinct. |
 | `application` | Client-side software running on a host/router; `control`. |
-| `service` | A reachable service running on a host/router; `control`, with exploit and authentication routes. |
+| `service` | A reachable service running on a host/router; `control`, with exploit and authentication routes. Each is an `instance-of` one product. |
+| `product` | The software version services run; its exploit is found once and works on every instance. No state an attacker declares. |
 | `account` | An identity with explicit authentication and grants; no implicit global root privileges. |
 | `credential` | A model of authentication material; `possessed`. Store descriptions, never actual secrets. |
+| `person` | Someone who can be reached and deceived; `contacted`, `deceived`. |
+| `data` | What is held and read; `read`, `modified`. |
 
 A host's software whose account nobody knows (owner, 2026-09-24; what the
 nmap import writes) says `privilege: unknown`. What holds either way stays
@@ -152,11 +155,23 @@ Associations are maps keyed by ID. Each has `kind`, `from`, `to`, optional
 | `hosts` | host/router → application/service; host → router | Required `privilege: user\|admin`; a host's application or service may say `unknown` (see below). Each executable, and each router, has one host; a router runs only on a host (an appliance's box, a VM). Owner request 2026-09-23. |
 | `filters` | router → firewall | At most one firewall per router, exactly one router per firewall. A router without a firewall filters nothing: its flows cross it with no permission (owner, 2026-09-24). |
 | `stores` | host/application → credential | Required `privilege: user\|admin` for a host; applications use `user`. Possession still requires an extraction action. |
-| `authenticates` | credential → account | Any one associated credential suffices; multi-factor authentication is outside this library. |
+| `authenticates` | credential → account | Required `factor: first\|second`; any one first-factor credential gives the material, a second factor is needed only while the account's `mfa` is on. |
 | `authorizes` | account → service | The service accepts this account for login. |
 | `grants` | account → host/router | Required `privilege: user\|admin`; routers accept only `admin`. |
 | `administration` | network → host/router | Management access from that zone, independent of ordinary forwarding. Its existence is explicit permission to attempt management authentication, not a successful login. |
-| `permits` | firewall → flow | Required `allowed: true\|false\|unknown`; a named permission for that flow. |
+| `permits` | firewall → flow | Required `allowed: true\|false\|unknown`; a named permission for that flow. A permission on a firewall whose router the flow does not cross changes nothing and is warned as `ineffective`. |
+
+Ten more kinds tie in products, identities, people and data: `instance-of`
+(service → product), `runs-as` (software/host → account), `assumes`
+(account → account), `knows` (person → credential), `operates` (person →
+application), `delivers` (network → person/software), `holds` (host/software →
+data, with `privilege` and `decrypts`), `accesses` (account → data, with
+`mode: read|write`), `encrypted-with` (data → credential) and `reads`
+(software → data). Their ends and fields are `RelationKind`'s in
+`crates/effractor-core/src/architecture.rs`; the catalog says what each
+generates. An `administration` to a machine no account is granted on, or an
+`accesses` no authorized service holds the data for, generates nothing and is
+warned as `ineffective`.
 
 Duplicate semantic associations, inconsistent endpoint types and duplicate
 permissions for the same firewall/flow are errors. Multiple stores, credentials,
@@ -231,9 +246,14 @@ Required slots by owner:
 | Owner | Slots and switches |
 |---|---|
 | Flow | `connect` |
-| Service | `find-exploit`, `find-exploit-patched`, `deploy-exploit`, `login`; `defenses.patched: true\|false\|unknown` |
+| Product | `find-exploit`, `find-exploit-patched`; `defenses.patched: true\|false\|unknown` |
+| Service | `deploy-exploit`, `login`, `take-over`, `take-over-guarded`; `defenses.guarded` |
+| Application | `take-over`, `take-over-guarded`; `defenses.guarded` |
 | Credential | `extract`, `extract-protected`; `defenses.protected: true\|false\|unknown` |
-| Account | `admin-login` when it has a management grant |
+| Account | `admin-login`, `mfa-bypass`; `defenses.mfa` |
+| Host, router | `escape` |
+| Person | `phish`, `phish-trained`; `defenses.trained` |
+| Data | `defenses.encrypted` |
 
 Patching selects `find-exploit-patched` in place of `find-exploit`; protection
 selects `extract-protected` in place of `extract`. These are authored replacement
@@ -246,10 +266,10 @@ Inactive replacement slots do not prevent solving the current scenario.
 
 Parameters are independent between action instances. A single generated action
 shared by several routes is sampled only once per iteration. The rule catalog
-identifies that scope: extraction is per store association; discovery/deployment
-is per service; connection is per flow; login is per account/service; management
+identifies that scope: extraction is per store association; discovery is per
+product, deployment per service; connection is per flow; login is per account/service; management
 login is per administration/grant pair. Correlated vulnerabilities, reusable
-exploit research across services, retries and account lockout are outside version 1.
+exploit research across products, retries and account lockout are outside version 1.
 
 Logical propagation has zero duration by **rule definition**, not an estimated
 parameter. Those steps explicitly say `logical` and expose that assumption.
@@ -275,13 +295,20 @@ point from prerequisite to dependent. Nothing is encoded through layout order.
 | `flow-permission` | permitted policy OR managing router.admin → permission satisfied | Logical; a router admin can bypass its firewall for an explicitly modelled flow. An unknown policy is an unknown branch, not denial. |
 | `flow-connect` | source.control + every route permission → flow.connected | Flow's `connect`; route validity is checked statically. |
 | `service-reachable` | Any inbound flow.connected → service.reachable | Logical; does not control the service. |
-| `service-find-exploit` | service.reachable → service.exploit-ready | Service discovery TTC selected by patching. |
-| `service-deploy-exploit` | service.exploit-ready → service.control | Service deployment TTC; includes stated protection-bypass assumptions. |
+| `product-reachable` | Any instance's service.reachable → product.reachable | Logical; one reachable instance is enough to study the version. |
+| `product-find-exploit` | product.reachable → product.exploit-ready | The product's discovery TTC, selected by patching; found once for every instance. |
+| `service-deploy-exploit` | product.exploit-ready + service.reachable → service.control | Service deployment TTC; includes stated protection-bypass assumptions. |
 | `credential-extract` | Store's required host privilege or application.control → credential.possessed | Credential extraction TTC selected by protection; one action per store. |
-| `account-material` | Possession of any authenticating credential → account.material | Logical; material alone grants no access. |
-| `service-login` | service.reachable + account.material + authorization → account.session(service) | Service's `login`; one shared action per account/service. |
+| `account-material` | Possession of any first-factor credential → account.material | Logical; material alone grants no access. |
+| `account-authenticated` | account.material + account.mfa-satisfied → account.authenticated | Logical; with `mfa` off the first factor is enough, else a second factor or `mfa-bypass`. |
+| `service-login` | service.reachable + account.authenticated + authorization → account.session(service) | Service's `login`; one shared action per account/service. |
 | `session-grant` | account.session(service) + matching host grant → host privilege | Logical; validates service-host/grant match. |
-| `administration-login` | network.access + account.material + administration + grant → host/router privilege | Account's `admin-login`; one action per administration/grant pair. |
+| `administration-login` | network.access + account.authenticated + administration + grant → host/router privilege | Account's `admin-login`; one action per administration/grant pair. |
+
+This is the core of the network and host rules. The catalog
+(`crates/effractor-components/src/catalog.rs`, 38 rules) also has the escapes
+from guests and routers, multi-factor login, workload identities and roles,
+people and content, data holding and access; it is the list the page shows.
 
 The routing/hosting associations in the table are static matching conditions,
 not stochastic events. Hosts without suitable accounts can still have an exploit
@@ -411,7 +438,8 @@ rather than weakening semantics. Server/static-site operation must both work.
 
 Baseline is the architecture as written. `scenarios` stores named, independent
 overlays, each with `label` and `changes`. Each change names one typed target and
-one switch: entity `patched`/`protected`, or a permission association `allowed`.
+one switch: an entity's defence (`patched`, `protected`, `guarded`, `mfa`,
+`trained`, `encrypted`), or a permission association's `allowed`.
 Replacement distributions remain in the source parameter slots. The baseline
 and overlays share component identities, bindings, footholds, target and all
 analysis settings. Scenarios do not inherit from each other.
@@ -419,9 +447,9 @@ analysis settings. Scenarios do not inherit from each other.
 ```yaml
 scenarios:
   patch-server:
-    label: Patch SSH service
+    label: Patch OpenSSH
     changes:
-      - {entity: sshd, defense: patched, value: true}
+      - {entity: openssh, defense: patched, value: true}
   restrict-ssh:
     label: Restrict SSH
     changes:

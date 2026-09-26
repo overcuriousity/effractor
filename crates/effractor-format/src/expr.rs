@@ -93,7 +93,8 @@ pub fn write(d: &Distribution) -> String {
 /// point moved two places right. Exact, because moving a decimal point is
 /// exact in decimal and `parse` moves it back the same way.
 pub fn chance(p: f64) -> String {
-    let s = format!("{p}"); // Rust's shortest round-trip form, never an exponent
+    // Rust's shortest round-trip form, never an exponent; `+ 0.0` makes -0 0.
+    let s = format!("{}", p + 0.0);
     let (int, frac) = s.split_once('.').unwrap_or((&s, ""));
     let mut frac = frac.to_owned();
     while frac.len() < 2 {

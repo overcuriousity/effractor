@@ -38,6 +38,9 @@ pub enum Code {
     Incomplete,
     /// A flow still being drawn: generated, with an unknown connection.
     Unfinished,
+    /// Said, but leads nowhere: a permission on a firewall the flow does not
+    /// cross, management access to a machine no account is granted on.
+    Ineffective,
     UnknownReference,
     AssociationType,
     Cardinality,
@@ -80,6 +83,7 @@ impl Code {
             Self::ProfileAttribute => "profile-attribute",
             Self::Incomplete => "incomplete",
             Self::Unfinished => "unfinished",
+            Self::Ineffective => "ineffective",
             Self::UnknownReference => "unknown-reference",
             Self::AssociationType => "association-type",
             Self::Cardinality => "cardinality",
@@ -127,5 +131,14 @@ impl Diagnostic {
             severity: Severity::Warning,
             ..Self::error(code, path, message)
         }
+    }
+}
+
+/// "a" or "an" before `word`, as it is written: every kind and association
+/// name is a plain English word, so its first letter decides.
+pub fn article(word: &str) -> &'static str {
+    match word.trim_start_matches('`').chars().next() {
+        Some('a' | 'e' | 'i' | 'o' | 'u') => "an",
+        _ => "a",
     }
 }

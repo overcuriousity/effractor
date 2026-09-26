@@ -1,4 +1,4 @@
-# Handoff — 2026-09-21, evening
+# Handoff
 
 For the next session — whoever or whatever picks it up; everything needed is in
 the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md`, `ROADMAP.md` and the design still to be built
@@ -95,7 +95,7 @@ file there.
 ## Repository cleanup (2026-09-25)
 
 At the owner's word, specs and plans of what is built were deleted, and so
-were all shipped examples (to be renewed in another session).
+were all shipped examples (renewed the same day: *sample collection* above).
 
 - **Deleted specs and plans**, all built: v1 design (trees, sharing, charts,
   Pareto; v1 accepted), readable time notation, library extension, nmap import
@@ -108,8 +108,9 @@ were all shipped examples (to be renewed in another session).
 - **Kept:** the lecture-workflow spec and plan: Task 8 (course docs,
   `LECTURE-ACCEPTANCE.md`, `check-graph-performance.js`, the owner's
   walkthrough) is not done and `lecture-workflow` is on the roadmap.
-- **Examples:** `assets/examples/` is gone (fault/attack trees 01–13, the
-  catalog). The five architectures 14–18 are test fixtures now,
+- **Examples:** the old `assets/examples/` went (fault/attack trees 01–13,
+  the catalog); the thirteen there now are the new collection. The five
+  architectures 14–18 are test fixtures now,
   `crates/effractor-components/tests/fixtures/architectures/` — they are what
   proves every generation rule is used, and two graph-agreement cases. The
   share and notation tests read the templates and course files instead.
@@ -683,10 +684,12 @@ false for an architecture, until Task 6 wires it. What exists:
   inspector's tooltip then says "no reason given" (spec §5 updated).
 - Menus open beside what opened them at their measured size
   (`effractorView.menuAt`); a submenu sits flush against its list.
-- Examples 14–16 (`assets/examples/*-architecture.yaml`) are architectures:
-  a gateway on its appliance, a web shop behind two routers, clinic records
-  with an unknown input. `crates/effractor-solver/tests/graph_examples.rs`
-  holds them canonical and to what the examples README says they show.
+- Examples 14–16 were architectures: a gateway on its appliance, a web shop
+  behind two routers, clinic records with an unknown input. Since the
+  cleanup of 2026-09-25 they are fixtures,
+  `crates/effractor-components/tests/fixtures/architectures/`, and
+  `crates/effractor-solver/tests/graph_examples.rs` holds them canonical and
+  to what they were written to show.
 - Merged and pushed to master as `0a1665a` on the owner's word (2026-09-23).
 - A fresh reviewer found no correctness bug. Fixed from its report: the
   assumption list now also names the known blockers (denials, never-TTCs) in
@@ -938,9 +941,9 @@ The reference is Chainalysis Reactor: quiet chrome, detail on demand. Decided
 today, all of it after seeing the alternative:
 
 - **Examples ship as opt-in YAML files** in `assets/examples/`, per the owner's
-  2026-09-21 request: twelve domain examples and a playful date-night bonus.
-  The catalog is `assets/examples/README.md`. This supersedes the earlier
-  no-examples decision. `/` opens the working text from IndexedDB, else an empty
+  2026-09-21 request; what ships is the collection of 2026-09-25 (*sample
+  collection* above). The catalog is `assets/examples/README.md`. This
+  supersedes the earlier no-examples decision. `/` opens the working text from IndexedDB, else an empty
   document. Shipped examples, fixtures and the spec's example are English.
 - **Nothing is shown unless asked for** (owner, 2026-09-22). A first visit is
   the canvas alone: both panels closed, the HUD cards hidden until a solve. A
@@ -1057,15 +1060,13 @@ to try. What worked today:
 - `effractor-format`: `load` / `save` / `canonicalize` / `diagnose`, and
   `document` / `from_document` — the JSON image the browser edits. `x-` keys are
   not in `core::Model`; the reader hands them to the writer by path.
-- `effractor-wasm`: `validate`, `parse`, `serialize`, `solve_begin/step/finish/
-  cancel`, `ttc_sketch`, `crash`; JSON text in and out. `scripts/build-wasm.sh
+- `effractor-wasm`: `validate`, `parse`, `serialize`, `component_catalog`,
+  `generate`, `ttc_sketch`, `solve_begin`, `solve_graph_begin`,
+  `solve_step/finish/cancel`, `crash`; JSON text in and out. `scripts/build-wasm.sh
   [--fetch-cli]` → `assets/wasm/` (git-ignored; a server test fails without it).
-- Page scripts, in load order: `theme`, `workspace` (panels), `graph`, `view`,
-  `renderer-svg` (interface of spec 7.1, plus `zoomBy`, pressable edges, refit
-  on resize), `layout` (ELK worker), `results-view`, `edit` (every document
-  edit, pure), `solver`, `store`, `app` (state, solve, undo, file menu, notice),
-  `menu` (dropdown), `editor` (keys, rail, context menu, property
-  panel, model tree, assets), `source`, `controls` (tabs, controls).
+- Page scripts: `assets/js/`, one IIFE module each, in the load order of
+  `crates/effractor-server/templates/shell.html` — the one list; `app.js`
+  holds state, solving, undo and the file menu.
 - `window.effractor` is how they talk: `state`, `select`, `applyEdit`,
   `adoptSource`, `solve`, `undo`/`redo`, `say`, `format`, `onChange`.
 - Every edit goes document → `serialize` → `parse` in wasm; JS never judges a
@@ -1080,8 +1081,6 @@ to try. What worked today:
   quoted; a description with line breaks is written as one quoted line.
 - `fresh` ids (id derived from the first label) live in `editor.js` memory; an
   undo or a reload forgets which nodes were still unnamed.
-- After an undo the results are cleared and not solved again (a control toggle
-  does re-solve).
 - The theme switch has three states (Light → Dark → System); with the OS in
   dark mode two of them look the same. The owner noticed once; a two-state
   toggle was offered and not asked for.
