@@ -30,3 +30,12 @@
 .doc-name-text { overflow: hidden; text-overflow: ellipsis; }
 .doc-owner { margin-top: 8px; }
 .model-path { color: var(--color-fg-muted); font-weight: 400; margin-right: 4px; cursor: pointer; }
+
+/* Sharing with people (spec §9.3). */
+.share-people { margin-bottom: 12px; }
+.share-people-add { display: flex; gap: 6px; align-items: center; }
+.share-people-add input { flex: 1; }
+.share-people-suggest { position: static; margin-top: 4px; }
+.share-people-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.share-people-list li { display: flex; gap: 6px; align-items: center; padding: 2px 0; }
+.share-people-list li > span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

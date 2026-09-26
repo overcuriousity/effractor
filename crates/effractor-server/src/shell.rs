@@ -174,6 +174,19 @@ mod tests {
         assert!(at("js/accounts/documents.js") < at("js/accounts/documents-ui.js"));
         assert!(at("js/accounts/documents-ui.js") < at("js/accounts/autosave.js"));
         assert!(at("js/accounts/autosave.js") < at("js/accounts/sync.js"));
+        // Sharing with people (spec §9.3), in the share dialog.
+        for id in [
+            "share-people",
+            "share-people-name",
+            "share-people-role",
+            "share-people-add",
+            "share-people-suggest",
+            "share-people-list",
+            "share-public",
+        ] {
+            assert!(html.contains(&format!("id=\"{id}\"")), "{id}");
+        }
+        assert!(at("js/accounts/sync.js") < at("js/accounts/people-ui.js"));
     }
 
     #[test]
@@ -190,6 +203,7 @@ mod tests {
                 "data-left-tab",
                 "model-path",
                 "save-state",
+                "share-people",
             ] {
                 assert!(!html.contains(needle), "{needle} with sharing={sharing}");
             }
