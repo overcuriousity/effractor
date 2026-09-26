@@ -745,7 +745,12 @@
     if (mode === state.mode && (mode !== "attack" || attackShown())) return Promise.resolve(true);
     if (mode !== "attack") {
       var step = stepOf(state.selected);
-      if (step && graphOf()) state.selected = AV.originOf(graphOf(), step);
+      if (step && graphOf()) {
+        state.selected = AV.originOf(graphOf(), step);
+        // Back in the attack graph with that component still selected, the
+        // step is selected again.
+        state.leftStep = { step: step, origin: state.selected };
+      }
       state.mode = "architecture";
       state.focus = null;
       showView();
@@ -758,6 +763,9 @@
     return ready.then(function (answer) {
       if (!answer.ok || !gate.accept(intent)) return false;
       state.mode = "attack";
+      var left = state.leftStep;
+      state.leftStep = null;
+      if (left && state.selected === left.origin && graphOf().nodes.some(function (n) { return n.id === left.step; })) state.selected = "step/" + left.step;
       state.focus = state.selected;
       showView();
       return draw(true).then(function () {

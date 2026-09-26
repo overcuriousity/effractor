@@ -81,12 +81,6 @@ low-chroma family plates, flows redrawn, canvas switch renamed), is
 [`2026-09-26-ui-review-design.md`](docs/superpowers/specs/2026-09-26-ui-review-design.md).
 Each item is one or a few small PRs; the owner looks at each before it lands.
 
-### step-navigation — Follow a step on the canvas
-needs: —            cost: 2   benefit: 4
-Spec §5. Done when any selected step is brought into view, its derivation is
-lit, the attack graph shows the target's support by default, and steps can be
-walked by key.
-
 ### headline-card — The answer, where the eye is
 needs: —            cost: 2   benefit: 4
 Spec §8. Done when the canvas card names the target, the horizon and the time,
@@ -94,7 +88,7 @@ says when it is outdated or a scenario is chosen, opens Results on a click,
 and no list asks to build the attack graph after an edit.
 
 ### ranked-routes — The ways in, and how often each
-needs: step-navigation            cost: 4   benefit: 5
+needs: —            cost: 4   benefit: 5
 Spec §6. Done when the solver returns the three routes with the largest share
 of successful samples (native = wasm, fingerprints moved on purpose), Results
 lists them, and a chosen route is drawn on the architecture and on the attack
@@ -124,7 +118,7 @@ canvas says how to start, examples open from File, the legend shows only rings
 present, and an nmap import says what it added.
 
 ### attack-graph-density — A lighter attack graph
-needs: step-navigation            cost: 3   benefit: 3
+needs: —            cost: 3   benefit: 3
 Spec §11. Done when single-producer facts fold into their producer, seeded
 steps are marked, tags fit their nodes and the legend covers every state.
 

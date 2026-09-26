@@ -470,6 +470,51 @@
   // What would edit the architecture from the attack view, by key.
   var EDITS = { a: "addComponent", Tab: "addChild", F2: "rename", p: "properties", l: "link", Delete: "deleteNode", Backspace: "deleteNode" };
 
+  function stepLabel(id) {
+    var g = generated() ? generated().graph : app.state.lastGraph;
+    var n = g ? g.nodes.filter(function (x) { return x.id === id; })[0] : null;
+    return n ? n.label : id;
+  }
+
+  // ↑ what needs the selected step (towards the target), ↓ what it needs:
+  // one is gone to, several are offered beside the step.
+  function walkStep(step, up) {
+    var near = V.neighbours(generated().graph, step);
+    var to = up ? near.dependents : near.prerequisites;
+    if (!to.length) return app.say(up ? "nothing needs this step" : "it needs nothing · the attack starts here");
+    if (to.length === 1) return app.select("step/" + to[0]);
+    var drawn = document.querySelector('#canvas g[data-id="' + CSS.escape("step/" + step) + '"]');
+    var box = drawn ? drawn.getBoundingClientRect() : $("canvas").getBoundingClientRect();
+    app.showMenu(to.map(function (id) {
+      return [stepLabel(id), "", function () { app.select("step/" + id); }];
+    }), 0, 0, { left: box.left, right: box.right, top: box.top });
+  }
+
+  // [ and ]: the simulated path, a step at a time — its steps in the attack
+  // graph, their components in the architecture. Where it was is kept.
+  var pathAt = null;
+  function stepPath(forward) {
+    var results = R.isGraphResults(app.state.results) ? app.state.results : null;
+    var steps = V.pathSteps(results && results.baseline.witness);
+    if (!steps.length) return app.say(results ? "no simulated path · the target was not reached" : "Calculate (Ctrl+Enter) for a simulated path");
+    var here = stepOf(app.state.selected);
+    var i = steps.indexOf(attack() && here ? here : pathAt);
+    // The graph of the text before an edit still says whose steps they were.
+    var graph = generated() ? generated().graph : app.state.lastGraph;
+    if (!attack() && !graph) return app.say("build the attack graph (G) to walk its path");
+    var origin = function (k) {
+      return attack() ? "step/" + steps[k] : V.originOf(graph, steps[k]);
+    };
+    var k = i < 0 ? (forward ? 0 : steps.length - 1) : i + (forward ? 1 : -1);
+    // In the architecture a component done by several steps in a row is
+    // one stop.
+    while (!attack() && k >= 0 && k < steps.length && (!origin(k) || (i >= 0 && origin(k) === origin(i)))) k += forward ? 1 : -1;
+    if (k < 0 || k >= steps.length) return app.say(forward ? "the end of the path · the target" : "the start of the path");
+    pathAt = steps[k];
+    app.select(origin(k));
+    app.say("path " + (k + 1) + " of " + steps.length + " · " + stepLabel(steps[k]));
+  }
+
   // Before the architecture editor's own keys: in the attack view they are
   // refused here, and say why.
   document.addEventListener(
@@ -481,8 +526,16 @@
         e.preventDefault();
         return toggle();
       }
+      if ((key === "[" || key === "]") && (attack() || app.state.mode !== "attack")) {
+        e.preventDefault();
+        return stepPath(key === "]");
+      }
       if (!attack()) return;
       var step = stepOf(app.state.selected);
+      if (step && (key === "ArrowUp" || key === "ArrowDown")) {
+        e.preventDefault();
+        return walkStep(step, key === "ArrowUp");
+      }
       if (key === "Enter" && step) {
         // From a step to its component, in the architecture.
         e.preventDefault();
@@ -498,6 +551,8 @@
 
   U.keyList.push(["G", "Attack graph or architecture"]);
   U.keyList.push(["Enter", "From a step to its component"]);
+  U.keyList.push(["↑ ↓ on a step", "What needs it, what it needs"]);
+  U.keyList.push(["[  ]", "Back, on along the simulated path"]);
   U.keyList.push(["right-click a step", "Its sources and component"]);
 
   // ---- the attack view's pointer ----

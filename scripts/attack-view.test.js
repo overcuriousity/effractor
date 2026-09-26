@@ -305,3 +305,18 @@ test('by default only what leads to the target is drawn, and the rest is counted
   assert.equal(none.shown, graph.nodes.length);
   assert.equal(none.elsewhere, 0);
 });
+
+test('a step walks to what it needs and to what needs it; the path is stepped in time order', () => {
+  const n = V.neighbours(graph, 'state/host/server/admin');
+  assert.deepEqual(n.prerequisites, ['state/service/sshd/control', 'state/session/server-account/sshd']);
+  assert.deepEqual(n.dependents, ['state/host/server/user', 'state/service/sshd/control']);
+  assert.deepEqual(V.neighbours(graph, 'nothing'), { prerequisites: [], dependents: [] });
+  const witness = require('./fixtures/graph/results-available.json').baseline.witness;
+  const steps = V.pathSteps(witness);
+  assert.ok(steps.length > 0);
+  assert.ok(steps.every(id => !id.startsWith('input/')), 'inputs are where it starts, not steps taken');
+  const times = Object.fromEntries(witness.nodes.map(w => [w.id, w.time]));
+  steps.slice(1).forEach((id, i) => assert.ok(times[id] >= times[steps[i]], id));
+  assert.ok(steps.includes(graph.target));
+  assert.deepEqual(V.pathSteps(null), []);
+});

@@ -150,6 +150,26 @@
     return { nodes: nodes, edges: edges };
   }
 
+  // Where a step can be walked to: what it needs (down the drawing) and
+  // what needs it (up, towards the target), each in graph order.
+  function neighbours(graph, id) {
+    var n = node(graph, id);
+    if (!n) return { prerequisites: [], dependents: [] };
+    var at = indexOf(graph);
+    return {
+      prerequisites: n.inputs.filter(function (i) { return i in at; }),
+      dependents: graph.nodes.filter(function (m) { return m.inputs.indexOf(id) >= 0; }).map(function (m) { return m.id; }),
+    };
+  }
+
+  // The simulated path's steps in the order they were done (the solver
+  // lists them by time); inputs are where it starts, not steps taken.
+  function pathSteps(witness) {
+    return ((witness && witness.nodes) || []).map(function (w) { return w.id; }).filter(function (id) {
+      return id.indexOf("input/") !== 0;
+    });
+  }
+
   var KIND = { input: "input", any: "fact", all: "action" };
 
   function unique(lists) {
@@ -370,6 +390,8 @@
     originOf: originOf,
     sourceTarget: sourceTarget,
     lineage: lineage,
+    neighbours: neighbours,
+    pathSteps: pathSteps,
     index: indexOf,
     inspect: inspect,
     search: search,
