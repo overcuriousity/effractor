@@ -6,6 +6,54 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — visual and ergonomic review, landed (2026-09-27)
+
+The review below was worked through one small PR per part, the owner looking
+at each on a preview (`target/debug/effractor --bind 127.0.0.1:8082 --accounts
+<db> --data <dir> --public-url http://localhost:8082`; a worktree gets its own
+build and port, since debug builds read `assets/` and the compiled-in
+`shell.html` from their own checkout).
+
+- **Landed:** quick fixes (#126); number fields and forms (#127–#130); a step
+  comes into view and walks by key (#131–#132); ranked routes (#133); the
+  canvas card (#134); *Components | Attack graph* and an empty canvas that says
+  how to begin (#135); a Compare scenario drawn on the canvas (#136);
+  chokepoints, "every route" (#137); colour grammar — quiet plates (#138), one
+  meaning per line (#139), charts with round ticks and drawn keys (#141),
+  flows twice a relationship's weight with an arrowhead at the middle (#142);
+  a find field over the outline (#143, `model-find`); attack graph tags that
+  fit, a grey ground for what is held at once, a legend of every state
+  (#144).
+- **Left:** the fold of `attack-graph-density` — a fact with one producer
+  drawn in its producer's box, the drawn node and line carrying the step ids
+  they stand for (`aliases`; the renderer lights and reveals by them). It
+  deletes the roadmap item; once it lands the review spec is built and goes.
+  Not done, optional in §11: re-windowing keeps positions or glides.
+- **Owner decisions (2026-09-26/27):** routes ranked by how often they occur;
+  chokepoints marked (structural, exact); family plates low-chroma, the icon
+  carries the kind, saturated colour only for states and selection; flows drawn
+  solid and heavy with an arrowhead, no longer dashed; the canvas switch is
+  *Components | Attack graph*.
+- **#139 landed before the owner had seen it** (a handoff said "land after
+  CI"); on the canvas flows then looked like relationships. #142 fixed it and
+  the owner approved both. A handoff note is not the owner's word: every UI
+  change is shown, in plain words ("the coloured circle behind each icon", not
+  "family plates"), before it lands.
+
+Lessons:
+
+- A tab hook that redrew the selection looped with a change handler that
+  switches tabs and killed the page: guard any hook that calls notify/select
+  against re-entry.
+- `setTimeout`/`clearTimeout` kept as methods of an object throw "Illegal
+  invocation" in browsers, not in node.
+- The preview's browser is logged into a test account, so autosave runs there.
+- ELK's layered algorithm ignores `elk.margins`: room for a tag is given by
+  widening the node and drawing the box `overhang(n).left` into it.
+- Owner rules: UI copy is a few words; say why, never nothing; left click
+  acts, right click offers; menus nest and never replace one another; no
+  native selects; detail on demand.
+
 ## Continuation — second full review (2026-09-26)
 
 The owner asked again for a review of the whole application, every finding
