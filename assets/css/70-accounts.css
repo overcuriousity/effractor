@@ -23,6 +23,7 @@
   border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm); white-space: nowrap; overflow: hidden; }
 .doc-row:hover, .doc-row:focus-visible { background: var(--color-bg-hover); }
 .doc-row.is-open { background: var(--color-bg-active); }
+.doc-row:is(:hover, .is-open) .model-path, .admin-row.is-selected .admin-meta { color: var(--color-fg-secondary); }
 .doc-row.is-selected { outline: 1px solid var(--color-border-strong); }
 .doc-row.is-drop, #documents-mine-section.is-drop { outline: 1px dashed var(--color-accent); }
 .doc-row svg { width: 14px; height: 14px; flex: none; }

@@ -37,6 +37,11 @@
   --z-pick: 30;
   --z-drag: 50;
 
+  /* The series of a chart, named apart from the selection they share a
+     colour with today, so either can change alone. */
+  --viz-series-baseline: var(--color-accent);
+  --viz-series-scenario: var(--color-fg-primary);
+
   /* …and the light half of the palette, on the same bare `:root`. One block,
      because two `:root` blocks in a row are one block written twice. */
   --color-bg-base: #f8f6f1;

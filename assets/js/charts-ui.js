@@ -23,6 +23,34 @@
     t.appendChild(body); scroll.appendChild(t); details.append(summary, scroll); return details;
   }
   var positions = Object.create(null);
+  // A probability in percent up the side; round steps along the bottom,
+  // the last one where it falls, not the end whatever it is.
+  function axes(plot, max) {
+    [0, .25, .5, .75, 1].forEach(function (v) {
+      plot.appendChild(svg('line', { x1: 48, x2: 344, y1: data.y(v), y2: data.y(v), class: 'chart-grid' }));
+      plot.appendChild(svg('text', { x: 42, y: data.y(v) + 3, 'text-anchor': 'end' }, Math.round(v * 100) + '%'));
+    });
+    var marks = data.ticks(max);
+    marks.forEach(function (t, i) {
+      var at = data.x(t, max);
+      plot.appendChild(svg('text', { x: at, y: 220, 'text-anchor': i === 0 ? 'start' : at > 330 ? 'end' : 'middle' }, number(t)));
+    });
+  }
+  // A chart's key: each line as it is drawn — its stroke, its dash — and
+  // its name. `parts`: [class of the line, words]; words alone for a note.
+  function key(parts) {
+    var p = el('p', null, 'hint chart-key');
+    parts.forEach(function (part, i) {
+      if (i) p.appendChild(document.createTextNode(' · '));
+      if (part[0]) {
+        var sample = svg('svg', { width: 22, height: 8, viewBox: '0 0 22 8', class: 'key-sample', 'aria-hidden': 'true' });
+        sample.appendChild(svg('line', { x1: 1, y1: 4, x2: 21, y2: 4, class: part[0] }));
+        p.appendChild(sample);
+      }
+      p.appendChild(document.createTextNode(part[1]));
+    });
+    return p;
+  }
   function draw(kind, result) {
     var root = document.getElementById(kind + '-chart');
     var focused = root.contains(document.activeElement) ? document.activeElement.tagName.toLowerCase() : null;
@@ -57,13 +85,7 @@
     var title = graph ? 'P(target by time)' : cdf ? window.effractorProfiles.words(app.state.doc).p.replace(')', ' ≤ time)') : 'P(loss ≥ amount)';
     var plot = svg('svg', { viewBox: '0 0 360 244', class: 'analysis-chart', role: 'img', tabindex: '0', 'aria-label': title + ' · Left/Right: values' });
     plot.appendChild(svg('title', {}, title));
-    [0, .25, .5, .75, 1].forEach(function (v) {
-      plot.appendChild(svg('line', { x1: 48, x2: 344, y1: data.y(v), y2: data.y(v), class: 'chart-grid' }));
-      plot.appendChild(svg('text', { x: 42, y: data.y(v) + 3, 'text-anchor': 'end' }, number(v)));
-    });
-    [0, .5, 1].forEach(function (fraction) {
-      plot.appendChild(svg('text', { x: data.x(max * fraction, max), y: 220, 'text-anchor': fraction === 1 ? 'end' : fraction === 0 ? 'start' : 'middle' }, number(max * fraction)));
-    });
+    axes(plot, max);
     plot.appendChild(svg('text', { x: 196, y: 239, 'text-anchor': 'middle' }, unit || 'loss'));
     if (cdf) {
       var band = rows.filter(function (r) { return r[3] !== null && r[4] !== null; });
@@ -74,8 +96,11 @@
       [1, 2].forEach(function (column) {
         plot.appendChild(svg('path', { d: data.line(rows.map(function (r) { return [r[0], r[column]]; }), max), class: column === 1 ? 'chart-line' : 'chart-line chart-sampled' }));
       });
-      var pointwise = model.confidence === null ? '' : ' · ' + Math.round(model.confidence * 100) + '% pointwise band';
-      root.appendChild(el('p', graph ? graphs.cdfKey(model) : '— Exact · ┄ Sampled' + pointwise, 'hint chart-key'));
+      var pointwise = model.confidence === null ? null : ['', Math.round(model.confidence * 100) + '% pointwise band'];
+      var parts = graph
+        ? [[structural ? 'chart-line' : 'chart-line chart-sampled', graphs.cdfKey(model).replace(/^[—┄] /, '')]]
+        : [['chart-line', 'Exact'], ['chart-line chart-sampled', 'Sampled']].concat(pointwise ? [pointwise] : []);
+      root.appendChild(key(parts));
     } else {
       plot.appendChild(svg('path', { d: data.line(rows, max), class: 'chart-line' }));
       // A degenerate all-zero loss curve has one point, not a visible segment.
@@ -135,28 +160,22 @@
     var title = 'P(target by time) · baseline and ' + name;
     var plot = svg('svg', { viewBox: '0 0 360 244', class: 'analysis-chart', role: 'img', tabindex: '0', 'aria-label': title + ' · Left/Right: values' });
     plot.appendChild(svg('title', {}, title));
-    [0, .25, .5, .75, 1].forEach(function (v) {
-      plot.appendChild(svg('line', { x1: 48, x2: 344, y1: data.y(v), y2: data.y(v), class: 'chart-grid' }));
-      plot.appendChild(svg('text', { x: 42, y: data.y(v) + 3, 'text-anchor': 'end' }, number(v)));
-    });
-    [0, .5, 1].forEach(function (fraction) {
-      plot.appendChild(svg('text', { x: data.x(max * fraction, max), y: 220, 'text-anchor': fraction === 1 ? 'end' : fraction === 0 ? 'start' : 'middle' }, number(max * fraction)));
-    });
+    axes(plot, max);
     plot.appendChild(svg('text', { x: 196, y: 239, 'text-anchor': 'middle' }, unit));
     // A baseline known by structure is solid, as on its own chart; the
     // scenario is dotted either way, so the two stay told apart.
     var structural = graphs.cdf(result.baseline.outcome).method === 'structural';
     var sides = [
       structural
-        ? { column: 1, name: 'Baseline · by structure', mark: '—', line: 'chart-line', band: 'chart-band' }
-        : { column: 1, name: 'Baseline', mark: '┄', line: 'chart-line chart-sampled', band: 'chart-band' },
-      { column: 4, name: name, mark: '┈', line: 'chart-line chart-scenario', band: 'chart-band chart-band-scenario' },
+        ? { column: 1, name: 'Baseline · by structure', line: 'chart-line', band: 'chart-band' }
+        : { column: 1, name: 'Baseline', line: 'chart-line chart-sampled', band: 'chart-band' },
+      { column: 4, name: name, line: 'chart-line chart-scenario', band: 'chart-band chart-band-scenario' },
     ];
-    var key = [], banded = false;
+    var keyParts = [], banded = false;
     sides.forEach(function (side) {
       var c = side.column;
       var known = rows.filter(function (r) { return r[c] !== null; });
-      if (!known.length) { key.push(side.name + ' · not available'); return; }
+      if (!known.length) { keyParts.push(['', side.name + ' · not available']); return; }
       var band = known.filter(function (r) { return r[c + 1] !== r[c + 2]; });
       if (band.length) {
         banded = true;
@@ -164,7 +183,7 @@
         plot.appendChild(svg('path', { d: data.line(outline, max) + ' Z', class: side.band }));
       }
       plot.appendChild(svg('path', { d: data.line(known.map(function (r) { return [r[0], r[c]]; }), max), class: side.line }));
-      key.push(side.mark + ' ' + side.name);
+      keyParts.push([side.line, side.name]);
     });
     var cross = svg('g', { class: 'chart-cross', visibility: 'hidden' });
     var vertical = svg('line', { y1: 32, y2: 204 });
@@ -191,7 +210,7 @@
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       e.preventDefault(); e.stopPropagation(); inspect(active + (e.key === 'ArrowRight' ? 1 : -1));
     });
-    root.append(plot, tooltip, el('p', key.join(' · ') + (banded ? ' · ' + Math.round(result.confidence * 100) + '% pointwise bands' : ''), 'hint chart-key'));
+    root.append(plot, tooltip, key(keyParts.concat(banded ? [['', Math.round(result.confidence * 100) + '% pointwise bands']] : [])));
     var equivalent = table(['Time · ' + unit, 'Baseline', 'Lower', 'Upper', name, 'Lower', 'Upper'], rows);
     equivalent.open = !!open; root.appendChild(equivalent);
     if (focused) (focused === 'summary' ? equivalent.querySelector('summary') : plot).focus();

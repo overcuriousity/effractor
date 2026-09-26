@@ -53,15 +53,17 @@
 .analysis-chart { display: block; width: 100%; overflow: visible; }
 .analysis-chart text { fill: var(--color-fg-muted); font: 10px var(--font-mono); font-variant-numeric: tabular-nums; }
 .chart-grid { stroke: var(--color-border-subtle); stroke-width: 1; }
-.chart-line { fill: none; stroke: var(--color-accent); stroke-width: 2; }
+.chart-line { fill: none; stroke: var(--viz-series-baseline); stroke-width: 2; }
 .chart-sampled { stroke-dasharray: 5 4; }
-.chart-scenario { stroke: var(--color-fg-primary); stroke-dasharray: 1.5 3; stroke-linecap: round; }
-.chart-band-scenario { fill: var(--color-fg-primary); fill-opacity: .08; stroke: var(--color-fg-primary); stroke-opacity: .3; }
-.chart-band { fill: var(--color-accent); fill-opacity: .13; stroke: var(--color-accent); stroke-opacity: .4; stroke-dasharray: 2 3; }
-.chart-dot { fill: var(--color-accent); }
+.chart-scenario { stroke: var(--viz-series-scenario); stroke-dasharray: 1.5 3; stroke-linecap: round; }
+.chart-band-scenario { fill: var(--viz-series-scenario); fill-opacity: .08; stroke: var(--viz-series-scenario); stroke-opacity: .3; }
+.chart-band { fill: var(--viz-series-baseline); fill-opacity: .13; stroke: var(--viz-series-baseline); stroke-opacity: .4; stroke-dasharray: 2 3; }
+.chart-dot { fill: var(--viz-series-baseline); }
 .chart-cross { stroke: var(--color-fg-muted); stroke-width: 1; stroke-dasharray: 2 3; pointer-events: none; }
 .chart-tooltip { min-height: 2.5em; font-size: var(--text-xs); overflow-wrap: anywhere; }
 .chart-key { font-size: var(--text-xs); color: var(--color-fg-muted); }
+/* A key's line sample: the series' own stroke and dash. */
+.key-sample { display: inline-block; margin-right: 4px; vertical-align: middle; overflow: visible; }
 .chart-quantiles { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: var(--text-xs); }
 .chart-quantiles dd { margin: 0; }
 .chart-table { margin-top: 10px; font-size: var(--text-xs); }

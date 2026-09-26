@@ -34,7 +34,21 @@
   function exactSnapshot(begun, doc) {
     return { exact: begun.exact, horizon: doc.horizon, time_unit: doc.time_unit };
   }
-  var api = { exactSnapshot: exactSnapshot, cdf: cdf, loss: loss, line: line, nearest: nearest, x: x, y: y };
+  // Where an axis 0 … max is marked: about four round steps (1, 2, 2.5 or 5
+  // times a power of ten, the nearest in ratio), never past its end.
+  function ticks(max) {
+    if (!(max > 0)) return [0];
+    var raw = max / 4;
+    var mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    var step = [1, 2, 2.5, 5, 10].map(function (m) { return m * mag; }).reduce(function (best, s) {
+      return Math.abs(Math.log(s / raw)) < Math.abs(Math.log(best / raw)) ? s : best;
+    });
+    var out = [];
+    for (var i = 0; i * step <= max * (1 + 1e-9); i++) out.push(Number((i * step).toPrecision(12)));
+    return out;
+  }
+
+  var api = { exactSnapshot: exactSnapshot, cdf: cdf, loss: loss, line: line, nearest: nearest, x: x, y: y, ticks: ticks };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window !== 'undefined') window.effractorCharts = api;
 })();

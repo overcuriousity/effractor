@@ -34,3 +34,15 @@ test('partial exact snapshots include the document units and horizon without sam
   assert.deepEqual(charts.cdf(snapshot).rows, [[0, 0, null, null, null], [20, .5, null, null, null]]);
   assert.equal(snapshot.sampled, undefined);
 });
+
+test('an axis is marked at round steps, never past its end', () => {
+  const { ticks } = require('../assets/js/charts.js');
+  assert.deepEqual(ticks(30), [0, 10, 20, 30]);
+  assert.deepEqual(ticks(100), [0, 25, 50, 75, 100]);
+  assert.deepEqual(ticks(8760), [0, 2000, 4000, 6000, 8000]);
+  assert.deepEqual(ticks(1), [0, 0.25, 0.5, 0.75, 1]);
+  assert.deepEqual(ticks(7), [0, 2, 4, 6]);
+  assert.deepEqual(ticks(0), [0]);
+  ticks(123456).forEach(t => assert.ok(t <= 123456));
+  assert.ok(ticks(123456).length >= 3 && ticks(123456).length <= 6);
+});

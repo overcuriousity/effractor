@@ -221,7 +221,7 @@
 .attack-results .hint { margin: 2px 0 0; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .attack-results .analysis-table tbody tr { cursor: pointer; }
 .attack-results .analysis-table tbody tr:hover, .attack-results .analysis-table tbody tr:focus-visible { background: var(--color-bg-hover); }
-.attack-results .analysis-table tr.is-selected { box-shadow: inset 2px 0 0 var(--color-accent); }
+.attack-results .analysis-table tr.is-selected { background: var(--color-bg-active); box-shadow: inset 2px 0 0 var(--color-accent); }
 .step-search { display: block; width: 100%; min-width: 0; margin: 0 0 4px; padding: 3px 5px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-base); color: var(--color-fg-primary); font: inherit; font-size: var(--text-sm); }
 .assumptions { margin: 0; padding: 0; list-style: none; }
 /* The routes taken most: a row each, the one drawn open with its actions. */
@@ -339,6 +339,8 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .cluster-members { list-style: none; margin: 4px 0 0; padding: 0; }
 .cluster-members li { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 4px; cursor: pointer; }
 .cluster-members li:hover { background: var(--color-bg-hover); }
+/* Muted text is under AA on a hovered row: it steps up, as elsewhere. */
+.cluster-members li:hover .member-out { color: var(--color-fg-secondary); }
 .cluster-members .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cluster-members .member-out { padding: 0 6px; line-height: 1.4; color: var(--color-fg-muted); }
 .cluster-members .member-out:hover { color: var(--color-fg-primary); }
