@@ -63,7 +63,11 @@ offer_service() {
   # Installed before: the new binary replaces the old, the unit stays as the
   # operator left it (--accounts and all), and the service restarts on it.
   if [ -f "$units/effractor.service" ] && command -v systemctl >/dev/null; then
-    [ "$scope" = user ] || system_binary "$bin"
+    if [ "$scope" = user ]; then
+      user_bus || { no_user_bus "not restarted"; return 0; }
+    else
+      system_binary "$bin"
+    fi
     restart "$scope service updated"
     return 0
   fi
@@ -86,9 +90,30 @@ offer_service() {
   command -v systemctl >/dev/null || { echo "systemctl not found — no service installed"; return 0; }
   if [ "$scope" = system ]; then
     system_service "$bin"
-  else
+  elif user_bus; then
     user_service "$bin"
+  else
+    no_user_bus "not installed"
   fi
+}
+
+# A user service needs this user's systemd manager. Reached by su or sudo -u
+# there is no session, so no XDG_RUNTIME_DIR; with linger on the manager
+# runs anyway and listens in /run/user/<uid>, which is tried then.
+user_bus() {
+  systemctl --user show-environment >/dev/null 2>&1 && return 0
+  run=${EFFRACTOR_RUNTIME_DIR:-/run/user/$(id -u)}
+  [ -z "${XDG_RUNTIME_DIR:-}" ] && [ -e "$run/bus" ] || return 1
+  XDG_RUNTIME_DIR=$run
+  export XDG_RUNTIME_DIR
+  systemctl --user show-environment >/dev/null 2>&1
+}
+
+no_user_bus() {
+  who=$(id -un 2>/dev/null || echo "\$USER")
+  echo "no systemd user session for $who (logged in with su or sudo?) — service $1."
+  echo "  as root: loginctl enable-linger $who, then run this installer again as $who;"
+  echo "  or run it as root for a system service."
 }
 
 # Copy beside the target and rename over it: a running binary cannot be
@@ -140,8 +165,10 @@ Restart=on-failure
 [Install]
 WantedBy=default.target
 EOF
-  systemctl --user daemon-reload
-  systemctl --user enable effractor
+  if ! { systemctl --user daemon-reload && systemctl --user enable effractor; }; then
+    echo "user service written to $units, but systemd would not enable it — see: systemctl --user status effractor"
+    return 0
+  fi
   restart "user service installed"
   echo "to keep it running without a login session: loginctl enable-linger $(id -un 2>/dev/null || echo "\$USER")"
 }

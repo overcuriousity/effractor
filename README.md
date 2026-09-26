@@ -33,7 +33,10 @@ curl -fsSL https://raw.githubusercontent.com/overcuriousity/effractor/master/ins
 Linux x86_64 and aarch64, one static binary, SHA-256 verified, installed to
 `~/.local/bin`. The installer asks whether to install a systemd service (a user
 service, or a hardened system service as root); `EFFRACTOR_SYSTEMD=yes|no`
-answers without asking. Running it again upgrades: the binary is replaced and
+answers without asking. A user service needs that user's systemd session: for
+a service account reached with `su` or `sudo -u`, run `loginctl enable-linger
+<account>` as root first, or install as root for a system service. Running it
+again upgrades: the binary is replaced and
 an installed service restarts on it, its unit left as it was. Then:
 
 ```sh
