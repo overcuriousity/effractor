@@ -334,5 +334,12 @@
   A.session.onChange(function () { listing = null; refresh(); });
 
   A.documentsUi = { show: openTab, reveal: reveal, refresh: refresh, selectedFolder: function () { return selectedFolder; },
-    selectFolder: function (id) { selectedFolder = id; }, listing: function () { return listing; } };
+    selectFolder: function (id) { selectedFolder = id; }, listing: function () { return listing; },
+    // A save changed this document: its row shows it at once.
+    saved: function (id, fields) {
+      var next = D.patch(listing, id, fields);
+      if (next === listing) return;
+      listing = next;
+      render();
+    } };
 })();

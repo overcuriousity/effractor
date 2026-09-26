@@ -80,3 +80,14 @@ test("while logged in, a document from the server or a new one starts a fresh hi
   assert.equal(D.startsFresh("link", true), false);
   assert.equal(D.startsFresh("server", false), false);
 });
+
+test("a save updates its row in the listing, and nothing else", () => {
+  const before = JSON.parse(JSON.stringify(listing));
+  const after = D.patch(listing, 3, { name: "web tier (renamed)", version: 7 });
+  assert.equal(after.documents.find((d) => d.id === 3).name, "web tier (renamed)");
+  assert.equal(after.documents.find((d) => d.id === 3).version, 7);
+  assert.equal(after.documents.find((d) => d.id === 3).profile, "architecture", "the rest stays");
+  assert.deepEqual(listing, before, "the listing it was given is not changed");
+  assert.equal(D.patch(listing, 404, { name: "x" }), listing, "an unknown id changes nothing");
+  assert.equal(D.patch(null, 3, { name: "x" }), null);
+});

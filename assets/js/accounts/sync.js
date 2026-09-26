@@ -20,6 +20,7 @@
           b.version = res.data.version;
           b.saved = body;
           store.bind(profile, b);
+          if (A.documentsUi) A.documentsUi.saved(b.id, { name: name, version: res.data.version, updated_at: res.data.updated_at });
         }
         return res;
       });
@@ -142,7 +143,10 @@
   function rename(id, name) {
     var p = Object.keys(bound).filter(function (k) { return bound[k] && bound[k].id === id; })[0];
     if (p && p === profile) {
-      return renameText(app.state.text, name).then(function (text) { return app.adoptSource(text); });
+      // Saved at once, not after the pause edits wait for: a rename is one act.
+      return renameText(app.state.text, name)
+        .then(function (text) { return app.adoptSource(text); })
+        .then(function () { return autosave.flush(); });
     }
     return client.request("GET", "/api/documents/" + id).then(function (res) {
       if (!res.ok) return app.say("not renamed");

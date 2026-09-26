@@ -94,12 +94,23 @@
     return [{ id: null, name: "Top level" }].concat(children(null));
   }
 
+  // A saved document's row, changed where it was saved (a new name, a new
+  // version) without asking the server for the whole listing again.
+  function patch(listing, id, fields) {
+    if (!listing || !(listing.documents || []).some(function (d) { return d.id === id; })) return listing;
+    var out = Object.assign({}, listing);
+    out.documents = listing.documents.map(function (d) {
+      return d.id === id ? Object.assign({}, d, fields) : d;
+    });
+    return out;
+  }
+
   function startsFresh(origin, loggedIn) {
     return !!loggedIn && (origin === "server" || origin === "new" || origin === "file");
   }
 
   var api = { build: build, prune: prune, ancestors: ancestors, pathOf: pathOf, offers: offers,
-    moveTargets: moveTargets, startsFresh: startsFresh };
+    moveTargets: moveTargets, patch: patch, startsFresh: startsFresh };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") {
     window.effractorAccounts = window.effractorAccounts || {};
