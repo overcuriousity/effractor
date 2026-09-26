@@ -850,3 +850,53 @@ test('ticking a host ticks what it offers; all hosts at once', () => {
   N.tickHost(p.hosts[1], t, false);
   assert.deepEqual([t.hosts.h0, t.hosts.h1, t.ports['h1/tcp/22']], [true, false, false]);
 });
+
+// ---- review 2026-09-26 ----
+
+const port = (p, name, proto) => `<port protocol="${proto || 'tcp'}" portid="${p}"><state state="open" reason="syn-ack"/><service name="${name}"/></port>`;
+const hostXml = (addrs, ports, name) => `<host><status state="up" reason="syn-ack"/>${addrs.map(a => `<address addr="${a}" addrtype="${a.includes(':') ? 'ipv6' : 'ipv4'}"/>`).join('')}<hostnames>${name ? `<hostname name="${name}" type="PTR"/>` : ''}</hostnames><ports>${ports.join('')}</ports></host>`;
+const runXml = (args, hosts) => `<?xml version="1.0"?>\n<!DOCTYPE nmaprun>\n<nmaprun scanner="nmap" args="${args}">${hosts.join('\n')}<runstats><finished exit="success"/></runstats></nmaprun>\n`;
+
+test('results pasted one after another are all read, as one scan', () => {
+  const a = runXml('nmap -sT -sV -oX - 10.0.0.0/24', [hostXml(['10.0.0.5'], [port(22, 'ssh')])]);
+  const b = runXml('nmap -sT -sV -oX - 10.0.1.0/24', [hostXml(['10.0.1.7'], [port(80, 'http')]), hostXml(['10.0.0.5'], [port(443, 'https')])]);
+  const { scan } = N.read(a + '\nuser@box:~$ nmap -sT -sV -oX - 10.0.1.0/24\n' + b);
+  assert.deepEqual(scan.hosts.map(h => h.addresses), [['10.0.0.5'], ['10.0.1.7']]);
+  assert.deepEqual(scan.hosts[0].ports.map(p => p.port), [22, 443], 'a host in both, once');
+  assert.equal(scan.args, 'nmap -sT -sV -oX - 10.0.0.0/24 10.0.1.0/24', 'the targets of both');
+  assert.equal(N.read(a + runXml('nmap -sS -sU -sV -O --top-ports 1000 -oX - 10.0.1.0/24', [])).scan.args, '', 'different scans: nmap does not say one thing');
+  assert.equal(N.read(a + b.replace('<runstats>', '').replace('</runstats>', '').replace('<finished exit="success"/>', '')).problem.code, 'truncated', 'the second cut off');
+});
+
+test('a file PowerShell wrote (UTF-16 with its byte-order mark) reads like the XML itself', () => {
+  const xml = runXml('nmap -sT -sV -oX - 10.0.0.0/24', [hostXml(['10.0.0.5'], [port(22, 'ssh')])]);
+  const le = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(xml, 'utf16le')]);
+  const be = Buffer.from(le);
+  be.swap16();
+  assert.equal(N.decodeFile(le), xml);
+  assert.equal(N.decodeFile(be), xml);
+  assert.equal(N.decodeFile(Buffer.from('﻿' + xml, 'utf8')), xml);
+  assert.deepEqual(N.read(N.decodeFile(le)), N.read(xml));
+});
+
+test('names go with IPv6 addresses; only an IPv4 address mixes', () => {
+  assert.equal(N.command('standard', 'fd00::1 printer.lan').text, 'nmap -6 -sT -sV -oX - fd00::1 printer.lan');
+  assert.match(N.command('standard', 'fd00::1 10.0.2.1-20').problem, /IPv4 and IPv6/);
+  assert.match(N.command('standard', 'fd00::1 srv.lab,10.0.2.1').problem, /IPv4 and IPv6/);
+  assert.equal(N.command('standard', 'printer.lan 10.0.1.0/24').text, 'nmap -sT -sV -oX - printer.lan 10.0.1.0/24');
+});
+
+test('an IPv6 scan of hosts drawn from an IPv4 one may be merged into them, adding the addresses', () => {
+  const d = lab();
+  const six = N.read(runXml('nmap -6 -sT -sV -oX - fd00::/120', [hostXml(['fd00::5'], [port(22, 'ssh')], 'srv'), hostXml(['10.0.1.5'], [])])).scan;
+  const p = N.plan(d, 'nmap', six, '', {});
+  assert.ok(p.candidates.includes('srv') === false, 'a host the scan knows by address is not offered');
+  const q = N.plan(d, 'nmap', { args: '', silentUdp: 0, hosts: [six.hosts[0]] }, '', {});
+  assert.ok(q.candidates.includes('srv'), 'a drawn host with addresses is offered');
+  assert.equal(q.hosts[0].merged, null, 'offered, not guessed');
+  const r = N.plan(d, 'nmap', { args: '', silentUdp: 0, hosts: [six.hosts[0]] }, '', { h0: 'srv' });
+  assert.equal(r.hosts[0].merged, 'srv');
+  const out = N.apply(d, r, N.defaults(r), specOf, STAMP).doc;
+  assert.deepEqual(out.entities.srv.addresses, ['10.0.1.5', 'fd00::5']);
+  assert.deepEqual(Object.keys(out.entities), Object.keys(d.entities), 'not drawn twice, nor its ssh');
+});

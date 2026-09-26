@@ -47,7 +47,8 @@ test('an nmap import collapses by host in one press', () => {
 test('a hand-made cluster takes its members from wherever they were', () => {
   const doc = C.make(IMPORTED, ['srv', 'sshd', 'srv', 'nowhere']).doc;
   const [cid] = Object.keys(doc.clusters);
-  assert.deepEqual(doc.clusters[cid], { label: IMPORTED.entities.srv.label + ' +1', members: ['srv', 'sshd'], closed: true });
+  assert.deepEqual(doc.clusters[cid], { members: ['srv', 'sshd'], closed: true }, 'no name typed, none written');
+  assert.equal(C.label(doc, cid), IMPORTED.entities.srv.label + ' +1', 'the page names it as it stands');
   assert.equal(C.make(IMPORTED, ['srv']), null, 'two or more');
   // Taking both members of it into another dissolves it.
   const next = C.make(doc, ['srv', 'sshd', 'printer'], 'Rack');
@@ -218,7 +219,7 @@ test('dragging one onto another merges them', () => {
   m = C.merge(loose, 'entity/openssh', 'entity/lan');
   const [cid] = Object.keys(m.doc.clusters);
   assert.deepEqual(m.doc.clusters[cid].members, ['lan', 'openssh']);
-  assert.equal(m.doc.clusters[cid].label, IMPORTED.entities.lan.label + ' +1');
+  assert.equal(C.label(m.doc, cid), IMPORTED.entities.lan.label + ' +1');
   // Onto a member of an open cluster: it joins that one.
   const open = C.setClosed(doc, 'srv', false).doc;
   assert.equal(C.clusterOf(C.merge(open, 'entity/openssh', 'entity/sshd').doc, 'openssh'), 'srv');
@@ -269,6 +270,42 @@ test('after an import, what runs together and came in is clustered, open', () =>
   const mine = C.make(IMPORTED, ['srv', 'sshd']).doc;
   const again = C.gather(before, mine);
   assert.deepEqual(again.clusters.srv.members, ['srv', 'sshd']);
+});
+
+test('review: a second import puts new software into its host’s cluster, and makes none twice', () => {
+  const first = {
+    entities: { h: { kind: 'host', label: 'srv' }, ssh: { kind: 'service', label: 'ssh' }, other: { kind: 'host', label: 'other' } },
+    associations: { a1: { kind: 'hosts', from: 'h', to: 'ssh' } },
+    flows: {},
+    clusters: { srv: { label: 'Rack', members: ['h', 'ssh'], closed: false } },
+  };
+  const second = copy(first);
+  second.entities.snmp = { kind: 'service', label: 'snmp' };
+  second.associations.a2 = { kind: 'hosts', from: 'h', to: 'snmp' };
+  second.entities.web = { kind: 'service', label: 'web' };
+  second.associations.a3 = { kind: 'hosts', from: 'other', to: 'web' };
+  const out = C.gather(first, second);
+  assert.deepEqual(out.clusters.srv, { label: 'Rack', members: ['h', 'ssh', 'snmp'], closed: false });
+  assert.deepEqual(Object.keys(out.clusters).sort(), ['other', 'srv'], 'a host in none gets its own');
+  assert.deepEqual(out.clusters.other.members, ['other', 'web']);
+  assert.equal(C.gather(second, second), second, 'nothing new: unchanged');
+});
+
+test('review: a cluster nobody named says its first member and how many more, as they are now', () => {
+  const L = require('../assets/js/architecture-links.js');
+  let d = { entities: { a: { kind: 'host', label: 'Alpha' }, b: { kind: 'host', label: 'Beta' }, c: { kind: 'host', label: 'Gamma' } }, associations: {}, flows: {} };
+  const made = C.make(d, ['a', 'b']);
+  d = C.merge(made.doc, 'entity/c', made.select).doc;
+  const [cid] = Object.keys(d.clusters);
+  assert.equal(C.label(d, cid), 'Alpha +2');
+  d = L.remove(d, 'entities', 'a').doc;
+  assert.equal(C.label(d, cid), 'Beta +1');
+  // A name the author types is kept, and cleared falls back again.
+  d = C.rename(d, cid, 'Rack').doc;
+  assert.equal(d.clusters[cid].label, 'Rack');
+  d = C.rename(d, cid, '  ').doc;
+  assert.equal('label' in d.clusters[cid], false);
+  assert.equal(C.label(d, cid), 'Beta +1');
 });
 
 test('review: push-aside touches only what an opened cluster covers, and opened ones come apart', () => {

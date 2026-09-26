@@ -39,7 +39,8 @@
     var view = { k: 1, x: 0, y: 0 };
     var highlights = {}; // kind -> {id: true}
     var handlers = {};
-    var gesture = null; // {id | null, x, y, moved}
+    var gesture = null; // {pointer, id | null, x, y, moved}, or two fingers: {pinch: [pointer ids]}
+    var pressed = Object.create(null); // pointer id -> where it is, while pressed
     var fitted = false; // the view is as fit() left it: a resize may fit again
     var free = null; // the free layout on screen, if it is one
     var boxes = Object.create(null); // node id -> its box in drawing coordinates
@@ -178,7 +179,17 @@
         stopReveal(); // the author's hand wins over an animation
         stopGlide();
         if (e.button !== 0) return;
-        gesture = { id: idAt(e.target), edge: edgeAt(e.target), x: e.clientX, y: e.clientY, moved: false };
+        pressed[e.pointerId] = { x: e.clientX, y: e.clientY };
+        if (gesture && e.pointerId !== gesture.pointer) {
+          // A second finger on the canvas pinches, unless something is in
+          // hand; any other second pointer is not followed.
+          if (e.pointerType === "touch" && pressed[gesture.pointer] && !(gesture.moved && (gesture.id || gesture.rect))) {
+            svg.classList.remove("is-dragging", "is-moving", "is-panning", "is-picking");
+            gesture = { pinch: [gesture.pointer, e.pointerId], moved: true };
+          }
+          return;
+        }
+        gesture = { pointer: e.pointerId, id: idAt(e.target), edge: edgeAt(e.target), x: e.clientX, y: e.clientY, moved: false };
         // Shift + drag on empty canvas: a selection rectangle (a free layout only).
         if (free && e.shiftKey && !gesture.id && !gesture.edge) gesture.rect = pointAt(e.clientX, e.clientY);
         // A cluster's outline carries what is inside it.
@@ -200,6 +211,11 @@
       });
       svg.addEventListener("pointermove", function (e) {
         if (!gesture) return;
+        if (gesture.pinch) return pinchMove(e);
+        if (e.pointerId !== gesture.pointer) return;
+        // The button was let go where the canvas did not hear it: the
+        // gesture ends here, and a node in hand stays where it was taken.
+        if (typeof e.buttons === "number" && !(e.buttons & 1)) return cancel();
         var dx = e.clientX - gesture.x;
         var dy = e.clientY - gesture.y;
         if (!gesture.moved && Math.abs(dx) + Math.abs(dy) < DRAG_PX) return;
@@ -240,7 +256,13 @@
         applyView();
       });
       svg.addEventListener("pointerup", function (e) {
+        delete pressed[e.pointerId];
         if (!gesture) return;
+        if (gesture.pinch) {
+          if (gesture.pinch.indexOf(e.pointerId) >= 0) gesture = null;
+          return;
+        }
+        if (e.pointerId !== gesture.pointer) return;
         var g = gesture;
         gesture = null;
         svg.classList.remove("is-dragging", "is-moving", "is-panning", "is-picking");
@@ -258,13 +280,7 @@
         if (!g.moved) return emit("select", g.edge ? { id: g.edge.to, parent: g.edge.from, edge: g.edge.id, x: e.clientX, y: e.clientY, ctrl: ctrl } : { id: g.id, parent: undefined, x: e.clientX, y: e.clientY, ctrl: ctrl });
         svg.releasePointerCapture(e.pointerId);
         if (free && g.id) {
-          // Everything that moved together, in one report.
-          var places = {};
-          (g.group || [g.id]).forEach(function (id) {
-            var p = free.at[id];
-            if (p) places[id] = { x: p.x, y: p.y };
-          });
-          if (Object.keys(places).length) emit("move", { places: places });
+          report(g);
           // One component or cluster let go over another: dropped on it,
           // to merge them (owner, 2026-09-25).
           if (g.alone && drawn.nodes[g.id]) {
@@ -278,15 +294,18 @@
         var target = idAt(dropTarget(e));
         if (g.id && target && target !== g.id) emit("drop", { id: g.id, target: target, ctrl: !!(e.ctrlKey || e.metaKey) });
       });
-      svg.addEventListener("pointercancel", function () {
-        if (gesture && gesture.alone) {
-          aim(gesture, null);
-          if (drawn.nodes[gesture.id]) drawn.nodes[gesture.id].classList.remove("is-in-hand");
-        }
-        gesture = null;
-        dropMarquee();
-        svg.classList.remove("is-dragging", "is-moving", "is-panning", "is-picking");
-      });
+      // The browser took the pointer away: the gesture ends without a click
+      // or a drop, and whatever was dragged stays where it was taken.
+      function lost(e) {
+        // A touch is first held by what it landed on: that losing it to the
+        // canvas, as a drag begins, is no loss.
+        if (e.type === "lostpointercapture" && e.target !== svg) return;
+        delete pressed[e.pointerId];
+        if (!gesture) return;
+        if (gesture.pinch ? gesture.pinch.indexOf(e.pointerId) >= 0 : e.pointerId === gesture.pointer) cancel();
+      }
+      svg.addEventListener("pointercancel", lost);
+      svg.addEventListener("lostpointercapture", lost);
       // A panel opening or the window changing size: a view nobody has moved
       // since it was fitted is fitted again; one the author placed stays put.
       if (typeof ResizeObserver !== "undefined") {
@@ -310,6 +329,48 @@
     function dropTarget(e) {
       if (typeof doc.elementFromPoint === "function") return doc.elementFromPoint(e.clientX, e.clientY) || e.target;
       return e.target;
+    }
+
+    // Everything a free drag moved, in one report.
+    function report(g) {
+      var places = {};
+      (g.group || [g.id]).forEach(function (id) {
+        var p = free.at[id];
+        if (p) places[id] = { x: p.x, y: p.y };
+      });
+      if (Object.keys(places).length) emit("move", { places: places });
+    }
+
+    // The gesture ends with no click, pick or drop; a node in hand is put
+    // down where it is (its lean towards a target undone) and reported.
+    function cancel() {
+      var g = gesture;
+      gesture = null;
+      dropMarquee();
+      svg.classList.remove("is-dragging", "is-moving", "is-panning", "is-picking");
+      if (!g || g.pinch || !g.moved || !free || !g.id) return;
+      if (g.alone) {
+        aim(g, null);
+        if (drawn.nodes[g.id]) drawn.nodes[g.id].classList.remove("is-in-hand");
+      }
+      report(g);
+    }
+
+    // Two fingers: the view follows their middle and zooms by how far they spread.
+    function pinchMove(e) {
+      var ids = gesture.pinch;
+      if (ids.indexOf(e.pointerId) < 0 || !pressed[ids[0]] || !pressed[ids[1]]) return;
+      var before = between(pressed[ids[0]], pressed[ids[1]]);
+      pressed[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var after = between(pressed[ids[0]], pressed[ids[1]]);
+      var box = svg.getBoundingClientRect();
+      fitted = false;
+      view = viewMath.pan(view, after.x - before.x, after.y - before.y);
+      if (before.d > 0 && after.d > 0) view = viewMath.zoomAt(view, { x: after.x - box.left, y: after.y - box.top }, after.d / before.d);
+      applyView();
+    }
+    function between(a, b) {
+      return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y)) };
     }
 
     function symbol(group, n, top) {
@@ -568,6 +629,14 @@
     function render(layout, styles, motion) {
       styles = styles || {};
       stopGlide();
+      // A drawing that arrives mid-drag (a save, a teammate's edit) leaves
+      // what is in hand in the hand: where the pointer has it, not where it was.
+      var held = Object.create(null);
+      if (free && gesture && gesture.moved && gesture.id) {
+        (gesture.group || [gesture.id]).forEach(function (id) {
+          if (free.at[id]) held[id] = { x: free.at[id].x, y: free.at[id].y };
+        });
+      }
       var previous = free && motion ? free.at : null;
       var leaving = [];
       if (previous) {
@@ -628,6 +697,14 @@
         var style = Object.prototype.hasOwnProperty.call(styles, item.id) ? styles[item.id] : {};
         drawn.nodes[item.id] = drawNode(item, style);
       });
+      if (free && Object.keys(held).length) {
+        Object.keys(held).forEach(function (id) {
+          if (free.at[id]) setAt(id, held[id].x, held[id].y);
+        });
+        rerouteAll();
+        if (gesture.alone && drawn.nodes[gesture.id]) drawn.nodes[gesture.id].classList.add("is-in-hand");
+        if (gesture.over) lightTarget(gesture.over, true);
+      }
       applyHighlights();
       if (previous) glide(previous, motion, leaving);
     }

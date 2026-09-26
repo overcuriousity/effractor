@@ -124,7 +124,9 @@
     next.clusters = next.clusters || {};
     var text = String(name == null ? "" : name).trim();
     var id = freeId(next, text || list[0]);
-    next.clusters[id] = { label: text || nameOf(doc, list[0]) + " +" + (list.length - 1), members: list, closed: true };
+    // Only a name the author typed is kept: without one the page says
+    // "first +n" as the members stand, never as they stood (review 2026-09-26).
+    next.clusters[id] = text ? { label: text, members: list, closed: true } : { members: list, closed: true };
     return { doc: next, select: "cluster/" + id, notice: "clustered " + list.length + " components · Ctrl+Z undoes" };
   }
 
@@ -216,17 +218,33 @@
   }
 
   // After an import (owner, 2026-09-25): in `after`, what runs together and
-  // holds something `before` did not have becomes a cluster, open. What the
+  // holds something `before` did not have becomes a cluster, open; what is
+  // new beside a host that was already in a cluster joins that cluster (review
+  // 2026-09-26: a second scan's software sat outside its host's). What the
   // author clustered stays. Returns the document, `after` itself if nothing.
   function gather(before, after) {
-    var groups = together(after).filter(function (g) {
-      return g.members.some(function (m) {
-        return !has(before.entities, m);
-      });
-    });
-    if (!groups.length) return after;
+    function fresh(m) {
+      return !has(before.entities, m);
+    }
     var next = clone(after);
     next.clusters = next.clusters || {};
+    var joined = false;
+    var unclustered = Object.assign({}, after);
+    delete unclustered.clusters;
+    together(unclustered).forEach(function (g) {
+      var cid = clusterOf(after, g.id);
+      if (!cid || fresh(g.id)) return;
+      var add = g.members.filter(function (m) {
+        return fresh(m) && !clusterOf(next, m);
+      });
+      if (!add.length) return;
+      next.clusters[cid].members = next.clusters[cid].members.concat(add);
+      joined = true;
+    });
+    var groups = together(next).filter(function (g) {
+      return g.members.some(fresh);
+    });
+    if (!groups.length && !joined) return after;
     groups.forEach(function (g) {
       next.clusters[freeId(next, g.id)] = { label: g.label, members: g.members, closed: false };
     });

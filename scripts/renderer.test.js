@@ -412,3 +412,88 @@ test("review: a drag the browser cancels leaves the node clickable", () => {
   node("entity/b").dispatch("pointercancel", { pointerId: 1 });
   assert.equal(node("entity/b").classList.contains("is-in-hand"), false);
 });
+
+// ---- review 2026-09-26: a drag ends when the button does, one finger drags, two pinch ----
+
+test("review: a drag whose release the canvas missed ends at the next move with no button, and is reported", () => {
+  const { r, node } = mounted();
+  r.render(freeLayout(), {});
+  const moves = [];
+  r.on("move", (e) => moves.push(e));
+  node("entity/b").dispatch("pointerdown", { clientX: 10, clientY: 10, button: 0, pointerId: 1 });
+  node("entity/b").dispatch("pointermove", { clientX: 30, clientY: 110, buttons: 1, pointerId: 1 });
+  node("entity/b").dispatch("pointermove", { clientX: 300, clientY: 300, buttons: 0, pointerId: 1 });
+  assert.equal(node("entity/b").getAttribute("transform"), "translate(320 100)", "it does not follow a pointer with no button held");
+  assert.equal(node("entity/b").classList.contains("is-in-hand"), false);
+  assert.deepEqual(moves, [{ places: { "entity/b": { x: 320, y: 100 } } }]);
+  node("entity/b").dispatch("pointermove", { clientX: 400, clientY: 350, buttons: 0, pointerId: 1 });
+  assert.equal(node("entity/b").getAttribute("transform"), "translate(320 100)");
+  assert.equal(moves.length, 1);
+});
+
+test("review: a drag the browser cancels, or whose capture is lost, keeps where the node was taken", () => {
+  for (const kind of ["pointercancel", "lostpointercapture"]) {
+    const { r, host, node } = mounted();
+    r.render(freeLayout(), {});
+    const moves = [];
+    r.on("move", (e) => moves.push(e));
+    node("entity/b").dispatch("pointerdown", { clientX: 10, clientY: 10, button: 0, pointerId: 1 });
+    // A touch held by the node it landed on loses it to the canvas as the drag begins: no loss.
+    node("entity/b").dispatch("lostpointercapture", { pointerId: 1 });
+    node("entity/b").dispatch("pointermove", { clientX: 30, clientY: 110, pointerId: 1 });
+    assert.equal(node("entity/b").getAttribute("transform"), "translate(320 100)");
+    host.children[0].dispatch(kind, { pointerId: 1 });
+    assert.deepEqual(moves, [{ places: { "entity/b": { x: 320, y: 100 } } }], kind);
+  }
+});
+
+test("review: a second finger does not take over a node in hand", () => {
+  const { r, host, node } = mounted();
+  r.render(freeLayout(), {});
+  const viewport = dom.byClass(host, "viewport")[0];
+  const view = viewport.getAttribute("transform");
+  node("entity/b").dispatch("pointerdown", { clientX: 10, clientY: 10, button: 0, pointerId: 1, pointerType: "touch" });
+  node("entity/b").dispatch("pointermove", { clientX: 30, clientY: 110, pointerId: 1, pointerType: "touch" });
+  host.children[0].dispatch("pointerdown", { clientX: 500, clientY: 500, button: 0, pointerId: 2, pointerType: "touch" });
+  host.children[0].dispatch("pointermove", { clientX: 600, clientY: 500, pointerId: 2, pointerType: "touch" });
+  assert.equal(node("entity/b").getAttribute("transform"), "translate(320 100)");
+  assert.equal(viewport.getAttribute("transform"), view, "the view does not jump");
+  node("entity/b").dispatch("pointermove", { clientX: 40, clientY: 110, pointerId: 1, pointerType: "touch" });
+  assert.equal(node("entity/b").getAttribute("transform"), "translate(330 100)", "the first finger still drags");
+});
+
+test("review: two fingers on the canvas pinch to zoom about their middle", () => {
+  const { r, host } = mounted();
+  r.render(freeLayout(), {});
+  const svg = host.children[0];
+  const viewport = dom.byClass(host, "viewport")[0];
+  r.fit();
+  const t = (s) => s.match(/-?[\d.]+/g).map(Number);
+  const [x0, y0, k0] = t(viewport.getAttribute("transform"));
+  svg.dispatch("pointerdown", { clientX: 300, clientY: 300, button: 0, pointerId: 1, pointerType: "touch" });
+  svg.dispatch("pointerdown", { clientX: 500, clientY: 300, button: 0, pointerId: 2, pointerType: "touch" });
+  svg.dispatch("pointermove", { clientX: 200, clientY: 300, pointerId: 1, pointerType: "touch" });
+  const [x1, y1, k1] = t(viewport.getAttribute("transform"));
+  assert.equal(k1, k0 * 1.5, "fingers 200px apart, then 300px: half as big again");
+  // What was under the fingers' middle (400) is under their new middle (350).
+  assert.ok(Math.abs((350 - x1) / k1 - (400 - x0) / k0) < 1e-9);
+  assert.ok(Math.abs((300 - y1) / k1 - (300 - y0) / k0) < 1e-9);
+  svg.dispatch("pointerup", { clientX: 200, clientY: 300, pointerId: 1, pointerType: "touch" });
+  svg.dispatch("pointermove", { clientX: 520, clientY: 300, pointerId: 2, pointerType: "touch" });
+  assert.deepEqual(t(viewport.getAttribute("transform")), [x1, y1, k1], "one finger left of a pinch does nothing");
+});
+
+test("review: a drawing that arrives mid-drag leaves the node in hand where the pointer has it", () => {
+  const { r, node } = mounted();
+  r.render(freeLayout(), {});
+  const moves = [];
+  r.on("move", (e) => moves.push(e));
+  node("entity/b").dispatch("pointerdown", { clientX: 10, clientY: 10, button: 0, pointerId: 1 });
+  node("entity/b").dispatch("pointermove", { clientX: 30, clientY: 110, pointerId: 1 });
+  r.render(freeLayout(), {});
+  assert.equal(node("entity/b").getAttribute("transform"), "translate(320 100)");
+  assert.ok(node("entity/b").classList.contains("is-in-hand"));
+  node("entity/b").dispatch("pointermove", { clientX: 40, clientY: 110, pointerId: 1 });
+  node("entity/b").dispatch("pointerup", { clientX: 40, clientY: 110, pointerId: 1 });
+  assert.deepEqual(moves, [{ places: { "entity/b": { x: 330, y: 100 } } }]);
+});

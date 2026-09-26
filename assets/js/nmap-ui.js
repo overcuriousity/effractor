@@ -410,8 +410,8 @@
     var file = e.dataTransfer && e.dataTransfer.files[0];
     if (!file) return;
     e.preventDefault();
-    file.text().then(function (t) {
-      paste.value = t;
+    file.arrayBuffer().then(function (b) {
+      paste.value = N.decodeFile(b);
       read();
     }, function () {
       app.say("the file could not be read");

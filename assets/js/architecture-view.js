@@ -1,6 +1,7 @@
 // Architecture → what is drawn: the shared renderer's {profile, nodes, edges},
 // with components as their kinds' icons and their relationships and flows as the
-// edges. Pure: no DOM, no ELK. The canvas never stores a position.
+// edges. Pure: no DOM, no ELK, no positions (where a component was dragged
+// is kept by positions.js, in this browser).
 (function () {
   var graph = typeof module !== "undefined" ? require("./graph.js") : window.effractorGraph;
   var C = typeof module !== "undefined" ? require("./clusters.js") : window.effractorClusters;

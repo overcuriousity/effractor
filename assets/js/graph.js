@@ -340,12 +340,18 @@
 
   // Boxes that overlap, or come closer than `gap`, pushed apart along the
   // axis where they overlap least, half each way, until none do; then the
-  // whole moved back to the origin. Deterministic: the order is the input's.
+  // whole moved back to the origin. A crowd too dense to push apart (dozens
+  // of hosts) jams, so every SPREAD rounds without success the centres are
+  // spread from their middle and pushing goes on: that always ends, as far
+  // enough apart nothing overlaps. Deterministic: the order is the input's.
+  var SPREAD = 100;
   function separate(boxes, gap) {
     var out = boxes.map(function (b) {
       return Object.assign({}, b);
     });
-    for (var round = 0; round < 200; round++) {
+    // (60 spreads is a quarter million times as far: past any real crowd.)
+    for (var round = 1; round <= SPREAD * 60; round++) {
+      if (round % SPREAD === 0) spread(out, 1.25);
       var moved = false;
       for (var i = 0; i < out.length; i++) {
         for (var j = i + 1; j < out.length; j++) {
@@ -380,6 +386,21 @@
       b.y -= y0;
     });
     return out;
+  }
+
+  // Every box's centre moved `factor` times as far from the middle of all.
+  function spread(boxes, factor) {
+    var cx = 0, cy = 0;
+    boxes.forEach(function (b) {
+      cx += b.x + b.width / 2;
+      cy += b.y + b.height / 2;
+    });
+    cx /= boxes.length;
+    cy /= boxes.length;
+    boxes.forEach(function (b) {
+      b.x = cx + (b.x + b.width / 2 - cx) * factor - b.width / 2;
+      b.y = cy + (b.y + b.height / 2 - cy) * factor - b.height / 2;
+    });
   }
 
   // Lay out, and if anything is shared, once more now that the parents have
