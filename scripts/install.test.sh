@@ -104,11 +104,11 @@ fi
 
 # Re-running upgrades: the binary is replaced by a rename (never written in
 # place, which a running one refuses), the unit is kept, the service restarts.
-before=$(ls -i "$work/b5/effractor" | cut -d' ' -f1)
+before=$(stat -c %i "$work/b5/effractor")
 echo "# edited by the operator" >> "$work/units5/effractor.service"
 : > "$work/log"
 sysinstall "$work/nonexistent-tty" 1000 "$work/good" "$work/b5" "$work/units5" > "$work/out" || fail "re-run"
-[ "$(ls -i "$work/b5/effractor" | cut -d' ' -f1)" != "$before" ] || fail "binary written in place"
+[ "$(stat -c %i "$work/b5/effractor")" != "$before" ] || fail "binary written in place"
 [ ! -e "$work/b5/effractor.new" ] || fail "left the new binary beside the old"
 grep -q "edited by the operator" "$work/units5/effractor.service" || fail "rewrote the operator's unit"
 grep -q "systemctl --user restart effractor" "$work/log" || fail "user service not restarted"
