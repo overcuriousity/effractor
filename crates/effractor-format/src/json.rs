@@ -82,6 +82,7 @@ fn node(json: &Json, depth: usize) -> Result<Node, Diagnostic> {
     Ok(Node {
         value,
         pos: Pos { line: 0, col: 0 },
+        verbatim: false,
     })
 }
 

@@ -77,7 +77,6 @@ fn validation_names_the_field_that_is_wrong() {
             note: None,
         },
     );
-    sshd.parameters.insert(Slot::Extract, Parameter::unknown());
     m.entities.insert(id("sshd"), sshd);
     m.entities
         .insert(id("openssh"), Entity::new(EntityKind::Product, "OpenSSH"));
@@ -133,7 +132,6 @@ fn validation_names_the_field_that_is_wrong() {
         [
             (Code::UnknownLibrary, "library"),
             (Code::MissingKey, "entities.sshd.parameters.login.note"),
-            (Code::MisplacedKey, "entities.sshd.parameters.extract"),
             (Code::AssociationType, "associations.runs.from"),
             (Code::UnknownState, "attacker.footholds[0].state"),
             (Code::ConflictingChange, "scenarios.s.changes[1]"),

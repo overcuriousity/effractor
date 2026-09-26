@@ -9,13 +9,18 @@ use effractor_core::architecture::{
     Entity, EntityKind, Evidence, Factor, Flow, LibraryPin, Mode, Parameter, Privilege, Relation,
     RelationKind, Scenario, Slot, State, StateRef, Switch, Tool,
 };
-use effractor_core::{Code, EntityId, Pos};
+use effractor_core::{Code, EntityId, Pos, article};
 use std::sync::LazyLock;
 
 use indexmap::IndexMap;
 
 use crate::lower::{Cx, TIME_UNITS};
 use crate::tree::{Entry, Node};
+
+/// "a `host`", "an `account`".
+fn a(word: &str) -> String {
+    format!("{} `{word}`", article(word))
+}
 
 /// A core enum's words, in its order, from its own names: the one list.
 fn words<T: Copy>(all: &[T], name: fn(T) -> &'static str) -> Vec<(&'static str, T)> {
@@ -214,7 +219,7 @@ fn addresses(cx: &mut Cx, entry: &Entry, path: &str, kind: EntityKind) -> Option
         EntityKind::Host => false,
         EntityKind::Network => true,
         _ => {
-            let message = format!("`addresses` is not a field of a `{}`", kind.as_str());
+            let message = format!("`addresses` is not a field of {}", a(kind.as_str()));
             cx.error(Code::MisplacedKey, path, entry.key_pos, message);
             return None;
         }
@@ -265,7 +270,7 @@ fn is_cidr(text: &str) -> bool {
 /// Only an application names a tool.
 fn tool(cx: &mut Cx, entry: &Entry, path: &str, kind: EntityKind) -> Option<Option<Tool>> {
     if kind != EntityKind::Application {
-        let message = format!("`tool` is not a field of a `{}`", kind.as_str());
+        let message = format!("`tool` is not a field of {}", a(kind.as_str()));
         cx.error(Code::MisplacedKey, path, entry.key_pos, message);
         return None;
     }
@@ -282,7 +287,7 @@ fn parameters(
     owner: &str,
 ) -> Option<IndexMap<Slot, Parameter>> {
     let names: Vec<&str> = allowed.iter().map(|s| s.as_str()).collect();
-    let none = format!("a {owner} has no parameters");
+    let none = format!("{} {owner} has no parameters", article(owner));
     let f = cx.fields_or(&entry.value, path, entry.key_pos, &names, &none)?;
     let mut map = IndexMap::new();
     let mut ok = true;
@@ -324,7 +329,11 @@ fn parameter(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Parameter> {
 
 fn defenses(cx: &mut Cx, entry: &Entry, path: &str, kind: EntityKind) -> Option<Defenses> {
     let allowed: Vec<&str> = kind.defense().map(|d| d.as_str()).into_iter().collect();
-    let none = format!("a {} has no defence", kind.as_str());
+    let none = format!(
+        "{} {} has no defence",
+        article(kind.as_str()),
+        kind.as_str()
+    );
     let f = cx.fields_or(&entry.value, path, entry.key_pos, &allowed, &none)?;
     let mut defenses = Defenses::default();
     for defense in Defense::ALL {
@@ -360,10 +369,7 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
         if !kind.fields().contains(&key)
             && let Some(e) = f.get(key)
         {
-            let message = format!(
-                "`{key}` is not a field of a `{}` association",
-                kind.as_str()
-            );
+            let message = format!("`{key}` is not a field of {} association", a(kind.as_str()));
             cx.error(Code::MisplacedKey, f.path(key), e.key_pos, message);
             misplaced = true;
         }

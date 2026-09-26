@@ -186,11 +186,6 @@ impl EntityKind {
         }
     }
 
-    /// Can this kind run software — be the `from` of `hosts`?
-    pub fn is_machine(self) -> bool {
-        matches!(self, Self::Host | Self::Router)
-    }
-
     /// Is this kind software — the `to` of `hosts`?
     pub fn is_executable(self) -> bool {
         matches!(self, Self::Application | Self::Service)

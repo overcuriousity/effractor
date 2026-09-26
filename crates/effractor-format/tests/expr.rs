@@ -157,3 +157,18 @@ fn an_imported_rate_and_a_preset_are_written_in_the_new_spelling() {
     assert_eq!(write(&D::Named(Shorthand::Enabled)), "Never");
     assert_eq!(write(&D::Const(3.0)), "3");
 }
+
+/// A legacy spelling reads only what can be written back: `-0` is 0%, and a
+/// rate whose mean is past any number is refused rather than written `inf`.
+#[test]
+fn what_an_old_spelling_says_can_be_saved() {
+    assert_eq!(chance(-0.0), "0");
+    assert_eq!(write(&D::Bernoulli(-0.0)), "0%");
+    assert!(D::Exponential(1e-310).check_params().is_err());
+    assert!(D::Exponential(1e-300).check_params().is_ok());
+    let text = concat!(
+        "effractor: 2\nprofile: fault-tree\nname: T\ntop: t\nnodes:\n",
+        "  t: {label: T, leaf: basic, ttc: \"Exponential(1e-310)\"}\n",
+    );
+    assert!(effractor_format::load(text).is_err());
+}

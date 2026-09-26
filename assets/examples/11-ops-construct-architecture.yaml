@@ -263,11 +263,6 @@ associations:
     from: gate-ice
     to: wiki-edit
     allowed: true
-  construct-to-keystore-permit:
-    kind: permits
-    from: gate-ice
-    to: construct-to-keystore
-    allowed: true
 
 flows:
   wiki-edit:

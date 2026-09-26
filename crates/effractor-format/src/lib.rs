@@ -166,10 +166,14 @@ pub fn document(text: &str) -> (Option<serde_json::Value>, Vec<Diagnostic>) {
     let (read, diagnostics) = read(text);
     // Of the canonical text: every number in it is written the one way that
     // comes back from JSON as written, and every text that could be taken
-    // for a number is quoted.
+    // for a number is quoted. The canonical text always reads back (the
+    // round-trip tests hold it to that); were it not to, the text as read is
+    // imaged rather than nothing.
     let image = read.map(|r| {
         let canonical = write::write_document(&r.lowered.document, &r.lowered.extras);
-        tree::parse(&canonical).map_or_else(|_| json::image(&r.root), |root| json::image(&root))
+        let root = tree::parse(&canonical);
+        debug_assert!(root.is_ok(), "canonical text does not read back: {root:?}");
+        json::image(root.as_ref().unwrap_or(&r.root))
     });
     (image, diagnostics)
 }

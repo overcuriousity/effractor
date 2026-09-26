@@ -6,11 +6,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::architecture::{
-    Architecture, Change, Defense, Entity, EntityKind, Evidence, Flow, MAX_ENTITIES,
-    MAX_RELATIONSHIPS, MAX_SAMPLES, MAX_SCENARIOS, Parameter, Privilege, Relation, RelationKind,
-    StateRef,
+    Architecture, Change, Entity, EntityKind, Evidence, Flow, MAX_ENTITIES, MAX_RELATIONSHIPS,
+    MAX_SAMPLES, MAX_SCENARIOS, Parameter, Privilege, Relation, RelationKind, StateRef,
 };
-use crate::{AssociationId, ClusterId, Code, Diagnostic, EntityId, FlowId};
+use crate::{AssociationId, ClusterId, Code, Diagnostic, EntityId, FlowId, article};
 
 pub fn validate_architecture(model: &Architecture) -> Vec<Diagnostic> {
     let mut cx = Cx {
@@ -23,6 +22,7 @@ pub fn validate_architecture(model: &Architecture) -> Vec<Diagnostic> {
     cx.entities();
     cx.associations();
     cx.flows();
+    cx.ineffective();
     cx.clusters();
     cx.attacker();
     cx.scenarios();
@@ -124,7 +124,8 @@ impl Cx<'_> {
             Code::AssociationType,
             path,
             format!(
-                "\"{id}\" is a {}; expected {}",
+                "\"{id}\" is {} {}; expected {}",
+                article(kind.as_str()),
                 kind.as_str(),
                 names.join(" or ")
             ),
@@ -241,40 +242,13 @@ impl Cx<'_> {
         }
     }
 
+    /// Parameters only: the reader refuses a slot or a defence the kind does
+    /// not have before a model exists.
     fn entities(&mut self) {
         let m = self.m;
         for (id, entity) in &m.entities {
-            let at = format!("entities.{id}");
-            let slots = entity.kind.slots();
             for (slot, p) in &entity.parameters {
-                let path = format!("{at}.parameters.{}", slot.as_str());
-                if !slots.contains(slot) {
-                    self.error(
-                        Code::MisplacedKey,
-                        &path,
-                        format!(
-                            "`{}` is not a parameter of a {}",
-                            slot.as_str(),
-                            entity.kind.as_str()
-                        ),
-                    );
-                    continue;
-                }
-                self.parameter(p, &path);
-            }
-            for defense in Defense::ALL {
-                if entity.defenses.get(defense).is_some() && entity.kind.defense() != Some(defense)
-                {
-                    self.error(
-                        Code::MisplacedKey,
-                        format!("{at}.defenses.{}", defense.as_str()),
-                        format!(
-                            "`{}` is not a defence of a {}",
-                            defense.as_str(),
-                            entity.kind.as_str()
-                        ),
-                    );
-                }
+                self.parameter(p, &format!("entities.{id}.parameters.{}", slot.as_str()));
             }
         }
     }
@@ -644,7 +618,8 @@ impl Cx<'_> {
                         Code::InvalidRoute,
                         here,
                         format!(
-                            "\"{hop}\" is a {}; this hop is a {}",
+                            "\"{hop}\" is {} {}; this hop is a {}",
+                            article(kind.as_str()),
                             kind.as_str(),
                             want.as_str()
                         ),
@@ -738,6 +713,92 @@ impl Cx<'_> {
         }
     }
 
+    /// What is said but changes nothing in the attack graph: warned, never
+    /// refused, so a file that says it still opens. What is already wrong
+    /// (an unknown flow, a firewall without a router) is said elsewhere.
+    fn ineffective(&mut self) {
+        let m = self.m;
+        let authorized: HashSet<(&EntityId, &EntityId)> = m
+            .associations
+            .values()
+            .filter_map(|a| match &a.relation {
+                Relation::Authorizes { from, to } => Some((from, to)),
+                _ => None,
+            })
+            .collect();
+        let held: HashSet<(&EntityId, &EntityId)> = m
+            .associations
+            .values()
+            .filter_map(|a| match &a.relation {
+                Relation::Holds { from, to, .. } => Some((from, to)),
+                _ => None,
+            })
+            .collect();
+        // A firewall's router: the first `filters` that names it.
+        let mut router_of: HashMap<&EntityId, &EntityId> = HashMap::new();
+        for a in m.associations.values() {
+            if let Relation::Filters { from, to } = &a.relation {
+                router_of.entry(to).or_insert(from);
+            }
+        }
+        let granted: HashSet<&EntityId> = m
+            .associations
+            .values()
+            .filter_map(|a| match &a.relation {
+                Relation::Grants { to, .. } => Some(to),
+                _ => None,
+            })
+            .collect();
+        for (id, association) in &m.associations {
+            let at = format!("associations.{id}");
+            match &association.relation {
+                Relation::Permits { from, to, .. } => {
+                    let Some(flow) = m.flows.get(to) else {
+                        continue;
+                    };
+                    if let Some(router) = router_of.get(from)
+                        && !flow.route.contains(router)
+                    {
+                        self.warning(
+                            Code::Ineffective,
+                            at,
+                            format!(
+                                "\"{to}\" does not cross \"{router}\", so \"{from}\" never sees it: this permission changes nothing"
+                            ),
+                        );
+                    }
+                }
+                Relation::Administration { from, to }
+                    if self.kind_of(to).is_some() && !granted.contains(to) =>
+                {
+                    self.warning(
+                        Code::Ineffective,
+                        at,
+                        format!(
+                            "no account is granted on \"{to}\", so management access from \"{from}\" logs in as no one"
+                        ),
+                    );
+                }
+                Relation::Accesses { from, to, .. }
+                    if self.kind_of(from).is_some()
+                        && self.kind_of(to).is_some()
+                        && !authorized.iter().any(|&(account, service)| {
+                            account == from && held.contains(&(service, to))
+                        }) =>
+                {
+                    self.warning(
+                        Code::Ineffective,
+                        at,
+                        format!(
+                            "no service that accepts \"{from}\" holds \"{to}\", so this access is never used"
+                        ),
+                    );
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn state_ref(&mut self, r: &StateRef, path: &str) {
         let Some(kind) = self
             .entity(&r.entity, &format!("{path}.entity"))
@@ -756,8 +817,9 @@ impl Cx<'_> {
                 Code::UnknownState,
                 format!("{path}.state"),
                 format!(
-                    "\"{}\" is a {} and has no `{}` state; {expected}",
+                    "\"{}\" is {} {} and has no `{}` state; {expected}",
                     r.entity,
+                    article(kind.as_str()),
                     kind.as_str(),
                     r.state.as_str()
                 ),
@@ -875,7 +937,8 @@ impl Cx<'_> {
                                 Code::UnknownState,
                                 format!("{at}.defense"),
                                 format!(
-                                    "\"{entity}\" is a {} and has {has}, not `{}`",
+                                    "\"{entity}\" is {} {} and has {has}, not `{}`",
+                                    article(kind.as_str()),
                                     kind.as_str(),
                                     defense.as_str()
                                 ),
@@ -895,7 +958,8 @@ impl Cx<'_> {
                                 Code::AssociationType,
                                 format!("{at}.association"),
                                 format!(
-                                    "\"{association}\" is a `{}` association; only `permits` has `allowed`",
+                                    "\"{association}\" is {} `{}` association; only `permits` has `allowed`",
+                                    article(kind.as_str()),
                                     kind.as_str()
                                 ),
                             ),
