@@ -6,6 +6,8 @@
 // Pure; edits return {doc, …} like the other architecture edits.
 (function () {
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
+  // Probabilities as the rest of the page says them.
+  var digits = (typeof module !== "undefined" ? require("./results-view.js") : window.effractorResults).probability;
 
   function has(map, key) {
     return !!map && Object.prototype.hasOwnProperty.call(map, key);
@@ -50,12 +52,6 @@
       taken[doc.scenarios[id].label] = true;
     });
     for (var n = 1; ; n++) if (!taken["Scenario " + n]) return "Scenario " + n;
-  }
-
-  // The scenario the comparison names, while the document still has it; ""
-  // is the baseline alone. Choosing one never rewrites the baseline.
-  function selectable(doc, id) {
-    return id && has(doc && doc.scenarios, id) ? id : "";
   }
 
   function putScenario(doc, id, label, changes) {
@@ -347,11 +343,6 @@
 
   var MINUS = "\u2212";
 
-  function digits(v) {
-    if (v === 0) return "0.00";
-    return Math.abs(v) < 1e-4 ? v.toExponential(2) : v.toPrecision(3);
-  }
-
   function probability(p) {
     return typeof p === "number" ? digits(p) : "unknown";
   }
@@ -380,7 +371,6 @@
     ids: ids,
     freshId: freshId,
     newLabel: newLabel,
-    selectable: selectable,
     putScenario: putScenario,
     rename: rename,
     removeScenario: removeScenario,

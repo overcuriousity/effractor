@@ -2,23 +2,9 @@
 // The document is only ever read and rewritten by the wasm module; this file
 // moves text and results between it and the DOM.
 (function () {
-  function grouped(n) {
-    return String(n).replace(/\B(?=(\d{3})+$)/g, " ");
-  }
-
-  function probability(p) {
-    if (p === 0) return "0";
-    return p < 1e-4 ? p.toExponential(2) : p.toPrecision(3);
-  }
-
-  function money(value, currency) {
-    try {
-      return new Intl.NumberFormat("en", { style: "currency", currency: currency, maximumFractionDigits: 0 }).format(value);
-    } catch (e) {
-      var n = new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(value);
-      return currency ? n + " " + currency : n;
-    }
-  }
+  // The page's one way of saying numbers (results-view.js).
+  var F = typeof module !== "undefined" ? require("./results-view.js") : window.effractorResults;
+  var grouped = F.grouped, probability = F.probability, money = F.money;
 
   function analysisLabel(analysis) {
     return grouped(analysis.samples) + " samples · seed " + analysis.seed;
@@ -50,7 +36,7 @@
   }
 
   if (typeof module !== "undefined") {
-    module.exports = { MODES: MODES, newProfile: newProfile, templateName: templateName, grouped: grouped, probability: probability, money: money, analysisLabel: analysisLabel, samplesOverride: samplesOverride };
+    module.exports = { MODES: MODES, newProfile: newProfile, templateName: templateName, analysisLabel: analysisLabel, samplesOverride: samplesOverride };
   }
   if (typeof document === "undefined") return;
 
@@ -331,10 +317,10 @@
     $("cutsets").hidden = state.ranked.length === 0;
     $("cutsets-empty").hidden = state.ranked.length > 0;
     $("cutsets-empty").textContent = cuts ? "No cut sets: the " + P.words(state.doc).top + " cannot occur." : "Not available.";
-    $("cutsets-count").textContent = cuts ? cuts.total : "";
+    $("cutsets-count").textContent = cuts ? view.count(cuts) : "";
     var more = state.ranked.length - MAX_ROWS;
     $("cutsets-more").hidden = more <= 0;
-    $("cutsets-more").textContent = more > 0 ? "and " + grouped(more) + " less likely ones" : "";
+    $("cutsets-more").textContent = more > 0 ? "and " + grouped(more) + " more" : "";
     markRows();
     for (var i = 0; lit !== null && i < Math.min(state.ranked.length, MAX_ROWS); i++) {
       if (state.ranked[i].leaves.join("\u0000") === lit) activateRow(i);
@@ -667,6 +653,8 @@
       if (answer.ok.revision !== revision || answer.ok.source !== text) return { stale: true };
       state.blockers = null;
       state.generated = { graph: answer.ok.graph, support: answer.ok.support, revision: revision };
+      // Every tab that reads the graph learns it is there, whoever asked.
+      notify();
       return { ok: true };
     }, function (e) {
       console.error(e);
@@ -1168,6 +1156,10 @@
     if (id && !hasScenario(state.doc, id)) return false;
     if (id === state.scenario) return true;
     state.scenario = id;
+    // Results on screen that compare another scenario, or none, fade until
+    // this one is solved.
+    var shown = state.results && state.results.scenario ? state.results.scenario.id : "";
+    if (state.results && shown !== id && P.isArchitecture(state.doc)) mark("updating");
     notify();
     if (P.isArchitecture(state.doc)) autosolve.changed();
     return true;

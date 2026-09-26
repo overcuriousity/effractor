@@ -18,7 +18,6 @@ test('an available target CDF is the solver rows as they are, time · probabilit
   assert.equal(c.reason, null);
   assert.equal(c.confidence, 0.95);
   assert.equal(c.method, 'sampled');
-  assert.deepEqual(R.COLUMNS, ['time', 'probability', 'lower', 'upper']);
   assert.equal(R.TITLE, 'Target compromise probability');
 });
 
@@ -72,7 +71,7 @@ test('a target resting on an unknown input has no number and says which', () => 
   ]);
   const extract = R.nodeFacts(unknown, 'action/credential-extract/workstation/server-key');
   assert.equal(extract[1][0], 'P(step)');
-  assert.equal(extract[1][1], R.number(1));
+  assert.equal(extract[1][1], R.probability(1));
 });
 
 test('a known baseline beside an unknown scenario keeps the baseline and says why the other has none', () => {
@@ -87,11 +86,11 @@ test('step facts: the state, the probability by the horizon and its interval', (
   const find = available.baseline.nodes.find(n => n.id === 'action/product-find-exploit/openssh').outcome.available;
   assert.deepEqual(R.nodeFacts(available, 'action/product-find-exploit/openssh'), [
     ['State', 'possible'],
-    ['P(step)', R.number(find.p)],
+    ['P(step)', R.probability(find.p)],
     ['95% CI', R.band(find.ci)],
   ]);
   // 0.9996–1 prints as 1.00–1.00: no interval.
-  assert.deepEqual(R.nodeFacts(available, 'action/service-login/server-account/sshd'), [['State', 'possible'], ['P(step)', R.number(1)]]);
+  assert.deepEqual(R.nodeFacts(available, 'action/service-login/server-account/sshd'), [['State', 'possible'], ['P(step)', R.probability(1)]]);
   assert.deepEqual(R.nodeFacts(available, 'state/network/admin-net/access'), [['State', 'unreachable'], ['P(step)', '0']]);
   assert.deepEqual(R.nodeFacts(available, 'state/nothing'), []);
   assert.deepEqual(R.nodeFacts(null, 'state/host/server/admin'), []);
@@ -102,8 +101,8 @@ test('a step interval that prints as one number is left out, as in the headline'
   const n = r.baseline.nodes.find(x => x.id === 'action/service-login/server-account/sshd');
   n.outcome.available.p = 1;
   n.outcome.available.ci = { lo: 0.99999, hi: 1 };
-  assert.equal(R.number(0.99999), R.number(1), 'the two ends print alike');
-  assert.deepEqual(R.nodeFacts(r, n.id), [['State', 'possible'], ['P(step)', R.number(1)]]);
+  assert.equal(R.probability(0.99999), R.probability(1), 'the two ends print alike');
+  assert.deepEqual(R.nodeFacts(r, n.id), [['State', 'possible'], ['P(step)', R.probability(1)]]);
 });
 
 test('facts of many steps read from one index of the results', () => {
@@ -159,7 +158,6 @@ test('a generated graph has no exact, cut-set, Pareto, loss or control analysis'
   none.forEach(key => assert.ok(!(key in available), key));
   const c = P.capabilities(doc);
   ['exact', 'cutSets', 'pareto', 'loss', 'controls'].forEach(k => assert.equal(c[k], false, k));
-  assert.deepEqual(R.analyses(available), { probability: true, ttc: true, route: true, exact: false, cutSets: false, pareto: false, loss: false, controls: false });
   assert.equal(R.isGraphResults(available), true);
   assert.equal(R.isGraphResults({ exact: {}, sampled: {} }), false);
 });

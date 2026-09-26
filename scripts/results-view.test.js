@@ -1,7 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 const view = require("../assets/js/results-view.js");
-const { bin, leafStyles, rankCutSets, reasons, nodeFacts, rowsContaining } = view;
+const { bin, grouped, probability, number, money, count, leafStyles, rankCutSets, reasons, nodeFacts, rowsContaining } = view;
 const snapshot = require("../crates/effractor-solver/tests/snapshots/webserver.json");
 
 test("importance bins are the fixed thresholds of the spec", () => {
@@ -58,7 +58,7 @@ test("whatever is missing or cut short is said, with the solver's reason", () =>
     attacker: null,
   };
   assert.deepEqual(reasons(partial), [
-    "Cut sets: stopped at 10000 sets (123456789012345678901234567890 in all)",
+    "Cut sets: stopped at 10000 sets (1.23e+29 in all)",
     "Exact results: the BDD exceeded 1000000 nodes",
   ]);
   // A model without controls is not a shortcoming to report.
@@ -125,4 +125,54 @@ test("both importance measures explain themselves", () => {
     assert.ok(leafTerms.includes(term));
     assert.match(view.HINTS[term], /\S/);
   }
+});
+
+test("whole numbers are grouped in threes with a no-break space", () => {
+  assert.equal(grouped(42), "42");
+  assert.equal(grouped(10000), "10 000");
+  assert.equal(grouped(1234567), "1 234 567");
+});
+
+test("probabilities keep three significant digits, small ones in e-notation", () => {
+  assert.equal(probability(0.047351064), "0.0474");
+  assert.equal(probability(1), "1.00");
+  assert.equal(probability(0), "0");
+  assert.equal(probability(2.5e-7), "2.50e-7");
+});
+
+test("money is whole units of the model's currency, whatever that is", () => {
+  assert.equal(money(6370.97, "EUR"), "€6,371");
+  // A currency is free text in the document; not every one is an ISO code.
+  assert.equal(money(1500, "Taler"), "1,500 Taler");
+  assert.equal(money(1500, ""), "1,500");
+  // Unbounded statistics come as null: never "€0".
+  assert.equal(money(null, "EUR"), "—");
+  assert.equal(money(Infinity, "EUR"), "—");
+});
+
+test("quantities are grouped from 1000, short below, and nothing is a dash", () => {
+  // A horizon of a year in hours on a chart's axis: not 8.76e+3.
+  assert.equal(number(8760), "8\u00a0760");
+  assert.equal(number(4380), "4\u00a0380");
+  assert.equal(number(1234567.8), "1\u00a0234\u00a0568");
+  assert.equal(number(-2500), "-2\u00a0500");
+  assert.equal(number(3.1349), "3.13");
+  assert.equal(number(50), "50");
+  assert.equal(number(999.7), "1\u00a0000");
+  assert.equal(number(0.25), "0.25");
+  assert.equal(number(0), "0");
+  assert.equal(number(2.5e-7), "2.50e-7");
+  assert.equal(number(3e20), "3.00e+20");
+  assert.equal(number(Infinity), "∞");
+  assert.equal(number(null), "—");
+  assert.equal(number(NaN), "—");
+  assert.equal(probability(null), "—");
+});
+
+test("a cut-set count is grouped, and one the solver could not hold is more than that", () => {
+  assert.equal(count({ total: "0" }), "0");
+  assert.equal(count({ total: "12345" }), "12\u00a0345");
+  assert.equal(count({ total: "123456789012345678901234567890" }), "1.23e+29");
+  assert.equal(count({ total: "340282366920938463463374607431768211455" }), "more than 3.4e38");
+  assert.equal(count({ total: "17", saturated: true }), "more than 3.4e38");
 });

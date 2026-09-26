@@ -6,16 +6,16 @@
 (function () {
   var views = typeof module !== "undefined" ? require("./results-view.js") : window.effractorResults;
   var number = views.number;
+  var probability = views.probability;
 
   var TITLE = "Target compromise probability";
-  var COLUMNS = ["time", "probability", "lower", "upper"];
 
   function isGraphResults(results) {
     return !!results && results["effractor-graph-results"] === 1;
   }
 
   function band(ci) {
-    return ci ? number(ci.lo) + "–" + number(ci.hi) : "—";
+    return ci ? probability(ci.lo) + "–" + probability(ci.hi) : "—";
   }
 
   // An outcome's CDF: the 65 rows [t, P(target by t), lower, upper] as they
@@ -63,7 +63,7 @@
     }
     out.ci = { lo: a.ci.lo, hi: a.ci.hi };
     // An interval that prints as one number says nothing the number does not.
-    var ci = number(a.ci.lo) === number(a.ci.hi) ? [] : [Math.round(a.confidence * 100) + "% CI " + band(a.ci)];
+    var ci = probability(a.ci.lo) === probability(a.ci.hi) ? [] : [Math.round(a.confidence * 100) + "% CI " + band(a.ci)];
     out.qualifier = ci.concat(illustrative(r) ? ["illustrative inputs"] : []).join(" · ");
     return out;
   }
@@ -108,9 +108,9 @@
       if (n.outcome.unavailable.missing.length) facts.push(["Unknown inputs", n.outcome.unavailable.missing.join(", ")]);
       return facts;
     }
-    facts.push(["P(step)", number(a.p)]);
+    facts.push(["P(step)", probability(a.p)]);
     // An interval that prints as one number says nothing the number does not.
-    if (number(a.ci.lo) !== number(a.ci.hi)) facts.push([Math.round(results.confidence * 100) + "% CI", band(a.ci)]);
+    if (probability(a.ci.lo) !== probability(a.ci.hi)) facts.push([Math.round(results.confidence * 100) + "% CI", band(a.ci)]);
     return facts;
   }
 
@@ -161,17 +161,10 @@
     };
   }
 
-  // Which analyses a result set carries: a generated graph has the target's
-  // probability, its CDF and a route; none of the tree's.
-  function analyses(results) {
-    var graph = isGraphResults(results);
-    return { probability: graph, ttc: graph, route: graph, exact: false, cutSets: false, pareto: false, loss: false, controls: false };
-  }
-
   var api = {
     TITLE: TITLE,
-    COLUMNS: COLUMNS,
     number: number,
+    probability: probability,
     band: band,
     isGraphResults: isGraphResults,
     cdf: cdf,
@@ -185,7 +178,6 @@
     assumptions: assumptions,
     scenarioAssumptions: scenarioAssumptions,
     witness: witness,
-    analyses: analyses,
   };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorGraphResults = api;

@@ -23,6 +23,7 @@ for (const [page, assets] of [
         createSolver: makeWorker => { makeWorker(); return {}; },
         effractorProfiles: require('../assets/js/profiles.js'),
         effractorRevisions: require('../assets/js/revisions.js'),
+        effractorResults: require('../assets/js/results-view.js'),
         effractorRenderer: { createSvgRenderer: () => { throw stop; } },
       },
     });

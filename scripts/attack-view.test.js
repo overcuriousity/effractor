@@ -6,35 +6,29 @@ const doc = require('./fixtures/graph/lecture-doc.json');
 
 const { graph, support } = fixture;
 const clone = value => JSON.parse(JSON.stringify(value));
+// A step's provenance, as the module supplied it.
+const origins = (g, id) => g.nodes.find(n => n.id === id).origins;
 
 test('a component leads to the steps generated from it, and a step back to its sources', () => {
-  const ids = V.stepsForEntity(graph, 'sshd');
+  const ids = V.stepsFor(graph, 'entity/sshd');
   assert.ok(ids.includes('action/service-deploy-exploit/sshd'));
   assert.ok(ids.includes('state/service/sshd/control'));
   assert.ok(!ids.includes('input/foothold/workstation/admin'));
   ids.forEach(id => assert.ok(graph.nodes.some(n => n.id === id), id));
-  const origins = V.sourcesForStep(graph, 'action/service-deploy-exploit/sshd');
-  assert.ok(origins.some(o => o.paths.includes('entities.sshd.parameters.deploy-exploit')));
+  const deploy = origins(graph, 'action/service-deploy-exploit/sshd');
+  assert.ok(deploy.some(o => o.paths.includes('entities.sshd.parameters.deploy-exploit')));
   // Back again: every component a step's origins bind leads to that step.
-  origins.forEach(o => o.entities.forEach(e => assert.ok(V.stepsForEntity(graph, e).includes('action/service-deploy-exploit/sshd'))));
-  assert.deepEqual(V.stepsForEntity(graph, 'nothing-here'), []);
-  assert.deepEqual(V.sourcesForStep(graph, 'state/nothing'), []);
+  deploy.forEach(o => o.entities.forEach(e => assert.ok(V.stepsFor(graph, 'entity/' + e).includes('action/service-deploy-exploit/sshd'))));
+  assert.deepEqual(V.stepsFor(graph, 'entity/nothing-here'), []);
   // Flows and relationships have their steps too.
   assert.ok(V.stepsFor(graph, 'flow/ssh').includes('action/flow-connect/ssh'));
   assert.ok(V.stepsFor(graph, 'association/allow-ssh').includes('input/flow-permission/filter/ssh'));
 });
 
-test('a step several rules produce lists every one of them', () => {
-  const origins = V.sourcesForStep(graph, 'state/host/server/admin');
-  assert.deepEqual(origins.map(o => o.rule).sort(), ['execution-privilege', 'session-grant']);
-  // The supplied objects, not a JS reconstruction of them.
-  assert.equal(origins[0], graph.nodes.find(n => n.id === 'state/host/server/admin').origins[0]);
-});
-
 test('a renamed label changes what a step says, not what is selected', () => {
   const renamed = clone(graph);
   renamed.nodes.forEach(n => { n.label = n.label.replace('SSH server', 'OpenSSH'); });
-  assert.deepEqual(V.stepsForEntity(renamed, 'sshd'), V.stepsForEntity(graph, 'sshd'));
+  assert.deepEqual(V.stepsFor(renamed, 'entity/sshd'), V.stepsFor(graph, 'entity/sshd'));
   const drawn = V.describe(renamed, support, null).graph.nodes.find(n => n.id === 'step/action/service-deploy-exploit/sshd');
   assert.equal(drawn.label, 'Use the exploit · OpenSSH');
   assert.equal(V.originOf(renamed, 'action/service-deploy-exploit/sshd'), 'entity/sshd');
@@ -50,7 +44,7 @@ test('a renamed label changes what a step says, not what is selected', () => {
 test('each source field leads to the place in the architecture that sets it', () => {
   const at = path => V.sourceTarget(doc, path);
   // Patching: the switch and both discovery slots.
-  const find = V.sourcesForStep(graph, 'action/product-find-exploit/openssh')[0];
+  const find = origins(graph, 'action/product-find-exploit/openssh')[0];
   assert.deepEqual(find.paths.map(at), [
     { select: 'entity/openssh', slot: 'find-exploit', path: 'entities.openssh.parameters.find-exploit' },
     { select: 'entity/openssh', slot: 'find-exploit-patched', path: 'entities.openssh.parameters.find-exploit-patched' },
@@ -77,7 +71,7 @@ test('each source field leads to the place in the architecture that sets it', ()
   assert.deepEqual(at('entities.gone.parameters.login'), { source: 'entities.gone.parameters.login', path: 'entities.gone.parameters.login' });
   assert.deepEqual(at('attacker.footholds[7]'), { source: 'attacker.footholds[7]', path: 'attacker.footholds[7]' });
   // Hosting privilege: the relationship that grants it, bound by the origin.
-  const hosting = V.sourcesForStep(graph, 'state/host/server/admin').find(o => o.rule === 'execution-privilege');
+  const hosting = origins(graph, 'state/host/server/admin').find(o => o.rule === 'execution-privilege');
   assert.deepEqual(hosting.associations, ['service-hosting']);
 });
 
@@ -104,7 +98,7 @@ test('a step inspected says its rule, its time and its state, blocked ones inclu
   assert.equal(policy.status, 'blocked');
   assert.equal(policy.kind, 'input');
   assert.match(policy.reason, /denied/);
-  assert.deepEqual(V.sourcesForStep(denied.graph, 'input/flow-permission/filter/ssh')[0].paths, ['associations.allow-ssh.allowed']);
+  assert.deepEqual(origins(denied.graph, 'input/flow-permission/filter/ssh')[0].paths, ['associations.allow-ssh.allowed']);
   assert.equal(V.inspect(graph, support, 'state/nothing'), null);
 });
 

@@ -1,5 +1,5 @@
 (function () {
-  var app = window.effractor, data = window.effractorPareto, number = window.effractorResults.number;
+  var app = window.effractor, data = window.effractorPareto, number = window.effractorResults.number, probability = window.effractorResults.probability;
   var $ = function (id) { return document.getElementById(id); };
   var root = $('pareto-view'), axis = { x: 'cost', y: 'time' }, sort = 'cost', descending = false, selected = null, last;
   function el(tag, text, cls) { var e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
@@ -7,7 +7,8 @@
   function label(id) { return app.state.doc.nodes[id] ? app.state.doc.nodes[id].label : id; }
   var TIME_HELP = 'Average completion time, assuming all steps succeed.';
   function timeUnit(result) { return ({ h: 'hours', d: 'days', y: 'years' })[result.time_unit] || result.time_unit; }
-  function amount(row, key) { return row[key] === null ? '∞' : number(row[key]); }
+  // Cost and time are amounts; detection and success, probabilities.
+  function amount(row, key) { return row[key] === null ? '∞' : key === 'detection' || key === 'success' ? probability(row[key]) : number(row[key]); }
   function select(index) {
     selected = selected === index ? null : index;
     var row = data.all(app.state.results).find(function (r) { return r.index === selected; });

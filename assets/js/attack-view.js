@@ -49,16 +49,6 @@
       });
   }
 
-  function stepsForEntity(graph, entityId) {
-    return stepsFor(graph, "entity/" + entityId);
-  }
-
-  // The provenance objects as the module supplied them.
-  function sourcesForStep(graph, stepId) {
-    var n = node(graph, stepId);
-    return n ? n.origins.slice() : [];
-  }
-
   // The component a step is about, for a selection that has to fall back
   // from the step: a state's owner, an action's object, an input's subject.
   function originOf(graph, stepId) {
@@ -315,8 +305,6 @@
     ownsKey: ownsKey,
     refuse: refuse,
     stepsFor: stepsFor,
-    stepsForEntity: stepsForEntity,
-    sourcesForStep: sourcesForStep,
     originOf: originOf,
     sourceTarget: sourceTarget,
     index: indexOf,

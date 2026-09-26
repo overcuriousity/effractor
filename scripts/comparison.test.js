@@ -109,13 +109,6 @@ test('a scenario’s own settings, read back for its form', () => {
   assert.equal(C.settings(doc, 'nobody'), null);
 });
 
-test('selecting a scenario is kept only while the document still names it', () => {
-  assert.equal(C.selectable(doc, 'deny'), 'deny');
-  assert.equal(C.selectable(C.removeScenario(doc, 'deny').doc, 'deny'), '');
-  assert.equal(C.selectable(doc, '__proto__'), '');
-  assert.equal(C.selectable(doc, ''), '');
-});
-
 test('rows put both curves on their one grid, bands and all', () => {
   const r = R('fast');
   const rows = C.rows(r);
@@ -231,7 +224,7 @@ test('a comparison is current only for the scenario chosen and the text on the p
 });
 
 test('probabilities and intervals as the comparison table says them', () => {
-  assert.equal(C.probability(0), '0.00');
+  assert.equal(C.probability(0), '0');
   assert.equal(C.probability(1), '1.00');
   assert.equal(C.probability(0.0123), '0.0123');
   assert.equal(C.probability(null), 'unknown');
@@ -243,7 +236,10 @@ test('probabilities and intervals as the comparison table says them', () => {
   // A change in probability carries its sign, a true minus.
   assert.equal(C.signed(-1), '−1.00');
   assert.equal(C.signed(0.2667), '+0.267');
-  assert.equal(C.signed(0), '0.00');
+  assert.equal(C.signed(0), '0');
+  assert.equal(C.signed(-0), '0');
+  // No difference at either end is no interval.
+  assert.equal(C.interval({ lo: 0, hi: 0 }, true), '—');
   assert.equal(C.interval({ lo: -0.3, hi: -0.25 }, true), '−0.300 to −0.250');
 });
 

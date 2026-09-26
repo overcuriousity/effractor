@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
-const { templateName, grouped, probability, money, analysisLabel, samplesOverride } = require("../assets/js/app.js");
+const { templateName, analysisLabel, samplesOverride } = require("../assets/js/app.js");
 const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const { element } = require('./fixtures/fake-dom.js');
@@ -515,26 +515,6 @@ test('a result solved for a text that was undone is not shown', async () => {
   h.app.undo(); await h.settle(); await h.settle();
   run.on.onExact({ exact: { available: { p_top: 0.9 } }, cut_sets: { available: { sets: [], total: 0 } }, leaves: [] });
   assert.ok(!h.app.state.exactResults, 'the answer about the undone text is dropped');
-});
-
-test("whole numbers are grouped in threes with a no-break space", () => {
-  assert.equal(grouped(42), "42");
-  assert.equal(grouped(10000), "10 000");
-  assert.equal(grouped(1234567), "1 234 567");
-});
-
-test("probabilities keep three significant digits, small ones in e-notation", () => {
-  assert.equal(probability(0.047351064), "0.0474");
-  assert.equal(probability(1), "1.00");
-  assert.equal(probability(0), "0");
-  assert.equal(probability(2.5e-7), "2.50e-7");
-});
-
-test("money is whole units of the model's currency, whatever that is", () => {
-  assert.equal(money(6370.97, "EUR"), "€6,371");
-  // A currency is free text in the document; not every one is an ISO code.
-  assert.equal(money(1500, "Taler"), "1,500 Taler");
-  assert.equal(money(1500, ""), "1,500");
 });
 
 test("the analysis chip says what will be sampled", () => {

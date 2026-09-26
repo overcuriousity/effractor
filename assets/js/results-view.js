@@ -20,10 +20,48 @@
     return b;
   }
 
+  // How the page says its numbers, in one place. A probability keeps three
+  // digits, trailing zeros too; a quantity (a time, an amount, a count) is
+  // grouped in threes from 1000 and short below; money is the model's
+  // currency in whole units. What is no number reads "—".
+  function grouped(n) {
+    return String(n).replace(/\B(?=(\d{3})+$)/g, " ");
+  }
+
+  function probability(p) {
+    if (typeof p !== "number" || !isFinite(p)) return "—";
+    if (p === 0) return "0";
+    return Math.abs(p) < 1e-4 ? p.toExponential(2) : p.toPrecision(3);
+  }
+
   function number(v) {
-    if (typeof v !== "number") return "—";
+    if (typeof v !== "number" || v !== v) return "—";
+    if (!isFinite(v)) return v > 0 ? "∞" : "−∞";
     if (v === 0) return "0";
-    return Math.abs(v) < 1e-4 ? v.toExponential(2) : v.toPrecision(3);
+    var a = Math.abs(v);
+    if (a < 1e-4 || a >= 1e15) return v.toExponential(2);
+    if (a >= 999.5) return grouped(Math.round(v));
+    return String(Number(v.toPrecision(3)));
+  }
+
+  function money(value, currency) {
+    if (typeof value !== "number" || !isFinite(value)) return "—";
+    try {
+      return new Intl.NumberFormat("en", { style: "currency", currency: currency, maximumFractionDigits: 0 }).format(value);
+    } catch (e) {
+      var n = new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(value);
+      return currency ? n + " " + currency : n;
+    }
+  }
+
+  // A count of cut sets as the solver writes it: a decimal string, since it
+  // can pass what JSON numbers hold. The solver stops counting at the largest
+  // count it can hold; past that there are more.
+  var COUNT_MAX = "340282366920938463463374607431768211455";
+  function count(cuts) {
+    var t = String(cuts.total);
+    if (cuts.saturated || t === COUNT_MAX) return "more than 3.4e38";
+    return t.length > 15 ? Number(t).toExponential(2) : grouped(t);
   }
 
   function short(v) {
@@ -61,7 +99,7 @@
         return a.leaves.join("\u0000") < b.leaves.join("\u0000") ? -1 : 1;
       })
       .map(function (s, i) {
-        return { rank: i + 1, leaves: s.leaves, probability: s.probability, text: number(s.probability), spof: s.leaves.length === 1 };
+        return { rank: i + 1, leaves: s.leaves, probability: s.probability, text: probability(s.probability), spof: s.leaves.length === 1 };
       });
   }
 
@@ -71,7 +109,7 @@
     var cuts = results.cut_sets || {};
     if (cuts.unavailable) out.push("Cut sets: " + cuts.unavailable.reason);
     else if (cuts.available && cuts.available.truncated) {
-      out.push("Cut sets: " + cuts.available.truncated + " (" + cuts.available.total + " in all)");
+      out.push("Cut sets: " + cuts.available.truncated + " (" + count(cuts.available) + " in all)");
     }
     if (results.exact && results.exact.unavailable) out.push("Exact results: " + results.exact.unavailable.reason);
     else if (results.exact && results.exact.available && results.exact.available.fussell_vesely_unavailable) {
@@ -92,13 +130,13 @@
     var facts = [];
     var node = find(results.nodes, id);
     if (node) {
-      facts.push(["P within horizon", number(node.p_exact)]);
-      facts.push(["sampled", number(node.p_sampled)]);
+      facts.push(["P within horizon", probability(node.p_exact)]);
+      facts.push(["sampled", probability(node.p_sampled)]);
     }
     var leaf = find(results.leaves, id);
     if (leaf) {
-      facts.push(["Fussell-Vesely", number(leaf.fussell_vesely)]);
-      facts.push(["Birnbaum", number(leaf.birnbaum)]);
+      facts.push(["Fussell-Vesely", probability(leaf.fussell_vesely)]);
+      facts.push(["Birnbaum", probability(leaf.birnbaum)]);
       facts.push(["single point of failure", leaf.spof ? "yes" : "no"]);
     }
     return facts;
@@ -148,7 +186,7 @@
     });
   }
 
-  var api = { HINTS: HINTS, bin: bin, number: number, leafStyles: leafStyles, rankCutSets: rankCutSets, reasons: reasons, nodeFacts: nodeFacts, rowsContaining: rowsContaining, controlRows: controlRows };
+  var api = { HINTS: HINTS, bin: bin, grouped: grouped, probability: probability, number: number, money: money, count: count, leafStyles: leafStyles, rankCutSets: rankCutSets, reasons: reasons, nodeFacts: nodeFacts, rowsContaining: rowsContaining, controlRows: controlRows };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorResults = api;
 })();

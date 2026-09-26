@@ -291,9 +291,10 @@
     if (s.benefit === null) row("Change", "unknown", "\u2014", s.reason || "");
     else {
       // The solver's benefit is baseline minus scenario; the page says the
-      // change the scenario makes, so both ends turn round.
-      var ci = s.ci ? { lo: -s.ci.hi, hi: -s.ci.lo } : null;
-      row("Change", C.signed(-s.benefit), C.interval(ci, true), s.ci ? "paired, scenario minus baseline" : s.ciReason || "");
+      // change the scenario makes, so both ends turn round. Where the solver
+      // says why its interval says nothing, that is said instead.
+      var ci = s.ci && !s.ciReason ? { lo: -s.ci.hi, hi: -s.ci.lo } : null;
+      row("Change", C.signed(-s.benefit), C.interval(ci, true), s.ciReason || (ci ? "paired, scenario minus baseline" : ""));
     }
     t.appendChild(body);
     box.appendChild(t);
@@ -301,7 +302,7 @@
     if (s.illustrative.baseline || s.illustrative.scenario) {
       notes.push("illustrative inputs" + (s.illustrative.baseline && s.illustrative.scenario ? "" : s.illustrative.baseline ? " · baseline" : " · scenario"));
     }
-    if (s.ci === null && s.ciReason) notes.push(s.ciReason);
+    if (s.benefit !== null && s.ciReason) notes.push(s.ciReason);
     if (notes.length) box.appendChild(el("p", notes.join(" · "), "hint"));
     if (s.missing.length) {
       var h = el("h3", "Unknown inputs");
@@ -316,11 +317,9 @@
     var g = app.state.generated;
     if (!g || g.revision !== app.state.revision) {
       // Built on request only: a build of its own would overtake one the
-      // attack view is waiting for.
+      // attack view is waiting for. What it builds reaches every tab.
       box.appendChild(button("Build the attack graph", "Routes need the attack graph", function () {
-        app.generate().then(function () {
-          render(true);
-        });
+        app.generate();
       }));
       return;
     }

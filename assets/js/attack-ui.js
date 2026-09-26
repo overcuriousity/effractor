@@ -253,7 +253,7 @@
     var h = R.headline(results);
     var line = el("p", null, "attack-headline");
     line.appendChild(el("span", h.label + " by " + h.by, "label"));
-    line.appendChild(el("span", h.p === null ? "—" : R.number(h.p), "stat num"));
+    line.appendChild(el("span", R.probability(h.p), "stat num"));
     box.appendChild(line);
     if (h.qualifier) box.appendChild(el("p", h.qualifier, "hint"));
     var half = R.timeTo(results, 0.5);
@@ -270,10 +270,13 @@
   // evidence and value under it; the source path and the note on hover.
   function renderAssumptions(box, results) {
     assumptionList(box, "Assumptions", R.assumptions(results.baseline));
-    // A chosen scenario's own: its changes, speed, the inputs they bring in.
+    // The solved scenario's own: its changes, speed, the inputs they bring
+    // in; named as these results name it, whatever is chosen meanwhile.
+    if (!results.scenario) return;
+    var id = results.scenario.id;
     var all = doc().scenarios || {};
-    var scenario = Object.prototype.hasOwnProperty.call(all, app.state.scenario) ? all[app.state.scenario] : null;
-    assumptionList(box, "Only in “" + (scenario ? scenario.label : "scenario") + "”", R.scenarioAssumptions(results));
+    var scenario = Object.prototype.hasOwnProperty.call(all, id) ? all[id] : null;
+    assumptionList(box, "Only in “" + (scenario ? scenario.label : id) + "”", R.scenarioAssumptions(results));
   }
   function assumptionList(box, title, rows) {
     if (!rows.length) return;

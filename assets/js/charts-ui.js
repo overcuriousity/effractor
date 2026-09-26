@@ -1,5 +1,5 @@
 (function () {
-  var app = window.effractor, data = window.effractorCharts, number = window.effractorResults.number;
+  var app = window.effractor, data = window.effractorCharts, number = window.effractorResults.number, probability = window.effractorResults.probability;
   var graphs = window.effractorGraphResults;
   var NS = 'http://www.w3.org/2000/svg';
   function el(tag, text, className) {
@@ -18,7 +18,8 @@
     headers.forEach(function (h) { var th = el('th', h, 'num'); th.scope = 'col'; tr.appendChild(th); });
     head.appendChild(tr); t.appendChild(head);
     var body = el('tbody');
-    rows.forEach(function (row) { var r = el('tr'); row.forEach(function (value) { r.appendChild(el('td', number(value), 'num')); }); body.appendChild(r); });
+    // The first column is a time or an amount, the others probabilities.
+    rows.forEach(function (row) { var r = el('tr'); row.forEach(function (value, i) { r.appendChild(el('td', i ? probability(value) : number(value), 'num')); }); body.appendChild(r); });
     t.appendChild(body); scroll.appendChild(t); details.append(summary, scroll); return details;
   }
   var positions = Object.create(null);
@@ -64,7 +65,7 @@
       [1, 2].forEach(function (column) {
         plot.appendChild(svg('path', { d: data.line(rows.map(function (r) { return [r[0], r[column]]; }), max), class: column === 1 ? 'chart-line' : 'chart-line chart-sampled' }));
       });
-      var pointwise = model.confidence === null ? '' : ' · ' + number(model.confidence * 100) + '% pointwise band';
+      var pointwise = model.confidence === null ? '' : ' · ' + Math.round(model.confidence * 100) + '% pointwise band';
       root.appendChild(el('p', graph ? graphs.cdfKey(model) : '— Exact · ┄ Sampled' + pointwise, 'hint chart-key'));
     } else {
       plot.appendChild(svg('path', { d: data.line(rows, max), class: 'chart-line' }));
@@ -83,8 +84,8 @@
       cross.setAttribute('visibility', 'visible');
       vertical.setAttribute('x1', data.x(row[0], max)); vertical.setAttribute('x2', data.x(row[0], max));
       horizontal.setAttribute('y1', data.y(value)); horizontal.setAttribute('y2', data.y(value));
-      var interval = row[3] === null ? '' : ' [' + number(row[3]) + ', ' + number(row[4]) + ']';
-      tooltip.textContent = number(row[0]) + ' ' + unit + (graph ? ' · P ' + number(row[2] === null ? row[1] : row[2]) + interval : cdf ? ' · exact ' + number(row[1]) + ' · sampled ' + number(row[2]) + interval : ' · P ≥ ' + number(row[1]));
+      var interval = row[3] === null ? '' : ' [' + probability(row[3]) + ', ' + probability(row[4]) + ']';
+      tooltip.textContent = number(row[0]) + ' ' + unit + (graph ? ' · P ' + probability(row[2] === null ? row[1] : row[2]) + interval : cdf ? ' · exact ' + probability(row[1]) + ' · sampled ' + probability(row[2]) + interval : ' · P ≥ ' + probability(row[1]));
     }
     plot.addEventListener('pointermove', function (e) {
       var point = plot.createSVGPoint(); point.x = e.clientX; point.y = e.clientY;
@@ -161,7 +162,7 @@
     cross.append(vertical); plot.appendChild(cross);
     var tooltip = el('p', 'Left/Right: values', 'chart-tooltip num'); tooltip.setAttribute('aria-live', 'polite');
     var active = positions.compare || 0;
-    function said(p, lo, hi) { return p === null ? '—' : number(p) + (lo === hi ? '' : ' [' + number(lo) + ', ' + number(hi) + ']'); }
+    function said(p, lo, hi) { return p === null ? '—' : probability(p) + (lo === hi ? '' : ' [' + probability(lo) + ', ' + probability(hi) + ']'); }
     function inspect(index) {
       active = Math.max(0, Math.min(rows.length - 1, index)); positions.compare = active;
       var r = rows[active];
@@ -181,7 +182,7 @@
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       e.preventDefault(); e.stopPropagation(); inspect(active + (e.key === 'ArrowRight' ? 1 : -1));
     });
-    root.append(plot, tooltip, el('p', key.join(' · ') + (banded ? ' · ' + number(result.confidence * 100) + '% pointwise bands' : ''), 'hint chart-key'));
+    root.append(plot, tooltip, el('p', key.join(' · ') + (banded ? ' · ' + Math.round(result.confidence * 100) + '% pointwise bands' : ''), 'hint chart-key'));
     var equivalent = table(['Time · ' + unit, 'Baseline', 'Lower', 'Upper', name, 'Lower', 'Upper'], rows);
     equivalent.open = !!open; root.appendChild(equivalent);
     if (focused) (focused === 'summary' ? equivalent.querySelector('summary') : plot).focus();

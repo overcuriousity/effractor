@@ -712,8 +712,8 @@ What exists:
   `graph_support::analyze` now unions missing inputs over the support graph's
   condensation (iterative Tarjan, bitsets); the old per-node walk is the test
   oracle (the Task 3 deferred minor).
-- **Pure modules.** `attack-view.js`: `stepsFor`/`stepsForEntity`,
-  `sourcesForStep`, `originOf` (the component a step falls back to),
+- **Pure modules.** `attack-view.js`: `stepsFor`, `originOf` (the component
+  a step falls back to),
   `sourceTarget` (a source path → the form field that sets it, or its source
   line), `inspect`, `search`, `describe` (a window of at most 500 steps round
   the focus or the target, "+n not shown" on its edge), `refuse`, `ownsKey`.
