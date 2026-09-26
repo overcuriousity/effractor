@@ -320,6 +320,41 @@ async fn changing_a_password_needs_the_current_one() {
     assert_eq!(res.status(), StatusCode::NO_CONTENT);
 }
 
+/// Guessing the current password counts as a failed login: a session does
+/// not get around the limit on /api/auth/password.
+#[tokio::test]
+async fn guessing_the_current_password_is_limited_like_logins() {
+    let h = harness();
+    h.add_user("alice");
+    let token = h.login("alice").await;
+    let mut last = StatusCode::OK;
+    for i in 0..31 {
+        last = h
+            .call(
+                "PATCH",
+                "/api/account",
+                Some(&token),
+                Some(json!({"password": "a brand new password", "current_password": format!("guess {i}")})),
+            )
+            .await
+            .status();
+    }
+    assert_eq!(last, StatusCode::TOO_MANY_REQUESTS);
+    let res = h
+        .call(
+            "POST",
+            "/api/auth/password",
+            None,
+            Some(json!({"name": "alice", "password": PW})),
+        )
+        .await;
+    assert_eq!(
+        res.status(),
+        StatusCode::TOO_MANY_REQUESTS,
+        "one limit for both"
+    );
+}
+
 /// Behind a TLS proxy every peer is the proxy; with --trusted-proxy the
 /// address it forwards is the one counted (review I4).
 #[tokio::test]

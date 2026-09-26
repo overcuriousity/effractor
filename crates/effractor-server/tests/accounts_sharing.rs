@@ -298,12 +298,15 @@ async fn an_editor_renames_a_shared_document() {
     );
 }
 
-/// The directory suggests names; it is not a list of everybody.
+/// The directory suggests names; it is not a list of everybody. One letter
+/// finds only the user of that very name: names may be one letter long.
 #[tokio::test]
-async fn the_directory_wants_two_letters() {
+async fn the_directory_wants_two_letters_or_a_whole_name() {
     let h = harness();
     h.add_user("alice");
     h.add_user("albert");
+    h.add_user("x");
+    h.add_user("xavier");
     let a = h.login("alice").await;
     for q in ["", "a"] {
         let found = json(
@@ -315,4 +318,12 @@ async fn the_directory_wants_two_letters() {
     }
     let found = json(h.call("GET", "/api/directory?q=al", Some(&a), None).await).await;
     assert_eq!(found.as_array().unwrap().len(), 1);
+    let found = json(h.call("GET", "/api/directory?q=X", Some(&a), None).await).await;
+    let names: Vec<&str> = found
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["x"]);
 }

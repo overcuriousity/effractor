@@ -40,6 +40,9 @@ pub struct Oidc {
     redirect: String,
     /// Where people come back to: the public url, its path included.
     home: String,
+    /// The binding cookie's path: the callback's, under the public url's
+    /// path, or a browser behind a prefix would not send it back.
+    cookie_path: String,
     http: reqwest::Client,
     pending: Mutex<HashMap<String, Pending>>,
     /// The issuer's discovery document, for a few minutes.
@@ -56,9 +59,15 @@ impl Oidc {
             // openidconnect's advice: never follow redirects (SSRF).
             .redirect(reqwest::redirect::Policy::none())
             .build()?;
+        let cookie_path = format!("{}/api/auth/oidc", url_path(public_url));
+        // Checked once here, so building the cookie later cannot fail.
+        if cookie_path.contains(';') || HeaderValue::from_str(&cookie_path).is_err() {
+            anyhow::bail!("--public-url has a path no cookie can carry");
+        }
         Ok(Oidc {
             redirect: format!("{public_url}/api/auth/oidc/callback"),
             home: format!("{public_url}/"),
+            cookie_path,
             cfg,
             http,
             pending: Mutex::new(HashMap::new()),
@@ -69,6 +78,14 @@ impl Oidc {
     pub fn label(&self) -> &str {
         &self.cfg.label
     }
+}
+
+/// The path of a url without its trailing slash: "" for none.
+fn url_path(url: &str) -> &str {
+    let after = url.find("://").map_or(0, |i| i + 3);
+    url[after..]
+        .find('/')
+        .map_or("", |slash| &url[after + slash..])
 }
 
 /// Discovery on each login: an issuer that was down at startup works as soon
@@ -175,8 +192,9 @@ async fn start(
         ""
     };
     let bind = HeaderValue::from_str(&format!(
-        "{COOKIE}={}; Path=/api/auth/oidc; HttpOnly; SameSite=Lax; Max-Age={PENDING_TTL}{secure}",
-        state.secret()
+        "{COOKIE}={}; Path={}; HttpOnly; SameSite=Lax; Max-Age={PENDING_TTL}{secure}",
+        state.secret(),
+        o.cookie_path
     ))
     .map_err(|e| ApiError::Internal(e.to_string()))?;
     Ok((
@@ -216,12 +234,14 @@ async fn callback(
     headers: HeaderMap,
     Query(q): Query<Callback>,
 ) -> Response {
-    let home = accounts
-        .oidc()
-        .map_or_else(|| "/".to_owned(), |o| o.home.clone());
-    let clear = HeaderValue::from_static(
-        "effractor_oidc=; Path=/api/auth/oidc; HttpOnly; SameSite=Lax; Max-Age=0",
+    let (home, path) = accounts.oidc().map_or_else(
+        || ("/".to_owned(), "/api/auth/oidc".to_owned()),
+        |o| (o.home.clone(), o.cookie_path.clone()),
     );
+    let clear = HeaderValue::from_str(&format!(
+        "{COOKIE}=; Path={path}; HttpOnly; SameSite=Lax; Max-Age=0"
+    ))
+    .expect("checked in Oidc::new");
     match finish(&accounts, &headers, q).await {
         Ok(Some(token)) => go(&home, vec![clear, set_cookie(&accounts, &token)]),
         Ok(None) => go(&home, vec![clear]),

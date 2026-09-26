@@ -173,10 +173,12 @@ async fn directory(
     Query(q): Query<Q>,
 ) -> Result<Json<Value>, ApiError> {
     let q = q.q.unwrap_or_default().trim().to_lowercase();
-    // Suggestions for a name being typed, not a list of everybody.
-    if q.chars().count() < 2 {
+    // Suggestions for a name being typed, not a list of everybody. Names
+    // may be one letter long: one letter finds only that very name.
+    if q.is_empty() {
         return Ok(Json(Value::Array(vec![])));
     }
+    let whole = q.chars().count() < 2;
     let rows = accounts
         .blocking(move |db| {
             db.read(|c| {
@@ -184,11 +186,12 @@ async fn directory(
                     "SELECT kind, id, name, display_name FROM (
                        SELECT 'user' AS kind, id, name, display_name FROM users WHERE NOT disabled AND id != ?1
                        UNION ALL SELECT 'group', id, name, '' FROM groups)
-                     WHERE instr(fold(name), fold(?2)) > 0 OR instr(fold(display_name), fold(?2)) > 0
+                     WHERE CASE WHEN ?3 THEN fold(name) = fold(?2)
+                       ELSE instr(fold(name), fold(?2)) > 0 OR instr(fold(display_name), fold(?2)) > 0 END
                      ORDER BY instr(fold(name), fold(?2)) != 1, name LIMIT 10",
                 )?;
                 let out = s
-                    .query_map(effractor_accounts::rusqlite::params![user.id, q], |r| {
+                    .query_map(effractor_accounts::rusqlite::params![user.id, q, whole], |r| {
                         Ok(json!({ "kind": r.get::<_, String>(0)?, "id": r.get::<_, Id>(1)?,
                                    "name": r.get::<_, String>(2)?, "display_name": r.get::<_, String>(3)? }))
                     })?

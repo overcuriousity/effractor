@@ -334,16 +334,31 @@ async fn the_callback_goes_back_to_the_public_url() {
         .unwrap();
     let res = h.send(req).await;
     assert_eq!(res.status(), 200);
+    let cookies: Vec<String> = res
+        .headers()
+        .get_all(header::SET_COOKIE)
+        .iter()
+        .map(|v| v.to_str().unwrap().to_owned())
+        .collect();
     let url = json(res).await["url"].as_str().unwrap().to_owned();
     assert!(
         query(&url, "redirect_uri")
             .starts_with("https://effractor.example/tools/api/auth/oidc/callback")
+    );
+    // The browser comes back under the prefix: the binding cookie must go there.
+    assert!(
+        cookies
+            .iter()
+            .any(|c| c.starts_with("effractor_oidc=") && c.contains("; Path=/tools/api/auth/oidc;")),
+        "{cookies:?}"
     );
     let res = callback(&h, "nope", "nope", "effractor_oidc=x").await;
     assert_eq!(
         res.headers()[header::LOCATION],
         "https://effractor.example/tools/?login=failed"
     );
+    let clear = res.headers()[header::SET_COOKIE].to_str().unwrap();
+    assert!(clear.contains("; Path=/tools/api/auth/oidc;"), "{clear}");
 }
 
 /// Starting logins costs a pending entry and an issuer request: limited per address.
@@ -364,4 +379,72 @@ async fn starting_oidc_logins_is_limited_per_address() {
         .as_u16();
     }
     assert_eq!(last, 429);
+}
+
+/// A session alone does not give an account without a password one: that
+/// is a new way in, and needs a login from the last fifteen minutes too.
+#[tokio::test]
+async fn adding_a_password_needs_a_fresh_login() {
+    let (h, iss) = with_oidc().await;
+    let (url, bind) = start(&h, None, false).await;
+    iss.codes.lock().unwrap().push((
+        "c1".into(),
+        "sub-1".into(),
+        "alice".into(),
+        query(&url, "nonce"),
+    ));
+    let res = callback(&h, "c1", &query(&url, "state"), &bind).await;
+    let session = res
+        .headers()
+        .get_all(header::SET_COOKIE)
+        .iter()
+        .filter_map(|v| {
+            v.to_str()
+                .ok()?
+                .strip_prefix("effractor_session=")?
+                .split(';')
+                .next()
+                .map(str::to_owned)
+        })
+        .find(|v| !v.is_empty())
+        .expect("a session");
+    h.clock
+        .fetch_add(16 * 60, std::sync::atomic::Ordering::Relaxed);
+    let add = json!({"password": "a brand new password"});
+    let res = public(&h, "PATCH", "/api/account", Some(&session), add.clone()).await;
+    assert_eq!(res.status(), 403);
+    let res = public(
+        &h,
+        "POST",
+        "/api/auth/password",
+        None,
+        json!({"name": "alice", "password": "a brand new password"}),
+    )
+    .await;
+    assert_eq!(res.status(), 401, "no password was set");
+    // Logged in again just now, alice adds one.
+    let (url, bind) = start(&h, None, false).await;
+    iss.codes.lock().unwrap().push((
+        "c2".into(),
+        "sub-1".into(),
+        "alice".into(),
+        query(&url, "nonce"),
+    ));
+    let res = callback(&h, "c2", &query(&url, "state"), &bind).await;
+    let fresh = res
+        .headers()
+        .get_all(header::SET_COOKIE)
+        .iter()
+        .filter_map(|v| {
+            v.to_str()
+                .ok()?
+                .strip_prefix("effractor_session=")?
+                .split(';')
+                .next()
+                .map(str::to_owned)
+        })
+        .find(|v| !v.is_empty())
+        .expect("a session");
+    let res = public(&h, "PATCH", "/api/account", Some(&fresh), add).await;
+    assert_eq!(res.status(), 204);
 }

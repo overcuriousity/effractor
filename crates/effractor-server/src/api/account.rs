@@ -1,7 +1,7 @@
 //! `/api/me` and `/api/account` (spec §7.4, §10).
 
 use axum::extract::State;
-use axum::http::StatusCode;
+use axum::http::{Extensions, HeaderMap, StatusCode};
 use axum::routing::{get, patch};
 use axum::{Json, Router};
 use effractor_accounts::{Error, sessions, users};
@@ -10,7 +10,8 @@ use serde_json::{Value, json};
 
 use crate::accounts::Accounts;
 use crate::api::ApiError;
-use crate::auth::session::{CurrentUser, MaybeUser};
+use crate::auth::password::peer;
+use crate::auth::session::{self, CurrentUser, MaybeUser};
 
 pub fn routes() -> Router<Accounts> {
     Router::new()
@@ -72,6 +73,8 @@ fn present<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Value>, D::E
 
 async fn update(
     State(accounts): State<Accounts>,
+    extensions: Extensions,
+    headers: HeaderMap,
     CurrentUser(user, token): CurrentUser,
     Json(body): Json<Update>,
 ) -> Result<StatusCode, ApiError> {
@@ -84,6 +87,10 @@ async fn update(
     };
     let display_name = body.display_name;
     if password.is_some() && user.has_password {
+        // A guess here is a failed login like any other: one limit for both.
+        let ip = peer(&accounts, &extensions, &headers);
+        let now = accounts.db().now();
+        accounts.logins().take(ip, now).map_err(ApiError::TooMany)?;
         let (name, current) = (user.name.clone(), body.current_password.unwrap_or_default());
         let ok = accounts
             .blocking(move |db| db.read(|c| users::login(c, &name, &current)))
@@ -92,6 +99,11 @@ async fn update(
         if !ok {
             return Err(ApiError::WrongPassword);
         }
+        accounts.logins().give_back(ip);
+    } else if matches!(password, Some(Some(_))) {
+        // A first password is a new way in, like a passkey: a stolen
+        // session must not plant it.
+        session::fresh(&accounts, &token).await?;
     }
     accounts
         .blocking(move |db| {
