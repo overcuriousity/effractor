@@ -3,28 +3,25 @@ const assert = require("node:assert");
 const { createStore, fileName } = require("../assets/js/store.js");
 const { fakeIndexedDB } = require("./fixtures/fake-idb.js");
 
-test("the working text survives: saved, loaded, replaced, cleared", async () => {
+test("the working text survives: saved, loaded, replaced", async () => {
   const idb = fakeIndexedDB();
   const store = createStore(idb);
   assert.equal(await store.load("fault-tree"), null, "nothing yet");
-  await store.save("effractor: 1\n", "fault-tree");
+  assert.equal(await store.save("effractor: 1\n", "fault-tree"), true, "a save says it kept the text");
   assert.equal(await store.load("fault-tree"), "effractor: 1\n");
   await store.save("effractor: 1\nname: Two\n", "fault-tree");
   // A second page over the same database sees what the first one left.
   assert.equal(await createStore(idb).load("fault-tree"), "effractor: 1\nname: Two\n");
-  await store.clear("fault-tree");
-  assert.equal(await store.load("fault-tree"), null);
 });
 
-test("without IndexedDB nothing is kept and nothing fails", async () => {
-  for (const idb of [undefined, fakeIndexedDB({ refuses: true })]) {
+test("without IndexedDB nothing is kept, nothing fails, and a save says it kept nothing", async () => {
+  for (const idb of [undefined, fakeIndexedDB({ refuses: true }), fakeIndexedDB({ abort: true })]) {
     const store = createStore(idb);
-    await store.save("text", "fault-tree");
+    assert.equal(await store.save("text", "fault-tree"), false);
     await store.setMode("fault-tree");
     assert.equal(await store.load("fault-tree"), null);
     assert.equal(await store.mode(), null);
     assert.equal(await store.legacy(), null);
-    await store.clear("fault-tree");
   }
 });
 
@@ -70,9 +67,6 @@ test("each mode keeps its own text, and the page remembers the mode last used", 
   assert.equal(await again.load("architecture"), "architecture text");
   assert.equal(await again.load("attack-tree"), null);
   assert.equal(await again.mode(), "architecture");
-  await again.clear("fault-tree");
-  assert.equal(await again.load("fault-tree"), null);
-  assert.equal(await again.load("architecture"), "architecture text");
 });
 
 test("the one text kept before modes existed is handed over once, then gone", async () => {

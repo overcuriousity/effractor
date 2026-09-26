@@ -223,15 +223,21 @@
     edit(E.toggleControl(app.state.doc, id));
   }
 
+  // Built again with every solve: what is being typed stays (app.rebuild).
   function render() {
+    var list = $("controls");
+    if (openControl && !(app.state.doc.controls || {})[openControl]) openControl = null;
+    app.rebuild(list, openControl, function () {
+      build(list);
+    });
+  }
+
+  function build(list) {
     var doc = app.state.doc;
     var results = app.state.results;
     var solved = (results && results.controls && results.controls.available) || null;
     var rows = view.controlRows(doc, results);
-    var list = $("controls");
-    var keepFocus = document.activeElement && list.contains(document.activeElement) ? document.activeElement.id : null;
     list.replaceChildren();
-    if (openControl && !(doc.controls || {})[openControl]) openControl = null;
     $("controls-count").textContent = rows.length || "";
     $("controls-empty").hidden = rows.length > 0 || !$("control-new").hidden;
     $("controls-note").hidden = !(rows.length && solved);
@@ -304,7 +310,6 @@
       if (openControl === row.id) item.appendChild(editor(row.id));
       list.appendChild(item);
     });
-    if (keepFocus && $(keepFocus)) $(keepFocus).focus();
   }
 
   // ---- a new control: by name, like an asset ----

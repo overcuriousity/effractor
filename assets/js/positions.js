@@ -201,9 +201,12 @@
 
   // `storage`: localStorage or anything with its three methods, or null.
   // Every call survives a storage that refuses (private windows, blocked
-  // site data): the positions are a convenience, never a requirement.
+  // site data): the positions are a convenience, never a requirement. What
+  // the storage refused stays for this page, so nothing snaps back.
   function createStore(storage) {
+    var unkept = Object.create(null);
     function load(name) {
+      if (unkept[name]) return JSON.parse(JSON.stringify(unkept[name]));
       try {
         var text = storage ? storage.getItem(PREFIX + name) : null;
         var value = text ? JSON.parse(text) : null;
@@ -221,12 +224,15 @@
         else delete all[id];
       });
       try {
-        if (storage) storage.setItem(PREFIX + name, JSON.stringify(all));
+        if (!storage) throw new Error("no storage");
+        storage.setItem(PREFIX + name, JSON.stringify(all));
+        delete unkept[name];
       } catch (e) {
-        /* kept for this page only */
+        unkept[name] = all;
       }
     }
     function clear(name) {
+      delete unkept[name];
       try {
         if (storage) storage.removeItem(PREFIX + name);
       } catch (e) {
