@@ -116,6 +116,9 @@
       out.push(results.exact.available.fussell_vesely_unavailable);
     }
     if (results.sampled && results.sampled.unavailable) out.push("Sampled results: " + results.sampled.unavailable.reason);
+    else if (results.sampled && results.sampled.available && results.sampled.available.loss_unavailable) {
+      out.push("Expected loss: " + results.sampled.available.loss_unavailable);
+    }
     if (results.attacker && results.attacker.unavailable) out.push("Attacker: " + results.attacker.unavailable.reason);
     return out;
   }

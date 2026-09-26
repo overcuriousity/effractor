@@ -1141,7 +1141,7 @@
       hud("hud-p-ci", interval);
     }
     hud("hud-eal", sampled.loss ? money(sampled.loss.mean, results.currency) : "—");
-    hud("hud-p95", sampled.loss ? "p95 " + money(sampled.loss.p95, results.currency) : "no assets");
+    hud("hud-p95", sampled.loss ? "p95 " + money(sampled.loss.p95, results.currency) : sampled.loss_unavailable ? "not finite" : "no assets");
   }
 
   function showAll(results) {
@@ -1219,7 +1219,7 @@
           if (!full) solver.cancel();
         },
         onProgress: function (done, total) {
-          if (current()) chip("sampling " + grouped(done) + " / " + grouped(total) + " chunks");
+          if (current()) chip("sampling " + grouped(done) + " / " + grouped(total) + " samples");
         },
       }, arch ? { scenario: scenario, revision: revision } : undefined)
       .then(function (outcome) {

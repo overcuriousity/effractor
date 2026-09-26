@@ -66,8 +66,13 @@ test("whatever is missing or cut short is said, with the solver's reason", () =>
 });
 
 test("a diagram with no room for Fussell-Vesely says so; Birnbaum stays", () => {
-  const results = { exact: { available: { p_top: 0.1, fussell_vesely_unavailable: "Fussell–Vesely gave up: NodeLimit(12)" } } };
-  assert.deepEqual(reasons(results), ["Fussell–Vesely gave up: NodeLimit(12)"]);
+  const results = { exact: { available: { p_top: 0.1, fussell_vesely_unavailable: "Fussell–Vesely gave up: the decision diagram outgrew its limit of 12 nodes" } } };
+  assert.deepEqual(reasons(results), ["Fussell–Vesely gave up: the decision diagram outgrew its limit of 12 nodes"]);
+});
+
+test("losses that add up to no finite amount say why", () => {
+  const results = { sampled: { available: { loss: null, loss_unavailable: "a loss distribution has so heavy a tail" } } };
+  assert.deepEqual(reasons(results), ["Expected loss: a loss distribution has so heavy a tail"]);
 });
 
 test("a control whose flip has no numbers carries the solver's reason", () => {
