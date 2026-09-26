@@ -32,7 +32,7 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
     const window = {
       effractorStore: { createStore: () => ({ load: async profile => (profile === 'fault-tree' ? 'original' : null), save: text => writes.push(text), mode: async () => null, setMode() {}, legacy: async () => null, dropLegacy() {} }) },
       createSolver: () => solver,
-      effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, reveal() {}, on() {}, fit() {} }) },
+      effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, order() {}, reveal() {}, on() {}, fit() {} }) },
       effractorLayout: { createLayout: () => async () => ({}) },
       effractorGraph: { describe: () => ({}) },
     effractorProfiles: require('../assets/js/profiles.js'),
@@ -128,7 +128,7 @@ function racePage(kept = 'original', legacy = null, opts = {}) {
   const window = {
     effractorStore: { fileName: () => 'x.yaml', createStore: () => ({ load: async profile => kept_[profile] ?? null, save(text, profile) { if (opts.refuses) return false; writes.push(text); kept_[profile] = text; return true; }, mode: async () => mode_, setMode(p) { mode_ = p; }, legacy: async () => legacy, dropLegacy() { legacy = null; } }) },
     createSolver: () => solver,
-    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render(laid) { renders.push(laid.name); }, highlight() {}, reveal(id) { reveals.push(id); }, on(name, f) { (handlers[name] = handlers[name] || []).push(f); }, fit() {} }) },
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render(laid) { renders.push(laid.name); }, highlight() {}, order() {}, reveal(id) { reveals.push(id); }, on(name, f) { (handlers[name] = handlers[name] || []).push(f); }, fit() {} }) },
     effractorLayout: { createLayout: () => described => (layouts.push(described), holdLayout ? later('layout ' + described.name, described) : Promise.resolve(described)) },
     effractorGraph: { describe: doc => ({ name: doc.name }) },
     effractorProfiles: require('../assets/js/profiles.js'),
@@ -578,7 +578,7 @@ test("the inspector follows the selection", async () => {
   const window = {
     effractorStore: { createStore: () => ({ load: async profile => (profile === 'fault-tree' ? 'text' : null), save() {}, mode: async () => null, setMode() {}, legacy: async () => null, dropLegacy() {} }) },
     createSolver: () => ({ async parse() { return { ok: doc }; }, async serialize() { return { ok: 'text' }; } }),
-    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, reveal() {}, on() {}, fit() {} }) },
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, order() {}, reveal() {}, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => async () => ({}) },
     effractorGraph: { describe: () => ({}) },
     effractorProfiles: require('../assets/js/profiles.js'),
@@ -620,7 +620,7 @@ test("the HUD is hidden while nothing is solved", async () => {
   const window = {
     effractorStore: { createStore: () => ({ load: async profile => (profile === 'fault-tree' ? 'text' : null), save() {}, mode: async () => null, setMode() {}, legacy: async () => null, dropLegacy() {} }) },
     createSolver: () => ({ async parse() { return { ok: doc }; }, async serialize() { return { ok: 'text' }; } }),
-    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, reveal() {}, on() {}, fit() {} }) },
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, order() {}, reveal() {}, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => async () => ({}) },
     effractorGraph: { describe: () => ({}) },
     effractorProfiles: require('../assets/js/profiles.js'),
@@ -662,7 +662,7 @@ function autoHarness() {
       },
       cancel() { cancels++; },
     }),
-    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, reveal() {}, on() {}, fit() {} }) },
+    effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render() {}, highlight() {}, order() {}, reveal() {}, on() {}, fit() {} }) },
     effractorLayout: { createLayout: () => async () => ({}) },
     effractorGraph: { describe: () => ({}) },
     effractorProfiles: require('../assets/js/profiles.js'),

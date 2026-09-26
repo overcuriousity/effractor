@@ -393,6 +393,7 @@
     // under it. A count on the plate says how many values are still unknown;
     // a pin beside it, that the attacker starts or ends here.
     function drawComponent(g, n) {
+      (drawn.plates = drawn.plates || Object.create(null))[n.id] = true;
       var cx = geometry.width / 2;
       var r = geometry.plate / 2;
       // A cluster: a second plate peeks out behind, so it reads as a stack.
@@ -712,6 +713,7 @@
         if (gesture.over) lightTarget(gesture.over, true);
       }
       applyHighlights();
+      applyOrder();
       if (previous) glide(previous, motion, leaving);
     }
 
@@ -870,6 +872,31 @@
       panning = null;
     }
 
+    // Numbers beside components, {id: n}: where a shown route acts, in
+    // order. Kept across drawings, like the highlights.
+    var numbers = Object.create(null);
+    function order(map) {
+      numbers = map || Object.create(null);
+      applyOrder();
+    }
+    var marks = [];
+    function applyOrder() {
+      marks.forEach(function (m) {
+        m.remove();
+      });
+      marks = [];
+      Object.keys(drawn.nodes).forEach(function (id) {
+        var g = drawn.nodes[id];
+        if (!numbers[id] || !(drawn.plates && drawn.plates[id])) return;
+        // Left of the plate: the pins sit right of it, the marks on it.
+        var cx = geometry.width / 2, r = geometry.plate / 2;
+        var mark = el("g", {}, ["route-order"], g);
+        marks.push(mark);
+        el("circle", { cx: cx - r - geometry.halo - 11, cy: r, r: 8 }, ["route-order-disc"], mark);
+        text(mark, cx - r - geometry.halo - 11, r + 3.5, String(numbers[id]), "route-order-text");
+      });
+    }
+
     // `exact`: lines are lit by their own ids only, not by their two ends.
     var exactKinds = Object.create(null);
     function highlight(ids, kind, exact) {
@@ -880,6 +907,7 @@
       });
       highlights[kind] = set;
       applyHighlights();
+      applyOrder();
     }
 
     function fit() {
@@ -906,7 +934,7 @@
       (handlers[name] = handlers[name] || []).push(handler);
     }
 
-    return { mount: mount, render: render, highlight: highlight, fit: fit, zoomBy: zoomBy, on: on, reveal: reveal, pointAt: pointAt };
+    return { mount: mount, render: render, highlight: highlight, order: order, fit: fit, zoomBy: zoomBy, on: on, reveal: reveal, pointAt: pointAt };
   }
 
   var api = { createSvgRenderer: createSvgRenderer, EVENTS: EVENTS };

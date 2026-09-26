@@ -163,6 +163,13 @@
 .edge.hl-steps { stroke: var(--color-accent); stroke-width: 2.5; }
 .graph.has-hl-steps .node:not(.hl-steps):not(.hl-selected),
 .graph.has-hl-steps .edge:not(.hl-steps) { opacity: 0.3; }
+.node.hl-path .shape, .node.hl-path .stem { stroke: var(--color-accent); stroke-width: 2; }
+.edge.hl-path { stroke: var(--color-accent); stroke-width: 2.25; }
+.node-component.hl-path .halo { stroke: var(--color-accent); stroke-width: 2; }
+.graph.has-hl-path .node:not(.hl-path):not(.hl-selected),
+.graph.has-hl-path .edge:not(.hl-path) { opacity: 0.35; }
+.route-order-disc { fill: var(--color-accent); }
+.route-order-text { fill: var(--viz-canvas); font-family: var(--font-mono); font-size: 10px; font-weight: 600; }
 .node.hl-lineage .shape, .node.hl-lineage .stem { stroke: var(--color-accent); stroke-width: 2; }
 .edge.hl-lineage { stroke: var(--color-accent); stroke-width: 2.25; }
 .graph.has-hl-lineage .node:not(.hl-lineage):not(.hl-selected),
@@ -194,6 +201,12 @@
 .attack-results .analysis-table tr.is-selected { box-shadow: inset 2px 0 0 var(--color-accent); }
 .step-search { display: block; width: 100%; min-width: 0; margin: 0 0 4px; padding: 3px 5px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-base); color: var(--color-fg-primary); font: inherit; font-size: var(--text-sm); }
 .assumptions { margin: 0; padding: 0; list-style: none; }
+/* The routes taken most: a row each, the one drawn open with its actions. */
+.routes { margin: 0; padding: 0; list-style: none; }
+.route-row { display: flex; justify-content: space-between; width: calc(100% + 8px); margin: 0 -4px; padding: 3px 4px; border: 0; border-bottom: 1px solid var(--color-border-subtle); background: none; color: inherit; font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer; }
+.route-row:hover, .route-row:focus-visible { background: var(--color-bg-hover); }
+.route-row[aria-pressed="true"] { background: var(--color-bg-active); box-shadow: inset 2px 0 0 var(--color-accent); }
+.routes li.is-shown { margin-bottom: 8px; }
 .assumption { display: block; width: calc(100% + 8px); margin: 0 -4px; padding: 3px 4px; border: 0; border-bottom: 1px solid var(--color-border-subtle); border-radius: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer; }
 .assumption:hover, .assumption:focus-visible { background: var(--color-bg-hover); }
 .assumption-what { display: block; overflow-wrap: anywhere; }

@@ -320,3 +320,14 @@ test('a step walks to what it needs and to what needs it; the path is stepped in
   assert.ok(steps.includes(graph.target));
   assert.deepEqual(V.pathSteps(null), []);
 });
+
+test('a route stops at its components in the order it first acts on them', () => {
+  const results = require('./fixtures/graph/results-available.json');
+  const witness = results.baseline.routes[0].witness;
+  const stops = V.routeStops(graph, witness);
+  assert.ok(stops.length > 1);
+  assert.equal(new Set(stops).size, stops.length, 'each once');
+  assert.ok(stops.every(s => /^(entity|flow)\//.test(s)));
+  assert.ok(stops.includes('flow/ssh'), 'the flow it used');
+  assert.deepEqual(V.routeStops(graph, null), []);
+});

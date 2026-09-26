@@ -1,10 +1,12 @@
 // A generated graph's results → what the page says about them: the target's
 // probability by the horizon, its CDF rows as the solver gave them, each
-// step's facts, the assumptions a number rests on and the sample route.
+// step's facts, the assumptions a number rests on and the routes taken.
 // Nothing is computed that the solver did not say: no renormalised curve, no
-// quantile of the attacks that succeeded, no ranking of routes. Pure.
+// quantile of the attacks that succeeded; routes are ranked by the solver's
+// counts of how often each was taken. Pure.
 (function () {
   var views = typeof module !== "undefined" ? require("./results-view.js") : window.effractorResults;
+  var attackView = typeof module !== "undefined" ? require("./attack-view.js") : window.effractorAttackView;
   var number = views.number;
   var probability = views.probability;
 
@@ -139,6 +141,33 @@
 
   // One real sample that reached the target, whole: every step it needed,
   // each with the prerequisites it waited for, in the order they completed.
+  // The routes taken most (the solver's, at most three), each named by a
+  // letter, with its share of the samples that reached the target and the
+  // actions its example took, in time order; `rest` counts its other steps
+  // (facts and where it starts). Never called most likely: a share is how
+  // often, not how probable.
+  function routes(side, graph) {
+    return ((side && side.routes) || []).map(function (r, i) {
+      var w = witness({ witness: r.witness }, graph);
+      var actions = w.steps.filter(function (s) {
+        return s.id.indexOf("action/") === 0;
+      });
+      return {
+        name: "Route " + String.fromCharCode(65 + i),
+        share: r.share,
+        count: r.count,
+        sample: w.sample,
+        time: w.time,
+        actions: actions,
+        rest: w.steps.length - actions.length,
+        witness: r.witness,
+      };
+    });
+  }
+  function routeCount(side) {
+    return (side && side.route_count) || 0;
+  }
+
   function witness(side, graph) {
     var w = side && side.witness;
     if (!w) return null;
@@ -154,7 +183,7 @@
       title: "Simulated path",
       sample: w.sample,
       time: w.target_time,
-      steps: w.nodes.map(function (n) {
+      steps: attackView.inOrder(w).map(function (n) {
         var g = labels[n.id];
         return { id: n.id, label: g ? g.label : n.id, kind: g ? g.kind : null, time: n.time, inputs: inputs[n.id] || [] };
       }),
@@ -178,6 +207,8 @@
     assumptions: assumptions,
     scenarioAssumptions: scenarioAssumptions,
     witness: witness,
+    routes: routes,
+    routeCount: routeCount,
   };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorGraphResults = api;

@@ -497,3 +497,15 @@ test("review: a drawing that arrives mid-drag leaves the node in hand where the 
   node("entity/b").dispatch("pointerup", { clientX: 40, clientY: 110, pointerId: 1 });
   assert.deepEqual(moves, [{ places: { "entity/b": { x: 330, y: 100 } } }]);
 });
+
+test("a shown route numbers its components beside their plates, and a drawing keeps them", () => {
+  const { r, host } = mounted();
+  r.render(freeLayout(), {});
+  r.order({ "entity/b": 1, "entity/a": 2, "entity/absent": 3 });
+  const numbers = () => dom.byClass(host, "route-order-text").map((t) => t.textContent).sort();
+  assert.deepEqual(numbers(), ["1", "2"]);
+  r.render(freeLayout(), {});
+  assert.deepEqual(numbers(), ["1", "2"], "drawn again, still there");
+  r.order(null);
+  assert.deepEqual(numbers(), []);
+});

@@ -87,20 +87,13 @@ Spec §8. Done when the canvas card names the target, the horizon and the time,
 says when it is outdated or a scenario is chosen, opens Results on a click,
 and no list asks to build the attack graph after an edit.
 
-### ranked-routes — The ways in, and how often each
-needs: —            cost: 4   benefit: 5
-Spec §6. Done when the solver returns the three routes with the largest share
-of successful samples (native = wasm, fingerprints moved on purpose), Results
-lists them, and a chosen route is drawn on the architecture and on the attack
-graph.
-
 ### chokepoints — What every route passes through
 needs: —            cost: 3   benefit: 4
 Spec §7. Done when the solver returns the steps and components every route to
 the target needs (exact, with a size guard) and the page marks and lists them.
 
 ### scenario-on-graph — A defence, seen on the canvas
-needs: ranked-routes            cost: 2   benefit: 3
+needs: —            cost: 2   benefit: 3
 Spec §6 (last paragraph), §8. Done when a current comparison marks blocked and
 still-open steps on both canvases and lists the scenario's routes.
 

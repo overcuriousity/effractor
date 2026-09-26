@@ -23,6 +23,11 @@ function element(tag) {
       el.children.push(child);
       return child;
     },
+    remove() {
+      if (!el.parent) return;
+      el.parent.children = el.parent.children.filter((c) => c !== el);
+      el.parent = null;
+    },
     replaceChildren(...kids) {
       el.children = [];
       kids.forEach((k) => el.appendChild(k));

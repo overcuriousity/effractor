@@ -162,12 +162,58 @@
     };
   }
 
-  // The simulated path's steps in the order they were done (the solver
-  // lists them by time); inputs are where it starts, not steps taken.
+  // A witness's steps in the order they were done: by time, and among
+  // those done at once, what is needed before what needs it (the solver
+  // breaks such ties by id). [{id, time}].
+  function inOrder(witness) {
+    var nodes = (witness && witness.nodes) || [];
+    var waiting = Object.create(null), after = Object.create(null), pos = Object.create(null);
+    nodes.forEach(function (n, i) {
+      waiting[n.id] = 0;
+      after[n.id] = [];
+      pos[n.id] = i;
+    });
+    ((witness && witness.edges) || []).forEach(function (e) {
+      if (!(e.prerequisite in pos) || !(e.dependent in pos)) return;
+      waiting[e.dependent]++;
+      after[e.prerequisite].push(e.dependent);
+    });
+    var ready = nodes.filter(function (n) { return !waiting[n.id]; });
+    var out = [];
+    while (ready.length) {
+      // The earliest, then the solver's own order.
+      ready.sort(function (a, b) { return a.time - b.time || pos[a.id] - pos[b.id]; });
+      var n = ready.shift();
+      out.push(n);
+      after[n.id].forEach(function (d) {
+        if (!--waiting[d]) ready.push(nodes[pos[d]]);
+      });
+    }
+    // A cycle the solver would not send: what is left, as it came.
+    nodes.forEach(function (n) {
+      if (out.indexOf(n) < 0) out.push(n);
+    });
+    return out;
+  }
+
+  // The simulated path's steps in the order they were done; inputs are
+  // where it starts, not steps taken.
   function pathSteps(witness) {
-    return ((witness && witness.nodes) || []).map(function (w) { return w.id; }).filter(function (id) {
+    return inOrder(witness).map(function (w) { return w.id; }).filter(function (id) {
       return id.indexOf("input/") !== 0;
     });
+  }
+
+  // Where a route acts in the architecture: the component or flow of each
+  // of its actions, in the order it first acts there, each once.
+  function routeStops(graph, witness) {
+    var out = [];
+    pathSteps(witness).forEach(function (id) {
+      if (id.indexOf("action/") !== 0) return;
+      var at = originOf(graph, id);
+      if (at && out.indexOf(at) < 0) out.push(at);
+    });
+    return out;
   }
 
   var KIND = { input: "input", any: "fact", all: "action" };
@@ -392,6 +438,8 @@
     lineage: lineage,
     neighbours: neighbours,
     pathSteps: pathSteps,
+    inOrder: inOrder,
+    routeStops: routeStops,
     index: indexOf,
     inspect: inspect,
     search: search,

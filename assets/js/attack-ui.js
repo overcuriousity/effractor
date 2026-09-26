@@ -334,24 +334,51 @@
     box.appendChild(list);
   }
 
-  function renderRoute(box, results) {
-    var w = R.witness(results.baseline, generated() ? generated().graph : null);
-    if (!w) return;
-    heading(box, w.title, w.steps.length);
-    box.appendChild(el("p", "sample " + w.sample + " · target at " + R.number(w.time) + " " + results.time_unit, "hint"));
-    var numeric = [true, false];
-    var t = tableOf(["Time · " + results.time_unit, "Step"], numeric);
-    w.steps.forEach(function (s) {
-      var row = el("tr");
-      row.setAttribute("data-step", s.id);
-      cells(row, [R.number(s.time), s.label], numeric);
-      if (s.inputs.length > 1) row.title = "after " + s.inputs.length + " prerequisites";
-      activeRow(row, function () {
-        showStep(s.id);
+  // The routes taken most, by how often: one chosen is drawn on the canvas
+  // (its components numbered in the architecture, its steps lit in the
+  // attack graph) and its actions listed; chosen again, it goes away.
+  function renderRoutes(box, results) {
+    var g = generated() ? generated().graph : app.state.lastGraph;
+    var routes = R.routes(results.baseline, g);
+    if (!routes.length) return;
+    var total = R.routeCount(results.baseline);
+    heading(box, "Routes", total);
+    var list = el("ul", null, "routes");
+    routes.forEach(function (r, i) {
+      var shown = app.state.route === i;
+      var li = el("li", null, shown ? "is-shown" : "");
+      var b = el("button", null, "route-row");
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(shown));
+      b.appendChild(el("span", r.name, "route-name"));
+      b.appendChild(el("span", Math.round(r.share * 100) + "%", "route-share num"));
+      b.title = r.count + " of the samples that reached the target took it · " + (shown ? "click to hide" : "click to draw it");
+      b.addEventListener("click", function () {
+        app.showRoute(shown ? null : i);
       });
-      t.body.appendChild(row);
+      li.appendChild(b);
+      if (shown) {
+        var numeric = [true, false];
+        var t = tableOf(["Time · " + results.time_unit, "Action"], numeric);
+        r.actions.forEach(function (s) {
+          var row = el("tr");
+          row.setAttribute("data-step", s.id);
+          cells(row, [R.number(s.time), s.label], numeric);
+          // On the canvas shown: the step, or its component.
+          activeRow(row, function () {
+            if (attack()) return app.select("step/" + s.id);
+            var at = g ? V.originOf(g, s.id) : null;
+            if (at) app.select(at);
+          });
+          t.body.appendChild(row);
+        });
+        li.appendChild(t.scroll);
+        li.appendChild(el("p", "example: target at " + R.number(r.time) + " " + results.time_unit + (r.rest ? " · " + r.rest + " facts and inputs not listed" : ""), "hint"));
+      }
+      list.appendChild(li);
     });
-    box.appendChild(t.scroll);
+    box.appendChild(list);
+    if (total > routes.length) box.appendChild(el("p", (total - routes.length) + " other routes · " + Math.round((1 - routes.reduce(function (a, r) { return a + r.share; }, 0)) * 100) + "%", "hint"));
   }
 
   // Every step of the graph, searchable; its state from the graph, its
@@ -453,7 +480,7 @@
     if (results) {
       renderHeadline(box, results);
       renderAssumptions(box, results);
-      renderRoute(box, results);
+      renderRoutes(box, results);
     } else {
       box.appendChild(el("p", "Calculate (Ctrl+Enter) to see the target's probability.", "empty"));
     }
@@ -495,13 +522,13 @@
   var pathAt = null;
   function stepPath(forward) {
     var results = R.isGraphResults(app.state.results) ? app.state.results : null;
-    var steps = V.pathSteps(results && results.baseline.witness);
-    if (!steps.length) return app.say(results ? "no simulated path · the target was not reached" : "Calculate (Ctrl+Enter) for a simulated path");
+    var steps = V.pathSteps(results && (app.shownRoute() || results.baseline.witness));
+    if (!steps.length) return app.say(results ? "no route · the target was not reached" : "Calculate (Ctrl+Enter) for the routes");
     var here = stepOf(app.state.selected);
     var i = steps.indexOf(attack() && here ? here : pathAt);
     // The graph of the text before an edit still says whose steps they were.
     var graph = generated() ? generated().graph : app.state.lastGraph;
-    if (!attack() && !graph) return app.say("build the attack graph (G) to walk its path");
+    if (!attack() && !graph) return app.say("build the attack graph (G) to walk a route");
     var origin = function (k) {
       return attack() ? "step/" + steps[k] : V.originOf(graph, steps[k]);
     };
@@ -509,10 +536,11 @@
     // In the architecture a component done by several steps in a row is
     // one stop.
     while (!attack() && k >= 0 && k < steps.length && (!origin(k) || (i >= 0 && origin(k) === origin(i)))) k += forward ? 1 : -1;
-    if (k < 0 || k >= steps.length) return app.say(forward ? "the end of the path · the target" : "the start of the path");
+    if (k < 0 || k >= steps.length) return app.say(forward ? "the end of the route · the target" : "the start of the route");
     pathAt = steps[k];
     app.select(origin(k));
-    app.say("path " + (k + 1) + " of " + steps.length + " · " + stepLabel(steps[k]));
+    var name = "Route " + String.fromCharCode(65 + (app.state.route || 0));
+    app.say(name + " · " + (k + 1) + " of " + steps.length + " · " + stepLabel(steps[k]));
   }
 
   // Before the architecture editor's own keys: in the attack view they are
@@ -552,7 +580,7 @@
   U.keyList.push(["G", "Attack graph or architecture"]);
   U.keyList.push(["Enter", "From a step to its component"]);
   U.keyList.push(["↑ ↓ on a step", "Towards the target, towards the start"]);
-  U.keyList.push(["← →", "Back, on along the simulated path"]);
+  U.keyList.push(["← →", "Back, on along the route drawn (else route A)"]);
   U.keyList.push(["right-click a step", "Its sources and component"]);
 
   // ---- the attack view's pointer ----
@@ -598,6 +626,7 @@
   var shownResults;
   var shownGraph;
   var shownBlockers;
+  var shownRouteNo;
   app.onChange(function () {
     if (!doc()) return;
     var on = attack();
@@ -633,7 +662,8 @@
         rail[k].title = "Edits are made in the architecture (G)";
       });
     }
-    if (shownResults !== app.state.results || shownGraph !== generated() || shownBlockers !== blockersNow()) {
+    if (shownResults !== app.state.results || shownGraph !== generated() || shownBlockers !== blockersNow() || shownRouteNo !== app.state.route) {
+      shownRouteNo = app.state.route;
       shownResults = app.state.results;
       shownGraph = generated();
       shownBlockers = blockersNow();

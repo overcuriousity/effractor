@@ -251,9 +251,32 @@
     renderer.highlight(lit.map(function (s) {
       return "step/" + s;
     }), "steps");
-    // A step lights how it was reached: back along the simulated path when
-    // it is on it, else what it needs directly — its lines exactly.
-    var path = attackShown() && stepOf(state.selected) && GR.isGraphResults(state.results) ? state.results.baseline.witness : null;
+    // A route chosen in Results: its steps and exactly its lines in the
+    // attack graph; in the architecture, its components and flows lit and
+    // numbered in the order it first acts on them.
+    var route = shownRoute();
+    var routeGraph = graphOf() || state.lastGraph;
+    if (route && attackShown()) {
+      renderer.highlight(route.nodes.map(function (n) { return "step/" + n.id; }).concat(route.edges.map(function (e) {
+        return "step/" + e.prerequisite + ">step/" + e.dependent;
+      })), "path", true);
+      renderer.order(null);
+    } else if (route && arch && routeGraph) {
+      var numbers = Object.create(null);
+      var stops = AV.routeStops(routeGraph, route).map(shown);
+      stops.forEach(function (id) {
+        if (!numbers[id]) numbers[id] = Object.keys(numbers).length + 1;
+      });
+      renderer.highlight(stops, "path");
+      renderer.order(numbers);
+    } else {
+      renderer.highlight([], "path");
+      renderer.order(null);
+    }
+    // A step lights how it was reached: back along the route shown, or the
+    // one taken most, when it is on it, else what it needs directly — its
+    // lines exactly.
+    var path = attackShown() && stepOf(state.selected) && GR.isGraphResults(state.results) ? route || state.results.baseline.witness : null;
     var reached = attackShown() && stepOf(state.selected) ? AV.lineage(graphOf(), path, stepOf(state.selected)) : { nodes: [], edges: [] };
     renderer.highlight(reached.nodes.concat(reached.edges), "lineage", true);
     // A step outside the window on the canvas, or a component none of whose
@@ -867,6 +890,7 @@
       if (fit) {
         // Another document: counted, so drafts about the last one can go.
         state.documents++;
+        state.route = null;
         clearResults();
         state.lastSampledMs = null;
       } else if (state.exactResults || state.results) {
@@ -1319,6 +1343,18 @@
 
   window.effractor.state = state;
   window.effractor.setScenario = setScenario;
+  // The route drawn on the canvas: an index into the baseline's routes, or
+  // null for none. Set from Results; gone with the results it came from.
+  function shownRoute() {
+    if (state.route == null) return null;
+    var routes = GR.isGraphResults(state.results) ? state.results.baseline.routes || [] : [];
+    return state.route != null && routes[state.route] ? routes[state.route].witness : null;
+  }
+  window.effractor.shownRoute = shownRoute;
+  window.effractor.showRoute = function (i) {
+    state.route = i;
+    reselect();
+  };
   // The attack graph's steps that do not lead to the target, drawn or not.
   window.effractor.setAllSteps = function (on) {
     state.allSteps = !!on;

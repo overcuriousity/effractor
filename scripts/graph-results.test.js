@@ -174,3 +174,30 @@ test('an interval that prints as one number is not said', () => {
   assert.doesNotMatch(h.qualifier, /CI/);
   assert.match(h.qualifier, /illustrative inputs/);
 });
+
+test('routes are listed by share, each with the actions it took in order', () => {
+  const routes = R.routes(available.baseline, graph);
+  assert.equal(routes.length, 2);
+  assert.deepEqual(routes.map(r => r.name), ['Route A', 'Route B']);
+  assert.ok(routes[0].share >= routes[1].share);
+  assert.equal(routes[0].share, available.baseline.routes[0].share);
+  routes.forEach(r => {
+    assert.ok(r.actions.length > 0);
+    assert.ok(r.actions.every(s => s.id.startsWith('action/')), 'actions only');
+    r.actions.slice(1).forEach((s, i) => assert.ok(s.time >= r.actions[i].time));
+    assert.equal(r.actions.length + r.rest, r.witness.nodes.length);
+    assert.ok(r.actions[0].label && r.actions[0].label !== r.actions[0].id, 'labelled from the graph');
+  });
+  assert.equal(R.routeCount(available.baseline), 2);
+  assert.deepEqual(R.routes(unknown.baseline, graph), []);
+  assert.deepEqual(R.routes(null, graph), []);
+});
+
+test('steps done at the same time are listed prerequisite first', () => {
+  R.routes(available.baseline, graph).forEach(r => {
+    const order = R.witness({ witness: r.witness }, graph).steps.map(s => s.id);
+    r.witness.edges.forEach(e => assert.ok(order.indexOf(e.prerequisite) < order.indexOf(e.dependent), e.prerequisite + ' before ' + e.dependent));
+    const times = order.map(id => r.witness.nodes.find(n => n.id === id).time);
+    times.slice(1).forEach((t, i) => assert.ok(t >= times[i]));
+  });
+});
