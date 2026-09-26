@@ -206,7 +206,7 @@
 }
 .panel-close:hover { background: var(--color-bg-hover); color: var(--color-fg-primary); }
 .panel-close svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
-.panel-left > .panel-close { position: sticky; top: 6px; z-index: 1; float: right; margin: 6px 6px -26px 0; }
+.panel-left > .panel-close { position: sticky; top: 6px; z-index: var(--z-hud); float: right; margin: 6px 6px -26px 0; }
 .tabs > .panel-close { margin: 0 0 4px auto; align-self: center; }
 .panel-section { padding: 11px; border-bottom: 1px solid var(--color-border-subtle); }
 .empty { margin: 0; color: var(--color-fg-muted); }
@@ -239,7 +239,7 @@
   background-size: 26px 26px;
 }
 /* Above the graph, which is mounted after it and fills the canvas. */
-.hud { position: absolute; z-index: 1; display: flex; gap: 8px; }
+.hud { position: absolute; z-index: var(--z-hud); display: flex; gap: 8px; }
 .hud-top-right { top: 10px; right: 10px; }
 .hud-card {
   display: grid;
@@ -291,7 +291,7 @@
 .link-button:hover { text-decoration: underline; }
 /* The canvas notice sits above the corner's controls and pins, never over them. */
 .hud-note {
-  left: 10px; bottom: 48px;
+  left: 10px; bottom: 48px; z-index: var(--z-notice);
   max-width: 70%; margin: 0; padding: 5px 10px;
   border: 1px solid var(--color-border-strong); border-radius: var(--radius-md);
   background: var(--color-bg-elevated); color: var(--color-fg-primary);
@@ -309,7 +309,7 @@
    the width, the wrapping, the height, and bring the bar back — a flicker. */
 .stage { position: relative; flex: 1; min-width: 0; }
 .inspector {
-  position: absolute; top: 8px; right: 8px; z-index: 2;
+  position: absolute; top: 8px; right: 8px; z-index: var(--z-inspector);
   width: 280px; max-height: calc(100% - 16px);
   transition: height 160ms ease-out;
   overflow: hidden auto;

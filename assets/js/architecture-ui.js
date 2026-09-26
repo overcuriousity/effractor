@@ -824,6 +824,7 @@
       return catalog;
     },
     word: word,
+    icon: icon,
     SWITCH: SWITCH,
   };
 })();

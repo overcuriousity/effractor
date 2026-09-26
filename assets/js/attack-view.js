@@ -102,6 +102,9 @@
     if (path === "attacker.target" && attacker.target && has(doc.entities, attacker.target.entity)) {
       return { select: "entity/" + attacker.target.entity, field: "target", path: path };
     }
+    // Nothing chosen yet: the page offers the components to choose from.
+    if (path === "attacker.target" && !attacker.target) return { pick: "target", path: path };
+    if (path === "attacker.footholds" && !(attacker.footholds || []).length) return { pick: "foothold", path: path };
     return source;
   }
 

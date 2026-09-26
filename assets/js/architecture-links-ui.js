@@ -293,6 +293,30 @@
     });
   }
 
+  // The target or a foothold, chosen from the whole model: each component
+  // that has states, by name, then its state. What the inspector's Target
+  // and Foothold fields set, for when no component is selected.
+  function attackerItems(role) {
+    var catalog = U.catalog();
+    var d = doc();
+    var ids = Object.keys(d.entities || {}).filter(function (id) {
+      return catalog && statesOf(catalog, id).length;
+    }).sort(function (a, b) {
+      return name(a).localeCompare(name(b));
+    });
+    if (!ids.length) return [["no components yet · A adds one", "", null]];
+    return ids.map(function (id) {
+      return [name(id), "", statesOf(catalog, id).map(function (s) {
+        return [window.effractorWords.state(catalog, s), "", function () {
+          U.apply(function () {
+            return role === "target" ? L.setTarget(doc(), id, s) : L.setFoothold(doc(), id, s, true);
+          });
+        }];
+      }), { icon: U.icon(kindOf(id)) }];
+    });
+  }
+  U.attackerItems = attackerItems;
+
   // ---- a relationship's form ----
 
   function endButton(qualified, text) {

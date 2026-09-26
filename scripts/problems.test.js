@@ -43,17 +43,17 @@ test('a router on the route without a permission says where to set it', () => {
 test('what stops the graph says where to put it right', () => {
   const doc = lecture();
   const hint = (path) => P.hint(doc, warning('incomplete', path, ''));
-  assert.equal(hint('attacker.target'), 'select a component · Target');
-  assert.equal(hint('attacker.footholds'), 'select a component · Foothold');
-  assert.equal(hint('entities.sshd'), 'Tab adds its host');
+  assert.equal(hint('attacker.target'), 'choose a component');
+  assert.equal(hint('attacker.footholds'), 'choose a component');
+  assert.equal(hint('entities.sshd'), 'Tab adds its host · L links one');
   assert.equal(hint('entities.bridge'), null);
-  assert.equal(hint('entities.filter'), 'Tab on a router adds one');
+  assert.equal(hint('entities.filter'), 'Tab on a router adds one · L links a router');
   assert.equal(hint('entities.server'), null);
   // A service owes two things; the hint follows what the message says is missing.
   const product = '"sshd" is an instance of no product yet: no `instance-of` association names the software it runs';
-  assert.equal(P.hint(doc, warning('incomplete', 'entities.sshd', product)), 'Tab adds its product');
+  assert.equal(P.hint(doc, warning('incomplete', 'entities.sshd', product)), 'Tab adds its product · L links one');
   const host = '"sshd" runs nowhere yet: no `hosts` association names it';
-  assert.equal(P.hint(doc, warning('incomplete', 'entities.sshd', host)), 'Tab adds its host');
+  assert.equal(P.hint(doc, warning('incomplete', 'entities.sshd', host)), 'Tab adds its host · L links one');
 });
 
 test('items are what to finish first, in plain words', () => {

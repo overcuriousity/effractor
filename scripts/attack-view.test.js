@@ -70,6 +70,11 @@ test('each source field leads to the place in the architecture that sets it', ()
   // selection that does not exist.
   assert.deepEqual(at('entities.gone.parameters.login'), { source: 'entities.gone.parameters.login', path: 'entities.gone.parameters.login' });
   assert.deepEqual(at('attacker.footholds[7]'), { source: 'attacker.footholds[7]', path: 'attacker.footholds[7]' });
+  // No target or no foothold yet: a choice of components, never the source.
+  const bare = { ...doc, attacker: {} };
+  assert.deepEqual(V.sourceTarget(bare, 'attacker.target'), { pick: 'target', path: 'attacker.target' });
+  assert.deepEqual(V.sourceTarget(bare, 'attacker.footholds'), { pick: 'foothold', path: 'attacker.footholds' });
+  assert.deepEqual(V.sourceTarget({ ...doc, attacker: { footholds: [] } }, 'attacker.footholds'), { pick: 'foothold', path: 'attacker.footholds' });
   // Hosting privilege: the relationship that grants it, bound by the origin.
   const hosting = origins(graph, 'state/host/server/admin').find(o => o.rule === 'execution-privilege');
   assert.deepEqual(hosting.associations, ['service-hosting']);

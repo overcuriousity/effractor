@@ -34,18 +34,18 @@
   }
 
   // What is missing, by the kind of the component it is missing from.
-  var MISSING = { application: "Tab adds its host", service: "Tab adds its host", firewall: "Tab on a router adds one" };
+  var MISSING = { application: "Tab adds its host · L links one", service: "Tab adds its host · L links one", firewall: "Tab on a router adds one · L links a router" };
 
   // What would put a problem right, in a few words; null when there is
   // nothing to add to what the message says.
   function hint(doc, d) {
     if (d.code === "incomplete") {
-      if (d.path === "attacker.target") return "select a component · Target";
-      if (d.path === "attacker.footholds") return "select a component · Foothold";
+      if (d.path === "attacker.target") return "choose a component";
+      if (d.path === "attacker.footholds") return "choose a component";
       var e = /^entities\.([a-z0-9][a-z0-9-]*)$/.exec(d.path || "");
       if (!e || !has(doc.entities, e[1])) return null;
       // A service owes a host and a product; the message says which.
-      if (/instance of no product/.test(d.message || "")) return "Tab adds its product";
+      if (/instance of no product/.test(d.message || "")) return "Tab adds its product · L links one";
       return MISSING[doc.entities[e[1]].kind] || null;
     }
     var m = /^flows\.([a-z0-9][a-z0-9-]*)\.route(?:\[(\d+)\])?$/.exec(d.path || "");

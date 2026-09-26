@@ -210,7 +210,7 @@
 .node-component .pin { cursor: grab; }
 .node-component .pin:hover .tag { fill: var(--color-accent); }
 .pin-ghost {
-  position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none;
+  position: fixed; left: 0; top: 0; z-index: var(--z-drag); pointer-events: none;
   transform: translate(calc(var(--pin-x) + 10px), calc(var(--pin-y) + 6px));
   padding: 3px 6px; border-radius: 3px;
   background: var(--color-fg-primary); color: var(--color-bg-base);

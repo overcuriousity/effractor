@@ -77,6 +77,9 @@
     var blockers = app.state.blockers;
     if (!arch() || generated() || !blockers || !blockers.length) return;
     var items = window.effractorProblems.items(doc(), blockers).map(function (p) {
+      // No target or foothold yet: the components to choose from, nested.
+      var pick = V.sourceTarget(doc(), p.path).pick;
+      if (pick) return [p.text, null, { items: function () { return U.attackerItems(pick); } }, p.hint ? { hint: p.hint } : undefined];
       return [p.text, null, function () {
         follow(p.path);
       }, p.hint ? { hint: p.hint } : undefined];
@@ -94,9 +97,17 @@
 
   // A source field, followed back into the architecture: its component with
   // that parameter or control open, or else its line in the source.
-  function follow(path) {
+  // `anchor`: the button followed from, where a choice opens beside it.
+  function follow(path, anchor) {
     var target = V.sourceTarget(doc(), path);
     return app.setMode("architecture").then(function () {
+      if (target.pick) {
+        var box = anchor && anchor.isConnected ? anchor.getBoundingClientRect() : $("canvas").getBoundingClientRect();
+        var items = U.attackerItems(target.pick);
+        // Nothing to choose from: the note says why, where menus speak.
+        if (!items.some(function (i) { return i[2] != null; })) return app.say(items[0][0]);
+        return app.showMenu(items, box.right + 2, box.top, { left: box.left, right: box.right, top: box.top });
+      }
       if (target.source) return app.showSourcePath(target.source);
       app.select(target.select);
       if (target.slot) U.openParameter(target.select, target.slot);
@@ -398,7 +409,7 @@
       if (p.hint) b.appendChild(el("span", p.hint, "assumption-how"));
       b.title = p.path || "";
       b.addEventListener("click", function () {
-        follow(p.path);
+        follow(p.path, b);
       });
       li.appendChild(b);
       list.appendChild(li);
