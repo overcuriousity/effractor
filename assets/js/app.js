@@ -272,6 +272,16 @@
     } else {
       renderer.highlight([], "path");
       renderer.order(null);
+      // Which component each step is about is in the attack graph: none
+      // on the page yet (never built, or an edit dropped it) — built now,
+      // without leaving the architecture, and the route drawn then.
+      if (route && arch && !routeGraph && !state.buildingForRoute) {
+        state.buildingForRoute = true;
+        generate().then(function () {
+          state.buildingForRoute = false;
+          if (state.route != null && graphOf()) reselect();
+        });
+      }
     }
     // A step lights how it was reached: back along the route shown, or the
     // one taken most, when it is on it, else what it needs directly — its
