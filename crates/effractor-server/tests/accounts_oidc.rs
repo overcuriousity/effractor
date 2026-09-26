@@ -5,6 +5,7 @@ use axum::Router;
 use axum::body::Body;
 use axum::extract::{Form, State};
 use axum::http::{Request, header};
+use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use common::*;
 use effractor_server::accounts::OidcConfig;
@@ -23,6 +24,24 @@ struct Issuer {
     url: Arc<Mutex<String>>,
     /// code -> (subject, preferred_username, nonce)
     codes: Arc<Mutex<Vec<Code>>>,
+    /// Where `/.well-known/openid-configuration` redirects to, if anywhere
+    /// (Nextcloud: to its `/index.php/…`, which serves the same document).
+    moved: Arc<Mutex<Option<String>>>,
+}
+
+/// The issuer at `url`'s discovery document.
+fn metadata(url: &str) -> serde_json::Value {
+    let meta = CoreProviderMetadata::new(
+        IssuerUrl::new(url.to_owned()).unwrap(),
+        AuthUrl::new(format!("{url}/authorize")).unwrap(),
+        JsonWebKeySetUrl::new(format!("{url}/jwks")).unwrap(),
+        vec![ResponseTypes::new(vec![CoreResponseType::Code])],
+        vec![CoreSubjectIdentifierType::Public],
+        vec![CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256],
+        EmptyAdditionalProviderMetadata {},
+    )
+    .set_token_endpoint(Some(TokenUrl::new(format!("{url}/token")).unwrap()));
+    serde_json::to_value(meta).unwrap()
 }
 
 fn key() -> CoreRsaPrivateSigningKey {
@@ -37,17 +56,13 @@ async fn issuer() -> Issuer {
     let app = Router::new()
         .route("/.well-known/openid-configuration", get(|State(s): State<Issuer>| async move {
             let url = s.url.lock().unwrap().clone();
-            let meta = CoreProviderMetadata::new(
-                IssuerUrl::new(url.clone()).unwrap(),
-                AuthUrl::new(format!("{url}/authorize")).unwrap(),
-                JsonWebKeySetUrl::new(format!("{url}/jwks")).unwrap(),
-                vec![ResponseTypes::new(vec![CoreResponseType::Code])],
-                vec![CoreSubjectIdentifierType::Public],
-                vec![CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256],
-                EmptyAdditionalProviderMetadata {},
-            )
-            .set_token_endpoint(Some(TokenUrl::new(format!("{url}/token")).unwrap()));
-            axum::Json(serde_json::to_value(meta).unwrap())
+            match s.moved.lock().unwrap().clone() {
+                Some(to) => axum::response::Redirect::permanent(&to).into_response(),
+                None => axum::Json(metadata(&url)).into_response(),
+            }
+        }))
+        .route("/index.php/.well-known/openid-configuration", get(|State(s): State<Issuer>| async move {
+            axum::Json(metadata(&s.url.lock().unwrap().clone()))
         }))
         .route("/jwks", get(|| async {
             axum::Json(serde_json::to_value(CoreJsonWebKeySet::new(vec![key().as_verification_key()])).unwrap())
@@ -512,4 +527,37 @@ async fn adding_a_password_needs_a_fresh_login() {
         .expect("a session");
     let res = public(&h, "PATCH", "/api/account", Some(&fresh), add).await;
     assert_eq!(res.status(), 204);
+}
+
+/// Starts a login; the status it answers with.
+async fn start_status(h: &H) -> u16 {
+    let req = Request::post("/api/auth/oidc/start")
+        .header(header::HOST, "effractor.example")
+        .header(header::ORIGIN, PUBLIC)
+        .header(header::CONTENT_TYPE, "application/json");
+    h.send(
+        req.body(Body::from(json!({"link": false}).to_string()))
+            .unwrap(),
+    )
+    .await
+    .status()
+    .as_u16()
+}
+
+#[tokio::test]
+async fn discovery_follows_a_redirect_on_the_issuers_own_host() {
+    // Nextcloud: /.well-known/… answers 301 to /index.php/.well-known/….
+    let (h, iss) = with_oidc().await;
+    *iss.moved.lock().unwrap() = Some("/index.php/.well-known/openid-configuration".into());
+    let (url, _) = start(&h, None, false).await;
+    assert!(url.contains("/authorize?"), "{url}");
+}
+
+#[tokio::test]
+async fn discovery_never_follows_a_redirect_to_another_host() {
+    let (h, iss) = with_oidc().await;
+    let other = issuer().await;
+    let there = other.url.lock().unwrap().clone();
+    *iss.moved.lock().unwrap() = Some(format!("{there}/.well-known/openid-configuration"));
+    assert_eq!(start_status(&h).await, 500);
 }
