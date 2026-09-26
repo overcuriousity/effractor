@@ -55,9 +55,18 @@ const META_TTL: std::time::Duration = std::time::Duration::from_secs(300);
 
 impl Oidc {
     pub fn new(cfg: OidcConfig, public_url: &str) -> anyhow::Result<Oidc> {
+        let issuer = reqwest::Url::parse(&cfg.issuer)?;
         let http = reqwest::Client::builder()
-            // openidconnect's advice: never follow redirects (SSRF).
-            .redirect(reqwest::redirect::Policy::none())
+            // openidconnect's advice is never to follow redirects (SSRF). One
+            // on the issuer's own origin is not that: Nextcloud answers
+            // /.well-known/… with a 301 to /index.php/.well-known/….
+            .redirect(reqwest::redirect::Policy::custom(move |attempt| {
+                if attempt.previous().len() < MAX_REDIRECTS && same_origin(&issuer, attempt.url()) {
+                    attempt.follow()
+                } else {
+                    attempt.stop()
+                }
+            }))
             .build()?;
         let cookie_path = format!("{}/api/auth/oidc", url_path(public_url));
         // Checked once here, so building the cookie later cannot fail.
@@ -78,6 +87,16 @@ impl Oidc {
     pub fn label(&self) -> &str {
         &self.cfg.label
     }
+}
+
+/// How many redirects on the issuer's origin are followed in one request.
+const MAX_REDIRECTS: usize = 5;
+
+/// Whether `to` is on `issuer`'s origin: scheme, host and port.
+fn same_origin(issuer: &reqwest::Url, to: &reqwest::Url) -> bool {
+    issuer.scheme() == to.scheme()
+        && issuer.host_str() == to.host_str()
+        && issuer.port_or_known_default() == to.port_or_known_default()
 }
 
 /// The path of a url without its trailing slash: "" for none.
@@ -341,4 +360,26 @@ async fn finish(
         })
         .await?;
     Ok(Done::Session(token))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::same_origin;
+
+    #[test]
+    fn a_redirect_is_followed_only_on_the_issuers_origin() {
+        let issuer = reqwest::Url::parse("https://cloud.example.org").unwrap();
+        let at = |u: &str| same_origin(&issuer, &reqwest::Url::parse(u).unwrap());
+        assert!(at(
+            "https://cloud.example.org/index.php/.well-known/openid-configuration"
+        ));
+        assert!(
+            at("https://cloud.example.org:443/x"),
+            "the default port is the port"
+        );
+        assert!(!at("http://cloud.example.org/x"), "not down to http");
+        assert!(!at("https://cloud.example.org:8443/x"));
+        assert!(!at("https://evil.example/x"));
+        assert!(!at("https://169.254.169.254/latest/meta-data"));
+    }
 }
