@@ -42,8 +42,14 @@ echo "ok - fails when the download fails"
 
 # --- systemd (spec §13) ---
 fakebin="$work/fakebin"; mkdir -p "$fakebin"
+# FAKE_BUS_AT: the runtime dir a user manager listens in; without it set, the
+# user bus is always there. With it, `--user` answers only from that dir.
 cat > "$fakebin/systemctl" <<'EOF'
 #!/bin/sh
+if [ "$1" = --user ] && [ -n "${FAKE_BUS_AT:-}" ] && [ "${XDG_RUNTIME_DIR:-}" != "$FAKE_BUS_AT" ]; then
+  echo "Failed to connect to user scope bus via local transport" >&2
+  exit 1
+fi
 echo "systemctl $*" >> "$SYSTEMCTL_LOG"
 EOF
 chmod +x "$fakebin/systemctl"
@@ -134,3 +140,33 @@ HOME="$work/home" EFFRACTOR_SYSTEMD=yes PATH="$nosys" EFFRACTOR_UID=1000 EFFRACT
 [ ! -e "$work/units10/effractor.service" ] || fail "wrote a unit without systemctl"
 grep -q "systemctl not found" "$work/out" || fail "did not say systemctl is missing"
 echo "ok - without systemctl it skips with a line"
+
+# No user session (su, sudo -u): the binary is installed, no unit is left
+# half made, and it says what to do instead of dying on systemd's error.
+: > "$work/log"
+FAKE_BUS_AT="$work/nowhere" EFFRACTOR_RUNTIME_DIR="$work/run-none" XDG_RUNTIME_DIR= \
+  sysinstall "$work/yes" 1000 "$work/good" "$work/b12" "$work/units12" > "$work/out" 2>&1 || fail "no user session: exit status"
+[ -x "$work/b12/effractor" ] || fail "no user session: binary not installed"
+[ ! -e "$work/units12/effractor.service" ] || fail "no user session: wrote a unit it cannot start"
+! grep -q "enable effractor" "$work/log" || fail "no user session: tried to enable"
+grep -q "no systemd user session" "$work/out" || fail "no user session: did not say why"
+grep -q "loginctl enable-linger" "$work/out" || fail "no user session: did not say what to do"
+! grep -q "Failed to connect" "$work/out" || fail "no user session: systemd's error shown instead"
+echo "ok - without a user session it says what to do and installs no unit"
+
+# Linger on, but reached by su: the user manager's runtime dir is found.
+mkdir -p "$work/run1000"; : > "$work/run1000/bus"
+: > "$work/log"
+FAKE_BUS_AT="$work/run1000" EFFRACTOR_RUNTIME_DIR="$work/run1000" XDG_RUNTIME_DIR= \
+  sysinstall "$work/yes" 1000 "$work/good" "$work/b13" "$work/units13" > "$work/out" 2>&1 || fail "lingering user: exit status"
+[ -f "$work/units13/effractor.service" ] || fail "lingering user: no unit"
+grep -q "systemctl --user enable effractor" "$work/log" || fail "lingering user: not enabled"
+grep -q "systemctl --user restart effractor" "$work/log" || fail "lingering user: not started"
+echo "ok - with linger on, su finds the user manager"
+
+# An installed user service, upgraded where there is no session: said, not died.
+: > "$work/log"
+FAKE_BUS_AT="$work/nowhere" EFFRACTOR_RUNTIME_DIR="$work/run-none" XDG_RUNTIME_DIR= \
+  sysinstall "$work/nonexistent-tty" 1000 "$work/good" "$work/b5" "$work/units5" > "$work/out" 2>&1 || fail "re-run without a session"
+grep -q "no systemd user session" "$work/out" || fail "re-run without a session: did not say why"
+echo "ok - re-running without a session says the service was not restarted"
