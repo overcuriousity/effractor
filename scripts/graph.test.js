@@ -427,3 +427,41 @@ test("an open cluster's block keeps room for its outline and name", () => {
   const right = Math.max(...Object.values(block.at).map((p) => p.x)) + G.SIZE.width;
   assert.ok(block.width >= right + 10, "room at the other side");
 });
+
+test("a tag or badge wider than its side of the symbol gets its room from ELK, and the box is drawn where it was", async () => {
+  const G = require("../assets/js/graph.js");
+  const step = (id, extra) => Object.assign({ id, label: id, lines: [id], symbol: "gate", inscription: "ANY", parents: 0 }, extra);
+  const graph = {
+    profile: "attack-graph",
+    nodes: [step("a", { tag: "unreachable", badge: "foothold" }), step("b", { tag: "every route" }), step("c"), step("d", { badge: "target" })],
+    edges: [{ id: "a>d", from: "a", to: "d" }, { id: "b>d", from: "b", to: "d" }, { id: "c>d", from: "c", to: "d" }],
+  };
+  const room = G.overhang(graph.nodes[0]);
+  assert.ok(room.left > 0 && room.right > 0, "both stick out of a bare box");
+  assert.deepEqual(G.overhang(graph.nodes[2]), { left: 0, right: 0 });
+  // "target" fits right of the symbol.
+  assert.deepEqual(G.overhang(graph.nodes[3]), { left: 0, right: 0 });
+  const a = toElk(graph).children.find((c) => c.id === "a");
+  assert.equal(a.width, SIZE.width + room.left + room.right);
+  assert.deepEqual(a.ports.find((p) => p.id === "a:out").x, room.left + SIZE.width / 2);
+  const laid = await G.layoutWith((g) => new ELK().layout(g), graph);
+  const at = byId(laid.nodes);
+  laid.nodes.forEach((n) => assert.equal(n.width, SIZE.width, n.id));
+  // Lines still leave the box's middle; nothing drawn overlaps another's tag.
+  laid.edges.forEach((e) => assert.equal(e.points[0].x, at[e.from].x + SIZE.width / 2, e.id));
+  const spans = laid.nodes.map((n) => {
+    const o = G.overhang(n.node);
+    return { id: n.id, y: n.y, from: n.x - o.left, to: n.x + n.width + o.right };
+  });
+  spans.forEach((p) => spans.forEach((q) => {
+    if (p.id < q.id && p.y === q.y) assert.ok(p.to <= q.from || q.to <= p.from, p.id + " and " + q.id + " overlap");
+  }));
+});
+
+test("an attack graph is laid out as its lines lead, a tree in the order it is written", () => {
+  const G = require("../assets/js/graph.js");
+  const bare = { nodes: [{ id: "a", label: "a", lines: ["a"], symbol: "gate", parents: 0 }], edges: [] };
+  assert.equal(toElk(Object.assign({ profile: "attack-graph" }, bare)).layoutOptions["elk.layered.considerModelOrder.strategy"], undefined);
+  assert.equal(toElk(describe(webserver)).layoutOptions["elk.layered.considerModelOrder.strategy"], "NODES_AND_EDGES");
+  assert.equal(typeof G.tagWidth, "function");
+});
