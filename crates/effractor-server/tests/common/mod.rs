@@ -38,7 +38,7 @@ pub fn harness_trusting_proxy() -> H {
     let db = Db::open(&dir.path().join("a.db"))
         .unwrap()
         .with_clock(move || c.load(Ordering::Relaxed));
-    let accounts = Accounts::with_db(db, None).trusting_proxy();
+    let accounts = Accounts::with_db(db, None).unwrap().trusting_proxy();
     let app = effractor_server::app_with(Shares::in_memory(), Some(accounts.clone()));
     H {
         app,
@@ -55,7 +55,7 @@ pub fn harness_with(public_url: Option<&str>) -> H {
     let db = Db::open(&dir.path().join("a.db"))
         .unwrap()
         .with_clock(move || c.load(Ordering::Relaxed));
-    let accounts = Accounts::with_db(db, public_url.map(str::to_owned));
+    let accounts = Accounts::with_db(db, public_url.map(str::to_owned)).unwrap();
     let app = effractor_server::app_with(Shares::in_memory(), Some(accounts.clone()));
     H {
         app,

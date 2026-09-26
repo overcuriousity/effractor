@@ -6,7 +6,7 @@ use axum::http::StatusCode;
 use axum::routing::{get, patch, put};
 use axum::{Json, Router};
 use effractor_accounts::users::{self, NewUser, User};
-use effractor_accounts::{Error, Id, groups, sessions};
+use effractor_accounts::{Error, Id, documents, groups, sessions};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -87,26 +87,16 @@ async fn list_users(
                     let methods = users::login_methods(c, u.id)?;
                     // A group's admin learns nothing beyond their groups: not
                     // the member's other groups, nor what they keep.
-                    let documents: Option<i64> = match &scope {
-                        Scope::All => Some(c.query_row(
-                            "SELECT count(*) FROM documents WHERE owner_id = ?1 AND deleted_at IS NULL",
-                            [u.id],
-                            |r| r.get(0),
-                        )?),
+                    let documents = match &scope {
+                        Scope::All => Some(documents::count(c, u.id)?),
                         Scope::Groups(_) => None,
                     };
-                    let mut s = c.prepare(
-                        "SELECT g.id, g.name, m.role FROM memberships m JOIN groups g ON g.id = m.group_id
-                         WHERE m.user_id = ?1 ORDER BY g.name")?;
-                    let gs: Vec<Value> = s
-                        .query_map([u.id], |r| Ok((r.get::<_, Id>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?)))?
-                        .collect::<effractor_accounts::rusqlite::Result<Vec<_>>>()?
+                    let gs: Vec<groups::Membership> = groups::of_user(c, u.id)?
                         .into_iter()
-                        .filter(|(g, _, _)| match &scope {
+                        .filter(|g| match &scope {
                             Scope::All => true,
-                            Scope::Groups(mine) => mine.contains(g),
+                            Scope::Groups(mine) => mine.contains(&g.id),
                         })
-                        .map(|(g, name, role)| json!({"id": g, "name": name, "role": role}))
                         .collect();
                     out.push(json!({
                         "id": u.id, "name": u.name, "display_name": u.display_name, "admin": u.admin,

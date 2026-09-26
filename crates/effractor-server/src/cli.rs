@@ -7,7 +7,7 @@ use std::path::Path;
 use anyhow::{Context, bail};
 use clap::Subcommand;
 use effractor_accounts::users::{self, NewUser};
-use effractor_accounts::{Db, Error};
+use effractor_accounts::{Db, Error, groups};
 
 #[derive(Subcommand)]
 pub enum UserCommand {
@@ -51,22 +51,56 @@ fn plain(err: Error) -> anyhow::Error {
     }
 }
 
+/// Made by root in a directory the service owns, the database is read-only
+/// for the service: every login would fail.
+#[cfg(unix)]
+fn warn_on_owner(path: &Path) {
+    use std::os::unix::fs::MetadataExt;
+    let dir = match path.parent() {
+        Some(p) if !p.as_os_str().is_empty() => p,
+        _ => Path::new("."),
+    };
+    if let (Ok(file), Ok(dir_meta)) = (std::fs::metadata(path), std::fs::metadata(dir))
+        && file.uid() != dir_meta.uid()
+    {
+        eprintln!(
+            "warning: {} belongs to user id {}, its directory to user id {}; \
+             a server running as the directory's owner cannot write it \
+             (run this as that user, e.g. sudo -u effractor)",
+            path.display(),
+            file.uid(),
+            dir_meta.uid()
+        );
+    }
+}
+
+#[cfg(not(unix))]
+fn warn_on_owner(_: &Path) {}
+
 pub fn run_user(path: &Path, command: UserCommand) -> anyhow::Result<()> {
+    // A mistyped path must not quietly become a new, empty database.
+    let creating = !path.exists();
+    if creating && !matches!(command, UserCommand::Add { .. }) {
+        bail!("no database at {}", path.display());
+    }
     let db = Db::open(path).with_context(|| format!("opening {}", path.display()))?;
+    if creating {
+        println!("created {}", path.display());
+    }
+    warn_on_owner(path);
     match command {
         UserCommand::List => {
             let rows: Vec<(users::User, users::Methods, Vec<String>)> = db.read(|c| {
                 let mut out = Vec::new();
                 for u in users::all(c)? {
                     let m = users::login_methods(c, u.id)?;
-                    let mut s = c.prepare(
-                        "SELECT g.name || CASE m.role WHEN 'admin' THEN ' (admin)' ELSE '' END
-                         FROM memberships m JOIN groups g ON g.id = m.group_id
-                         WHERE m.user_id = ?1 ORDER BY g.name",
-                    )?;
-                    let groups = s
-                        .query_map([u.id], |r| r.get(0))?
-                        .collect::<effractor_accounts::rusqlite::Result<_>>()?;
+                    let groups = groups::of_user(c, u.id)?
+                        .into_iter()
+                        .map(|g| match g.role.as_str() {
+                            "admin" => format!("{} (admin)", g.name),
+                            _ => g.name,
+                        })
+                        .collect();
                     out.push((u, m, groups));
                 }
                 Ok(out)

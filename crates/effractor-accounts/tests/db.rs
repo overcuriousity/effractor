@@ -105,3 +105,21 @@ fn tokens_are_22_url_safe_characters_and_differ() {
     assert_ne!(a, b);
     assert_eq!(effractor_accounts::hash_token(&a).len(), 64);
 }
+
+/// Made by root for a service that runs as another user: refused at once,
+/// not a server whose every login fails.
+#[cfg(unix)]
+#[test]
+fn a_database_this_user_cannot_write_is_refused_by_name() {
+    use std::os::unix::fs::PermissionsExt;
+    let (_dir, path) = temp();
+    drop(Db::open(&path).unwrap());
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444)).unwrap();
+    if std::fs::OpenOptions::new().write(true).open(&path).is_ok() {
+        return; // root writes anything
+    }
+    let err = Db::open(&path).err().expect("refused");
+    assert!(matches!(err, Error::ReadOnly(_)), "{err:?}");
+    assert!(err.to_string().contains(&path.display().to_string()));
+    assert!(err.to_string().contains("sudo -u effractor"));
+}

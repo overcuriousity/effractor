@@ -3,9 +3,10 @@ use std::net::IpAddr;
 
 use crate::share::Timestamp;
 
-/// A token bucket per address: `per_hour` shares at once, refilled evenly over
-/// the hour. In memory and per process, which is all a single binary needs; it
-/// forgets on restart, and that errs towards letting people share.
+/// A token bucket per address: `per_hour` at once (shares, failed logins or
+/// started logins, one limiter each), refilled evenly over the hour. In memory
+/// and per process, which is all a single binary needs; it forgets on
+/// restart, and that errs towards letting people in.
 pub struct Limiter {
     per_hour: u32,
     buckets: HashMap<Key, Bucket>,

@@ -136,3 +136,42 @@ pub fn list(c: &Connection, target: Target) -> Result<Vec<Share>> {
         .collect::<rusqlite::Result<_>>()?;
     Ok(out)
 }
+
+/// A user or group someone may share with.
+#[derive(Debug, Clone, Serialize)]
+pub struct Entry {
+    pub kind: String,
+    pub id: Id,
+    pub name: String,
+    pub display_name: String,
+}
+
+/// Suggestions for a name being typed, not a list of everybody: nothing for
+/// nothing typed, and one letter finds only that very name (names may be one
+/// letter long). Never `me`, never a disabled user; ten at most.
+pub fn directory(c: &Connection, me: Id, q: &str) -> Result<Vec<Entry>> {
+    let q = q.trim();
+    if q.is_empty() {
+        return Ok(vec![]);
+    }
+    let whole = q.chars().count() < 2;
+    let mut s = c.prepare(
+        "SELECT kind, id, name, display_name FROM (
+           SELECT 'user' AS kind, id, name, display_name FROM users WHERE NOT disabled AND id != ?1
+           UNION ALL SELECT 'group', id, name, '' FROM groups)
+         WHERE CASE WHEN ?3 THEN fold(name) = fold(?2)
+           ELSE instr(fold(name), fold(?2)) > 0 OR instr(fold(display_name), fold(?2)) > 0 END
+         ORDER BY instr(fold(name), fold(?2)) != 1, name LIMIT 10",
+    )?;
+    let out = s
+        .query_map(params![me, q, whole], |r| {
+            Ok(Entry {
+                kind: r.get(0)?,
+                id: r.get(1)?,
+                name: r.get(2)?,
+                display_name: r.get(3)?,
+            })
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    Ok(out)
+}

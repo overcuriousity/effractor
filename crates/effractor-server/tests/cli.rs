@@ -44,6 +44,25 @@ fn a_fresh_server_is_set_up_from_the_shell() {
     assert!(line.contains("password"), "{line}");
 }
 
+/// A mistyped path is not quietly a new, empty database: only `add` makes
+/// one, and says so.
+#[test]
+fn only_add_creates_a_database_and_says_so() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("effractor.db");
+    for args in [&["list"][..], &["promote", "alice"], &["passwd", "alice"]] {
+        let (ok, _, err) = effractor(&db, args, "correct horse battery\n");
+        assert!(!ok, "{args:?}");
+        assert!(err.contains("no database at"), "{err}");
+        assert!(!db.exists(), "{args:?}");
+    }
+    let (ok, out, err) = effractor(&db, &["add", "alice"], "correct horse battery\n");
+    assert!(ok, "{err}");
+    assert!(out.contains(&format!("created {}", db.display())), "{out}");
+    let (_, out, _) = effractor(&db, &["add", "bob"], "correct horse battery\n");
+    assert!(!out.contains("created"), "{out}");
+}
+
 #[test]
 fn the_last_admin_cannot_be_demoted_and_short_passwords_are_refused() {
     let dir = tempfile::tempdir().unwrap();
