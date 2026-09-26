@@ -565,13 +565,16 @@
     var described;
     if (shown) {
       // At most a window of the generated graph, round what is in focus.
-      var windowed = AV.describe(state.generated.graph, state.generated.support, { id: state.focus });
+      // By default only what leads to the target; the steps elsewhere are
+      // counted, and one switch draws them too.
+      var windowed = AV.describe(state.generated.graph, state.generated.support, { id: state.focus, onlySupport: !state.allSteps });
       described = windowed.graph;
       state.shownSteps = Object.create(null);
       described.nodes.forEach(function (n) {
         state.shownSteps[n.id] = true;
       });
-      state.stepCount = { shown: windowed.shown, total: windowed.total };
+      var leading = (state.generated.support.target_support || []).length;
+      state.stepCount = { shown: windowed.shown, total: windowed.total, outside: leading ? windowed.total - leading : 0 };
     } else {
       state.shownSteps = null;
       state.stepCount = null;
@@ -1308,6 +1311,12 @@
 
   window.effractor.state = state;
   window.effractor.setScenario = setScenario;
+  // The attack graph's steps that do not lead to the target, drawn or not.
+  window.effractor.setAllSteps = function (on) {
+    state.allSteps = !!on;
+    notify();
+    if (attackShown()) draw(false).then(notify);
+  };
   window.effractor.renderer = renderer;
   window.effractor.select = select;
   window.effractor.labelOf = labelOf;

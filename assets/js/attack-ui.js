@@ -67,6 +67,9 @@
     app.setMode("architecture");
   });
   $("view-attack").addEventListener("click", showAttack);
+  $("steps-elsewhere").addEventListener("click", function () {
+    app.setAllSteps(!app.state.allSteps);
+  });
   $("analysis-chip").addEventListener("click", function () {
     offerBlockers($("analysis-chip"));
   });
@@ -552,7 +555,17 @@
     $("analysis-chip").classList.toggle("is-blocked", !!blocked || !!open);
     $("analysis-chip").title = blocked || open ? "what to finish" : "";
     var count = app.state.stepCount;
-    $("attack-count").textContent = !count ? "" : count.shown === count.total ? count.total + " steps" : count.shown + " of " + count.total + " steps shown";
+    // Out of what may be drawn: the steps leading to the target, or all.
+    var drawable = count ? count.total - (app.state.allSteps ? 0 : count.outside) : 0;
+    $("attack-count").textContent = !count ? "" : count.shown === drawable ? drawable + " steps" : count.shown + " of " + drawable + " steps shown";
+    // The steps that do not lead to the target: a switch, off by default.
+    var elsewhere = $("steps-elsewhere");
+    elsewhere.hidden = !count || !count.outside;
+    if (count && count.outside) {
+      elsewhere.textContent = count.outside + " elsewhere";
+      elsewhere.setAttribute("aria-pressed", String(!!app.state.allSteps));
+      elsewhere.title = (app.state.allSteps ? "Steps that do not lead to the target · click to hide" : "Steps that do not lead to the target · click to show");
+    }
     if (!arch()) {
       shownResults = shownGraph = shownBlockers = undefined;
       return;

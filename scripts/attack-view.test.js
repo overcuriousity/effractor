@@ -286,3 +286,22 @@ test('a step lights how it was reached: back along the simulated path, else its 
   assert.deepEqual(off.edges.sort(), ['step/state/service/sshd/control>step/state/host/server/admin', 'step/state/session/server-account/sshd>step/state/host/server/admin']);
   assert.deepEqual(V.lineage(graph, witness, 'nothing'), { nodes: [], edges: [] });
 });
+
+test('by default only what leads to the target is drawn, and the rest is counted', () => {
+  const only = V.describe(graph, support, { onlySupport: true });
+  const ids = only.graph.nodes.map(n => n.id.slice(5)).sort();
+  assert.deepEqual(ids, support.target_support.slice().sort());
+  assert.equal(only.elsewhere, graph.nodes.length - support.target_support.length);
+  assert.equal(only.total, graph.nodes.length);
+  // A line into the rest is said on the step it leaves, as for a window.
+  only.graph.edges.forEach(e => assert.ok(ids.includes(e.from.slice(5)) && ids.includes(e.to.slice(5))));
+  // Asked for, or focused, a step elsewhere is drawn: everything then is.
+  const elsewhere = graph.nodes.map(n => n.id).find(id => !support.target_support.includes(id));
+  const focused = V.describe(graph, support, { onlySupport: true, id: 'step/' + elsewhere });
+  assert.ok(focused.graph.nodes.some(n => n.id === 'step/' + elsewhere));
+  assert.equal(focused.elsewhere, 0);
+  // Nothing leads to the target (it cannot be reached): everything is drawn.
+  const none = V.describe(graph, { ...support, target_support: [] }, { onlySupport: true });
+  assert.equal(none.shown, graph.nodes.length);
+  assert.equal(none.elsewhere, 0);
+});

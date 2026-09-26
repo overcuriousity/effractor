@@ -230,12 +230,18 @@
   }
 
   // Which steps a window around `seeds` holds: breadth first along edges in
-  // either direction, in graph order, until `limit`. The whole graph when it
-  // fits.
-  function windowOf(graph, seeds, limit) {
+  // either direction, in graph order, until `limit`. All of them when they
+  // fit. `allowed` (a mask, optional): the only steps it may hold.
+  function windowOf(graph, seeds, limit, allowed) {
     var n = graph.nodes.length;
-    var keep = new Array(n).fill(n <= limit);
-    if (n <= limit) return keep;
+    var ok = function (i) {
+      return !allowed || allowed[i];
+    };
+    var room = allowed ? allowed.filter(Boolean).length : n;
+    var keep = graph.nodes.map(function (_, i) {
+      return room <= limit && ok(i);
+    });
+    if (room <= limit) return keep;
     var at = indexOf(graph);
     var near = graph.nodes.map(function () {
       return [];
@@ -250,7 +256,7 @@
     var queue = [];
     seeds.forEach(function (id) {
       // More seeds than the canvas holds: the first `limit` of them.
-      if (id in at && !keep[at[id]] && queue.length < limit) {
+      if (id in at && ok(at[id]) && !keep[at[id]] && queue.length < limit) {
         keep[at[id]] = true;
         queue.push(at[id]);
       }
@@ -258,7 +264,7 @@
     var count = queue.length;
     for (var head = 0; head < queue.length && count < limit; head++) {
       near[queue[head]].forEach(function (j) {
-        if (count < limit && !keep[j]) {
+        if (count < limit && !keep[j] && ok(j)) {
           keep[j] = true;
           count++;
           queue.push(j);
@@ -270,9 +276,11 @@
 
   var TAGS = { blocked: "blocked", unreachable: "unreachable" };
 
-  // `focus`: {id, limit} — a step id or a qualified component to keep in
-  // view; without one the target. Returns {graph, shown, total}; the graph
-  // given is not changed.
+  // `focus`: {id, limit, onlySupport} — a step id or a qualified component
+  // to keep in view, without one the target; `onlySupport`: only the steps
+  // that lead to the target (support.target_support), unless the focus is
+  // elsewhere or nothing leads there. Returns {graph, shown, total,
+  // elsewhere}; the graph given is not changed.
   function describe(graph, support, focus) {
     var nodes = (graph && graph.nodes) || [];
     var limit = focus && focus.limit ? focus.limit : LIMIT;
@@ -283,7 +291,15 @@
     });
     // A focus that names nothing here: round the target.
     if (!seeds.length) seeds = [graph.target];
-    var keep = windowOf({ nodes: nodes }, seeds, limit);
+    var leads = focus && focus.onlySupport && support && (support.target_support || []).length ? Object.create(null) : null;
+    if (leads) {
+      support.target_support.forEach(function (s) {
+        leads[s] = true;
+      });
+      if (!seeds.every(function (s) { return leads[s]; })) leads = null;
+    }
+    var allowed = leads ? nodes.map(function (n) { return !!leads[n.id]; }) : null;
+    var keep = windowOf({ nodes: nodes }, seeds, limit, allowed);
     var hidden = nodes.map(function () {
       return 0;
     });
@@ -328,7 +344,8 @@
         unreachable: s.status === "unreachable",
       });
     });
-    return { graph: { profile: "attack-graph", nodes: drawn, edges: edges }, shown: drawn.length, total: nodes.length };
+    var elsewhere = allowed ? allowed.filter(function (a) { return !a; }).length : 0;
+    return { graph: { profile: "attack-graph", nodes: drawn, edges: edges }, shown: drawn.length, total: nodes.length, elsewhere: elsewhere };
   }
 
   // A generated step is derived from the architecture and never edited:
