@@ -301,8 +301,31 @@
 
   // What the target's number rests on: each input in plain words, its
   // evidence and value under it; the source path and the note on hover.
+  // A part of Results that is detail: folded, its count in its heading, and
+  // left open or shut as the reader left it.
+  var opened = Object.create(null);
+  function fold(box, key, title, countClass) {
+    var d = el("details", null, "results-fold");
+    d.open = !!opened[key];
+    var head = el("summary", null, "fold-head");
+    head.appendChild(document.createTextNode(title));
+    head.appendChild(el("span", "", "count num" + (countClass ? " " + countClass : "")));
+    d.appendChild(head);
+    d.addEventListener("toggle", function () {
+      opened[key] = d.open;
+    });
+    box.appendChild(d);
+    return d;
+  }
+
   function renderAssumptions(box, results) {
-    assumptionList(box, "Assumptions", R.assumptions(results.baseline));
+    var base = R.assumptions(results.baseline);
+    var only = results.scenario ? R.scenarioAssumptions(results) : [];
+    if (!base.length && !only.length) return;
+    var d = fold(box, "assumptions", "Assumptions");
+    d.querySelector(".count").textContent = String(base.length + only.length);
+    box = d;
+    assumptionList(box, null, base);
     // The solved scenario's own: its changes, speed, the inputs they bring
     // in; named as these results name it, whatever is chosen meanwhile.
     if (!results.scenario) return;
@@ -313,7 +336,7 @@
   }
   function assumptionList(box, title, rows) {
     if (!rows.length) return;
-    heading(box, title, rows.length);
+    if (title) heading(box, title, rows.length);
     var list = el("ul", null, "assumptions");
     rows.forEach(function (a) {
       var li = el("li");
@@ -416,9 +439,7 @@
   }
 
   function renderStepTable(box) {
-    var h = el("h3", "Steps");
-    h.appendChild(el("span", "", "count num steps-count"));
-    box.appendChild(h);
+    box = fold(box, "steps", "Steps", "steps-count");
     var search = el("input", null, "step-search");
     search.type = "search";
     search.placeholder = "search steps";
@@ -477,15 +498,16 @@
     var blockers = blockersNow();
     if (blockers) renderBlockers(box, blockers);
     if (blockers && !results) return;
+    // The answer and the ways to it first; the detail folded below.
     if (results) {
       renderHeadline(box, results);
-      renderAssumptions(box, results);
       renderRoutes(box, results);
     } else {
       box.appendChild(el("p", "Calculate (Ctrl+Enter) to see the target's probability.", "empty"));
     }
     if (generated()) renderStepTable(box);
     else box.appendChild(el("p", "Build the attack graph (G) to list its steps.", "empty"));
+    if (results) renderAssumptions(box, results);
   }
 
   // ---- the attack view's keys ----

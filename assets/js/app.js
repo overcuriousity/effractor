@@ -584,6 +584,11 @@
     if (e.ctrl && e.id && !e.edge && P.isArchitecture(state.doc) && !attackShown() && /^(entity|cluster)\//.test(e.id)) return togglePick(e.id);
     // An architecture's edge is a relationship or a flow of its own.
     if (e.edge && P.isArchitecture(state.doc) && P.selectionExists(state.doc, e.edge, graphOf())) return select(e.edge);
+    // The background clicked puts the route drawn away, until one is chosen.
+    if (!e.id && !e.edge && state.route != null) {
+      state.route = null;
+      state.routeDismissed = true;
+    }
     select(e.id, e.parent);
     markRows();
   });
@@ -902,6 +907,7 @@
         // Another document: counted, so drafts about the last one can go.
         state.documents++;
         state.route = null;
+        state.routeDismissed = false;
         clearResults();
         state.lastSampledMs = null;
       } else if (state.exactResults || state.results) {
@@ -1210,6 +1216,11 @@
   // rest in the panels, which read state.results.
   function showGraph(results) {
     state.results = results;
+    // The route taken most is drawn as soon as there is one, unless the
+    // route was put away: then only when one is chosen again.
+    var routes = (results.baseline && results.baseline.routes) || [];
+    if (!routes.length || (state.route != null && !routes[state.route])) state.route = null;
+    if (routes.length && state.route == null && !state.routeDismissed) state.route = 0;
     state.chartResults = results;
     $("hud-stats").hidden = false;
     var h = GR.headline(results);
@@ -1364,6 +1375,7 @@
   window.effractor.shownRoute = shownRoute;
   window.effractor.showRoute = function (i) {
     state.route = i;
+    state.routeDismissed = i == null;
     reselect();
   };
   // The attack graph's steps that do not lead to the target, drawn or not.
