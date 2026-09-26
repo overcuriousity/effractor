@@ -670,6 +670,11 @@
       described.nodes.forEach(function (n) {
         state.shownSteps[n.id] = true;
       });
+      // The legend says the states drawn, and only those.
+      var states = AV.statesIn(described);
+      ["seeded", "unreachable"].forEach(function (k) {
+        if ($("legend-" + k)) $("legend-" + k).hidden = !states[k];
+      });
       var leading = (state.generated.support.target_support || []).length;
       state.stepCount = { shown: windowed.shown, total: windowed.total, outside: leading ? windowed.total - leading : 0 };
     } else {

@@ -465,6 +465,16 @@
     return { graph: { profile: "attack-graph", nodes: drawn, edges: edges }, shown: drawn.length, total: nodes.length, elsewhere: elsewhere };
   }
 
+  // Which states a drawing holds, for a legend that says only those.
+  function statesIn(drawn) {
+    var out = { seeded: false, unreachable: false };
+    ((drawn && drawn.nodes) || []).forEach(function (n) {
+      if (n.classes.indexOf("is-seeded") >= 0) out.seeded = true;
+      if (n.classes.indexOf("is-unreachable") >= 0) out.unreachable = true;
+    });
+    return out;
+  }
+
   // A generated step is derived from the architecture and never edited:
   // what would edit one is refused with this, and what only looks is not.
   var LOOKS = ["select", "source", "focus"];
@@ -496,6 +506,7 @@
     inspect: inspect,
     search: search,
     describe: describe,
+    statesIn: statesIn,
   };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorAttackView = api;

@@ -236,6 +236,9 @@
     <span class="legend-group tree-only"><span class="legend-tag">SPOF</span>single point of failure</span>
     <span class="legend-group attack-only" title="A line runs from a prerequisite to the step it enables"><span class="legend-tag">ALL</span>every prerequisite <span class="legend-tag">ANY</span>one of them <span class="muted">· arrows as the attack runs</span></span>
     <span class="legend-group attack-only"><span class="line-sample line-blocked"></span>blocked <span class="line-sample line-unknown"></span>unknown</span>
+    <span class="legend-group attack-only"><span class="legend-tag is-badge">foothold</span>start <span class="legend-tag is-badge">target</span>goal</span>
+    <span class="legend-group attack-only" id="legend-seeded" title="The attacker has these from the start: a foothold, and what follows from it alone" hidden><span class="box-sample is-seeded"></span>held at once</span>
+    <span class="legend-group attack-only" id="legend-unreachable" title="Nothing that can happen leads here" hidden><span class="box-sample is-unreachable"></span>unreachable</span>
     <span class="legend-group attack-only num" id="attack-count"></span>
     <span class="legend-group attack-only"><button class="btn btn-ghost legend-toggle" id="steps-elsewhere" type="button" aria-pressed="false" hidden></button></span>
     <span class="legend-group architecture-only architecture-view-only"><button class="btn btn-ghost legend-kinds" id="kinds-legend" type="button" title="What each kind of component is"><span class="swatch swatch-network"></span>network <span class="swatch swatch-compute"></span>compute <span class="swatch swatch-identity"></span>identity <span class="swatch swatch-data"></span>data</button></span>

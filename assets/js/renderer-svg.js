@@ -20,7 +20,8 @@
   var PADDING = 32;
 
   function createSvgRenderer(doc) {
-    var geometry = (typeof module !== "undefined" ? require("./graph.js") : window.effractorGraph).SIZE;
+    var shapes = typeof module !== "undefined" ? require("./graph.js") : window.effractorGraph;
+    var geometry = shapes.SIZE;
     var icons = typeof module !== "undefined" ? require("./architecture-icons.js") : window.effractorArchitectureIcons;
     var viewMath = typeof module !== "undefined" ? require("./view.js") : window.effractorView;
 
@@ -498,14 +499,14 @@
       if (tag) {
         // Left of the symbol.
         g.classList.add("has-tag");
-        var tw = String(tag).length * 5.6 + 12;
+        var tw = shapes.tagWidth(tag);
         var tx = w / 2 - geometry.symbol / 2 - 8 - tw;
         el("rect", { x: tx, y: ty - 8, width: tw, height: 16, rx: 3 }, ["tag"], g);
         text(g, tx + tw / 2, ty + 3, tag, "tag-text");
       }
       if (n.badge) {
         // Right of the symbol: where the attacker starts or wants to be.
-        var bw = String(n.badge).length * 5.6 + 12;
+        var bw = shapes.tagWidth(n.badge);
         var bx = w / 2 + geometry.symbol / 2 + 8;
         el("rect", { x: bx, y: ty - 8, width: bw, height: 16, rx: 3 }, ["tag", "badge"], g);
         text(g, bx + bw / 2, ty + 3, n.badge, "tag-text");

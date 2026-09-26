@@ -111,6 +111,24 @@
     return { profile: doc.profile, nodes: nodes, edges: edges };
   }
 
+  // A tag's width, as the renderer draws it: monospace at 9 px, padded.
+  function tagWidth(text) {
+    return String(text).length * 5.6 + 12;
+  }
+
+  // How far a node's tag (left of its symbol) and badge (right of it) reach
+  // past its box, in px: ELK is given that room, so neither lies over a
+  // neighbour.
+  var TAG_GAP = 8;
+  function overhang(node) {
+    var room = { left: 0, right: 0 };
+    if (!node || node.symbol === "component") return room;
+    var beside = SIZE.width / 2 - SIZE.symbol / 2 - TAG_GAP;
+    if (node.tag) room.left = Math.max(0, tagWidth(node.tag) - beside);
+    if (node.badge) room.right = Math.max(0, tagWidth(node.badge) - beside);
+    return room;
+  }
+
   // An architecture's component is its plate and name: no stem, no symbol.
   function height(node) {
     if (node.symbol === "component") return SIZE.component;
@@ -135,35 +153,39 @@
       var order = arrivals[e.to];
       return e.to + ":in" + (order ? ":" + order.indexOf(e.from) : "");
     }
+    var options = {
+      "elk.algorithm": "layered",
+      "elk.direction": up ? "UP" : "DOWN",
+      "elk.edgeRouting": "ORTHOGONAL",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "36",
+      "elk.spacing.nodeNode": "24",
+      "elk.padding": "[top=0,left=0,bottom=0,right=0]",
+    };
+    // Children left to right in the order the document lists them. A
+    // generated graph has no order of its own: its lines alone decide.
+    if (!up) options["elk.layered.considerModelOrder.strategy"] = "NODES_AND_EDGES";
     return {
       id: "root",
-      layoutOptions: {
-        "elk.algorithm": "layered",
-        "elk.direction": up ? "UP" : "DOWN",
-        "elk.edgeRouting": "ORTHOGONAL",
-        // Children left to right in the order the document lists them.
-        "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "36",
-        "elk.spacing.nodeNode": "24",
-        "elk.padding": "[top=0,left=0,bottom=0,right=0]",
-      },
+      layoutOptions: options,
       children: graph.nodes.map(function (n) {
         var h = height(n);
         var order = arrivals[n.id];
         var inY = up ? h : 0;
+        // The box sits `room.left` into what ELK places: the tag's room.
+        var room = overhang(n);
         var ins = order
           ? order.map(function (_, i) {
-              return { id: n.id + ":in:" + i, x: (SIZE.width * (i + 1)) / (order.length + 1), y: inY, width: 0, height: 0 };
+              return { id: n.id + ":in:" + i, x: room.left + (SIZE.width * (i + 1)) / (order.length + 1), y: inY, width: 0, height: 0 };
             })
-          : [{ id: n.id + ":in", x: SIZE.width / 2, y: inY, width: 0, height: 0 }];
+          : [{ id: n.id + ":in", x: room.left + SIZE.width / 2, y: inY, width: 0, height: 0 }];
         return {
           id: n.id,
-          width: SIZE.width,
+          width: SIZE.width + room.left + room.right,
           height: h,
           // Edges leave under the symbol and arrive on top of the box; in an
           // attack graph, the other way round.
           layoutOptions: { "elk.portConstraints": "FIXED_POS" },
-          ports: ins.concat([{ id: n.id + ":out", x: SIZE.width / 2, y: up ? 0 : h, width: 0, height: 0 }]),
+          ports: ins.concat([{ id: n.id + ":out", x: room.left + SIZE.width / 2, y: up ? 0 : h, width: 0, height: 0 }]),
         };
       }),
       edges: graph.edges.map(function (e) {
@@ -454,8 +476,10 @@
       height: result.height || 0,
       // An attack graph's lines carry arrowheads: they say which way it runs.
       arrows: graph.profile === "attack-graph",
+      // The box, without the room ELK gave its tag and badge.
       nodes: (result.children || []).map(function (c) {
-        return { id: c.id, x: c.x, y: c.y, width: c.width, height: c.height, node: described[c.id] };
+        var room = overhang(described[c.id]);
+        return { id: c.id, x: c.x + room.left, y: c.y, width: c.width - room.left - room.right, height: c.height, node: described[c.id] };
       }),
       edges: (result.edges || []).map(function (e) {
         var points = [];
@@ -521,7 +545,7 @@
     };
   }
 
-  var api = { inscription: inscription, describe: describe, wrap: wrap, toElk: toElk, fromElk: fromElk, layoutWith: layoutWith, separate: separate, blocks: blocks, SIZE: SIZE };
+  var api = { inscription: inscription, describe: describe, wrap: wrap, toElk: toElk, fromElk: fromElk, layoutWith: layoutWith, tagWidth: tagWidth, overhang: overhang, separate: separate, blocks: blocks, SIZE: SIZE };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorGraph = api;
 })();

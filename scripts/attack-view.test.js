@@ -349,3 +349,15 @@ test('a step every way to the target needs says so', () => {
   assert.notEqual(at('action/product-find-exploit/openssh').tag, 'every route');
   assert.deepEqual(support.chokepoints.slice().sort(), ['action/flow-connect/ssh', 'state/flow/ssh/connected', 'state/service/sshd/reachable']);
 });
+
+test('what the attacker holds at once is marked, and the legend says only the states drawn', () => {
+  const drawn = V.describe(graph, support, null).graph;
+  const seeded = support.nodes.filter(s => s.status === 'seeded').map(s => 'step/' + s.id);
+  assert.ok(seeded.length > 0);
+  drawn.nodes.filter(n => seeded.includes(n.id)).forEach(n => assert.ok(n.classes.includes('is-seeded'), n.id));
+  assert.deepEqual(V.statesIn(drawn), { seeded: true, unreachable: true });
+  const plain = clone(fixture);
+  plain.support.nodes.forEach(s => { s.status = 'possible'; });
+  assert.deepEqual(V.statesIn(V.describe(plain.graph, plain.support, null).graph), { seeded: false, unreachable: false });
+  assert.deepEqual(V.statesIn(null), { seeded: false, unreachable: false });
+});
