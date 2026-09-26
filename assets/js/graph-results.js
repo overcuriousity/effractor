@@ -103,6 +103,32 @@
     };
   }
 
+  // A component's own result: P of each of its states it can be put in, as
+  // [label, value] facts. `word(state)`: the state in words.
+  function componentFacts(results, kind, id, word) {
+    var r = report(results);
+    if (!r) return [];
+    var prefix = "state/" + kind + "/" + id + "/";
+    return r.nodes.filter(function (n) {
+      return n.id.indexOf(prefix) === 0 && n.id.slice(prefix.length).indexOf("/") < 0 && n.outcome.available;
+    }).map(function (n) {
+      return ["P(" + word(n.id.slice(prefix.length)) + ")", probability(n.outcome.available.p)];
+    });
+  }
+
+  // The source paths the target's number rests on, as a set.
+  function restsOn(results) {
+    var r = report(results);
+    var out = Object.create(null);
+    ((r && r.assumptions) || []).forEach(function (a) {
+      out[a.path] = true;
+      (a.paths || []).forEach(function (p) {
+        out[p] = true;
+      });
+    });
+    return out;
+  }
+
   // A side's step results by id, built once for a table of many steps.
   function nodesById(results, side) {
     var r = report(results, side);
@@ -226,6 +252,8 @@
     witness: witness,
     routes: routes,
     card: card,
+    componentFacts: componentFacts,
+    restsOn: restsOn,
     routeCount: routeCount,
   };
   if (typeof module !== "undefined") module.exports = api;

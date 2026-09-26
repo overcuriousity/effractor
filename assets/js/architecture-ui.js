@@ -592,6 +592,8 @@
   function parameters(form, owner, e) {
     var slots = owner.entity ? window.effractorArchitectureView.shownSlots(doc(), owner.entity) : Object.keys(e.parameters || {});
     if (!slots.length) return;
+    var R = window.effractorGraphResults;
+    var rests = R && R.isGraphResults(app.state.results) ? R.restsOn(app.state.results) : Object.create(null);
     var list = document.createElement("ul");
     list.className = "parameters";
     slots.forEach(function (slot) {
@@ -613,6 +615,15 @@
       value.textContent = drafts[key] ? "draft" : given(p);
       head.appendChild(name);
       head.appendChild(value);
+      // The target's number rests on it: a dot, said in the tooltip.
+      var path = (owner.flow != null ? "flows." + owner.flow : "entities." + owner.entity) + ".parameters." + slot;
+      if (rests[path]) {
+        var dot = document.createElement("span");
+        dot.className = "rests-on";
+        dot.textContent = " •";
+        name.appendChild(dot);
+        head.title += "\nthe target's number rests on this";
+      }
       head.addEventListener("click", function () {
         openSlot = openSlot === key ? null : key;
         renderProperties();
@@ -655,7 +666,7 @@
   // elsewhere (a solve finishing or refused) leaves the form as it is.
   var rendered = null;
   function formKey() {
-    return { doc: doc(), diagnostics: app.state.diagnostics, selected: app.state.selected, picked: picked().join("\u0000"), openSlot: openSlot, catalog: catalog };
+    return { doc: doc(), diagnostics: app.state.diagnostics, selected: app.state.selected, picked: picked().join("\u0000"), openSlot: openSlot, catalog: catalog, results: app.state.results };
   }
   function sameKey(a, b) {
     return !!a && !!b && Object.keys(a).every(function (k) {

@@ -659,7 +659,9 @@
     $("view-attack").classList.toggle("is-blocked", !!blocked);
     var open = !blocked && unknownInputs().length;
     $("analysis-chip").classList.toggle("is-blocked", !!blocked || !!open);
-    $("analysis-chip").title = blocked || open ? "what to finish" : "";
+    // Its own tooltip (how it was sampled) stays unless there is more to do.
+    if (blocked || open) $("analysis-chip").title = "what to finish";
+    else if ($("analysis-chip").title === "what to finish") $("analysis-chip").title = "";
     var count = app.state.stepCount;
     // Out of what may be drawn: the steps leading to the target, or all.
     var drawable = count ? count.total - (app.state.allSteps ? 0 : count.outside) : 0;

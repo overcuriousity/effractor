@@ -318,9 +318,12 @@
     $("inspector-name").textContent = state.selected ? labelOf(state.selected) : "";
     notify();
     // A step's state is the inspector's own line; its numbers are listed here.
+    // A component says how likely each of its states is reached.
+    var q = arch && !step ? P.qualified(state.selected) : null;
+    var ent = q && q.kind === "entity" ? (state.doc.entities || {})[q.id] : null;
     var said = !state.selected ? [] : !arch ? view.nodeFacts(state.results, state.selected) : step && GR.isGraphResults(state.results) ? GR.nodeFacts(state.results, step).filter(function (f) {
       return f[0] !== "State";
-    }) : [];
+    }) : ent && GR.isGraphResults(state.results) ? GR.componentFacts(state.results, ent.kind, q.id, stateWord) : [];
     said.forEach(function (f) {
       fact(facts, f[0], f[1]).classList.add("num");
     });
@@ -667,8 +670,10 @@
     });
   }
 
-  function chip(text) {
+  // `title`: what the chip's word leaves out (the samples and seed).
+  function chip(text, title) {
     $("analysis-chip").textContent = text;
+    $("analysis-chip").title = title || "";
   }
 
   // A word on the canvas that goes away again: why something did not happen.
@@ -729,9 +734,12 @@
       $("mode-" + mode).setAttribute("aria-checked", String(mode === doc.profile));
     });
     $("hud-p-label").textContent = P.words(doc).p;
-    chip(P.capabilities(doc).solve ? analysisLabel(doc.analysis) : "not calculated");
+    chip(P.capabilities(doc).solve ? "" : "not calculated", P.capabilities(doc).solve ? analysisLabel(doc.analysis) : "");
     solvable();
-    if (state.mode !== "attack") return showView() && draw(fit);
+    if (state.mode !== "attack") {
+      if (P.isArchitecture(doc)) buildLater();
+      return showView() && draw(fit);
+    }
     return followGraph(fit);
   }
 
@@ -797,6 +805,36 @@
       say("the calculation crashed and was restarted");
       return { ok: false };
     });
+  }
+
+  // The attack graph kept up in the architecture view: built a moment after
+  // each text is taken, on a channel of its own, so the step lists, the
+  // routes' components and Compare never wait for a Build. It gives way to
+  // any build the page asks for (G, a route): it only fills an empty place.
+  var buildTimer = null;
+  function buildLater() {
+    clearTimeout(buildTimer);
+    if (!P.capabilities(state.doc).generate || !solver.generate) return;
+    var text = state.text;
+    buildTimer = setTimeout(function () {
+      if (state.text !== text || state.generated || !state.sourceValid) return;
+      var token = gate.issue("background");
+      var revision = state.revision;
+      solver.generate(text, revision).then(function (answer) {
+        if (!gate.accept(token) || state.text !== text || state.generated) return;
+        if (!answer.ok) {
+          refused(answer.diagnostics);
+          return notify();
+        }
+        if (answer.ok.revision !== revision || answer.ok.source !== text) return;
+        state.blockers = null;
+        state.generated = { graph: answer.ok.graph, support: answer.ok.support, revision: revision };
+        notify();
+        reselect();
+      }, function (e) {
+        console.error(e);
+      });
+    }, 250);
   }
 
   // What stops the attack graph of the text on the page, as the module said
@@ -1381,7 +1419,8 @@
         // What is still unknown is what is left to do: counted where the
         // blockers were, and listed from there (attack-ui.js).
         var open = arch ? GR.headline(answer.result).missing.length : 0;
-        chip(open ? open + (open === 1 ? " unknown input" : " unknown inputs") : analysisLabel(state.doc.analysis));
+        // Current: one quiet word; how it was sampled is the tooltip.
+        chip(open ? open + (open === 1 ? " unknown input" : " unknown inputs") : "calculated", analysisLabel(state.doc.analysis));
       })
       .catch(function (e) {
         finished();

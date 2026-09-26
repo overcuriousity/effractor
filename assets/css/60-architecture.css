@@ -113,6 +113,7 @@
 .parameter-head { display: grid; grid-template-columns: 1fr auto; gap: 8px; width: 100%; padding: 3px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .parameter-head:hover { color: var(--color-fg-primary); background: var(--color-bg-hover); }
 .parameter-head .slot { font-family: var(--font-mono); font-size: var(--text-xs); }
+.parameter-head .rests-on { color: var(--color-accent); font-weight: 600; }
 .parameter-head .given { color: var(--color-fg-secondary); font-family: var(--font-mono); font-size: var(--text-xs); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14em; }
 .parameter-head .given.is-unknown { color: var(--color-fg-muted); }
 .parameter-form { display: grid; grid-template-columns: auto 1fr; gap: 5px 8px; align-items: center; padding: 4px 0 8px; }

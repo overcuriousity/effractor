@@ -217,3 +217,14 @@ test('the canvas card says what, by when, and how soon half the attempts get the
   assert.match(R.card(unreachable, 'X').time, /^50% not reached by /);
   assert.equal(R.card(unknown, 'X').time, '');
 });
+
+test('a component says how likely each of its states is reached, and which inputs the answer rests on', () => {
+  const facts = R.componentFacts(available, 'host', 'server', s => s + ' word');
+  assert.deepEqual(facts.map(f => f[0]).sort(), ['P(admin word)', 'P(user word)']);
+  facts.forEach(f => assert.match(f[1], /^[0-9.]+$/));
+  assert.deepEqual(R.componentFacts(available, 'host', 'nothing', s => s), []);
+  assert.deepEqual(R.componentFacts(null, 'host', 'server', s => s), []);
+  const rests = R.restsOn(available);
+  assert.ok(rests['associations.allow-ssh.allowed']);
+  assert.ok(Object.keys(rests).length >= available.baseline.assumptions.length);
+});
