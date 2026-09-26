@@ -53,6 +53,8 @@ const TEXT = [
 const FAMILIES = ["network", "compute", "identity", "data"];
 const GRAPHIC = [
   ["--viz-outline", "--viz-canvas"],
+  // Relationships, flows and their arrowheads.
+  ["--viz-edge", "--viz-canvas"],
   // The rings round a component: vulnerable, exposed, unknown inputs.
   ["--color-danger", "--viz-canvas"],
   ["--color-exposed", "--viz-canvas"],

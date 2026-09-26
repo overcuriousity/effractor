@@ -82,19 +82,21 @@
      --viz-outline: 4.72:1 against the canvas, so shape never depends on fill. */
   --viz-canvas: #f4f2ec;
   --viz-outline: #6c6c65;
-  --viz-edge: #b3aa98;
+  /* Lines that carry meaning: 3:1 against the canvas (WCAG 1.4.11). */
+  --viz-edge: #8c8579;
   --viz-imp-1: #ffe0db; --viz-imp-1-ink: #2d2d2d;
   --viz-imp-2: #f7afa6; --viz-imp-2-ink: #2d2d2d;
   --viz-imp-3: #e8796e; --viz-imp-3-ink: #2d2d2d;
   --viz-imp-4: #c8433c; --viz-imp-4-ink: #ffffff;
   --viz-imp-5: #901e1c; --viz-imp-5-ink: #ffffff;
-  /* An architecture's component families, as an investigation graph colours
-     its entities: three hues away from the danger hue and the accent, each
-     3:1 against the canvas and under its white glyph. */
-  --viz-family-network: #4f5a9a;
-  --viz-family-compute: #2f7667;
-  --viz-family-identity: #8a5d1f;
-  --viz-family-data: #7b4d8f;
+  /* An architecture's component families: quiet plates (owner, 2026-09-26:
+     OKLCH chroma 0.045, the hue only a tint) — the icon says the kind, and
+     saturated colour is left to states and the selection. Each 3:1 or better
+     against the canvas and under its white glyph (check-contrast.js). */
+  --viz-family-network: #57637e;
+  --viz-family-compute: #456c66;
+  --viz-family-identity: #755e48;
+  --viz-family-data: #715b72;
   --viz-family-ink: #ffffff;
 
   color-scheme: light;
@@ -146,16 +148,16 @@
        the outline, and the ramp runs dark to light. */
     --viz-canvas: #0b0d12;
     --viz-outline: #8185a3;
-    --viz-edge: #3b4054;
+    --viz-edge: #62687b;
     --viz-imp-1: #41211e; --viz-imp-1-ink: #e2e4ec;
     --viz-imp-2: #742e29; --viz-imp-2-ink: #e2e4ec;
     --viz-imp-3: #ab3a33; --viz-imp-3-ink: #e2e4ec;
     --viz-imp-4: #e36c61; --viz-imp-4-ink: #0e1015;
     --viz-imp-5: #fdb6ad; --viz-imp-5-ink: #0e1015;
-    --viz-family-network: #5b67b0;
-    --viz-family-compute: #2f8a78;
-    --viz-family-identity: #9c6c24;
-    --viz-family-data: #8e5ea6;
+    --viz-family-network: #65728d;
+    --viz-family-compute: #537a75;
+    --viz-family-identity: #846c56;
+    --viz-family-data: #7f6980;
     --viz-family-ink: #ffffff;
 
     color-scheme: dark;
@@ -196,16 +198,16 @@
        the outline, and the ramp runs dark to light. */
     --viz-canvas: #0b0d12;
     --viz-outline: #8185a3;
-    --viz-edge: #3b4054;
+    --viz-edge: #62687b;
     --viz-imp-1: #41211e; --viz-imp-1-ink: #e2e4ec;
     --viz-imp-2: #742e29; --viz-imp-2-ink: #e2e4ec;
     --viz-imp-3: #ab3a33; --viz-imp-3-ink: #e2e4ec;
     --viz-imp-4: #e36c61; --viz-imp-4-ink: #0e1015;
     --viz-imp-5: #fdb6ad; --viz-imp-5-ink: #0e1015;
-    --viz-family-network: #5b67b0;
-    --viz-family-compute: #2f8a78;
-    --viz-family-identity: #9c6c24;
-    --viz-family-data: #8e5ea6;
+    --viz-family-network: #65728d;
+    --viz-family-compute: #537a75;
+    --viz-family-identity: #846c56;
+    --viz-family-data: #7f6980;
     --viz-family-ink: #ffffff;
 
     color-scheme: dark;

@@ -33,6 +33,10 @@ test("the two dark blocks must not drift apart", () => {
   assert.match(check(broken).join("\n"), /dark blocks differ: --viz-imp-5/);
 });
 test("a component family under 3:1 against the canvas fails", () => {
-  const broken = css.replace("--viz-family-compute: #2f7667", "--viz-family-compute: #d8e8e2");
+  const broken = css.replace("--viz-family-compute: #456c66", "--viz-family-compute: #d8e8e2");
   assert.match(check(broken).join("\n"), /light: --viz-family-compute on --viz-canvas is \d\.\d\d, needs 3/);
+});
+test("a relationship line under 3:1 against the canvas fails", () => {
+  const broken = css.replace("--viz-edge: #8c8579", "--viz-edge: #b3aa98");
+  assert.match(check(broken).join("\n"), /light: --viz-edge on --viz-canvas is \d\.\d\d, needs 3/);
 });

@@ -42,11 +42,11 @@
 /* Dashed as well as amber: under red-green colour blindness amber and the
    danger red are nearly one colour (light theme). */
 .node-component .sector-unknown { stroke: var(--color-warning); stroke-dasharray: 4 3; }
-.node-component .sector-none { stroke: var(--color-border-strong); }
+.node-component .sector-none { stroke: var(--viz-edge); }
 .edge[data-id^="flows/"] { stroke-dasharray: 5 3; }
 /* An open cluster: a quiet outline round its members, taking the pointer
    on its line and its name only. */
-.cluster-outline .outline { fill: none; stroke: var(--color-border-strong); stroke-width: 1.5; stroke-dasharray: 6 4; pointer-events: none; }
+.cluster-outline .outline { fill: none; stroke: var(--viz-edge); stroke-width: 1.5; stroke-dasharray: 6 4; pointer-events: none; }
 .cluster-outline .outline-hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
 .cluster-outline .outline-tab { fill: var(--color-bg-surface); stroke: var(--color-border-strong); stroke-width: 1; cursor: pointer; }
 .cluster-outline .outline-label { font-size: 11px; fill: var(--color-fg-secondary); pointer-events: none; }
@@ -325,7 +325,7 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
   background: none; color: var(--color-fg-secondary); font: inherit; cursor: pointer;
 }
 .hud-hint button:hover { background: var(--color-bg-hover); color: var(--color-fg-primary); }
-.hud-hint .hint-go svg { width: 16px; height: 16px; fill: none; stroke: var(--color-warning); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.hud-hint .hint-go svg { width: 16px; height: 16px; fill: none; stroke: var(--color-fg-secondary); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 .hud-hint .hint-close { padding: 4px; }
 .hud-hint .hint-close svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
 /* A node gliding into a cluster as it closes. */
