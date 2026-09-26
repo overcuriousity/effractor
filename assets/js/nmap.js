@@ -52,9 +52,12 @@
     if (!RANGE_CHARS.test(words.map(unzoned).join(" ")) || words.some(function (w) { return w[0] === "-"; })) {
       return { problem: "The range may hold only addresses, names, ranges and CIDR, such as 10.0.1.0/24." };
     }
-    // nmap scans IPv6 only with -6, and then nothing else.
+    // nmap scans IPv6 only with -6, and then no IPv4 address; a name may be either.
     var six = words.filter(function (w) { return w.indexOf(":") >= 0; });
-    if (six.length && six.length < words.length) {
+    var four = words.filter(function (w) {
+      return w.split(",").some(function (part) { return /^\d[\d.\/\-]*$/.test(part) && part.indexOf(".") >= 0; });
+    });
+    if (six.length && four.length) {
       return { problem: "IPv4 and IPv6 need separate scans; keep one kind in the range." };
     }
     var c = checksOffered(levelId) ? CHECKS.filter(function (x) { return x.id === checksId && x.script; })[0] : null;
@@ -268,22 +271,50 @@
     }
     var doc = parseXml(t);
     if (doc.error) return problem(doc.error);
-    var run = kid(doc, "nmaprun");
-    if (!run) return problem("not-nmap");
-    var finished = kid(kid(run, "runstats"), "finished");
-    if (!finished) return problem("truncated");
-    if (finished.attrs.exit === "error") return problem("nmap-error", finished.attrs.errormsg || "no reason given");
-    var hosts = kids(run, "host").filter(function (h) {
-      var s = kid(h, "status");
-      return s && s.attrs.state === "up";
-    }).map(hostOf).filter(function (h) { return h.addresses.length; });
+    // Several results pasted one after the other are read as one scan.
+    var runs = kids(doc, "nmaprun");
+    if (!runs.length) return problem("not-nmap");
+    var hosts = [];
+    for (var r = 0; r < runs.length; r++) {
+      var finished = kid(kid(runs[r], "runstats"), "finished");
+      if (!finished) return problem("truncated");
+      if (finished.attrs.exit === "error") return problem("nmap-error", finished.attrs.errormsg || "no reason given");
+      hosts = hosts.concat(kids(runs[r], "host").filter(function (h) {
+        var s = kid(h, "status");
+        return s && s.attrs.state === "up";
+      }).map(hostOf).filter(function (h) { return h.addresses.length; }));
+    }
     hosts = fold(hosts);
     if (!hosts.length) return problem("no-host-up");
     var silentUdp = 0;
     hosts.forEach(function (h) {
       h.ports.forEach(function (p) { if (p.protocol === "udp" && p.state === "open|filtered") silentUdp++; });
     });
-    return { scan: { args: run.attrs.args || "", hosts: hosts, silentUdp: silentUdp } };
+    return { scan: { args: argsOf(runs), hosts: hosts, silentUdp: silentUdp } };
+  }
+
+  // What the runs ran, as one command: their targets together when their
+  // options are the same, else nothing (they were different scans).
+  function argsOf(runs) {
+    var first = runs[0].attrs.args || "";
+    if (runs.length === 1) return first;
+    var at = first.indexOf(" -oX - ");
+    if (at < 0) return "";
+    var head = first.slice(0, at + 7), targets = [];
+    for (var i = 0; i < runs.length; i++) {
+      var args = runs[i].attrs.args || "";
+      if (args.slice(0, head.length) !== head) return "";
+      targets.push(args.slice(head.length).trim());
+    }
+    return head + targets.join(" ");
+  }
+
+  // A dropped file's bytes as text: UTF-16 with its byte-order mark (what
+  // PowerShell's ">" writes), else UTF-8.
+  function decodeFile(buffer) {
+    var b = new Uint8Array(buffer);
+    var enc = b[0] === 0xff && b[1] === 0xfe ? "utf-16le" : b[0] === 0xfe && b[1] === 0xff ? "utf-16be" : "utf-8";
+    return new TextDecoder(enc).decode(b);
   }
 
   // ---- addresses ----
@@ -414,7 +445,16 @@
         byAddress[k] = byAddress[k] || h;
       });
     });
-    var candidates = hosts.filter(function (h) { return !(doc.entities[h].addresses || []).length; });
+    // Any drawn host no scanned address already names may be one the scan
+    // lists: hand-drawn, or known by the other kind of address (an IPv6
+    // scan of hosts drawn from an IPv4 one, review 2026-09-26).
+    var seenHosts = Object.create(null);
+    scan.hosts.forEach(function (h) {
+      h.addresses.forEach(function (a) {
+        if (byAddress[addressKey(a)]) seenHosts[byAddress[addressKey(a)]] = true;
+      });
+    });
+    var candidates = hosts.filter(function (h) { return !seenHosts[h]; });
     var networks = ids(doc, "network");
     var appHost = hostingOf(doc, appId);
     // The network the scan covered, as nmap says it ran; the range field only
@@ -462,7 +502,8 @@
     rows.forEach(function (r) {
       if (r.listings.length > 1) r.scan = oneHost(r.listings);
     });
-    if (appHost && candidates.indexOf(appHost) >= 0 && !takenBy[appHost]) {
+    // Guessed only while it has no addresses: one it has says where it is.
+    if (appHost && candidates.indexOf(appHost) >= 0 && !takenBy[appHost] && !(doc.entities[appHost].addresses || []).length) {
       var own = rows.filter(function (r) {
         return !r.known && !r.merged && !has(merges, r.key) && (r.scan.self || sameName(r.scan.hostname, doc.entities[appHost].label));
       })[0];
@@ -840,7 +881,10 @@
         next.entities[host].addresses = h.addresses.slice();
         if (h.os) next.entities[host].description = h.os;
       } else if (h.merged) {
-        next.entities[host].addresses = h.addresses.slice();
+        // Added to what it had, each address once.
+        var had = next.entities[host].addresses || [];
+        var keys = had.map(addressKey);
+        next.entities[host].addresses = had.concat(h.addresses.filter(function (a) { return keys.indexOf(addressKey(a)) < 0; }));
       }
       h.networks.forEach(function (n) {
         var to = n === "new" ? network : n === skipped ? null : n;
@@ -930,7 +974,7 @@
     return !Object.keys(entities).some(function (id) { return entities[id].tool === "nmap"; });
   }
 
-  var api = { LEVELS: LEVELS, CHECKS: CHECKS, checksOffered: checksOffered, level: level, command: command, read: read, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, said: said, tickHost: tickHost, tickHosts: tickHosts, apply: apply, addNmap: addNmap, stampLine: stampLine, stampFor: stampFor, hintWanted: hintWanted };
+  var api = { LEVELS: LEVELS, CHECKS: CHECKS, checksOffered: checksOffered, level: level, command: command, read: read, decodeFile: decodeFile, bytes: bytes, inCidr: inCidr, plan: plan, defaults: defaults, summary: summary, said: said, tickHost: tickHost, tickHosts: tickHosts, apply: apply, addNmap: addNmap, stampLine: stampLine, stampFor: stampFor, hintWanted: hintWanted };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmap = api;
 })();

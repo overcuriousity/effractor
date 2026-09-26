@@ -260,6 +260,34 @@ test("separate pushes overlapping boxes apart by the gap, and leaves clear ones 
   assert.equal(Math.min(...out.map((b) => b.y)), 0);
 });
 
+test("eighty hosts with three services each are arranged with nothing overlapping, the same way twice, on whole pixels", async () => {
+  // Review 2026-09-26: pushing gave up after 200 rounds and left 74 pairs on top of each other.
+  const { layoutWith } = require("../assets/js/graph.js");
+  const comp = (id, kind) => ({ id, label: id, lines: [id], symbol: "component", component: kind });
+  const nodes = [comp("net", "network")], edges = [];
+  for (let h = 0; h < 80; h++) {
+    nodes.push(comp("h" + h, "host"));
+    edges.push({ id: "a" + h, from: "h" + h, to: "net", kind: "attached" });
+    for (let s = 0; s < 3; s++) {
+      nodes.push(comp("h" + h + "s" + s, "service"));
+      edges.push({ id: "e" + h + "-" + s, from: "h" + h, to: "h" + h + "s" + s, kind: "hosts" });
+    }
+  }
+  const graph = { profile: "architecture", nodes, edges };
+  const elk = new ELK();
+  const laid = await layoutWith((g) => elk.layout(g), graph);
+  const ns = laid.nodes;
+  assert.equal(ns.length, nodes.length);
+  for (let i = 0; i < ns.length; i++) {
+    assert.ok(Number.isInteger(ns[i].x) && Number.isInteger(ns[i].y), ns[i].id);
+    for (let j = i + 1; j < ns.length; j++) {
+      const a = ns[i], b = ns[j];
+      assert.ok(!(a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height), a.id + " overlaps " + b.id);
+    }
+  }
+  assert.deepEqual((await layoutWith((g) => new ELK().layout(g), graph)).nodes.map((n) => [n.id, n.x, n.y]), ns.map((n) => [n.id, n.x, n.y]));
+});
+
 // ---- grouped by host (owner, 2026-09-24): a host, its software, their products ----
 
 const V = require("../assets/js/architecture-view.js");
