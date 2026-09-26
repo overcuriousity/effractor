@@ -46,3 +46,12 @@ test("a 204 has no data", async () => {
   const res = await createClient(fakeFetch([{ status: 204, body: "" }])).logoutOthers();
   assert.deepEqual(res, { ok: true, status: 204, data: null });
 });
+
+test("a save as the page closes can outlive it", async () => {
+  const f = fakeFetch([{ status: 204 }, { status: 204 }]);
+  const c = createClient(f);
+  await c.request("PUT", "/api/documents/1", { body: "x" }, { keepalive: true });
+  await c.request("PUT", "/api/documents/1", { body: "x" });
+  assert.equal(f.calls[0].init.keepalive, true);
+  assert.equal(f.calls[1].init.keepalive, undefined);
+});

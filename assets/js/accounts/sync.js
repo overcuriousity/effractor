@@ -94,7 +94,9 @@
   });
   // account-ui.js asks before it logs out, while the session still saves.
   A.beforeLogout = function () { return core.logout(); };
-  window.addEventListener("pagehide", function () { core.flush(); });
+  // The server kept the session after all: saving goes on.
+  A.stillLoggedIn = function () { return core.login(A.session.user, { fresh: false }); };
+  window.addEventListener("pagehide", function () { core.unload(); });
 
   // New goes through the file menu's New, so it is the same empty document;
   // the core then keeps it in the chosen folder.
@@ -106,7 +108,10 @@
   function rename(id, name) {
     // Open in another mode: renamed there, where its text is.
     if (core.modeOf(id) && !core.isOpen(id)) {
-      return open(id).then(function () { return rename(id, name); });
+      return open(id).then(function (ok) {
+        if (ok && core.isOpen(id)) return rename(id, name);
+        app.say("not renamed");
+      });
     }
     if (core.isOpen(id)) {
       // Saved at once, not after the pause edits wait for: a rename is one act.
@@ -151,6 +156,7 @@
 
   A.sync = {
     open: open, createNew: createNew, rename: rename, download: download,
-    isOpen: core.isOpen, openId: core.openId, forget: core.forget, showPath: showPath,
+    isOpen: core.isOpen, openId: core.openId, forget: core.forget, restore: core.restore, flush: core.flush,
+    showPath: showPath,
   };
 })();

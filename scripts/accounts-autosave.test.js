@@ -57,6 +57,19 @@ test("the text it already has is not saved again", async () => {
   assert.equal(put.calls.length, 0);
 });
 
+test("undoing back to the saved text while retrying is saved, not retrying", async () => {
+  const timers = fakeTimers(), put = server([{ ok: false, status: 0, data: "offline" }]);
+  const a = createAutosave({ put, delay: 800, timers });
+  a.bind({ version: 1, saved: "v0" });
+  a.change("v1", "N");
+  await timers.advance(800);
+  assert.equal(a.state(), "retrying");
+  a.change("v0", "N");
+  assert.equal(a.state(), "saved");
+  await timers.advance(200000);
+  assert.equal(put.calls.length, 1, "no retry of a text nobody wants");
+});
+
 test("a second tab's save is a conflict: reported once, never retried or overwritten", async () => {
   const timers = fakeTimers(), conflicts = [];
   const put = server([{ ok: false, status: 409, data: { version: 5, updated_by: "alice", updated_at: 99 } }]);

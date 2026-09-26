@@ -8,8 +8,10 @@
     : "";
 
   function createClient(fetchImpl) {
-    function request(method, path, body) {
+    // opts.keepalive: the request outlives the page (a save as it closes).
+    function request(method, path, body, opts) {
       var init = { method: method, credentials: "same-origin", headers: {} };
+      if (opts && opts.keepalive) init.keepalive = true;
       if (body !== undefined) {
         init.headers["Content-Type"] = "application/json";
         init.body = JSON.stringify(body);

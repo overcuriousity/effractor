@@ -211,6 +211,7 @@ test("New in a folder deleted meanwhile lands at the top, not in the old documen
   const created = [...server.docs.values()].find((d) => d.name === "New");
   assert.equal(created.folder, null);
   assert.equal(created.body, doc("fault-tree", "New", "n1"));
+  assert.ok(t.said.some((s) => /folder is gone · kept at the top/.test(s.text)), "and says where it went");
 });
 
 test("a file the server refuses stays local and is never written into the old document", async () => {
@@ -472,7 +473,7 @@ test("a page started with ?new= is not the document the mode held", async () => 
   assert.equal(server.body(F), doc("fault-tree", "F", "f0"));
 });
 
-test("opening the document that is open saves its waiting edit first", async () => {
+test("opening the document that is open keeps its waiting edit", async () => {
   const server = fakeServer();
   const F = server.add("fault-tree", "F", "f0");
   const t = tab(server);
@@ -555,4 +556,226 @@ test("opening a document tells the server, for Recent", async () => {
   await t.core.login(USER);
   await t.core.open(F);
   assert.ok(server.log.some((r) => r.method === "POST" && r.path === `/api/documents/${F}/opened`));
+});
+
+// ---- fourth review: copies, opens overtaken, reloads, undo, labels ----
+
+test("keep mine as copy keeps what was typed after the conflict too", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  server.docs.get(F).version = 9;
+  server.docs.get(F).body = doc("fault-tree", "F", "theirs");
+  t.edit(doc("fault-tree", "F", "mine1"));
+  await t.timers.advance(1000);
+  assert.ok(t.said.some((s) => /Changed by/.test(s.text)));
+  t.edit(doc("fault-tree", "F", "mine2"));
+  await t.timers.advance(1000);
+  await t.click("Keep mine as copy");
+  await t.timers.advance(5000);
+  const copy = [...server.docs.entries()].find(([id]) => id !== F);
+  assert.ok(copy, "a copy exists");
+  assert.equal(copy[1].body, doc("fault-tree", "F", "mine2"), "with the later edit");
+  assert.equal(t.core.openId(), copy[0], "and is what the page holds");
+  assert.equal(server.body(F), doc("fault-tree", "F", "theirs"), "theirs stands");
+});
+
+test("opening the document that is open never loads theirs over what is typed", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  server.docs.get(F).version = 9;
+  server.docs.get(F).body = doc("fault-tree", "F", "theirs");
+  t.edit(doc("fault-tree", "F", "mine"));
+  assert.equal(await t.core.open(F), true);
+  await t.timers.advance(5000);
+  assert.equal(t.page.text(), doc("fault-tree", "F", "mine"), "the page keeps mine");
+  assert.ok(t.said.some((s) => /Changed by/.test(s.text)), "and the choice is offered");
+});
+
+test("a reload while a save was on its way is not a conflict with oneself", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const shared = new Map();
+  const t = tab(server, { shared });
+  await t.core.login(USER);
+  await t.core.open(F);
+  t.edit(doc("fault-tree", "F", "f1"));
+  // The page goes: the server took the save, its answer never arrived.
+  const d = server.docs.get(F);
+  d.version++;
+  d.body = doc("fault-tree", "F", "f1");
+  const again = tab(server, { shared });
+  await again.core.init();
+  again.load(doc("fault-tree", "F", "f1"));
+  await again.core.login(USER, { fresh: false });
+  again.edit(doc("fault-tree", "F", "f2"));
+  await again.timers.advance(5000);
+  assert.ok(!again.said.some((s) => /Changed by/.test(s.text)), JSON.stringify(again.said.map((s) => s.text)));
+  assert.equal(server.body(F), doc("fault-tree", "F", "f2"));
+});
+
+test("a 409 for the text this browser sent is taken as saved", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  // The server has this very text on a newer version (the answer of an
+  // earlier save was lost).
+  server.docs.get(F).version = 5;
+  server.docs.get(F).body = doc("fault-tree", "F", "f1");
+  t.edit(doc("fault-tree", "F", "f1"));
+  await t.timers.advance(1000);
+  assert.ok(!t.said.some((s) => /Changed by/.test(s.text)));
+  assert.equal(t.states[t.states.length - 1], "saved");
+  t.edit(doc("fault-tree", "F", "f2"));
+  await t.timers.advance(1000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "f2"), "the next save builds on the server's version");
+});
+
+test("an open overtaken by a second open of the same document leaves the second bound", async () => {
+  const server = fakeServer();
+  const X = server.add("fault-tree", "X", "x0");
+  const A = server.add("fault-tree", "A", "a0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(X);
+  const held = [];
+  const replace = t.page.replace;
+  t.page.replace = (text, said, o) => new Promise((resolve) => held.push({ text, said, o, resolve }));
+  const first = t.core.open(A);
+  const second = t.core.open(A); // a double click
+  await settle();
+  assert.equal(held.length, 2);
+  held[0].resolve(false); // app.js: overtaken by the second
+  await settle();
+  held[1].resolve(await replace(held[1].text, held[1].said, held[1].o));
+  await first;
+  await second;
+  await t.timers.advance(5000);
+  assert.equal(server.body(X), doc("fault-tree", "X", "x0"), "X keeps its own text");
+  assert.equal(t.core.openId(), A);
+});
+
+test("a server text nobody opened is never saved into the document the mode holds", async () => {
+  const server = fakeServer();
+  const X = server.add("fault-tree", "X", "x0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(X);
+  await t.page.replace(doc("fault-tree", "Stray", "s0"), "opened", { origin: "server" });
+  t.edit(doc("fault-tree", "Stray", "s1"));
+  await t.timers.advance(5000);
+  assert.equal(server.body(X), doc("fault-tree", "X", "x0"));
+  assert.equal(t.core.openId(), null);
+});
+
+test("pagehide sends every waiting edit in requests that outlive the page", async () => {
+  const server = fakeServer();
+  const A = server.add("fault-tree", "A", "a0");
+  const B = server.add("attack-tree", "B", "b0");
+  const seen = [];
+  const request = server.request;
+  server.request = (m, p, b, o) => { seen.push({ m, p, o }); return request(m, p, b, o); };
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(A);
+  await t.core.open(B);
+  t.switchTo("fault-tree");
+  t.edit(doc("fault-tree", "A", "a1"));
+  t.switchTo("attack-tree");
+  t.edit(doc("attack-tree", "B", "b1"));
+  t.core.unload();
+  await settle();
+  const puts = seen.filter((r) => r.m === "PUT");
+  assert.equal(puts.length, 2);
+  assert.ok(puts.every((r) => r.o && r.o.keepalive));
+  assert.equal(server.body(A), doc("fault-tree", "A", "a1"));
+  assert.equal(server.body(B), doc("attack-tree", "B", "b1"));
+});
+
+test("logged out, the label never says saved for an edit that waits", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  await t.core.logout();
+  assert.equal(t.states[t.states.length - 1], null, "nothing to say");
+  t.edit(doc("fault-tree", "F", "f1"));
+  assert.equal(t.states[t.states.length - 1], "loggedout");
+});
+
+test("a session that ended under an edit leaves the label on logged out", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  server.unauthorized = true;
+  t.edit(doc("fault-tree", "F", "f1"));
+  await t.timers.advance(1000);
+  await t.core.logout(); // sync.js: the session is refreshed, it is gone
+  assert.equal(t.states[t.states.length - 1], "loggedout");
+});
+
+test("undoing back to the saved text while offline ends on saved", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  server.down();
+  t.edit(doc("fault-tree", "F", "f1"));
+  await t.timers.advance(1000);
+  t.edit(doc("fault-tree", "F", "f0"));
+  server.up();
+  await t.timers.advance(200000);
+  assert.equal(t.states[t.states.length - 1], "saved");
+});
+
+test("a delete undone binds the document again, with what was typed meanwhile", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  t.edit(doc("fault-tree", "F", "f1"));
+  // documents-ui.js: the waiting edit first, then the delete.
+  await t.core.flush(F);
+  assert.equal(server.body(F), doc("fault-tree", "F", "f1"));
+  t.core.forget(F);
+  t.edit(doc("fault-tree", "F", "f2"));
+  assert.equal(t.core.restore(F), true);
+  await t.timers.advance(5000);
+  assert.equal(t.page.text(), doc("fault-tree", "F", "f2"), "the page is not reloaded");
+  assert.equal(server.body(F), doc("fault-tree", "F", "f2"));
+  assert.ok(!t.said.some((s) => /Changed by/.test(s.text)));
+});
+
+test("a delete undone after another text came into the mode binds nothing", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  t.core.forget(F);
+  await t.page.replace(doc("fault-tree", "Other", "o0"), "opened", { origin: "link" });
+  assert.equal(t.core.restore(F), false);
+  t.edit(doc("fault-tree", "Other", "o1"));
+  await t.timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "f0"));
+});
+
+test("a failed open says no, so a caller never loops on it", async () => {
+  const server = fakeServer();
+  const t = tab(server);
+  await t.core.login(USER);
+  assert.equal(await t.core.open(4242), false);
+  assert.ok(t.said.some((s) => s.text === "not opened"));
 });

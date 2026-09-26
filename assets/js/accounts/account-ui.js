@@ -55,6 +55,7 @@
         // The Origin guard: the page was reached at another address than
         // the server's --public-url.
         : res.status === 403 ? "use the server's own address (" + location.host + " is not it)"
+        : res.status >= 500 ? "server error"
         : "wrong name or password";
     });
   });
@@ -73,7 +74,12 @@
       // What is waiting is saved first, while the session still counts.
       var before = A.beforeLogout ? A.beforeLogout() : Promise.resolve();
       before.then(function () { return client.logout(); }).then(function (res) {
-        if (res.status !== 0) return refresh();
+        if (res.ok) return refresh();
+        // Refused: the session goes on, and so does saving.
+        if (res.status !== 0) {
+          app.say("not logged out");
+          return A.stillLoggedIn && A.stillLoggedIn();
+        }
         // The server is unreachable: logged out here all the same.
         var was = session.user;
         session.user = null;
@@ -248,17 +254,26 @@
     box.appendChild(b);
   });
 
+  // Coming back from the issuer: ?login=failed, or ?linked=ok|taken|failed
+  // from linking an account. Said once, and taken off the address.
+  function takeParam(key) {
+    var q = new URLSearchParams(location.search), v = q.get(key);
+    if (v === null) return null;
+    q.delete(key);
+    var rest = q.toString();
+    history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
+    return v;
+  }
+  var login = takeParam("login"), linked = takeParam("linked");
   try {
     if (sessionStorage.getItem("effractor.oidc-login")) {
       sessionStorage.removeItem("effractor.oidc-login");
-      if (!/[?&]login=failed/.test(location.search)) session.justLoggedIn = true;
+      if (login !== "failed") session.justLoggedIn = true;
     }
   } catch (e) { /* no storage: no offer */ }
-  // An OIDC login that failed comes back as ?login=failed.
-  if (/[?&]login=failed/.test(location.search)) {
-    history.replaceState(null, "", location.pathname + location.hash);
-    app.ready.then(function () { app.say("login failed"); });
-  }
+  var LINKED = { ok: "linked", taken: "that identity is already on another account", failed: "not linked" };
+  var came = login === "failed" ? "login failed" : linked !== null ? LINKED[linked] || "not linked" : null;
+  if (came) app.ready.then(function () { app.say(came); });
   // After every deferred script: the listeners of documents-ui.js and
   // sync.js must exist before the first answer arrives.
   document.addEventListener("DOMContentLoaded", function () { refresh(); });
