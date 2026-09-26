@@ -566,7 +566,8 @@
     var to = up ? near.dependents : near.prerequisites;
     if (!to.length) return app.say(up ? "nothing needs this step" : "it needs nothing · the attack starts here");
     if (to.length === 1) return app.select("step/" + to[0]);
-    var drawn = document.querySelector('#canvas g[data-id="' + CSS.escape("step/" + step) + '"]');
+    // A fact may be drawn in its producer's box.
+    var drawn = document.querySelector('#canvas g[data-id="' + CSS.escape(app.renderer.drawnAs("step/" + step)) + '"]');
     var box = drawn ? drawn.getBoundingClientRect() : $("canvas").getBoundingClientRect();
     app.showMenu(to.map(function (id) {
       return [stepLabel(id), "", function () { app.select("step/" + id); }];

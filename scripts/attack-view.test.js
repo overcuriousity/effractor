@@ -122,10 +122,11 @@ test('a table of every step inspects each with one index built once', () => {
 // ---- Cycle 2: what the canvas draws ----
 
 // A generated-looking graph of `n` steps in a chain, the last the target.
+// Every step an ALL: a fact with one producer would be drawn in it.
 function chain(n) {
   const nodes = [];
   for (let i = 0; i < n; i++) {
-    nodes.push({ id: 'state/x/n' + i + '/s', label: 'Step ' + i, kind: i === 0 ? 'input' : i % 2 ? 'all' : 'any', inputs: i === 0 ? [] : ['state/x/n' + (i - 1) + '/s'], origins: [{ rule: 'r', version: 1, entities: ['e' + i], associations: [], flows: [], paths: [], assumptions: [] }], timing: { status: i % 2 ? 'illustrative' : 'logical', expression: null, note: null, paths: [], missing: [] } });
+    nodes.push({ id: 'state/x/n' + i + '/s', label: 'Step ' + i, kind: i === 0 ? 'input' : 'all', inputs: i === 0 ? [] : ['state/x/n' + (i - 1) + '/s'], origins: [{ rule: 'r', version: 1, entities: ['e' + i], associations: [], flows: [], paths: [], assumptions: [] }], timing: { status: i % 2 ? 'illustrative' : 'logical', expression: null, note: null, paths: [], missing: [] } });
   }
   return { graph: { target: nodes[n - 1].id, nodes }, support: { nodes: nodes.map(x => ({ id: x.id, status: 'possible', missing: [] })), target_support: [] } };
 }
@@ -133,9 +134,18 @@ function chain(n) {
 test('every drawn edge runs from a prerequisite to what depends on it', () => {
   const { graph: drawn } = V.describe(graph, support, null);
   assert.equal(drawn.profile, 'attack-graph');
+  const { drawnAs } = V.describe(graph, support, null);
   const byId = Object.fromEntries(graph.nodes.map(n => ['step/' + n.id, n]));
-  assert.equal(drawn.edges.length, graph.nodes.reduce((sum, n) => sum + n.inputs.length, 0));
-  drawn.edges.forEach(e => assert.ok(byId[e.to].inputs.includes(e.from.slice(5)), e.id));
+  // Each line of the graph is drawn once: as itself, on a line between
+  // two boxes, or inside one.
+  const inside = Object.keys(drawnAs).filter(k => k.includes('>') && !drawnAs[k].includes('>')).length;
+  // A line between boxes is named for them; the graph's own lines it
+  // stands for are its id, when that is one, and its aliases.
+  const own = id => { const [from, to] = id.split('>'); return !!byId[to] && byId[to].inputs.includes(from.slice(5)); };
+  const lines = drawn.edges.reduce((sum, e) => sum + (own(e.id) ? 1 : 0) + (e.aliases || []).length, 0);
+  assert.equal(lines + inside, graph.nodes.reduce((sum, n) => sum + n.inputs.length, 0));
+  drawn.edges.forEach(e => (e.aliases || []).forEach(id => assert.ok(own(id), id)));
+  drawn.edges.forEach(e => assert.ok(own(e.id) || (e.aliases || []).length, e.id));
 });
 
 test('junctions, badges and states are said in symbols and words, not colour alone', () => {
@@ -289,7 +299,8 @@ test('a step lights how it was reached: back along the simulated path, else its 
 
 test('by default only what leads to the target is drawn, and the rest is counted', () => {
   const only = V.describe(graph, support, { onlySupport: true });
-  const ids = only.graph.nodes.map(n => n.id.slice(5)).sort();
+  // The steps drawn: the boxes, and the facts drawn in them.
+  const ids = only.graph.nodes.flatMap(n => [n.id].concat(n.aliases || [])).map(id => id.slice(5)).sort();
   assert.deepEqual(ids, support.target_support.slice().sort());
   assert.equal(only.elsewhere, graph.nodes.length - support.target_support.length);
   assert.equal(only.total, graph.nodes.length);
@@ -298,7 +309,8 @@ test('by default only what leads to the target is drawn, and the rest is counted
   // Asked for, or focused, a step elsewhere is drawn: everything then is.
   const elsewhere = graph.nodes.map(n => n.id).find(id => !support.target_support.includes(id));
   const focused = V.describe(graph, support, { onlySupport: true, id: 'step/' + elsewhere });
-  assert.ok(focused.graph.nodes.some(n => n.id === 'step/' + elsewhere));
+  const as = focused.drawnAs['step/' + elsewhere] || 'step/' + elsewhere;
+  assert.ok(focused.graph.nodes.some(n => n.id === as));
   assert.equal(focused.elsewhere, 0);
   // Nothing leads to the target (it cannot be reached): everything is drawn.
   const none = V.describe(graph, { ...support, target_support: [] }, { onlySupport: true });
@@ -360,4 +372,92 @@ test('what the attacker holds at once is marked, and the legend says only the st
   plain.support.nodes.forEach(s => { s.status = 'possible'; });
   assert.deepEqual(V.statesIn(V.describe(plain.graph, plain.support, null).graph), { seeded: false, unreachable: false });
   assert.deepEqual(V.statesIn(null), { seeded: false, unreachable: false });
+});
+
+// Spec §11: a fact with a single producer folds into it.
+const fact = (id, inputs, extra) => Object.assign({ id, label: id, kind: 'any', inputs, origins: [{ rule: 'r', version: 1, entities: ['e'], associations: [], flows: [], paths: [], assumptions: [] }], timing: { status: 'logical', expression: null, note: null, paths: [], missing: [] } }, extra);
+const act = (id, inputs) => fact(id, inputs, { kind: 'all' });
+const plainSupport = nodes => ({ nodes: nodes.map(n => ({ id: n.id, status: 'possible', missing: [] })), target_support: [] });
+
+test('a fact with one producer is drawn in its producer, a second line under its name; alternatives keep their box', () => {
+  const described = V.describe(graph, support, null);
+  const ids = described.graph.nodes.map(n => n.id);
+  const extract = described.graph.nodes.find(n => n.id === 'step/action/credential-extract/workstation/admin-key');
+  // extract → key held → credential held: both facts in the one box.
+  assert.ok(!ids.includes('step/state/credential/admin-key/possessed'));
+  assert.ok(!ids.includes('step/state/account/admin-account/material'));
+  assert.deepEqual(extract.aliases, ['step/state/account/admin-account/material', 'step/state/credential/admin-key/possessed']);
+  assert.equal(extract.lines.length, 2);
+  // The fact's line leaves out what the producer's name already says.
+  assert.equal(extract.lines[1], 'held +1');
+  const login = described.graph.nodes.find(n => n.id === 'step/action/service-login/server-account/sshd');
+  assert.equal(login.lines[1], 'Logged in');
+  const foothold = described.graph.nodes.find(n => n.id === 'step/input/foothold/workstation/admin');
+  assert.equal(foothold.lines[1], 'admin control');
+  const control = described.graph.nodes.find(n => n.id === 'step/state/host/workstation/user');
+  assert.match(control.lines[1], /^SSH client · controll/);
+  assert.ok(extract.classes.includes('is-folded'));
+  assert.match(extract.label, /\n.*credential held/);
+  // A fact reached more than one way keeps its ANY box.
+  const user = described.graph.nodes.find(n => n.id === 'step/state/host/workstation/user');
+  assert.equal(user && user.inscription, 'ANY');
+  // The target is drawn as itself, and nothing is drawn in it.
+  const target = described.graph.nodes.find(n => n.id === 'step/' + graph.target);
+  assert.equal(target.badge, 'target');
+  assert.equal(target.aliases, undefined);
+  assert.ok(ids.includes('step/state/host/server/user'));
+  // Every step and line is drawn as something that is drawn.
+  const drawnIds = new Set(ids.concat(described.graph.edges.map(e => e.id)));
+  graph.nodes.forEach(n => {
+    const as = described.drawnAs['step/' + n.id] || 'step/' + n.id;
+    assert.ok(drawnIds.has(as), n.id);
+    n.inputs.forEach(i => {
+      const e = 'step/' + i + '>step/' + n.id;
+      assert.ok(drawnIds.has(described.drawnAs[e] || e), e);
+    });
+  });
+  // Every line's original ids lead to it; no line runs inside a box.
+  described.graph.edges.forEach(e => {
+    assert.notEqual(e.from, e.to, e.id);
+    (e.aliases || []).forEach(a => assert.equal(described.drawnAs[a], e.id));
+  });
+  // Steps shown are counted as steps, not boxes.
+  assert.equal(described.shown, graph.nodes.length);
+});
+
+test('what folds: one producer, both drawn; never into the target or round a cycle; lines from both ends merge', () => {
+  const nodes = [
+    fact('in', [], { kind: 'input', timing: { status: 'foothold', expression: null, note: null, paths: [], missing: [] } }),
+    act('p', ['in']),
+    fact('f', ['p']),
+    fact('g', ['f']),
+    act('d', ['p', 'f']),
+    fact('c1', ['c2']),
+    fact('c2', ['c1']),
+    act('t', ['d', 'g', 'c1']),
+    fact('after', ['t']),
+  ];
+  const g = { target: 't', nodes };
+  const d = V.describe(g, plainSupport(nodes), null);
+  const at = Object.fromEntries(d.graph.nodes.map(n => [n.id, n]));
+  assert.deepEqual(at['step/p'].aliases, ['step/f', 'step/g']);
+  assert.equal(d.drawnAs['step/g'], 'step/p');
+  // A cycle of facts, each the other's only producer: both stay.
+  assert.ok(at['step/c1'] && at['step/c2']);
+  // Nothing is drawn in the target.
+  assert.ok(at['step/after']);
+  // d needs p and f, one box: one line, both ids on it.
+  const into = d.graph.edges.filter(e => e.to === 'step/d');
+  assert.equal(into.length, 1);
+  assert.equal(into[0].id, 'step/p>step/d');
+  assert.deepEqual(into[0].aliases, ['step/f>step/d']);
+  // A line inside the box is drawn as the box.
+  assert.equal(d.drawnAs['step/p>step/f'], 'step/p');
+  // g's line to t leaves p's box.
+  assert.equal(d.drawnAs['step/g>step/t'], 'step/p>step/t');
+  // Held apart by the window: a fact whose producer is not drawn is drawn
+  // as itself (f, p outside), and what it produces still folds into it.
+  const w = V.describe(g, plainSupport(nodes), { id: 'step/g', limit: 2 });
+  assert.deepEqual(w.graph.nodes.map(n => [n.id, n.aliases]), [['step/f', ['step/g']]]);
+  assert.equal(w.shown, 2);
 });

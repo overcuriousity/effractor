@@ -667,8 +667,11 @@
       var windowed = AV.describe(state.generated.graph, state.generated.support, { id: state.focus, onlySupport: !state.allSteps });
       described = windowed.graph;
       state.shownSteps = Object.create(null);
+      // A fact drawn in its producer's box is shown there.
       described.nodes.forEach(function (n) {
-        state.shownSteps[n.id] = true;
+        [n.id].concat(n.aliases || []).forEach(function (id) {
+          state.shownSteps[id] = true;
+        });
       });
       // The legend says the states drawn, and only those.
       var states = AV.statesIn(described);

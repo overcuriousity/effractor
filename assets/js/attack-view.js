@@ -387,6 +387,18 @@
 
   var TAGS = { blocked: "blocked", unreachable: "unreachable" };
 
+  // A folded fact under its producer's name: the parts of its label ("SSH
+  // server · reachable") the producer's does not already say; its last
+  // part when it says them all.
+  function factLine(producer, fact) {
+    var said = producer.split(" · ");
+    var parts = fact.split(" · ");
+    var left = parts.filter(function (p) {
+      return said.indexOf(p) < 0;
+    });
+    return (left.length ? left : parts.slice(-1)).join(" · ");
+  }
+
   // `focus`: {id, limit, onlySupport} — a step id or a qualified component
   // to keep in view, without one the target; `onlySupport`: only the steps
   // that lead to the target (support.target_support), unless the focus is
@@ -414,20 +426,62 @@
     var hidden = nodes.map(function () {
       return 0;
     });
-    var dependents = nodes.map(function () {
-      return 0;
+    // Which box each step is drawn in (spec §11): a fact with one producer,
+    // both in the window, in its producer's — along a chain of such facts,
+    // the first step that is not one. The target stays itself, nothing is
+    // drawn in it, and a cycle of such facts is drawn as it is.
+    var targetAt = graph.target in at ? at[graph.target] : -1;
+    var foldsInto = nodes.map(function (n, i) {
+      var p = n.inputs.length === 1 && n.inputs[0] in at ? at[n.inputs[0]] : -1;
+      return n.kind === "any" && p >= 0 && keep[i] && keep[p] && i !== targetAt && p !== targetAt ? p : -1;
+    });
+    var box = nodes.map(function (_, i) {
+      var seen = Object.create(null);
+      var j = i;
+      while (foldsInto[j] >= 0) {
+        seen[j] = true;
+        j = foldsInto[j];
+        if (seen[j]) return i;
+      }
+      return j;
+    });
+    var drawnAs = Object.create(null);
+    var members = nodes.map(function () {
+      return [];
+    });
+    nodes.forEach(function (n, i) {
+      if (!keep[i] || box[i] === i) return;
+      members[box[i]].push(i);
+      drawnAs["step/" + n.id] = "step/" + nodes[box[i]].id;
     });
     var edges = [];
+    var edgeAt = Object.create(null);
+    var out = nodes.map(function () {
+      return 0;
+    });
     nodes.forEach(function (n, i) {
       n.inputs.forEach(function (input) {
         if (!(input in at)) return;
         var j = at[input];
-        dependents[j]++;
+        var id = "step/" + input + ">step/" + n.id;
         if (keep[i] && keep[j]) {
-          // Prerequisite → dependent: the way the attack runs.
-          edges.push({ id: "step/" + input + ">step/" + n.id, from: "step/" + input, to: "step/" + n.id });
+          var from = box[j], to = box[i];
+          // A line inside a box is drawn as the box.
+          if (from === to) return void (drawnAs[id] = "step/" + nodes[from].id);
+          // Prerequisite → dependent: the way the attack runs; lines between
+          // the same two boxes are one.
+          var drawn = "step/" + nodes[from].id + ">step/" + nodes[to].id;
+          if (!edgeAt[drawn]) {
+            edgeAt[drawn] = { id: drawn, from: "step/" + nodes[from].id, to: "step/" + nodes[to].id };
+            edges.push(edgeAt[drawn]);
+            out[from]++;
+          }
+          if (id !== drawn) {
+            (edgeAt[drawn].aliases = edgeAt[drawn].aliases || []).push(id);
+            drawnAs[id] = drawn;
+          }
         } else if (keep[i] !== keep[j]) {
-          hidden[keep[i] ? i : j]++;
+          hidden[box[keep[i] ? i : j]]++;
         }
       });
     });
@@ -436,33 +490,53 @@
     ((support && support.chokepoints) || []).forEach(function (c) {
       choke[c] = true;
     });
-    var drawn = [];
+    var drawnNodes = [];
+    var shown = 0;
     nodes.forEach(function (n, i) {
       if (!keep[i]) return;
+      shown++;
+      if (box[i] !== i) return;
       var s = support && support.nodes && support.nodes[i] && support.nodes[i].id === n.id ? support.nodes[i] : { status: null, missing: [] };
       var unknown = n.timing.status === "unknown";
+      var inside = members[i];
+      var everyRoute = choke[n.id] || inside.some(function (k) { return choke[nodes[k].id]; });
       var classes = ["kind-" + (KIND[n.kind] || n.kind)];
       if (s.status) classes.push("is-" + s.status);
       if (unknown) classes.push("is-unknown");
-      if (choke[n.id]) classes.push("is-choke");
-      drawn.push({
+      if (everyRoute) classes.push("is-choke");
+      var lines = layout.wrap(n.label, 22, 2);
+      if (inside.length) {
+        classes.push("is-folded");
+        // Its own name on one line, then the fact it makes, the one right
+        // on it first, and how many more.
+        var first = inside.filter(function (k) { return foldsInto[k] === i; })[0];
+        var more = inside.length > 1 ? " +" + (inside.length - 1) : "";
+        lines = [layout.wrap(n.label, 22, 1)[0], layout.wrap(factLine(n.label, nodes[first].label), 22 - more.length, 1)[0] + more];
+      }
+      var item = {
         id: "step/" + n.id,
-        label: n.label,
-        lines: layout.wrap(n.label, 22, 2),
+        label: [n.label].concat(inside.map(function (k) { return nodes[k].label; })).join("\n"),
+        lines: lines,
         symbol: n.kind === "input" ? "basic" : "gate",
         inscription: n.kind === "all" ? "ALL" : n.kind === "any" ? "ANY" : null,
         attributes: hidden[i] ? "+" + hidden[i] + " not shown" : null,
         badge: n.id === graph.target ? "target" : n.timing.status === "foothold" ? "foothold" : null,
-        tag: unknown ? "unknown" : TAGS[s.status] || (choke[n.id] ? "every route" : null),
+        tag: unknown ? "unknown" : TAGS[s.status] || (everyRoute ? "every route" : null),
         classes: classes,
-        parents: dependents[i],
+        parents: out[i],
         unquantified: unknown,
         top: n.id === graph.target,
         unreachable: s.status === "unreachable",
-      });
+      };
+      if (inside.length) {
+        item.aliases = inside.map(function (k) {
+          return "step/" + nodes[k].id;
+        });
+      }
+      drawnNodes.push(item);
     });
     var elsewhere = allowed ? allowed.filter(function (a) { return !a; }).length : 0;
-    return { graph: { profile: "attack-graph", nodes: drawn, edges: edges }, shown: drawn.length, total: nodes.length, elsewhere: elsewhere };
+    return { graph: { profile: "attack-graph", nodes: drawnNodes, edges: edges }, shown: shown, total: nodes.length, elsewhere: elsewhere, drawnAs: drawnAs };
   }
 
   // Which states a drawing holds, for a legend that says only those.

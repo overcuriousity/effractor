@@ -39,6 +39,12 @@
     var size = { width: 0, height: 0 };
     var view = { k: 1, x: 0, y: 0 };
     var highlights = {}; // kind -> {id: true}
+    // Ids drawn as another node or line (an attack graph's fact inside its
+    // producer's box): id -> the drawn one's.
+    var aliases = Object.create(null);
+    function drawnAs(id) {
+      return id in aliases ? aliases[id] : id;
+    }
     var handlers = {};
     var gesture = null; // {pointer, id | null, x, y, moved}, or two fingers: {pinch: [pointer ids]}
     var pressed = Object.create(null); // pointer id -> where it is, while pressed
@@ -476,7 +482,9 @@
       el("rect", { x: 0, y: 0, width: w, height: boxHeight, rx: 2 }, ["shape", "box"], g);
       var first = geometry.box / 2 + 4 - (n.lines.length - 1) * 7;
       n.lines.forEach(function (line, i) {
-        text(g, w / 2, first + i * 14, line, "label-line");
+        // After its own name, the fact drawn in it, quieter.
+        var t = text(g, w / 2, first + i * 14, line, "label-line");
+        if (i && n.aliases) t.classList.add("label-fact");
       });
 
       var below = boxHeight;
@@ -629,7 +637,10 @@
 
     function applyHighlights() {
       Object.keys(highlights).forEach(function (kind) {
-        var ids = highlights[kind];
+        var ids = Object.create(null);
+        Object.keys(highlights[kind]).forEach(function (id) {
+          ids[drawnAs(id)] = true;
+        });
         var cls = "hl-" + kind;
         // The drawing knows whether anything is lit, so the rest can recede.
         svg.classList.toggle("has-" + cls, Object.keys(ids).length > 0);
@@ -674,6 +685,17 @@
       edgeLayer.replaceChildren();
       nodeLayer.replaceChildren();
       drawn = { nodes: Object.create(null), edges: [], attachments: [], outlines: [] };
+      aliases = Object.create(null);
+      layout.nodes.forEach(function (n) {
+        ((n.node && n.node.aliases) || []).forEach(function (a) {
+          aliases[a] = n.id;
+        });
+      });
+      (layout.edges || []).forEach(function (e) {
+        (e.aliases || []).forEach(function (a) {
+          aliases[a] = e.id;
+        });
+      });
       size = { width: layout.width, height: layout.height, x0: layout.x0 || 0, y0: layout.y0 || 0 };
       free = null;
       boxes = Object.create(null);
@@ -857,6 +879,7 @@
     // can animate and the reader has not asked for less motion. A visible
     // node does not move.
     function reveal(id, inset) {
+      id = drawnAs(id);
       // While gliding, where it is going (`boxes`, as rendered), not where it is.
       var b = glideFrame && boxes[id] ? boxes[id] : free && free.at[id] ? free.at[id] : boxes[id];
       if (!b || !svg) return;
@@ -952,7 +975,7 @@
       (handlers[name] = handlers[name] || []).push(handler);
     }
 
-    return { mount: mount, render: render, highlight: highlight, order: order, fit: fit, zoomBy: zoomBy, on: on, reveal: reveal, pointAt: pointAt };
+    return { mount: mount, render: render, highlight: highlight, order: order, fit: fit, zoomBy: zoomBy, on: on, reveal: reveal, pointAt: pointAt, drawnAs: drawnAs };
   }
 
   var api = { createSvgRenderer: createSvgRenderer, EVENTS: EVENTS };

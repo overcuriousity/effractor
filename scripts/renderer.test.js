@@ -509,3 +509,22 @@ test("a shown route numbers its components beside their plates, and a drawing ke
   r.order(null);
   assert.deepEqual(numbers(), []);
 });
+
+test("a node or line drawn for others lights, and is found, by their ids too", () => {
+  const { r, host, node } = mounted();
+  const laid = layout();
+  const account = laid.nodes.find((n) => n.id === "account");
+  account.node = Object.assign({}, account.node, { aliases: ["held"], lines: ["Account", "held"] });
+  laid.edges.find((e) => e.id === "account>mfa").aliases = ["held>mfa"];
+  r.render(laid, {});
+  r.highlight(["held"], "selected");
+  assert.ok(node("account").classList.contains("hl-selected"));
+  r.highlight(["held>mfa"], "path", true);
+  assert.deepEqual(dom.byClass(host, "hl-path").map((e) => e.getAttribute("data-id")), ["account>mfa"]);
+  assert.equal(r.drawnAs("held"), "account");
+  assert.equal(r.drawnAs("held>mfa"), "account>mfa");
+  assert.equal(r.drawnAs("key"), "key");
+  // Its own name, then the fact drawn in it, quieter.
+  assert.equal(dom.byClass(node("account"), "label-fact").length, 1);
+  assert.equal(dom.byClass(node("key"), "label-fact").length, 0);
+});

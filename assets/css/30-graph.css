@@ -49,6 +49,8 @@
 .node .attributes,
 .node .value { font-family: var(--font-mono); font-size: 10px; font-variant-numeric: tabular-nums; }
 .node .attributes { fill: var(--color-fg-secondary); }
+/* A fact drawn in its producer's box (attack graph): its line, quieter. */
+.node .label-fact { fill: var(--color-fg-secondary); font-size: 10.5px; }
 
 .node.is-top .box { stroke-width: 2.25; }
 .node.is-unreachable { opacity: 0.45; }

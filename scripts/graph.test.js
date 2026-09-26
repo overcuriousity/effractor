@@ -465,3 +465,11 @@ test("an attack graph is laid out as its lines lead, a tree in the order it is w
   assert.equal(toElk(describe(webserver)).layoutOptions["elk.layered.considerModelOrder.strategy"], "NODES_AND_EDGES");
   assert.equal(typeof G.tagWidth, "function");
 });
+
+test("a line keeps the ids it is drawn for through the layout", async () => {
+  const G = require("../assets/js/graph.js");
+  const step = (id) => ({ id, label: id, lines: [id], symbol: "gate", parents: 0 });
+  const graph = { profile: "attack-graph", nodes: [step("p"), step("d")], edges: [{ id: "p>d", from: "p", to: "d", aliases: ["f>d"] }] };
+  const laid = await G.layoutWith((g) => new ELK().layout(g), graph);
+  assert.deepEqual(laid.edges[0].aliases, ["f>d"]);
+});
