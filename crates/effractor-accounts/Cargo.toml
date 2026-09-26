@@ -10,7 +10,9 @@ repository.workspace = true
 [dependencies]
 argon2 = { version = "0.5", features = ["std"] }
 getrandom = "0.3"
-rusqlite = { version = "0.40", features = ["bundled"] }
+# `fallible_uint`: timestamps are u64; SQLite integers are i64, which a
+# timestamp will not outgrow, and a value that did would be an error, not a wrap.
+rusqlite = { version = "0.40", features = ["bundled", "fallible_uint"] }
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"
 thiserror = "2"
