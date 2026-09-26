@@ -43,7 +43,10 @@
       if (d.path === "attacker.target") return "select a component · Target";
       if (d.path === "attacker.footholds") return "select a component · Foothold";
       var e = /^entities\.([a-z0-9][a-z0-9-]*)$/.exec(d.path || "");
-      return e && has(doc.entities, e[1]) ? MISSING[doc.entities[e[1]].kind] || null : null;
+      if (!e || !has(doc.entities, e[1])) return null;
+      // A service owes a host and a product; the message says which.
+      if (/instance of no product/.test(d.message || "")) return "Tab adds its product";
+      return MISSING[doc.entities[e[1]].kind] || null;
     }
     var m = /^flows\.([a-z0-9][a-z0-9-]*)\.route(?:\[(\d+)\])?$/.exec(d.path || "");
     if (!m || d.code !== "unfinished" || !has(doc.flows, m[1])) return null;

@@ -40,7 +40,15 @@
     var rows = graph ? model.rows.map(function (r) { return structural ? [r[0], r[1], null, null, null] : [r[0], null, r[1], r[2], r[3]]; }) : model.rows;
     if (!rows.length) {
       root.appendChild(el('p', graph ? 'Not available · ' + model.reason : model.reason, 'empty'));
-      (model.missing || []).forEach(function (path) { root.appendChild(el('p', path, 'hint mono')); });
+      // Each unknown input in words, leading to where it is set.
+      (model.missing || []).forEach(function (path) {
+        var U = window.effractorArchitectureUi;
+        var b = el('button', window.effractorWords.path(app.state.doc, U ? U.catalog() : null, path), 'source-link');
+        b.type = 'button';
+        b.title = path;
+        b.addEventListener('click', function () { if (window.effractorAttackUi) window.effractorAttackUi.follow(path); });
+        root.appendChild(b);
+      });
       return;
     }
     var max = cdf ? result.horizon : rows[rows.length - 1][0];

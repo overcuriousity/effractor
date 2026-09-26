@@ -212,10 +212,10 @@
     ["Enter in Pareto scatter", "Highlight an attack path"],
     ["↑ ↓ ← →", "Walk the tree: parent, child, siblings"],
     ["any letter", "Rename, starting with that letter"],
-    ["Ctrl+Enter", "Calculate, or cancel a running calculation"],
   ];
   // What both profiles share; architecture-ui.js adds its own above it.
   var COMMON_KEYS = [
+    ["Ctrl+Enter", "Calculate, or cancel a running calculation"],
     ["Esc", "Leave a field, close a menu, drop the selection"],
     ["Ctrl+Z", "Undo"],
     ["Ctrl+Shift+Z", "Redo"],

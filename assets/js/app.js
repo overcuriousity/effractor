@@ -1179,6 +1179,7 @@
     state.running = false;
     state.explicit = false;
     $("solve").textContent = "Calculate";
+    $("solve").title = "Calculate (Ctrl+Enter)";
   }
 
   // One solve of the text as it is now; the scheduler (autosolve.js) decides
@@ -1202,6 +1203,7 @@
     chip("calculating…");
     if (explicit) {
       $("solve").textContent = "Cancel";
+      $("solve").title = "Cancel (Ctrl+Enter)";
       if (window.effractorWorkspace) window.effractorWorkspace.open("right");
       if (window.effractorTabs) window.effractorTabs.show("results");
     }

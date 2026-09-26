@@ -308,7 +308,7 @@
       var h = el("h3", "Unknown inputs");
       box.appendChild(h);
       s.missing.forEach(function (path) {
-        box.appendChild(button(path, "Show where this is set", function () {
+        box.appendChild(button(window.effractorWords.path(d, catalog(), path), path, function () {
           if (attackUi()) attackUi().follow(path);
         }, "source-link"));
       });

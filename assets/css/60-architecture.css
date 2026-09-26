@@ -117,7 +117,7 @@
 .parameter-form .actions { grid-column: 1 / -1; display: flex; gap: 6px; }
 .diagnostics { grid-column: 1 / -1; margin: 0; padding: 0; list-style: none; color: var(--color-fg-muted); font-size: var(--text-xs); }
 .diagnostics li::before { content: "· "; }
-.diagnostics li.is-blocking { color: var(--color-fg); }
+.diagnostics li.is-blocking { color: var(--color-fg-primary); }
 .diagnostics li.is-blocking::before { content: "■ "; color: var(--color-warning); }
 .diagnostic-hint { display: block; padding-left: 1ch; color: var(--color-accent); }
 
@@ -177,7 +177,7 @@
 .step-facts { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: var(--text-sm); }
 .step-facts dt { color: var(--color-fg-muted); }
 .step-facts dd { margin: 0; overflow-wrap: anywhere; }
-.source-link { display: block; padding: 0; border: 0; background: none; color: inherit; font-family: var(--font-mono); font-size: var(--text-xs); text-align: left; text-decoration: underline dotted; cursor: pointer; overflow-wrap: anywhere; }
+.source-link { display: block; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-xs); text-align: left; text-decoration: underline dotted; cursor: pointer; overflow-wrap: anywhere; }
 .source-link:hover, .source-link:focus-visible { color: var(--color-fg-primary); background: var(--color-bg-hover); }
 .attack-results h3 { margin: 12px 0 4px; color: var(--color-fg-muted); font-size: var(--text-xs); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
 .attack-headline { display: flex; align-items: baseline; gap: 8px; margin: 0; }

@@ -81,13 +81,6 @@ low-chroma family plates, flows redrawn, canvas switch renamed), is
 [`2026-09-26-ui-review-design.md`](docs/superpowers/specs/2026-09-26-ui-review-design.md).
 Each item is one or a few small PRs; the owner looks at each before it lands.
 
-### ui-quick-fixes — Small wrongs the review found
-needs: —            cost: 1   benefit: 3
-Spec §3. Done when blocking problems stand out, unknown inputs and sources
-read as words, a service without a product gets its own hint, Ctrl+Enter is
-listed and on the button's tooltip, and a blocked model's Results panel lists
-what is left to finish.
-
 ### form-inputs — Inputs that keep, refuse and explain at the field
 needs: —            cost: 3   benefit: 4
 Spec §4. Done when a solve never wipes typed text, no number field deletes a

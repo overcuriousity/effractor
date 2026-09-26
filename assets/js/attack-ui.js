@@ -106,8 +106,9 @@
 
   window.effractorAttackUi = { showStep: showStep, follow: follow };
 
+  // Named as the page names it; the file's path is the tooltip.
   function sourceLink(path) {
-    return button(path, "Show where this is set", function () {
+    return button(W.path(doc(), U.catalog(), path), path, function () {
       follow(path);
     }, "source-link");
   }
@@ -384,10 +385,39 @@
     });
   }
 
+  // What stops the attack graph, where Calculate looks: each thing to finish
+  // in plain words with its hint, leading to where it is set.
+  function renderBlockers(box, blockers) {
+    heading(box, window.effractorProblems.headline(blockers));
+    var list = el("ul", null, "assumptions");
+    window.effractorProblems.items(doc(), blockers).forEach(function (p) {
+      var li = el("li");
+      var b = el("button", null, "assumption");
+      b.type = "button";
+      b.appendChild(el("span", p.text, "assumption-what"));
+      if (p.hint) b.appendChild(el("span", p.hint, "assumption-how"));
+      b.title = p.path || "";
+      b.addEventListener("click", function () {
+        follow(p.path);
+      });
+      li.appendChild(b);
+      list.appendChild(li);
+    });
+    box.appendChild(list);
+  }
+
+  function blockersNow() {
+    var b = app.state.blockers;
+    return arch() && !generated() && b && b.length ? b : null;
+  }
+
   function renderResults() {
     var box = $("attack-results");
     box.replaceChildren();
     var results = R.isGraphResults(app.state.results) ? app.state.results : null;
+    var blockers = blockersNow();
+    if (blockers) renderBlockers(box, blockers);
+    if (blockers && !results) return;
     if (results) {
       renderHeadline(box, results);
       renderAssumptions(box, results);
@@ -480,6 +510,7 @@
   };
   var shownResults;
   var shownGraph;
+  var shownBlockers;
   app.onChange(function () {
     if (!doc()) return;
     var on = attack();
@@ -493,7 +524,7 @@
     var count = app.state.stepCount;
     $("attack-count").textContent = !count ? "" : count.shown === count.total ? count.total + " steps" : count.shown + " of " + count.total + " steps shown";
     if (!arch()) {
-      shownResults = shownGraph = undefined;
+      shownResults = shownGraph = shownBlockers = undefined;
       return;
     }
     // The architecture editor's rail acts on components; in the attack view
@@ -504,9 +535,10 @@
         rail[k].title = "Edits are made in the architecture (G)";
       });
     }
-    if (shownResults !== app.state.results || shownGraph !== generated()) {
+    if (shownResults !== app.state.results || shownGraph !== generated() || shownBlockers !== blockersNow()) {
       shownResults = app.state.results;
       shownGraph = generated();
+      shownBlockers = blockersNow();
       renderResults();
     } else {
       markRows();

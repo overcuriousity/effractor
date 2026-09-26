@@ -49,6 +49,11 @@ test('what stops the graph says where to put it right', () => {
   assert.equal(hint('entities.bridge'), null);
   assert.equal(hint('entities.filter'), 'Tab on a router adds one');
   assert.equal(hint('entities.server'), null);
+  // A service owes two things; the hint follows what the message says is missing.
+  const product = '"sshd" is an instance of no product yet: no `instance-of` association names the software it runs';
+  assert.equal(P.hint(doc, warning('incomplete', 'entities.sshd', product)), 'Tab adds its product');
+  const host = '"sshd" runs nowhere yet: no `hosts` association names it';
+  assert.equal(P.hint(doc, warning('incomplete', 'entities.sshd', host)), 'Tab adds its host');
 });
 
 test('items are what to finish first, in plain words', () => {
