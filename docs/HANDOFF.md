@@ -5,6 +5,54 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 (`docs/superpowers/specs/2026-09-20-effractor-v1-design.md`) first; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — accounts (2026-09-26)
+
+The self-hosted server diverges from the Pages build: opt-in accounts
+(spec [`2026-09-26-accounts-design.md`](superpowers/specs/2026-09-26-accounts-design.md),
+plan [`2026-09-26-accounts.md`](superpowers/plans/2026-09-26-accounts.md)).
+**Owner, 2026-09-26: the whole account system is one branch, `accounts`, and
+one PR that stays open until the owner says merge** — no per-item shipping, no
+ship.sh. PR #113 (the installer's systemd question, `install-systemd`) is
+separate and also waits.
+
+- **Off unless `--accounts <db>`.** Then every account route answers 404 and
+  the shell has no trace of them; the static export skips `js/accounts/` and
+  `css/70-accounts.css` (`static_site.rs`).
+- **`crates/effractor-accounts`** — SQLite (WAL, `fallible_uint` for u64
+  timestamps), `migrations/001.sql` is the whole schema, `PRAGMA user_version`
+  counts migrations (the DB is the one place with versioning; YAML stays
+  unversioned). Synchronous; the server calls it through
+  `Accounts::blocking`. `perms.rs` is the permission rule (owner, else the
+  strongest share on the item or a folder above it, for the user or a group;
+  recursive CTEs capped at 32); no role = 404, too little = 403.
+- **Server** — `accounts.rs` (state), `auth/` (cookie `effractor_session`,
+  `guard.rs` same-Origin for every non-GET, password login limited per
+  address, `passkey.rs` webauthn-rs with discoverable login and mediation
+  cleared, `oidc.rs` PKCE/state/nonce plus an `effractor_oidc` cookie binding
+  the callback to the starting browser), `api/` (account, documents,
+  sharing, admin), `cli.rs` (`effractor user list|add|promote|demote|passwd`).
+  The hourly sweep also ends sessions and purges what was deleted 7 days ago.
+- **Build** — webauthn-rs needs OpenSSL, vendored: building the server needs
+  perl (Fedora `perl-core`), make and a C compiler. CI builds the musl binary.
+- **Page** — `assets/js/accounts/`: `client.js` (fetch wrapper, never
+  rejects), `account-ui.js` (bar, login and account dialogs; sections for
+  passkeys and OIDC via `A.accountSections`), `documents.js` (pure tree) +
+  `documents-ui.js` (the left panel's *Model · Documents*, `data-left-tab`
+  because `controls.js` owns every `[data-tab]`), `autosave.js` (pure queue,
+  version check, retries, 409 stops) + `sync.js` (which server document each
+  mode is: `store.binding`; New/file become documents, links and local work
+  are offered), `people-ui.js`, `admin-ui.js`, `passkeys.js` (pure
+  conversions). `app.js` gained `say(text, actions, sticky)`, `onText`, and
+  `replaceDocument(…, {origin, fresh})` — a server document starts a fresh
+  undo history so an undo never writes one document into another.
+- **Looks** — owner looked at login (fixed: account inputs used the browser's
+  serif) and documents (fixed: a rename showed late; every save now updates
+  its row). Sharing, administration, passkeys and OIDC await looks. Passkeys
+  need `--public-url`; locally use `--public-url http://localhost:8082` and
+  browse `http://localhost:8082` (WebAuthn allows localhost; the Origin guard
+  then wants exactly that origin).
+- Rulings made during the work are in the PR description.
+
 ## Continuation — sample collection (2026-09-25)
 
 `assets/examples/` holds thirteen models again (README there is the catalog):
