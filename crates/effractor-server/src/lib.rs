@@ -4,6 +4,7 @@
 //! is the application itself and, later, opaque shared blobs.
 
 mod assets;
+pub mod cli;
 mod headers;
 pub mod share;
 mod shell;

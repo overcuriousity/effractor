@@ -241,7 +241,7 @@ pub fn delete(t: &Transaction, id: Id) -> Result<()> {
 }
 
 pub fn login_methods(c: &Connection, id: Id) -> Result<Methods> {
-    Ok(c.query_row(
+    c.query_row(
         "SELECT password_hash IS NOT NULL,
                 (SELECT count(*) FROM passkeys WHERE user_id = ?1),
                 EXISTS (SELECT 1 FROM oidc_identities WHERE user_id = ?1)
@@ -256,5 +256,5 @@ pub fn login_methods(c: &Connection, id: Id) -> Result<Methods> {
         },
     )
     .optional()?
-    .ok_or(Error::NotFound)?)
+    .ok_or(Error::NotFound)
 }

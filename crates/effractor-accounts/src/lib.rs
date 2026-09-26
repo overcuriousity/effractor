@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+pub use rusqlite;
 pub use rusqlite::{Connection, Transaction};
 use sha2::{Digest, Sha256};
 

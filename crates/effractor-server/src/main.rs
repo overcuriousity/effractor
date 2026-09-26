@@ -11,6 +11,9 @@ use effractor_server::share::{FsStorage, Limits, Shares, Ttl};
 #[derive(Parser)]
 #[command(name = "effractor", version = effractor_server::VERSION)]
 struct Args {
+    #[command(subcommand)]
+    command: Option<Command>,
+
     /// Export a static site with self-contained sharing to a new directory, then exit.
     #[arg(long, value_name = "DIRECTORY")]
     export_static: Option<PathBuf>,
@@ -27,6 +30,20 @@ struct Args {
     /// The longest a share may be kept: 1d, 30d, 90d, 1y, or never.
     #[arg(long, default_value = "1y")]
     max_ttl: Ttl,
+
+    /// Turn accounts on: the SQLite database of users and documents.
+    /// Created on first start. Without it, there are no accounts.
+    #[arg(long, value_name = "FILE", global = true)]
+    accounts: Option<PathBuf>,
+}
+
+#[derive(clap::Subcommand)]
+enum Command {
+    /// Manage the users of an accounts database.
+    User {
+        #[command(subcommand)]
+        action: effractor_server::cli::UserCommand,
+    },
 }
 
 #[tokio::main]
@@ -39,6 +56,12 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let args = Args::parse();
+    if let Some(Command::User { action }) = args.command {
+        let Some(path) = args.accounts else {
+            anyhow::bail!("effractor user … needs --accounts FILE");
+        };
+        return effractor_server::cli::run_user(&path, action);
+    }
     if let Some(destination) = args.export_static {
         return effractor_server::export_static(&destination);
     }

@@ -17,6 +17,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1"
 askama = "0.16"
+effractor-accounts = { path = "../effractor-accounts" }
 # `Storage` is used as a trait object, which async fns in traits cannot be yet.
 async-trait = "0.1"
 axum = "0.8"
@@ -24,6 +25,8 @@ clap = { version = "4", features = ["derive"] }
 # The operating system's randomness, for share ids and delete tokens.
 getrandom = "0.3"
 mime_guess = "2"
+# Asks for a password on the terminal without echoing it (`effractor user`).
+rpassword = "7"
 # The whole app ships inside the binary: no asset directory to deploy, and no
 # third-party origin to fetch from.
 rust-embed = "8"
