@@ -546,15 +546,27 @@
   }
 
   // A word on the canvas that goes away again: why something did not happen.
+  // With actions ([label, fn] pairs) it carries buttons, e.g. Undo; sticky
+  // notes stay until one is used or something else is said.
   var noteTimer = null;
-  function say(text) {
+  function say(text, actions, sticky) {
     var note = $("note");
     note.textContent = text;
+    (actions || []).forEach(function (action) {
+      note.appendChild(document.createTextNode(" · "));
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "link-button";
+      b.textContent = action[0];
+      b.addEventListener("click", function () {
+        note.hidden = true;
+        action[1]();
+      });
+      note.appendChild(b);
+    });
     note.hidden = false;
     clearTimeout(noteTimer);
-    noteTimer = setTimeout(function () {
-      note.hidden = true;
-    }, 6000);
+    if (!sticky) noteTimer = setTimeout(function () { note.hidden = true; }, 6000);
   }
 
   function hud(id, text) {

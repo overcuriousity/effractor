@@ -1,8 +1,6 @@
 /* Accounts (spec 2026-09-26 §9): the bar's login state, the Documents tab,
    the account, login, sharing and administration dialogs. */
 .local-only { color: var(--color-fg-muted); font-size: var(--text-sm); white-space: nowrap; }
-.link-button { background: none; border: 0; padding: 0; color: var(--color-accent); font: inherit; cursor: pointer; }
-.link-button:hover { text-decoration: underline; }
 .account-chip { max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .login-dialog form, .account-dialog form { display: grid; gap: 8px; }
 .login-actions, .account-actions { display: flex; gap: 8px; justify-content: flex-end; }
