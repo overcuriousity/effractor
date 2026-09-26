@@ -19,7 +19,7 @@ rename, 2026-09-26).
 **Owner, 2026-09-26: the whole account system was one branch, `accounts`, and
 one PR (#114) left open until the owner said merge** — merged 2026-09-26 as a
 fast-forward of master. PR #113 (the installer's systemd question,
-`install-systemd`) is separate and still waits for the owner.
+`install-systemd`) was separate and merged after it, the same day.
 
 - **Off unless `--accounts <db>`.** Then every account route answers 404 and
   the shell has no trace of them; the static export skips `js/accounts/` and

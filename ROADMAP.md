@@ -94,16 +94,7 @@ Owner decision, 2026-09-26: the self-hosted server diverges from the Pages
 build with opt-in accounts, stored documents and sharing with people — built
 (one PR, `accounts`); its design and plan are deleted and read from history
 (`docs/HANDOFF.md` says how). What follows are the later items the design
-named, and the installer's service question.
-
-### install-systemd — The installer offers a systemd service
-needs: —            cost: 1   benefit: 3
-`install.sh` asks whether to install a systemd service (user unit when not
-root, hardened system unit when root), reading the answer from `/dev/tty`,
-defaulting to no without a terminal, `EFFRACTOR_SYSTEMD` answering without
-asking. Never turns accounts on. Done when `scripts/install.test.sh` covers
-yes, no, no terminal, no `systemctl`, root and not root (accounts spec §13,
-read from history). Built on PR #113, waiting for the owner.
+named.
 
 ### e2e-vault — Evaluate end-to-end encrypted storage
 needs: —            cost: 5   benefit: 2
