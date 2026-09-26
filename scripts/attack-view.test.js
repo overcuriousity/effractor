@@ -321,13 +321,17 @@ test('a step walks to what it needs and to what needs it; the path is stepped in
   assert.deepEqual(V.pathSteps(null), []);
 });
 
-test('a route stops at its components in the order it first acts on them', () => {
+test('a route is a way: from the foothold, across the networks its flows cross, to the target', () => {
   const results = require('./fixtures/graph/results-available.json');
-  const witness = results.baseline.routes[0].witness;
-  const stops = V.routeStops(graph, witness);
-  assert.ok(stops.length > 1);
-  assert.equal(new Set(stops).size, stops.length, 'each once');
-  assert.ok(stops.every(s => /^(entity|flow)\//.test(s)));
-  assert.ok(stops.includes('flow/ssh'), 'the flow it used');
-  assert.deepEqual(V.routeStops(graph, null), []);
+  results.baseline.routes.forEach(r => {
+    const stops = V.routeStops(graph, r.witness, doc);
+    assert.equal(stops[0], 'entity/workstation', 'where it starts');
+    assert.equal(stops[stops.length - 1], 'entity/server', 'the target last');
+    assert.equal(new Set(stops).size, stops.length, 'each once');
+    // The flow with what it runs from, through and to, in route order.
+    const hops = ['entity/ssh-client', 'entity/client-net', 'entity/bridge', 'entity/server-net', 'flow/ssh', 'entity/sshd'].map(id => stops.indexOf(id));
+    assert.ok(hops.every(i => i >= 0), JSON.stringify(stops));
+    hops.slice(1).forEach((at, i) => assert.ok(at > hops[i], JSON.stringify(stops)));
+  });
+  assert.deepEqual(V.routeStops(graph, null, doc), []);
 });

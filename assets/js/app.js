@@ -263,9 +263,10 @@
       renderer.order(null);
     } else if (route && arch && routeGraph) {
       var numbers = Object.create(null);
-      var stops = AV.routeStops(routeGraph, route).map(shown);
+      var stops = AV.routeStops(routeGraph, route, state.doc).map(shown);
+      // Components are numbered; a flow is the line between two of them.
       stops.forEach(function (id) {
-        if (!numbers[id]) numbers[id] = Object.keys(numbers).length + 1;
+        if (id.indexOf("flow/") !== 0 && !numbers[id]) numbers[id] = Object.keys(numbers).length + 1;
       });
       renderer.highlight(stops, "path");
       renderer.order(numbers);

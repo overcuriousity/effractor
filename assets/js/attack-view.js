@@ -204,15 +204,50 @@
     });
   }
 
-  // Where a route acts in the architecture: the component or flow of each
-  // of its actions, in the order it first acts there, each once.
-  function routeStops(graph, witness) {
+  // A route as a way through the architecture (`doc`): where it starts (its
+  // footholds), then each component its steps are about in the order they
+  // were done — a flow as what it runs from, the networks and routers it
+  // crosses, itself and what it reaches — and the target last. Each once.
+  function routeStops(graph, witness, doc) {
     var out = [];
-    pathSteps(witness).forEach(function (id) {
-      if (id.indexOf("action/") !== 0) return;
-      var at = originOf(graph, id);
-      if (at && out.indexOf(at) < 0) out.push(at);
+    function add(id) {
+      if (id && out.indexOf(id) < 0) out.push(id);
+    }
+    var steps = inOrder(witness);
+    steps.forEach(function (w) {
+      if (w.id.indexOf("input/foothold/") === 0) add(originOf(graph, w.id));
     });
+    // Conditions, not places: an input other than a foothold (a policy, a
+    // permission), and what follows from conditions alone (MFA satisfied
+    // by policy). The firewall still lies on its flow's way.
+    var needs = Object.create(null);
+    ((witness && witness.edges) || []).forEach(function (e) {
+      (needs[e.dependent] = needs[e.dependent] || []).push(e.prerequisite);
+    });
+    var condition = Object.create(null);
+    steps.forEach(function (w) {
+      var from = needs[w.id] || [];
+      condition[w.id] = w.id.indexOf("input/") === 0
+        ? w.id.indexOf("input/foothold/") !== 0
+        : from.length > 0 && from.every(function (p) { return condition[p]; });
+    });
+    steps.forEach(function (w) {
+      if (condition[w.id] || w.id.indexOf("input/") === 0) return;
+      var at = originOf(graph, w.id);
+      var f = at && at.indexOf("flow/") === 0 && doc && has(doc.flows, at.slice(5)) ? doc.flows[at.slice(5)] : null;
+      if (!f) return add(at);
+      add("entity/" + f.source);
+      (f.route || []).forEach(function (hop) {
+        add("entity/" + hop);
+      });
+      add(at);
+      add("entity/" + f.target);
+    });
+    var target = doc && doc.attacker && doc.attacker.target ? "entity/" + doc.attacker.target.entity : null;
+    if (target && out.indexOf(target) >= 0) {
+      out.splice(out.indexOf(target), 1);
+      out.push(target);
+    }
     return out;
   }
 
