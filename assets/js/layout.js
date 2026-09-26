@@ -1,5 +1,6 @@
-// Layout: ELK, in a worker of its own (spec 7.1). The page never computes a
-// position and never stores one.
+// Layout: ELK, in a worker of its own (spec 7.1). The places it computes are
+// where things start; an architecture's components dragged elsewhere are
+// kept apart from it (positions.js).
 (function () {
   var workerUrl = new URL("../vendor/elk/elk-worker.min.js", document.currentScript.src).href;
   function createLayout() {

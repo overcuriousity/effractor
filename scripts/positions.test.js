@@ -98,9 +98,19 @@ test('positions are kept per document in the browser, and a broken storage is no
   const broken = Pos.createStore({ getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } });
   assert.deepEqual(broken.load('Lab'), {});
   broken.moveAll('Lab', { 'entity/a': { x: 1, y: 2 } });
+  // What the storage refused stays for the page: a dragged component does not snap back.
+  assert.deepEqual(broken.load('Lab'), { 'entity/a': { x: 1, y: 2 } });
+  broken.moveAll('Lab', { 'entity/b': { x: 3, y: 4 } });
+  assert.deepEqual(broken.load('Lab'), { 'entity/a': { x: 1, y: 2 }, 'entity/b': { x: 3, y: 4 } });
+  broken.load('Lab')['entity/a'].x = 99;
+  assert.equal(broken.load('Lab')['entity/a'].x, 1, 'a copy is handed out');
   broken.clear('Lab');
-  // Without any storage it still answers.
-  assert.deepEqual(Pos.createStore(null).load('Lab'), {});
+  assert.deepEqual(broken.load('Lab'), {});
+  // Without any storage it still answers, and still holds what was moved.
+  const none = Pos.createStore(null);
+  assert.deepEqual(none.load('Lab'), {});
+  none.moveAll('Lab', { 'entity/a': { x: 5, y: 6 } });
+  assert.deepEqual(none.load('Lab'), { 'entity/a': { x: 5, y: 6 } });
 });
 
 test('a component with a plate: its lines end on the plate, not on the box around its name', () => {

@@ -283,13 +283,13 @@
 .workspace[data-left="closed"]  .resizer[data-resize="left"],
 .workspace[data-right="closed"] .resizer[data-resize="right"] { visibility: hidden; }
 
-/* The rail's text tool (?), pushed to its foot, and the canvas notice. */
+/* The rail's text tool (?), pushed to its foot. */
 .rail .spacer { flex: 1; }
 .tool-text { font: 600 0.8125rem/1 var(--font-mono); }
-/* A notice sits above the corner's controls and pins, never over them. */
 /* A button inside running text, e.g. the notice's Undo. */
 .link-button { background: none; border: 0; padding: 0; color: var(--color-accent); font: inherit; cursor: pointer; }
 .link-button:hover { text-decoration: underline; }
+/* The canvas notice sits above the corner's controls and pins, never over them. */
 .hud-note {
   left: 10px; bottom: 48px;
   max-width: 70%; margin: 0; padding: 5px 10px;

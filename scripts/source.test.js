@@ -84,3 +84,53 @@ test("a path into a list finds the item's line: a scenario's change, a foothold"
   assert.equal(pathLine(top, "footholds[1]"), 3);
   assert.equal(pathLine(top, "other"), 4);
 });
+
+// The source view over the least DOM it needs, and a page that answers.
+function sourceView() {
+  const { readFileSync } = require("node:fs");
+  const vm = require("node:vm");
+  const { element } = require("./fixtures/fake-dom.js");
+  const nodes = new Map();
+  const get = (id) => { if (!nodes.has(id)) { const e = element("div"); e.hidden = true; nodes.set(id, e); } return nodes.get(id); };
+  const document = { activeElement: null, getElementById: get, createElement: element };
+  const area = get("source");
+  area.value = "";
+  area.focus = () => { document.activeElement = area; };
+  area.setSelectionRange = () => {};
+  const button = element("button");
+  button.blur = () => {};
+  document.querySelector = () => button;
+  get("app").toggleAttribute = () => {};
+  const listeners = [], timers = [];
+  const app = {
+    state: { text: "name: valid\n", diagnostics: [], sourceValid: true },
+    onChange: (f) => listeners.push(f),
+    markSourceDirty() { app.state.sourceValid = false; },
+    adoptSource: async () => [{ severity: "error", message: "bad", line: 1 }],
+    say() {},
+  };
+  const window = { effractor: app, effractorProblems: { blocks: () => false }, effractorWorkspace: { open() {} } };
+  vm.runInNewContext(readFileSync("assets/js/source.js", "utf8"), { window, document, setTimeout: (f) => (timers.push(f), timers.length), clearTimeout() {}, Event: function (t) { this.type = t; } });
+  return { app, area, button, timers, notify: () => listeners.forEach((f) => f()) };
+}
+
+test("source text that does not read stays while the document does not change, and follows it when it does", async () => {
+  const s = sourceView();
+  s.button.listeners.click[0]();
+  s.area.value = "name: valid\nnodes: [half-typed";
+  s.area.listeners.input[0]();
+  s.timers.shift()();
+  await new Promise(setImmediate);
+  s.notify(); // a click on the canvas, a solve arriving
+  assert.equal(s.area.value, "name: valid\nnodes: [half-typed");
+  s.app.state.text = "name: undone\n"; // an undo
+  s.notify();
+  assert.equal(s.area.value, "name: undone\n");
+});
+
+test("a file put into the source to be put right stays there through the page's changes", () => {
+  const s = sourceView();
+  s.app.showSourceText("old: file\n", [{ severity: "error", message: "bad", line: 1 }]);
+  s.notify();
+  assert.equal(s.area.value, "old: file\n");
+});

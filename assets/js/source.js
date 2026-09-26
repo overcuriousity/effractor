@@ -94,6 +94,7 @@
   var area = $("source");
   var button = document.querySelector('[data-tool="source"]');
   var timer = null;
+  var shown = null; // the document's text the view last followed
 
   function show(on) {
     $("app").toggleAttribute("data-source", on);
@@ -104,6 +105,7 @@
     button.setAttribute("aria-pressed", String(on));
     if (on) window.effractorWorkspace.open("left");
     if (on) {
+      shown = app.state.text;
       area.value = app.state.text || "";
       problems(app.state.diagnostics || []);
       area.focus();
@@ -173,6 +175,7 @@
     if ($("view-source").hidden) show(true);
     clearTimeout(timer);
     timer = null;
+    shown = app.state.text;
     area.value = text;
     app.markSourceDirty();
     problems(list);
@@ -205,11 +208,14 @@
 
   // The document changed elsewhere (a canvas edit, undo, a file): the text
   // follows. What was just typed *is* the document's text, so nothing moves
-  // under the caret.
+  // under the caret; and while the document stays the one last shown, text
+  // that does not read yet stays too, whatever else the page does.
   app.onChange(function () {
-    if ($("view-source").hidden || app.state.text === null || area.value === app.state.text) return;
+    if ($("view-source").hidden || app.state.text === null || app.state.text === shown) return;
+    shown = app.state.text;
+    if (area.value === shown) return;
     if (document.activeElement === area && timer !== null) return; // mid-typing: the pause will settle it
-    area.value = app.state.text;
+    area.value = shown;
     problems(app.state.diagnostics || []);
   });
 })();

@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
-const { templateName, analysisLabel, samplesOverride } = require("../assets/js/app.js");
+const { newProfile, withoutNew, analysisLabel, samplesOverride } = require("../assets/js/app.js");
 const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const { element } = require('./fixtures/fake-dom.js');
@@ -70,10 +70,13 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
 // `slow` are parsed only on release, and so are layouts while `holdLayout`.
 // Everything else answers at once. Nothing here is a browser.
 // `opts`: `docOf(text, doc)` reshapes the documents, `view` and `positions`
-// stand in for the architecture's drawing and this browser's places.
+// stand in for the architecture's drawing and this browser's places;
+// `alsoKept` is what the browser keeps in other modes, `search` the page's
+// query, `refuses` a browser that keeps nothing, `channel` another tab's.
 function racePage(kept = 'original', legacy = null, opts = {}) {
   const nodes = new Map(), writes = [], held = [], renders = [], runs = [], timers = [], reveals = [], layouts = [];
   const handlers = {};
+  const replaced = [];
   const slow = new Set();
   const generated = [];
   let holdLayout = false;
@@ -83,7 +86,7 @@ function racePage(kept = 'original', legacy = null, opts = {}) {
     : { name: text, profile: 'fault-tree', nodes: { top: { label: 'Top', leaf: 'basic' } }, analysis: { seed: 1, samples: 10 } };
   const docOf = text => (opts.docOf ? opts.docOf(text, plain(text)) : plain(text));
   // What the browser keeps: the one text in its mode, or the text from before modes.
-  const kept_ = kept === null ? {} : { [docOf(kept).profile]: kept };
+  const kept_ = Object.assign(kept === null ? {} : { [docOf(kept).profile]: kept }, opts.alsoKept || {});
   let mode_ = kept === null ? null : docOf(kept).profile;
   const later = (what, value) => new Promise(resolve => held.push({ what, release: () => resolve(value) }));
   const solver = {
@@ -111,13 +114,19 @@ function racePage(kept = 'original', legacy = null, opts = {}) {
       return holdGenerate ? later('generate ' + text, answer) : Promise.resolve(answer);
     },
   };
+  const keys = [], files = [];
   const document = {
     currentScript: { src: 'https://example.test/assets/js/app.js' },
     getElementById(id) { if (!nodes.has(id)) nodes.set(id, element('div')); return nodes.get(id); },
-    createElement: element, querySelectorAll: () => [], addEventListener() {},
+    createElement: tag => Object.assign(element(tag), { click() {}, remove() {} }), body: element('body'),
+    createTextNode: text => Object.assign(element('#text'), { textContent: text }), querySelectorAll: () => [], querySelector: () => null,
+    addEventListener(type, f) { if (type === 'keydown') keys.push(f); },
   };
+  // A file saved: its text.
+  const Blob = function (parts) { this.text = parts.join(''); };
+  const FileURL = Object.assign(class extends URL {}, { createObjectURL(blob) { files.push(blob.text); return 'blob:x'; }, revokeObjectURL() {} });
   const window = {
-    effractorStore: { createStore: () => ({ load: async profile => kept_[profile] ?? null, save(text, profile) { writes.push(text); kept_[profile] = text; }, mode: async () => mode_, setMode(p) { mode_ = p; }, legacy: async () => legacy, dropLegacy() { legacy = null; } }) },
+    effractorStore: { fileName: () => 'x.yaml', createStore: () => ({ load: async profile => kept_[profile] ?? null, save(text, profile) { if (opts.refuses) return false; writes.push(text); kept_[profile] = text; return true; }, mode: async () => mode_, setMode(p) { mode_ = p; }, legacy: async () => legacy, dropLegacy() { legacy = null; } }) },
     createSolver: () => solver,
     effractorRenderer: { createSvgRenderer: () => ({ mount() {}, render(laid) { renders.push(laid.name); }, highlight() {}, reveal(id) { reveals.push(id); }, on(name, f) { (handlers[name] = handlers[name] || []).push(f); }, fit() {} }) },
     effractorLayout: { createLayout: () => described => (layouts.push(described), holdLayout ? later('layout ' + described.name, described) : Promise.resolve(described)) },
@@ -137,7 +146,9 @@ function racePage(kept = 'original', legacy = null, opts = {}) {
     effractorCharts: require('../assets/js/charts.js'),
   };
   vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
-    window, document, URL, location: new URL('https://example.test/'), console,
+    window, document, URL: FileURL, Blob, location: new URL('https://example.test/' + (opts.search || '')), console,
+    history: { state: null, replaceState(state, title, url) { replaced.push(url); } },
+    BroadcastChannel: opts.channel,
     performance: { now: () => 0 },
     setTimeout: function (f) { timers.push(f); return timers.length; },
     clearTimeout: function (id) { timers[id - 1] = null; },
@@ -145,7 +156,8 @@ function racePage(kept = 'original', legacy = null, opts = {}) {
   });
   const settle = () => new Promise(setImmediate);
   return {
-    app: window.effractor, writes, renders, runs, slow, nodes, settle, docOf, generated, reveals, layouts,
+    kept: kept_, replaced, files, legacy: () => legacy, app: window.effractor, writes,
+    key(e) { keys.forEach(f => f(Object.assign({ key: '', target: element('div'), preventDefault() {} }, e))); }, renders, runs, slow, nodes, settle, docOf, generated, reveals, layouts,
     emit(name, e) { (handlers[name] || []).forEach(f => f(e)); },
     holdLayout(on) { holdLayout = on; },
     holdGenerate(on) { holdGenerate = on; },
@@ -532,13 +544,18 @@ test("?samples= is a whole number of at least one, or nothing", () => {
   assert.equal(samplesOverride("?samples=1.5"), null);
 });
 
-test("the page opens on an empty document; ?new= picks its profile and nothing else", () => {
-  assert.equal(templateName(""), "new");
-  assert.equal(templateName("?new=attack-tree"), "new-attack");
-  assert.equal(templateName("?samples=5&new=attack-tree"), "new-attack");
-  assert.equal(templateName("?new=architecture"), "new-architecture");
-  assert.equal(templateName("?new=../../etc/passwd"), "new");
-  assert.equal(templateName("?example=webserver"), "new");
+test("?new= picks an empty document's profile and nothing else, and leaves the address after use", () => {
+  assert.equal(newProfile(""), null);
+  assert.equal(newProfile("?new=attack-tree"), "attack-tree");
+  assert.equal(newProfile("?samples=5&new=attack-tree"), "attack-tree");
+  assert.equal(newProfile("?new=architecture"), "architecture");
+  assert.equal(newProfile("?new=../../etc/passwd"), null);
+  assert.equal(newProfile("?new=constructor"), null);
+  assert.equal(newProfile("?example=webserver"), null);
+  assert.equal(withoutNew("?new=architecture"), "");
+  assert.equal(withoutNew("?samples=5&new=attack-tree"), "?samples=5");
+  assert.equal(withoutNew("?new=fault-tree&samples=5"), "?samples=5");
+  assert.equal(withoutNew(""), "");
 });
 
 // The selected node's form lives in an inspector on the canvas, shown exactly
@@ -883,7 +900,7 @@ test('review: several selected stay selected when results arrive', async () => {
   const h = racePage('arch two', null, { view: { describe: doc => ({ name: doc.name, nodes: [] }), route: () => [] } });
   await h.app.ready; await h.tick();
   const run = h.runs[h.runs.length - 1];
-  h.app.pick(['entity/web', 'entity/db']);
+  h.emit('pick', { ids: ['entity/web', 'entity/db'], add: false });
   run.resolve(graphResult('arch two', run.options.revision, 0.5)); await h.settle();
   assert.ok(h.app.state.results, 'the result is shown');
   assert.deepEqual(h.app.state.picked, ['entity/web', 'entity/db']);
@@ -937,4 +954,112 @@ test('review: a group drag is one move, written once', async () => {
   await h.app.ready; await h.settle();
   h.emit('move', { places: { 'cluster/x': { x: 5, y: 6 }, 'entity/q': { x: 7, y: 8 } } });
   assert.deepEqual(h.moves, [{ 'cluster/x': { x: 5, y: 6 }, 'entity/q': { x: 7, y: 8 } }]);
+});
+
+// ---- What the browser keeps is never overwritten out of reach ----
+
+test('a document of another mode, opened, keeps what that mode held a Ctrl+Z away, loaded this session or not', async () => {
+  const h = racePage('original', null, { alsoKept: { architecture: 'arch MY WORK' } });
+  await h.app.ready; await h.settle();
+  assert.equal(await h.app.replaceDocument('arch linked', 'opened local copy', null, { origin: 'link' }), true);
+  assert.equal(h.app.state.text, 'arch linked');
+  assert.equal(h.kept.architecture, 'arch linked');
+  assert.equal(h.app.canUndo(), true);
+  h.app.undo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'arch MY WORK');
+});
+
+test('source text of another mode keeps what that mode held a Ctrl+Z away', async () => {
+  const h = racePage('original', null, { alsoKept: { architecture: 'arch MY WORK' } });
+  await h.app.ready; await h.settle();
+  h.app.markSourceDirty();
+  assert.deepEqual(await h.app.adoptSource('arch pasted'), []);
+  assert.equal(h.app.state.text, 'arch pasted');
+  h.app.undo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'arch MY WORK');
+});
+
+test('?new= opens an empty document with the kept one a Ctrl+Z behind it, and leaves the address', async () => {
+  const h = racePage('arch MY WORK', null, { search: '?new=architecture' });
+  await h.app.ready; await h.settle();
+  assert.equal(h.app.state.text, 'arch-template');
+  assert.deepEqual(h.replaced, ['/'], 'a reload is not another new one');
+  await h.app.applyEdit({ doc: h.docOf('arch two') });
+  assert.equal(h.kept.architecture, 'arch two');
+  h.app.undo(); await h.settle(); await h.settle();
+  h.app.undo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'arch MY WORK');
+});
+
+test('kept text that does not read opens in the source with its problems, not dropped', async () => {
+  const h = racePage('old kept text');
+  const shown = [];
+  h.app.showSourceText = (text, list) => shown.push([text, list.length]);
+  await h.app.ready; await h.settle();
+  assert.equal(h.app.state.text, 'arch-template', 'the canvas starts from an empty one');
+  assert.deepEqual(shown, [['old kept text', 2]]);
+  assert.match(h.nodes.get('note').textContent, /kept in this browser does not open · 2 problems/);
+});
+
+test('a browser that keeps nothing is said so, once; the old single text is let go of only once kept', async () => {
+  const h = racePage(null, 'legacy', { refuses: true });
+  await h.app.ready; await h.settle();
+  assert.equal(h.legacy(), 'legacy', 'not kept under its mode, so not dropped');
+  await h.app.applyEdit({ doc: h.docOf('two') }); await h.settle();
+  assert.equal(h.nodes.get('note').textContent, 'not kept in this browser · Ctrl+S saves a file');
+  h.nodes.get('note').textContent = '';
+  await h.app.applyEdit({ doc: h.docOf('three') }); await h.settle();
+  assert.equal(h.nodes.get('note').textContent, '');
+  const kept = racePage(null, 'legacy');
+  await kept.app.ready; await kept.settle();
+  assert.equal(kept.legacy(), null);
+  assert.equal(kept.kept['fault-tree'], 'legacy');
+});
+
+test('Ctrl+S with source text that does not read saves that text, not the last valid one', async () => {
+  const h = racePage();
+  await h.app.ready; await h.settle();
+  h.key({ key: 's', ctrlKey: true });
+  assert.deepEqual(h.files, ['original']);
+  h.nodes.get('source').value = 'original\nnodes: [half';
+  h.app.markSourceDirty();
+  h.key({ key: 's', ctrlKey: true });
+  assert.deepEqual(h.files, ['original', 'original\nnodes: [half']);
+});
+
+// Two tabs over one browser: each hears what the other kept.
+function tabs() {
+  const all = [];
+  return class {
+    constructor() { all.push(this); }
+    postMessage(data) { all.filter(c => c !== this).forEach(c => c.onmessage && c.onmessage({ data })); }
+  };
+}
+
+test('a text another tab kept in the mode shown is taken over, the one it replaces a Ctrl+Z away', async () => {
+  const channel = tabs();
+  const a = racePage('original', null, { channel });
+  const b = racePage('original', null, { channel });
+  await a.app.ready; await b.app.ready; await a.settle();
+  await a.app.applyEdit({ doc: a.docOf('two') }); await a.settle(); await b.settle(); await b.settle();
+  assert.equal(b.app.state.text, 'two');
+  assert.deepEqual(b.writes, [], 'kept already: not written again, nor sent back');
+  assert.equal(b.nodes.get('note').textContent, 'changed in another tab · Ctrl+Z goes back');
+  b.app.undo(); await b.settle(); await b.settle(); await a.settle(); await a.settle();
+  assert.equal(b.app.state.text, 'original');
+  assert.equal(a.app.state.text, 'original', 'which the first tab then takes over in turn');
+});
+
+test('source text being typed is not swept away by another tab: the author is asked', async () => {
+  const channel = tabs();
+  const a = racePage('original', null, { channel });
+  const b = racePage('original', null, { channel });
+  await a.app.ready; await b.app.ready; await a.settle();
+  b.app.markSourceDirty();
+  await a.app.applyEdit({ doc: a.docOf('two') }); await a.settle(); await b.settle();
+  assert.equal(b.app.state.text, 'original');
+  assert.equal(b.nodes.get('note').textContent, 'changed in another tab');
+  const show = b.nodes.get('note').children.find(c => c.textContent === 'Show it');
+  show.listeners.click[0](); await b.settle(); await b.settle();
+  assert.equal(b.app.state.text, 'two');
 });

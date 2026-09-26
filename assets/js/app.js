@@ -10,8 +10,8 @@
     return grouped(analysis.samples) + " samples · seed " + analysis.seed;
   }
 
-  // ?samples=N solves the loaded document with N samples: a way to make a run
-  // long enough to watch and to cancel, until documents can be edited here.
+  // ?samples=N solves the loaded document with N samples: a run long enough
+  // to watch and to cancel.
   function samplesOverride(search) {
     var m = /[?&]samples=(\d+)(&|$)/.exec(search);
     var n = m ? Number(m[1]) : 0;
@@ -31,12 +31,70 @@
     return m && TEMPLATES[m[1]] && Object.prototype.hasOwnProperty.call(TEMPLATES, m[1]) ? m[1] : null;
   }
 
-  function templateName(search) {
-    return TEMPLATES[newProfile(search) || "fault-tree"];
+  // The address without ?new=: a reload goes back to what was worked on,
+  // not to another empty document.
+  function withoutNew(search) {
+    var rest = search.replace(/^\?/, "").split("&").filter(function (part) {
+      return part !== "" && !/^new=/.test(part);
+    });
+    return rest.length ? "?" + rest.join("&") : "";
+  }
+
+  // A field that takes typing: a textarea, or an input that is not a switch,
+  // a slider or a button.
+  function textField(el) {
+    return !!el && (el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && /^(text|search|number|email|url|tel|password)$/.test(el.type || "text")));
+  }
+
+  // A form built again (`build`) under the author's hands — a solve arrived,
+  // another field committed. The field being typed in keeps its focus and,
+  // for the same `key` (what the form is about) and where it is built with
+  // what it was built with before, the text not yet committed and the caret.
+  var builtWith = new WeakMap();
+  var keyOfForm = new WeakMap();
+  function rebuild(document, box, key, build) {
+    var active = document.activeElement && document.activeElement.id && box.contains(document.activeElement) ? document.activeElement : null;
+    var typing = textField(active) && keyOfForm.get(box) === key && builtWith.has(active) && active.value !== builtWith.get(active)
+      ? { value: active.value, base: builtWith.get(active), start: active.selectionStart, end: active.selectionEnd }
+      : null;
+    build();
+    keyOfForm.set(box, key);
+    box.querySelectorAll("input, textarea").forEach(function (field) {
+      builtWith.set(field, field.value);
+    });
+    var again = active ? document.getElementById(active.id) : null;
+    if (!again || !box.contains(again)) return;
+    again.focus();
+    if (!typing || !textField(again) || again.value !== typing.base) return;
+    again.value = typing.value;
+    try {
+      again.setSelectionRange(typing.start, typing.end);
+    } catch (e) {
+      /* a number field has no caret to set */
+    }
+    // A value set here is not the author's typing to a browser, which
+    // then sends no change on leaving the field unless more is typed:
+    // leaving it commits what was carried over all the same.
+    var changed = false;
+    again.addEventListener("change", function () {
+      changed = true;
+    }, { once: true });
+    again.addEventListener("blur", function () {
+      if (!changed && again.value !== typing.base) again.dispatchEvent(new Event("change"));
+    }, { once: true });
+  }
+
+  // A key that is not the canvas's or the tree's: typed into a field, on a
+  // link, in a menu, a chart or a table, or with a dialog open over the page.
+  function keyElsewhere(document, e) {
+    var t = e.target;
+    return /^(INPUT|TEXTAREA|SELECT|A)$/.test(t.tagName) ||
+      !!(t.closest && t.closest(".menu, .analysis-chart, .chart-table, .cutsets, summary")) ||
+      !!document.querySelector("dialog[open]");
   }
 
   if (typeof module !== "undefined") {
-    module.exports = { MODES: MODES, newProfile: newProfile, templateName: templateName, analysisLabel: analysisLabel, samplesOverride: samplesOverride };
+    module.exports = { MODES: MODES, newProfile: newProfile, withoutNew: withoutNew, textField: textField, rebuild: rebuild, keyElsewhere: keyElsewhere, analysisLabel: analysisLabel, samplesOverride: samplesOverride };
   }
   if (typeof document === "undefined") return;
 
@@ -338,8 +396,6 @@
     list.hidden = list.children.length === 0;
   }
 
-  // Colour the leaves from what is known: the exact part of the latest solve,
-  // which is there before its sampling is.
   // An architecture's components stay where the author dragged them, in this
   // browser, per document name; the rest is placed automatically.
   var positions = window.effractorPositions.createStore(browserStorage());
@@ -463,6 +519,8 @@
       return renderer.render(state.placed, {}, motion);
     }
     painted = null;
+    // Colour the leaves from what is known: the exact part of the latest
+    // solve, which is there before its sampling is.
     var known = state.exactResults || state.results;
     renderer.render(state.laid, known ? view.leafStyles(known, state.measure) : {});
   }
@@ -733,6 +791,47 @@
     mark("none");
   }
 
+  // Kept in this browser, and told to its other tabs; a browser that keeps
+  // nothing (a private window, full storage) is said so, once.
+  var unkeptSaid = false;
+  function keep(text, profile) {
+    Promise.resolve(store.save(text, profile)).then(function (ok) {
+      if (ok !== false) return tabs && tabs.postMessage({ profile: profile, text: text });
+      if (!unkeptSaid) say("not kept in this browser · Ctrl+S saves a file", null, true);
+      unkeptSaid = true;
+    });
+    store.setMode(profile);
+  }
+
+  // Another tab of the page keeps its texts in the same browser. A text it
+  // kept in the mode shown here is taken over — the one it replaces a Ctrl+Z
+  // away — so that neither tab writes over the other's work unseen. Source
+  // text being typed here is not swept away: the author is asked.
+  var tabs = typeof BroadcastChannel === "function" ? new BroadcastChannel("effractor") : null;
+  var fromTab = false;
+  if (tabs) {
+    tabs.onmessage = function (e) {
+      var m = e.data;
+      if (!m || typeof m.text !== "string" || !Object.prototype.hasOwnProperty.call(TEMPLATES, m.profile) || !state.doc) return;
+      // Another mode's: read from the store when switched to.
+      if (m.profile !== state.doc.profile) return delete slots[m.profile];
+      if (m.text === state.text) return;
+      if (!state.sourceValid) return say("changed in another tab", [["Show it", function () { takeOver(m.text); }]], true);
+      takeOver(m.text);
+    };
+  }
+  function takeOver(text) {
+    adopt(text, state.selected, state.parent, false, function () {
+      fromTab = true;
+      historyOf(state.doc.profile).push(state.text);
+      return true;
+    }).then(function (applied) {
+      if (applied) say("changed in another tab · Ctrl+Z goes back");
+    }).catch(function (e) {
+      console.error(e);
+    });
+  }
+
   // A text becomes the document: the one way in, for an edit, an undo, a redo.
   function adopt(text, selectId, parent, fit, beforeCommit) {
     var token = gate.issue("document");
@@ -757,12 +856,16 @@
       } else if (state.exactResults || state.results) {
         mark("updating");
       }
-      store.save(text, parsed.ok.profile);
-      store.setMode(parsed.ok.profile);
       var origin = replacing;
       replacing = null;
-      // The name goes with it: the page's state is only updated after.
-      textListeners.forEach(function (f) { f(text, parsed.ok.profile, origin, parsed.ok.name); });
+      // A text another tab kept is kept already, and was its edit, not this one's.
+      var quiet = fromTab;
+      fromTab = false;
+      if (!quiet) {
+        keep(text, parsed.ok.profile);
+        // The name goes with it: the page's state is only updated after.
+        textListeners.forEach(function (f) { f(text, parsed.ok.profile, origin, parsed.ok.name); });
+      }
       return loaded(text, parsed.ok, !!fit).then(function (outcome) {
         // A newer text overtook this one's attack graph: the selection, and
         // what is solved, are that text's to settle.
@@ -834,11 +937,13 @@
     return solver.parse(text).then(function (parsed) {
       if (!gate.accept(token)) return null;
       if (!parsed.ok) return parsed.diagnostics;
-      return adopt(text, state.selected, state.parent, false, function () {
-        // Text of another mode goes into that mode: what it replaces there
-        // is one Ctrl+Z away, as for a file opened (replaceDocument).
-        keepReplaced(parsed.ok.profile);
-        return true;
+      return keptElsewhere(parsed.ok.profile).then(function (kept) {
+        return adopt(text, state.selected, state.parent, false, function () {
+          // Text of another mode goes into that mode: what it replaces there
+          // is one Ctrl+Z away, as for a file opened (replaceDocument).
+          keepReplaced(parsed.ok.profile, kept);
+          return true;
+        });
       }).then(function (applied) {
         return applied ? parsed.diagnostics || [] : null;
       });
@@ -854,10 +959,15 @@
   }
   var undoStack = historyOf("fault-tree");
   // A text of mode `into` is about to replace that mode's document: the one
-  // it replaces goes into that mode's history.
-  function keepReplaced(into) {
-    var before = state.doc && state.doc.profile === into ? state.text : slots[into];
+  // it replaces goes into that mode's history. That is the text on the page,
+  // or the one last seen in that mode, or else what this browser keeps for
+  // it (`kept`, read beforehand with keptElsewhere).
+  function keepReplaced(into, kept) {
+    var before = state.doc && state.doc.profile === into ? state.text : slots[into] !== undefined ? slots[into] : kept;
     if (before !== undefined && before !== null) historyOf(into).push(before);
+  }
+  function keptElsewhere(profile) {
+    return (state.doc && state.doc.profile === profile) || slots[profile] !== undefined ? Promise.resolve(null) : keptText(profile);
   }
   // One step at a time: a Ctrl+Z repeated while the last is still on its
   // way is ignored, and a step that is overtaken goes back into the history.
@@ -885,15 +995,21 @@
   }
 
   // What was being worked on in this browser, in the mode last used, or else
-  // an empty document. ?new= opens an empty one of its kind.
+  // an empty document. ?new= opens an empty one of its kind, the kept one a
+  // Ctrl+Z behind it, and leaves the address: a reload is not another new
+  // one. Kept text that does not read opens in the source, to be put right.
   function load() {
     var wanted = newProfile(location.search);
+    if (wanted && typeof history !== "undefined") history.replaceState(history.state, "", location.pathname + withoutNew(location.search) + location.hash);
+    var unread = null;
     return lastMode()
       .then(function (mode) {
         var active = wanted || mode || "fault-tree";
-        if (wanted) return template(templateOf(active));
-        return keptText(active).then(function (kept) {
-          return kept === null ? template(templateOf(active)) : kept;
+        return readKept(active).then(function (kept) {
+          if (kept && kept.diagnostics) unread = kept;
+          else if (kept && wanted) historyOf(active).push(kept.text);
+          else if (kept) return kept.text;
+          return template(templateOf(active));
         });
       })
       .then(function (text) {
@@ -908,6 +1024,7 @@
           function told(outcome, t) {
             firstText = [t, parsed.ok.profile, first, parsed.ok.name];
             textListeners.forEach(function (f) { f.apply(null, firstText); });
+            if (unread) notOpened(unread.text, unread.diagnostics, "the text kept in this browser does not open");
             return outcome;
           }
           if (samples === null) return Promise.resolve(loaded(text, parsed.ok, true)).then(function (v) { return told(v, text); });
@@ -932,8 +1049,9 @@
         return solver.parse(old).then(function (parsed) {
           if (!parsed.ok) return null;
           var profile = parsed.ok.profile;
-          return Promise.all([store.save(old, profile), store.setMode(profile)]).then(function () {
-            store.dropLegacy();
+          return Promise.all([store.save(old, profile), store.setMode(profile)]).then(function (done) {
+            // Let go of only once it is kept under its mode.
+            if (done[0] === true) store.dropLegacy();
             return profile;
           });
         });
@@ -941,15 +1059,21 @@
     });
   }
 
-  // A mode's kept text, or null. Kept text that no longer parses (an older
-  // version's, say), or is not of that mode, must not lock the page out of
-  // itself.
-  function keptText(profile) {
+  // A mode's kept text: {text} when it reads as a document of that mode,
+  // {text, diagnostics} when it does not parse (an older version's, say), or
+  // null. Neither must lock the page out of itself.
+  function readKept(profile) {
     return store.load(profile).then(function (kept) {
       if (kept === null) return null;
       return solver.parse(kept).then(function (parsed) {
-        return parsed.ok && parsed.ok.profile === profile ? kept : null;
+        if (!parsed.ok) return { text: kept, diagnostics: parsed.diagnostics };
+        return parsed.ok.profile === profile ? { text: kept } : null;
       });
+    });
+  }
+  function keptText(profile) {
+    return readKept(profile).then(function (kept) {
+      return kept && !kept.diagnostics ? kept.text : null;
     });
   }
 
@@ -959,16 +1083,23 @@
     if (!state.doc || !Object.prototype.hasOwnProperty.call(TEMPLATES, profile)) return Promise.resolve(false);
     var intent = gate.issue("mode");
     if (state.doc.profile === profile) return Promise.resolve(true);
-    var text = slots[profile] !== undefined ? Promise.resolve(slots[profile]) : keptText(profile);
+    var unread = null;
+    var text = slots[profile] !== undefined ? Promise.resolve({ text: slots[profile] }) : readKept(profile);
     return text
       .then(function (kept) {
-        return kept === null ? template(templateOf(profile)) : kept;
+        // Kept text that does not read opens in the source, over an empty one.
+        if (kept && kept.diagnostics) unread = kept;
+        return kept && !unread ? kept.text : template(templateOf(profile));
       })
       .then(function (text) {
         if (!gate.accept(intent)) return false;
         return adopt(text, null, null, true, function () {
           return gate.accept(intent);
         });
+      })
+      .then(function (applied) {
+        if (applied && unread) notOpened(unread.text, unread.diagnostics, "the text kept in this browser does not open");
+        return applied;
       })
       .catch(function (e) {
         console.error(e);
@@ -1170,7 +1301,13 @@
   window.effractor.renderer = renderer;
   window.effractor.select = select;
   window.effractor.labelOf = labelOf;
-  window.effractor.pick = pick;
+  window.effractor.rebuild = function (box, key, build) {
+    rebuild(document, box, key, build);
+  };
+  window.effractor.textField = textField;
+  window.effractor.keyElsewhere = function (e) {
+    return keyElsewhere(document, e);
+  };
   window.effractor.putPositions = putPositions;
   // Places set by hand for the edit about to be drawn (or null again once
   // it is): opening a cluster in place leaves them where they are.
@@ -1222,18 +1359,20 @@
       return solver.serialize(parsed.ok).then(function (written) {
         if (isCurrent && !isCurrent()) return false;
         if (!written.ok) return say("not opened: " + describe(written.diagnostics[0]));
-        return adopt(written.ok, null, null, true, function () {
-          // Link navigation may have changed during the worker round trips.
-          // Check before touching either the document or its undo history.
-          if (isCurrent && !isCurrent()) return false;
-          replacing = (opts && opts.origin) || "other";
-          // A document the server keeps starts its own history: the one it
-          // replaces is safe on the server, and an undo must never write one
-          // document's text into another.
-          if (opts && opts.fresh) histories[parsed.ok.profile] = window.effractorEdit.createHistory();
-          // Opened into its own mode: what it replaces there is one Ctrl+Z away.
-          else keepReplaced(parsed.ok.profile);
-          return true;
+        return keptElsewhere(parsed.ok.profile).then(function (kept) {
+          return adopt(written.ok, null, null, true, function () {
+            // Link navigation may have changed during the worker round trips.
+            // Check before touching either the document or its undo history.
+            if (isCurrent && !isCurrent()) return false;
+            replacing = (opts && opts.origin) || "other";
+            // A document the server keeps starts its own history: the one it
+            // replaces is safe on the server, and an undo must never write one
+            // document's text into another.
+            if (opts && opts.fresh) histories[parsed.ok.profile] = window.effractorEdit.createHistory();
+            // Opened into its own mode: what it replaces there is one Ctrl+Z away.
+            else keepReplaced(parsed.ok.profile, kept);
+            return true;
+          });
         }).then(function (applied) {
           if (!applied || (isCurrent && !isCurrent())) return false;
           say(opts && opts.fresh ? said : said + " · Ctrl+Z goes back");
@@ -1249,20 +1388,25 @@
 
   // A text that does not read as a document still opens — in the source
   // view, with every problem listed there, so it can be put right; the
-  // canvas keeps the document it had.
-  function notOpened(text, diagnostics) {
+  // canvas keeps the document it had. `what` says which text it is.
+  function notOpened(text, diagnostics, what) {
+    what = what || "not opened";
     var errors = diagnostics.filter(function (d) {
       return d.severity === "error";
     }).length;
-    if (!window.effractor.showSourceText) return say("not opened: " + describe(diagnostics[0]));
+    if (!window.effractor.showSourceText) return say(what + ": " + describe(diagnostics[0]));
     window.effractor.showSourceText(text, diagnostics);
-    say("not opened · " + errors + (errors === 1 ? " problem" : " problems") + " · listed under the source");
+    say(what + " · " + errors + (errors === 1 ? " problem" : " problems") + " · listed under the source");
     return false;
   }
 
+  // The document as a file; with source text that does not read yet, that
+  // text, as it is being put right.
   function saveFile() {
     if (state.text === null) return;
-    var url = URL.createObjectURL(new Blob([state.text], { type: "text/yaml" }));
+    var source = $("source");
+    var text = !state.sourceValid && source ? source.value : state.text;
+    var url = URL.createObjectURL(new Blob([text], { type: "text/yaml" }));
     var a = document.createElement("a");
     a.href = url;
     a.download = window.effractorStore.fileName(state.doc.name);
@@ -1378,12 +1522,10 @@
   $("zoom-out").addEventListener("click", function () {
     renderer.zoomBy(0.8);
   });
-  // A plain key meant for the canvas: not typed into a field, a menu or a
-  // dialog, and not already taken by something that owns it.
+  // A plain key meant for the canvas, not already taken by something that
+  // owns it.
   function canvasKey(e) {
-    return !e.ctrlKey && !e.metaKey && !e.altKey && !e.defaultPrevented &&
-      !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) &&
-      !e.target.closest(".menu") && !document.querySelector("dialog[open]");
+    return !e.ctrlKey && !e.metaKey && !e.altKey && !e.defaultPrevented && !keyElsewhere(document, e);
   }
   document.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -1395,7 +1537,7 @@
     } else if (e.key === "Escape") {
       closeFileMenu();
       // Esc on the canvas lets go of what is selected.
-      if (P.isArchitecture(state.doc) && !e.defaultPrevented && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && !e.target.closest(".menu") && !document.querySelector("dialog[open]") && (state.selected || state.picked.length)) select(null);
+      if (P.isArchitecture(state.doc) && canvasKey(e) && (state.selected || state.picked.length)) select(null);
     } else if (e.key.toLowerCase() === "f" && canvasKey(e)) {
       renderer.fit();
     } else if ((e.key === "+" || e.key === "-") && canvasKey(e)) {

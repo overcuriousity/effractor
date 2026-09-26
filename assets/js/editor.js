@@ -1,7 +1,8 @@
 // The editor (spec 7.2): keys, drops, the context menu, link-existing, the
 // property panel and the model tree. It decides *which* edit; edit.js makes the
-// new document, and app.js sends it through wasm and redraws. No positions are
-// stored and nothing is dragged about: ELK owns the layout.
+// new document, and app.js sends it through wasm and redraws. A tree's
+// positions are ELK's: a node dragged onto another moves under it, and none
+// is stored where it was dropped.
 (function () {
   if (typeof document === "undefined") return;
   var app = window.effractor;
@@ -198,8 +199,10 @@
 
   // ---- keyboard ----
 
+  // Not the tree's key: the page's other places (app.keyElsewhere), and a
+  // focused button, whose Enter and Space are its own.
   function typingElsewhere(e) {
-    return !!e.target.closest(".analysis-chart, .chart-table, .cutsets, summary") || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName) || $("link-dialog").open;
+    return app.keyElsewhere(e) || e.target.tagName === "BUTTON";
   }
 
   // Everything the page does by key or pointer that is not in MENU: the help
@@ -243,7 +246,7 @@
     if (e.defaultPrevented) return;
     var mod = e.ctrlKey || e.metaKey;
     // In a field, undo is the field's own: a typo is not a document edit.
-    var inText = /^(INPUT|TEXTAREA)$/.test(e.target.tagName);
+    var inText = app.textField(e.target);
     if (mod && !inText && e.key.toLowerCase() === "z") {
       e.preventDefault();
       return e.shiftKey ? app.redo() : app.undo();
@@ -888,9 +891,16 @@
     if (given && given === quantity) sketch(form, n);
   }
 
+  // Built again on every change of the page, a solve's included: what is
+  // being typed stays (app.rebuild).
   function renderProperties() {
     var form = $("properties");
-    var keepFocus = document.activeElement && document.activeElement.id;
+    app.rebuild(form, selected(), function () {
+      buildProperties(form);
+    });
+  }
+
+  function buildProperties(form) {
     form.replaceChildren();
     var n = node();
     form.hidden = !n;
@@ -937,7 +947,6 @@
     }
     consequences(form, n);
     more(form, n, id);
-    if (keepFocus && $(keepFocus)) $(keepFocus).focus();
   }
 
   // ---- left panel: the model as an outline, and the assets ----
@@ -1072,10 +1081,15 @@
   }
 
   function renderAssets() {
+    var list = $("assets");
+    app.rebuild(list, openAsset, function () {
+      buildAssets(list);
+    });
+  }
+
+  function buildAssets(list) {
     var assets = doc().assets || {};
     var ids = Object.keys(assets);
-    var list = $("assets");
-    var keepFocus = document.activeElement && list.contains(document.activeElement) ? document.activeElement.id : null;
     list.replaceChildren();
     $("assets-empty").hidden = ids.length > 0 || !$("asset-new").hidden;
     ids.forEach(function (id) {
@@ -1152,7 +1166,6 @@
       }
       list.appendChild(block);
     });
-    if (keepFocus && $(keepFocus)) $(keepFocus).focus();
   }
 
   $("asset-add").addEventListener("click", function () {

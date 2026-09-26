@@ -3,7 +3,7 @@
 // tree, attack tree, architecture) and the mode last used — IndexedDB
 // because the spec says so and a share list will join it there.
 // Where there is no IndexedDB (a private window may refuse it) nothing is
-// kept and nothing fails.
+// kept and nothing fails; save says so, for the page to tell.
 (function () {
   var DB = "effractor";
   var STORE = "working";
@@ -91,11 +91,11 @@
       load: function (profile) {
         return get(keyOf(profile));
       },
+      // Resolves true once kept, false when the browser refused.
       save: function (text, profile) {
-        return put(text, keyOf(profile));
-      },
-      clear: function (profile) {
-        return remove(keyOf(profile));
+        return request("readwrite", function (s) {
+          return s.put(text, keyOf(profile));
+        }, STORE, true);
       },
       // The mode last used, or null.
       mode: function () {
