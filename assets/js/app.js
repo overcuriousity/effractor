@@ -301,6 +301,8 @@
       renderer.highlight([], "blocked");
       renderer.highlight([], "open");
     }
+    // The dotted marks said in the legend while there are any.
+    if ($("legend-blocked")) $("legend-blocked").hidden = !(compared && compared.blocked.length);
     // A step lights how it was reached: back along the route shown, or the
     // one taken most, when it is on it, else what it needs directly — its
     // lines exactly.

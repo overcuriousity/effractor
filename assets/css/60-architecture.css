@@ -99,6 +99,7 @@
 .ring-sample { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; border: 2.5px solid var(--color-danger); vertical-align: middle; }
 .ring-sample.is-exposed { border-color: var(--color-exposed); }
 .ring-sample.is-unknown { border-color: var(--color-warning); border-style: dashed; }
+.ring-sample.is-blocked { border: 2px dotted var(--color-fg-primary); }
 .legend-toggle, .legend-kinds { padding: 1px 6px; font-size: var(--text-xs); }
 .legend-kinds { display: inline-flex; align-items: center; gap: 5px; }
 .legend-toggle[aria-pressed="false"] { color: var(--color-fg-muted); text-decoration: line-through; }
