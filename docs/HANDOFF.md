@@ -7,9 +7,14 @@ says where things stand, how the owner wants the UI to be, and what bit today.
 
 ## Continuation — accounts (2026-09-26)
 
-The self-hosted server diverges from the Pages build: opt-in accounts
-(spec [`2026-09-26-accounts-design.md`](superpowers/specs/2026-09-26-accounts-design.md),
-plan [`2026-09-26-accounts.md`](superpowers/plans/2026-09-26-accounts.md)).
+The self-hosted server diverges from the Pages build: opt-in accounts. The
+spec and plan are built and deleted; read them from history, e.g.
+`git log --diff-filter=D --format=%h -1 -- docs/superpowers/specs/2026-09-26-accounts-design.md`
+names the deleting commit, and `git show <that>^:docs/superpowers/specs/2026-09-26-accounts-design.md`
+prints it (the plan likewise, `docs/superpowers/plans/2026-09-26-accounts.md`).
+Code comments cite its sections ("spec §6.2"); the owner's decisions are dated
+in it (amendments: OIDC needs `--public-url`; the OIDC start route; editors
+rename, 2026-09-26).
 **Owner, 2026-09-26: the whole account system is one branch, `accounts`, and
 one PR that stays open until the owner says merge** — no per-item shipping, no
 ship.sh. PR #113 (the installer's systemd question, `install-systemd`) is
@@ -45,12 +50,23 @@ separate and also waits.
   conversions). `app.js` gained `say(text, actions, sticky)`, `onText`, and
   `replaceDocument(…, {origin, fresh})` — a server document starts a fresh
   undo history so an undo never writes one document into another.
+- **Sync** — `sync-core.js` is pure and node-tested (`scripts/accounts-sync.test.js`):
+  per mode a record `{user, id, base, saved, text}` written with every edit,
+  one save queue per document, records survive a logout, the page announces
+  its first text (`app.js` `load()`, origin `load`/`new`) and every text with
+  its name (the page's own state is updated after its listeners). The test
+  harness calls the core before updating the page, as app.js does — keep it
+  so; a neater fake hid a real bug once.
+- **Reviews** — two fresh whole-branch reviews (units and security; then
+  every flow through the page). Both found data-loss paths in the page's
+  sync layer that unit tests passed; everything they found is fixed.
 - **Looks** — owner looked at login (fixed: account inputs used the browser's
-  serif) and documents (fixed: a rename showed late; every save now updates
-  its row). Sharing, administration, passkeys and OIDC await looks. Passkeys
-  need `--public-url`; locally use `--public-url http://localhost:8082` and
-  browse `http://localhost:8082` (WebAuthn allows localhost; the Origin guard
-  then wants exactly that origin).
+  serif) and documents (fixed: a rename showed late). Passkeys need
+  `--public-url`; locally use `--public-url http://localhost:8082` and browse
+  `http://localhost:8082` (WebAuthn allows localhost; the Origin guard then
+  wants exactly that origin).
+- There is no O key for Documents: every letter already starts a node
+  rename. Ways in: the tab, the crumb's path, the file menu.
 - Rulings made during the work are in the PR description.
 
 ## Continuation — sample collection (2026-09-25)

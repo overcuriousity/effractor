@@ -91,9 +91,10 @@ evidence; parsing TTC expressions alone does not establish MAL compatibility.
 ## Accounts on the self-hosted server
 
 Owner decision, 2026-09-26: the self-hosted server diverges from the Pages
-build with opt-in accounts, stored documents and sharing with people. Design:
-[`2026-09-26-accounts-design.md`](docs/superpowers/specs/2026-09-26-accounts-design.md)
-(§12 is this decomposition). The lecture milestone and accounts are independent.
+build with opt-in accounts, stored documents and sharing with people — built
+(one PR, `accounts`); its design and plan are deleted and read from history
+(`docs/HANDOFF.md` says how). What follows are the later items the design
+named, and the installer's service question.
 
 ### install-systemd — The installer offers a systemd service
 needs: —            cost: 1   benefit: 3
@@ -103,64 +104,20 @@ defaulting to no without a terminal, `EFFRACTOR_SYSTEMD` answering without
 asking. Never turns accounts on. Done when `scripts/install.test.sh` covers
 yes, no, no terminal, no `systemctl`, root and not root (spec §13).
 
-### accounts-core — Users, password login, sessions, CLI
-needs: —            cost: 4   benefit: 4
-The `effractor-accounts` crate with its schema and migrations, `--accounts`,
-the `effractor user` CLI, password login, sessions, the Origin guard,
-`/api/me`, the bar's *local only · Log in* and the login dialog (spec §2–§4,
-§7.1–§7.3, §9.1). Done when the crate and server tests of spec §11 for these
-parts pass, accounts off leaves the shell and routes as before, and the owner
-has looked at the bar and dialog.
-
-### stored-documents — Documents and folders on the server
-needs: accounts-core            cost: 4   benefit: 5
-Documents and folders, autosave with the version check and conflict notice,
-the left panel's *Model · Documents* tab with search, recent, reveal, soft
-delete with Undo and the 7-day purge, the offer to save the page's work at
-login (spec §5 owner rows, §6, §9.2). Done when the §11 tests for these pass
-and the owner finds documents easily in the preview.
-
-### sharing-people — Share documents and folders with users and groups
-needs: stored-documents            cost: 3   benefit: 4
-Shares to users and groups with viewer/editor, folder shares covering their
-contents, the strongest role winning, *Shared with me*, the share dialog's
-people section (spec §5, §9.3). Done when the permission table test passes and
-the owner has shared a folder with a group in the preview.
-
-### administration — Users and groups in the GUI
-needs: accounts-core, sharing-people            cost: 3   benefit: 4
-The administration dialog: users (create, disable, delete, reset password,
-promote), groups (members, roles, `admins_may_create_users`), group admins'
-limited view (spec §5, §8, §9.4). Done when the §11 tests for these pass and
-the owner has looked.
-
-### passkeys — Log in with a passkey
-needs: accounts-core            cost: 3   benefit: 3
-`--public-url`, passkey registration in the account dialog for every account,
-usernameless login (spec §7.1, §7.4). Done when registration and login pass
-with webauthn-rs's software authenticator and the owner has logged in with one.
-
-### oidc — Log in with the operator's OIDC issuer
-needs: accounts-core            cost: 3   benefit: 4
-Authorization code with PKCE, provisioning in no group, `name-2` on a taken
-name, linking from the account dialog, never linking by name or email (spec
-§7.1–§7.2). Done when the flow passes against an in-test fake issuer and the
-owner has logged in through Nextcloud.
-
 ### e2e-vault — Evaluate end-to-end encrypted storage
-needs: stored-documents            cost: 5   benefit: 2
+needs: —            cost: 5   benefit: 2
 Owner, 2026-09-26: stored documents are plaintext at rest for now; evaluate an
 end-to-end encrypted vault (per-user keys, wrapped keys for group shares, what
 OIDC-only users and password resets would mean). Done when a design is
 approved or the idea is dropped.
 
 ### audit-log — Who did what, for admins
-needs: administration            cost: 2   benefit: 2
+needs: —            cost: 2   benefit: 2
 Logins, shares and administrative actions recorded and shown to admins. Needs a
 design first.
 
 ### api-tokens — A scripted API for users
-needs: stored-documents            cost: 3   benefit: 2
+needs: —            cost: 3   benefit: 2
 Per-user tokens for scripts (e.g. pushing an nmap import into one's
 documents). The routes the page uses are not this interface. Needs a design
 first.
