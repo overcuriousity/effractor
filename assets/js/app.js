@@ -251,6 +251,11 @@
     renderer.highlight(lit.map(function (s) {
       return "step/" + s;
     }), "steps");
+    // A step lights how it was reached: back along the simulated path when
+    // it is on it, else what it needs directly — its lines exactly.
+    var path = attackShown() && stepOf(state.selected) && GR.isGraphResults(state.results) ? state.results.baseline.witness : null;
+    var reached = attackShown() && stepOf(state.selected) ? AV.lineage(graphOf(), path, stepOf(state.selected)) : { nodes: [], edges: [] };
+    renderer.highlight(reached.nodes.concat(reached.edges), "lineage", true);
     // A step outside the window on the canvas, or a component none of whose
     // steps are in it, brings the window there, and the step into view.
     var outside = attackShown() && state.selected && state.shownSteps && (stepOf(state.selected)

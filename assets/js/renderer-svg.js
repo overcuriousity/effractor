@@ -617,8 +617,11 @@
         Object.keys(drawn.nodes).forEach(function (id) {
           drawn.nodes[id].classList.toggle(cls, !!ids[id]);
         });
+        // An exact kind lights only the lines it names: between two lit
+        // steps there may be a line that was not the way taken.
+        var exact = exactKinds[kind];
         drawn.edges.forEach(function (e) {
-          e.el.classList.toggle(cls, !!((ids[e.from] && ids[e.to]) || (e.id && ids[e.id])));
+          e.el.classList.toggle(cls, !!((!exact && ids[e.from] && ids[e.to]) || (e.id && ids[e.id])));
         });
         (drawn.outlines || []).forEach(function (d) {
           d.el.classList.toggle(cls, !!ids[d.group.id]);
@@ -829,26 +832,25 @@
       if (glideFrame) glideFrame.finish();
     }
 
-    // If node `id` would sit under an overlay `inset` px wide at the right
-    // edge, pan left just enough to show it — smoothly where the browser can
-    // animate, and never past the left edge. A visible node does not move.
+    // Bring node `id` into sight — off any edge, or under an overlay `inset`
+    // px wide at the right — panning just enough, smoothly where the browser
+    // can animate and the reader has not asked for less motion. A visible
+    // node does not move.
     function reveal(id, inset) {
       // While gliding, where it is going (`boxes`, as rendered), not where it is.
       var b = glideFrame && boxes[id] ? boxes[id] : free && free.at[id] ? free.at[id] : boxes[id];
       if (!b || !svg) return;
-      var width = svg.getBoundingClientRect().width;
-      var margin = 16;
-      var right = (b.x + b.width) * view.k + view.x;
-      var left = b.x * view.k + view.x;
-      var shift = Math.min(right - (width - inset - margin), left - margin);
-      if (shift <= 0) return;
+      var box = svg.getBoundingClientRect();
+      var shift = viewMath.revealShift(b, view, { width: box.width, height: box.height }, inset || 0, 16);
+      if (!shift.dx && !shift.dy) return;
       fitted = false;
-      var from = view.x;
-      var to = view.x - shift;
+      var from = { x: view.x, y: view.y };
+      var to = { x: view.x + shift.dx, y: view.y + shift.dy };
       var raf = typeof window !== "undefined" && window.requestAnimationFrame;
+      var still = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       stopReveal();
-      if (!raf) {
-        view = { k: view.k, x: to, y: view.y };
+      if (!raf || still) {
+        view = { k: view.k, x: to.x, y: to.y };
         return applyView();
       }
       var start = null;
@@ -856,7 +858,7 @@
         if (start === null) start = t;
         var u = Math.min(1, (t - start) / 180);
         var eased = 1 - Math.pow(1 - u, 3);
-        view = { k: view.k, x: from + (to - from) * eased, y: view.y };
+        view = { k: view.k, x: from.x + (to.x - from.x) * eased, y: from.y + (to.y - from.y) * eased };
         applyView();
         panning = u < 1 ? window.requestAnimationFrame(step) : null;
       };
@@ -868,7 +870,10 @@
       panning = null;
     }
 
-    function highlight(ids, kind) {
+    // `exact`: lines are lit by their own ids only, not by their two ends.
+    var exactKinds = Object.create(null);
+    function highlight(ids, kind, exact) {
+      exactKinds[kind] = !!exact;
       var set = Object.create(null);
       ids.forEach(function (id) {
         set[id] = true;

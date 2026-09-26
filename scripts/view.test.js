@@ -57,3 +57,26 @@ test("a menu opens against what opened it, at its real size", () => {
   // A point is an anchor of no width.
   assert.deepEqual(menuAt({ left: 500, right: 500, top: 10 }, { width: 100, height: 50 }, viewport), { x: 502, y: 10 });
 });
+
+const { revealShift } = require("../assets/js/view.js");
+
+test("a node out of sight is brought just into view, on either axis", () => {
+  const view = { k: 1, x: 0, y: 0 };
+  const viewport = { width: 800, height: 600 };
+  // In view: nothing moves.
+  assert.deepEqual(revealShift({ x: 100, y: 100, width: 50, height: 40 }, view, viewport, 0, 16), { dx: 0, dy: 0 });
+  // Under an inspector 300 wide at the right: left just enough.
+  assert.deepEqual(revealShift({ x: 450, y: 100, width: 60, height: 40 }, view, viewport, 300, 16), { dx: -26, dy: 0 });
+  // Off the left and above: right and down.
+  assert.deepEqual(revealShift({ x: -200, y: -90, width: 60, height: 40 }, view, viewport, 0, 16), { dx: 216, dy: 106 });
+  // Below: up.
+  assert.deepEqual(revealShift({ x: 100, y: 700, width: 60, height: 40 }, view, viewport, 0, 16), { dx: 0, dy: -156 });
+  // Scaled and panned: in screen pixels.
+  assert.deepEqual(revealShift({ x: 1000, y: 0, width: 100, height: 40 }, { k: 0.5, x: 0, y: 20 }, viewport, 0, 16), { dx: 0, dy: 0 });
+  // Wider than the room: its left edge shown.
+  assert.deepEqual(revealShift({ x: 900, y: 100, width: 1000, height: 40 }, view, viewport, 0, 16), { dx: -884, dy: 0 });
+});
+
+test("a node wholly in sight against an edge is not moved to the margin", () => {
+  assert.deepEqual(revealShift({ x: 0, y: 0, width: 50, height: 40 }, { k: 1, x: 0, y: 0 }, { width: 800, height: 600 }, 0, 16), { dx: 0, dy: 0 });
+});

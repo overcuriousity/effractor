@@ -108,6 +108,48 @@
     return source;
   }
 
+  // How step `id` was reached, to light it: back along the simulated path
+  // (`witness`, the solver's) to the foothold when the step is on it, else
+  // the step and what it needs directly. {nodes, edges}, drawn ids
+  // ("step/…", "step/a>step/b"). A walk over a queue: paths may be long.
+  function lineage(graph, witness, id) {
+    var n = node(graph, id);
+    if (!n) return { nodes: [], edges: [] };
+    var inputs = Object.create(null);
+    var onPath = false;
+    ((witness && witness.edges) || []).forEach(function (e) {
+      (inputs[e.dependent] = inputs[e.dependent] || []).push(e.prerequisite);
+    });
+    ((witness && witness.nodes) || []).forEach(function (w) {
+      if (w.id === id) onPath = true;
+    });
+    var nodes = [], edges = [];
+    if (!onPath) {
+      nodes.push("step/" + id);
+      n.inputs.forEach(function (input) {
+        if (!node(graph, input)) return;
+        nodes.push("step/" + input);
+        edges.push("step/" + input + ">step/" + id);
+      });
+      return { nodes: nodes, edges: edges };
+    }
+    var seen = Object.create(null);
+    var queue = [id];
+    seen[id] = true;
+    while (queue.length) {
+      var at = queue.shift();
+      nodes.push("step/" + at);
+      (inputs[at] || []).forEach(function (input) {
+        edges.push("step/" + input + ">step/" + at);
+        if (!seen[input]) {
+          seen[input] = true;
+          queue.push(input);
+        }
+      });
+    }
+    return { nodes: nodes, edges: edges };
+  }
+
   var KIND = { input: "input", any: "fact", all: "action" };
 
   function unique(lists) {
@@ -310,6 +352,7 @@
     stepsFor: stepsFor,
     originOf: originOf,
     sourceTarget: sourceTarget,
+    lineage: lineage,
     index: indexOf,
     inspect: inspect,
     search: search,

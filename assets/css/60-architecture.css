@@ -163,6 +163,10 @@
 .edge.hl-steps { stroke: var(--color-accent); stroke-width: 2.5; }
 .graph.has-hl-steps .node:not(.hl-steps):not(.hl-selected),
 .graph.has-hl-steps .edge:not(.hl-steps) { opacity: 0.3; }
+.node.hl-lineage .shape, .node.hl-lineage .stem { stroke: var(--color-accent); stroke-width: 2; }
+.edge.hl-lineage { stroke: var(--color-accent); stroke-width: 2.25; }
+.graph.has-hl-lineage .node:not(.hl-lineage):not(.hl-selected),
+.graph.has-hl-lineage .edge:not(.hl-lineage) { opacity: 0.35; }
 .node-component.hl-steps .halo { stroke: var(--color-accent); stroke-width: 2; stroke-dasharray: 2 2.5; }
 .line-blocked { border-top: 1.5px dotted var(--viz-outline); }
 .line-unknown { border-top: 1.5px dashed var(--viz-outline); }

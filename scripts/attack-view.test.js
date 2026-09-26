@@ -265,3 +265,24 @@ test('a key belongs to the control it is typed in: letters to fields, Enter and 
   assert.equal(V.ownsKey('BUTTON', 'Tab'), true, 'keyboard focus moves on');
   assert.equal(V.ownsKey('svg', 'g'), false);
 });
+
+test('a step lights how it was reached: back along the simulated path, else its prerequisites', () => {
+  const results = require('./fixtures/graph/results-available.json');
+  const witness = results.baseline.witness;
+  const onPath = V.lineage(graph, witness, 'state/service/sshd/reachable');
+  assert.ok(onPath.nodes.includes('step/state/service/sshd/reachable'));
+  assert.ok(onPath.nodes.includes('step/action/flow-connect/ssh'));
+  assert.ok(onPath.nodes.includes('step/input/foothold/workstation/admin'), 'back to the foothold');
+  assert.ok(!onPath.nodes.includes('step/state/host/server/admin'), 'nothing after it');
+  assert.ok(onPath.edges.includes('step/action/flow-connect/ssh>step/state/flow/ssh/connected'));
+  // Every lit line joins two lit steps.
+  onPath.edges.forEach(e => {
+    const [from, to] = e.split('>');
+    assert.ok(onPath.nodes.includes(from) && onPath.nodes.includes(to), e);
+  });
+  // Off the path (or with no path): the step and what it needs directly.
+  const off = V.lineage(graph, null, 'state/host/server/admin');
+  assert.deepEqual(off.nodes.sort(), ['step/state/host/server/admin', 'step/state/service/sshd/control', 'step/state/session/server-account/sshd']);
+  assert.deepEqual(off.edges.sort(), ['step/state/service/sshd/control>step/state/host/server/admin', 'step/state/session/server-account/sshd>step/state/host/server/admin']);
+  assert.deepEqual(V.lineage(graph, witness, 'nothing'), { nodes: [], edges: [] });
+});
