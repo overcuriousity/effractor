@@ -104,6 +104,15 @@
       setMode: function (profile) {
         return put(profile, MODE);
       },
+      // Which server document a mode's working text is (accounts spec §6.3).
+      binding: function (profile) {
+        return get("server:" + profile).then(function (v) {
+          try { return v ? JSON.parse(v) : null; } catch (e) { return null; }
+        });
+      },
+      bind: function (profile, value) {
+        return value ? put(JSON.stringify(value), "server:" + profile) : remove("server:" + profile);
+      },
       legacy: function () {
         return get(LEGACY);
       },

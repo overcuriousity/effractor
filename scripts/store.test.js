@@ -82,3 +82,12 @@ test("the one text kept before modes existed is handed over once, then gone", as
   await store.dropLegacy();
   assert.equal(await createStore(idb).legacy(), null);
 });
+
+test("a mode's binding to a server document is kept as JSON", async () => {
+  const store = createStore(fakeIndexedDB());
+  assert.equal(await store.binding("architecture"), null);
+  await store.bind("architecture", { id: 7, version: 2, saved: "t" });
+  assert.deepEqual(await store.binding("architecture"), { id: 7, version: 2, saved: "t" });
+  await store.bind("architecture", null);
+  assert.equal(await store.binding("architecture"), null);
+});
