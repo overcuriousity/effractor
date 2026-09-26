@@ -95,14 +95,6 @@ build with opt-in accounts, stored documents and sharing with people. Design:
 [`2026-09-26-accounts-design.md`](docs/superpowers/specs/2026-09-26-accounts-design.md)
 (§12 is this decomposition). The lecture milestone and accounts are independent.
 
-### install-systemd — The installer offers a systemd service
-needs: —            cost: 1   benefit: 3
-`install.sh` asks whether to install a systemd service (user unit when not
-root, hardened system unit when root), reading the answer from `/dev/tty`,
-defaulting to no without a terminal, `EFFRACTOR_SYSTEMD` answering without
-asking. Never turns accounts on. Done when `scripts/install.test.sh` covers
-yes, no, no terminal, no `systemctl`, root and not root (spec §13).
-
 ### accounts-core — Users, password login, sessions, CLI
 needs: —            cost: 4   benefit: 4
 The `effractor-accounts` crate with its schema and migrations, `--accounts`,

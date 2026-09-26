@@ -27,7 +27,9 @@ curl -fsSL https://raw.githubusercontent.com/overcuriousity/effractor/master/ins
 ```
 
 Linux x86_64 and aarch64, one static binary, SHA-256 verified, installed to
-`~/.local/bin`. Then:
+`~/.local/bin`. The installer asks whether to install a systemd service (a user
+service, or a hardened system service as root); `EFFRACTOR_SYSTEMD=yes|no`
+answers without asking. Then:
 
 ```sh
 effractor            # http://127.0.0.1:8080
