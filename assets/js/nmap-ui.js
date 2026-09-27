@@ -361,6 +361,16 @@
     var e = doc().entities[id];
     return e && e.tool === "nmap" ? [["Paste nmap result…", "", function () { open(id); }]] : [];
   });
+  // The same from the inspector (owner, 2026-09-27): another scan adds to
+  // what the earlier ones drew.
+  U.rowExtras.push(function (form, id, e) {
+    if (e.tool !== "nmap") return;
+    var paste = el("button", "Paste result…", "btn btn-ghost btn-small");
+    paste.type = "button";
+    paste.title = "Add another scan to the map";
+    paste.addEventListener("click", function () { open(id); });
+    U.field(form, "prop-nmap-paste", "Scan", paste);
+  });
 
   // ---- the light bulb (owner, 2026-09-24) ----
 

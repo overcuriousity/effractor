@@ -764,6 +764,9 @@
     kind.textContent = e.kind;
     kind.className = "mono";
     field(form, "prop-kind", "Kind", kind);
+    rowExtras.forEach(function (more) {
+      more(form, id, e);
+    });
 
     // Shown where it matters: guarding software only where content reaches it.
     var defense = window.effractorArchitectureView.shownDefense(doc(), id);
@@ -801,6 +804,8 @@
   // Filled in by architecture-links-ui.js: entity(form, id) adds to a
   // component's form, association/flow(form, id) are theirs whole.
   var sections = {};
+  // Filled in by nmap-ui.js: rows of a component's form, after its kind.
+  var rowExtras = [];
 
   // ---- when the document or selection changes ----
 
@@ -887,6 +892,7 @@
     problems: problems,
     render: renderProperties,
     sections: sections,
+    rowExtras: rowExtras,
     menuItems: extraItems,
     menuFor: menuFor,
     contextHooks: contextHooks,
