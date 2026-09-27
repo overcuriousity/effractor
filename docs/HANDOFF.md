@@ -6,6 +6,45 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — nmap recipes (2026-09-27), built, not landed
+
+Spec `docs/superpowers/specs/2026-09-27-nmap-recipes-design.md` (kept until
+the owner has accepted the build; §9 says where the build differs). Branch
+`nmap-recipes`, a commit per part, one PR. **The owner has not looked yet:**
+the dialog's recipes and *Adjust*, the preview's *Changes*, *On the way* and
+per-host lines, the grey dashed *not seen* ring and the inspector's
+*Identity* row are all unseen. No implementation plan exists; the spec is
+what was built from.
+
+- **File:** hosts carry `identities` (`mac:…`, `ssh-<keytype>:…`), `vendor`,
+  `seen`, `missed` (`YYYY-MM-DD`), in place, no version change. Refused off
+  hosts and in the wrong shape; two hosts may share an identity. Generation
+  and results never read them. The wasm module must be rebuilt.
+- **`nmap.js` is a facade** over `nmap-address.js` (bytes, CIDR, private
+  space, what a scan covered), `nmap-read.js` (the XML), `nmap-command.js`
+  (BLOCKS, RECIPES, `combine`, `command`, the stamp), `nmap-route.js` (hops →
+  routers, link networks, flow routes), `nmap-changes.js` (what differs, the
+  firewall check, `drawnPorts`), `nmap-plan.js` (matching, rows, summary,
+  apply). `window.effractorNmap` has every name of all of them.
+- **Commands:** seven recipes, ticked, combined block by block (the stronger
+  choice wins; a root scan takes SYN unless told not to; *Names only* goes
+  alone). `LEVELS`, `CHECKS`, `level`, `checksOffered` are gone; Standard is
+  `['services']`, Deep and Complete are its *Adjust* settings
+  (`scripts/nmap.test.js`, `DEEP`, `COMPLETE`). Nothing offered hides a scan
+  or asks a third party (`scripts/nmap-command.test.js` holds that).
+- **Matching:** MAC, then SSH key, then address, then name. Ticks grew:
+  `identities`, `moves`, `renames` (ticked), `strips`, `changes` (unticked),
+  `routers` (ticked), `seen`. A tick group an old caller leaves out is off.
+- **An import that only notes the day** is an edit now: a rescan that finds
+  nothing new still sets `seen` (*Notes 4 hosts as seen.*); untick
+  `ticks.seen`, or a scan without `start`, and it is none.
+- **Fixtures**, all hand-written in nmap's shape: `lan-arp`, `identity`,
+  `route`, `firewall`, `firewall-ack`, `day1`, `day10`; `imported-route.doc.json`
+  is pinned three ways like the others, which gained identities, vendor,
+  seen and the new stamp line.
+- **Open:** a real `--traceroute` scan of the owner's against `route.xml`;
+  `firewall-denies` on the roadmap for what the preview can only say.
+
 ## Continuation — visual and ergonomic review, landed (2026-09-27)
 
 The review below was worked through one small PR per part, the owner looking

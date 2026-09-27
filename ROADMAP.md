@@ -128,13 +128,24 @@ deduplicated against the drawing by best effort (by address, then by name and
 product), never drawn twice. Files with `tool: nmap` keep opening unchanged.
 
 ### scanner-readers — The reading shared, masscan first
-needs: —            cost: 3   benefit: 3
-Split nmap.js's reading from its planning so a second format plugs in as a
-reader, and add masscan (its `-oX` is nmap-shaped XML; check first how far the
-current reader already takes it). A masscan application with its own guided
-dialog: the command, the paste, the preview. Done when nmap's checks still
-pass unchanged, masscan fixtures read into the neutral scan, and pasting a
-masscan result after an nmap one onto the same hosts adds nothing twice.
+needs: —            cost: 2   benefit: 3
+nmap's reading is apart from its planning since the nmap recipes
+(`nmap-read.js`, `nmap-plan.js`): make the reader one of several, and add
+masscan (its `-oX` is nmap-shaped XML; check first how far the current reader
+already takes it). A masscan application with its own guided dialog: the
+command, the paste, the preview. Done when nmap's checks still pass unchanged,
+masscan fixtures read into the neutral scan, and pasting a masscan result
+after an nmap one onto the same hosts adds nothing twice.
+
+### firewall-denies — What a firewall blocks with no service behind it
+needs: —            cost: 4   benefit: 3
+Owner, 2026-09-27, from the nmap firewall recipe: a permission hangs on a flow
+to a service, so *nothing reaches tcp/445 on db1* and a host that filters by
+itself can only be said in the nmap preview, not drawn. A firewall's denial
+toward a host or port, and filtering by a host itself, change the model
+(generation reads them). Needs a design first. Done when both can be drawn,
+generation honours them, and the nmap preview offers them where it now only
+says *nothing drawn to say it on* and *filtered by … itself*.
 
 ### greenbone-import — Greenbone / OpenVAS reports
 needs: scanner-readers            cost: 3   benefit: 4

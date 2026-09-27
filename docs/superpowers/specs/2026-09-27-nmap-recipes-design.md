@@ -1,7 +1,8 @@
 # nmap recipes, identity, routes and rescans
 
-Date: 2026-09-27 · Status: design approved by the owner in conversation,
-2026-09-27; written spec awaiting the owner's review.
+Date: 2026-09-27 · Status: approved by the owner, 2026-09-27; built on the
+branch `nmap-recipes`, the owner's looks at the preview outstanding. §9 says
+where the build differs from what is written above it.
 
 Builds on the nmap import (spec deleted, read it from history — see
 `docs/HANDOFF.md`; its last amendment is in `ec9dd1e`) and the nmap checks
@@ -343,3 +344,43 @@ Every existing nmap fixture reads and plans exactly as before. Commits in
 order: format → reader → commands → matching → routes → changes → UI; each
 UI step shown to the owner in the preview before it lands. One PR, CI green
 for its exact commit, fast-forwarded, signed.
+
+## 9. As built (2026-09-27)
+
+Where building it said otherwise; the text above is the design as approved.
+
+- **No implementation plan** was written; the build went from this spec, a
+  commit per part.
+- **A list and a top count (§2.1, §2.2).** nmap takes `-p` or `--top-ports`,
+  and with both it narrows, it does not join. So a list wins over a count:
+  the firewall recipe's list holds the ports drawn, the typed ones and
+  nmap's 100 most common TCP ports (written out, `COMMON_TCP`); with a
+  recipe that asks for the 1000 most common a note says the list was taken.
+  nmap also takes one count for TCP and UDP: *Who it really is* beside the
+  1000 most common TCP ports scans 1000 UDP ports, and a note says it is slow.
+- **The stamp (§2).** `Last nmap import: 2026-09-24, scan of 10.0.1.0/24 ·
+  what runs there, check for known weaknesses.` The recipes are read from
+  nmap's own args (`recipesOf`), so an old scan says what it was.
+- **One MAC behind several IPv4 addresses (§3.2)** — proxy ARP, a router
+  answering for a subnet — identifies none of them; the preview's notes say
+  how many such MACs there were.
+- **Another machine on a drawn host's address (§5.2)** is a row of the scan
+  left unticked, chosen in the Changes section: *leave it out* · *another
+  machine* · *the same machine*. The choice is the plan's
+  (`merges.conflicts`), since the same machine's ports are planned against
+  the drawn host. *All hosts* never ticks it.
+- **The addresses a moved host leaves (§3.3)** are those of its drawn
+  addresses the scan looked at and did not find it at; one in a range the
+  scan did not cover stays.
+- **The firewall check runs (§5.3)** when nmap's args carry `--reason` and
+  `--traceroute`, or for an ACK scan; nmap's XML holds the reasons anyway.
+  With several firewalls on a flow's way a blocked port says so and offers
+  nothing: the scan cannot tell which one blocks. Flows that start elsewhere
+  are one note with their count, not a line each. What is blocked with
+  nothing drawn to say it on is one line per host, six ports and the count
+  of the rest.
+- **The missed ring (§5.2)** is drawn outside a vulnerable or exposed ring
+  when a host has both; *every route* stays outermost.
+- **Not checked against a real scan:** the fixtures are written by hand in
+  nmap's shape. `--traceroute`'s XML in particular (§4.1: whether every hop
+  is written for every host) waits for a scan of the owner's.
