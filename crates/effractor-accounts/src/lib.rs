@@ -5,6 +5,7 @@
 //! read while the writer writes. Every function takes the connection or
 //! transaction it runs on, and `now` where time matters, so tests own both.
 
+pub mod assistant;
 pub mod documents;
 pub mod folders;
 pub mod groups;
@@ -28,7 +29,10 @@ pub type Id = i64;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Embedded, applied in order; `PRAGMA user_version` counts how many ran.
-const MIGRATIONS: &[&str] = &[include_str!("migrations/001.sql")];
+const MIGRATIONS: &[&str] = &[
+    include_str!("migrations/001.sql"),
+    include_str!("migrations/002.sql"),
+];
 pub const SCHEMA_VERSION: i64 = MIGRATIONS.len() as i64;
 
 /// Readers kept for reuse; more are opened when all are busy.

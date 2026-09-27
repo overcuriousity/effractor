@@ -25,6 +25,10 @@
 
   function load() {
     say("");
+    // The chat's settings draw into the detail on their own (assistant/admin.js).
+    var list = document.querySelector("#admin-dialog .admin-list");
+    list.hidden = tab === "chat";
+    if (tab === "chat") return A.assistantAdmin ? A.assistantAdmin.show($("admin-detail"), say) : Promise.resolve();
     var groups = client.request("GET", "/api/admin/groups");
     var list = tab === "users" ? client.request("GET", "/api/admin/users") : groups;
     return Promise.all([list, groups]).then(function (r) {
@@ -80,6 +84,11 @@
     return control;
   }
 
+  // Fields other parts add to a user's or group's detail (the chat's grant).
+  function extras(grid, row) {
+    (A.adminExtras || []).forEach(function (f) { f(grid, row, tab, field, say); });
+  }
+
   function patchUser(id, body) {
     return client.request("PATCH", "/api/admin/users/" + id, body).then(function (res) {
       say(res.ok ? "saved" : refused(res));
@@ -111,6 +120,7 @@
       reset.appendChild(button("Reset", function () {
         if (pw.value) patchUser(row.id, { password: pw.value });
       }));
+      extras(grid, row);
       d.appendChild(grid);
       // Not undoable, so a second click that names what goes (spec §8).
       var del = button(armedDelete === row.id ? "Delete · " + row.documents + " documents" : "Delete", function () {
@@ -138,6 +148,7 @@
       flag.addEventListener("change", function () {
         client.request("PATCH", "/api/admin/groups/" + row.id, { admins_may_create_users: flag.value === "yes" }).then(load);
       });
+      extras(grid, row);
       d.appendChild(grid);
     }
     var list = el("ul", null, "admin-members");
@@ -238,6 +249,9 @@
   $("admin-close").addEventListener("click", function () { $("admin-dialog").close(); });
 
   A.openAdministration = function () {
+    var chatTab = document.querySelector('[data-admin-tab="chat"]');
+    if (chatTab) chatTab.hidden = !(A.session.user.admin && A.assistantAdmin);
+    if (tab === "chat" && (!chatTab || chatTab.hidden)) tab = "users";
     $("admin-dialog").showModal();
     load();
   };

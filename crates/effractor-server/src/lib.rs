@@ -7,6 +7,7 @@
 pub mod accounts;
 pub mod api;
 mod assets;
+pub mod assistant;
 pub mod auth;
 pub mod cli;
 mod headers;

@@ -27,11 +27,13 @@
   --radius-md: 6px;
 
   /* What lies over what, lowest first; nothing else sets a z-index. On the
-     canvas: its corner controls and cards, then the inspector floating over
-     them, then the notice, which is read wherever it lands. Over the page:
+     canvas: its corner controls and cards, then the inspector and the chat
+     floating over them, then the notice, which is read wherever it lands. Over the page:
      menus, the dropdown opened from a menu or form, a dragged pin. */
   --z-hud: 1;
   --z-inspector: 2;
+  /* The chat floats left, the inspector right: they never overlap. */
+  --z-chat: 2;
   --z-notice: 3;
   --z-menu: 20;
   --z-pick: 30;

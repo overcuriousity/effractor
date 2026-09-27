@@ -1063,3 +1063,18 @@ test('source text being typed is not swept away by another tab: the author is as
   show.listeners.click[0](); await b.settle(); await b.settle();
   assert.equal(b.app.state.text, 'two');
 });
+
+test('the chat edits through tryEdit: one undo step, and a refusal as words without a notice', async () => {
+  const h = racePage();
+  await h.app.ready; await h.settle();
+  assert.deepEqual(await h.app.tryEdit({ doc: h.docOf('tree two'), select: null }), { ok: true });
+  assert.equal(h.app.state.text, 'tree two');
+  assert.equal(h.app.canUndo(), true);
+  const noted = () => (h.nodes.get('note') || {}).textContent;
+  const before = noted();
+  assert.deepEqual(await h.app.tryEdit({ doc: h.docOf('tree two'), select: null }), { ok: false, reason: 'that changes nothing' });
+  assert.equal(noted(), before, 'the agent is told, the page says nothing');
+  await h.app.applyEdit({ doc: h.docOf('tree two'), select: null });
+  assert.equal(noted(), 'that changes nothing', 'a person is told by the notice, as before');
+  assert.deepEqual(await h.app.tryEdit(null), { ok: false, reason: 'that changes nothing' });
+});

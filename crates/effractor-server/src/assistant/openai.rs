@@ -1,0 +1,344 @@
+//! The OpenAI-compatible wire (ollama, llama.cpp, vllm, OpenRouter, …):
+//! chat completions, streamed (chat spec §4.4).
+
+use serde_json::{Value, json};
+
+use super::message::{Block, Event, ProviderError, Request, Role};
+use super::provider::Wire;
+
+fn text_of(blocks: &[Block]) -> String {
+    blocks
+        .iter()
+        .filter_map(|b| match b {
+            Block::Text { text } => Some(text.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+pub fn body(req: &Request<'_>) -> Value {
+    let mut messages = vec![json!({"role": "system", "content": req.system})];
+    for m in req.messages {
+        match m.role {
+            Role::User => messages.push(json!({"role": "user", "content": text_of(&m.blocks)})),
+            Role::Marker => {
+                for b in &m.blocks {
+                    if let Block::Marker { left_out_turns } = b {
+                        messages.push(json!({"role": "user", "content": format!("[{left_out_turns} earlier turns left out]")}));
+                    }
+                }
+            }
+            Role::Assistant => {
+                let calls: Vec<Value> = m
+                    .blocks
+                    .iter()
+                    .filter_map(|b| match b {
+                        Block::ToolCall { id, name, input } => Some(json!({
+                            "id": id, "type": "function",
+                            "function": {"name": name, "arguments": input.to_string()},
+                        })),
+                        _ => None,
+                    })
+                    .collect();
+                let text = text_of(&m.blocks);
+                let mut msg = json!({"role": "assistant", "content": if text.is_empty() { Value::Null } else { Value::String(text) }});
+                if !calls.is_empty() {
+                    msg["tool_calls"] = Value::Array(calls);
+                    if req.replay_thinking {
+                        let thought: String = m
+                            .blocks
+                            .iter()
+                            .filter_map(|b| match b {
+                                Block::Thinking { text } => Some(text.as_str()),
+                                _ => None,
+                            })
+                            .collect();
+                        msg["reasoning_content"] = Value::String(thought);
+                    }
+                }
+                messages.push(msg);
+            }
+            Role::Tool => {
+                for b in &m.blocks {
+                    if let Block::ToolResult { id, ok, output } = b {
+                        let content = if *ok {
+                            output.clone()
+                        } else {
+                            format!("error: {output}")
+                        };
+                        messages
+                            .push(json!({"role": "tool", "tool_call_id": id, "content": content}));
+                    }
+                }
+            }
+        }
+    }
+    let mut body = json!({
+        "model": req.model,
+        "stream": true,
+        "stream_options": {"include_usage": true},
+        "max_tokens": req.reply_tokens,
+        "messages": messages,
+    });
+    if !req.tools.is_empty() {
+        body["tools"] = req
+            .tools
+            .iter()
+            .map(|t| json!({"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.schema}}))
+            .collect();
+    }
+    body
+}
+
+#[derive(Default)]
+struct Call {
+    id: String,
+    name: String,
+    arguments: String,
+}
+
+#[derive(Default)]
+pub struct Parser {
+    calls: Vec<(u64, Call)>,
+    finished: bool,
+}
+
+fn input_of(arguments: &str) -> Value {
+    if arguments.trim().is_empty() {
+        return json!({});
+    }
+    serde_json::from_str(arguments).unwrap_or_else(|_| json!({"_unparsed": arguments}))
+}
+
+impl Parser {
+    fn flush_calls(&mut self) -> Vec<Result<Event, ProviderError>> {
+        std::mem::take(&mut self.calls)
+            .into_iter()
+            .map(|(_, c)| {
+                Ok(Event::ToolCall {
+                    input: input_of(&c.arguments),
+                    id: c.id,
+                    name: c.name,
+                })
+            })
+            .collect()
+    }
+}
+
+impl Wire for Parser {
+    fn event(&mut self, _event: &str, data: &str) -> Vec<Result<Event, ProviderError>> {
+        if data.trim() == "[DONE]" {
+            return Vec::new();
+        }
+        let Ok(v) = serde_json::from_str::<Value>(data) else {
+            return vec![Err(ProviderError::Malformed)];
+        };
+        if v.get("error").is_some() {
+            return vec![Err(ProviderError::Status(500))];
+        }
+        let mut out = Vec::new();
+        if let Some(choice) = v["choices"].get(0) {
+            let delta = &choice["delta"];
+            for key in ["reasoning_content", "reasoning"] {
+                if let Some(t) = delta[key].as_str().filter(|t| !t.is_empty()) {
+                    out.push(Ok(Event::Thinking { text: t.to_owned() }));
+                }
+            }
+            if let Some(t) = delta["content"].as_str().filter(|t| !t.is_empty()) {
+                out.push(Ok(Event::Text { text: t.to_owned() }));
+            }
+            for tc in delta["tool_calls"].as_array().into_iter().flatten() {
+                let index = tc["index"].as_u64().unwrap_or(0);
+                let at = match self.calls.iter().position(|(i, _)| *i == index) {
+                    Some(at) => at,
+                    None => {
+                        self.calls.push((index, Call::default()));
+                        self.calls.len() - 1
+                    }
+                };
+                let call = &mut self.calls[at].1;
+                if let Some(id) = tc["id"].as_str() {
+                    call.id = id.to_owned();
+                }
+                if let Some(n) = tc["function"]["name"].as_str() {
+                    call.name.push_str(n);
+                }
+                if let Some(a) = tc["function"]["arguments"].as_str() {
+                    call.arguments.push_str(a);
+                }
+            }
+            if let Some(reason) = choice["finish_reason"].as_str() {
+                out.extend(self.flush_calls());
+                let reason = match reason {
+                    "tool_calls" | "function_call" => "tool_use",
+                    "stop" => "end_turn",
+                    "length" => "max_tokens",
+                    other => other,
+                };
+                self.finished = true;
+                out.push(Ok(Event::Stop {
+                    reason: reason.to_owned(),
+                }));
+            }
+        }
+        if let Some(u) = v.get("usage").filter(|u| u.is_object()) {
+            out.push(Ok(Event::Usage {
+                input: u["prompt_tokens"].as_i64(),
+                output: u["completion_tokens"].as_i64(),
+            }));
+        }
+        out
+    }
+
+    fn end(&mut self) -> Vec<Result<Event, ProviderError>> {
+        let mut out = self.flush_calls();
+        if !self.finished && !out.is_empty() {
+            out.push(Ok(Event::Stop {
+                reason: "tool_use".into(),
+            }));
+        }
+        out
+    }
+}
+
+#[cfg(test)]
+pub fn parse_all(raw: &[u8]) -> Result<Vec<Event>, ProviderError> {
+    super::provider::parse_with(&mut Parser::default(), raw)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::assistant::message::*;
+
+    #[test]
+    fn a_stream_with_text_a_split_tool_call_and_usage_reads_neutral() {
+        let raw = concat!(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"Adding \"}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"function\":{\"name\":\"add_entity\",\"arguments\":\"{\\\"kind\\\":\"}}]}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"host\\\"}\"}}]}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n",
+            "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":50,\"completion_tokens\":7}}\n\n",
+            "data: [DONE]\n\n",
+        );
+        let events = parse_all(raw.as_bytes()).unwrap();
+        assert_eq!(
+            events,
+            vec![
+                Event::Text {
+                    text: "Adding ".into()
+                },
+                Event::ToolCall {
+                    id: "c1".into(),
+                    name: "add_entity".into(),
+                    input: serde_json::json!({"kind": "host"})
+                },
+                Event::Stop {
+                    reason: "tool_use".into()
+                },
+                Event::Usage {
+                    input: Some(50),
+                    output: Some(7)
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn tool_results_become_tool_messages_and_markers_user_text() {
+        let msgs = vec![
+            Message {
+                role: Role::Assistant,
+                blocks: vec![Block::ToolCall {
+                    id: "c1".into(),
+                    name: "show".into(),
+                    input: serde_json::json!({"id":"x"}),
+                }],
+            },
+            Message {
+                role: Role::Tool,
+                blocks: vec![Block::ToolResult {
+                    id: "c1".into(),
+                    ok: false,
+                    output: "no such item".into(),
+                }],
+            },
+            Message {
+                role: Role::Marker,
+                blocks: vec![Block::Marker { left_out_turns: 3 }],
+            },
+        ];
+        let body = body(&Request {
+            system: "S",
+            messages: &msgs,
+            tools: &[],
+            model: "m",
+            reply_tokens: 10,
+            replay_thinking: false,
+        });
+        let m = body["messages"].as_array().unwrap();
+        assert_eq!(m[0]["role"], "system");
+        assert_eq!(
+            m[1]["tool_calls"][0]["function"]["arguments"],
+            "{\"id\":\"x\"}"
+        );
+        assert_eq!(
+            m[2],
+            serde_json::json!({"role":"tool","tool_call_id":"c1","content":"error: no such item"})
+        );
+        assert_eq!(m[3]["content"], "[3 earlier turns left out]");
+    }
+
+    #[test]
+    fn unparseable_arguments_are_kept_for_the_page_to_refuse() {
+        let raw = "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"c\",\"function\":{\"name\":\"show\",\"arguments\":\"{oops\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n";
+        let events = parse_all(raw.as_bytes()).unwrap();
+        assert_eq!(
+            events[0],
+            Event::ToolCall {
+                id: "c".into(),
+                name: "show".into(),
+                input: serde_json::json!({"_unparsed": "{oops"})
+            }
+        );
+    }
+}
+
+#[cfg(test)]
+mod kimi_tests {
+    use super::*;
+    use crate::assistant::message::*;
+
+    fn call_msgs() -> Vec<Message> {
+        vec![Message {
+            role: Role::Assistant,
+            blocks: vec![
+                Block::Thinking {
+                    text: "plan".into(),
+                },
+                Block::ToolCall {
+                    id: "c".into(),
+                    name: "show".into(),
+                    input: serde_json::json!({}),
+                },
+            ],
+        }]
+    }
+
+    #[test]
+    fn replayed_thinking_goes_as_reasoning_content_only_where_asked() {
+        let msgs = call_msgs();
+        let mut req = Request {
+            system: "S",
+            messages: &msgs,
+            tools: &[],
+            model: "m",
+            reply_tokens: 10,
+            replay_thinking: true,
+        };
+        assert_eq!(body(&req)["messages"][1]["reasoning_content"], "plan");
+        req.replay_thinking = false;
+        assert!(body(&req)["messages"][1].get("reasoning_content").is_none());
+    }
+}

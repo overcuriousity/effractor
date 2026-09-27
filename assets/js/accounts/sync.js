@@ -158,5 +158,7 @@
     open: open, createNew: createNew, rename: rename, download: download,
     isOpen: core.isOpen, openId: core.openId, forget: core.forget, restore: core.restore, flush: core.flush,
     showPath: showPath,
+    // The document on the page, kept in the account (the chat needs one).
+    save: function () { return core.create(app.state.doc.profile); },
   };
 })();

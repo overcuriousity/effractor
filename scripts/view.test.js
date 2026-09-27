@@ -80,3 +80,14 @@ test("a node out of sight is brought just into view, on either axis", () => {
 test("a node wholly in sight against an edge is not moved to the margin", () => {
   assert.deepEqual(revealShift({ x: 0, y: 0, width: 50, height: 40 }, { k: 1, x: 0, y: 0 }, { width: 800, height: 600 }, 0, 16), { dx: 0, dy: 0 });
 });
+
+test('reveal keeps a node clear of the chat on the left as of the inspector on the right', () => {
+  const view = { k: 1, x: 0, y: 0 };
+  const viewport = { width: 800, height: 600 };
+  // Under the chat (left 300): moved right, to 16 past it.
+  assert.deepEqual(revealShift({ x: 10, y: 100, width: 50, height: 40 }, view, viewport, { left: 300, right: 0 }, 16), { dx: 306, dy: 0 });
+  // Clear of both: left where it is.
+  assert.deepEqual(revealShift({ x: 400, y: 100, width: 50, height: 40 }, view, viewport, { left: 300, right: 290 }, 16), { dx: 0, dy: 0 });
+  // A number is still the right inset alone.
+  assert.deepEqual(revealShift({ x: 450, y: 100, width: 60, height: 40 }, view, viewport, 300, 16), { dx: -26, dy: 0 });
+});

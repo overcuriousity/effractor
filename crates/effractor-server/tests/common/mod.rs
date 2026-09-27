@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+pub mod fake_llm;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};

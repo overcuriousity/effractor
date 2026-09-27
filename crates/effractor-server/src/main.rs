@@ -69,6 +69,27 @@ struct Args {
     /// on the command line, where ps shows it.
     #[arg(long, value_name = "FILE")]
     oidc_secret_file: Option<PathBuf>,
+
+    /// A file holding the agent chat's API key (or set EFFRACTOR_ASSISTANT_KEY).
+    /// Wins over a key an admin stores, and the admin can then not change it.
+    #[arg(long, value_name = "FILE")]
+    assistant_key_file: Option<PathBuf>,
+}
+
+/// The operator's chat key, or why it is not usable.
+fn assistant_key(args: &Args) -> anyhow::Result<Option<String>> {
+    let key = match &args.assistant_key_file {
+        Some(path) => Some(
+            std::fs::read_to_string(path)
+                .with_context(|| format!("reading the chat key from {}", path.display()))?,
+        ),
+        None => std::env::var("EFFRACTOR_ASSISTANT_KEY").ok(),
+    };
+    let Some(key) = key else { return Ok(None) };
+    anyhow::ensure!(args.accounts.is_some(), "a chat key needs --accounts");
+    let key = key.trim().to_owned();
+    anyhow::ensure!(!key.is_empty(), "the chat key is empty");
+    Ok(Some(key))
 }
 
 /// The OIDC settings, or why they are not enough.
@@ -179,6 +200,7 @@ async fn main() -> anyhow::Result<()> {
     }
     // Before anything starts: a half-configured OIDC is refused, not ignored.
     let oidc = oidc_config(&args)?;
+    let assistant_key = assistant_key(&args)?;
     let limits = Limits {
         max_ttl: args.max_ttl,
         ..Limits::default()
@@ -206,6 +228,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(cfg) = oidc {
                 accounts.with_oidc(cfg)?;
+            }
+            if let Some(key) = assistant_key {
+                accounts.with_pinned_key(key);
             }
             Some(accounts)
         }

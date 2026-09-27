@@ -131,3 +131,26 @@ fn oidc_without_a_public_url_or_a_secret_does_not_start() {
         assert!(err.contains(why), "{err}");
     }
 }
+
+/// The operator's chat key belongs to accounts, and an empty one is refused
+/// before the server starts.
+#[test]
+fn a_chat_key_without_accounts_or_empty_does_not_start() {
+    let dir = tempfile::tempdir().unwrap();
+    let key = dir.path().join("key");
+    std::fs::write(&key, "  \n").unwrap();
+    let db = dir.path().join("effractor.db");
+    for (with_accounts, why) in [(false, "--accounts"), (true, "empty")] {
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_effractor"));
+        cmd.args(["--bind", "127.0.0.1:0", "--assistant-key-file"])
+            .arg(&key)
+            .env_remove("EFFRACTOR_ASSISTANT_KEY");
+        if with_accounts {
+            cmd.arg("--accounts").arg(&db);
+        }
+        let out = cmd.output().unwrap();
+        assert!(!out.status.success(), "started without {why}");
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(err.contains(why), "{err}");
+    }
+}

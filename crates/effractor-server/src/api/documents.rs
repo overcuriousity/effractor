@@ -10,7 +10,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::accounts::Accounts;
-use crate::api::ApiError;
+use crate::api::{ApiError, need};
 use crate::auth::session::CurrentUser;
 
 const BODY_LIMIT: usize = 2 << 20;
@@ -42,15 +42,6 @@ fn destination(v: &Value) -> Result<Option<Id>, ApiError> {
             .map(Some)
             .ok_or_else(|| ApiError::Bad("not a folder".into())),
         _ => Err(ApiError::Bad("not a folder".into())),
-    }
-}
-
-/// The caller's role, 404 without one, 403 when it is not enough.
-fn need(role: Option<Role>, at_least: Role) -> Result<Role, ApiError> {
-    match role {
-        None => Err(ApiError::NotFound),
-        Some(r) if r < at_least => Err(ApiError::Forbidden),
-        Some(r) => Ok(r),
     }
 }
 

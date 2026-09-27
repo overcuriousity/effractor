@@ -26,8 +26,13 @@ pub fn export_static(destination: &Path) -> anyhow::Result<()> {
         fs::write(path, data).with_context(|| format!("cannot write {}", path.display()))
     };
     for name in Assets::iter() {
-        // The static site has no server to keep accounts on (spec §2).
-        if name.starts_with("js/accounts/") || name == "css/70-accounts.css" {
+        // The static site has no server to keep accounts on (spec §2),
+        // nor one to hold a chat's key (chat spec §1).
+        if name.starts_with("js/accounts/")
+            || name.starts_with("js/assistant/")
+            || name == "css/70-accounts.css"
+            || name == "css/80-assistant.css"
+        {
             continue;
         }
         let file = Assets::get(&name)

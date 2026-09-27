@@ -3,6 +3,8 @@
 
 pub mod account;
 pub mod admin;
+pub mod assistant;
+pub mod assistant_admin;
 pub mod documents;
 pub mod sharing;
 
@@ -28,6 +30,26 @@ pub enum ApiError {
     Refused(String),
     Conflict(effractor_accounts::Conflict),
     Internal(String),
+    /// Someone else's turn is running (the chat), said as who.
+    Busy(String),
+    /// The chat has no endpoint.
+    Unavailable(String),
+    /// The chat's daily tokens are spent.
+    Budget,
+    /// A chat message over the admin's size.
+    TooLong,
+}
+
+/// The caller's role, 404 without one, 403 when it is not enough.
+pub(crate) fn need(
+    role: Option<effractor_accounts::perms::Role>,
+    at_least: effractor_accounts::perms::Role,
+) -> Result<effractor_accounts::perms::Role, ApiError> {
+    match role {
+        None => Err(ApiError::NotFound),
+        Some(r) if r < at_least => Err(ApiError::Forbidden),
+        Some(r) => Ok(r),
+    }
 }
 
 impl From<Error> for ApiError {
@@ -70,6 +92,12 @@ impl IntoResponse for ApiError {
                 })),
             )
                 .into_response(),
+            ApiError::Busy(why) => (StatusCode::CONFLICT, why).into_response(),
+            ApiError::Unavailable(why) => (StatusCode::SERVICE_UNAVAILABLE, why).into_response(),
+            ApiError::Budget => {
+                (StatusCode::TOO_MANY_REQUESTS, "daily budget reached").into_response()
+            }
+            ApiError::TooLong => (StatusCode::PAYLOAD_TOO_LARGE, "too long").into_response(),
             ApiError::Internal(err) => {
                 tracing::error!(%err, "accounts failed");
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
@@ -84,4 +112,6 @@ pub fn routes() -> axum::Router<crate::accounts::Accounts> {
         .merge(documents::routes())
         .merge(sharing::routes())
         .merge(admin::routes())
+        .merge(assistant_admin::routes())
+        .merge(assistant::routes())
 }

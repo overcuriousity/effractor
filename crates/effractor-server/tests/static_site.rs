@@ -52,6 +52,11 @@ fn exports_a_self_contained_site_without_overwriting_existing_files() {
         "the static site ships no account code"
     );
     assert!(!site.join("assets/css/70-accounts.css").exists());
+    assert!(
+        !site.join("assets/js/assistant").exists(),
+        "the static site ships no chat"
+    );
+    assert!(!site.join("assets/css/80-assistant.css").exists());
     let css = fs::read_to_string(site.join("assets/css/00-tokens.css")).unwrap();
     for part in css.split("url(\"").skip(1) {
         let url = part.split('"').next().unwrap();

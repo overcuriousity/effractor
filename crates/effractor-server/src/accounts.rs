@@ -43,6 +43,8 @@ struct Inner {
     passkeys: Option<crate::auth::passkey::Passkeys>,
     /// A reverse proxy on this host: believe its X-Forwarded-For.
     trusted_proxy: bool,
+    /// The agent chat's process state (chat spec §4).
+    assistant: crate::assistant::Assistant,
 }
 
 #[derive(Clone)]
@@ -119,6 +121,7 @@ impl Accounts {
             oidc: std::sync::OnceLock::new(),
             passkeys,
             trusted_proxy: false,
+            assistant: crate::assistant::Assistant::default(),
         })))
     }
 
@@ -169,6 +172,16 @@ impl Accounts {
             .oidc
             .set(oidc)
             .map_err(|_| anyhow::anyhow!("OIDC is configured already"))
+    }
+
+    /// The operator's chat key (`--assistant-key-file`), set once at startup
+    /// (tests set it on a running app's state). It wins over a stored one.
+    pub fn with_pinned_key(&self, key: String) -> bool {
+        self.0.assistant.pin(key)
+    }
+
+    pub fn assistant(&self) -> &crate::assistant::Assistant {
+        &self.0.assistant
     }
 
     pub(crate) fn oidc(&self) -> Option<&crate::auth::oidc::Oidc> {

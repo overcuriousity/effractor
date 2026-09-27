@@ -229,6 +229,16 @@
   }
 
   // `keepPicked`: the several selected stay (pick() calls with it).
+  // What floats over the canvas and a revealed node must clear: the
+  // inspector at the right, the chat at the left.
+  function insets() {
+    var chat = document.getElementById("chat");
+    return {
+      left: chat && chat.classList && chat.classList.contains("is-open") ? chat.getBoundingClientRect().width + 8 : 0,
+      right: $("inspector").getBoundingClientRect().width + 8,
+    };
+  }
+
   function select(id, parent, keepPicked) {
     var arch = P.isArchitecture(state.doc);
     state.selected = P.selectionExists(state.doc, id, graphOf()) ? id : null;
@@ -319,7 +329,7 @@
     if (outside) {
       var wanted = state.focus = state.selected;
       draw(false).then(function () {
-        if (state.selected === wanted) renderer.reveal(wanted, $("inspector").getBoundingClientRect().width + 8);
+        if (state.selected === wanted) renderer.reveal(wanted, insets());
       });
     }
     // The edge a shared node was reached along, when that was said: it is what
@@ -333,7 +343,7 @@
     $("inspector").hidden = !state.selected && state.picked.length < 2;
     // The inspector floats over the canvas: what it would cover is panned
     // into view, and nothing else moves.
-    if (state.selected) renderer.reveal(shown(state.selected), $("inspector").getBoundingClientRect().width + 8);
+    if (state.selected) renderer.reveal(shown(state.selected), insets());
     $("inspector-name").textContent = state.selected ? labelOf(state.selected) : "";
     notify();
     // A step's state is the inspector's own line; its numbers are listed here.
@@ -1054,24 +1064,27 @@
   // refuses changes nothing and says why. Resolves to whether it was applied.
   function applyEdit(edit) {
     if (!edit) return Promise.resolve(false);
+    return tryEdit(edit).then(function (r) {
+      if (!r.ok) say(r.reason);
+      return r.ok;
+    });
+  }
+
+  // The same path, with a refusal as words rather than a notice: the chat's
+  // agent is told why and corrects itself (chat spec §6.2).
+  function tryEdit(edit) {
+    if (!edit) return Promise.resolve({ ok: false, reason: "that changes nothing" });
     var before = state.text;
     return solver.serialize(edit.doc).then(function (written) {
-      if (!written.ok) {
-        say(describe(written.diagnostics[0]));
-        return false;
-      }
-      if (written.ok === before) {
-        say("that changes nothing");
-        return false;
-      }
+      if (!written.ok) return { ok: false, reason: describe(written.diagnostics[0]) };
+      if (written.ok === before) return { ok: false, reason: "that changes nothing" };
       // Into the history only if it is committed: a text overtaken by a
       // newer one on its way through the worker leaves no trace.
       return adopt(written.ok, edit.select, edit.parent, false, function () {
         undoStack.push(state.text);
         return true;
       }).then(function (applied) {
-        if (!applied) say("an edit was overtaken by a newer one");
-        return applied;
+        return applied ? { ok: true } : { ok: false, reason: "an edit was overtaken by a newer one" };
       });
     });
   }
@@ -1611,6 +1624,7 @@
     return attackShown() ? Promise.resolve() : draw(false);
   };
   window.effractor.applyEdit = applyEdit;
+  window.effractor.tryEdit = tryEdit;
   window.effractor.say = say;
   window.effractor.format = { money: money, probability: probability };
   window.effractor.adoptSource = adoptSource;

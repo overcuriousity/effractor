@@ -9,9 +9,7 @@ server-side tool execution and propose/confirm writes are not (§2).
 
 ## 1. Purpose and boundary
 
-effractor is used exclusively for teaching: students study the design and
-development of secure systems at the University of Applied Sciences Mittweida.
-The chat gives them an agent beside the canvas that **can do anything a person
+The chat gives effractor's users an agent beside the canvas that **can do anything a person
 can do in effractor on the open document, in the open mode**, with the
 sender's rights, and whose edits appear on the canvas as they are made.
 
@@ -270,8 +268,7 @@ agent?" in the same change.
 
 ### 6.4 System prompt (per profile, on the server)
 
-- The educational frame: a tutor in a Mittweida course on secure-systems design,
-  working on students' models.
+- What effractor is and that the agent works on the user's open document.
 - The profile's vocabulary and rules.
 - Read before editing.
 - Use ids from results, never guessed.
@@ -318,7 +315,7 @@ agent?" in the same change.
   - Typing never reaches the app's keys (`keyElsewhere`/`textField`).
   - A paste over the message size or the context says so before sending.
 - **Empty session** — two lines:
-  - where messages go (host, model) and that this is for the course;
+  - where messages go (host, model);
   - for a Viewer also *can read, not edit*.
 - **Someone else's turn:**
   - The input names who is asking.

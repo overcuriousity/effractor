@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="{{ asset_prefix }}assets/css/50-editor.css">
 <link rel="stylesheet" href="{{ asset_prefix }}assets/css/60-architecture.css">
 {% if accounts %}<link rel="stylesheet" href="{{ asset_prefix }}assets/css/70-accounts.css">
+<link rel="stylesheet" href="{{ asset_prefix }}assets/css/80-assistant.css">
 {% endif %}<script src="{{ asset_prefix }}assets/js/theme.js"></script>
 <script src="{{ asset_prefix }}assets/js/workspace.js" defer></script>
 <script src="{{ asset_prefix }}assets/vendor/elk/elk-api.js" defer></script>
@@ -84,6 +85,13 @@
 <script src="{{ asset_prefix }}assets/js/accounts/sync.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/accounts/people-ui.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/accounts/admin-ui.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/assistant/client.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/assistant/markdown.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/assistant/transcript.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/assistant/tools.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/assistant/page.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/assistant/panel.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/assistant/admin.js" defer></script>
 {% endif %}
 </head>
 <body>
@@ -184,6 +192,14 @@
         <div class="hud-card tree-only"><span class="label">Expected loss</span><span class="stat num" id="hud-eal">—</span><span class="hud-sub num" id="hud-p95">&nbsp;</span></div>
       </div>
     </div>
+    {% if accounts %}<aside class="chat" id="chat" aria-label="Chat" hidden>
+      <button class="chat-open" id="chat-open" type="button" aria-expanded="false" aria-controls="chat-log" title="Chat (Ctrl+.)" aria-label="Chat"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3.5h10v7H7.5L4.5 13v-2.5H3z"/></svg></button>
+      <header class="chat-head"><button class="chat-title" id="chat-title" type="button" aria-haspopup="menu">New session</button><button class="chat-close" id="chat-close" type="button" title="Close (Esc)" aria-label="Close the chat"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8h8"/></svg></button></header>
+      <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
+      <p class="chat-said" id="chat-said" role="status" hidden></p>
+      <form class="chat-input" id="chat-form" autocomplete="off"><textarea id="chat-text" rows="2" placeholder="Ask …" aria-label="Message"></textarea><button class="btn" id="chat-send" type="submit">Send</button></form>
+      <div class="chat-edge" id="chat-edge" aria-hidden="true"></div>
+    </aside>{% endif %}
     <aside class="inspector" id="inspector" aria-label="Selected node" hidden>
       <section class="panel-section">
         <h2 class="label">Selected <span class="count" id="inspector-name"></span></h2>
@@ -407,6 +423,7 @@
   <div class="tabs" role="tablist" aria-label="Administration">
     <button class="tab" type="button" role="tab" data-admin-tab="users" aria-selected="true">Users</button>
     <button class="tab" type="button" role="tab" data-admin-tab="groups" aria-selected="false">Groups</button>
+    <button class="tab" type="button" role="tab" data-admin-tab="chat" aria-selected="false" hidden>Chat</button>
   </div>
   <div class="admin-body">
     <div class="admin-list"><ul id="admin-rows" role="listbox" aria-label="Users or groups"></ul>

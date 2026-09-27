@@ -267,6 +267,21 @@ mod tests {
         }
         assert!(html.contains("data-admin-tab=\"users\""));
         assert!(at("js/accounts/people-ui.js") < at("js/accounts/admin-ui.js"));
+        // The chat: after the accounts it builds on, pure modules first.
+        assert!(html.contains("href=\"/assets/css/80-assistant.css\""));
+        let chat = [
+            "js/accounts/admin-ui.js",
+            "js/assistant/client.js",
+            "js/assistant/markdown.js",
+            "js/assistant/transcript.js",
+            "js/assistant/tools.js",
+            "js/assistant/page.js",
+            "js/assistant/panel.js",
+            "js/assistant/admin.js",
+        ];
+        for pair in chat.windows(2) {
+            assert!(at(pair[0]) < at(pair[1]), "{} before {}", pair[0], pair[1]);
+        }
     }
 
     #[test]
@@ -276,6 +291,8 @@ mod tests {
                 "data-accounts",
                 "js/accounts/",
                 "70-accounts.css",
+                "js/assistant/",
+                "80-assistant.css",
                 "login-dialog",
                 "local-only",
                 "view-documents",

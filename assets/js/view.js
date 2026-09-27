@@ -47,18 +47,22 @@
   // viewport less `inset` at the right (the inspector) and `margin` all
   // round. Nothing moves for what is already wholly in sight; what is wider or
   // taller than the room shows its left or top edge.
+  // `inset`: what floats over the canvas at the right (the inspector), as a
+  // number, or {left, right} when the chat floats at the left too.
   function revealShift(b, view, viewport, inset, margin) {
-    function axis(start, size, room) {
+    var left = inset && typeof inset === "object" ? inset.left || 0 : 0;
+    var right = inset && typeof inset === "object" ? inset.right || 0 : inset || 0;
+    function axis(start, size, from, room) {
       var lo = start, hi = start + size, d = 0;
       // Wholly in sight, if against an edge: left where it is.
-      if (lo >= 0 && hi <= room) return 0;
+      if (lo >= from && hi <= room) return 0;
       if (hi > room - margin) d = room - margin - hi;
-      if (lo + d < margin) d = margin - lo;
+      if (lo + d < from + margin) d = from + margin - lo;
       return d;
     }
     return {
-      dx: axis(b.x * view.k + view.x, b.width * view.k, viewport.width - inset),
-      dy: axis(b.y * view.k + view.y, b.height * view.k, viewport.height),
+      dx: axis(b.x * view.k + view.x, b.width * view.k, left, viewport.width - right),
+      dy: axis(b.y * view.k + view.y, b.height * view.k, 0, viewport.height),
     };
   }
 
