@@ -141,6 +141,58 @@ mod tests {
         }
     }
 
+    /// Every `ttc` in the schemas, wherever it sits.
+    fn ttcs<'a>(v: &'a serde_json::Value, out: &mut Vec<&'a serde_json::Value>) {
+        match v {
+            serde_json::Value::Object(o) => {
+                for (k, child) in o {
+                    if k == "ttc" && child.is_object() {
+                        out.push(child);
+                    }
+                    ttcs(child, out);
+                }
+            }
+            serde_json::Value::Array(a) => a.iter().for_each(|c| ttcs(c, out)),
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn a_time_is_an_expression_and_every_ttc_says_how_one_is_written() {
+        let mut n = 0;
+        for p in ["fault-tree", "attack-tree", "architecture"] {
+            for t in tools(p, true) {
+                let mut found = Vec::new();
+                ttcs(&t.schema, &mut found);
+                for ttc in found {
+                    n += 1;
+                    let types: Vec<&str> = match ttc.get("anyOf") {
+                        Some(any) => any
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|c| c["type"].as_str())
+                            .collect(),
+                        None => vec![ttc["type"].as_str().unwrap_or("")],
+                    };
+                    assert!(
+                        types.iter().all(|t| *t == "string" || *t == "null"),
+                        "{p} {}: ttc is {types:?}",
+                        t.name
+                    );
+                    let said = ttc["description"].as_str().unwrap_or("");
+                    assert!(
+                        said.contains("Exponential(mean") && said.contains('%'),
+                        "{p} {}: ttc does not say how a time is written",
+                        t.name
+                    );
+                }
+                assert!(!t.description.contains("exp("), "{p} {}", t.name);
+            }
+        }
+        assert!(n >= 4, "found {n} ttc fields");
+    }
+
     #[test]
     fn names_are_unique_within_a_profile() {
         for p in ["fault-tree", "attack-tree", "architecture"] {
