@@ -343,8 +343,10 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 /* The selection rectangle (Shift + drag). */
 .marquee { fill: var(--color-accent-dim); stroke: var(--color-accent); stroke-width: 1; stroke-dasharray: 4 3; pointer-events: none; }
 .graph.is-picking { cursor: crosshair; }
-/* Several selected, or a cluster's members, in the inspector. */
-.cluster-members { list-style: none; margin: 4px 0 0; padding: 0; }
+/* Several selected, or a cluster's members, in the inspector: a row of the
+   form's grid of its own. In the label column the longest name would widen
+   that column and push the fields out of the panel. */
+.cluster-members { grid-column: 1 / -1; min-width: 0; list-style: none; margin: 4px 0 0; padding: 0; }
 .cluster-members li { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 4px; cursor: pointer; }
 .cluster-members li:hover { background: var(--color-bg-hover); }
 /* Muted text is under AA on a hovered row: it steps up, as elsewhere. */
