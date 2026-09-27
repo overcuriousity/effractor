@@ -1,6 +1,6 @@
 // The nmap dialog (the nmap import design §3, in history: see
-// docs/HANDOFF.md): choose a level, copy the command, paste the XML, tick the preview,
-// add. What it decides is nmap.js's; this file only shows it. Everything
+// docs/HANDOFF.md; nmap recipes spec §2): say what the scan is for, copy the
+// command, paste the XML, tick the preview, add. What it decides is nmap.js's; this file only shows it. Everything
 // from a scan is set as text.
 (function () {
   if (typeof document === "undefined") return;
@@ -9,7 +9,9 @@
   var N = window.effractorNmap;
   var $ = function (id) { return document.getElementById(id); };
   var dialog = $("nmap-dialog");
-  var at = { app: null, level: "standard", checks: "none", scan: null, merges: {}, ticks: null, plan: null };
+  // What the scan is for is kept for the session, as the range is not.
+  var asked = { recipes: ["services"], adjust: {}, portList: "", ack: false };
+  var at = { app: null, scan: null, merges: {}, ticks: null, plan: null };
 
   function doc() {
     return app.state.doc;
@@ -43,60 +45,100 @@
 
   // ---- the command ----
 
-  function levels() {
-    var box = $("nmap-levels");
+  function recipes() {
+    var box = $("nmap-recipes");
     while (box.children.length > 1) box.removeChild(box.lastChild);
-    N.LEVELS.forEach(function (l) {
-      var label = el("label", null, "nmap-level");
-      var radio = el("input");
-      radio.type = "radio";
-      radio.name = "nmap-level";
-      radio.value = l.id;
-      radio.checked = l.id === at.level;
-      radio.addEventListener("change", function () {
-        at.level = l.id;
+    N.RECIPES.forEach(function (r) {
+      var label = el("label", null, "nmap-level nmap-recipe");
+      var tick = el("input");
+      tick.type = "checkbox";
+      tick.checked = asked.recipes.indexOf(r.id) >= 0;
+      tick.addEventListener("change", function () {
+        var others = asked.recipes.filter(function (id) { return id !== r.id; });
+        // One that goes alone unticks the rest, and is unticked by them.
+        if (tick.checked) {
+          asked.recipes = r.alone ? [r.id] : others.filter(function (id) {
+            return !N.RECIPES.some(function (o) { return o.id === id && o.alone; });
+          }).concat([r.id]);
+        } else asked.recipes = others;
+        // The blocks are the recipes' again: an adjustment was of the old set.
+        asked.adjust = {};
+        recipes();
+        blocks();
         showCommand();
       });
-      label.appendChild(radio);
-      label.appendChild(el("span", l.name));
-      label.appendChild(el("span", l.finds + " · " + (l.root ? "needs root" : "no root") + " · " + l.time + " for a /24", "hint"));
+      label.appendChild(tick);
+      label.appendChild(el("span", r.name));
+      label.appendChild(el("span", r.finds, "hint"));
       box.appendChild(label);
     });
   }
-  // Spec §3.2: nmap's vulnerability checks; none for Discover (no ports).
-  var CHECK_HINTS = { none: "no scripts", safe: "vulnerability checks that break nothing · slower" };
-  function checks() {
-    var box = $("nmap-checks");
-    while (box.children.length > 1) box.removeChild(box.lastChild);
-    N.CHECKS.forEach(function (c) {
-      var label = el("label", null, "nmap-level");
-      var radio = el("input");
-      radio.type = "radio";
-      radio.name = "nmap-checks";
-      radio.value = c.id;
-      radio.checked = c.id === at.checks;
-      radio.addEventListener("change", function () {
-        at.checks = c.id;
+  // Spec §2.1: the blocks the ticked recipes set, each one changeable.
+  function blockRow(name, control, hint, warning, set) {
+    var row = el("label", null, "nmap-block" + (set ? " is-set" : ""));
+    row.appendChild(el("span", name));
+    row.appendChild(control);
+    row.appendChild(el("span", hint || "", warning ? "hint warning" : "hint"));
+    return row;
+  }
+  function blocks() {
+    var box = $("nmap-blocks");
+    box.textContent = "";
+    var c = N.combine(asked.recipes, asked.adjust);
+    $("nmap-adjust").hidden = !c.choices;
+    if (!c.choices) return;
+    N.BLOCKS.forEach(function (b) {
+      var menu = window.effractorMenu.dropdown(b.choices.map(function (x) { return [x.id, x.name]; }), c.choices[b.id]);
+      menu.addEventListener("change", function () {
+        asked.adjust[b.id] = menu.value;
+        blocks();
         showCommand();
       });
-      label.appendChild(radio);
-      label.appendChild(el("span", c.name));
-      label.appendChild(el("span", c.warning || CHECK_HINTS[c.id], c.warning ? "hint warning" : "hint"));
-      box.appendChild(label);
+      var chosen = b.choices.filter(function (x) { return x.id === c.choices[b.id]; })[0];
+      box.appendChild(blockRow(b.name, menu, chosen.warning || chosen.hint, !!chosen.warning, c.choices[b.id] !== N.DEFAULTS[b.id]));
+      if (b.id === "ports" && c.choices.ports === "list") {
+        var list = el("input");
+        list.type = "text";
+        list.value = asked.portList;
+        list.placeholder = "22,80,8000-8100";
+        list.spellcheck = false;
+        list.autocomplete = "off";
+        list.addEventListener("input", function () {
+          asked.portList = list.value;
+          showCommand();
+        });
+        var firewall = asked.recipes.indexOf("firewall") >= 0;
+        box.appendChild(blockRow("Port list", list, firewall ? "added to the ports of the flows drawn through a firewall, and the 100 most common" : "numbers and ranges · U: before UDP ports", false, false));
+      }
     });
+    if (asked.recipes.indexOf("firewall") >= 0) {
+      var ack = el("input");
+      ack.type = "checkbox";
+      ack.checked = asked.ack;
+      ack.addEventListener("change", function () {
+        asked.ack = ack.checked;
+        showCommand();
+      });
+      box.appendChild(blockRow("ACK scan", ack, "a second command: tells a firewall that keeps state from one that does not", false, asked.ack));
+    }
+  }
+  // The ports the firewall recipe takes from the drawing (spec §2.3).
+  function drawnPorts() {
+    return N.drawnPorts ? N.drawnPorts(doc(), at.app, $("nmap-range").value) : [];
   }
   function showCommand() {
-    $("nmap-checks").hidden = !N.checksOffered(at.level);
-    var c = N.command(at.level, $("nmap-range").value, at.checks);
-    $("nmap-command").textContent = c && c.text ? c.text : "";
-    $("nmap-copy").disabled = !(c && c.text);
-    $("nmap-problem").textContent = c ? c.problem || c.note || "" : "";
+    var c = N.command(asked.recipes, asked.adjust, $("nmap-range").value, { portList: asked.portList, ack: asked.ack, drawnPorts: drawnPorts() });
+    $("nmap-command").textContent = c.text || "";
+    $("nmap-copy").disabled = !c.text;
+    $("nmap-second").textContent = c.second || "";
+    $("nmap-second-row").hidden = !c.second;
+    $("nmap-problem").textContent = c.problem || c.note || "";
   }
 
   // ---- open ----
 
   function open(appId) {
-    at = { app: appId, level: at.level, checks: at.checks, scan: null, merges: {}, ticks: null, plan: null };
+    at = { app: appId, scan: null, merges: {}, ticks: null, plan: null };
     var host = hostOf(appId);
     $("nmap-title").textContent = host ? "nmap on " + doc().entities[host].label : "nmap (not on a host)";
     $("nmap-unplaced").hidden = !!host;
@@ -105,8 +147,8 @@
     $("nmap-problem").textContent = "";
     $("nmap-ask").hidden = false;
     $("nmap-preview").hidden = true;
-    levels();
-    checks();
+    recipes();
+    blocks();
     showCommand();
     U.loadCatalog().catch(function () {}).then(function () {
       if (!dialog.open) dialog.showModal();
@@ -405,18 +447,22 @@
   // ---- wiring ----
 
   $("nmap-range").addEventListener("input", showCommand);
-  $("nmap-copy").addEventListener("click", function () {
-    function failed() {
-      app.say("copy failed; select the command instead");
-    }
-    try {
-      navigator.clipboard.writeText($("nmap-command").textContent).then(function () {
-        app.say("command copied");
-      }, failed);
-    } catch (e) {
-      failed(); // no clipboard on a plain-http page
-    }
-  });
+  function copies(button, code) {
+    $(button).addEventListener("click", function () {
+      function failed() {
+        app.say("copy failed; select the command instead");
+      }
+      try {
+        navigator.clipboard.writeText($(code).textContent).then(function () {
+          app.say("command copied");
+        }, failed);
+      } catch (e) {
+        failed(); // no clipboard on a plain-http page
+      }
+    });
+  }
+  copies("nmap-copy", "nmap-command");
+  copies("nmap-copy-second", "nmap-second");
   $("nmap-read").addEventListener("click", read);
   $("nmap-back").addEventListener("click", function () {
     $("nmap-ask").hidden = false;

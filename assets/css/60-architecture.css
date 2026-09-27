@@ -317,7 +317,19 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .nmap-role { display: flex; gap: 8px; align-items: baseline; margin-left: auto; flex: none; }
 .nmap-role .pick.nmap-merge { margin-left: 0; }
 .nmap-role + .nmap-merge, .nmap-role + .nmap-merge-state, .nmap-role + .hint { margin-left: 0; }
-.nmap-level .warning { color: var(--color-warning); }
+.nmap-level .warning, .nmap-block .warning { color: var(--color-warning); }
+/* Recipes (nmap recipes spec §2.2): a tick, the purpose, what it finds. */
+.nmap-recipe { grid-template-columns: auto 12rem 1fr; }
+/* The blocks behind the recipes, on demand. */
+.nmap-adjust { margin: 0 0 12px; }
+.nmap-adjust summary { cursor: pointer; color: var(--color-fg-muted); font-size: var(--text-xs); width: max-content; }
+.nmap-adjust[open] summary { margin-bottom: 6px; }
+.nmap-blocks { display: grid; gap: 4px; }
+.nmap-block { display: grid; grid-template-columns: 5.5rem 15rem 1fr; gap: 8px; align-items: baseline; }
+.nmap-block .pick { width: 100%; }
+.nmap-block input[type="text"] { width: 100%; }
+.nmap-block.is-set > span:first-child { color: var(--color-fg-primary); }
+#nmap-second-row { margin-top: 4px; }
 .nmap-findings { list-style: none; margin: 0; padding: 0 0 0 22px; }
 .nmap-findings .nmap-row { color: var(--color-fg-muted); }
 
