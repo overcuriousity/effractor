@@ -461,6 +461,15 @@ pub struct Entity {
     pub description: Option<String>,
     /// IP addresses of a host, CIDR ranges of a network; empty elsewhere.
     pub addresses: Vec<String>,
+    /// What identified a host in a scan: `mac:…`, `ssh-<keytype>:…` (nmap
+    /// recipes spec §3.1). Two hosts may share one; empty elsewhere.
+    pub identities: Vec<String>,
+    /// The vendor nmap names for a host's MAC.
+    pub vendor: Option<String>,
+    /// `YYYY-MM-DD`: the start of the last scan that saw the host.
+    pub seen: Option<String>,
+    /// `YYYY-MM-DD`: a covered scan the host did not answer; gone once seen.
+    pub missed: Option<String>,
     /// Only on an application.
     pub tool: Option<Tool>,
     pub parameters: IndexMap<Slot, Parameter>,
@@ -475,6 +484,10 @@ impl Entity {
             label: label.into(),
             description: None,
             addresses: Vec::new(),
+            identities: Vec::new(),
+            vendor: None,
+            seen: None,
+            missed: None,
             tool: None,
             parameters: IndexMap::new(),
             defenses: Defenses::default(),

@@ -1517,6 +1517,103 @@ fn addresses_and_tool_are_refused_where_they_do_not_belong() {
 }
 
 #[test]
+fn a_host_keeps_what_identified_it_and_when_it_was_seen() {
+    let mut image = image(LECTURE);
+    let server = &mut image["entities"]["server"];
+    server["identities"] = serde_json::json!(["mac:52:54:00:12:34:56", "ssh-ed25519:d5c1f0aa"]);
+    server["vendor"] = serde_json::json!("QEMU virtual NIC");
+    server["seen"] = serde_json::json!("2026-09-27");
+    server["missed"] = serde_json::json!("2026-10-07");
+    let text = from_document(&image).unwrap_or_else(|d| panic!("{d:?}"));
+    assert!(
+        text.contains(
+            "    vendor: QEMU virtual NIC\n    seen: \"2026-09-27\"\n    missed: \"2026-10-07\"\n"
+        ),
+        "{text}"
+    );
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    let back = self::image(&text);
+    for key in ["identities", "vendor", "seen", "missed"] {
+        assert_eq!(
+            back["entities"]["server"][key], image["entities"]["server"][key],
+            "{key}"
+        );
+    }
+    // Two hosts may share one (cloned VMs, failover pairs): the preview says so.
+    let mut twins = image.clone();
+    twins["entities"]["workstation"]["identities"] = serde_json::json!(["mac:52:54:00:12:34:56"]);
+    from_document(&twins).unwrap_or_else(|d| panic!("{d:?}"));
+}
+
+#[test]
+fn identity_fields_are_refused_off_hosts_and_in_the_wrong_shape() {
+    let cases: [(&str, &str, serde_json::Value, &str, &str); 8] = [
+        (
+            "sshd",
+            "identities",
+            serde_json::json!(["mac:00:11:22:33:44:55"]),
+            "misplaced-key",
+            "entities.sshd.identities",
+        ),
+        (
+            "server-net",
+            "seen",
+            serde_json::json!("2026-09-27"),
+            "misplaced-key",
+            "entities.server-net.seen",
+        ),
+        (
+            "sshd",
+            "vendor",
+            serde_json::json!("x"),
+            "misplaced-key",
+            "entities.sshd.vendor",
+        ),
+        (
+            "server",
+            "identities",
+            serde_json::json!(["00-11-22"]),
+            "wrong-type",
+            "entities.server.identities[0]",
+        ),
+        (
+            "server",
+            "identities",
+            serde_json::json!(["mac:"]),
+            "wrong-type",
+            "entities.server.identities[0]",
+        ),
+        (
+            "server",
+            "identities",
+            serde_json::json!(["mac:aa", "mac:aa"]),
+            "wrong-type",
+            "entities.server.identities[1]",
+        ),
+        (
+            "server",
+            "seen",
+            serde_json::json!("27.09.2026"),
+            "wrong-type",
+            "entities.server.seen",
+        ),
+        (
+            "server",
+            "missed",
+            serde_json::json!("2026-13-01"),
+            "wrong-type",
+            "entities.server.missed",
+        ),
+    ];
+    for (entity, key, value, code, path) in cases {
+        let mut image = image(LECTURE);
+        image["entities"][entity][key] = value;
+        let errors = errors_of(&image);
+        assert!(has(&errors, code, path), "{entity}.{key}: {errors:?}");
+    }
+}
+
+#[test]
 fn a_hosting_privilege_may_be_unknown_only_where_a_host_runs_software() {
     let mut doc = image(LECTURE);
     doc["associations"]["server-runs-sshd"]["privilege"] = serde_json::json!("unknown");

@@ -88,6 +88,23 @@ fn document(w: &mut Writer, m: &Architecture) {
                 .collect();
             w.line(4, "addresses", &format!("[{}]", items.join(", ")));
         }
+        if !entity.identities.is_empty() {
+            let items: Vec<String> = entity
+                .identities
+                .iter()
+                .map(|i| string(i, Context::FlowValue))
+                .collect();
+            w.line(4, "identities", &format!("[{}]", items.join(", ")));
+        }
+        for (key, value) in [
+            ("vendor", &entity.vendor),
+            ("seen", &entity.seen),
+            ("missed", &entity.missed),
+        ] {
+            if let Some(v) = value {
+                w.line(4, key, &string(v, Context::Block));
+            }
+        }
         if let Some(tool) = &entity.tool {
             w.line(4, "tool", tool.as_str());
         }

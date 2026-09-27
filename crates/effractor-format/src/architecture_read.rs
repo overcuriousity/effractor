@@ -14,7 +14,7 @@ use std::sync::LazyLock;
 
 use indexmap::IndexMap;
 
-use crate::lower::{Cx, TIME_UNITS};
+use crate::lower::{Cx, Fields, TIME_UNITS};
 use crate::tree::{Entry, Node};
 
 /// "a `host`", "an `account`".
@@ -171,6 +171,10 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
             "label",
             "description",
             "addresses",
+            "identities",
+            "vendor",
+            "seen",
+            "missed",
             "tool",
             "parameters",
             "defenses",
@@ -187,6 +191,25 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
     let addresses = match f.get("addresses") {
         Some(e) => addresses(cx, e, &f.path("addresses"), kind),
         None => Some(Vec::new()),
+    };
+    let identities = match f.get("identities") {
+        Some(e) if host_only(cx, &f, "identities", kind) => {
+            identities(cx, e, &f.path("identities"))
+        }
+        Some(_) => None,
+        None => Some(Vec::new()),
+    };
+    let vendor = match host_only(cx, &f, "vendor", kind) {
+        true => cx.optional_string(&f, "vendor"),
+        false => None,
+    };
+    let seen = match host_only(cx, &f, "seen", kind) {
+        true => day(cx, &f, "seen"),
+        false => None,
+    };
+    let missed = match host_only(cx, &f, "missed", kind) {
+        true => day(cx, &f, "missed"),
+        false => None,
     };
     let tool = match f.get("tool") {
         Some(e) => tool(cx, e, &f.path("tool"), kind),
@@ -205,6 +228,10 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
         label: label?,
         description: description?,
         addresses: addresses?,
+        identities: identities?,
+        vendor: vendor?,
+        seen: seen?,
+        missed: missed?,
         tool: tool?,
         parameters: parameters?,
         defenses: defenses?,
@@ -252,6 +279,75 @@ fn addresses(cx: &mut Cx, entry: &Entry, path: &str, kind: EntityKind) -> Option
         }
     }
     ok.then_some(out)
+}
+
+/// Whether `key`, when present, is on a host (nmap recipes spec §3.1).
+fn host_only(cx: &mut Cx, f: &Fields, key: &str, kind: EntityKind) -> bool {
+    match f.get(key) {
+        Some(e) if kind != EntityKind::Host => {
+            let message = format!("`{key}` is not a field of {}", a(kind.as_str()));
+            cx.error(Code::MisplacedKey, f.path(key), e.key_pos, message);
+            false
+        }
+        _ => true,
+    }
+}
+
+/// What identified a host: `type:value`, each once (nmap recipes spec §3.1).
+fn identities(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Vec<String>> {
+    let items = cx.list(&entry.value, path)?;
+    let mut out: Vec<String> = Vec::new();
+    let mut ok = true;
+    for (i, item) in items.iter().enumerate() {
+        let at = format!("{path}[{i}]");
+        let Some(text) = cx.string(item, &at) else {
+            ok = false;
+            continue;
+        };
+        let shaped = matches!(text.split_once(':'), Some((t, v)) if !t.is_empty() && !v.is_empty()
+            && t.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'));
+        if !shaped {
+            let message =
+                format!("expected type:value such as mac:00:1a:2b:3c:4d:5e, found {text:?}");
+            cx.error(Code::WrongType, at, item.pos, message);
+            ok = false;
+        } else if out.contains(&text) {
+            cx.error(
+                Code::WrongType,
+                at,
+                item.pos,
+                format!("{text:?} is listed twice"),
+            );
+            ok = false;
+        } else {
+            out.push(text);
+        }
+    }
+    ok.then_some(out)
+}
+
+/// An optional day, `YYYY-MM-DD`.
+fn day(cx: &mut Cx, f: &Fields, key: &str) -> Option<Option<String>> {
+    let Some(text) = cx.optional_string(f, key)? else {
+        return Some(None);
+    };
+    let b = text.as_bytes();
+    let digits = |from: usize, to: usize| b[from..to].iter().all(u8::is_ascii_digit);
+    let valid = b.len() == 10
+        && b[4] == b'-'
+        && b[7] == b'-'
+        && digits(0, 4)
+        && digits(5, 7)
+        && digits(8, 10)
+        && (1..=12).contains(&text[5..7].parse::<u32>().unwrap_or(0))
+        && (1..=31).contains(&text[8..10].parse::<u32>().unwrap_or(0));
+    if valid {
+        return Some(Some(text));
+    }
+    let pos = f.get(key).map(|e| e.value.pos).unwrap_or(f.at);
+    let message = format!("expected a date such as 2026-09-27, found {text:?}");
+    cx.error(Code::WrongType, f.path(key), pos, message);
+    None
 }
 
 fn is_cidr(text: &str) -> bool {
