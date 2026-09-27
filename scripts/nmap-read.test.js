@@ -1,0 +1,80 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const R = require('../assets/js/nmap-read.js');
+const Ad = require('../assets/js/nmap-address.js');
+const fixture = name => fs.readFileSync('scripts/fixtures/nmap/' + name, 'utf8');
+
+test('a MAC is an identity with its vendor; addresses stay IP addresses', () => {
+  const { scan } = R.read(fixture('lan-arp.xml'));
+  const gw = scan.hosts[0];
+  assert.deepEqual(gw.addresses, ['10.0.1.1']);
+  assert.deepEqual(gw.identities, ['mac:00:1a:2b:3c:4d:01']);
+  assert.equal(gw.vendor, 'Ubiquiti Networks');
+  assert.deepEqual(gw.hostnames, [{ name: 'gw.lab', type: 'PTR' }]);
+  assert.deepEqual(gw.names, [{ name: 'gw.lab', from: 'DNS' }]);
+});
+
+test('many addresses behind one MAC stay separate hosts, and that MAC identifies none of them', () => {
+  const { scan } = R.read(fixture('lan-arp.xml'));
+  const pair = scan.hosts.filter(h => h.vendor === 'Cisco Systems');
+  assert.deepEqual(pair.map(h => h.addresses), [['10.0.1.200'], ['10.0.1.201']]);
+  assert.deepEqual(pair.map(h => h.identities), [[], []]);
+  assert.equal(scan.sharedMacs, 1);
+});
+
+test('one machine listed by its IPv4 and its IPv6 address is one host by its MAC', () => {
+  const xml = fixture('lan-arp.xml').replace('<address addr="10.0.1.201" addrtype="ipv4"/>\n<address addr="00:1A:2B:3C:4D:99"', '<address addr="fd00::5" addrtype="ipv6"/>\n<address addr="52:54:00:12:34:56"');
+  const { scan } = R.read(xml);
+  const srv = scan.hosts.filter(h => h.addresses.includes('10.0.1.5'))[0];
+  assert.deepEqual(srv.addresses, ['10.0.1.5', 'fd00::5']);
+  assert.deepEqual(srv.identities, ['mac:52:54:00:12:34:56']);
+});
+
+test('the scan says its date, what it probed and how', () => {
+  const { scan } = R.read(fixture('lan-arp.xml'));
+  assert.equal(scan.date, '2026-09-27');
+  assert.deepEqual(scan.types, ['syn']);
+  assert.equal(R.probed(scan, 'tcp', 22), true);
+  assert.equal(R.probed(scan, 'tcp', 8443), true);
+  assert.equal(R.probed(scan, 'tcp', 8444), false);
+  assert.equal(R.probed(scan, 'udp', 53), false);
+  const srv = scan.hosts[1];
+  assert.equal(srv.ports[0].reason, 'syn-ack');
+  assert.equal(R.portState(srv, scan, 'tcp', 22), 'open');
+  assert.equal(R.portState(srv, scan, 'tcp', 80), 'closed', 'the one grouped state');
+  assert.equal(R.portState(srv, scan, 'tcp', 8444), 'not-probed');
+});
+
+test('identity scripts: SSH keys, NetBIOS and certificate names, the NetBIOS MAC once', () => {
+  const { scan } = R.read(fixture('identity.xml'));
+  const fs1 = scan.hosts[0];
+  assert.deepEqual(fs1.identities, ['mac:00:0c:29:aa:bb:cc', 'ssh-ed25519:d5c1f0aa', 'ssh-rsa:11223344']);
+  assert.deepEqual(fs1.names, [
+    { name: 'filesrv.lab', from: 'NetBIOS' },
+    { name: 'FILESRV', from: 'NetBIOS' },
+    { name: 'files.lab', from: 'certificate' },
+    { name: 'fs.lab', from: 'certificate' },
+  ]);
+});
+
+test('odd names are plain text: no <unknown>, no control characters, no all-zero MAC, cut long', () => {
+  const { scan } = R.read(fixture('identity.xml'));
+  const odd = scan.hosts[1];
+  assert.deepEqual(odd.identities, []);
+  assert.deepEqual(odd.names, [{ name: '<script>xy', from: 'NetBIOS' }]);
+  const long = fixture('identity.xml').replace('&lt;script&gt;x&#x7;y', 'A'.repeat(5000));
+  assert.equal(R.read(long).scan.hosts[1].names[0].name.length, 120);
+});
+
+test('a trace keeps its hops in order, a hop that did not answer as a missing ttl', () => {
+  const xml = fixture('lan-arp.xml').replace('<address addr="52:54:00:12:34:56" addrtype="mac" vendor="QEMU virtual NIC"/>\n<hostnames>\n</hostnames>',
+    '<address addr="52:54:00:12:34:56" addrtype="mac" vendor="QEMU virtual NIC"/>\n<hostnames>\n</hostnames>\n<trace port="22" proto="tcp">\n<hop ttl="3" ipaddr="10.0.1.5" rtt="1.10"/>\n<hop ttl="1" ipaddr="10.0.1.1" rtt="0.40" host="gw.lab"/>\n</trace>');
+  const srv = R.read(xml).scan.hosts[1];
+  assert.deepEqual(srv.trace, [{ ttl: 1, address: '10.0.1.1', name: 'gw.lab' }, { ttl: 3, address: '10.0.1.5', name: null }]);
+});
+
+test('private space: RFC 1918, shared, link-local, loopback, ULA', () => {
+  for (const ip of ['10.1.2.3', '172.16.0.1', '172.31.255.1', '192.168.1.1', '100.64.0.1', '169.254.1.1', '127.0.0.1', 'fd00::1', 'fe80::1', '::1']) assert.equal(Ad.isPrivate(ip), true, ip);
+  for (const ip of ['172.32.0.1', '8.8.8.8', '100.128.0.1', '2001:db8::1', 'srv.lab']) assert.equal(Ad.isPrivate(ip), false, ip);
+});

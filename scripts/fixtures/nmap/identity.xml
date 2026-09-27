@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sS -sU -p T:22,443,445,U:137 -&#45;script &quot;(ssh-hostkey or ssl-cert or nbstat or smb-os-discovery)&quot; -oX - 10.0.1.9 10.0.1.20" start="1790467200" version="7.95" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="3" services="22,443,445"/>
+<scaninfo type="udp" protocol="udp" numservices="1" services="137"/>
+<host><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="10.0.1.9" addrtype="ipv4"/>
+<address addr="00:0C:29:AA:BB:CC" addrtype="mac" vendor="VMware"/>
+<hostnames>
+</hostnames>
+<ports>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="ssh" method="table" conf="3"/><script id="ssh-hostkey" output="&#xa;  256 d5:c1:f0:aa (ED25519)&#xa;  3072 11:22:33:44 (RSA)"><table>
+<elem key="type">ssh-ed25519</elem>
+<elem key="fingerprint">d5c1f0aa</elem>
+<elem key="bits">256</elem>
+</table>
+<table>
+<elem key="type">ssh-rsa</elem>
+<elem key="fingerprint">11223344</elem>
+<elem key="bits">3072</elem>
+</table>
+</script></port>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="https" method="table" conf="3"/><script id="ssl-cert" output="Subject: commonName=files.lab&#xa;Subject Alternative Name: DNS:files.lab, DNS:fs.lab"><table key="subject">
+<elem key="commonName">files.lab</elem>
+</table>
+<table key="extensions">
+<table>
+<elem key="name">X509v3 Subject Alternative Name</elem>
+<elem key="value">DNS:files.lab, DNS:fs.lab</elem>
+</table>
+</table>
+</script></port>
+<port protocol="tcp" portid="445"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="microsoft-ds" method="table" conf="3"/></port>
+<port protocol="udp" portid="137"><state state="open" reason="udp-response" reason_ttl="64"/><service name="netbios-ns" method="table" conf="3"/></port>
+</ports>
+<hostscript><script id="nbstat" output="NetBIOS name: FILESRV, NetBIOS user: &lt;unknown&gt;, NetBIOS MAC: 00:0c:29:aa:bb:cc (VMware)"/><script id="smb-os-discovery" output="&#xa;  Computer name: filesrv&#xa;  NetBIOS computer name: FILESRV\x00"><elem key="server">FILESRV\x00</elem>
+<elem key="fqdn">filesrv.lab</elem>
+<elem key="domain">lab</elem>
+</script></hostscript>
+</host>
+<host><status state="up" reason="echo-reply" reason_ttl="63"/>
+<address addr="10.0.1.20" addrtype="ipv4"/>
+<hostnames>
+</hostnames>
+<ports><port protocol="udp" portid="137"><state state="open" reason="udp-response" reason_ttl="63"/><service name="netbios-ns" method="table" conf="3"/></port>
+</ports>
+<hostscript><script id="nbstat" output="NetBIOS name: &lt;script&gt;x&#x7;y, NetBIOS user: &lt;unknown&gt;, NetBIOS MAC: 00:00:00:00:00:00 (Xerox)"/></hostscript>
+</host>
+<runstats><finished time="1790467300" timestr="Sun Sep 27 12:01:40 2026" summary="Nmap done; 2 IP addresses (2 hosts up) scanned in 100.00 seconds" elapsed="100.00" exit="success"/><hosts up="2" down="0" total="2"/>
+</runstats>
+</nmaprun>

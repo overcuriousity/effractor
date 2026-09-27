@@ -73,7 +73,14 @@
     var text = best < 0 ? groups.join(":") : groups.slice(0, best).join(":") + "::" + groups.slice(best + len).join(":");
     return text + "/" + bits;
   }
-  var api = { bytes: bytes, addressKey: addressKey, inCidr: inCidr, networkOf: networkOf };
+  // Private space (nmap recipes spec §4.2): a route is cut before the first
+  // hop outside it.
+  var PRIVATE = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "169.254.0.0/16", "127.0.0.0/8", "fc00::/7", "fe80::/10", "::1/128"];
+  function isPrivate(ip) {
+    return !!bytes(ip) && PRIVATE.some(function (c) { return inCidr(ip, c); });
+  }
+
+  var api = { isPrivate: isPrivate, bytes: bytes, addressKey: addressKey, inCidr: inCidr, networkOf: networkOf };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapAddress = api;
 })();
