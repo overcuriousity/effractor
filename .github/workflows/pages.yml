@@ -48,7 +48,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: pages
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - run: scripts/build-wasm.sh --fetch-cli
       # The footer shows the same stamp as the release binary.
       - name: version
