@@ -13,10 +13,13 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use effractor_accounts::{Id, Timestamp, oidc, sessions, users};
-use openidconnect::core::{CoreAuthenticationFlow, CoreClient, CoreProviderMetadata};
+use openidconnect::core::{
+    CoreAuthenticationFlow, CoreClient, CoreProviderMetadata, CoreUserInfoClaims,
+};
 use openidconnect::{
-    AuthorizationCode, ClientId, ClientSecret, CsrfToken, IssuerUrl, Nonce, PkceCodeChallenge,
-    PkceCodeVerifier, RedirectUrl, Scope, TokenResponse,
+    AccessToken, AuthorizationCode, ClientId, ClientSecret, CsrfToken, IssuerUrl, Nonce,
+    OAuth2TokenResponse, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope,
+    SubjectIdentifier, TokenResponse,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -125,20 +128,17 @@ async fn metadata(o: &Oidc) -> Result<CoreProviderMetadata, ApiError> {
     Ok(meta)
 }
 
-fn client_from(
-    o: &Oidc,
-    meta: CoreProviderMetadata,
-) -> Result<
-    CoreClient<
-        openidconnect::EndpointSet,
-        openidconnect::EndpointNotSet,
-        openidconnect::EndpointNotSet,
-        openidconnect::EndpointNotSet,
-        openidconnect::EndpointMaybeSet,
-        openidconnect::EndpointMaybeSet,
-    >,
-    ApiError,
-> {
+/// The client discovery gives: the token and userinfo endpoints only maybe.
+type Client = CoreClient<
+    openidconnect::EndpointSet,
+    openidconnect::EndpointNotSet,
+    openidconnect::EndpointNotSet,
+    openidconnect::EndpointNotSet,
+    openidconnect::EndpointMaybeSet,
+    openidconnect::EndpointMaybeSet,
+>;
+
+fn client_from(o: &Oidc, meta: CoreProviderMetadata) -> Result<Client, ApiError> {
     let redirect =
         RedirectUrl::new(o.redirect.clone()).map_err(|e| ApiError::Internal(e.to_string()))?;
     Ok(CoreClient::from_provider_metadata(
@@ -324,12 +324,32 @@ async fn finish(
         .map_err(|e| ApiError::Bad(format!("id token: {e}")))?;
     let issuer = o.cfg.issuer.clone();
     let subject = claims.subject().to_string();
-    let preferred = claims.preferred_username().map(|u| u.to_string());
-    let display = claims
+    let mut preferred = claims.preferred_username().map(|u| u.to_string());
+    let mut display = claims
         .name()
         .and_then(|n| n.get(None))
         .map(|n| n.to_string())
         .unwrap_or_default();
+    // Nextcloud's ID token can leave the profile claims out and keep them for
+    // the userinfo endpoint. They only name a new account, so a userinfo that
+    // fails does not fail the login: the account is named "user" as before.
+    if pending.link.is_none() && (preferred.is_none() || display.is_empty()) {
+        match userinfo(o, &client, tokens.access_token().clone(), claims.subject()).await {
+            Ok(info) => {
+                if preferred.is_none() {
+                    preferred = info.preferred_username().map(|u| u.to_string());
+                }
+                if display.is_empty() {
+                    display = info
+                        .name()
+                        .and_then(|n| n.get(None))
+                        .map(|n| n.to_string())
+                        .unwrap_or_default();
+                }
+            }
+            Err(err) => tracing::warn!(err, "OIDC userinfo"),
+        }
+    }
 
     if let Some(user) = pending.link {
         return accounts
@@ -360,6 +380,21 @@ async fn finish(
         })
         .await?;
     Ok(Done::Session(token))
+}
+
+/// The claims the userinfo endpoint gives, checked to be about `subject`.
+async fn userinfo(
+    o: &Oidc,
+    client: &Client,
+    token: AccessToken,
+    subject: &SubjectIdentifier,
+) -> Result<CoreUserInfoClaims, String> {
+    client
+        .user_info(token, Some(subject.clone()))
+        .map_err(|e| e.to_string())?
+        .request_async(&o.http)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

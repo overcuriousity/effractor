@@ -27,6 +27,8 @@ struct Issuer {
     /// Where `/.well-known/openid-configuration` redirects to, if anywhere
     /// (Nextcloud: to its `/index.php/…`, which serves the same document).
     moved: Arc<Mutex<Option<String>>>,
+    /// What `/userinfo` answers, for the access token "at"; nothing: 404.
+    userinfo: Arc<Mutex<Option<serde_json::Value>>>,
 }
 
 /// The issuer at `url`'s discovery document.
@@ -40,7 +42,8 @@ fn metadata(url: &str) -> serde_json::Value {
         vec![CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256],
         EmptyAdditionalProviderMetadata {},
     )
-    .set_token_endpoint(Some(TokenUrl::new(format!("{url}/token")).unwrap()));
+    .set_token_endpoint(Some(TokenUrl::new(format!("{url}/token")).unwrap()))
+    .set_userinfo_endpoint(Some(UserInfoUrl::new(format!("{url}/userinfo")).unwrap()));
     serde_json::to_value(meta).unwrap()
 }
 
@@ -67,18 +70,28 @@ async fn issuer() -> Issuer {
         .route("/jwks", get(|| async {
             axum::Json(serde_json::to_value(CoreJsonWebKeySet::new(vec![key().as_verification_key()])).unwrap())
         }))
+        .route("/userinfo", get(|State(s): State<Issuer>, headers: axum::http::HeaderMap| async move {
+            let bearer = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
+            match s.userinfo.lock().unwrap().clone() {
+                Some(v) if bearer == Some("Bearer at") => axum::Json(v).into_response(),
+                _ => axum::http::StatusCode::NOT_FOUND.into_response(),
+            }
+        }))
         .route("/token", post(|State(s): State<Issuer>, Form(form): Form<std::collections::HashMap<String, String>>| async move {
             let url = s.url.lock().unwrap().clone();
             let codes = s.codes.lock().unwrap().clone();
             let (_, sub, user, nonce) = codes.into_iter().find(|c| Some(&c.0) == form.get("code")).expect("known code");
             let now = chrono::Utc::now();
+            // An empty preferred_username: the ID token carries none (as
+            // Nextcloud's may, which keeps the profile claims for /userinfo).
+            let standard = StandardClaims::new(SubjectIdentifier::new(sub))
+                .set_preferred_username((!user.is_empty()).then(|| EndUserUsername::new(user)));
             let claims = CoreIdTokenClaims::new(
                 IssuerUrl::new(url).unwrap(),
                 vec![Audience::new("effractor".into())],
                 now + chrono::Duration::minutes(5),
                 now,
-                StandardClaims::new(SubjectIdentifier::new(sub))
-                    .set_preferred_username(Some(EndUserUsername::new(user))),
+                standard,
                 EmptyAdditionalClaims {},
             )
             .set_nonce(Some(Nonce::new(nonce)));
@@ -560,4 +573,68 @@ async fn discovery_never_follows_a_redirect_to_another_host() {
     let there = other.url.lock().unwrap().clone();
     *iss.moved.lock().unwrap() = Some(format!("{there}/.well-known/openid-configuration"));
     assert_eq!(start_status(&h).await, 500);
+}
+
+/// Logs in with an ID token that carries no preferred_username; the name the
+/// new account got.
+async fn first_login_without_a_name_in_the_id_token(
+    userinfo: Option<serde_json::Value>,
+) -> serde_json::Value {
+    let (h, iss) = with_oidc().await;
+    *iss.userinfo.lock().unwrap() = userinfo;
+    let (url, bind) = start(&h, None, false).await;
+    iss.codes.lock().unwrap().push((
+        "c1".into(),
+        "sub-1".into(),
+        String::new(),
+        query(&url, "nonce"),
+    ));
+    let res = callback(&h, "c1", &query(&url, "state"), &bind).await;
+    assert_eq!(
+        res.headers()[header::LOCATION],
+        "https://effractor.example/"
+    );
+    let session = res
+        .headers()
+        .get_all(header::SET_COOKIE)
+        .iter()
+        .filter_map(|v| {
+            v.to_str()
+                .ok()?
+                .strip_prefix("effractor_session=")?
+                .split(';')
+                .next()
+                .map(str::to_owned)
+        })
+        .find(|v| !v.is_empty())
+        .expect("a session");
+    json(h.call("GET", "/api/me", Some(&session), None).await).await["user"].clone()
+}
+
+/// Nextcloud's ID token can leave the profile claims out and keep them for
+/// the userinfo endpoint: the name and display name are asked for there.
+#[tokio::test]
+async fn a_name_the_id_token_leaves_out_is_asked_of_the_userinfo_endpoint() {
+    let user = first_login_without_a_name_in_the_id_token(Some(json!({
+        "sub": "sub-1",
+        "preferred_username": "alice",
+        "name": "Alice Liddell",
+    })))
+    .await;
+    assert_eq!(user["name"], "alice");
+    assert_eq!(user["display_name"], "Alice Liddell");
+}
+
+/// Userinfo about somebody else, or none at all, does not name the account,
+/// and does not stop the login either.
+#[tokio::test]
+async fn userinfo_for_another_subject_or_none_leaves_the_fallback_name() {
+    let user = first_login_without_a_name_in_the_id_token(Some(json!({
+        "sub": "sub-2",
+        "preferred_username": "mallory",
+    })))
+    .await;
+    assert_eq!(user["name"], "user");
+    let user = first_login_without_a_name_in_the_id_token(None).await;
+    assert_eq!(user["name"], "user");
 }
