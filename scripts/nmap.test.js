@@ -2,31 +2,29 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const N = require('../assets/js/nmap.js');
 
-test('four levels, Standard first offered, root only where the scan needs it', () => {
-  assert.deepEqual(N.LEVELS.map(l => l.id), ['discover', 'standard', 'deep', 'complete']);
-  assert.deepEqual(N.LEVELS.map(l => l.root), [false, false, true, true]);
-  assert.equal(N.level('standard').name, 'Standard');
-  assert.equal(N.level('nope'), null);
-});
+// Today's scans as the recipes write them (nmap recipes spec §2): Standard is
+// "What runs there"; Deep and Complete are its Adjust settings.
+const STANDARD = ['services'];
+const DEEP = { tcp: 'syn', udp: 'top1000', depth: 'os' };
+const COMPLETE = { tcp: 'syn', ports: 'all', udp: 'top1000', depth: 'os' };
 
-test('each level prints XML to the terminal for the range', () => {
+test('the old levels are what the recipes write', () => {
   const r = '10.0.1.0/24';
-  assert.equal(N.command('discover', r).text, 'nmap -sn -oX - 10.0.1.0/24');
-  assert.equal(N.command('standard', r).text, 'nmap -sT -sV -oX - 10.0.1.0/24');
-  assert.equal(N.command('deep', r).text, 'sudo nmap -sS -sU -sV -O --top-ports 1000 -oX - 10.0.1.0/24');
-  assert.equal(N.command('complete', r).text, 'sudo nmap -sS -sU -sV -O -p T:1-65535,U:1-1024 -oX - 10.0.1.0/24');
-  assert.equal(N.command('standard', '  10.0.1.0/24   10.0.2.0/24 ').text, 'nmap -sT -sV -oX - 10.0.1.0/24 10.0.2.0/24');
-  assert.equal(N.command('standard', 'srv-01.lab,10.0.2.1-20').text, 'nmap -sT -sV -oX - srv-01.lab,10.0.2.1-20');
+  assert.equal(N.command(['lan'], { discovery: 'ping' }, r).text, 'nmap -sn -oX - 10.0.1.0/24');
+  assert.equal(N.command(STANDARD, {}, r).text, 'nmap -sT -sV -oX - 10.0.1.0/24');
+  assert.equal(N.command(STANDARD, DEEP, r).text, 'sudo nmap -sS -sU --top-ports 1000 -sV -O -oX - 10.0.1.0/24');
+  assert.equal(N.command(STANDARD, COMPLETE, r).text, 'sudo nmap -sS -sU -p T:1-65535,U:1-1024 -sV -O -oX - 10.0.1.0/24');
+  assert.equal(N.command(STANDARD, {}, '  10.0.1.0/24   10.0.2.0/24 ').text, 'nmap -sT -sV -oX - 10.0.1.0/24 10.0.2.0/24');
+  assert.equal(N.command(STANDARD, {}, 'srv-01.lab,10.0.2.1-20').text, 'nmap -sT -sV -oX - srv-01.lab,10.0.2.1-20');
 });
 
 test('a range never carries shell syntax or an nmap option', () => {
   for (const bad of ['10.0.0.1; rm -rf ~', '$(id)', '10.0.0.1 | tee x', '`id`', "10.0.0.1'", '10.0.0.1 -iL /etc/shadow', '-oN x 10.0.0.1', '10.0.0.1\n-sC']) {
-    const c = N.command('standard', bad);
+    const c = N.command(STANDARD, {}, bad);
     assert.equal(c.text, undefined, bad);
     assert.match(c.problem, /range/, bad);
   }
-  assert.match(N.command('standard', '   ').problem, /range/);
-  assert.equal(N.command('bogus', '10.0.0.1'), null);
+  assert.match(N.command(STANDARD, {}, '   ').problem, /range/);
 });
 
 const fs = require('node:fs');
@@ -237,7 +235,7 @@ test('unidentified software is never shared, not even in the count', () => {
 
 const CATALOG = require('./fixtures/catalog.json');
 const specOf = kind => CATALOG.entities.filter(e => e.kind === kind)[0];
-const STAMP = { date: '2026-09-24', level: 'Deep', range: '10.0.1.0/24' };
+const STAMP = { date: '2026-09-24', recipes: ['services'], range: '10.0.1.0/24' };
 
 test('applying adds exactly what was ticked, once, and leaves the rest alone', () => {
   const d = lab();
@@ -252,7 +250,7 @@ test('applying adds exactly what was ticked, once, and leaves the rest alone', (
   }
   for (const id of Object.keys(d.associations)) assert.deepEqual(out.associations[id], d.associations[id]);
   assert.deepEqual(out.flows.f1, d.flows.f1);
-  assert.equal(out.entities.nmap.description, 'Last nmap import: 2026-09-24, Deep scan of 10.0.1.0/24.');
+  assert.equal(out.entities.nmap.description, 'Last nmap import: 2026-09-24, scan of 10.0.1.0/24 · what runs there.');
   const host = Object.keys(out.entities).find(id => out.entities[id].label === '10.0.1.7');
   assert.deepEqual(out.entities[host].addresses, ['10.0.1.7']);
   assert.equal(out.entities[host].kind, 'host');
@@ -300,7 +298,7 @@ test('nothing ticked is no edit; a second import keeps the rest of the descripti
   assert.equal(N.apply(d, p, { hosts: {}, ports: {}, network: false }, specOf, STAMP), null);
   d.entities.nmap.description = 'Runs from the admin box.\nLast nmap import: 2026-09-01, Standard scan of 10.0.1.0/24.';
   const out = N.apply(d, p, N.defaults(p), specOf, STAMP).doc;
-  assert.equal(out.entities.nmap.description, 'Runs from the admin box.\nLast nmap import: 2026-09-24, Deep scan of 10.0.1.0/24.');
+  assert.equal(out.entities.nmap.description, 'Runs from the admin box.\nLast nmap import: 2026-09-24, scan of 10.0.1.0/24 · what runs there.');
 });
 
 test('a hostile name becomes a label as it is and a valid id', () => {
@@ -357,13 +355,13 @@ test('two rows cannot become the same hand-drawn host; the first choice wins', (
 });
 
 test('IPv6 ranges get -6; IPv4 and IPv6 are never mixed in one command', () => {
-  assert.equal(N.command('standard', 'fd00::/120').text, 'nmap -6 -sT -sV -oX - fd00::/120');
-  assert.equal(N.command('deep', 'fd00::5 fd00::6').text, 'sudo nmap -6 -sS -sU -sV -O --top-ports 1000 -oX - fd00::5 fd00::6');
-  const mixed = N.command('standard', '10.0.1.0/24 fd00::/64');
+  assert.equal(N.command(STANDARD, {}, 'fd00::/120').text, 'nmap -6 -sT -sV -oX - fd00::/120');
+  assert.equal(N.command(STANDARD, DEEP, 'fd00::5 fd00::6').text, 'sudo nmap -6 -sS -sU --top-ports 1000 -sV -O -oX - fd00::5 fd00::6');
+  const mixed = N.command(STANDARD, {}, '10.0.1.0/24 fd00::/64');
   assert.equal(mixed.text, undefined);
   assert.match(mixed.problem, /IPv4 and IPv6/);
-  assert.match(N.command('standard', 'fd00::/64').note, /\/64/, 'a wide IPv6 range is said to be slow');
-  assert.equal(N.command('standard', '10.0.1.0/24').note, undefined);
+  assert.match(N.command(STANDARD, {}, 'fd00::/64').note, /\/64/, 'a wide IPv6 range is said to be slow');
+  assert.equal(N.command(STANDARD, {}, '10.0.1.0/24').note, undefined);
 });
 
 test('text around the XML is skipped; a result missing its start is cut off, not "not XML"', () => {
@@ -379,13 +377,13 @@ test('text around the XML is skipped; a result missing its start is cut off, not
 
 test('the stamp says what nmap says it ran, and never "of ."', () => {
   const deepScan = N.read(fixture('deep-lab.xml')).scan;
-  assert.deepEqual(N.stampFor(deepScan, '', '2026-09-24'), { date: '2026-09-24', level: 'Deep', range: '10.0.1.0/24' });
+  assert.deepEqual(N.stampFor(deepScan, '', '2026-09-24'), { date: '2026-09-24', recipes: ['services'], range: '10.0.1.0/24' });
   const own = { args: 'nmap -sT --top-ports 100 -oX - 127.0.0.1 localhost', hosts: [], silentUdp: 0 };
-  assert.deepEqual(N.stampFor(own, '', '2026-09-24'), { date: '2026-09-24', level: null, range: '127.0.0.1 localhost' });
-  assert.equal(N.stampLine({ date: '2026-09-24', level: null, range: '127.0.0.1 localhost' }), 'Last nmap import: 2026-09-24, scan of 127.0.0.1 localhost.');
-  assert.equal(N.stampLine({ date: '2026-09-24', level: 'Deep', range: '' }), 'Last nmap import: 2026-09-24, Deep scan.');
+  assert.deepEqual(N.stampFor(own, '', '2026-09-24'), { date: '2026-09-24', recipes: [], range: '127.0.0.1 localhost' });
+  assert.equal(N.stampLine({ date: '2026-09-24', recipes: [], range: '127.0.0.1 localhost' }), 'Last nmap import: 2026-09-24, scan of 127.0.0.1 localhost.');
+  assert.equal(N.stampLine({ date: '2026-09-24', recipes: ['services'], range: '' }), 'Last nmap import: 2026-09-24, scan · what runs there.');
   const noArgs = { args: '', hosts: [], silentUdp: 0 };
-  assert.deepEqual(N.stampFor(noArgs, ' 10.0.1.0/24 ', '2026-09-24'), { date: '2026-09-24', level: null, range: '10.0.1.0/24' });
+  assert.deepEqual(N.stampFor(noArgs, ' 10.0.1.0/24 ', '2026-09-24'), { date: '2026-09-24', recipes: [], range: '10.0.1.0/24' });
 });
 
 // ---- the scanning host, and attachment by address (owner, 2026-09-24) ----
@@ -583,17 +581,18 @@ test('the nmap hint shows on an architecture until it has an nmap, never once di
 // ---- checks (spec §3.2, §4.6) ----
 
 test('checks add nmap\'s vulnerability scripts, never one that asks a third party', () => {
-  assert.deepEqual(N.CHECKS.map(c => c.id), ['none', 'safe', 'all']);
-  assert.ok(N.CHECKS.filter(c => c.script).every(c => / and not external$/.test(c.script)));
-  assert.ok(N.CHECKS.every(c => !!c.warning === (c.id === 'all')));
+  const CHECKS = N.BLOCKS.filter(b => b.id === 'checks')[0].choices;
+  assert.deepEqual(CHECKS.map(c => c.id), ['none', 'safe', 'all']);
+  assert.ok(CHECKS.filter(c => c.script).every(c => / and not external$/.test(c.script)));
+  assert.ok(CHECKS.every(c => !!c.warning === (c.id === 'all')));
   const r = '10.0.1.0/24';
-  assert.equal(N.command('standard', r, 'none').text, 'nmap -sT -sV -oX - 10.0.1.0/24');
-  assert.equal(N.command('standard', r).text, 'nmap -sT -sV -oX - 10.0.1.0/24');
-  assert.equal(N.command('standard', r, 'safe').text, "nmap -sT -sV --script 'vuln and safe and not external' -oX - 10.0.1.0/24");
-  assert.equal(N.command('deep', r, 'all').text, "sudo nmap -sS -sU -sV -O --top-ports 1000 --script 'vuln and not external' -oX - 10.0.1.0/24");
-  assert.equal(N.command('discover', r, 'all').text, 'nmap -sn -oX - 10.0.1.0/24', 'no ports, no checks');
-  assert.equal(N.checksOffered('discover'), false);
-  assert.equal(N.checksOffered('standard'), true);
+  assert.equal(N.command(STANDARD, { checks: 'none' }, r).text, 'nmap -sT -sV -oX - 10.0.1.0/24');
+  assert.equal(N.command(STANDARD, { checks: 'safe' }, r).text, "nmap -sT -sV --script 'vuln and safe and not external' -oX - 10.0.1.0/24");
+  assert.equal(N.command(['checks'], {}, r).text, "nmap -sT -sV --script 'vuln and safe and not external' -oX - 10.0.1.0/24");
+  assert.equal(N.command(STANDARD, Object.assign({ checks: 'all' }, DEEP), r).text, "sudo nmap -sS -sU --top-ports 1000 -sV -O --script 'vuln and not external' -oX - 10.0.1.0/24");
+  const none = N.command(['lan'], { discovery: 'ping', checks: 'all' }, r);
+  assert.equal(none.text, 'nmap -sn -oX - 10.0.1.0/24', 'no ports, no checks');
+  assert.match(none.note, /need ports/);
 });
 
 const checks = () => N.read(fixture('checks-lab.xml')).scan;
@@ -689,18 +688,18 @@ test('a finding on a known product adds its line; one the author marked patched 
 });
 
 test('the stamp names the checks nmap ran', () => {
-  assert.deepEqual(N.stampFor(checks(), '', '2026-09-24'), { date: '2026-09-24', level: 'Standard', checks: 'safe', range: '10.0.1.0/24' });
-  assert.equal(N.stampLine(N.stampFor(checks(), '', '2026-09-24')), 'Last nmap import: 2026-09-24, Standard scan with safe checks of 10.0.1.0/24.');
+  assert.deepEqual(N.stampFor(checks(), '', '2026-09-24'), { date: '2026-09-24', recipes: ['services', 'checks'], range: '10.0.1.0/24' });
+  assert.equal(N.stampLine(N.stampFor(checks(), '', '2026-09-24')), 'Last nmap import: 2026-09-24, scan of 10.0.1.0/24 · what runs there, check for known weaknesses.');
   const all = { args: 'nmap -sT -sV --script "vuln and not external" -oX - 10.0.1.0/24', hosts: [] };
-  assert.equal(N.stampLine(N.stampFor(all, '', '2026-09-24')), 'Last nmap import: 2026-09-24, Standard scan with all checks of 10.0.1.0/24.');
+  assert.equal(N.stampLine(N.stampFor(all, '', '2026-09-24')), 'Last nmap import: 2026-09-24, scan of 10.0.1.0/24 · what runs there, check for known weaknesses (all checks).');
   const own = { args: 'nmap -sT -sV --script vulners -oX - 10.0.1.0/24', hosts: [] };
-  assert.equal(N.stampLine(N.stampFor(own, '', '2026-09-24')), 'Last nmap import: 2026-09-24, scan of 10.0.1.0/24.');
+  assert.equal(N.stampLine(N.stampFor(own, '', '2026-09-24')), 'Last nmap import: 2026-09-24, scan of 10.0.1.0/24 · what runs there.');
 });
 
 test('the checks import is the document the Rust and wasm checks validate', () => {
   const d = checksLab();
   const p = N.plan(d, 'nmap', checks(), '10.0.1.0/24', {});
-  const out = N.apply(d, p, N.defaults(p), specOf, { date: '2026-09-24', level: 'Standard', checks: 'safe', range: '10.0.1.0/24' }).doc;
+  const out = N.apply(d, p, N.defaults(p), specOf, { date: '2026-09-24', recipes: ['services', 'checks'], range: '10.0.1.0/24' }).doc;
   const file = 'scripts/fixtures/nmap/imported-checks.doc.json';
   const text = JSON.stringify(out, null, 2) + '\n';
   if (process.env.NMAP_FIXTURE === 'write') fs.writeFileSync(file, text);
@@ -760,12 +759,12 @@ test('a host listed with every port reads in time (ports are keyed, not searched
 });
 
 test('an IPv6 link-local address may name its interface; nothing else gets through with it', () => {
-  assert.equal(N.command('standard', 'fe80::1%eth0').text, 'nmap -6 -sT -sV -oX - fe80::1%eth0');
-  assert.equal(N.command('standard', 'fe80::1%enp0s3.100 fe80::2%wlan_0').text, 'nmap -6 -sT -sV -oX - fe80::1%enp0s3.100 fe80::2%wlan_0');
+  assert.equal(N.command(STANDARD, {}, 'fe80::1%eth0').text, 'nmap -6 -sT -sV -oX - fe80::1%eth0');
+  assert.equal(N.command(STANDARD, {}, 'fe80::1%enp0s3.100 fe80::2%wlan_0').text, 'nmap -6 -sT -sV -oX - fe80::1%enp0s3.100 fe80::2%wlan_0');
   for (const bad of ['10.0.0.1%eth0', 'fe80::1%', 'fe80::1%eth0;id', 'fe80::1%$(id)', 'fe80::1%eth0%eth1', '%eth0', 'fe80::1%-x', 'host%eth0']) {
-    assert.equal(N.command('standard', bad).text, undefined, bad);
+    assert.equal(N.command(STANDARD, {}, bad).text, undefined, bad);
   }
-  assert.match(N.command('standard', 'fe80::/64%eth0').note, /too wide/);
+  assert.match(N.command(STANDARD, {}, 'fe80::/64%eth0').note, /too wide/);
 });
 
 test('the summary says what Add does, a merge that only fills addresses included', () => {
@@ -880,10 +879,10 @@ test('a file PowerShell wrote (UTF-16 with its byte-order mark) reads like the X
 });
 
 test('names go with IPv6 addresses; only an IPv4 address mixes', () => {
-  assert.equal(N.command('standard', 'fd00::1 printer.lan').text, 'nmap -6 -sT -sV -oX - fd00::1 printer.lan');
-  assert.match(N.command('standard', 'fd00::1 10.0.2.1-20').problem, /IPv4 and IPv6/);
-  assert.match(N.command('standard', 'fd00::1 srv.lab,10.0.2.1').problem, /IPv4 and IPv6/);
-  assert.equal(N.command('standard', 'printer.lan 10.0.1.0/24').text, 'nmap -sT -sV -oX - printer.lan 10.0.1.0/24');
+  assert.equal(N.command(STANDARD, {}, 'fd00::1 printer.lan').text, 'nmap -6 -sT -sV -oX - fd00::1 printer.lan');
+  assert.match(N.command(STANDARD, {}, 'fd00::1 10.0.2.1-20').problem, /IPv4 and IPv6/);
+  assert.match(N.command(STANDARD, {}, 'fd00::1 srv.lab,10.0.2.1').problem, /IPv4 and IPv6/);
+  assert.equal(N.command(STANDARD, {}, 'printer.lan 10.0.1.0/24').text, 'nmap -sT -sV -oX - printer.lan 10.0.1.0/24');
 });
 
 test('an IPv6 scan of hosts drawn from an IPv4 one may be merged into them, adding the addresses', () => {

@@ -17,7 +17,7 @@
       "kind": "application",
       "label": "nmap",
       "tool": "nmap",
-      "description": "Last nmap import: 2026-09-24, Deep scan of 10.0.1.0/24."
+      "description": "Last nmap import: 2026-09-24, scan of 10.0.1.0/24 · what runs there."
     },
     "192-168-2-0-24": {
       "kind": "network",
