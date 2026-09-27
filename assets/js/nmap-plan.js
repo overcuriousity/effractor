@@ -8,6 +8,7 @@
   var Ad = node ? require("./nmap-address.js") : window.effractorNmapAddress;
   var R = node ? require("./nmap-read.js") : window.effractorNmapRead;
   var C = node ? require("./nmap-command.js") : window.effractorNmapCommand;
+  var Rt = node ? require("./nmap-route.js") : window.effractorNmapRoute;
   var has = R.has, oneHost = R.oneHost, addressKey = Ad.addressKey, bytes = Ad.bytes, inCidr = Ad.inCidr, networkOf = Ad.networkOf;
   var targetsOf = C.targetsOf, STAMP = C.STAMP, stampLine = C.stampLine;
 
@@ -237,6 +238,12 @@
       if (appHost && (r.known || r.merged) === appHost) appNets = appNets.concat(r.networks);
     });
 
+    // The way to each host, by its trace (nmap recipes spec §4).
+    var way = Rt.routes(doc, rows, { byAddress: byAddress, networks: networks, appNets: appNets, proposed: proposed ? { cidr: cidr, into: into } : null });
+    var onTheWay = Object.create(null);
+    way.routers.forEach(function (r) { if (r.row) onTheWay[r.row] = true; });
+    way.links.forEach(function (l) { if (l.network === "new") usedNew = true; });
+
     var planned = rows.map(function (r) {
       var h = r.scan, target = r.known || r.merged;
       var label = target ? doc.entities[target].label : ((h.names || [])[0] || {}).name || h.hostname || h.addresses[0];
@@ -244,6 +251,8 @@
       var shared = appNets.filter(function (n) { return r.on.indexOf(n) >= 0; });
       var offered = !(target && runsRouter(doc, target));
       var suggested = roleOf(h.device);
+      // A host others were reached through routes, whatever nmap called it.
+      if (onTheWay[r.key] && suggested.role === "host") suggested = { role: "router", device: "on the way to others" };
       var hostChecks = readScripts(h.scripts);
       var seen = reached(doc, appId, target);
       var ports = h.ports.filter(function (p) { return p.state === "open" && !wrapped(p); }).map(function (p) {
@@ -298,6 +307,9 @@
     });
     return {
       app: appId,
+      routers: way.routers,
+      links: way.links,
+      paths: way.paths,
       date: scan.date || null,
       tcpwrapped: tcpwrapped,
       appHost: appHost,
@@ -417,7 +429,8 @@
   }
 
   function defaults(p) {
-    var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true, identities: {}, moves: {}, strips: {}, renames: {}, seen: true };
+    var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true, identities: {}, moves: {}, strips: {}, renames: {}, seen: true, routers: {} };
+    (p.routers || []).forEach(function (r) { t.routers[r.key] = true; });
     p.hosts.forEach(function (h) {
       // Another machine on a drawn host's address is left out until chosen.
       t.hosts[h.key] = !h.conflict || h.conflict.choice === "same";
@@ -452,6 +465,15 @@
     return f.product ? "id:" + f.product : r.product.identified ? "new:" + r.product.label : "port:" + r.key;
   }
 
+  // A hop is drawn as a router when ticked; one that is a scanned host,
+  // when that host is ticked and a router (spec §4.3).
+  function routerTicked(p, ticks, r) {
+    if (!ticks.routers || ticks.routers[r.key] !== true) return false;
+    if (!r.row) return true;
+    var row = p.hosts.filter(function (h) { return h.key === r.row; })[0];
+    return !!row && !!ticks.hosts[row.key] && (!!r.router || roleChosen(row, ticks) !== "host");
+  }
+
   // What a ticked row does to its host beyond adding: the identities it
   // gains, its move, its new name, the day it was seen (spec §3).
   function doing(h, ticks, p) {
@@ -474,7 +496,7 @@
     // The proposed network as the rows name it: "new", or the drawn one chosen.
     var proposed = p.network ? p.network.merged || "new" : null;
     if (network && p.network.merged) s.filledNetworks = 1;
-    var ticked = 0;
+    var ticked = 0, proposedMade = false;
     p.hosts.forEach(function (h) {
       if (!ticks.hosts[h.key]) return;
       ticked++;
@@ -490,7 +512,7 @@
       h.networks.forEach(function (n) {
         if (n === proposed && !network) return;
         rel++;
-        if (n === "new") s.networks = 1;
+        if (n === "new") proposedMade = true;
         if (!added) s.attached++;
       });
       var role = roleChosen(h, ticks);
@@ -517,6 +539,28 @@
         if (r.addsFlow) s.flows++;
       });
     });
+    // Routers on the way that are not scanned hosts, and the networks
+    // between hops: a box, its router, their attachments.
+    var drawn = Object.create(null);
+    (p.routers || []).forEach(function (r) {
+      if (!routerTicked(p, ticks, r)) return;
+      drawn[r.key] = true;
+      if (r.row) return;
+      if (!r.known) s.hosts++;
+      if (!r.router) {
+        s.routers++;
+        rel += 3;
+      }
+    });
+    (p.links || []).forEach(function (l) {
+      if (!drawn[l.from] || !drawn[l.to]) return;
+      if (!l.network) s.networks++;
+      if (l.network === "new" && network) proposedMade = true;
+      rel += 4;
+    });
+    // The proposed network is made when something ticked is on it.
+    s.proposed = proposedMade && proposed === "new";
+    if (s.proposed) s.networks++;
     rel += s.flows;
     s.unpatched = Object.keys(marked).length;
     s.entities = Object.keys(doc.entities || {}).length + s.hosts + s.networks + s.routers + s.firewalls + s.services + s.products;
@@ -582,7 +626,7 @@
       step(L.putAssociation(next, null, Object.assign({ kind: kind, from: from, to: to }, extra || {})));
     }
     var network = null;
-    if (s.networks) {
+    if (s.proposed) {
       network = step(A.addEntity(next, "network", p.network.label, specOf("network"))).entity;
       next.entities[network].addresses = p.network.addresses.slice();
     } else if (s.filledNetworks) {
@@ -591,7 +635,7 @@
     }
     var skipped = p.network && p.network.merged && !s.filledNetworks ? p.network.merged : null;
     var madeProducts = Object.create(null);
-    var flows = [], marks = [];
+    var flows = [], marks = [], hostOf = {};
     p.hosts.forEach(function (h) {
       if (!ticks.hosts[h.key]) return;
       var host = h.known || h.merged;
@@ -628,6 +672,7 @@
         }
       }
       if (h.vendor && !next.entities[host].vendor) next.entities[host].vendor = h.vendor;
+      hostOf[h.key] = host;
       if (h.merged) {
         // Added to what it had, each address once.
         var had = next.entities[host].addresses || [];
@@ -671,12 +716,30 @@
           link("instance-of", service, product);
         }
         marking(r, ticks).forEach(function (f) { marks.push({ product: productOfService(next, service), line: f.line }); });
-        if (r.addsFlow) flows.push({ label: r.label + " on " + h.label, target: service, host: host, route: h.route, protocol: r.proto });
+        if (r.addsFlow) flows.push({ label: r.label + " on " + h.label, target: service, host: host, row: h.key, route: h.route, protocol: r.proto });
       });
     });
     // After every attachment: a route is kept only where both ends are now
     // on its network (nmap's host may have been left unticked).
+    // The routers on the way and the networks between them (nmap recipes
+    // spec §4), then each flow by its whole way where there is one.
+    function netOf(n) {
+      return n === "new" ? network : n === skipped ? null : n;
+    }
+    var way = Rt.applyRoutes(p, {
+      doc: function () { return next; },
+      add: function (kind, label) { return step(A.addEntity(next, kind, label, specOf(kind))).entity; },
+      link: link,
+      net: netOf,
+      hostOf: hostOf,
+      ticked: function (r) { return routerTicked(p, ticks, r); },
+      seen: p.date && ticks.seen === true ? p.date : null,
+    });
     flows.forEach(function (f) {
+      var route = way.routes[f.row];
+      if (route && p.appHost && isAttached(next, p.appHost, route[0]) && isAttached(next, f.host, route[route.length - 1])) {
+        return step(L.putFlow(next, null, { label: f.label, source: p.app, target: f.target, route: route, protocol: f.protocol }));
+      }
       var net = f.route[0] === "new" ? network : f.route[0];
       var ok = net && p.appHost && isAttached(next, p.appHost, net) && isAttached(next, f.host, net);
       step(L.putFlow(next, null, { label: f.label, source: p.app, target: f.target, route: ok ? [net] : [], protocol: f.protocol }));

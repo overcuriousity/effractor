@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const N = require('../assets/js/nmap.js');
+const E = require('../assets/js/architecture-edit.js');
 const fixture = name => fs.readFileSync('scripts/fixtures/nmap/' + name, 'utf8');
 const catalog = JSON.parse(fs.readFileSync('scripts/fixtures/catalog.json', 'utf8'));
 const specOf = kind => catalog.entities.filter(e => e.kind === kind)[0];
@@ -9,7 +10,7 @@ const clone = x => JSON.parse(JSON.stringify(x));
 
 // An empty drawing with nmap on no host.
 function empty() {
-  return N.addNmap({ profile: 'architecture', entities: {}, associations: {}, flows: {} }, null, 'nmap', specOf).doc;
+  return N.addNmap(E.empty(), null, 'nmap', specOf).doc;
 }
 function imported(doc, name, change) {
   const scan = N.read(fixture(name)).scan;

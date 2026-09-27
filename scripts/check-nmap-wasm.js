@@ -1,6 +1,7 @@
 // The documents an nmap import produces (scripts/fixtures/nmap/imported*.doc.json,
-// pinned by scripts/nmap.test.js: a plain import, one with a router and a
-// firewall, one with vulnerability checks) are saved and validated by the
+// pinned by scripts/nmap.test.js and nmap-route.test.js: a plain import, one
+// with a router and a firewall, one with vulnerability checks, one with the
+// routers of a traced route) are saved and validated by the
 // browser's wasm module, as the page would. Run after scripts/build-wasm.sh.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -20,7 +21,7 @@ function check(doc) {
   return errors(JSON.parse(api.validate(saved.ok)));
 }
 
-for (const name of ['imported.doc.json', 'imported-router.doc.json', 'imported-checks.doc.json']) {
+for (const name of ['imported.doc.json', 'imported-router.doc.json', 'imported-checks.doc.json', 'imported-route.doc.json']) {
   const found = check(load(name));
   if (found.length) {
     console.error(name + ' does not save in wasm:', found);

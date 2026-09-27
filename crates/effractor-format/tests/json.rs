@@ -279,6 +279,23 @@ fn the_nmap_checks_import_fixture_is_a_valid_architecture() {
     );
 }
 
+/// The same for an import with traced routes (nmap recipes spec §4): the
+/// routers on the way, the networks between them, flows over the whole way;
+/// and what identified each host (§3.1).
+#[test]
+fn the_nmap_route_import_fixture_is_a_valid_architecture() {
+    let text = nmap_fixture_is_valid("imported-route.doc.json");
+    assert!(
+        text.contains("label: between gw.lab and 172.16.0.1"),
+        "{text}"
+    );
+    assert!(text.contains("seen: \"2026-09-27\""), "{text}");
+    assert!(
+        text.contains("      - gw-lab-router\n      - between-gw-lab-and-172-16-0-1\n"),
+        "{text}"
+    );
+}
+
 fn nmap_fixture_is_valid(name: &str) -> String {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let fixture = std::fs::read_to_string(root.join("scripts/fixtures/nmap").join(name)).unwrap();

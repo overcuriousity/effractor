@@ -1,0 +1,455 @@
+{
+  "effractor": 2,
+  "profile": "architecture",
+  "name": "Untitled",
+  "time_unit": "d",
+  "horizon": 100,
+  "library": {
+    "id": "core-components",
+    "version": 1
+  },
+  "entities": {
+    "lan": {
+      "kind": "network",
+      "label": "Lab network",
+      "addresses": [
+        "10.0.1.0/24"
+      ]
+    },
+    "admin": {
+      "kind": "host",
+      "label": "Admin box",
+      "addresses": [
+        "10.0.1.50"
+      ],
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      }
+    },
+    "nmap": {
+      "kind": "application",
+      "label": "nmap",
+      "parameters": {
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      },
+      "tool": "nmap",
+      "description": "Last nmap import: 2026-09-27, scan of 10.9.0.0/24 · what runs there, map the route."
+    },
+    "10-9-0-0-24": {
+      "kind": "network",
+      "label": "10.9.0.0/24",
+      "addresses": [
+        "10.9.0.0/24"
+      ]
+    },
+    "10-9-0-10": {
+      "kind": "host",
+      "label": "10.9.0.10",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.9.0.10"
+      ],
+      "seen": "2026-09-27"
+    },
+    "ssh": {
+      "kind": "service",
+      "label": "ssh",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "openssh-9-6p1": {
+      "kind": "product",
+      "label": "OpenSSH 9.6p1",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-9-0-20": {
+      "kind": "host",
+      "label": "10.9.0.20",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.9.0.20"
+      ],
+      "seen": "2026-09-27"
+    },
+    "ssh-2": {
+      "kind": "service",
+      "label": "ssh",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "10-9-0-11": {
+      "kind": "host",
+      "label": "10.9.0.11",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.9.0.11"
+      ],
+      "seen": "2026-09-27"
+    },
+    "ssh-3": {
+      "kind": "service",
+      "label": "ssh",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "gw-lab": {
+      "kind": "host",
+      "label": "gw.lab",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.1"
+      ],
+      "seen": "2026-09-27"
+    },
+    "gw-lab-router": {
+      "kind": "router",
+      "label": "gw.lab router",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      }
+    },
+    "172-16-0-1": {
+      "kind": "host",
+      "label": "172.16.0.1",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "172.16.0.1"
+      ],
+      "seen": "2026-09-27"
+    },
+    "172-16-0-1-router": {
+      "kind": "router",
+      "label": "172.16.0.1 router",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      }
+    },
+    "172-16-5-1": {
+      "kind": "host",
+      "label": "172.16.5.1",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "172.16.5.1"
+      ],
+      "seen": "2026-09-27"
+    },
+    "172-16-5-1-router": {
+      "kind": "router",
+      "label": "172.16.5.1 router",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      }
+    },
+    "between-gw-lab-and-172-16-0-1": {
+      "kind": "network",
+      "label": "between gw.lab and 172.16.0.1"
+    },
+    "between-gw-lab-and-172-16-5-1-1-hop-unseen": {
+      "kind": "network",
+      "label": "between gw.lab and 172.16.5.1 (1 hop unseen)"
+    }
+  },
+  "associations": {
+    "admin-lan": {
+      "kind": "attached",
+      "from": "admin",
+      "to": "lan"
+    },
+    "admin-hosts-nmap": {
+      "kind": "hosts",
+      "from": "admin",
+      "to": "nmap",
+      "privilege": "user"
+    },
+    "10-9-0-10-attached-10-9-0-0-24": {
+      "kind": "attached",
+      "from": "10-9-0-10",
+      "to": "10-9-0-0-24"
+    },
+    "10-9-0-10-hosts-ssh": {
+      "kind": "hosts",
+      "from": "10-9-0-10",
+      "to": "ssh",
+      "privilege": "unknown"
+    },
+    "ssh-instance-of-openssh-9-6p1": {
+      "kind": "instance-of",
+      "from": "ssh",
+      "to": "openssh-9-6p1"
+    },
+    "10-9-0-20-attached-10-9-0-0-24": {
+      "kind": "attached",
+      "from": "10-9-0-20",
+      "to": "10-9-0-0-24"
+    },
+    "10-9-0-20-hosts-ssh-2": {
+      "kind": "hosts",
+      "from": "10-9-0-20",
+      "to": "ssh-2",
+      "privilege": "unknown"
+    },
+    "ssh-2-instance-of-openssh-9-6p1": {
+      "kind": "instance-of",
+      "from": "ssh-2",
+      "to": "openssh-9-6p1"
+    },
+    "10-9-0-11-attached-10-9-0-0-24": {
+      "kind": "attached",
+      "from": "10-9-0-11",
+      "to": "10-9-0-0-24"
+    },
+    "10-9-0-11-hosts-ssh-3": {
+      "kind": "hosts",
+      "from": "10-9-0-11",
+      "to": "ssh-3",
+      "privilege": "unknown"
+    },
+    "ssh-3-instance-of-openssh-9-6p1": {
+      "kind": "instance-of",
+      "from": "ssh-3",
+      "to": "openssh-9-6p1"
+    },
+    "gw-lab-hosts-gw-lab-router": {
+      "kind": "hosts",
+      "from": "gw-lab",
+      "to": "gw-lab-router",
+      "privilege": "admin"
+    },
+    "172-16-0-1-hosts-172-16-0-1-router": {
+      "kind": "hosts",
+      "from": "172-16-0-1",
+      "to": "172-16-0-1-router",
+      "privilege": "admin"
+    },
+    "172-16-5-1-hosts-172-16-5-1-router": {
+      "kind": "hosts",
+      "from": "172-16-5-1",
+      "to": "172-16-5-1-router",
+      "privilege": "admin"
+    },
+    "gw-lab-attached-between-gw-lab-and-172-16-0-1": {
+      "kind": "attached",
+      "from": "gw-lab",
+      "to": "between-gw-lab-and-172-16-0-1"
+    },
+    "gw-lab-router-attached-between-gw-lab-and-172-16-0-1": {
+      "kind": "attached",
+      "from": "gw-lab-router",
+      "to": "between-gw-lab-and-172-16-0-1"
+    },
+    "172-16-0-1-attached-between-gw-lab-and-172-16-0-1": {
+      "kind": "attached",
+      "from": "172-16-0-1",
+      "to": "between-gw-lab-and-172-16-0-1"
+    },
+    "172-16-0-1-router-attached-between-gw-lab-and-172-16-0-1": {
+      "kind": "attached",
+      "from": "172-16-0-1-router",
+      "to": "between-gw-lab-and-172-16-0-1"
+    },
+    "gw-lab-attached-between-gw-lab-and-172-16-5-1-1-hop-unseen": {
+      "kind": "attached",
+      "from": "gw-lab",
+      "to": "between-gw-lab-and-172-16-5-1-1-hop-unseen"
+    },
+    "gw-lab-router-attached-between-gw-lab-and-172-16-5-1-1-hop-unseen": {
+      "kind": "attached",
+      "from": "gw-lab-router",
+      "to": "between-gw-lab-and-172-16-5-1-1-hop-unseen"
+    },
+    "172-16-5-1-attached-between-gw-lab-and-172-16-5-1-1-hop-unseen": {
+      "kind": "attached",
+      "from": "172-16-5-1",
+      "to": "between-gw-lab-and-172-16-5-1-1-hop-unseen"
+    },
+    "172-16-5-1-router-attached-between-gw-lab-and-172-16-5-1-1-hop-unseen": {
+      "kind": "attached",
+      "from": "172-16-5-1-router",
+      "to": "between-gw-lab-and-172-16-5-1-1-hop-unseen"
+    },
+    "gw-lab-attached-lan": {
+      "kind": "attached",
+      "from": "gw-lab",
+      "to": "lan"
+    },
+    "gw-lab-router-attached-lan": {
+      "kind": "attached",
+      "from": "gw-lab-router",
+      "to": "lan"
+    },
+    "172-16-0-1-attached-10-9-0-0-24": {
+      "kind": "attached",
+      "from": "172-16-0-1",
+      "to": "10-9-0-0-24"
+    },
+    "172-16-0-1-router-attached-10-9-0-0-24": {
+      "kind": "attached",
+      "from": "172-16-0-1-router",
+      "to": "10-9-0-0-24"
+    },
+    "172-16-5-1-attached-10-9-0-0-24": {
+      "kind": "attached",
+      "from": "172-16-5-1",
+      "to": "10-9-0-0-24"
+    },
+    "172-16-5-1-router-attached-10-9-0-0-24": {
+      "kind": "attached",
+      "from": "172-16-5-1-router",
+      "to": "10-9-0-0-24"
+    }
+  },
+  "flows": {
+    "ssh-on-10-9-0-10": {
+      "label": "ssh on 10.9.0.10",
+      "source": "nmap",
+      "target": "ssh",
+      "route": [
+        "lan",
+        "gw-lab-router",
+        "between-gw-lab-and-172-16-0-1",
+        "172-16-0-1-router",
+        "10-9-0-0-24"
+      ],
+      "protocol": "tcp/22",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "ssh-on-10-9-0-20": {
+      "label": "ssh on 10.9.0.20",
+      "source": "nmap",
+      "target": "ssh-2",
+      "route": [
+        "lan",
+        "gw-lab-router",
+        "between-gw-lab-and-172-16-5-1-1-hop-unseen",
+        "172-16-5-1-router",
+        "10-9-0-0-24"
+      ],
+      "protocol": "tcp/22",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "ssh-on-10-9-0-11": {
+      "label": "ssh on 10.9.0.11",
+      "source": "nmap",
+      "target": "ssh-3",
+      "route": [],
+      "protocol": "tcp/22",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    }
+  },
+  "attacker": {
+    "footholds": []
+  },
+  "scenarios": {},
+  "analysis": {
+    "seed": 42,
+    "samples": 10000,
+    "confidence": 0.95
+  }
+}
