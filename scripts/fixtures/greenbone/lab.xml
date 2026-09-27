@@ -1,0 +1,258 @@
+<?xml version="1.0"?>
+<report content_type="text/xml" extension="xml" id="5d1c7b2e-7a61-4c1e-9d0a-2f1b8c3e4a10" format_id="a994b278-1f62-11e1-96ac-406186ea4fc5" config_id="">
+  <owner>
+    <name>admin</name>
+  </owner>
+  <name>2026-09-27T10:00:04Z</name>
+  <comment/>
+  <creation_time>2026-09-27T10:00:04Z</creation_time>
+  <modification_time>2026-09-27T10:41:12Z</modification_time>
+  <writable>0</writable>
+  <in_use>0</in_use>
+  <task id="9e3a1f55-0c2b-4d8e-b7a6-1c9d2e3f4a5b">
+    <name>Lab network</name>
+  </task>
+  <report_format id="a994b278-1f62-11e1-96ac-406186ea4fc5">
+    <name>XML</name>
+  </report_format>
+  <report id="5d1c7b2e-7a61-4c1e-9d0a-2f1b8c3e4a10">
+    <gmp>
+      <version>22.6</version>
+    </gmp>
+    <sort>
+      <field>severity<order>descending</order></field>
+    </sort>
+    <filters id="0">
+      <term>apply_overrides=0 levels=hmlg rows=-1 min_qod=70 first=1 sort-reverse=severity</term>
+      <keywords/>
+    </filters>
+    <scan_run_status>Done</scan_run_status>
+    <task id="9e3a1f55-0c2b-4d8e-b7a6-1c9d2e3f4a5b">
+      <name>Lab network</name>
+      <comment/>
+      <target id="0b4c8d2a-6e1f-4a3b-9c7d-5e8f1a2b3c4d">
+        <trash>0</trash>
+        <name>10.0.1.0/24</name>
+        <comment/>
+      </target>
+      <progress>100</progress>
+    </task>
+    <scan>
+      <task>
+        <slave id="">
+          <name/>
+          <host/>
+          <port>0</port>
+        </slave>
+      </task>
+    </scan>
+    <timestamp>2026-09-27T10:00:04Z</timestamp>
+    <scan_start>2026-09-27T10:00:10Z</scan_start>
+    <timezone>UTC</timezone>
+    <ports max="-1" start="1">
+      <count>6</count>
+      <port>22/tcp<host>10.0.1.5</host><severity>8.1</severity><threat>High</threat></port>
+      <port>8443/tcp<host>10.0.1.5</host><severity>5.9</severity><threat>Medium</threat></port>
+      <port>general/tcp<host>10.0.1.5</host><severity>2.6</severity><threat>Low</threat></port>
+      <port>53/udp<host>10.0.1.5</host><severity>0.0</severity><threat>Log</threat></port>
+      <port>22/tcp<host>10.0.1.7</host><severity>8.1</severity><threat>High</threat></port>
+      <port>3306/tcp<host>10.0.1.30</host><severity>9.8</severity><threat>High</threat></port>
+    </ports>
+    <results max="-1" start="1">
+      <result id="0f1e2d3c-4b5a-4968-8776-a5b4c3d2e1f0">
+        <name>OpenSSH 8.5p1 - 9.7p1 RCE Vulnerability (regreSSHion) - Active Check</name>
+        <owner>
+          <name>admin</name>
+        </owner>
+        <modification_time>2026-09-27T10:30:01Z</modification_time>
+        <comment/>
+        <creation_time>2026-09-27T10:30:01Z</creation_time>
+        <host>10.0.1.5<asset asset_id="2b1a0c9d-8e7f-4a6b-9c5d-4e3f2a1b0c9d"/><hostname>srv-01.lab</hostname></host>
+        <port>22/tcp</port>
+        <nvt oid="1.3.6.1.4.1.25623.1.0.114674">
+          <type>nvt</type>
+          <name>OpenSSH 8.5p1 - 9.7p1 RCE Vulnerability (regreSSHion) - Active Check</name>
+          <family>General</family>
+          <cvss_base>8.1</cvss_base>
+          <severities score="8.1">
+            <severity type="cvss_base_v3">
+              <origin>NVD</origin>
+              <date>2024-07-01T15:15:00Z</date>
+              <score>8.1</score>
+              <value>CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H</value>
+            </severity>
+          </severities>
+          <tags>cvss_base_vector=CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H|summary=OpenSSH is prone to a remote code execution (RCE) vulnerability dubbed 'regreSSHion'.|solution_type=VendorFix</tags>
+          <solution type="VendorFix">Update to version 9.8p1 or later.</solution>
+          <refs>
+            <ref type="cve" id="CVE-2024-6387"/>
+            <ref type="url" id="https://www.openssh.com/txt/release-9.8"/>
+            <ref type="cert-bund" id="WID-SEC-2024-1484"/>
+          </refs>
+        </nvt>
+        <scan_nvt_version>2026-09-20T07:40:49Z</scan_nvt_version>
+        <threat>High</threat>
+        <severity>8.1</severity>
+        <qod>
+          <value>95</value>
+          <type>remote_active</type>
+        </qod>
+        <description>Installed version: 9.6p1
+Fixed version:     9.8p1</description>
+        <original_threat>High</original_threat>
+        <original_severity>8.1</original_severity>
+        <compliance>undefined</compliance>
+        <detection>
+          <result id="7a6b5c4d-3e2f-4101-9a8b-7c6d5e4f3a2b">
+            <details>
+              <detail><name>product</name><value>cpe:/a:openbsd:openssh:9.6p1</value></detail>
+              <detail><name>location</name><value>22/tcp</value></detail>
+              <detail><name>source_oid</name><value>1.3.6.1.4.1.25623.1.0.100259</value></detail>
+              <detail><name>source_name</name><value>SSH Server type and version</value></detail>
+            </details>
+          </result>
+        </detection>
+      </result>
+      <result id="1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d">
+        <name>OpenSSH 8.5p1 - 9.7p1 RCE Vulnerability (regreSSHion) - Active Check</name>
+        <host>10.0.1.7<asset asset_id="3c2b1a0d-9e8f-4b7a-8d6c-5f4e3d2c1b0a"/><hostname/></host>
+        <port>22/tcp</port>
+        <nvt oid="1.3.6.1.4.1.25623.1.0.114674">
+          <type>nvt</type>
+          <name>OpenSSH 8.5p1 - 9.7p1 RCE Vulnerability (regreSSHion) - Active Check</name>
+          <cvss_base>8.1</cvss_base>
+          <refs>
+            <ref type="cve" id="CVE-2024-6387"/>
+          </refs>
+        </nvt>
+        <threat>High</threat>
+        <severity>8.1</severity>
+        <qod><value>95</value><type>remote_active</type></qod>
+        <description/>
+        <detection>
+          <result id="8b9c0d1e-2f3a-4b4c-5d6e-7f8a9b0c1d2e">
+            <details>
+              <detail><name>product</name><value>cpe:/a:openbsd:openssh:9.6p1</value></detail>
+              <detail><name>location</name><value>22/tcp</value></detail>
+            </details>
+          </result>
+        </detection>
+      </result>
+      <result id="2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e">
+        <name>SSL/TLS: Deprecated TLSv1.0 and TLSv1.1 Protocol Detection</name>
+        <host>10.0.1.5<asset asset_id="2b1a0c9d-8e7f-4a6b-9c5d-4e3f2a1b0c9d"/><hostname>srv-01.lab</hostname></host>
+        <port>8443/tcp</port>
+        <nvt oid="1.3.6.1.4.1.25623.1.0.117274">
+          <type>nvt</type>
+          <name>SSL/TLS: Deprecated TLSv1.0 and TLSv1.1 Protocol Detection</name>
+          <cvss_base>5.9</cvss_base>
+          <refs>
+            <ref type="cve" id="CVE-2011-3389"/>
+            <ref type="cve" id="CVE-2015-0204"/>
+          </refs>
+        </nvt>
+        <threat>Medium</threat>
+        <severity>5.9</severity>
+        <qod><value>98</value><type>remote_app</type></qod>
+        <description>In addition to TLSv1.2+ the service is also providing the deprecated TLSv1.0 and TLSv1.1 protocols.</description>
+      </result>
+      <result id="3c4d5e6f-7a8b-4c9d-0e1f-2a3b4c5d6e7f">
+        <name>TCP Timestamps Information Disclosure</name>
+        <host>10.0.1.5<asset asset_id="2b1a0c9d-8e7f-4a6b-9c5d-4e3f2a1b0c9d"/><hostname>srv-01.lab</hostname></host>
+        <port>general/tcp</port>
+        <nvt oid="1.3.6.1.4.1.25623.1.0.80091">
+          <type>nvt</type>
+          <name>TCP Timestamps Information Disclosure</name>
+          <cvss_base>2.6</cvss_base>
+          <refs/>
+        </nvt>
+        <threat>Low</threat>
+        <severity>2.6</severity>
+        <qod><value>80</value><type>remote_banner</type></qod>
+        <description>It was detected that the host implements RFC1323/RFC7323.</description>
+      </result>
+      <result id="4d5e6f7a-8b9c-4d0e-1f2a-3b4c5d6e7f8a">
+        <name>Services</name>
+        <host>10.0.1.5<asset asset_id="2b1a0c9d-8e7f-4a6b-9c5d-4e3f2a1b0c9d"/><hostname>srv-01.lab</hostname></host>
+        <port>53/udp</port>
+        <nvt oid="1.3.6.1.4.1.25623.1.0.10330">
+          <type>nvt</type>
+          <name>Services</name>
+          <cvss_base>0.0</cvss_base>
+          <refs/>
+        </nvt>
+        <threat>Log</threat>
+        <severity>0.0</severity>
+        <qod><value>80</value><type>remote_banner</type></qod>
+        <description>A DNS server is running at this port.</description>
+      </result>
+      <result id="5e6f7a8b-9c0d-4e1f-2a3b-4c5d6e7f8a9b">
+        <name>MySQL / MariaDB weak password</name>
+        <host>10.0.1.30<asset asset_id="4d3c2b1a-0e9f-4c8b-7a6d-5e4f3a2b1c0d"/><hostname>db-01.lab</hostname></host>
+        <port>3306/tcp</port>
+        <nvt oid="1.3.6.1.4.1.25623.1.0.103551">
+          <type>nvt</type>
+          <name>MySQL / MariaDB weak password</name>
+          <cvss_base>9.8</cvss_base>
+          <refs/>
+        </nvt>
+        <threat>High</threat>
+        <severity>9.8</severity>
+        <qod><value>95</value><type>remote_app</type></qod>
+        <description>It was possible to login as root with an empty password.</description>
+        <detection>
+          <result id="6f7a8b9c-0d1e-4f2a-3b4c-5d6e7f8a9b0c">
+            <details>
+              <detail><name>product</name><value>cpe:/a:oracle:mysql:8.0.36</value></detail>
+              <detail><name>location</name><value>3306/tcp</value></detail>
+            </details>
+          </result>
+        </detection>
+      </result>
+      <result id="7a8b9c0d-1e2f-4a3b-4c5d-6e7f8a9b0c1d">
+        <name>False alarm on the printer</name>
+        <host>10.0.1.5</host>
+        <port>22/tcp</port>
+        <nvt oid="1.3.6.1.4.1.25623.1.0.999999">
+          <type>nvt</type>
+          <name>False alarm on the printer</name>
+        </nvt>
+        <threat>False Positive</threat>
+        <severity>-1.0</severity>
+        <description/>
+      </result>
+    </results>
+    <host>
+      <ip>10.0.1.5</ip>
+      <asset asset_id="2b1a0c9d-8e7f-4a6b-9c5d-4e3f2a1b0c9d"/>
+      <start>2026-09-27T10:00:12Z</start>
+      <end>2026-09-27T10:38:40Z</end>
+      <port_count><page>4</page></port_count>
+      <detail><name>hostname</name><value>srv-01.lab</value><source><type>nvt</type><name>1.3.6.1.4.1.25623.1.0.103997</name><description>Host Details</description></source><extra/></detail>
+      <detail><name>best_os_cpe</name><value>cpe:/o:canonical:ubuntu_linux:24.04</value><source><type>nvt</type><name>1.3.6.1.4.1.25623.1.0.105937</name><description>OS Detection Consolidation and Reporting</description></source><extra/></detail>
+      <detail><name>best_os_txt</name><value>Ubuntu 24.04</value><source><type>nvt</type><name>1.3.6.1.4.1.25623.1.0.105937</name><description>OS Detection Consolidation and Reporting</description></source><extra/></detail>
+      <detail><name>MAC</name><value>52:54:00:12:34:56</value><source><type>nvt</type><name>1.3.6.1.4.1.25623.1.0.103585</name><description>Nmap MAC Scan</description></source><extra/></detail>
+      <detail><name>tcp_ports</name><value>22,8443</value><source><type>nvt</type><name>1.3.6.1.4.1.25623.1.0.900239</name><description>Check Open TCP Ports</description></source><extra/></detail>
+      <detail><name>App</name><value>cpe:/a:openbsd:openssh:9.6p1</value><source><type>nvt</type><name>1.3.6.1.4.1.25623.1.0.100259</name><description>SSH Server type and version</description></source><extra/></detail>
+      <detail><name>cpe:/a:openbsd:openssh:9.6p1</name><value>22/tcp</value><source><type>nvt</type><name>1.3.6.1.4.1.25623.1.0.100259</name><description>SSH Server type and version</description></source><extra/></detail>
+      <detail><name>cpe:/a:thekelleys:dnsmasq:2.90</name><value>53/udp</value><source><type>nvt</type><name>1.3.6.1.4.1.25623.1.0.100266</name><description>Dnsmasq Detection</description></source><extra/></detail>
+    </host>
+    <host>
+      <ip>10.0.1.7</ip>
+      <asset asset_id="3c2b1a0d-9e8f-4b7a-8d6c-5f4e3d2c1b0a"/>
+      <start>2026-09-27T10:00:12Z</start>
+      <end>2026-09-27T10:21:02Z</end>
+      <detail><name>tcp_ports</name><value>22</value><source><type>nvt</type><name>1.3.6.1.4.1.25623.1.0.900239</name><description>Check Open TCP Ports</description></source><extra/></detail>
+    </host>
+    <host>
+      <ip>10.0.1.30</ip>
+      <asset asset_id="4d3c2b1a-0e9f-4c8b-7a6d-5e4f3a2b1c0d"/>
+      <start>2026-09-27T10:00:12Z</start>
+      <end>2026-09-27T10:40:55Z</end>
+      <detail><name>hostname</name><value>db-01.lab</value><source><type>nvt</type><name>1.3.6.1.4.1.25623.1.0.103997</name><description>Host Details</description></source><extra/></detail>
+      <detail><name>best_os_txt</name><value>Debian GNU/Linux 12</value><source><type>nvt</type><name>1.3.6.1.4.1.25623.1.0.105937</name><description>OS Detection Consolidation and Reporting</description></source><extra/></detail>
+    </host>
+    <scan_end>2026-09-27T10:41:12Z</scan_end>
+    <errors><count>0</count></errors>
+  </report>
+</report>

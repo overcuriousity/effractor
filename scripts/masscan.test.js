@@ -138,7 +138,7 @@ test('nmap after masscan names what masscan found and adds no second service', (
 });
 
 test('scanners are one application each, named in their menus', () => {
-  assert.deepEqual(S.TOOLS.map(t => [t.id, t.name]), [['nmap', 'nmap'], ['masscan', 'masscan']]);
+  assert.deepEqual(S.TOOLS.slice(0, 2).map(t => [t.id, t.name]), [['nmap', 'nmap'], ['masscan', 'masscan']]);
   assert.equal(S.tool({ kind: 'application', tool: 'masscan' }).name, 'masscan');
   assert.equal(S.tool({ kind: 'host' }), null);
   const loose = S.addScanner(E.empty(), 'masscan', null, 'masscan', specOf);

@@ -164,8 +164,13 @@
         proposed.guessed = true;
       }
     }
+    // By label, whatever its case: Greenbone's "openssh 9.6p1" is nmap's
+    // "OpenSSH 9.6p1".
     var products = Object.create(null);
-    ids(doc, "product").forEach(function (p) { products[doc.entities[p].label] = products[doc.entities[p].label] || p; });
+    ids(doc, "product").forEach(function (p) {
+      var k = String(doc.entities[p].label).toLowerCase();
+      products[k] = products[k] || p;
+    });
 
     // Who each scanned host is: known by address, merged as chosen (the
     // first choice of a drawn host wins; "" is a chosen "new"), or else
@@ -265,11 +270,14 @@
       // A host others were reached through routes, whatever nmap called it.
       if (onTheWay[r.key] && suggested.role === "host") suggested = { role: "router", device: "on the way to others" };
       var hostChecks = readScripts(h.scripts);
+      // A reader's own findings on the host (Greenbone's general/tcp) have
+      // no port to go to.
+      var hostOwn = neutral(h.findings);
       var seen = reached(doc, appId, target);
       var ports = h.ports.filter(function (p) { return p.state === "open" && !wrapped(p); }).map(function (p) {
         var row = portRow(seen, r.key, label, p, products);
         var own = readScripts(p.scripts);
-        row.found = own.found;
+        row.found = own.found.concat(neutral(p.findings));
         row.unread = own.unread;
         return row;
       });
@@ -285,7 +293,7 @@
         key: r.key,
         label: label,
         addresses: h.addresses.slice(),
-        os: h.os ? "nmap OS guess: " + h.os.name + " (" + h.os.accuracy + "%)." : null,
+        os: h.os ? osLine(scan.tool, h.os) : null,
         known: r.known,
         merged: r.merged,
         guessed: r.guessed,
@@ -307,7 +315,9 @@
         device: suggested.device,
         route: shared.length ? [shared[0]] : [],
         ports: ports,
-        unplaced: unplaced.map(function (f) { return { script: f.script, id: findingId(f.vuln), state: f.vuln.state }; }),
+        unplaced: unplaced.map(function (f) { return { script: f.script, tag: f.tag, id: findingId(f.vuln), state: f.vuln.state, why: "no SMB service" }; }).concat(hostOwn.map(function (f) {
+          return { script: f.script, tag: f.tag, id: findingId(f.vuln), state: f.vuln.state, title: f.vuln.title, why: "on the host, not a port" };
+        })),
         unread: hostChecks.unread,
       };
     });
@@ -336,7 +346,23 @@
     };
   }
 
+  // "nmap OS guess: Linux 5.0 - 5.4 (96%)."; a reader without a certainty
+  // says none.
+  function osLine(tool, os) {
+    var who = tool === "greenbone" ? "Greenbone" : tool || "nmap";
+    return who + " OS guess: " + os.name + (os.accuracy != null ? " (" + os.accuracy + "%)" : "") + ".";
+  }
+
   // ---- findings of the checks (spec §4.6) ----
+
+  // A reader's findings in the shape of nmap's ({source, key, title, state,
+  // ids}); `tag` is how the preview names each: nmap's script, Greenbone's
+  // severity.
+  function neutral(list) {
+    return (list || []).map(function (f) {
+      return { script: f.source, source: f.source, tag: f.state, vuln: { key: f.key, title: f.title, state: f.state, ids: f.ids || [] } };
+    });
+  }
 
   // Scripts -sV runs by itself (nmap's "version" category): they refine the
   // version already shown, so they are left out.
@@ -358,7 +384,7 @@
       }
       var untested = false;
       s.vulns.forEach(function (v) {
-        if (FOUND.test(v.state)) out.found.push({ script: s.id, vuln: v });
+        if (FOUND.test(v.state)) out.found.push({ script: s.id, source: "nmap " + s.id, tag: s.id, vuln: v });
         else if (/^UNKNOWN/.test(v.state)) untested = true;
       });
       if (untested) out.unread.push({ script: s.id, text: "could not test" });
@@ -370,11 +396,11 @@
     var id = v.ids.filter(function (x) { return /^CVE:/.test(x); })[0] || v.ids[0];
     return id ? id.slice(id.indexOf(":") + 1) : v.key;
   }
-  function findingLine(script, v) {
+  function findingLine(source, v) {
     var title = String(v.title).trim();
     var stop = title.search(/\.(\s|$)/);
     if (stop >= 0) title = title.slice(0, stop);
-    return "nmap " + script + ": " + v.state + ", " + findingId(v) + (title ? " (" + title + ")" : "") + ".";
+    return source + ": " + v.state + ", " + findingId(v) + (title ? " (" + title + ")" : "") + ".";
   }
   function noteLines(e) {
     var p = e && e.parameters && e.parameters["find-exploit"];
@@ -389,10 +415,11 @@
     var product = row.known ? productOfService(doc, row.known) : row.product.existing;
     var e = product ? doc.entities[product] : null;
     return found.map(function (f) {
-      var line = findingLine(f.script, f.vuln);
+      var line = findingLine(f.source, f.vuln);
       return {
         key: row.key + "/" + f.script + "/" + f.vuln.key,
         script: f.script,
+        tag: f.tag,
         id: findingId(f.vuln),
         state: f.vuln.state,
         line: line,
@@ -447,7 +474,7 @@
     var product = s.product
       ? { label: s.product + (s.version ? " " + s.version : ""), existing: null, identified: true }
       : { label: "unidentified " + label + " on " + hostLabel, existing: null, identified: false };
-    if (product.identified && products[product.label]) product.existing = products[product.label];
+    if (product.identified && products[product.label.toLowerCase()]) product.existing = products[product.label.toLowerCase()];
     return { key: hostKey + "/" + proto, proto: proto, label: label, product: product, known: known, addsFlow: addsFlow };
   }
 

@@ -21,8 +21,9 @@ function check(doc) {
   return errors(JSON.parse(api.validate(saved.ok)));
 }
 
-// A scanner beside nmap (roadmap scanner-readers): masscan after nmap.
-const others = ['masscan/imported.doc.json'];
+// The scanners beside nmap (roadmap scanner-readers, greenbone-import),
+// each after nmap.
+const others = ['masscan/imported.doc.json', 'greenbone/imported.doc.json'];
 for (const name of ['imported.doc.json', 'imported-router.doc.json', 'imported-checks.doc.json', 'imported-route.doc.json'].concat(others)) {
   const found = check(name.includes('/') ? JSON.parse(fs.readFileSync(path.join(root, 'scripts/fixtures', name), 'utf8')) : load(name));
   if (found.length) {

@@ -75,7 +75,7 @@
     if (e.defenses && Object.keys(e.defenses).some(function (k) { return e.defenses[k] === true; })) return false;
     return Object.keys(e.parameters || {}).every(function (k) {
       var p = e.parameters[k];
-      var own = String(p.note || "").split("\n").filter(function (l) { return l && !/^nmap /.test(l); });
+      var own = String(p.note || "").split("\n").filter(function (l) { return l && !/^(nmap |Greenbone: )/.test(l); });
       return (p.status == null || p.status === "unknown") && p.ttc == null && !own.length;
     });
   }

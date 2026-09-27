@@ -308,6 +308,19 @@ fn the_masscan_import_fixture_is_a_valid_architecture() {
     );
 }
 
+/// What Greenbone adds after nmap (roadmap `greenbone-import`): its
+/// findings on the products nmap drew, a new host, nothing twice.
+#[test]
+fn the_greenbone_import_fixture_is_a_valid_architecture() {
+    let text = fixture_is_valid("greenbone", "imported.doc.json");
+    assert!(text.contains("tool: greenbone"), "{text}");
+    assert!(
+        text.contains("Greenbone: High 8.1, CVE-2024-6387"),
+        "{text}"
+    );
+    assert!(text.contains("patched: false"), "{text}");
+}
+
 fn nmap_fixture_is_valid(name: &str) -> String {
     fixture_is_valid("nmap", name)
 }

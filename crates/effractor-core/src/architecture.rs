@@ -446,6 +446,7 @@ impl Defenses {
 pub enum Tool {
     Nmap,
     Masscan,
+    Greenbone,
 }
 
 impl Tool {
@@ -453,6 +454,7 @@ impl Tool {
         match self {
             Self::Nmap => "nmap",
             Self::Masscan => "masscan",
+            Self::Greenbone => "greenbone",
         }
     }
 }

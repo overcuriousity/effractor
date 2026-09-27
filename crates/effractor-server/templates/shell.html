@@ -43,6 +43,7 @@
 <script src="{{ asset_prefix }}assets/js/nmap-plan.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/nmap.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/masscan.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/greenbone.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/scanners.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/problems.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/vocabulary.js" defer></script>
@@ -316,7 +317,16 @@
       <div class="nmap-blocks" id="masscan-blocks"></div>
       <p class="hint">masscan finds open ports, not what runs on them; nmap after it names the services.</p>
     </section>
-    <section class="nmap-step">
+    <section class="nmap-step" id="nmap-step-greenbone" hidden>
+      <h3 class="label"><span class="nmap-n">1</span>Export the report</h3>
+      <ol class="nmap-how">
+        <li>In Greenbone: <b>Scans › Reports</b>, open the report.</li>
+        <li>In its filter, tick every severity, <b>Log</b> included, and show all rows: Log results name the open ports.</li>
+        <li><b>Download</b> it in the report format <b>XML</b>.</li>
+      </ol>
+      <p class="hint">Real addresses go into the file, and into any link you share.</p>
+    </section>
+    <section class="nmap-step" id="nmap-step-run">
       <h3 class="label"><span class="nmap-n">2</span>Run it</h3>
       <div class="nmap-range"><label for="nmap-range">Range</label><input id="nmap-range" type="text" autocomplete="off" spellcheck="false" placeholder="10.0.1.0/24"></div>
       <div class="nmap-command"><code id="nmap-command"></code><span class="nmap-tag is-root" id="nmap-root" hidden>root</span><button class="btn btn-ghost btn-small" id="nmap-copy" type="button">Copy</button></div>
@@ -328,7 +338,7 @@
       <p class="hint">Run it on the host <span id="nmap-where">nmap</span> is on. Real addresses go into the file, and into any link you share.</p>
     </section>
     <section class="nmap-step">
-      <h3 class="label"><span class="nmap-n">3</span>Paste the result</h3>
+      <h3 class="label"><span class="nmap-n" id="nmap-paste-n">3</span>Paste the result</h3>
       <textarea id="nmap-paste" rows="6" spellcheck="false" aria-label="Result" placeholder="Paste the output, or drop the .xml file here"></textarea>
       <p class="hint nmap-problem" id="nmap-read-problem" role="status"></p>
     </section>

@@ -113,6 +113,9 @@ mod tests {
         // scanner-readers), and the dialog knows them all.
         assert!(at("nmap.js") < at("masscan.js"));
         assert!(at("masscan.js") < at("scanners.js"));
+        assert!(at("greenbone.js") < at("scanners.js"));
+        assert!(at("nmap-read.js") < at("greenbone.js"));
+        assert!(html.contains("id=\"nmap-step-greenbone\""));
         assert!(at("scanners.js") < at("nmap-ui.js"));
         assert!(html.contains("id=\"nmap-step-masscan\""));
         assert!(at("architecture-links-ui.js") < at("nmap-ui.js"));

@@ -1455,19 +1455,21 @@ fn hosts_and_networks_carry_addresses_and_an_application_may_be_nmap() {
 /// Scanners beside nmap are applications of their own (roadmap
 /// `scanner-readers`): one tool each.
 #[test]
-fn an_application_may_be_masscan() {
-    let mut image = image(LECTURE);
-    image["entities"]["ssh-client"]["tool"] = serde_json::json!("masscan");
-    let text = from_document(&image).unwrap();
-    assert!(
-        text.contains("    label: SSH client\n    tool: masscan\n"),
-        "{text}"
-    );
-    assert_eq!(canonicalize(&text).unwrap(), text);
-    assert_eq!(
-        self::image(&text)["entities"]["ssh-client"]["tool"],
-        serde_json::json!("masscan")
-    );
+fn an_application_may_be_masscan_or_greenbone() {
+    for tool in ["masscan", "greenbone"] {
+        let mut image = image(LECTURE);
+        image["entities"]["ssh-client"]["tool"] = serde_json::json!(tool);
+        let text = from_document(&image).unwrap();
+        assert!(
+            text.contains(&format!("    label: SSH client\n    tool: {tool}\n")),
+            "{text}"
+        );
+        assert_eq!(canonicalize(&text).unwrap(), text);
+        assert_eq!(
+            self::image(&text)["entities"]["ssh-client"]["tool"],
+            serde_json::json!(tool)
+        );
+    }
 }
 
 #[test]

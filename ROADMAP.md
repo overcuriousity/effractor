@@ -137,14 +137,6 @@ toward a host or port, and filtering by a host itself, change the model
 generation honours them, and the nmap preview offers them where it now only
 says *nothing drawn to say it on* and *filtered by … itself*.
 
-### greenbone-import — Greenbone / OpenVAS reports
-needs: —            cost: 3   benefit: 4
-A Greenbone application reading a GVM report (XML): hosts, ports and its
-findings with CVE and severity on the services they concern. The dialog says
-how to export the report. Done when report fixtures read into the neutral
-scan, findings land on the ports and products nmap would have drawn, and a
-Greenbone paste after an nmap one on the same network draws no host twice.
-
 ### nuclei-import — nuclei findings
 needs: —            cost: 2   benefit: 2
 A nuclei application reading its JSON lines: findings by host and port (or

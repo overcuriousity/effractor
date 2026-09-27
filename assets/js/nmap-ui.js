@@ -191,6 +191,12 @@
     $("nmap-where").textContent = name;
     $("nmap-step-nmap").hidden = at.tool !== "nmap";
     $("nmap-step-masscan").hidden = at.tool !== "masscan";
+    // Greenbone runs elsewhere: export, then paste.
+    var exported = at.tool === "greenbone";
+    $("nmap-step-greenbone").hidden = !exported;
+    $("nmap-step-run").hidden = exported;
+    $("nmap-paste-n").textContent = exported ? "2" : "3";
+    $("nmap-paste").placeholder = exported ? "Paste the report, or drop its .xml file here" : "Paste the output, or drop the .xml file here";
     $("nmap-range").value = prefillRange(host);
     $("nmap-paste").value = "";
     $("nmap-problem").textContent = "";
@@ -287,13 +293,18 @@
       li.appendChild(about(h));
       // Host checks with no port to go to, and scripts not read.
       var loose = el("ul", null, "nmap-findings");
-      h.unplaced.forEach(function (f) { loose.appendChild(plain(f.script + " · " + f.id + " · not applied: no SMB service")); });
+      h.unplaced.forEach(function (f) {
+        var item = plain((f.tag || f.script) + " · " + (f.title && f.id.indexOf("CVE-") !== 0 ? f.title : f.id) + " · not applied: " + f.why);
+        item.title = f.title || "";
+        loose.appendChild(item);
+      });
       h.unread.forEach(function (u) { loose.appendChild(plain(u.script + " · " + u.text)); });
       if (loose.children.length) li.appendChild(loose);
       rows.appendChild(li);
     });
     var notes = [];
     if (at.plan.hosts.some(function (h) { return h.ports.some(function (r) { return !r.known; }); })) notes.push("Services run at an unknown privilege until you set it on their link.");
+    if (at.scan.unfinished) notes.push("The scan behind this report had not finished; what it found so far is here.");
     if (at.plan.silentUdp) notes.push(at.plan.silentUdp + " UDP ports gave no answer (open|filtered); not added.");
     if (at.scan.sharedMacs) notes.push(at.scan.sharedMacs + (at.scan.sharedMacs === 1 ? " MAC answers" : " MACs answer") + " for several addresses (a router or proxy); not used to tell machines apart.");
     at.plan.changes.notes.forEach(function (n) { notes.push(n); });
@@ -416,7 +427,7 @@
     var present = at.ticks.hosts[h.key] && (r.known || at.ticks.ports[r.key]);
     r.findings.forEach(function (f) {
       var what = f.patchedByAuthor ? "marked patched by you; not changed" : f.known ? "already marked" : "marks " + f.productLabel + " unpatched";
-      var row = check(!!at.ticks.findings[f.key], f.script + " · " + f.id + " · " + what, function (on) {
+      var row = check(!!at.ticks.findings[f.key], (f.tag || f.script) + " · " + f.id + " · " + what, function (on) {
         at.ticks.findings[f.key] = on;
         count();
       });
@@ -568,7 +579,7 @@
   function createNmap(hostId) {
     createScanner(S.TOOLS[0], hostId);
   }
-  var FINDS = { nmap: "Scan from a host and add what it sees", masscan: "Find open ports fast and add them" };
+  var FINDS = { nmap: "Scan from a host and add what it sees", masscan: "Find open ports fast and add them", greenbone: "Add a report's hosts and findings" };
   U.kindExtras.application = function () {
     return S.TOOLS.map(function (t) {
       return [t.name, "", function () { createScanner(t, null); }, { title: FINDS[t.id] }];

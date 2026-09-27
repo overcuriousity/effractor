@@ -1,0 +1,399 @@
+{
+  "effractor": 2,
+  "profile": "architecture",
+  "name": "Untitled",
+  "time_unit": "d",
+  "horizon": 100,
+  "library": {
+    "id": "core-components",
+    "version": 1
+  },
+  "entities": {
+    "lan": {
+      "kind": "network",
+      "label": "Lab network",
+      "addresses": [
+        "10.0.1.0/24"
+      ]
+    },
+    "admin-box": {
+      "kind": "host",
+      "label": "Admin box"
+    },
+    "nmap": {
+      "kind": "application",
+      "label": "nmap",
+      "tool": "nmap",
+      "description": "Last nmap import: 2026-09-24, scan of 10.0.1.0/24 · what runs there."
+    },
+    "srv": {
+      "kind": "host",
+      "label": "Server",
+      "addresses": [
+        "10.0.1.5"
+      ],
+      "identities": [
+        "mac:52:54:00:12:34:56"
+      ],
+      "seen": "2026-09-27",
+      "vendor": "QEMU virtual NIC"
+    },
+    "sshd": {
+      "kind": "service",
+      "label": "ssh"
+    },
+    "openssh": {
+      "kind": "product",
+      "label": "OpenSSH 9.6p1",
+      "defenses": {
+        "patched": false
+      },
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown",
+          "note": "Greenbone: High 8.1, CVE-2024-6387 (OpenSSH 8.5p1 - 9.7p1 RCE Vulnerability (regreSSHion) - Active Check)."
+        }
+      }
+    },
+    "tcp-8443": {
+      "kind": "service",
+      "label": "tcp/8443",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "unidentified-tcp-8443-on-server": {
+      "kind": "product",
+      "label": "unidentified tcp/8443 on Server",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown",
+          "note": "Greenbone: Medium 5.9, CVE-2011-3389 (SSL/TLS: Deprecated TLSv1.0 and TLSv1.1 Protocol Detection)."
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": false
+      }
+    },
+    "domain": {
+      "kind": "service",
+      "label": "domain",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "dnsmasq-2-90": {
+      "kind": "product",
+      "label": "dnsmasq 2.90",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-1-7": {
+      "kind": "host",
+      "label": "10.0.1.7",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.7"
+      ],
+      "seen": "2026-09-27"
+    },
+    "ssh": {
+      "kind": "service",
+      "label": "ssh",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "greenbone": {
+      "kind": "application",
+      "label": "Greenbone",
+      "parameters": {
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      },
+      "tool": "greenbone",
+      "description": "Last Greenbone import: 2026-09-27, report of Lab network (scanned 2026-09-27)."
+    },
+    "db-01-lab": {
+      "kind": "host",
+      "label": "db-01.lab",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.30"
+      ],
+      "description": "Greenbone OS guess: Debian GNU/Linux 12.",
+      "seen": "2026-09-27"
+    },
+    "mysql": {
+      "kind": "service",
+      "label": "mysql",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "mysql-8-0-36": {
+      "kind": "product",
+      "label": "mysql 8.0.36",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown",
+          "note": "Greenbone: High 9.8, 1.3.6.1.4.1.25623.1.0.103551 (MySQL / MariaDB weak password)."
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": false
+      }
+    }
+  },
+  "associations": {
+    "a1": {
+      "kind": "attached",
+      "from": "admin-box",
+      "to": "lan"
+    },
+    "a2": {
+      "kind": "attached",
+      "from": "srv",
+      "to": "lan"
+    },
+    "a3": {
+      "kind": "hosts",
+      "from": "admin-box",
+      "to": "nmap",
+      "privilege": "user"
+    },
+    "a4": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "sshd",
+      "privilege": "admin"
+    },
+    "a5": {
+      "kind": "instance-of",
+      "from": "sshd",
+      "to": "openssh"
+    },
+    "srv-hosts-tcp-8443": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "tcp-8443",
+      "privilege": "unknown"
+    },
+    "tcp-8443-instance-of-unidentified-tcp-8443-on-server": {
+      "kind": "instance-of",
+      "from": "tcp-8443",
+      "to": "unidentified-tcp-8443-on-server"
+    },
+    "srv-hosts-domain": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "domain",
+      "privilege": "unknown"
+    },
+    "domain-instance-of-dnsmasq-2-90": {
+      "kind": "instance-of",
+      "from": "domain",
+      "to": "dnsmasq-2-90"
+    },
+    "10-0-1-7-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-1-7",
+      "to": "lan"
+    },
+    "10-0-1-7-hosts-ssh": {
+      "kind": "hosts",
+      "from": "10-0-1-7",
+      "to": "ssh",
+      "privilege": "unknown"
+    },
+    "ssh-instance-of-openssh": {
+      "kind": "instance-of",
+      "from": "ssh",
+      "to": "openssh"
+    },
+    "admin-box-hosts-greenbone": {
+      "kind": "hosts",
+      "from": "admin-box",
+      "to": "greenbone",
+      "privilege": "user"
+    },
+    "db-01-lab-attached-lan": {
+      "kind": "attached",
+      "from": "db-01-lab",
+      "to": "lan"
+    },
+    "db-01-lab-hosts-mysql": {
+      "kind": "hosts",
+      "from": "db-01-lab",
+      "to": "mysql",
+      "privilege": "unknown"
+    },
+    "mysql-instance-of-mysql-8-0-36": {
+      "kind": "instance-of",
+      "from": "mysql",
+      "to": "mysql-8-0-36"
+    }
+  },
+  "flows": {
+    "f1": {
+      "label": "ssh on Server",
+      "source": "nmap",
+      "target": "sshd",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/22"
+    },
+    "tcp-8443-on-server": {
+      "label": "tcp/8443 on Server",
+      "source": "nmap",
+      "target": "tcp-8443",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "domain-on-server": {
+      "label": "domain on Server",
+      "source": "nmap",
+      "target": "domain",
+      "route": [
+        "lan"
+      ],
+      "protocol": "udp/53",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "ssh-on-10-0-1-7": {
+      "label": "ssh on 10.0.1.7",
+      "source": "nmap",
+      "target": "ssh",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/22",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "mysql-on-db-01-lab": {
+      "label": "mysql on db-01.lab",
+      "source": "greenbone",
+      "target": "mysql",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/3306",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    }
+  },
+  "attacker": {
+    "footholds": []
+  },
+  "scenarios": {},
+  "analysis": {
+    "seed": 42,
+    "samples": 10000,
+    "confidence": 0.95
+  }
+}
