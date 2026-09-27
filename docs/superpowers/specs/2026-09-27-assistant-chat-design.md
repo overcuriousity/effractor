@@ -1,6 +1,7 @@
 # effractor — an agent chat on the document
 
-Date: 2026-09-27 · Status: approved by the owner, 2026-09-27.
+Date: 2026-09-27 · Status: approved by the owner, 2026-09-27; built
+2026-09-27 — where the build differs is corrected in place and listed in §11.
 
 Reference: `../Vestigo` (`docs/AGENT.md`, `src/vestigo/agent/`,
 `src/vestigo/api/routers/agent.py`, `frontend/src/components/agent/`) — its
@@ -72,7 +73,7 @@ needs the page open, one extra round trip per tool, no gain).
 |---|---|
 | `settings` | `key` TEXT PK, `value` TEXT, `updated_by`, `updated_at` |
 | `assistant_grants` | `user_id` NULL, `group_id` NULL (exactly one set), `granted_by`, `granted_at` |
-| `assistant_sessions` | `id`, `document_id`, `profile`, `title`, `created_by`, `created_at`, `updated_at`, `deleted_at`, `turn_by` NULL, `turn_since` NULL |
+| `assistant_sessions` | `id`, `document_id`, `profile`, `title`, `created_by`, `created_at`, `updated_at`, `deleted_at`, and the running turn: `turn_by`, `turn_since`, `turn_access` (`read`/`edit`), its turn number and step count (NULL when none) |
 | `assistant_messages` | `id`, `session_id`, `seq`, `turn`, `role` (`user`/`assistant`/`tool`/`marker`), `author_id` NULL, `content` (JSON, §4.4), `input_tokens` NULL, `output_tokens` NULL, `created_at` |
 | `assistant_usage` | `user_id`, `session_id`, `at`, `input_tokens`, `output_tokens` |
 
@@ -95,10 +96,15 @@ Settings live in `settings` under `assistant.*`:
 - `key`
 - `model`
 - `steps` (50)
-- `context` (tokens; taken from the endpoint when it reports one, else entered)
+- `context` (tokens; taken from the endpoint when it reports one, else
+  entered; 32768 when neither says)
 - `message_bytes` (262144)
 - `daily_tokens` (off)
 - `timeout_seconds` (120)
+- `reply_tokens` (8192; Anthropic requires `max_tokens`, and the context
+  budget leaves room for it)
+- `user_agent` (empty: the client's own; some endpoints admit only named
+  clients)
 
 The chat is *configured* when `address` and `model` are set; a keyless local
 endpoint is allowed. Changes apply without a restart.
@@ -168,13 +174,16 @@ and stop reasons.
 
 ### 4.6 Fitting the context: truncate the middle
 
-The start of the session (its first turn, where the task was set) and the
-most recent turns are kept; whole turns are dropped from the middle outward
-until the request fits `context` (estimated from characters; calibrated down
-when the provider reports an overflow). A `marker` in the request says how many
-turns were left out; the transcript shows it as a quiet line. A single result
-too large on its own (e.g. `read_document` of a big architecture) is cut the
-same way: head and tail kept, the middle marked left out.
+A history that fits `context` (estimated from characters; calibrated down
+when the provider reports an overflow) is sent as it is, nothing cut. One that
+does not: the start of the session (its first turn, where the task was set)
+and the most recent turns are kept; whole turns are dropped from the middle
+outward. A `marker` in the request says how many turns were left out; the
+transcript shows it as a quiet line. Only when the first turn and the latest
+one do not fit whole are their large texts (e.g. `read_document` of a big
+architecture) cut: head and tail kept, the middle marked left out. The page
+sends every tool output whole; the only other cap is `message_bytes` on a
+stored result, which says so.
 
 Deterministic; the model is never asked to summarise; the stored session stays
 complete.
@@ -185,9 +194,12 @@ complete.
 - Provider errors are passed on as a status and a short reason, never verbatim,
   and are scrubbed of the key.
 - Request headers are never logged.
-- Changing `address` clears a stored key.
-- Model listing sends a stored key only to the stored address; with an edited
-  address it uses only a key typed now.
+- Changing `address` keeps the stored key (owner, 2026-09-27: a cleared key
+  on a mistyped address cost a working setup). Saving needs a fresh login
+  anyway.
+- Model listing sends a stored key to the stored address, and to an edited
+  address only for a fresh login; otherwise only a key typed now.
+- **Test** shows the admin the provider's reason, scrubbed of the key.
 
 ## 5. Admin
 
@@ -199,11 +211,14 @@ A **Chat** tab in the admin dialog, beside Users and Groups, for site admins.
     operator*.
   - Model: enumerated automatically once address and key are filled, even
     unsaved; free text with the reason when listing fails.
+  - User-Agent, for endpoints that admit only named clients.
   - **Test.**
-- **Limits:** steps per turn, context, message size, daily tokens per user.
+- **Limits:** steps per turn, context, reply tokens, message size, daily
+  tokens per user.
 - **Who may use it:** every group and user with a switch. The same switch sits
   in each row of the Users and Groups tabs.
-- **Usage:** last 24 h per user, turns and reported tokens. Says so when the
+- **Usage:** last 24 h per user, requests (one per model request) and
+  reported tokens. Says so when the
   endpoint reports no counts, since the daily budget cannot then hold.
 
 ## 6. Tools
@@ -218,7 +233,10 @@ One file, `assets/js/assistant/tools.json`, read by the server
 - `access`: `read` (reads), `view` (changes only what is shown) or `edit`
 - a description per profile (fault trees speak of probabilities; attack trees
   and architectures of attacker time and cost)
-- a JSON input schema
+- a JSON input schema, in the strictest form any provider reads (one `type`
+  per node, unions as `anyOf` of typed children), the same for every
+  provider; a Rust test holds it. Every `ttc` is an expression string whose
+  description lists the notation.
 
 A Viewer's turn gets `read` and `view`; Editor and Owner get all three.
 
@@ -231,7 +249,12 @@ calls through one queue (the `apply` pattern of `architecture-ui.js`).
 - Each `edit` call is one `applyEdit`: one undo step, validated by wasm.
 - A refused or overtaken edit returns `ok: false` with the app's reason, so the
   model can correct itself.
-- Results are compact JSON with ids and plain words (`effractorWords`).
+- Results are compact JSON with ids and plain words (`effractorWords`); an
+  applied edit names the plain id the other tools take. A refusal names the
+  format's first error, not a note that came before it.
+- `catalog` sends the component catalog without the words written for
+  people, plus what a flow needs (which the format checks but the catalog
+  does not list).
 - The agent sees the document as it is in *this* browser now, unsaved edits
   included, plus selection, view and scenario.
 
@@ -250,15 +273,15 @@ calls through one queue (the `apply` pattern of `architecture-ui.js`).
 | Access | Tools |
 |---|---|
 | `read` | `analyse`: top result, ranked cut sets, controls, cost trade-off |
-| `edit` | `add_node`, `set_node` (label, description, gate or k-of-n, leaf kind, TTC or probability, cost, detection, id), `link`, `unlink`, `move`, `delete_node`, `put_asset`, `put_control` (on/off, effects), `set_analysis` (horizon, time unit, samples, seed, confidence) |
+| `edit` | `add_node`, `set_node` (label, description, gate or k-of-n, leaf kind, TTC or probability, cost, detection, id), `link`, `unlink`, `move`, `delete_node`, `put_asset`, `remove_asset`, `put_control` (on/off, effects), `remove_control`, `set_analysis` (horizon, time unit, samples, seed, confidence) |
 
 **Architecture:**
 
 | Access | Tools |
 |---|---|
 | `read` | `catalog`, `attack_graph` (support, chokepoints), `solve(scenario)` (headline, routes, assumptions), `compare` |
-| `view` | `set_view`, `set_scenario`, `show_route`, `show_all_steps`, `fold_cluster` |
-| `edit` | `add_entity`, `set_entity` (label, description, addresses, identities, vendor, parameters, defenses), `link` (associations), `put_flow`, `remove` (the app's safe cascade), `set_attacker` (footholds, targets), `cluster` (make, rename, take out, merge, dissolve), `put_scenario`, `set_change`, `set_speed`, `set_analysis` |
+| `view` | `set_view`, `set_scenario`, `show_route`, `show_all_steps` |
+| `edit` | `add_entity`, `set_entity` (label, description, addresses, identities, vendor, parameters, defenses), `link` (associations), `put_flow`, `remove` (the app's safe cascade), `set_attacker` (footholds, target), `cluster` (make, rename, take out, move to, merge, dissolve, fold, auto, toggle all — a cluster's open or closed state is stored in the document, so folding is an edit), `put_scenario`, `remove_scenario`, `set_change`, `set_speed`, `set_analysis` |
 
 **Coverage test:** a node test enumerates the exported edit functions of
 `edit.js`, `architecture-edit.js`, `architecture-links.js`, `clusters.js` and
@@ -274,13 +297,21 @@ agent?" in the same change.
 - Use ids from results, never guessed.
 - Say which values are assumed.
 - Prefer one tool call per change, many calls per step.
+- Correct a refused call from its reason.
+- After editing, call `problems` and fix or name what is left.
+- Architecture: read `catalog` once before the first edit.
+- Answer in English unless the user writes in another language.
+- No framing beyond the user and their document.
 
 ## 7. The panel
 
 - **Opening:**
-  - A quiet chat icon at the canvas's top left, its key (a modifier chord, not
-    a letter) in the tooltip.
-  - Present only for granted users on an account document.
+  - A round button on the canvas, bottom left above the zoom controls, that
+    grows into the panel; its key, Ctrl+. (Firefox keeps Ctrl+Shift+K), in
+    the tooltip. The close control sits in the panel's header.
+  - Present for granted users. On a document kept only in the browser the
+    panel says *Chats are kept with a saved document* and offers **Save to
+    documents**.
 - **Placement:**
   - Floats over the canvas on the **left**, full height minus 8 px, opposite
     the inspector. Both may be open.
@@ -371,3 +402,27 @@ One feature, one PR (`assistant-chat`), built test-first on its own branch in
 this order: server (tables, configuration, adapters, admin), sessions and the
 turn loop, the page's tools, the panel. The owner looks at the panel before it
 lands.
+
+## 11. Where the build differs
+
+Corrected in place above; in short:
+
+- §4.1: the running turn also records its access, turn number and steps.
+- §4.2: `reply_tokens` and `user_agent` are settings; `context` defaults to
+  32768.
+- §4.6: nothing is cut while the history fits; middle turns go before any
+  result is cut (owner, 2026-09-27, after the first real turns showed the
+  catalog reaching the model without its middle).
+- §4.7: changing the address keeps the key; listing at an edited address
+  uses the stored key for a fresh login.
+- §5: usage counts requests; the endpoint has a User-Agent field.
+- §6.1–6.2: one strict schema catalog for every provider; plain ids in
+  results; refusals by their first error; a compact catalog.
+- §6.3: folding is the `cluster` tool's `fold` (an edit); `cluster` gained
+  `auto` and `toggle_all`; `remove_scenario`, `remove_asset` and
+  `remove_control` exist.
+- §6.4: the prompt's rules grew (above).
+- §7: the button sits bottom left on the canvas and grows into the panel;
+  the key is Ctrl+.; an unsaved document offers to save.
+- Providers: Kimi and Moonshot hosts get thinking replayed unsigned (their
+  API requires it back).
