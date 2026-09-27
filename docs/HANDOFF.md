@@ -6,6 +6,93 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — the agent chat on the document (2026-09-27)
+
+Roadmap `assistant-chat`, built from the spec
+`2026-09-27-assistant-chat-design.md` and its plan
+`docs/superpowers/plans/2026-09-27-assistant-chat.md` (both deleted with this
+landing; read them with `git show 6f775de:docs/superpowers/specs/2026-09-27-assistant-chat-design.md`
+and `git show 6f775de:docs/superpowers/plans/2026-09-27-assistant-chat.md`;
+the spec's §11 says where the build differs; code comments cite it as "chat
+spec §…"). An opt-in agent beside the canvas that can do what a person can do
+on the open account document in the open mode, with the sender's rights; its
+edits land on the canvas as it makes them.
+
+- **Where it runs:** the browser runs the tools (the page's own edit path:
+  wasm-checked, one undo step each, autosaved); the server holds the key,
+  checks grant, role, budget and message size, builds every model request,
+  streams the reply (SSE on the POST) and stores the session. A turn runs only
+  while the page is open; open calls of a turn left hanging are recorded
+  "not run" when the next message arrives or the claim goes stale.
+- **Server:** `effractor-accounts/src/assistant.rs` and migration `002.sql`
+  (settings, grants, sessions with the running turn, messages, usage);
+  `effractor-server/src/assistant/` — `mod.rs` (the config from `settings`,
+  defaults), `provider.rs`, `openai.rs`, `anthropic.rs` (one neutral message
+  shape, two wire protocols; Kimi and Moonshot hosts get thinking replayed
+  unsigned), `catalog.rs` (reads `tools.json`), `prompt.rs`, `window.rs`
+  (fitting the context); `api/assistant.rs` (sessions, turns, results, stop),
+  `api/assistant_admin.rs` (settings, models, Test, grants, usage).
+- **Page:** `assets/js/assistant/` — `tools.json` (the one tool catalog, read
+  by server and page), `tools.js` (each edit tool over the pure edit
+  functions), `page.js` (runs calls, one queue; reads, views, the compact
+  catalog), `client.js` (routes and the stream), `transcript.js` (rows, what a
+  call selects, tokens per turn), `markdown.js` (in-house, never HTML),
+  `panel.js`, `admin.js` (the admin's Chat tab); `css/80-assistant.css`.
+  Nothing of it exists without `--accounts`: the routes 404, and the Pages
+  build carries no `js/assistant/` and no `80-assistant.css`.
+- **To run it:** start with `--accounts`; a site admin opens Admin › Chat,
+  sets provider, address, key and model (listed from the endpoint), presses
+  **Test**, and grants the chat to users or groups (the same switch is in the
+  Users and Groups tabs). A document kept only in the browser offers *Save to
+  documents* first. Kimi works through the Anthropic provider at
+  `https://api.kimi.com/coding` with User-Agent `claude-code/0.1.0`, and on
+  the OpenAI-compatible endpoint.
+- **The key:** stored in `settings` in plain text like documents, or pinned by
+  the operator (`--assistant-key-file`, `EFFRACTOR_ASSISTANT_KEY`), which wins
+  and cannot be changed in the tab. No route returns it; provider errors are
+  scrubbed of it (`tests/assistant_leak.rs` sends a known key through every
+  route and error path). **Changing the address keeps the key** (owner,
+  2026-09-27; saving needs a fresh login); listing models at an edited address
+  sends the stored key only for a fresh login.
+- **Tool schemas** are one catalog for every provider, in the strictest form
+  (one `type` per node, unions as `anyOf` of typed children) — Moonshot
+  refuses anything looser; a Rust test holds it. Every `ttc` is an expression
+  string whose description lists the notation (the first real turn sent bare
+  numbers). **A new edit function must answer "and the agent?"**:
+  `scripts/assistant-tools.test.js` fails for any exported edit function that
+  no tool reaches and no `EXCLUDED` entry explains.
+- **Nothing is cut that fits** (owner, 2026-09-27: "this unnecessary
+  truncation is a huge problem"). The page sends outputs whole; the server
+  sends a history that fits as it is, drops whole middle turns next, and cuts
+  large texts (head and tail, marked) only when the first and the latest turn
+  do not fit whole. The first real turns had the catalog reach the model
+  without its middle; audit what the provider was *sent*, not only what the
+  database holds.
+- **The panel:** a round button bottom left on the canvas (Ctrl+.; Firefox
+  keeps Ctrl+Shift+K) that grows into the panel; width dragged at its edge,
+  300–560 px. It streams in place (rows kept and patched, one draw per frame,
+  a caret while the agent writes, a pulsing *Thinking…* before the first
+  token and between steps), follows only when at the end; the user's message
+  a tinted bubble, the agent's text plain (the owner's other project's chat
+  was the model for the look), calls with a running/done/refused mark that
+  select their item, one tokens line per turn. Undo turn, the session menu
+  (new, open, rename, delete with Undo), Continue at the step limit; during
+  someone else's turn the field says who is asking.
+- **Owner decisions (2026-09-27):** sessions are shared per document; the
+  sender's role decides the tools (a Viewer's turn gets read and view tools);
+  site admins grant per user and per group; no per-hour turn limit, 50 steps
+  per turn; truncate the middle, never summarise; scan results only as pasted
+  text; no invented framing in the prompt (no "course", no personal details or
+  place names anywhere); answers in English unless the user writes otherwise.
+- **Looked at by the owner** in the 8082 preview: the button and panel, the
+  admin tab, real turns with Kimi (both providers), the streaming and the
+  look. The local branch `assistant-chat-steps` holds the per-task history
+  and must never be pushed (its old commits contain a place name the owner
+  had removed); `1b4fcbd` and `f34be1b` on master contain it too — a history
+  rewrite was deferred by the owner.
+- **Open:** a real-model check of the viewer path by a second person; cost
+  display (tokens are shown as reported, never priced).
+
 ## Continuation — masscan and Greenbone beside nmap (2026-09-27)
 
 Roadmap `scanner-readers` (#161) and `greenbone-import` (#162, stacked),
@@ -278,7 +365,7 @@ were all shipped examples (renewed the same day: *sample collection* above).
 - **Deleted specs and plans**, all built: v1 design (trees, sharing, charts,
   Pareto; v1 accepted), readable time notation, library extension, nmap import
   (routers, checks, network choice included), clustering, nmap recipes (in
-  `003cba9`). Code comments and
+  `003cba9`), the agent chat and its plan (in `6f775de`). Code comments and
   the sections below still cite them ("spec §4.2", "clustering spec §5.3");
   read them from history, e.g.
   `git show 9bbfa73:docs/superpowers/specs/2026-09-24-clustering-design.md`

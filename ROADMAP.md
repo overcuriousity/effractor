@@ -114,22 +114,6 @@ Per-user tokens for scripts (e.g. pushing an nmap import into one's
 documents). The routes the page uses are not this interface. Needs a design
 first.
 
-## An agent chat on the document
-
-Owner decision, 2026-09-27: an opt-in agent chat beside the canvas that can do
-anything a person can do on the open document in the open mode, with the
-sender's rights; the admin configures the endpoint and grants it to groups and
-users. Design:
-[`2026-09-27-assistant-chat-design.md`](docs/superpowers/specs/2026-09-27-assistant-chat-design.md)
-(approved by the owner, 2026-09-27).
-
-### assistant-chat — The agent chat, end to end
-needs: —            cost: 5   benefit: 5
-The whole spec, one PR. Done when an admin can configure, test and grant an
-endpoint; a turn with tool calls runs against the fake provider end to end;
-every tool runs against the pure edit functions and the coverage test passes;
-the key-never-returned test passes; and the owner has looked at the panel.
-
 ## Scanners beside nmap
 
 Owner decision, 2026-09-27: other open-source scanners come in the way nmap
