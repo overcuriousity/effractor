@@ -6,15 +6,20 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
-## Continuation — nmap recipes (2026-09-27), built, not landed
+## Continuation — nmap recipes (2026-09-27)
 
-Spec `docs/superpowers/specs/2026-09-27-nmap-recipes-design.md` (kept until
-the owner has accepted the build; §9 says where the build differs). Branch
-`nmap-recipes`, a commit per part, one PR. **The owner has not looked yet:**
-the dialog's recipes and *Adjust*, the preview's *Changes*, *On the way* and
-per-host lines, the grey dashed *not seen* ring and the inspector's
-*Identity* row are all unseen. No implementation plan exists; the spec is
-what was built from.
+Built from the spec `2026-09-27-nmap-recipes-design.md` (deleted with this
+landing; read it with
+`git show 003cba9:docs/superpowers/specs/2026-09-27-nmap-recipes-design.md`,
+its §9 says where the build differs; code comments cite it as "nmap recipes
+spec §…"). No implementation plan was written. One branch, a commit per
+part. The owner looked at the dialog in the 8081 preview, found the first
+form plain ("it just doesn't look nice": a flat list, ten dropdowns in one
+column) and accepted the second: three numbered steps, recipes as tiles,
+*Adjust* in two columns that says what is set while closed, the command as a
+terminal line, the actions in sight. **Not looked at by the owner:** the
+preview's *Changes* and *On the way* sections, the *not seen* ring, the
+inspector's *Identity* row — they landed with the rest on the owner's word.
 
 - **File:** hosts carry `identities` (`mac:…`, `ssh-<keytype>:…`), `vendor`,
   `seen`, `missed` (`YYYY-MM-DD`), in place, no version change. Refused off
@@ -215,7 +220,8 @@ were all shipped examples (renewed the same day: *sample collection* above).
 
 - **Deleted specs and plans**, all built: v1 design (trees, sharing, charts,
   Pareto; v1 accepted), readable time notation, library extension, nmap import
-  (routers, checks, network choice included), clustering. Code comments and
+  (routers, checks, network choice included), clustering, nmap recipes (in
+  `003cba9`). Code comments and
   the sections below still cite them ("spec §4.2", "clustering spec §5.3");
   read them from history, e.g.
   `git show 9bbfa73:docs/superpowers/specs/2026-09-24-clustering-design.md`
