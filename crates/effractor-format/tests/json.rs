@@ -296,9 +296,26 @@ fn the_nmap_route_import_fixture_is_a_valid_architecture() {
     );
 }
 
+/// What masscan adds after nmap (roadmap `scanner-readers`): a masscan
+/// application beside nmap, its flows, nothing drawn twice.
+#[test]
+fn the_masscan_import_fixture_is_a_valid_architecture() {
+    let text = fixture_is_valid("masscan", "imported.doc.json");
+    assert!(text.contains("tool: masscan"), "{text}");
+    assert!(
+        text.contains("Last masscan import: 2026-09-27, scan of 10.0.1.0/24."),
+        "{text}"
+    );
+}
+
 fn nmap_fixture_is_valid(name: &str) -> String {
+    fixture_is_valid("nmap", name)
+}
+
+fn fixture_is_valid(dir: &str, name: &str) -> String {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let fixture = std::fs::read_to_string(root.join("scripts/fixtures/nmap").join(name)).unwrap();
+    let fixture =
+        std::fs::read_to_string(root.join("scripts/fixtures").join(dir).join(name)).unwrap();
     let fixture: Value = serde_json::from_str(&fixture).unwrap();
     let text = from_document(&fixture).unwrap_or_else(|d| panic!("{d:?}"));
     assert!(text.contains("tool: nmap"), "{text}");

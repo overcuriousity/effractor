@@ -21,8 +21,10 @@ function check(doc) {
   return errors(JSON.parse(api.validate(saved.ok)));
 }
 
-for (const name of ['imported.doc.json', 'imported-router.doc.json', 'imported-checks.doc.json', 'imported-route.doc.json']) {
-  const found = check(load(name));
+// A scanner beside nmap (roadmap scanner-readers): masscan after nmap.
+const others = ['masscan/imported.doc.json'];
+for (const name of ['imported.doc.json', 'imported-router.doc.json', 'imported-checks.doc.json', 'imported-route.doc.json'].concat(others)) {
+  const found = check(name.includes('/') ? JSON.parse(fs.readFileSync(path.join(root, 'scripts/fixtures', name), 'utf8')) : load(name));
   if (found.length) {
     console.error(name + ' does not save in wasm:', found);
     process.exit(1);
@@ -35,4 +37,4 @@ if (!check(wrong).some(d => d.path === 'entities.srv.tool')) {
   console.error('wasm accepted a tool on a host');
   process.exit(1);
 }
-console.log('nmap import: the imported documents save and validate in wasm');
+console.log('scanner imports: the imported documents save and validate in wasm');

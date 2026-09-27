@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!-- masscan v1.0 scan -->
+<nmaprun scanner="masscan" start="1790499600" version="1.0-BETA"  xmloutputversion="1.03">
+<scaninfo type="syn" protocol="tcp" />
+<host endtime="1790499601"><address addr="10.0.1.7" addrtype="ipv4"/><ports><port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="64"/></port></ports></host>
+<host endtime="1790499601"><address addr="10.0.1.5" addrtype="ipv4"/><ports><port protocol="tcp" portid="8443"><state state="open" reason="syn-ack" reason_ttl="64"/></port></ports></host>
+<host endtime="1790499602"><address addr="10.0.1.5" addrtype="ipv4"/><ports><port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="64"/></port></ports></host>
+<host endtime="1790499603"><address addr="10.0.1.5" addrtype="ipv4"/><ports><port protocol="tcp" portid="8443"><state state="open" reason="syn-ack" reason_ttl="64" /><service name="title" banner="Admin console"></service></port></ports></host>
+<host endtime="1790499603"><address addr="10.0.1.5" addrtype="ipv4"/><ports><port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="64" /><service name="ssh" banner="SSH-2.0-OpenSSH_9.6p1"></service></port></ports></host>
+<host endtime="1790499604"><address addr="10.0.1.5" addrtype="ipv4"/><ports><port protocol="udp" portid="53"><state state="open" reason="udp-response" reason_ttl="64"/></port></ports></host>
+<runstats>
+<finished time="1790499610" timestr="2026-09-27 09:00:10" elapsed="10" />
+<hosts up="5" down="0" total="5" />
+</runstats>
+</nmaprun>

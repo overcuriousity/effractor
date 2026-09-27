@@ -139,7 +139,8 @@ Routers and guests on a box need a known privilege.
 Two optional fields describe what a scan sees (owner, 2026-09-24; see the
 [nmap import design](2026-09-24-nmap-import-design.md) §2): a `host` or
 `network` may carry `addresses` (IP addresses, CIDR ranges), and an
-`application` may carry `tool: nmap`. Neither changes generation.
+`application` may carry `tool: nmap` (or `masscan`, roadmap
+`scanner-readers`). Neither changes generation.
 
 An optional top-level `clusters` map (owner, 2026-09-24; see the
 [clustering design](2026-09-24-clustering-design.md) §2) groups entities to

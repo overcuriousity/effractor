@@ -172,7 +172,8 @@
       });
 
       // ---- a product in another version ----
-      h.ports.forEach(function (r) {
+      // Only nmap names products the way the drawing's came to be named.
+      if ((scan.tool || "nmap") === "nmap") h.ports.forEach(function (r) {
         if (!r.known || !r.product.identified) return;
         var of = links(doc, "instance-of").filter(function (a) { return a.from === r.known; })[0];
         if (!of || !doc.entities[of.to] || doc.entities[of.to].label === r.product.label) return;

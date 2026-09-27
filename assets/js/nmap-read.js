@@ -94,7 +94,30 @@
     "no-host-up": "No host answered. Check the range, or try from another host.",
   };
   function problem(code, detail) {
-    return { problem: { code: code, message: code === "nmap-error" ? "nmap stopped: " + detail : PROBLEMS[code] } };
+    var message = code === "nmap-error" ? "nmap stopped: " + detail : code === "other-scanner" ? detail : PROBLEMS[code];
+    return { problem: { code: code, message: message } };
+  }
+  // One application per tool (roadmap scanner-readers): a result of another
+  // scanner is said, with where it goes.
+  function otherScanner(by, want) {
+    return problem("other-scanner", "This result is from " + by + ", not " + want + "; add " + by + " and paste it there.");
+  }
+
+  // The names nmap's own table gives the ports most often open, for a
+  // reader that only knows the number (masscan, Greenbone): what nmap
+  // without -sV would say too.
+  var WELL_KNOWN = {
+    "tcp/21": "ftp", "tcp/22": "ssh", "tcp/23": "telnet", "tcp/25": "smtp", "tcp/53": "domain", "tcp/80": "http",
+    "tcp/110": "pop3", "tcp/111": "rpcbind", "tcp/135": "msrpc", "tcp/139": "netbios-ssn", "tcp/143": "imap",
+    "tcp/389": "ldap", "tcp/443": "https", "tcp/445": "microsoft-ds", "tcp/465": "smtps", "tcp/587": "submission",
+    "tcp/631": "ipp", "tcp/636": "ldapssl", "tcp/993": "imaps", "tcp/995": "pop3s", "tcp/1433": "ms-sql-s",
+    "tcp/1723": "pptp", "tcp/2049": "nfs", "tcp/3306": "mysql", "tcp/3389": "ms-wbt-server", "tcp/5432": "postgresql",
+    "tcp/5900": "vnc", "tcp/6379": "redis", "tcp/8080": "http-proxy", "tcp/8443": "https-alt", "tcp/9100": "jetdirect",
+    "udp/53": "domain", "udp/67": "dhcps", "udp/69": "tftp", "udp/123": "ntp", "udp/137": "netbios-ns",
+    "udp/161": "snmp", "udp/500": "isakmp", "udp/1900": "upnp", "udp/5353": "zeroconf",
+  };
+  function portName(protocol, port) {
+    return WELL_KNOWN[protocol + "/" + port] || null;
   }
 
   function serviceOf(port) {
@@ -278,7 +301,11 @@
         if (!has(port, k)) {
           port[k] = same.ports.length;
           same.ports.push(p);
-        } else if (same.ports[port[k]].state !== "open" && p.state === "open") same.ports[port[k]] = p;
+        } else {
+          var kept = same.ports[port[k]];
+          // An open listing wins; of two, one that names the service.
+          if ((kept.state !== "open" && p.state === "open") || (kept.state === p.state && !kept.service && p.service)) same.ports[port[k]] = p;
+        }
       });
     });
     return same;
@@ -305,7 +332,12 @@
     return groups.map(oneHost);
   }
 
-  function read(text) {
+  // `opts.scanner`: whose result this must be ("nmap", or "masscan", whose
+  // XML is nmap's shape); `opts.serviceName(name)`: the service name a
+  // listing's is said as, null for none.
+  function read(text, opts) {
+    opts = opts || {};
+    var want = opts.scanner || "nmap";
     var t = String(text == null ? "" : text).replace(/^﻿/, "").replace(/\r\n?/g, "\n").trim();
     if (!t) return problem("empty");
     // A terminal copy often starts at the prompt, or a sudo password line.
@@ -321,14 +353,17 @@
     // Several results pasted one after the other are read as one scan.
     var runs = kids(doc, "nmaprun");
     if (!runs.length) return problem("not-nmap");
+    var by = runs[0].attrs.scanner || "nmap";
+    if (by !== want) return otherScanner(by, want);
     var hosts = [];
     for (var r = 0; r < runs.length; r++) {
       var finished = kid(kid(runs[r], "runstats"), "finished");
       if (!finished) return problem("truncated");
       if (finished.attrs.exit === "error") return problem("nmap-error", finished.attrs.errormsg || "no reason given");
+      // masscan writes no status: a host it lists answered.
       hosts = hosts.concat(kids(runs[r], "host").filter(function (h) {
         var s = kid(h, "status");
-        return s && s.attrs.state === "up";
+        return !s || s.attrs.state === "up";
       }).map(hostOf).filter(function (h) { return h.addresses.length; }));
     }
     // One MAC behind several IPv4 addresses (proxy ARP, a router answering
@@ -346,6 +381,14 @@
     hosts.forEach(function (h) {
       h.identities = h.identities.filter(function (i) { return shared.indexOf(i) < 0; });
     });
+    if (opts.serviceName) {
+      hosts.forEach(function (h) {
+        h.ports.forEach(function (p) {
+          var name = p.service ? opts.serviceName(p.service.name) : null;
+          p.service = name ? { name: name, product: null, version: null } : null;
+        });
+      });
+    }
     hosts = fold(hosts);
     if (!hosts.length) return problem("no-host-up");
     var silentUdp = 0;
@@ -370,7 +413,7 @@
         }).filter(function (b) { return b[0] >= 0 && b[1] >= b[0]; }));
       });
     });
-    return { scan: { args: argsOf(runs), hosts: hosts, silentUdp: silentUdp, date: date, probed: probedPorts, types: types, sharedMacs: shared.length } };
+    return { scan: { tool: want, args: argsOf(runs), hosts: hosts, silentUdp: silentUdp, date: date, probed: probedPorts, types: types, sharedMacs: shared.length } };
   }
 
   function probed(scan, proto, port) {
@@ -410,7 +453,7 @@
     return new TextDecoder(enc).decode(b);
   }
 
-  var api = { probed: probed, portState: portState, cleanName: cleanName, read: read, decodeFile: decodeFile, oneHost: oneHost, has: has };
+  var api = { probed: probed, portState: portState, cleanName: cleanName, read: read, decodeFile: decodeFile, oneHost: oneHost, has: has, parseXml: parseXml, kids: kids, kid: kid, portName: portName, otherScanner: otherScanner, macOf: macOf };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapRead = api;
 })();

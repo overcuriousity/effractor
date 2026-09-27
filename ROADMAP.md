@@ -127,16 +127,6 @@ the dialog that creates or fills it always guides explicitly, as nmap's does
 deduplicated against the drawing by best effort (by address, then by name and
 product), never drawn twice. Files with `tool: nmap` keep opening unchanged.
 
-### scanner-readers — The reading shared, masscan first
-needs: —            cost: 2   benefit: 3
-nmap's reading is apart from its planning since the nmap recipes
-(`nmap-read.js`, `nmap-plan.js`): make the reader one of several, and add
-masscan (its `-oX` is nmap-shaped XML; check first how far the current reader
-already takes it). A masscan application with its own guided dialog: the
-command, the paste, the preview. Done when nmap's checks still pass unchanged,
-masscan fixtures read into the neutral scan, and pasting a masscan result
-after an nmap one onto the same hosts adds nothing twice.
-
 ### firewall-denies — What a firewall blocks with no service behind it
 needs: —            cost: 4   benefit: 3
 Owner, 2026-09-27, from the nmap firewall recipe: a permission hangs on a flow
@@ -148,7 +138,7 @@ generation honours them, and the nmap preview offers them where it now only
 says *nothing drawn to say it on* and *filtered by … itself*.
 
 ### greenbone-import — Greenbone / OpenVAS reports
-needs: scanner-readers            cost: 3   benefit: 4
+needs: —            cost: 3   benefit: 4
 A Greenbone application reading a GVM report (XML): hosts, ports and its
 findings with CVE and severity on the services they concern. The dialog says
 how to export the report. Done when report fixtures read into the neutral
@@ -156,7 +146,7 @@ scan, findings land on the ports and products nmap would have drawn, and a
 Greenbone paste after an nmap one on the same network draws no host twice.
 
 ### nuclei-import — nuclei findings
-needs: scanner-readers            cost: 2   benefit: 2
+needs: —            cost: 2   benefit: 2
 A nuclei application reading its JSON lines: findings by host and port (or
 URL), with CVE ids, placed on existing hosts and services where they match and
 added as new ones otherwise. Done when fixtures read and place as described.

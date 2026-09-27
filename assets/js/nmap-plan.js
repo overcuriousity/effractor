@@ -412,7 +412,9 @@
 
   // What the drawing already has on a host, by protocol: the service a flow
   // reaches there (the first such flow in file order), and which of those
-  // this nmap already reaches. Built once per host, not once per port.
+  // this scanner already reaches, or another scanner on its host does
+  // (roadmap scanner-readers: never drawn twice). Built once per host, not
+  // once per port.
   function reached(doc, appId, target) {
     var out = { service: Object.create(null), fromApp: Object.create(null) };
     if (!target) return out;
@@ -424,8 +426,14 @@
     flows.forEach(function (f) {
       if (hosted[f.target] === true && !has(out.service, f.protocol)) out.service[f.protocol] = f.target;
     });
+    var here = hostingOf(doc, appId);
+    function sameReach(source) {
+      if (source === appId) return true;
+      var e = doc.entities[source];
+      return !!here && !!e && e.kind === "application" && !!e.tool && hostingOf(doc, source) === here;
+    }
     flows.forEach(function (f) {
-      if (f.source === appId && has(out.service, f.protocol) && out.service[f.protocol] === f.target) out.fromApp[f.protocol] = true;
+      if (sameReach(f.source) && has(out.service, f.protocol) && out.service[f.protocol] === f.target) out.fromApp[f.protocol] = true;
     });
     return out;
   }
@@ -795,9 +803,11 @@
       var lines = noteLines(e);
       if (lines.indexOf(m.line) < 0) fe.note = lines.concat([m.line]).join("\n");
     });
+    // A scanner's own stamp ({line, pattern}), else nmap's.
     var old = next.entities[p.app].description || "";
-    var line = stampLine(stamp);
-    var described = A.setDescription(next, p.app, STAMP.test(old) ? old.replace(STAMP, line) : (old ? old + "\n" : "") + line);
+    var line = stamp.line || stampLine(stamp);
+    var pattern = stamp.pattern || STAMP;
+    var described = A.setDescription(next, p.app, pattern.test(old) ? old.replace(pattern, line) : (old ? old + "\n" : "") + line);
     if (described) next = described.doc;
     return { doc: next, select: "entity/" + p.app };
   }

@@ -1,17 +1,24 @@
 // The nmap dialog (the nmap import design §3, in history: see
 // docs/HANDOFF.md; nmap recipes spec §2): say what the scan is for, copy the
 // command, paste the XML, tick the preview, add. What it decides is nmap.js's; this file only shows it. Everything
-// from a scan is set as text.
+// from a scan is set as text. Each scanner beside nmap (scanners.js, roadmap
+// scanner-readers) has its own first step here; the rest is one.
 (function () {
   if (typeof document === "undefined") return;
   var app = window.effractor;
   var U = window.effractorArchitectureUi;
   var N = window.effractorNmap;
+  var M = window.effractorMasscan;
+  var S = window.effractorScanners;
   var $ = function (id) { return document.getElementById(id); };
   var dialog = $("nmap-dialog");
   // What the scan is for is kept for the session, as the range is not.
-  var asked = { recipes: ["services"], adjust: {}, portList: "", ack: false };
-  var at = { app: null, scan: null, merges: {}, ticks: null, plan: null };
+  var asked = { recipes: ["services"], adjust: {}, portList: "", ack: false, masscan: { ports: "common", rate: "1000" } };
+  var at = { app: null, tool: "nmap", scan: null, merges: {}, ticks: null, plan: null };
+  // The open scanner's name: "nmap", "masscan".
+  function toolName() {
+    return S.TOOLS.filter(function (t) { return t.id === at.tool; })[0].name;
+  }
 
   function doc() {
     return app.state.doc;
@@ -133,11 +140,35 @@
     // Closed, the fold says what is set.
     $("nmap-set").textContent = set.join(" · ");
   }
+  // masscan's first step: which ports, how fast; always in sight.
+  function masscanBlocks() {
+    var box = $("masscan-blocks");
+    box.textContent = "";
+    [["ports", "Ports", M.PORTS], ["rate", "Speed", M.RATES]].forEach(function (b) {
+      var menu = window.effractorMenu.dropdown(b[2].map(function (x) { return [x.id, x.name]; }), asked.masscan[b[0]]);
+      menu.addEventListener("change", function () {
+        asked.masscan[b[0]] = menu.value;
+        masscanBlocks();
+        showCommand();
+      });
+      var chosen = b[2].filter(function (x) { return x.id === asked.masscan[b[0]]; })[0];
+      box.appendChild(blockRow(b[1], menu, chosen.warning || null, !!chosen.warning, false));
+    });
+  }
   // The ports the firewall recipe takes from the drawing (spec §2.3).
   function drawnPorts() {
     return N.drawnPorts ? N.drawnPorts(doc(), at.app, $("nmap-range").value) : [];
   }
   function showCommand() {
+    if (at.tool === "masscan") {
+      var m = M.command(asked.masscan, $("nmap-range").value);
+      $("nmap-command").textContent = m.text || "";
+      $("nmap-root").hidden = !m.text;
+      $("nmap-copy").disabled = !m.text;
+      $("nmap-second-row").hidden = true;
+      $("nmap-problem").textContent = m.problem || m.warning || "";
+      return;
+    }
     var c = N.command(asked.recipes, asked.adjust, $("nmap-range").value, { portList: asked.portList, ack: asked.ack, drawnPorts: drawnPorts() });
     $("nmap-command").textContent = c.text || "";
     $("nmap-root").hidden = !c.root;
@@ -150,18 +181,27 @@
   // ---- open ----
 
   function open(appId) {
-    at = { app: appId, scan: null, merges: {}, ticks: null, plan: null };
+    var tool = S.tool(doc().entities[appId]);
+    at = { app: appId, tool: tool ? tool.id : "nmap", scan: null, merges: {}, ticks: null, plan: null };
     var host = hostOf(appId);
-    $("nmap-title").textContent = host ? "nmap on " + doc().entities[host].label : "nmap (not on a host)";
+    var name = toolName();
+    $("nmap-title").textContent = host ? name + " on " + doc().entities[host].label : name + " (not on a host)";
+    $("nmap-unplaced").textContent = name + " is not on a host; the flows will have no route until you place it.";
     $("nmap-unplaced").hidden = !!host;
+    $("nmap-where").textContent = name;
+    $("nmap-step-nmap").hidden = at.tool !== "nmap";
+    $("nmap-step-masscan").hidden = at.tool !== "masscan";
     $("nmap-range").value = prefillRange(host);
     $("nmap-paste").value = "";
     $("nmap-problem").textContent = "";
     $("nmap-read-problem").textContent = "";
     $("nmap-ask").hidden = false;
     $("nmap-preview").hidden = true;
-    recipes();
-    blocks();
+    if (at.tool === "masscan") masscanBlocks();
+    else {
+      recipes();
+      blocks();
+    }
     showCommand();
     U.loadCatalog().catch(function () {}).then(function () {
       if (!dialog.open) dialog.showModal();
@@ -171,7 +211,7 @@
   // ---- read and preview ----
 
   function read() {
-    var r = N.read($("nmap-paste").value);
+    var r = S.read(at.tool, $("nmap-paste").value);
     $("nmap-read-problem").textContent = r.problem ? r.problem.message : "";
     if (r.problem) return;
     at.scan = r.scan;
@@ -448,7 +488,7 @@
     if (!h.guessed) return menu;
     // nmap's own host, by its name in the scan: said, and one click to undo.
     var both = el("span", null, "nmap-merge-state");
-    both.appendChild(el("span", h.guessedBy === "name" ? "same name?" : "nmap runs here?", "hint"));
+    both.appendChild(el("span", h.guessedBy === "name" ? "same name?" : toolName() + " runs here?", "hint"));
     both.appendChild(menu);
     return both;
   }
@@ -466,7 +506,7 @@
     });
     if (!p.network.guessed) return menu;
     var both = el("span", null, "nmap-merge-state");
-    both.appendChild(el("span", "nmap is on it?", "hint"));
+    both.appendChild(el("span", toolName() + " is on it?", "hint"));
     both.appendChild(menu);
     return both;
   }
@@ -478,13 +518,13 @@
   }
 
   function add() {
-    var stamp = N.stampFor(at.scan, $("nmap-range").value, new Date().toISOString().slice(0, 10));
+    var stamp = S.stampFor(at.tool, at.scan, $("nmap-range").value, new Date().toISOString().slice(0, 10));
     var edit;
     try {
       edit = N.apply(doc(), at.plan, at.ticks, specOf, stamp);
     } catch (e) {
       console.error(e);
-      app.say("the nmap import could not be applied");
+      app.say("the " + toolName() + " import could not be applied");
       return;
     }
     var said = N.said(N.summary(doc(), at.plan, at.ticks, null));
@@ -511,11 +551,11 @@
 
   // ---- menus ----
 
-  function createNmap(hostId) {
+  function createScanner(tool, hostId) {
     U.loadCatalog().then(function () {
       var made = null;
       U.apply(function () {
-        var e = N.addNmap(doc(), hostId, "nmap", specOf);
+        var e = S.addScanner(doc(), tool.id, hostId, tool.name, specOf);
         made = e && e.entity;
         return e;
       }).then(function (applied) {
@@ -525,21 +565,29 @@
       app.say("the component library could not be read");
     });
   }
+  function createNmap(hostId) {
+    createScanner(S.TOOLS[0], hostId);
+  }
+  var FINDS = { nmap: "Scan from a host and add what it sees", masscan: "Find open ports fast and add them" };
   U.kindExtras.application = function () {
-    return [["nmap", "", function () { createNmap(null); }, { title: "Scan from a host and add what it sees" }]];
+    return S.TOOLS.map(function (t) {
+      return [t.name, "", function () { createScanner(t, null); }, { title: FINDS[t.id] }];
+    });
   };
   U.linkedExtras.push(function (id) {
     var e = doc().entities[id];
-    return e && e.kind === "host" ? [["nmap", "", function () { createNmap(id); }, { hint: "runs here as user" }]] : [];
+    return e && e.kind === "host" ? S.TOOLS.map(function (t) {
+      return [t.name, "", function () { createScanner(t, id); }, { hint: "runs here as user", title: FINDS[t.id] }];
+    }) : [];
   });
   U.menuItems.push(function (id) {
-    var e = doc().entities[id];
-    return e && e.tool === "nmap" ? [["Paste nmap result…", "", function () { open(id); }]] : [];
+    var t = S.tool(doc().entities[id]);
+    return t ? [["Paste " + t.name + " result…", "", function () { open(id); }]] : [];
   });
   // The same from the inspector (owner, 2026-09-27): another scan adds to
   // what the earlier ones drew.
   U.rowExtras.push(function (form, id, e) {
-    if (e.tool !== "nmap") return;
+    if (!S.tool(e)) return;
     var paste = el("button", "Paste result…", "btn btn-ghost btn-small");
     paste.type = "button";
     paste.title = "Add another scan to the map";
@@ -558,7 +606,7 @@
     if (e.seen) parts.push((e.missed ? "last seen " : "seen ") + e.seen);
     if (!parts.length) return;
     var said = el("span", parts.join(" · "), "identity");
-    said.title = "From nmap: what a later scan knows this machine by";
+    said.title = "From a scan: what a later one knows this machine by";
     U.field(form, "prop-identity", "Identity", said);
   });
 

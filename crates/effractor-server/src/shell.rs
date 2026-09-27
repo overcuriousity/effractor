@@ -109,6 +109,12 @@ mod tests {
             assert!(at("architecture-links.js") < at(part), "{part}");
             assert!(at(part) < at("nmap.js"), "{part} loads before nmap.js");
         }
+        // The scanners beside nmap read through nmap's reader (roadmap
+        // scanner-readers), and the dialog knows them all.
+        assert!(at("nmap.js") < at("masscan.js"));
+        assert!(at("masscan.js") < at("scanners.js"));
+        assert!(at("scanners.js") < at("nmap-ui.js"));
+        assert!(html.contains("id=\"nmap-step-masscan\""));
         assert!(at("architecture-links-ui.js") < at("nmap-ui.js"));
         assert!(at("architecture-links-ui.js") < at("cluster-ui.js"));
         assert!(at("cluster-ui.js") < at("attacker-pins.js"));

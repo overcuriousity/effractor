@@ -17,14 +17,18 @@
     pick("./nmap-plan.js", "effractorNmapPlan"),
   ];
 
-  // An application that is nmap, run by `hostId` as user when given.
-  function addNmap(doc, hostId, label, specOf) {
+  // An application that is a scanner (`tool`), run by `hostId` as user
+  // when given.
+  function addScanner(doc, tool, hostId, label, specOf) {
     var added = A.addEntity(doc, "application", label, specOf("application"));
     if (!added) return null;
-    added.doc.entities[added.entity].tool = "nmap";
+    added.doc.entities[added.entity].tool = tool;
     if (!hostId) return added;
     var hosted = L.putAssociation(added.doc, null, { kind: "hosts", from: hostId, to: added.entity, privilege: "user" });
     return hosted ? { doc: hosted.doc, select: added.select, entity: added.entity } : null;
+  }
+  function addNmap(doc, hostId, label, specOf) {
+    return addScanner(doc, "nmap", hostId, label, specOf);
   }
 
   // The canvas's light bulb (owner, 2026-09-24): on an architecture without
@@ -40,6 +44,7 @@
     Object.keys(p).forEach(function (k) { api[k] = p[k]; });
   });
   api.addNmap = addNmap;
+  api.addScanner = addScanner;
   api.hintWanted = hintWanted;
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmap = api;

@@ -439,17 +439,20 @@ impl Defenses {
     }
 }
 
-/// What a special application is (nmap import spec §2.2). It changes nothing
-/// in generation; it says which menus the application offers.
+/// What a special application is (nmap import spec §2.2): a scanner, one
+/// tool each. It changes nothing in generation; it says which menus the
+/// application offers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tool {
     Nmap,
+    Masscan,
 }
 
 impl Tool {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Nmap => "nmap",
+            Self::Masscan => "masscan",
         }
     }
 }

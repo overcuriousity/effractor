@@ -42,6 +42,8 @@
 <script src="{{ asset_prefix }}assets/js/nmap-changes.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/nmap-plan.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/nmap.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/masscan.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/scanners.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/problems.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/vocabulary.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/profiles.js" defer></script>
@@ -304,10 +306,15 @@
   <h2 class="label" id="nmap-title">nmap</h2>
   <p class="hint" id="nmap-unplaced" hidden>nmap is not on a host; the flows will have no route until you place it.</p>
   <div id="nmap-ask">
-    <section class="nmap-step">
+    <section class="nmap-step" id="nmap-step-nmap">
       <h3 class="label"><span class="nmap-n">1</span>What is the scan for?</h3>
       <div class="nmap-recipes" id="nmap-recipes" role="group" aria-label="What is the scan for?"></div>
       <details class="nmap-adjust" id="nmap-adjust"><summary><span class="nmap-adjust-word">Adjust</span><span class="nmap-set" id="nmap-set"></span></summary><div class="nmap-blocks" id="nmap-blocks"></div></details>
+    </section>
+    <section class="nmap-step" id="nmap-step-masscan" hidden>
+      <h3 class="label"><span class="nmap-n">1</span>Which ports, how fast?</h3>
+      <div class="nmap-blocks" id="masscan-blocks"></div>
+      <p class="hint">masscan finds open ports, not what runs on them; nmap after it names the services.</p>
     </section>
     <section class="nmap-step">
       <h3 class="label"><span class="nmap-n">2</span>Run it</h3>
@@ -318,7 +325,7 @@
         <div class="nmap-command"><code id="nmap-second"></code><span class="nmap-tag is-root">root</span><button class="btn btn-ghost btn-small" id="nmap-copy-second" type="button">Copy</button></div>
       </div>
       <p class="hint nmap-problem" id="nmap-problem" role="status"></p>
-      <p class="hint">Run it on the host nmap is on. Real addresses go into the file, and into any link you share.</p>
+      <p class="hint">Run it on the host <span id="nmap-where">nmap</span> is on. Real addresses go into the file, and into any link you share.</p>
     </section>
     <section class="nmap-step">
       <h3 class="label"><span class="nmap-n">3</span>Paste the result</h3>
