@@ -98,6 +98,17 @@ mod tests {
         assert!(at("vocabulary.js") < at("architecture-ui.js"));
         assert!(at("architecture-links.js") < at("nmap.js"));
         assert!(at("nmap.js") < at("app.js"), "nmap.js loads before app.js");
+        for part in [
+            "nmap-address.js",
+            "nmap-read.js",
+            "nmap-command.js",
+            "nmap-route.js",
+            "nmap-changes.js",
+            "nmap-plan.js",
+        ] {
+            assert!(at("architecture-links.js") < at(part), "{part}");
+            assert!(at(part) < at("nmap.js"), "{part} loads before nmap.js");
+        }
         assert!(at("architecture-links-ui.js") < at("nmap-ui.js"));
         assert!(at("architecture-links-ui.js") < at("cluster-ui.js"));
         assert!(at("cluster-ui.js") < at("attacker-pins.js"));
