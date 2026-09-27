@@ -9,6 +9,7 @@
   var R = node ? require("./nmap-read.js") : window.effractorNmapRead;
   var C = node ? require("./nmap-command.js") : window.effractorNmapCommand;
   var Rt = node ? require("./nmap-route.js") : window.effractorNmapRoute;
+  var Ch = node ? require("./nmap-changes.js") : window.effractorNmapChanges;
   var has = R.has, oneHost = R.oneHost, addressKey = Ad.addressKey, bytes = Ad.bytes, inCidr = Ad.inCidr, networkOf = Ad.networkOf;
   var targetsOf = C.targetsOf, STAMP = C.STAMP, stampLine = C.stampLine;
 
@@ -305,8 +306,12 @@
     rows.forEach(function (r) {
       r.scan.ports.forEach(function (p) { if (p.state === "open" && wrapped(p)) tcpwrapped++; });
     });
+    var scanOf = {};
+    rows.forEach(function (r) { scanOf[r.key] = r.scan; });
     return {
       app: appId,
+      // What differs from the drawing (nmap recipes spec §5).
+      changes: Ch.changes(doc, appId, scan, planned, scanOf, way, appHost),
       routers: way.routers,
       links: way.links,
       paths: way.paths,
@@ -431,6 +436,9 @@
   function defaults(p) {
     var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true, identities: {}, moves: {}, strips: {}, renames: {}, seen: true, routers: {} };
     (p.routers || []).forEach(function (r) { t.routers[r.key] = true; });
+    // A change is done only when ticked (spec §5.2).
+    t.changes = {};
+    ((p.changes && p.changes.list) || []).forEach(function (c) { if (c.action) t.changes[c.key] = false; });
     p.hosts.forEach(function (h) {
       // Another machine on a drawn host's address is left out until chosen.
       t.hosts[h.key] = !h.conflict || h.conflict.choice === "same";
@@ -490,7 +498,7 @@
   }
 
   function summary(doc, p, ticks, limits) {
-    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, moved: 0, renamed: 0, seen: 0 };
+    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, moved: 0, renamed: 0, seen: 0, changes: Ch.changesTicked(p, ticks) };
     var rel = 0, newProducts = Object.create(null), marked = Object.create(null);
     var network = !!(p.network && ticks.network);
     // The proposed network as the rows name it: "new", or the drawn one chosen.
@@ -589,6 +597,7 @@
     if (s.unpatched) more.push("marks " + n(s.unpatched, "product") + " unpatched");
     if (s.moved) more.push("moves " + n(s.moved, "host"));
     if (s.renamed) more.push("renames " + n(s.renamed, "host"));
+    if (s.changes) more.push("makes " + n(s.changes, "change"));
     // The day seen is said only when it is all there is.
     if (s.seen && !parts.length && !more.length) more.push("notes " + n(s.seen, "host") + " as seen");
     var said = (parts.length ? ["adds " + parts.join(", ")] : []).concat(more).join(", ");
@@ -615,7 +624,7 @@
     var s = summary(doc, p, ticks, null);
     var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged; });
     var stripping = p.hosts.some(function (h) { return ticks.hosts[h.key] && doing(h, ticks, p).strip; });
-    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.moved && !s.renamed && !s.seen && !stripping) return null;
+    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.moved && !s.renamed && !s.seen && !stripping && !s.changes) return null;
     var next = JSON.parse(JSON.stringify(doc));
     function step(edit) {
       if (!edit) throw new Error("the nmap import could not be applied");
@@ -636,6 +645,14 @@
     var skipped = p.network && p.network.merged && !s.filledNetworks ? p.network.merged : null;
     var madeProducts = Object.create(null);
     var flows = [], marks = [], hostOf = {};
+    var env = {
+      doc: function () { return next; },
+      step: step,
+      soft: function (edit) { if (edit) next = edit.doc; },
+      add: function (kind, label) { return step(A.addEntity(next, kind, label, specOf(kind))).entity; },
+      products: madeProducts,
+    };
+    Ch.applyChangesBefore(p, ticks, env);
     p.hosts.forEach(function (h) {
       if (!ticks.hosts[h.key]) return;
       var host = h.known || h.merged;
@@ -703,7 +720,9 @@
           if (r.known) marking(r, ticks).forEach(function (f) { marks.push({ product: productOfService(next, r.known), line: f.line }); });
           return;
         }
-        var service = r.known;
+        // A service this import removed (its port is closed now) is gone.
+        var service = r.known && next.entities[r.known] ? r.known : null;
+        if (r.known && !service) return;
         if (!service) {
           service = step(A.addEntity(next, "service", r.label, specOf("service"))).entity;
           // nmap cannot see the account it runs as: unknown, not a guess.
@@ -716,7 +735,7 @@
           link("instance-of", service, product);
         }
         marking(r, ticks).forEach(function (f) { marks.push({ product: productOfService(next, service), line: f.line }); });
-        if (r.addsFlow) flows.push({ label: r.label + " on " + h.label, target: service, host: host, row: h.key, route: h.route, protocol: r.proto });
+        if (r.addsFlow) flows.push({ label: r.label + " on " + h.label, target: service, host: host, row: h.key, port: r.key, route: h.route, protocol: r.proto });
       });
     });
     // After every attachment: a route is kept only where both ends are now
@@ -735,15 +754,21 @@
       ticked: function (r) { return routerTicked(p, ticks, r); },
       seen: p.date && ticks.seen === true ? p.date : null,
     });
+    // A way is one for a host when nmap's host and that host are at its ends.
+    function ends(rowKey, route) {
+      return !!p.appHost && !!hostOf[rowKey] && isAttached(next, p.appHost, route[0]) && isAttached(next, hostOf[rowKey], route[route.length - 1]);
+    }
+    var flowOf = {};
     flows.forEach(function (f) {
       var route = way.routes[f.row];
-      if (route && p.appHost && isAttached(next, p.appHost, route[0]) && isAttached(next, f.host, route[route.length - 1])) {
-        return step(L.putFlow(next, null, { label: f.label, source: p.app, target: f.target, route: route, protocol: f.protocol }));
+      if (!(route && ends(f.row, route))) {
+        var net = f.route[0] === "new" ? network : f.route[0];
+        var ok = net && p.appHost && isAttached(next, p.appHost, net) && isAttached(next, f.host, net);
+        route = ok ? [net] : [];
       }
-      var net = f.route[0] === "new" ? network : f.route[0];
-      var ok = net && p.appHost && isAttached(next, p.appHost, net) && isAttached(next, f.host, net);
-      step(L.putFlow(next, null, { label: f.label, source: p.app, target: f.target, route: ok ? [net] : [], protocol: f.protocol }));
+      flowOf[f.port] = step(L.putFlow(next, null, { label: f.label, source: p.app, target: f.target, route: route, protocol: f.protocol })).select.slice(5);
     });
+    Ch.applyChangesAfter(p, ticks, env, way.routes, flowOf, ends);
     // A finding marks its product unpatched and says why; its time stays as
     // it is. The author's "patched" stands.
     marks.forEach(function (m) {
