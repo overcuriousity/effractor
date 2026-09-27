@@ -31,6 +31,8 @@
     var m = two || one;
     if (!m) return null;
     vendor = m[1];
+    // The IETF's are protocols (TLS), not software on the port.
+    if (vendor === "ietf") return null;
     product = m[2];
     var v = m[3] && m[3] !== "*" && m[3] !== "-" ? m[3] : "";
     var update = two && m[4] && m[4] !== "*" && m[4] !== "-" ? m[4] : "";
@@ -119,6 +121,18 @@
       kids(el, "detail").forEach(function (d) {
         var key = text(kid(d, "name")), value = text(kid(d, "value"));
         if (key === "hostname") name(h, value);
+        else if (key === "traceroute") h.hops = value.split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+        else if (key === "Services") {
+          // "5060,tcp,sip,A service supporting…": a name where nmap's table has none.
+          var sv = value.split(",");
+          var svAt = portOf(sv[0] + "/" + sv[1]);
+          var svName = R.cleanName(sv[2]);
+          if (svAt && svName && /^[a-z0-9][a-z0-9._-]*$/i.test(svName)) {
+            var sp = port(h, svAt);
+            if (!sp.service) sp.service = { name: svName, product: null, version: null };
+            else if (!sp.service.name) sp.service.name = svName;
+          }
+        }
         else if (key === "best_os_txt" && value) h.os = { name: value, accuracy: null };
         else if (key === "MAC") {
           var mac = R.macOf(value);
@@ -177,6 +191,18 @@
         return a.protocol === b.protocol ? a.port - b.port : a.protocol < b.protocol ? -1 : 1;
       });
     });
+    // What the export left out (its filter), the way to the hosts, the
+    // checks that failed: said in the preview (greenbone notes).
+    var counts = kid(report, "result_count");
+    function count(el, which) {
+      var n = Number(text(kid(el, which)));
+      return n >= 0 ? n : 0;
+    }
+    var left = counts ? { all: count(counts, "full") - count(counts, "filtered"), of: count(counts, "full"), log: count(kid(counts, "log"), "full") - count(kid(counts, "log"), "filtered") } : null;
+    var firsts = hosts.map(function (h) { return h.hops && h.hops.length > 1 ? h.hops[0] : null; });
+    var via = firsts.length && firsts.every(function (f) { return f && f === firsts[0]; }) && !byAddress[Ad.addressKey(firsts[0])] ? firsts[0] : null;
+    var failed = kids(kid(report, "errors"), "error").map(function (e) { return text(kid(kid(e, "nvt"), "name")); }).filter(Boolean);
+    hosts.forEach(function (h) { delete h.hops; });
     var started = /^\d{4}-\d{2}-\d{2}/.exec(text(kid(report, "scan_start")) || text(kid(report, "timestamp")));
     var task = kid(report, "task");
     return { scan: {
@@ -190,7 +216,24 @@
       sharedMacs: 0,
       task: task ? text(kid(task, "name")) || null : null,
       unfinished: text(kid(report, "scan_run_status")) !== "" && text(kid(report, "scan_run_status")) !== "Done",
+      left: left && left.all > 0 ? left : null,
+      via: via,
+      failed: failed,
     } };
+  }
+
+  // What the preview says of the report itself.
+  function notes(scan) {
+    var out = [];
+    var left = scan.left;
+    if (left) out.push("The export left out " + left.all + " of " + left.of + " results" + (left.log ? ", " + left.log + " of them Log: in the report's filter tick Log and show all rows; Log results name the services." : ": in the report's filter tick every severity and show all rows."));
+    if (scan.via) out.push("Every host was reached through " + scan.via + " first: Greenbone scans from behind it, likely a container's network. Hosts that do not answer from there stay unseen; see step 1.");
+    var failed = scan.failed || [];
+    if (failed.length) {
+      var names = failed.filter(function (n, i) { return failed.indexOf(n) === i; });
+      out.push(failed.length + (failed.length === 1 ? " check" : " checks") + " did not finish: " + names.slice(0, 3).join(", ") + (names.length > 3 ? " (+" + (names.length - 3) + " more)" : "") + ".");
+    }
+    return out;
   }
 
   var STAMP = /^Last Greenbone import: .*$/m;
@@ -200,7 +243,7 @@
     return { line: "Last Greenbone import: " + date + ", report" + of + on + ".", pattern: STAMP };
   }
 
-  var api = { read: read, cpeLabel: cpeLabel, stampFor: stampFor };
+  var api = { read: read, cpeLabel: cpeLabel, stampFor: stampFor, notes: notes };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorGreenbone = api;
 })();

@@ -304,6 +304,7 @@
     });
     var notes = [];
     if (at.plan.hosts.some(function (h) { return h.ports.some(function (r) { return !r.known; }); })) notes.push("Services run at an unknown privilege until you set it on their link.");
+    S.notes(at.tool, at.scan).forEach(function (n) { notes.push(n); });
     if (at.scan.unfinished) notes.push("The scan behind this report had not finished; what it found so far is here.");
     if (at.plan.silentUdp) notes.push(at.plan.silentUdp + " UDP ports gave no answer (open|filtered); not added.");
     if (at.scan.sharedMacs) notes.push(at.scan.sharedMacs + (at.scan.sharedMacs === 1 ? " MAC answers" : " MACs answer") + " for several addresses (a router or proxy); not used to tell machines apart.");
@@ -580,16 +581,18 @@
     createScanner(S.TOOLS[0], hostId);
   }
   var FINDS = { nmap: "Scan from a host and add what it sees", masscan: "Find open ports fast and add them", greenbone: "Add a report's hosts and findings" };
+  // One "Scanners" item, the tools nested in it (owner, 2026-09-27).
+  function scannerMenu(hostId) {
+    return ["Scanners", "", S.TOOLS.map(function (t) {
+      return [t.name, "", function () { createScanner(t, hostId); }, { title: FINDS[t.id] }];
+    }), { hint: hostId ? "run here as user" : null, icon: window.effractorArchitectureIcons.svg(document, "application", 16) }];
+  }
   U.kindExtras.application = function () {
-    return S.TOOLS.map(function (t) {
-      return [t.name, "", function () { createScanner(t, null); }, { title: FINDS[t.id] }];
-    });
+    return [scannerMenu(null)];
   };
   U.linkedExtras.push(function (id) {
     var e = doc().entities[id];
-    return e && e.kind === "host" ? S.TOOLS.map(function (t) {
-      return [t.name, "", function () { createScanner(t, id); }, { hint: "runs here as user", title: FINDS[t.id] }];
-    }) : [];
+    return e && e.kind === "host" ? [scannerMenu(id)] : [];
   });
   U.menuItems.push(function (id) {
     var t = S.tool(doc().entities[id]);

@@ -318,10 +318,11 @@
       <p class="hint">masscan finds open ports, not what runs on them; nmap after it names the services.</p>
     </section>
     <section class="nmap-step" id="nmap-step-greenbone" hidden>
-      <h3 class="label"><span class="nmap-n">1</span>Export the report</h3>
+      <h3 class="label"><span class="nmap-n">1</span>Scan, then export the report</h3>
       <ol class="nmap-how">
+        <li>Scan from inside the network. Greenbone in rootless containers sees it through NAT and finds few hosts: set the target's <b>Alive test</b> to <b>Consider Alive</b> (slow on a large range), or run the scanner container as root on the host's network.</li>
         <li>In Greenbone: <b>Scans › Reports</b>, open the report.</li>
-        <li>In its filter, tick every severity, <b>Log</b> included, and show all rows: Log results name the open ports.</li>
+        <li>In its filter, tick every severity, <b>Log</b> included, and show all rows (<code>rows=-1</code>): Log results name the services.</li>
         <li><b>Download</b> it in the report format <b>XML</b>.</li>
       </ol>
       <p class="hint">Real addresses go into the file, and into any link you share.</p>

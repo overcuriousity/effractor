@@ -47,8 +47,21 @@ and adding stay one.
 - **Checks:** `scripts/masscan.test.js`, `scripts/greenbone.test.js`;
   `scripts/fixtures/{masscan,greenbone}/imported.doc.json` pinned by Node,
   `tests/json.rs` and `check-nmap-wasm.js`. nmap's tests did not change.
-- **Open:** real masscan and Greenbone output from the owner against the
-  hand-written fixtures; `nuclei-import` is ready on the roadmap.
+- **The owner's first real report** (2026-09-27, Greenbone CE on rootless
+  podman, `~/Tools/GreenboneCE`, a /20): two hosts. The scanner container
+  sits behind podman's NAT (every traceroute starts at `10.89.5.17`), where
+  its raw-socket alive test cannot reach the LAN; and the export's filter
+  (`levels=chml`) left out all Log results. The reader now says both in the
+  preview (`greenbone.notes`: results the filter left out, from
+  `result_count`; a first hop every host shares that is no scanned host;
+  checks that failed), step 1 of the dialog says what to do (alive test
+  *Consider Alive*, or the scanner rootful on the host's network), IETF
+  protocol CPEs are no products, and `Services` details name ports.
+  Fixture `container.xml` is that report's shape, anonymised; the real one
+  stays out of the repository.
+- **Menus** (owner): one *Scanners ›* item with the three tools nested, in
+  Add › Application and in a host's add-linked menu.
+- **Open:** real masscan output; `nuclei-import` is ready on the roadmap.
 
 ## Continuation — nmap recipes (2026-09-27)
 

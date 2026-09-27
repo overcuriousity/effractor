@@ -161,6 +161,27 @@ test('before nmap: Greenbone draws, nmap afterwards draws no host twice', () => 
   assert.ok(q.hosts[0].ports.every(r => r.proto !== 'tcp/22' || r.known));
 });
 
+// The shape of a real export (owner, 2026-09-27): Greenbone in a rootless
+// container, the filter without Log.
+test('a report from behind a container\'s NAT, exported without Log, says so', () => {
+  const scan = G.read(fixture('greenbone/container.xml')).scan;
+  const [router, box] = scan.hosts;
+  assert.deepEqual(router.ports.map(p => [p.protocol + '/' + p.port, p.service && p.service.name, p.service && p.service.product]), [
+    ['tcp/53', 'domain', null],
+    ['tcp/80', 'http', null],
+    ['tcp/443', 'https', null],
+    ['tcp/5060', 'sip', null],
+    ['tcp/49000', 'upnp', null],
+  ], 'a protocol\'s CPE is not a product; Greenbone\'s Services name what nmap\'s table does not');
+  assert.equal(box.hostname, 'box.home.example');
+  assert.deepEqual(G.notes(scan), [
+    'The export left out 66 of 69 results, 65 of them Log: in the report\'s filter tick Log and show all rows; Log results name the services.',
+    'Every host was reached through 10.89.5.17 first: Greenbone scans from behind it, likely a container\'s network. Hosts that do not answer from there stay unseen; see step 1.',
+    '1 check did not finish: Directory Scanner (HTTP).',
+  ]);
+  assert.deepEqual(G.notes(report()), [], 'the lab report is whole, from inside the network');
+});
+
 test('Greenbone is a scanner of its own in the menus', () => {
   assert.deepEqual(S.TOOLS.map(t => [t.id, t.name]), [['nmap', 'nmap'], ['masscan', 'masscan'], ['greenbone', 'Greenbone']]);
 });

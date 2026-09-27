@@ -11,7 +11,7 @@
   var TOOLS = [
     { id: "nmap", name: "nmap", read: function (text) { return N.read(text); }, stampFor: N.stampFor, looks: /<nmaprun(?![^>]*scanner="(?!nmap")[^"]*")[\s>]/ },
     { id: "masscan", name: "masscan", read: M.read, stampFor: M.stampFor, looks: /<nmaprun[^>]*scanner="masscan"/ },
-    { id: "greenbone", name: "Greenbone", read: G.read, stampFor: G.stampFor, looks: /<report[^>]*format_id=|<get_reports_response[\s>]/ },
+    { id: "greenbone", name: "Greenbone", read: G.read, stampFor: G.stampFor, notes: G.notes, looks: /<report[^>]*format_id=|<get_reports_response[\s>]/ },
   ];
   function byId(id) {
     return TOOLS.filter(function (t) { return t.id === id; })[0] || null;
@@ -31,11 +31,17 @@
     if (other) r.problem = { code: "other-scanner", message: "This result is from " + other.name + ", not " + byId(id).name + "; add " + other.name + " and paste it there." };
     return r;
   }
+  // What a reader says of the result itself (Greenbone: its filter, the
+  // way it scanned from).
+  function notes(id, scan) {
+    var t = byId(id);
+    return t && t.notes ? t.notes(scan) : [];
+  }
   function stampFor(id, scan, range, date) {
     return byId(id).stampFor(scan, range, date);
   }
 
-  var api = { TOOLS: TOOLS, tool: tool, addScanner: addScanner, read: read, stampFor: stampFor };
+  var api = { TOOLS: TOOLS, tool: tool, addScanner: addScanner, read: read, stampFor: stampFor, notes: notes };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorScanners = api;
 })();
