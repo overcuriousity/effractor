@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sS -sV -p 22,80,443,3306 -&#45;script ssh-hostkey -oX - 10.0.2.0/24" start="1790467200" version="7.95" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="4" services="22,80,443,3306"/>
+<host><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="10.0.2.5" addrtype="ipv4"/>
+<address addr="52:54:00:00:00:05" addrtype="mac" vendor="QEMU virtual NIC"/>
+<hostnames>
+<hostname name="db1.lab" type="PTR"/>
+</hostnames>
+<ports><extraports state="closed" count="3"><extrareasons reason="reset" count="3"/></extraports>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="ssh" product="OpenSSH" version="9.6p1" method="probed" conf="10"/><script id="ssh-hostkey" output="&#xa;  256 aaaa0005 (ED25519)"><table>
+<elem key="type">ssh-ed25519</elem>
+<elem key="fingerprint">aaaa0005</elem>
+<elem key="bits">256</elem>
+</table>
+</script></port>
+</ports>
+</host>
+<host><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="10.0.2.16" addrtype="ipv4"/>
+<address addr="52:54:00:00:00:06" addrtype="mac" vendor="QEMU virtual NIC"/>
+<hostnames>
+</hostnames>
+<ports><extraports state="closed" count="3"><extrareasons reason="reset" count="3"/></extraports>
+<port protocol="tcp" portid="80"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="http" product="nginx" version="1.24.0" method="probed" conf="10"/></port>
+</ports>
+<hostscript><script id="nbstat" output="NetBIOS name: WEB1, NetBIOS user: &lt;unknown&gt;, NetBIOS MAC: 52:54:00:00:00:06 (QEMU virtual NIC)"/></hostscript>
+</host>
+<host><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="10.0.2.7" addrtype="ipv4"/>
+<address addr="52:54:00:00:00:77" addrtype="mac" vendor="QEMU virtual NIC"/>
+<hostnames>
+</hostnames>
+<ports><extraports state="closed" count="3"><extrareasons reason="reset" count="3"/></extraports>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="ssh" product="OpenSSH" version="9.6p1" method="probed" conf="10"/><script id="ssh-hostkey" output="&#xa;  256 bbbb0007 (ED25519)"><table>
+<elem key="type">ssh-ed25519</elem>
+<elem key="fingerprint">bbbb0007</elem>
+<elem key="bits">256</elem>
+</table>
+</script></port>
+</ports>
+</host>
+<runstats><finished time="1790467260" timestr="" summary="" elapsed="60.00" exit="success"/><hosts up="3" down="253" total="256"/>
+</runstats>
+</nmaprun>

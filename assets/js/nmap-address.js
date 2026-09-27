@@ -80,7 +80,37 @@
     return !!bytes(ip) && PRIVATE.some(function (c) { return inCidr(ip, c); });
   }
 
-  var api = { isPrivate: isPrivate, bytes: bytes, addressKey: addressKey, inCidr: inCidr, networkOf: networkOf };
+  // Whether a scan of `targets` (nmap's own words: addresses, CIDR, octet
+  // ranges such as 10.0.1-5.1-254) looked at `ip` (nmap recipes spec §5.1).
+  // A name covers nothing here: which address it meant is not known.
+  function octets(word) {
+    var parts = String(word).split(".");
+    if (parts.length !== 4) return null;
+    var out = [];
+    for (var i = 0; i < 4; i++) {
+      if (!/^\d{1,3}(-\d{1,3})?(,\d{1,3}(-\d{1,3})?)*$/.test(parts[i])) return null;
+      out.push(parts[i].split(",").map(function (r) {
+        var b = r.split("-").map(Number);
+        return [b[0], b.length > 1 ? b[1] : b[0]];
+      }));
+    }
+    return out;
+  }
+  function covers(targets, ip) {
+    var b = bytes(ip);
+    if (!b) return false;
+    return String(targets == null ? "" : targets).trim().split(/\s+/).filter(Boolean).some(function (word) {
+      var w = word.indexOf(":") >= 0 ? word.replace(/%[^\/]*/, "") : word;
+      if (w.indexOf("/") >= 0) return inCidr(ip, w);
+      if (bytes(w)) return addressKey(w) === addressKey(ip);
+      var o = b.length === 4 ? octets(w) : null;
+      return !!o && o.every(function (ranges, i) {
+        return ranges.some(function (r) { return b[i] >= r[0] && b[i] <= r[1]; });
+      });
+    });
+  }
+
+  var api = { covers: covers, isPrivate: isPrivate, bytes: bytes, addressKey: addressKey, inCidr: inCidr, networkOf: networkOf };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapAddress = api;
 })();

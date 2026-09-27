@@ -13,6 +13,10 @@
 
   // ---- planning (spec §3.4, §4) ----
 
+  // "mac" of "mac:00:1a:…".
+  function typeOf(identity) {
+    return String(identity).slice(0, String(identity).indexOf(":"));
+  }
   function ids(doc, kind) {
     return Object.keys(doc.entities || {}).filter(function (id) { return doc.entities[id].kind === kind; });
   }
@@ -61,6 +65,60 @@
         byAddress[k] = byAddress[k] || h;
       });
     });
+    // Nmap recipes spec §3.3: MAC, then SSH key, then address, then name.
+    // An identity names a drawn host when exactly one has it; two with it
+    // is said, not guessed.
+    var byIdentity = Object.create(null);
+    hosts.forEach(function (h) {
+      (doc.entities[h].identities || []).forEach(function (i) { (byIdentity[i] = byIdentity[i] || []).push(h); });
+    });
+    function whoIs(h) {
+      var one = null, shared = null;
+      (h.identities || []).forEach(function (i) {
+        var at = byIdentity[i] || [];
+        if (!one && at.length === 1) one = at[0];
+        if (!shared && at.length > 1) shared = i;
+      });
+      return { host: one, shared: one ? null : shared };
+    }
+    // The same address and another machine: an identity of a type the drawn
+    // host has, with none of its values (spec §5.2).
+    function conflictOf(target, h) {
+      var have = doc.entities[target].identities || [];
+      var found = null;
+      (h.identities || []).forEach(function (i) {
+        if (found) return;
+        var was = have.filter(function (x) { return typeOf(x) === typeOf(i); });
+        var now = h.identities.filter(function (x) { return typeOf(x) === typeOf(i); });
+        if (was.length && !was.some(function (x) { return now.indexOf(x) >= 0; })) found = { host: target, type: typeOf(i), was: was[0], now: i };
+      });
+      return found;
+    }
+    // A known machine at addresses it was not drawn with: those it leaves
+    // are the ones the scan looked at and did not find it at.
+    var targets = targetsOf(scan) || String(range == null ? "" : range);
+    function movedOf(target, h) {
+      var had = doc.entities[target].addresses || [];
+      var hadKeys = had.map(addressKey), nowKeys = h.addresses.map(addressKey);
+      var to = h.addresses.filter(function (a) { return hadKeys.indexOf(addressKey(a)) < 0; });
+      if (!to.length) return null;
+      var from = had.filter(function (a) { return nowKeys.indexOf(addressKey(a)) < 0 && Ad.covers(targets, a); });
+      var others = [];
+      to.forEach(function (a) {
+        var o = byAddress[addressKey(a)];
+        if (o && o !== target && others.indexOf(o) < 0) others.push(o);
+      });
+      return { from: from, to: to, others: others };
+    }
+    // A better name for a host still labelled by an address; a name its
+    // author gave is never offered for replacement (spec §3.4).
+    function renameOf(target, h) {
+      var e = doc.entities[target];
+      var best = (h.names || [])[0];
+      if (!best || !bytes(String(e.label).trim()) || best.name === e.label) return null;
+      return { to: best.name, from: best.from };
+    }
+
     // Any drawn host no scanned address already names may be one the scan
     // lists: hand-drawn, or known by the other kind of address (an IPv6
     // scan of hosts drawn from an IPv4 one, review 2026-09-26).
@@ -69,6 +127,7 @@
       h.addresses.forEach(function (a) {
         if (byAddress[addressKey(a)]) seenHosts[byAddress[addressKey(a)]] = true;
       });
+      if (whoIs(h).host) seenHosts[whoIs(h).host] = true;
     });
     var candidates = hosts.filter(function (h) { return !seenHosts[h]; });
     var networks = ids(doc, "network");
@@ -106,12 +165,18 @@
     var rows = [];
     scan.hosts.forEach(function (h, i) {
       var key = "h" + i;
-      var known = null;
-      h.addresses.forEach(function (a) { if (!known && byAddress[addressKey(a)]) known = byAddress[addressKey(a)]; });
+      var who = whoIs(h);
+      var byAddr = null;
+      h.addresses.forEach(function (a) { if (!byAddr && byAddress[addressKey(a)]) byAddr = byAddress[addressKey(a)]; });
+      // Another machine on a drawn host's address is that host only when
+      // the author says so (merges.conflicts).
+      var conflict = !who.host && byAddr ? conflictOf(byAddr, h) : null;
+      if (conflict) conflict.choice = (merges.conflicts || {})[key] === "same" ? "same" : "new";
+      var known = who.host || (conflict && conflict.choice !== "same" ? null : byAddr);
       if (known && rowOf[known]) return rowOf[known].listings.push(h);
-      var merged = !known && candidates.indexOf(merges[key]) >= 0 && !takenBy[merges[key]] ? merges[key] : null;
+      var merged = !known && !conflict && candidates.indexOf(merges[key]) >= 0 && !takenBy[merges[key]] ? merges[key] : null;
       if (merged) takenBy[merged] = key;
-      var row = { key: key, scan: h, listings: [h], known: known, merged: merged, guessed: false };
+      var row = { key: key, scan: h, listings: [h], known: known, merged: merged, guessed: false, matchedBy: who.host ? "identity" : known ? "address" : null, conflict: conflict, sharedIdentity: who.shared };
       if (known) rowOf[known] = row;
       rows.push(row);
     });
@@ -126,8 +191,25 @@
       if (own) {
         own.merged = appHost;
         own.guessed = true;
+        own.guessedBy = "self";
+        takenBy[appHost] = own.key;
       }
     }
+    // A drawn host without addresses that has the scanned host's name is
+    // guessed to be it, as nmap's own host is (spec §3.3).
+    rows.forEach(function (r) {
+      if (r.known || r.merged || r.conflict || has(merges, r.key)) return;
+      var names = (r.scan.names || []).map(function (n) { return n.name; });
+      var same = candidates.filter(function (c) {
+        return !takenBy[c] && !(doc.entities[c].addresses || []).length && names.some(function (n) { return sameName(n, doc.entities[c].label); });
+      });
+      if (same.length !== 1) return;
+      r.merged = same[0];
+      r.guessed = true;
+      r.guessedBy = "name";
+      r.matchedBy = "name";
+      takenBy[same[0]] = r.key;
+    });
 
     // Where each one is attached that it is not yet: every network whose
     // range holds one of its addresses, else the proposed one.
@@ -157,7 +239,8 @@
 
     var planned = rows.map(function (r) {
       var h = r.scan, target = r.known || r.merged;
-      var label = target ? doc.entities[target].label : h.hostname || h.addresses[0];
+      var label = target ? doc.entities[target].label : ((h.names || [])[0] || {}).name || h.hostname || h.addresses[0];
+      var have = target ? doc.entities[target].identities || [] : [];
       var shared = appNets.filter(function (n) { return r.on.indexOf(n) >= 0; });
       var offered = !(target && runsRouter(doc, target));
       var suggested = roleOf(h.device);
@@ -186,6 +269,17 @@
         known: r.known,
         merged: r.merged,
         guessed: r.guessed,
+        guessedBy: r.guessedBy || null,
+        matchedBy: r.matchedBy,
+        identities: (h.identities || []).slice(),
+        newIdentities: (h.identities || []).filter(function (i) { return have.indexOf(i) < 0; }),
+        vendor: h.vendor || null,
+        seen: target ? doc.entities[target].seen || null : null,
+        missed: target ? doc.entities[target].missed || null : null,
+        moved: r.known && r.matchedBy === "identity" ? movedOf(r.known, h) : null,
+        sharedIdentity: r.sharedIdentity,
+        conflict: r.conflict,
+        rename: target ? renameOf(target, h) : null,
         networks: r.networks,
         on: r.on,
         role: offered ? suggested.role : "host",
@@ -204,6 +298,7 @@
     });
     return {
       app: appId,
+      date: scan.date || null,
       tcpwrapped: tcpwrapped,
       appHost: appHost,
       network: usedNew ? proposed : null,
@@ -322,9 +417,15 @@
   }
 
   function defaults(p) {
-    var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true };
+    var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true, identities: {}, moves: {}, strips: {}, renames: {}, seen: true };
     p.hosts.forEach(function (h) {
-      t.hosts[h.key] = true;
+      // Another machine on a drawn host's address is left out until chosen.
+      t.hosts[h.key] = !h.conflict || h.conflict.choice === "same";
+      // What only adds knowledge is ticked; taking from another host is not.
+      t.identities[h.key] = true;
+      t.moves[h.key] = true;
+      t.strips[h.key] = false;
+      t.renames[h.key] = true;
       t.roles[h.key] = h.role;
       h.ports.forEach(function (r) {
         if (!r.known || r.addsFlow) t.ports[r.key] = true;
@@ -351,8 +452,23 @@
     return f.product ? "id:" + f.product : r.product.identified ? "new:" + r.product.label : "port:" + r.key;
   }
 
+  // What a ticked row does to its host beyond adding: the identities it
+  // gains, its move, its new name, the day it was seen (spec §3).
+  function doing(h, ticks, p) {
+    var on = function (group) { return !!(ticks[group] && ticks[group][h.key]); };
+    var same = !!h.conflict && h.conflict.choice === "same";
+    return {
+      identities: on("identities") || same ? h.newIdentities : [],
+      replaces: same,
+      move: !!h.moved && on("moves"),
+      strip: !!h.moved && h.moved.others.length > 0 && on("strips"),
+      rename: !!h.rename && on("renames"),
+      seen: !!p.date && ticks.seen === true && (h.seen !== p.date || !!h.missed),
+    };
+  }
+
   function summary(doc, p, ticks, limits) {
-    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0 };
+    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, moved: 0, renamed: 0, seen: 0 };
     var rel = 0, newProducts = Object.create(null), marked = Object.create(null);
     var network = !!(p.network && ticks.network);
     // The proposed network as the rows name it: "new", or the drawn one chosen.
@@ -364,6 +480,11 @@
       ticked++;
       var added = !h.known && !h.merged;
       if (added) s.hosts++;
+      var does = doing(h, ticks, p);
+      if (!added && does.identities.length) s.identified++;
+      if (does.move) s.moved++;
+      if (does.rename) s.renamed++;
+      if (!added && does.seen) s.seen++;
       // A merge writes the scanned addresses into the drawn host.
       if (h.merged) s.filled++;
       h.networks.forEach(function (n) {
@@ -419,9 +540,15 @@
     });
     if (s.filled) parts.push("addresses for " + n(s.filled, "drawn host"));
     if (s.filledNetworks) parts.push("addresses for " + n(s.filledNetworks, "drawn network"));
-    var marks = s.unpatched ? "marks " + n(s.unpatched, "product") + " unpatched" : "";
-    if (parts.length) return "Adds " + parts.join(", ") + (marks ? ", " + marks : "") + ".";
-    return marks ? marks[0].toUpperCase() + marks.slice(1) + "." : "Nothing new to add.";
+    if (s.identified) parts.push("identities for " + n(s.identified, "drawn host"));
+    var more = [];
+    if (s.unpatched) more.push("marks " + n(s.unpatched, "product") + " unpatched");
+    if (s.moved) more.push("moves " + n(s.moved, "host"));
+    if (s.renamed) more.push("renames " + n(s.renamed, "host"));
+    // The day seen is said only when it is all there is.
+    if (s.seen && !parts.length && !more.length) more.push("notes " + n(s.seen, "host") + " as seen");
+    var said = (parts.length ? ["adds " + parts.join(", ")] : []).concat(more).join(", ");
+    return said ? said[0].toUpperCase() + said.slice(1) + "." : "Nothing new to add.";
   }
 
   // Ticking a host ticks what it offers: its new ports, the flows its known
@@ -443,7 +570,8 @@
   function apply(doc, p, ticks, specOf, stamp) {
     var s = summary(doc, p, ticks, null);
     var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged; });
-    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging) return null;
+    var stripping = p.hosts.some(function (h) { return ticks.hosts[h.key] && doing(h, ticks, p).strip; });
+    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.moved && !s.renamed && !s.seen && !stripping) return null;
     var next = JSON.parse(JSON.stringify(doc));
     function step(edit) {
       if (!edit) throw new Error("the nmap import could not be applied");
@@ -467,11 +595,40 @@
     p.hosts.forEach(function (h) {
       if (!ticks.hosts[h.key]) return;
       var host = h.known || h.merged;
+      var does = doing(h, ticks, p);
+      function without(id, addresses) {
+        var gone = addresses.map(addressKey);
+        var left = (next.entities[id].addresses || []).filter(function (a) { return gone.indexOf(addressKey(a)) < 0; });
+        if (left.length) next.entities[id].addresses = left;
+        else delete next.entities[id].addresses;
+      }
+      // Another machine on a drawn host's address: the address is its own now.
+      if (!host && h.conflict) without(h.conflict.host, h.addresses);
       if (!host) {
         host = step(A.addEntity(next, "host", h.label, specOf("host"))).entity;
         next.entities[host].addresses = h.addresses.slice();
         if (h.os) next.entities[host].description = h.os;
-      } else if (h.merged) {
+        if (h.identities.length) next.entities[host].identities = h.identities.slice();
+        if (p.date && ticks.seen === true) next.entities[host].seen = p.date;
+      } else {
+        var e = next.entities[host];
+        if (does.identities.length) {
+          var types = does.replaces ? h.identities.map(typeOf) : [];
+          e.identities = (e.identities || []).filter(function (i) { return types.indexOf(typeOf(i)) < 0; }).concat(does.identities);
+        }
+        if (does.move) {
+          without(host, h.moved.from);
+          e.addresses = (e.addresses || []).concat(h.moved.to);
+        }
+        if (does.strip) h.moved.others.forEach(function (o) { without(o, h.moved.to); });
+        if (does.rename) e.label = h.rename.to;
+        if (does.seen) {
+          e.seen = p.date;
+          delete e.missed;
+        }
+      }
+      if (h.vendor && !next.entities[host].vendor) next.entities[host].vendor = h.vendor;
+      if (h.merged) {
         // Added to what it had, each address once.
         var had = next.entities[host].addresses || [];
         var keys = had.map(addressKey);

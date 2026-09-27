@@ -57,7 +57,8 @@
       },
       "addresses": [
         "10.0.1.5"
-      ]
+      ],
+      "seen": "2026-09-24"
     },
     "ssh": {
       "kind": "service",
@@ -163,7 +164,8 @@
       },
       "addresses": [
         "10.0.1.7"
-      ]
+      ],
+      "seen": "2026-09-24"
     },
     "https-2": {
       "kind": "service",
@@ -196,7 +198,8 @@
       },
       "addresses": [
         "10.0.1.9"
-      ]
+      ],
+      "seen": "2026-09-24"
     },
     "msrpc": {
       "kind": "service",
@@ -317,7 +320,8 @@
       },
       "addresses": [
         "10.0.1.12"
-      ]
+      ],
+      "seen": "2026-09-24"
     },
     "netbios-ssn-2": {
       "kind": "service",
@@ -366,7 +370,8 @@
       },
       "addresses": [
         "10.0.1.14"
-      ]
+      ],
+      "seen": "2026-09-24"
     }
   },
   "associations": {

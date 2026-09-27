@@ -36,7 +36,12 @@
       "label": "Server",
       "addresses": [
         "10.0.1.5"
-      ]
+      ],
+      "identities": [
+        "mac:52:54:00:12:34:56"
+      ],
+      "seen": "2026-09-24",
+      "vendor": "QEMU virtual NIC"
     },
     "sshd": {
       "kind": "service",
@@ -49,6 +54,7 @@
     "printer": {
       "kind": "host",
       "label": "Printer",
+      "seen": "2026-09-24",
       "addresses": [
         "10.0.1.7"
       ]
