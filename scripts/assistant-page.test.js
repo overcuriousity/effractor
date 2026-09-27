@@ -86,3 +86,60 @@ test('the catalog reaches the agent whole: every rule, and what a flow needs', a
   assert.match(c.flows.target, /service/);
   assert.match(c.flows.route, /network/);
 });
+
+test('a call after the turn\'s document was closed is refused, and nothing runs on the other one', async () => {
+  let open = 7, edits = 0;
+  const app = { state: { doc: { profile: 'architecture' }, text: 't' }, tryEdit: () => { edits++; return Promise.resolve({ ok: true }); } };
+  const tools = { edit: () => ({ doc: {}, select: null, said: 'Added' }) };
+  const x = P.createExecutor({ app, tools, catalog, profile: 'architecture', docId: 7, openId: () => open });
+  assert.equal((await x.run({ id: '1', name: 'add_entity', input: { kind: 'host', label: 'H' } }, 'edit')).ok, true);
+  open = 8;
+  const r = await x.run({ id: '2', name: 'add_entity', input: { kind: 'host', label: 'H' } }, 'edit');
+  assert.deepEqual([r.ok, r.output], [false, 'the document was closed']);
+  const read = await x.run({ id: '3', name: 'read_document', input: {} }, 'read');
+  assert.deepEqual([read.ok, read.output], [false, 'the document was closed']);
+  assert.equal(edits, 1);
+});
+
+// A page whose solve is played by the test: `run(state)` is what one run does.
+function solvingApp(state, run) {
+  const app = { state: Object.assign({ doc: { profile: 'fault-tree' }, running: false, explicit: false, blockers: null, sourceValid: true }, state), solves: 0 };
+  app.solve = () => {
+    app.solves++;
+    if (app.state.running && app.state.explicit) { app.state.running = false; return; } // the page's toggle
+    setTimeout(() => {
+      app.state.running = true;
+      setTimeout(() => { app.state.running = false; run(app.state); }, 20);
+    }, 5);
+  };
+  return app;
+}
+
+test('results of an older text are not reported as current: an unsolvable edit says why', async () => {
+  const blockers = [{ severity: 'error', code: 'no-target', path: 'attacker', message: 'no target' }];
+  const app = solvingApp({ doc: { profile: 'architecture' }, results: { old: true }, revision: 2, solvedRevision: 1, scenario: '' },
+    (s) => { s.blockers = blockers; });
+  global.window = { effractorGraphResults: { headline: () => 'h', routes: () => [], assumptions: () => [] } };
+  try {
+    const r = await P.createExecutor({ app, tools: {}, catalog, profile: 'architecture' }).run({ id: '1', name: 'solve', input: {} }, 'read');
+    assert.equal(r.ok, false);
+    assert.deepEqual(JSON.parse(r.output).blockers, blockers);
+  } finally {
+    delete global.window;
+  }
+});
+
+test('results solved for the text on the page now are reported', async () => {
+  const app = solvingApp({ results: { old: true }, revision: 2, solvedRevision: 1 },
+    (s) => { s.results = { p: 0.5 }; s.solvedRevision = s.revision; });
+  const r = await P.createExecutor({ app, tools: {}, catalog, profile: 'fault-tree' }).run({ id: '1', name: 'analyse', input: {} }, 'read');
+  assert.deepEqual([r.ok, JSON.parse(r.output)], [true, { p: 0.5 }]);
+});
+
+test('a solve already running is waited for, not toggled off', async () => {
+  const app = solvingApp({ results: null, revision: 3, solvedRevision: 1, running: true, explicit: true }, () => {});
+  setTimeout(() => { app.state.running = false; app.state.results = { p: 0.25 }; app.state.solvedRevision = 3; }, 30);
+  const r = await P.createExecutor({ app, tools: {}, catalog, profile: 'fault-tree' }).run({ id: '1', name: 'analyse', input: {} }, 'read');
+  assert.equal(app.solves, 0);
+  assert.deepEqual([r.ok, JSON.parse(r.output)], [true, { p: 0.25 }]);
+});

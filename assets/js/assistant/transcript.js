@@ -3,6 +3,7 @@
 // events after what is stored. And whether Undo turn may be offered.
 (function () {
   var INTERRUPTED = " [interrupted]";
+  var LIMIT = " [cut at the reply limit]";
   var SAID = {
     read_document: "Read the document",
     problems: "Read the problems",
@@ -56,9 +57,13 @@
     return (content || []).filter(function (b) { return b.type === "text"; }).map(function (b) { return b.text; }).join("\n");
   }
 
+  // The server marks a text the stream broke off, or the reply limit cut.
   function said(text, turn) {
-    var cut = text.slice(-INTERRUPTED.length) === INTERRUPTED;
-    return { kind: "said", text: cut ? text.slice(0, -INTERRUPTED.length) : text, turn: turn, interrupted: cut };
+    var interrupted = text.slice(-INTERRUPTED.length) === INTERRUPTED;
+    if (interrupted) text = text.slice(0, -INTERRUPTED.length);
+    var cut = text.slice(-LIMIT.length) === LIMIT;
+    if (cut) text = text.slice(0, -LIMIT.length);
+    return { kind: "said", text: text, turn: turn, interrupted: interrupted, cut: cut };
   }
 
   // `running`: the last turn is still going, so its tokens are not summed yet.

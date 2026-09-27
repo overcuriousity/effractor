@@ -72,3 +72,9 @@ test('tokens: one line per turn, what the steps reported summed; none for the tu
 test('token counts read short', () => {
   assert.deepEqual([T.count(890), T.count(12400), T.count(1234567), T.count(null)], ['890', '12.4k', '1.2M', '—']);
 });
+
+test('a reply cut at the reply limit reads as such, like an interrupted one', () => {
+  const m = [{ role: 'assistant', turn: 1, content: [{ type: 'text', text: 'Half a thou [cut at the reply limit]' }] }];
+  const said = T.rows(m, []).find((r) => r.kind === 'said');
+  assert.deepEqual([said.text, said.cut, said.interrupted], ['Half a thou', true, false]);
+});

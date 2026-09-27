@@ -730,6 +730,15 @@ test('a loaded document is solved by itself, and an edit keeps the old numbers u
   assert.equal(h.level(), 'current');
 });
 
+test('a tree\'s accepted answer names the revision it was solved for, and an edit moves on', async () => {
+  const h = autoHarness();
+  await h.app.ready; await h.tick();
+  h.runs[0].resolve({ result: { ok: h.solved(0.25) } }); await h.settle();
+  assert.equal(h.app.state.solvedRevision, h.app.state.revision);
+  await h.app.applyEdit({ doc: h.doc('edited') });
+  assert.notEqual(h.app.state.solvedRevision, h.app.state.revision, 'the numbers on screen are of an older text');
+});
+
 test('after a slow sampled run, edits refresh only the exact part', async () => {
   const h = autoHarness();
   await h.app.ready; await h.tick();

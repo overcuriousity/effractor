@@ -23,6 +23,8 @@
   var live = [];         // events of the step streaming now
   var answered = null;   // results of the tool calls being run now
   var running = false, stopping = false, ending = null, poll = null;
+  var turnNo = 0;        // counts turns begun here; a loop whose number is old has ended
+  var turnDoc = null;    // the document the running turn is about
   var records = {};      // turn → {before, after}: Undo turn, in this page only
   var catalog = null;    // tools.json
   var drawn = [];        // what the log shows, row by row: {key, kind, node}
@@ -79,10 +81,12 @@
     chat.hidden = !available;
     if (!available) {
       close();
+      if (doc != null) abandon();
       doc = null;
       return;
     }
     if (id !== doc) {
+      abandon();
       doc = id;
       sid = Number(recall("effractor.chat." + doc)) || null;
       session = null;
@@ -112,16 +116,15 @@
     else open();
   }
 
-  function load() {
-    if (doc == null) {
-      session = null;
-      return Promise.resolve(draw());
-    }
-    if (!sid) {
+  // `loaded`: runs once the session has arrived, before it is drawn.
+  function load(loaded) {
+    if (doc == null || !sid) {
+      if (loaded) loaded();
       session = null;
       return Promise.resolve(draw());
     }
     return client.get(sid).then(function (r) {
+      if (loaded) loaded();
       if (r.ok) session = r.data;
       else {
         sid = null;
@@ -254,6 +257,7 @@
       node.textContent = "";
       node.appendChild(M.render(M.parse(row.text), document));
       if (row.interrupted) node.appendChild(el("p", "chat-quiet", "interrupted"));
+      if (row.cut) node.appendChild(el("p", "chat-quiet", "cut at the reply limit"));
       node.classList.toggle("is-streaming", streaming);
     } else if (row.kind === "thinking") {
       node.firstChild.textContent = streaming ? "Thinking…" : "Thinking";
@@ -384,7 +388,7 @@
 
   function say(text) {
     if (running || !text.trim()) return;
-    if (info && text.length > info.message_bytes) return note("too long for this chat");
+    if (info && C.bytes(text) > info.message_bytes) return note("too long for this chat");
     if (info && text.length > info.context * 3) return note("too long for the model");
     note("");
     ensureSession().then(function (ok) {
@@ -396,56 +400,88 @@
       stopping = false;
       ending = null;
       live = [];
-      var before = app.state.text;
+      turnDoc = doc;
+      var mine = ++turnNo, before = app.state.text;
       draw();
-      client.send(sid, text, P.stateLine(app), onEvent).then(function (r) { return step(r, before); });
+      client.send(sid, text, P.stateLine(app), listen(mine)).then(function (r) { return step(r, before, mine, false); });
     });
   }
 
-  function onEvent(e) {
-    live.push(e);
-    if (e.event === "end") ending = e.data.reason;
-    if (e.event === "error") ending = "error";
-    if (e.event === "error") note(e.data.reason);
-    schedule();
+  // The events of turn `mine`; none once it has been left (abandon()).
+  function listen(mine) {
+    return function (e) {
+      if (mine !== turnNo) return;
+      live.push(e);
+      if (e.event === "end") ending = e.data.reason;
+      if (e.event === "error") ending = "error";
+      if (e.event === "error") note(e.data.reason);
+      schedule();
+    };
+  }
+
+  // The document changed under a running turn: it is stopped on the server,
+  // and its loop here ends without running another call (the executor
+  // refuses calls on another document too).
+  function abandon() {
+    if (!running) return;
+    client.stop(sid);
+    turnNo++;
+    running = false;
+    stopping = false;
+    live = [];
+    answered = null;
+    note("the turn was stopped: its document was closed");
   }
 
   // After each streamed step: run its tool calls and go on, or finish.
-  function step(r, before) {
+  // `held`: the step answered tool results, so the turn is still ours on the
+  // server, and a failed POST would leave it held: it is stopped.
+  function step(r, before, mine, held) {
+    if (mine !== turnNo) return;
     if (!r.ok) {
       running = false;
       live = [];
-      note(refused(r));
+      // Only when the results never reached the server is its claim still
+      // held: a 400 means it moved on (the turn was taken over), a 409 is
+      // someone else's turn, a 429 ended it already.
+      if (held && (r.status === 0 || r.status === 413 || r.status >= 500)) {
+        client.stop(sid);
+        note("the tool results were not sent (" + refused(r) + "), so the turn was stopped");
+      } else note(refused(r));
       return load();
     }
     var calls = live.filter(function (e) { return e.event === "tool_call"; }).map(function (e) { return e.data; });
-    return load().then(function () {
-      live = [];
+    // The step is stored now: drawn from the session, not twice.
+    return load(function () { live = []; }).then(function () {
+      if (mine !== turnNo) return;
       var turn = session && session.messages.length ? session.messages[session.messages.length - 1].turn : null;
       if (turn != null && !records[turn]) records[turn] = { before: before, after: before };
       if (ending !== "tools" || stopping) return finish(turn);
-      return runCalls(calls, turn).then(function (results) {
+      return runCalls(calls, turn, mine).then(function (results) {
+        if (mine !== turnNo) return;
         answered = null;
         if (stopping) return finish(turn);
-        return client.results(sid, results, P.stateLine(app), onEvent).then(function (next) { return step(next, before); });
+        return client.results(sid, results, P.stateLine(app), listen(mine)).then(function (next) { return step(next, before, mine, true); });
       });
     });
   }
 
-  function runCalls(calls, turn) {
+  function runCalls(calls, turn, mine) {
     var profile = app.state.doc ? app.state.doc.profile : null;
     var components = profile === "architecture"
       ? app.solver.catalog().then(function (a) { return a.ok || null; }, function () { return null; })
       : Promise.resolve(null);
     return Promise.all([loadCatalog(), components]).then(function (got) {
-      var x = P.createExecutor({ app: app, tools: TOOLS, catalog: got[0], componentCatalog: got[1], profile: profile });
+      var x = P.createExecutor({ app: app, tools: TOOLS, catalog: got[0], componentCatalog: got[1], profile: profile,
+        docId: turnDoc, openId: function () { return A.sync && A.sync.openId ? A.sync.openId() : null; } });
       var access = viewer() ? "read" : "edit";
       answered = [];
       answered.turn = turn;
       return calls.reduce(function (chain, call) {
         return chain.then(function () {
-          if (stopping) return;
+          if (stopping || mine !== turnNo) return;
           return x.run(call, access).then(function (result) {
+            if (mine !== turnNo) return;
             answered.push(result);
             draw();
           });
@@ -591,7 +627,8 @@
   });
 
   // The width, dragged at the inner edge; the pointer is taken only once a
-  // press becomes a drag.
+  // press becomes a drag. Followed on the document, so a press that leaves
+  // the edge before that still ends where it is released.
   var saved = Number(recall(WIDTH));
   document.documentElement.style.setProperty("--chat-width", (saved >= 300 && saved <= 560 ? saved : 360) + "px");
   edge.addEventListener("pointerdown", function (e) {
@@ -607,13 +644,15 @@
       document.documentElement.style.setProperty("--chat-width", w + "px");
     }
     function up() {
-      edge.removeEventListener("pointermove", move);
-      edge.removeEventListener("pointerup", up);
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", up);
       chat.classList.remove("is-resizing");
       if (dragging) remember(WIDTH, Math.round(chat.getBoundingClientRect().width));
     }
-    edge.addEventListener("pointermove", move);
-    edge.addEventListener("pointerup", up);
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+    document.addEventListener("pointercancel", up);
   });
 
   app.ready.then(refresh);

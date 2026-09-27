@@ -150,7 +150,8 @@
       limits[l[0]] = f;
     });
 
-    // Only what changed goes; a new address without a key clears the stored one.
+    // Only what changed goes; a key goes only when typed, and a new address
+    // keeps the stored key.
     // What a save said, beside the button pressed as well as at the foot.
     var told = null;
     function tell(text) {

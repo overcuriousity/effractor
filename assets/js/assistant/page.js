@@ -67,18 +67,51 @@
     return new Promise(function (res) { setTimeout(res, ms); });
   }
 
-  // Until a solve that started after `before` has finished; or, when the
-  // page had nothing new to solve, until it is quiet.
-  function settle(app, before) {
+  // Until `ready()` holds: true, or false after SETTLE_MS.
+  function until(ready) {
     var start = Date.now();
     function check() {
-      var s = app.state;
-      if (!s.running && s.results && s.results !== before) return Promise.resolve(true);
-      if (!s.running && Date.now() - start > 1500) return Promise.resolve(!!s.results);
+      if (ready()) return Promise.resolve(true);
       if (Date.now() - start > SETTLE_MS) return Promise.resolve(false);
       return wait(200).then(check);
     }
     return check();
+  }
+
+  // Whether state.results describe the text on the page now, and, in an
+  // architecture, the comparison asked for: an edit that left the document
+  // unsolvable leaves the last text's numbers there.
+  function current(s) {
+    if (!s.results || s.solvedRevision !== s.revision) return false;
+    if (!s.doc || s.doc.profile !== "architecture") return true;
+    return (s.results.scenario ? s.results.scenario.id : "") === (s.scenario || "");
+  }
+
+  function unsolved(s) {
+    if (s.blockers && s.blockers.length) return no(shape({ no_results: "the document cannot be simulated as it is", blockers: s.blockers }));
+    if (s.sourceValid === false) return no("no results: the source is not valid");
+    return no("no results for the document as it is now: call problems for why");
+  }
+
+  // The results of the text on the page now, solved when they are not. A run
+  // already going is waited for: app.solve() would cancel the user's
+  // Calculate. Once asked, done when a run was seen to end, or when nothing
+  // started for 1.5 s. → {results} or a refusal.
+  function fresh(app) {
+    var s = app.state;
+    return until(function () { return !s.running; }).then(function (idle) {
+      if (!idle) return no("the simulation did not finish");
+      if (current(s)) return { results: s.results };
+      var start = Date.now(), seen = false;
+      app.solve();
+      return until(function () {
+        if (s.running) seen = true;
+        return !s.running && (seen || current(s) || Date.now() - start > 1500);
+      }).then(function (ended) {
+        if (!ended) return no("the simulation did not finish");
+        return current(s) ? { results: s.results } : unsolved(s);
+      });
+    });
   }
 
   function graphSummary(app, results) {
@@ -98,12 +131,9 @@
   }
 
   function solved(app, profile) {
-    var before = app.state.results;
-    app.solve();
-    return settle(app, before).then(function (ok) {
-      if (!ok) return { ok: false, output: "the simulation did not finish" };
-      var r = app.state.results;
-      return { ok: true, output: shape(profile === "architecture" ? graphSummary(app, r) : r) };
+    return fresh(app).then(function (f) {
+      if (!f.results) return f;
+      return done(shape(profile === "architecture" ? graphSummary(app, f.results) : f.results));
     });
   }
 
@@ -131,11 +161,9 @@
     },
     compare: function (app, i) {
       if (!app.setScenario(i.scenario || "")) return no("no scenario “" + i.scenario + "”");
-      var before = app.state.results;
-      app.solve();
-      return settle(app, before).then(function (ok) {
-        if (!ok) return no("the simulation did not finish");
-        var C = window.effractorComparison, r = app.state.results;
+      return fresh(app).then(function (f) {
+        if (!f.results) return f;
+        var C = window.effractorComparison, r = f.results;
         var graph = app.state.generated && app.state.generated.graph;
         try {
           return done(shape({ summary: C.summary(r), routes: C.routes(graph, r, app.state.doc, i.scenario) }));
@@ -178,11 +206,16 @@
     },
   };
 
-  // {app, tools, catalog, profile}: run(call, access) → {id, ok, output, select}.
+  // {app, tools, catalog, profile, docId, openId}: run(call, access) → {id,
+  // ok, output, select}. `openId()` is the account document open now; a call
+  // made after the turn's (`docId`, else the one open at creation) was closed
+  // is refused, so an edit never lands on the other one.
   function createExecutor(o) {
     var queue = Promise.resolve();
+    var mine = o.docId !== undefined ? o.docId : o.openId ? o.openId() : null;
     function one(call, access) {
       var name = call.name, input = call.input || {};
+      if (o.openId && o.openId() !== mine) return Promise.resolve(no("the document was closed"));
       if (!allowed(name, o.profile, access, o.catalog)) return Promise.resolve(no("not allowed for you here"));
       if (input && Object.prototype.hasOwnProperty.call(input, "_unparsed")) return Promise.resolve(no("the input was not JSON"));
       if (Object.prototype.hasOwnProperty.call(PAGE, name)) {

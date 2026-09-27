@@ -338,6 +338,23 @@
   var ARCH = { add_entity: addEntity, set_entity: setEntity, link: archLink, put_flow: putFlow, remove: remove, set_attacker: setAttacker,
     cluster: cluster, put_scenario: putScenario, remove_scenario: removeScenario, set_change: setChange, set_speed: setSpeed, set_analysis: setAnalysis, rename_document: renameDocument };
 
+  // The lists each tool takes (tools.json). Anything else in their place is
+  // refused before the tool reads it: an object there once cleared the list.
+  var LISTS = { put_control: ["effects"], set_node: ["consequences"], add_entity: ["addresses"], set_entity: ["addresses", "identities"],
+    put_flow: ["route"], set_attacker: ["footholds"], cluster: ["members"] };
+  // Where the tool reads null as none.
+  var NULLABLE = { consequences: true, addresses: true, identities: true, route: true, members: true };
+
+  function wrongList(name, input) {
+    var fields = LISTS[name] || [];
+    for (var f = 0; f < fields.length; f++) {
+      var v = input[fields[f]];
+      if (v === undefined || Array.isArray(v) || (v === null && NULLABLE[fields[f]])) continue;
+      return { refused: fields[f] + " is a list" };
+    }
+    return null;
+  }
+
   // `replace_document` needs wasm to read YAML: page.js does it.
   function edit(name, input, ctx) {
     var table = ctx.profile === "architecture" ? ARCH : TREE;
@@ -345,6 +362,8 @@
     if (!has(table, name)) return { refused: "no tool “" + name + "” here" };
     if (!input || typeof input !== "object" || Array.isArray(input)) return { refused: "the input is an object" };
     if (has(input, "_unparsed")) return { refused: "the input was not JSON: " + str(input._unparsed).slice(0, 80) };
+    var list = wrongList(name, input);
+    if (list) return list;
     try {
       return table[name](ctx, input) || { refused: NOTHING };
     } catch (e) {

@@ -102,7 +102,12 @@
     };
   }
 
-  var api = { createParser: createParser, createAssistantClient: createAssistantClient };
+  // UTF-8 bytes: the server's message_bytes counts these, not characters.
+  function bytes(text) {
+    return new TextEncoder().encode(String(text)).length;
+  }
+
+  var api = { createParser: createParser, createAssistantClient: createAssistantClient, bytes: bytes };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorAssistantClient = api;
 })();

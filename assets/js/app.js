@@ -1475,10 +1475,9 @@
         if (arch && scenario !== state.scenario) return;
         if (arch) state.blockers = null;
         state.lastSampledMs = performance.now() - started;
-        if (arch) {
-          state.solvedRevision = revision;
-          showGraph(answer.result);
-        }
+        // What state.results describe: the agent's tools report only these.
+        state.solvedRevision = revision;
+        if (arch) showGraph(answer.result);
         else showAll(answer);
         // What is still unknown is what is left to do: counted where the
         // blockers were, and listed from there (attack-ui.js).

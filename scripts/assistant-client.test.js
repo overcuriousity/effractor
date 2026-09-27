@@ -40,3 +40,9 @@ test('a refusal is data, and no network is status 0', async () => {
   const off = C.createAssistantClient(async () => { throw new Error('down'); }, '');
   assert.deepEqual(await off.send(1, 'x', '', () => {}), { ok: false, status: 0, data: 'offline' });
 });
+
+test('a message is measured in bytes, as the server counts it', () => {
+  assert.equal(C.bytes('abc'), 3);
+  assert.equal(C.bytes('é'), 2);
+  assert.equal(C.bytes('→'), 3);
+});

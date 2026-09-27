@@ -39,17 +39,39 @@ test('every edit tool in the catalog has an operation', () => {
   }
 });
 
+// Every list a tool takes, from its schema: a list, or also null.
+function listsOf(tool) {
+  return Object.entries(tool.schema.properties || {}).filter(([, s]) =>
+    s.type === 'array' || (s.anyOf || []).some((a) => a.type === 'array')).map(([name]) => name);
+}
+
 test('every tool refuses bad input with a reason', () => {
+  // A label alone makes a new asset, control or scenario: not bad for those.
   const bad = [{}, { id: 'nope' }, { id: 42 }, { parent: 'nope', label: '' }, { kind: 'spaceship', label: 'x' }, { collection: 'x', id: 'y' }];
   for (const t of catalog.filter((t) => t.access === 'edit')) {
     for (const p of t.profiles) {
       for (const input of bad) {
+        if (input.kind && !(t.schema.properties || {}).kind && ['put_asset', 'put_control', 'put_scenario'].includes(t.name)) continue;
         const r = T.edit(t.name, input, p === 'architecture' ? arch() : tree());
-        if (r.refused) assert.equal(typeof r.refused, 'string');
-        assert.ok(r.refused || r.doc, `${t.name}(${JSON.stringify(input)})`);
+        assert.equal(typeof r.refused, 'string', `${t.name}(${JSON.stringify(input)}) in ${p}`);
+      }
+      // A list given as anything else is refused, and says it is a list.
+      for (const name of listsOf(t)) {
+        for (const value of [{ node: 'a', ttc: 'exp(1)' }, 'a', 3]) {
+          const r = T.edit(t.name, { id: 'a', [name]: value }, p === 'architecture' ? arch() : tree());
+          assert.equal(r.refused, name + ' is a list', `${t.name}.${name} = ${JSON.stringify(value)} in ${p}`);
+        }
       }
     }
   }
+});
+
+test('a wrong-typed list wipes nothing', () => {
+  let d = T.edit('put_control', { label: 'Backup', effects: [{ node: 'a', ttc: 'exp(100)' }] }, tree()).doc;
+  assert.equal(T.edit('put_control', { id: 'backup', effects: { node: 'a', ttc: 'exp(1)' } }, tree(d)).refused, 'effects is a list');
+  d = T.edit('add_entity', { kind: 'host', label: 'H' }, arch()).doc;
+  d = T.edit('set_attacker', { footholds: [{ entity: 'h', state: 'access' }] }, arch(d)).doc;
+  assert.equal(T.edit('set_attacker', { footholds: { entity: 'h', state: 'access' } }, arch(d)).refused, 'footholds is a list');
 });
 
 test('add_entity then set_entity then link, as the agent would populate from a scan', () => {
