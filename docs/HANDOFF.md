@@ -6,6 +6,50 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — masscan and Greenbone beside nmap (2026-09-27)
+
+Roadmap `scanner-readers` (#161) and `greenbone-import` (#162, stacked),
+built in one session from the roadmap's text; no spec or plan was written.
+One application per tool (`tool: nmap | masscan | greenbone`, core `Tool`),
+each reading into the scan `nmap-plan.js` plans from; planning, the preview
+and adding stay one.
+
+- **`scanners.js`** is the registry: `TOOLS` (id, name, `read`, `stampFor`,
+  `looks`), `tool(entity)`, `addScanner`, `read(id, text)` (a result pasted
+  into the wrong tool's dialog says where it goes), `stampFor`. Every
+  scanner's stamp is its own line (`Last masscan import: …`); `apply` takes
+  `{line, pattern}` or nmap's stamp as before.
+- **masscan** (`masscan.js`): its `-oX` is nmap's XML (checked against
+  masscan's `src/out-xml.c`: a `<host>` per port, no `<status>`, banners as
+  `<service name banner>`), read by `nmap-read.js` with `{scanner:
+  "masscan"}`. A listed host answered; a listing that names a port beats one
+  that does not; a page title or certificate is not a service; a port is
+  named by `portName` (nmap's own table, shared). The command: ports (common
+  / all TCP / all TCP + common UDP) and speed (100 / 1,000 / 10,000 per
+  second, a warning at the last); addresses only in the range.
+- **Greenbone** (`greenbone.js`): the XML report (a download, or a GMP
+  answer). Hosts, names, OS (`best_os_txt`), MAC, open ports from the
+  details, the ports list and every result; products from application CPEs
+  (`cpeLabel`: `openssh 9.6p1`); a result with severity above 0 is a
+  finding, on its port or (`general/…`) on the host, where it is shown *not
+  applied*. Fixture hand-written in the shape of GVM 9 and 22.6 exports (the
+  DefectDojo test reports were the reference for the shape).
+- **Plan:** findings are neutral (`{source, key, title, state, ids}` on a
+  port's or host's `findings`) beside nmap's scripts; the note line names
+  the source (`Greenbone: High 8.1, CVE-… (…)`). Product labels match
+  whatever their case. A flow that another scanner on the same host already
+  draws to that service is not drawn again. Only nmap offers a product in
+  another version.
+- **Dialog:** one dialog; step 1 is the tool's (nmap's recipes, masscan's
+  ports and speed, Greenbone's export steps), then the shared range/command
+  (not for Greenbone), paste and preview. Add menus list all three; the
+  light bulb stays nmap's.
+- **Checks:** `scripts/masscan.test.js`, `scripts/greenbone.test.js`;
+  `scripts/fixtures/{masscan,greenbone}/imported.doc.json` pinned by Node,
+  `tests/json.rs` and `check-nmap-wasm.js`. nmap's tests did not change.
+- **Open:** real masscan and Greenbone output from the owner against the
+  hand-written fixtures; `nuclei-import` is ready on the roadmap.
+
 ## Continuation — nmap recipes (2026-09-27)
 
 Built from the spec `2026-09-27-nmap-recipes-design.md` (deleted with this
