@@ -112,7 +112,15 @@
     return out;
   }
 
-  var api = { blocks: blocks, perComponent: perComponent, plain: plain, named: named, hint: hint, items: items, headline: headline };
+  // Which diagnostic says why the format refused a text: its first error;
+  // a note that happened to come first is not the reason.
+  function refusal(diagnostics) {
+    var all = diagnostics || [];
+    for (var i = 0; i < all.length; i++) if (all[i].severity === "error") return all[i];
+    return all[0] || null;
+  }
+
+  var api = { blocks: blocks, refusal: refusal, perComponent: perComponent, plain: plain, named: named, hint: hint, items: items, headline: headline };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorProblems = api;
 })();

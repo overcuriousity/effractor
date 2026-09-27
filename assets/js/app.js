@@ -760,6 +760,11 @@
     return problem.message + where;
   }
 
+  // Why the format refused a text, in one line.
+  function why(diagnostics) {
+    return describe(PR.refusal(diagnostics) || { message: "refused" });
+  }
+
   // `fit` on a fresh document; an edit leaves the view where the author put it.
   function loaded(text, doc, fit) {
     // A selection means nothing in another profile, even before select() runs.
@@ -1016,7 +1021,7 @@
   function adopt(text, selectId, parent, fit, beforeCommit) {
     var token = gate.issue("document");
     return solver.parse(text).then(function (parsed) {
-      if (!parsed.ok) throw new Error(describe(parsed.diagnostics[0]));
+      if (!parsed.ok) throw new Error(why(parsed.diagnostics));
       // A newer text was sent for adoption meanwhile, or the source changed.
       if (!gate.accept(token)) return false;
       if (beforeCommit && !beforeCommit()) return false;
@@ -1076,7 +1081,7 @@
     if (!edit) return Promise.resolve({ ok: false, reason: "that changes nothing" });
     var before = state.text;
     return solver.serialize(edit.doc).then(function (written) {
-      if (!written.ok) return { ok: false, reason: describe(written.diagnostics[0]) };
+      if (!written.ok) return { ok: false, reason: why(written.diagnostics) };
       if (written.ok === before) return { ok: false, reason: "that changes nothing" };
       // Into the history only if it is committed: a text overtaken by a
       // newer one on its way through the worker leaves no trace.
@@ -1199,7 +1204,7 @@
       })
       .then(function (text) {
         return solver.parse(text).then(function (parsed) {
-          if (!parsed.ok) throw new Error(describe(parsed.diagnostics[0]));
+          if (!parsed.ok) throw new Error(why(parsed.diagnostics));
           state.diagnostics = parsed.diagnostics || [];
           undoStack = historyOf(parsed.ok.profile);
           var samples = samplesOverride(location.search);
@@ -1217,7 +1222,7 @@
           // back into canonical text.
           parsed.ok.analysis.samples = samples;
           return solver.serialize(parsed.ok).then(function (written) {
-            if (!written.ok) throw new Error(describe(written.diagnostics[0]));
+            if (!written.ok) throw new Error(why(written.diagnostics));
             return Promise.resolve(loaded(written.ok, parsed.ok, true)).then(function (v) { return told(v, written.ok); });
           });
         });
@@ -1652,7 +1657,7 @@
       // In canonical form, as every other text the page holds.
       return solver.serialize(parsed.ok).then(function (written) {
         if (isCurrent && !isCurrent()) return false;
-        if (!written.ok) return say("not opened: " + describe(written.diagnostics[0]));
+        if (!written.ok) return say("not opened: " + why(written.diagnostics));
         return keptElsewhere(parsed.ok.profile).then(function (kept) {
           return adopt(written.ok, null, null, true, function () {
             // Link navigation may have changed during the worker round trips.
@@ -1688,7 +1693,7 @@
     var errors = diagnostics.filter(function (d) {
       return d.severity === "error";
     }).length;
-    if (!window.effractor.showSourceText) return say(what + ": " + describe(diagnostics[0]));
+    if (!window.effractor.showSourceText) return say(what + ": " + why(diagnostics));
     window.effractor.showSourceText(text, diagnostics);
     say(what + " · " + errors + (errors === 1 ? " problem" : " problems") + " · listed under the source");
     return false;

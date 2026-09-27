@@ -6,6 +6,9 @@
   var node = typeof module !== "undefined";
   var ACCESS = { read: ["read", "view"], edit: ["read", "view", "edit"] };
   var SETTLE_MS = 120000;
+  // The catalog is fixed and read once a session: it gets its own cap, one
+  // it fits under whole (scripts/assistant-page.test.js holds that).
+  var CATALOG_LIMIT = 24000;
 
   function toolOf(name, profile, catalog) {
     return (catalog || []).filter(function (t) {
@@ -29,6 +32,37 @@
   function stateLine(app) {
     var s = app.state || {};
     return shape({ view: s.mode || null, selection: s.selected || null, scenario: s.scenario || "", name: s.doc ? s.doc.name : null }, 2000);
+  }
+
+  // The catalog as the agent needs it: what each kind, relationship, state,
+  // defense, parameter and rule is, without the words written for people
+  // and the rules' fine print; and what a flow needs, which the format
+  // checks but the catalog does not list.
+  function forAgent(c) {
+    function pick(o, keys) {
+      var out = {};
+      keys.forEach(function (k) { out[k] = o[k]; });
+      return out;
+    }
+    return {
+      library: c.library,
+      entities: (c.entities || []).map(function (e) { return pick(e, ["kind", "description", "states", "parameters", "defense"]); }),
+      associations: c.associations,
+      flows: {
+        source: "an application or service; its host is attached to the route's first network",
+        target: "a service, which needs a host and an instance-of product",
+        route: "network, router, network, … in order, from the source's network to the target's; each router attached to the networks beside it",
+        permits: "a router with a firewall lets the flow through only with a permits association (allowed: true) from that firewall to the flow",
+      },
+      states: (c.states || []).map(function (s) { return pick(s, ["id", "description"]); }),
+      defenses: (c.defenses || []).map(function (d) { return pick(d, ["id", "description"]); }),
+      parameters: (c.parameters || []).map(function (p) { return pick(p, ["slot", "owner", "description"]); }),
+      rules: (c.rules || []).map(function (r) {
+        var out = pick(r, ["id", "title", "prerequisites", "output"]);
+        if (r.duration && r.duration.slot) out.slot = r.duration.slot;
+        return out;
+      }),
+    };
   }
 
   function wait(ms) {
@@ -110,8 +144,8 @@
         }
       });
     },
-    catalog: function (app, i, limit) {
-      return app.solver.catalog().then(function (a) { return a.ok ? done(shape(a.ok, limit)) : no("no component catalog"); });
+    catalog: function (app) {
+      return app.solver.catalog().then(function (a) { return a.ok ? done(shape(forAgent(a.ok), CATALOG_LIMIT)) : no("no component catalog"); });
     },
     attack_graph: function (app, i, limit) {
       return app.generate().then(function (r) {
@@ -135,7 +169,7 @@
     },
     replace_document: function (app, i, limit, profile) {
       return app.solver.parse(String(i.yaml || "")).then(function (parsed) {
-        if (!parsed.ok) return no(((parsed.diagnostics || [])[0] || {}).message || "the YAML does not read");
+        if (!parsed.ok) return no((window.effractorProblems.refusal(parsed.diagnostics) || {}).message || "the YAML does not read");
         if (parsed.ok.profile !== profile) return no("the profile stays " + profile);
         return app.tryEdit({ doc: parsed.ok, select: null }).then(function (r) {
           return r.ok ? done("Replaced the document") : no(r.reason);
@@ -158,7 +192,8 @@
       var edit = o.tools.edit(name, input, { doc: o.app.state.doc, profile: o.profile, catalog: o.componentCatalog || null });
       if (edit.refused) return Promise.resolve(no(edit.refused));
       return o.app.tryEdit(edit).then(function (r) {
-        return r.ok ? done(edit.said + (edit.select ? " → " + edit.select : ""), edit.select) : no(r.reason);
+        // The plain id: every tool but show takes it unqualified.
+        return r.ok ? done(edit.said + (edit.select ? ", id " + edit.select.replace(/^[a-z]+\//, "") : ""), edit.select) : no(r.reason);
       });
     }
     return {

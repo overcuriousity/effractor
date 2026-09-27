@@ -38,3 +38,30 @@ test('a viewer\'s page refuses an edit call even if the model sent one', async (
   const r = await x.run({ id: '9', name: 'remove', input: {} }, 'read');
   assert.deepEqual([r.ok, r.output], [false, 'not allowed for you here']);
 });
+
+test('an applied edit names the plain id the other tools take', async () => {
+  const app = { state: { doc: { profile: 'architecture' } }, tryEdit: () => Promise.resolve({ ok: true }) };
+  const said = (select) => ({ edit: () => ({ doc: {}, select, said: 'Added network “Internet”' }) });
+  const run = (select) => P.createExecutor({ app, tools: said(select), catalog, profile: 'architecture' })
+    .run({ id: '1', name: 'add_entity', input: { kind: 'network', label: 'Internet' } }, 'edit');
+  const r = await run('entity/internet');
+  assert.equal(r.output, 'Added network “Internet”, id internet');
+  assert.equal(r.select, 'entity/internet', 'the page still selects the qualified item');
+  assert.equal((await run(null)).output, 'Added network “Internet”');
+});
+
+test('the catalog reaches the agent whole: every rule, and what a flow needs', async () => {
+  const full = JSON.parse(require('node:fs').readFileSync('scripts/fixtures/catalog.json', 'utf8'));
+  const app = { state: {}, solver: { catalog: () => Promise.resolve({ ok: full }) } };
+  const x = P.createExecutor({ app, tools: {}, catalog, profile: 'architecture' });
+  const r = await x.run({ id: '1', name: 'catalog', input: {} }, 'read');
+  assert.equal(r.ok, true);
+  assert.ok(!r.output.endsWith('… (cut)'), 'not cut');
+  const c = JSON.parse(r.output);
+  assert.deepEqual(c.rules.map((x) => x.id), full.rules.map((x) => x.id));
+  assert.deepEqual(c.associations.map((x) => x.kind), full.associations.map((x) => x.kind));
+  assert.deepEqual(c.entities.map((x) => x.kind), full.entities.map((x) => x.kind));
+  assert.match(c.flows.source, /application or service/);
+  assert.match(c.flows.target, /service/);
+  assert.match(c.flows.route, /network/);
+});

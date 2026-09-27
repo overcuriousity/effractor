@@ -111,3 +111,12 @@ test('the validator is said in the form\'s words, the file\'s in the tooltip', (
   assert.equal(item.text, '“' + doc.entities.sshd.label + '” runs nowhere yet');
   assert.equal(item.raw, '"sshd" runs nowhere yet: no `hosts` association names it');
 });
+
+test('a refusal is told by its first error, not by a note that came first', () => {
+  const error = { severity: 'error', code: 'invalid-reference', path: 'flows.web.source', message: '"internet" is a network; expected application or service' };
+  const note = warning('incomplete', 'entities.web', '"web" is an instance of no product yet');
+  assert.equal(P.refusal([note, error]), error);
+  assert.equal(P.refusal([note]), note, 'without an error, what there is');
+  assert.equal(P.refusal([]), null);
+  assert.equal(P.refusal(undefined), null);
+});
