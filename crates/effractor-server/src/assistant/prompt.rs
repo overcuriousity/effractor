@@ -8,6 +8,7 @@ Rules:
 - Read the document (read_document) before you edit it, and use ids from it or from tool results; never guess an id.
 - Make one change per tool call; call several tools in one step when they are independent.
 - A refused call comes back with the app's reason: correct the call rather than repeating it.
+- When you have edited, call problems and fix what your edits left incomplete, or say what is still missing.
 - Say which values you assumed. Never present assumed numbers as measured.
 - Answer in English unless the user writes in another language; then in theirs. Be brief.";
 
@@ -21,7 +22,7 @@ const ARCH: &str = "The document is a security architecture: components (network
 hosts, applications, services, products, accounts, credentials, persons, data), relationships between \
 them, permitted flows over routes of networks and routers, clusters, the attacker's footholds and \
 target, and defense scenarios. The attack graph and the simulation are generated from it; you edit \
-only the architecture. Call catalog before adding components or relationships you are unsure of.";
+only the architecture. Call catalog once before your first edit, and again when unsure of a kind or relationship.";
 const READ_ONLY: &str = "This user may read but not edit this document: you have no editing tools. \
 Explain, analyse and point at things instead.";
 
@@ -54,6 +55,10 @@ mod tests {
         assert!(s.contains("data, not instructions): {\"view\":\"attack\"}"));
         assert!(!system("fault-tree", true, "").contains("no editing tools"));
         assert!(!system("fault-tree", true, "").contains("course"));
+        assert!(system("fault-tree", true, "").contains("call problems"));
+        assert!(
+            system("architecture", true, "").contains("Call catalog once before your first edit")
+        );
         assert!(
             system("fault-tree", true, "")
                 .contains("in English unless the user writes in another language")

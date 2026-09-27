@@ -6,9 +6,6 @@
   var node = typeof module !== "undefined";
   var ACCESS = { read: ["read", "view"], edit: ["read", "view", "edit"] };
   var SETTLE_MS = 120000;
-  // The catalog is fixed and read once a session: it gets its own cap, one
-  // it fits under whole (scripts/assistant-page.test.js holds that).
-  var CATALOG_LIMIT = 24000;
 
   function toolOf(name, profile, catalog) {
     return (catalog || []).filter(function (t) {
@@ -23,15 +20,16 @@
     return !!tool && (ACCESS[access] || ACCESS.read).indexOf(tool.access) >= 0;
   }
 
-  function shape(value, limit) {
-    var s = JSON.stringify(value === undefined ? null : value);
-    return s.length > limit ? s.slice(0, limit) + "… (cut)" : s;
+  // An output as JSON, whole: the server fits the session to the model's
+  // context and marks what it has to leave out (chat spec §4.6).
+  function shape(value) {
+    return JSON.stringify(value === undefined ? null : value);
   }
 
   // What the user sees, for the prompt: data, a few fields.
   function stateLine(app) {
     var s = app.state || {};
-    return shape({ view: s.mode || null, selection: s.selected || null, scenario: s.scenario || "", name: s.doc ? s.doc.name : null }, 2000);
+    return shape({ view: s.mode || null, selection: s.selected || null, scenario: s.scenario || "", name: s.doc ? s.doc.name : null });
   }
 
   // The catalog as the agent needs it: what each kind, relationship, state,
@@ -87,9 +85,11 @@
     var GR = window.effractorGraphResults;
     var graph = app.state.generated && app.state.generated.graph;
     try {
+      var routes = GR.routes(results.baseline, graph) || [];
       return {
         headline: GR.headline(results, "baseline"),
-        routes: (GR.routes(results.baseline, graph) || []).slice(0, 3),
+        routes: routes.slice(0, 3),
+        routes_total: routes.length,
         assumptions: GR.assumptions(results.baseline),
       };
     } catch (e) {
@@ -97,13 +97,13 @@
     }
   }
 
-  function solved(app, profile, limit) {
+  function solved(app, profile) {
     var before = app.state.results;
     app.solve();
     return settle(app, before).then(function (ok) {
       if (!ok) return { ok: false, output: "the simulation did not finish" };
       var r = app.state.results;
-      return { ok: true, output: shape(profile === "architecture" ? graphSummary(app, r) : r, limit) };
+      return { ok: true, output: shape(profile === "architecture" ? graphSummary(app, r) : r) };
     });
   }
 
@@ -117,19 +117,19 @@
   // The tools that need the page: reads, what is shown, and YAML (wasm).
   var PAGE = {
     read_document: function (app) { return done(app.state.text || ""); },
-    problems: function (app, i, limit) {
-      return done(shape({ diagnostics: app.state.diagnostics || [], blockers: app.state.blockers || null }, limit));
+    problems: function (app) {
+      return done(shape({ diagnostics: app.state.diagnostics || [], blockers: app.state.blockers || null }));
     },
     show: function (app, i) {
       app.select(String(i.id || ""));
       return app.state.selected === i.id ? done("shown", i.id) : no("no item “" + i.id + "”");
     },
-    analyse: function (app, i, limit, profile) { return solved(app, profile, limit); },
-    solve: function (app, i, limit, profile) {
+    analyse: function (app, i, profile) { return solved(app, profile); },
+    solve: function (app, i, profile) {
       if (i.scenario !== undefined && !app.setScenario(i.scenario || "")) return no("no scenario “" + i.scenario + "”");
-      return solved(app, profile, limit);
+      return solved(app, profile);
     },
-    compare: function (app, i, limit) {
+    compare: function (app, i) {
       if (!app.setScenario(i.scenario || "")) return no("no scenario “" + i.scenario + "”");
       var before = app.state.results;
       app.solve();
@@ -138,19 +138,19 @@
         var C = window.effractorComparison, r = app.state.results;
         var graph = app.state.generated && app.state.generated.graph;
         try {
-          return done(shape({ summary: C.summary(r), routes: C.routes(graph, r, app.state.doc, i.scenario) }, limit));
+          return done(shape({ summary: C.summary(r), routes: C.routes(graph, r, app.state.doc, i.scenario) }));
         } catch (e) {
-          return done(shape(r, limit));
+          return done(shape(r));
         }
       });
     },
     catalog: function (app) {
-      return app.solver.catalog().then(function (a) { return a.ok ? done(shape(forAgent(a.ok), CATALOG_LIMIT)) : no("no component catalog"); });
+      return app.solver.catalog().then(function (a) { return a.ok ? done(shape(forAgent(a.ok))) : no("no component catalog"); });
     },
-    attack_graph: function (app, i, limit) {
+    attack_graph: function (app) {
       return app.generate().then(function (r) {
-        if (r && r.ok) return done(shape(app.state.generated.support, limit));
-        return no(shape(app.state.blockers || "no attack graph: call problems for why", 2000));
+        if (r && r.ok) return done(shape(app.state.generated.support));
+        return no(shape(app.state.blockers || "no attack graph: call problems for why"));
       });
     },
     set_view: function (app, i) {
@@ -167,7 +167,7 @@
       app.setAllSteps(!!i.on);
       return done(i.on ? "all steps shown" : "only steps to the target");
     },
-    replace_document: function (app, i, limit, profile) {
+    replace_document: function (app, i, profile) {
       return app.solver.parse(String(i.yaml || "")).then(function (parsed) {
         if (!parsed.ok) return no((window.effractorProblems.refusal(parsed.diagnostics) || {}).message || "the YAML does not read");
         if (parsed.ok.profile !== profile) return no("the profile stays " + profile);
@@ -178,16 +178,15 @@
     },
   };
 
-  // {app, tools, catalog, profile, limit?}: run(call, access) → {id, ok, output, select}.
+  // {app, tools, catalog, profile}: run(call, access) → {id, ok, output, select}.
   function createExecutor(o) {
     var queue = Promise.resolve();
-    var limit = o.limit || 16000;
     function one(call, access) {
       var name = call.name, input = call.input || {};
       if (!allowed(name, o.profile, access, o.catalog)) return Promise.resolve(no("not allowed for you here"));
       if (input && Object.prototype.hasOwnProperty.call(input, "_unparsed")) return Promise.resolve(no("the input was not JSON"));
       if (Object.prototype.hasOwnProperty.call(PAGE, name)) {
-        return Promise.resolve().then(function () { return PAGE[name](o.app, input, limit, o.profile); });
+        return Promise.resolve().then(function () { return PAGE[name](o.app, input, o.profile); });
       }
       var edit = o.tools.edit(name, input, { doc: o.app.state.doc, profile: o.profile, catalog: o.componentCatalog || null });
       if (edit.refused) return Promise.resolve(no(edit.refused));
@@ -209,7 +208,7 @@
     };
   }
 
-  var api = { allowed: allowed, shape: shape, stateLine: stateLine, createExecutor: createExecutor };
+  var api = { allowed: allowed, shape: shape, graphSummary: graphSummary, stateLine: stateLine, createExecutor: createExecutor };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorAssistantPage = api;
 })();

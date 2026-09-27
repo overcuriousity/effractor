@@ -1,7 +1,8 @@
 //! Fitting a session into the model's context (chat spec §4.6): the task
 //! (the first turn) and the latest turns stay, whole turns go from the
-//! middle, and a marker says how many. A single oversized text keeps its head
-//! and tail. Deterministic; nothing is summarised; the stored session is
+//! middle, and a marker says how many. Only when the latest turn does not
+//! fit on its own does a text larger than a quarter of the budget keep just
+//! its head and tail. Deterministic; nothing is summarised; the stored session is
 //! never changed.
 
 use super::message::{Block, Message, Role};
@@ -64,10 +65,22 @@ fn size(m: &Message) -> usize {
         + 8
 }
 
-/// The messages to send, and how many whole turns were left out.
+/// The messages to send, and how many whole turns were left out. Whole
+/// turns go from the middle first; only when the latest turn does not fit
+/// on its own are its large texts cut.
 pub fn fit(history: &[Message], budget_chars: usize) -> (Vec<Message>, u32) {
+    if let Some(sent) = by_turns(history.to_vec(), budget_chars, false) {
+        return sent;
+    }
     let limit = (budget_chars / 4).max(64);
-    let msgs: Vec<Message> = history.iter().map(|m| trimmed(m, limit)).collect();
+    let msgs = history.iter().map(|m| trimmed(m, limit)).collect();
+    by_turns(msgs, budget_chars, true).unwrap_or_default()
+}
+
+/// The task's turn and the latest turns that fit, a marker for the rest;
+/// `None` when the task's turn and the latest one do not fit whole, unless
+/// `anyway`.
+fn by_turns(msgs: Vec<Message>, budget_chars: usize, anyway: bool) -> Option<(Vec<Message>, u32)> {
     // Turns start at each user message.
     let mut turns: Vec<Vec<Message>> = Vec::new();
     for m in msgs {
@@ -80,12 +93,19 @@ pub fn fit(history: &[Message], budget_chars: usize) -> (Vec<Message>, u32) {
     }
     let cost = |t: &Vec<Message>| t.iter().map(size).sum::<usize>();
     let total: usize = turns.iter().map(cost).sum();
-    if total <= budget_chars || turns.len() <= 1 {
-        return (turns.into_iter().flatten().collect(), 0);
+    if total <= budget_chars {
+        return Some((turns.into_iter().flatten().collect(), 0));
     }
     let marker = 40;
-    let last = turns.len() - 1;
+    let last = turns.len().checked_sub(1)?;
+    if last == 0 {
+        return anyway.then(|| (turns.into_iter().flatten().collect(), 0));
+    }
     let first_cost = cost(&turns[0]);
+    // The task's turn stays: rather cut than lose it.
+    if !anyway && first_cost + cost(&turns[last]) + marker > budget_chars {
+        return None;
+    }
     let keep_first = first_cost + cost(&turns[last]) + marker <= budget_chars;
     let mut used = if keep_first {
         first_cost + marker
@@ -115,7 +135,7 @@ pub fn fit(history: &[Message], budget_chars: usize) -> (Vec<Message>, u32) {
     for t in &turns[from..] {
         out.extend(t.iter().cloned());
     }
-    (out, left)
+    Some((out, left))
 }
 
 #[cfg(test)]
@@ -192,6 +212,67 @@ mod tests {
                 && output.contains("characters left out")
         );
         assert!(output.len() < 2_000);
+    }
+
+    #[test]
+    fn a_large_result_is_sent_whole_while_everything_fits() {
+        // The component catalog is read once and is larger than a quarter
+        // of the default budget; with room to spare it goes whole.
+        let catalog = "c".repeat(12_000);
+        let h = vec![
+            user("a"),
+            Message {
+                role: Role::Tool,
+                blocks: vec![Block::ToolResult {
+                    id: "1".into(),
+                    ok: true,
+                    output: catalog,
+                }],
+            },
+        ];
+        let (out, left) = fit(&h, 40_000);
+        assert_eq!((out, left), (h, 0));
+    }
+
+    #[test]
+    fn middle_turns_go_before_any_result_is_cut() {
+        // A long session: the task's turn read the catalog; dropping the
+        // middle makes room, so the catalog stays whole.
+        let catalog = "c".repeat(3_000);
+        let mut h = vec![
+            user("TASK"),
+            Message {
+                role: Role::Tool,
+                blocks: vec![Block::ToolResult {
+                    id: "1".into(),
+                    ok: true,
+                    output: catalog.clone(),
+                }],
+            },
+        ];
+        for i in 0..20 {
+            h.push(user(&format!("q{i} {}", "x".repeat(500))));
+            h.push(said("y"));
+        }
+        let (out, left) = fit(&h, 6_000);
+        assert!(left > 0);
+        assert_eq!(out[1], h[1], "the catalog is sent whole");
+    }
+
+    #[test]
+    fn a_task_turn_too_large_to_keep_whole_is_cut_not_dropped() {
+        let h = vec![
+            user(&format!("TASK{}END", "t".repeat(5_000))),
+            said("ok"),
+            user("next"),
+            said("done"),
+        ];
+        let (out, _) = fit(&h, 3_000);
+        let Block::Text { text } = &out[0].blocks[0] else {
+            panic!()
+        };
+        assert!(text.starts_with("TASK") && text.contains("characters left out"));
+        assert_eq!(out.last().unwrap(), &said("done"));
     }
 
     #[test]

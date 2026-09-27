@@ -10,10 +10,31 @@ test('a call outside the turn\'s access is refused', () => {
   assert.equal(P.allowed('add_node', 'architecture', 'edit', catalog), false, 'not a tool of this mode');
 });
 
-test('outputs are cut, and say so', () => {
-  assert.equal(P.shape('abc', 10), '"abc"');
-  const long = P.shape({ x: 'y'.repeat(100) }, 20);
-  assert.ok(long.length <= 20 + 8 && long.endsWith('… (cut)'));
+test('outputs go whole: the server fits them to the context, and says where it cut', () => {
+  assert.equal(P.shape('abc'), '"abc"');
+  const big = { x: 'y'.repeat(100000) };
+  assert.deepEqual(JSON.parse(P.shape(big)), big);
+});
+
+test('every problem reaches the agent, however many there are', async () => {
+  const diagnostics = Array.from({ length: 2000 }, (_, i) => ({ severity: 'warning', code: 'incomplete', path: 'entities.e' + i, message: 'm' + i }));
+  const app = { state: { diagnostics, blockers: null } };
+  const r = await P.createExecutor({ app, tools: {}, catalog, profile: 'architecture' }).run({ id: '1', name: 'problems', input: {} }, 'read');
+  assert.equal(JSON.parse(r.output).diagnostics.length, 2000);
+});
+
+test('the analysis summary says how many routes there are beside the first three', () => {
+  global.window = { effractorGraphResults: {
+    headline: () => 'h',
+    routes: () => [1, 2, 3, 4, 5],
+    assumptions: () => [],
+  } };
+  try {
+    const s = P.graphSummary({ state: { generated: { graph: {} } } }, { baseline: {} });
+    assert.deepEqual([s.routes, s.routes_total], [[1, 2, 3], 5]);
+  } finally {
+    delete global.window;
+  }
 });
 
 test('calls run one at a time, in order, and a refused edit comes back with its reason', async () => {
