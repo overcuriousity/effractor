@@ -212,3 +212,11 @@ test('what a scan covered: addresses, CIDR, octet ranges; never a name', () => {
   assert.equal(covers('fe80::1%eth0', 'fe80::1'), true);
   assert.equal(covers('', '10.0.2.7'), false);
 });
+
+test('all hosts at once leaves out another machine on a drawn host\'s address', () => {
+  const doc = afterDay1();
+  const p = N.plan(doc, 'nmap', day10(), '', {});
+  const t = N.tickHosts(p, N.defaults(p), true);
+  assert.deepEqual(p.hosts.map(h => t.hosts[h.key]), [true, true, false]);
+  assert.equal(N.identityWords(['mac:52:54:00:00:00:05', 'ssh-ed25519:aaaa0005', 'ecdsa-sha2-nistp256:ff'], 'QEMU virtual NIC'), 'MAC 52:54:00:00:00:05 (QEMU virtual NIC), SSH key ed25519, SSH key ecdsa-sha2-nistp256');
+});

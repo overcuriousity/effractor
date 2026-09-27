@@ -370,12 +370,27 @@ test('a component with something to finish carries how many', () => {
   assert.equal(node('srv').blocking, 0);
 });
 
+test('a host a scan did not find rings as not seen, beside what else it is', () => {
+  const doc = lecture();
+  doc.entities.srv.missed = '2026-09-27';
+  doc.entities.srv.seen = '2026-09-17';
+  const g = V.describe(doc);
+  const server = g.nodes.filter(n => n.id === 'entity/srv')[0];
+  assert.deepEqual(server.rings.filter(r => r.state === 'missed'), [{ state: 'missed', why: 'not seen since 2026-09-27 · last seen 2026-09-17' }]);
+  assert.equal(server.rings[server.rings.length - 1].state, 'missed', 'after what it is exposed to');
+  assert.equal(V.ringsIn(g).missed, true);
+  assert.equal(V.ringsIn(V.describe(lecture())).missed, false);
+  // Only a host is looked for.
+  doc.entities.sshd.missed = '2026-09-27';
+  assert.ok(!V.describe(doc).nodes.filter(n => n.id === 'entity/sshd')[0].rings.some(r => r.state === 'missed'));
+});
+
 test('the legend names only the rings the drawing carries', () => {
   const none = V.ringsIn({ nodes: [{ rings: [] }, { cluster: { states: [null, null] } }] });
-  assert.deepEqual(none, { vulnerable: false, exposed: false, unknown: false, choke: false });
+  assert.deepEqual(none, { vulnerable: false, exposed: false, unknown: false, choke: false, missed: false });
   const some = V.ringsIn({ nodes: [{ rings: [{ state: 'exposed' }] }, { cluster: { states: ['vulnerable', 'unknown'] } }] });
-  assert.deepEqual(some, { vulnerable: true, exposed: true, unknown: true, choke: false });
-  assert.deepEqual(V.ringsIn(null), { vulnerable: false, exposed: false, unknown: false, choke: false });
+  assert.deepEqual(some, { vulnerable: true, exposed: true, unknown: true, choke: false, missed: false });
+  assert.deepEqual(V.ringsIn(null), { vulnerable: false, exposed: false, unknown: false, choke: false, missed: false });
 });
 
 test('a component every way to the target passes wears its own ring, and the legend names it', () => {

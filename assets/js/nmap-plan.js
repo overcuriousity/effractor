@@ -15,6 +15,16 @@
 
   // ---- planning (spec §3.4, §4) ----
 
+  // Identities in words: "MAC 52:54:00:12:34:56 (QEMU virtual NIC), SSH
+  // key ed25519".
+  function identityWords(identities, vendor) {
+    return (identities || []).map(function (i) {
+      var type = typeOf(i), value = String(i).slice(type.length + 1);
+      if (type === "mac") return "MAC " + value + (vendor ? " (" + vendor + ")" : "");
+      if (/^(ssh|ecdsa|sk)-/.test(type)) return "SSH key " + type.replace(/^ssh-/, "");
+      return type + " " + value;
+    }).join(", ");
+  }
   // "mac" of "mac:00:1a:…".
   function typeOf(identity) {
     return String(identity).slice(0, String(identity).indexOf(":"));
@@ -614,8 +624,12 @@
     });
     return ticks;
   }
+  // All hosts at once; another machine on a drawn host's address is
+  // chosen by itself, never with the rest.
   function tickHosts(p, ticks, on) {
-    p.hosts.forEach(function (h) { tickHost(h, ticks, on); });
+    p.hosts.forEach(function (h) {
+      if (!h.conflict) tickHost(h, ticks, on);
+    });
     return ticks;
   }
 
@@ -791,7 +805,7 @@
   function isAttached(doc, machine, net) {
     return links(doc, "attached").some(function (a) { return a.from === machine && a.to === net; });
   }
-  var api = { plan: plan, defaults: defaults, summary: summary, said: said, tickHost: tickHost, tickHosts: tickHosts, apply: apply };
+  var api = { identityWords: identityWords, plan: plan, defaults: defaults, summary: summary, said: said, tickHost: tickHost, tickHosts: tickHosts, apply: apply };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapPlan = api;
 })();

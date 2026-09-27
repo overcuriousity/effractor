@@ -689,8 +689,8 @@
       described = P.isArchitecture(state.doc) ? window.effractorArchitectureView.describe(state.doc, stateWord, PR.perComponent(state.diagnostics), choke) : window.effractorGraph.describe(state.doc);
       if (P.isArchitecture(state.doc) && window.effractorArchitectureView.ringsIn && $("legend-vulnerable")) {
         var rings = window.effractorArchitectureView.ringsIn(described);
-        ["vulnerable", "exposed", "unknown", "choke"].forEach(function (r) {
-          $("legend-" + r).hidden = !rings[r];
+        ["vulnerable", "exposed", "unknown", "choke", "missed"].forEach(function (r) {
+          if ($("legend-" + r)) $("legend-" + r).hidden = !rings[r];
         });
       }
     }

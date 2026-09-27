@@ -174,9 +174,17 @@
     var old = at.ticks;
     at.plan = N.plan(doc(), at.app, at.scan, $("nmap-range").value, at.merges);
     var fresh = N.defaults(at.plan);
-    at.ticks = old ? { hosts: keep(old.hosts, fresh.hosts), ports: keep(old.ports, fresh.ports), roles: keep(old.roles, fresh.roles), findings: keep(old.findings, fresh.findings), network: old.network } : fresh;
+    // What was ticked stays ticked over a new plan; what is new takes its default.
+    if (old) {
+      at.ticks = {};
+      Object.keys(fresh).forEach(function (group) {
+        var was = old[group];
+        at.ticks[group] = fresh[group] && typeof fresh[group] === "object" ? keep(was || {}, fresh[group]) : was == null ? fresh[group] : was;
+      });
+    } else at.ticks = fresh;
     var rows = $("nmap-rows");
     rows.textContent = "";
+    changes(rows);
     if (at.plan.network) {
       var net = el("li", null, "nmap-host");
       var netHead = check(at.ticks.network, "Network " + at.plan.network.label, function (on) {
@@ -187,10 +195,11 @@
       net.appendChild(netHead);
       rows.appendChild(net);
     }
+    onTheWay(rows);
     // One box for every host, where there are several (a /16 is past the limits).
     if (at.plan.hosts.length > 1) {
       var all = el("li", null, "nmap-host");
-      all.appendChild(check(at.plan.hosts.every(function (h) { return at.ticks.hosts[h.key]; }), "all hosts", function (on) {
+      all.appendChild(check(at.plan.hosts.every(function (h) { return h.conflict || at.ticks.hosts[h.key]; }), "all hosts", function (on) {
         N.tickHosts(at.plan, at.ticks, on);
         preview();
       }));
@@ -225,6 +234,7 @@
         ports.appendChild(item);
       });
       li.appendChild(ports);
+      li.appendChild(about(h));
       // Host checks with no port to go to, and scripts not read.
       var loose = el("ul", null, "nmap-findings");
       h.unplaced.forEach(function (f) { loose.appendChild(plain(f.script + " · " + f.id + " · not applied: no SMB service")); });
@@ -235,11 +245,120 @@
     var notes = [];
     if (at.plan.hosts.some(function (h) { return h.ports.some(function (r) { return !r.known; }); })) notes.push("Services run at an unknown privilege until you set it on their link.");
     if (at.plan.silentUdp) notes.push(at.plan.silentUdp + " UDP ports gave no answer (open|filtered); not added.");
+    if (at.scan.sharedMacs) notes.push(at.scan.sharedMacs + (at.scan.sharedMacs === 1 ? " MAC answers" : " MACs answer") + " for several addresses (a router or proxy); not used to tell machines apart.");
+    at.plan.changes.notes.forEach(function (n) { notes.push(n); });
     if (at.plan.tcpwrapped) notes.push(at.plan.tcpwrapped + (at.plan.tcpwrapped === 1 ? " port" : " ports") + " closed at once (tcpwrapped); not added.");
     $("nmap-notes").textContent = notes.join(" ");
     $("nmap-ask").hidden = true;
     $("nmap-preview").hidden = false;
     count();
+  }
+  // Nmap recipes spec §5.2: what differs from the drawing, in plain words,
+  // each with what ticking it does; nothing is ticked at first.
+  function changes(rows) {
+    var ch = at.plan.changes;
+    var apart = at.plan.hosts.filter(function (h) { return h.conflict; });
+    if (!ch.list.length && !apart.length) return;
+    var li = el("li", null, "nmap-host nmap-changes");
+    li.appendChild(el("span", "Changes" + (ch.since ? " since " + ch.since : ""), "label"));
+    var list = el("ul", null, "nmap-ports");
+    apart.forEach(function (h) {
+      var was = doc().entities[h.conflict.host];
+      var kind = h.conflict.type === "mac" ? "MAC" : "SSH key";
+      var row = el("span", null, "nmap-row warning");
+      row.appendChild(el("span", h.addresses.join(", ") + " answers with another " + kind + " than “" + was.label + "” · reinstalled, new hardware, or another machine?"));
+      var chosen = !at.ticks.hosts[h.key] ? "" : h.conflict.choice;
+      var menu = window.effractorMenu.dropdown([["", "leave it out"], ["new", "another machine · a new host"], ["same", "the same machine · update its identity"]], chosen);
+      menu.classList.add("nmap-merge");
+      menu.addEventListener("change", function () {
+        at.merges.conflicts = at.merges.conflicts || {};
+        if (menu.value === "same") at.merges.conflicts[h.key] = "same";
+        else delete at.merges.conflicts[h.key];
+        N.tickHost(h, at.ticks, menu.value !== "");
+        preview();
+      });
+      row.appendChild(menu);
+      var item = el("li");
+      item.appendChild(row);
+      list.appendChild(item);
+    });
+    ch.list.forEach(function (c) {
+      var item = el("li");
+      if (c.action) {
+        var row = check(!!at.ticks.changes[c.key], c.line + " · " + c.action, function (on) {
+          at.ticks.changes[c.key] = on;
+          count();
+        });
+        if (c.warn) row.classList.add("warning");
+        item.appendChild(row);
+      } else item.appendChild(el("span", c.line, "nmap-row"));
+      list.appendChild(item);
+    });
+    li.appendChild(list);
+    rows.appendChild(li);
+  }
+  // Spec §4.3, §4.4: the routers the traces went by that are not scanned
+  // hosts themselves, and the networks between hops.
+  function onTheWay(rows) {
+    var p = at.plan;
+    if (!p.routers.length) return;
+    var li = el("li", null, "nmap-host");
+    li.appendChild(el("span", "On the way", "label"));
+    var list = el("ul", null, "nmap-ports");
+    p.routers.forEach(function (r) {
+      var to = "on the way to " + r.targets + (r.targets === 1 ? " host" : " hosts");
+      var item = el("li");
+      if (r.row) item.appendChild(el("span", r.label + " · " + to + " · a scanned host, below", "nmap-row"));
+      else {
+        var what = r.router ? "known router" : r.known ? "adds a router on “" + r.label + "”" : "adds the box and its router";
+        var row = check(!!at.ticks.routers[r.key], "router at " + r.address + (r.label !== r.address ? " · " + r.label : "") + " · " + to + " · " + what, function (on) {
+          at.ticks.routers[r.key] = on;
+          count();
+        });
+        row.querySelector("input").disabled = !!r.router;
+        item.appendChild(row);
+      }
+      list.appendChild(item);
+    });
+    p.links.forEach(function (l) {
+      var net = l.network === "new" ? p.network && p.network.label : l.network ? doc().entities[l.network].label : null;
+      list.appendChild(plain(net ? "“" + net + "” joins " + l.label.replace(/^between /, "") : "adds network " + l.label));
+    });
+    li.appendChild(list);
+    rows.appendChild(li);
+  }
+  // Spec §3.3, §3.4: what the scan says of the host itself: what
+  // identifies it, where it moved, its better name, the way to it.
+  function about(h) {
+    var list = el("ul", null, "nmap-findings");
+    var on = !!at.ticks.hosts[h.key];
+    function offer(group, text) {
+      var row = check(!!at.ticks[group][h.key], text, function (ticked) {
+        at.ticks[group][h.key] = ticked;
+        count();
+      });
+      row.querySelector("input").disabled = !on;
+      var item = el("li");
+      item.appendChild(row);
+      list.appendChild(item);
+    }
+    var target = h.known || h.merged;
+    if (h.moved) {
+      offer("moves", "moved" + (h.moved.from.length ? " from " + h.moved.from.join(", ") : "") + " to " + h.moved.to.join(", ") + " · updates its addresses");
+      h.moved.others.forEach(function (o) {
+        offer("strips", "takes " + h.moved.to.join(", ") + " from “" + doc().entities[o].label + "”");
+      });
+    }
+    if (h.rename) offer("renames", "rename to “" + h.rename.to + "” · its " + h.rename.from + " name");
+    if (h.newIdentities.length) {
+      var words = N.identityWords(h.newIdentities, h.vendor);
+      if (target && !(h.conflict && h.conflict.choice === "same")) offer("identities", "adds " + words);
+      else list.appendChild(plain(words));
+    }
+    if (h.sharedIdentity) list.appendChild(plain("two drawn hosts share " + N.identityWords([h.sharedIdentity]) + " · matched by address"));
+    var way = N.routeSaid(at.plan, h.key);
+    if (way) list.appendChild(plain(way));
+    return list;
   }
   // Spec §3.4, §4.6: each finding under its port, and what is not read.
   function findings(h, r) {
@@ -299,7 +418,7 @@
 
   // Known, or new with a choice to merge it into a hand-drawn host.
   function state(h) {
-    if (h.known) return el("span", "known as “" + doc().entities[h.known].label + "”", "hint");
+    if (h.known) return el("span", "known as “" + doc().entities[h.known].label + "”" + (h.matchedBy === "identity" ? " · by its " + (h.identities.some(function (i) { return i.indexOf("mac:") === 0 && (doc().entities[h.known].identities || []).indexOf(i) >= 0; }) ? "MAC" : "SSH key") : ""), "hint");
     // A drawn host another row has taken is not offered again.
     var taken = at.plan.hosts.filter(function (o) { return o.key !== h.key && o.merged; }).map(function (o) { return o.merged; });
     var free = at.plan.candidates.filter(function (id) { return taken.indexOf(id) < 0; });
@@ -315,7 +434,7 @@
     if (!h.guessed) return menu;
     // nmap's own host, by its name in the scan: said, and one click to undo.
     var both = el("span", null, "nmap-merge-state");
-    both.appendChild(el("span", "nmap runs here?", "hint"));
+    both.appendChild(el("span", h.guessedBy === "name" ? "same name?" : "nmap runs here?", "hint"));
     both.appendChild(menu);
     return both;
   }
@@ -412,6 +531,21 @@
     paste.title = "Add another scan to the map";
     paste.addEventListener("click", function () { open(id); });
     U.field(form, "prop-nmap-paste", "Scan", paste);
+  });
+
+  // Nmap recipes spec §3.5: what identified a host and when it was seen,
+  // in one quiet row; absent when there is nothing.
+  U.rowExtras.push(function (form, id, e) {
+    if (e.kind !== "host") return;
+    var parts = [];
+    if ((e.identities || []).length) parts.push(N.identityWords(e.identities, e.vendor));
+    else if (e.vendor) parts.push(e.vendor);
+    if (e.missed) parts.push("not seen since " + e.missed);
+    if (e.seen) parts.push((e.missed ? "last seen " : "seen ") + e.seen);
+    if (!parts.length) return;
+    var said = el("span", parts.join(" · "), "identity");
+    said.title = "From nmap: what a later scan knows this machine by";
+    U.field(form, "prop-identity", "Identity", said);
   });
 
   // ---- the light bulb (owner, 2026-09-24) ----

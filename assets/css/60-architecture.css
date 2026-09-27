@@ -31,6 +31,9 @@
 .node-component .ring { fill: none; stroke-width: 3; }
 .node-component .ring-vulnerable { stroke: var(--color-danger); }
 .node-component .ring-exposed { stroke: var(--color-exposed); }
+/* A host a scan looked for and did not find: grey, dashed (nmap recipes
+   spec §5.2). */
+.node-component .ring-missed { stroke: var(--color-fg-muted); stroke-width: 2; stroke-dasharray: 3 4; }
 /* Every way to the target passes here: a thin double line, outside. */
 .node-component .ring-choke { stroke: var(--color-fg-primary); stroke-width: 1.25; stroke-dasharray: 8 2 1 2; }
 .node.is-choke .shape { stroke-width: 2; }
@@ -42,6 +45,7 @@
 /* Dashed as well as amber: under red-green colour blindness amber and the
    danger red are nearly one colour (light theme). */
 .node-component .sector-unknown { stroke: var(--color-warning); stroke-dasharray: 5 3; }
+.node-component .sector-missed { stroke: var(--color-fg-muted); stroke-dasharray: 3 4; }
 .node-component .sector-none { stroke: var(--viz-edge); }
 
 /* An open cluster: a quiet outline round its members, taking the pointer
@@ -106,6 +110,7 @@
 .ring-sample.is-exposed { border-color: var(--color-exposed); }
 .ring-sample.is-unknown { border-color: var(--color-warning); border-style: dashed; }
 .ring-sample.is-blocked { border: 2px dotted var(--color-fg-primary); }
+.ring-sample.is-missed { border: 2px dashed var(--color-fg-muted); }
 .ring-sample.is-choke { border: 1.5px dashed var(--color-fg-primary); }
 /* The attack graph's keys drawn as its boxes and badges are. */
 .box-sample { display: inline-block; width: 14px; height: 9px; margin-right: 5px; border: 1.25px solid var(--viz-outline); border-radius: 2px; background: var(--color-bg-elevated); vertical-align: middle; }
@@ -318,6 +323,10 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .nmap-role .pick.nmap-merge { margin-left: 0; }
 .nmap-role + .nmap-merge, .nmap-role + .nmap-merge-state, .nmap-role + .hint { margin-left: 0; }
 .nmap-level .warning, .nmap-block .warning { color: var(--color-warning); }
+/* What differs from the drawing (nmap recipes spec §5.2). */
+.nmap-changes .nmap-row { color: var(--color-fg-primary); }
+.nmap-changes .nmap-row.warning > span { color: var(--color-warning); }
+.nmap-host > .label { display: block; margin-bottom: 2px; }
 /* Recipes (nmap recipes spec §2.2): a tick, the purpose, what it finds. */
 .nmap-recipe { grid-template-columns: auto 12rem 1fr; }
 /* The blocks behind the recipes, on demand. */
@@ -376,3 +385,5 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .node-component.is-merge-target .plate { filter: brightness(1.08); }
 .cluster-outline.is-merge-target .outline { stroke: var(--color-accent); stroke-width: 2.5; stroke-dasharray: none; }
 .legend-toggle[aria-pressed="false"] .outline-sample { opacity: 0.4; }
+/* What identified a host (nmap recipes spec §3.5): read, not edited. */
+.identity { font-size: var(--text-xs); color: var(--color-fg-secondary); overflow-wrap: anywhere; user-select: text; }

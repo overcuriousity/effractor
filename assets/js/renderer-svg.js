@@ -419,10 +419,13 @@
           else el("path", { d: C.arc(cx, r, ringR, s.from, s.to) }, cls, g);
         });
       } else {
-        // Outside the halo, a ring per state it is in: vulnerable, exposed.
+        // Outside the halo, a ring per state it is in: vulnerable, exposed,
+        // not seen; each further one outside the last.
+        var outer = ringR - 5;
         (n.rings || []).forEach(function (ring) {
           // Every way passes here: a ring of its own, outside the others.
-          el("circle", { cx: cx, cy: r, r: ring.state === "choke" ? ringR + 5 : ringR }, ["ring", "ring-" + ring.state], g);
+          outer = ring.state === "choke" ? Math.max(outer, ringR) + 5 : outer + 5;
+          el("circle", { cx: cx, cy: r, r: outer }, ["ring", "ring-" + ring.state], g);
         });
       }
       el("circle", { cx: cx, cy: r, r: r }, ["plate"], g);

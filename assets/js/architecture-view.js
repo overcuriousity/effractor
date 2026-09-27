@@ -190,6 +190,9 @@
         badge: null,
         pins: pinned[id] || [],
         rings: (found.why[id] ? [{ state: found.own[id] ? "vulnerable" : "exposed", why: found.why[id].join("\n") }] : []).concat(
+          // A host a scan looked for and did not find (nmap recipes spec §5.2).
+          e.kind === "host" && e.missed ? [{ state: "missed", why: "not seen since " + e.missed + (e.seen ? " · last seen " + e.seen : "") }] : []
+        ).concat(
           choke && choke.indexOf("entity/" + id) >= 0 ? [{ state: "choke", why: "every way to the target passes here" }] : []
         ),
         parents: incoming[id] || 0,
@@ -328,12 +331,16 @@
       return m.rings.length ? m.rings[0].state : m.unknown > 0 ? "unknown" : null;
     });
     var unknown = members.reduce(function (sum, m) { return sum + m.unknown; }, 0);
-    var why = members.filter(function (m) { return m.rings.length; }).map(function (m) {
-      return m.rings.map(function (r) { return r.why; }).join("\n");
-    });
+    // A member not seen is a sector of its own, not a finding.
+    var why = members.map(function (m) {
+      return m.rings.filter(function (r) { return r.state !== "missed"; }).map(function (r) { return r.why; }).join("\n");
+    }).filter(Boolean);
     var rings = why.length ? [{ state: states.indexOf("vulnerable") >= 0 ? "vulnerable" : "exposed", why: why.join("\n") }] : [];
     var open = states.filter(function (s) { return s === "unknown"; }).length;
     if (open) rings.push({ state: "unknown", why: open + (open === 1 ? " member" : " members") + " with unknown inputs" });
+    members.forEach(function (m) {
+      m.rings.forEach(function (r) { if (r.state === "missed") rings.push({ state: "missed", why: m.label + " " + r.why }); });
+    });
     return {
       id: "cluster/" + cid,
       label: label,
@@ -392,7 +399,7 @@
   // Which rings a drawing carries (a component's own, a cluster's
   // sectors): the legend names those and no others.
   function ringsIn(described) {
-    var out = { vulnerable: false, exposed: false, unknown: false, choke: false };
+    var out = { vulnerable: false, exposed: false, unknown: false, choke: false, missed: false };
     ((described && described.nodes) || []).forEach(function (n) {
       (n.rings || []).forEach(function (r) {
         if (r.state in out) out[r.state] = true;
