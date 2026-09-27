@@ -60,6 +60,9 @@ test('the firewall recipe: reasons and the route, the ports drawn and the 100 mo
   const none = C.command(['firewall'], {}, r, { drawnPorts: [] });
   assert.equal(none.text, 'sudo nmap -sS --reason --traceroute -oX - 10.0.1.0/24', 'nothing drawn: the 1000 most common');
   assert.equal(none.second, undefined);
+  // Beside it, Identity keeps the UDP its NetBIOS lookup needs, list or none.
+  assert.match(C.command(['firewall', 'identity'], {}, r, { drawnPorts: [] }).text, /^sudo nmap -sS -sU --top-ports 1000 --reason --traceroute --script /);
+  assert.match(C.command(['firewall', 'identity'], {}, r, { drawnPorts: ['tcp/8443'] }).text, /,8443,.*,U:137 --reason /);
   // Drawn ports are the firewall recipe's; another recipe does not take them.
   assert.match(C.command(['services'], { ports: 'list' }, r, { drawnPorts: ['tcp/443'] }).problem, /ports to scan/);
   const withServices = C.command(['firewall', 'services'], {}, r, { drawnPorts: ['tcp/443'] });

@@ -68,15 +68,15 @@
   ];
   var DEFAULTS = { discovery: "ping", ports: "none", tcp: "connect", udp: "off", depth: "ports", identity: "off", route: "off", reasons: "off", checks: "none", pace: "normal" };
 
-  // `finds`: the dialog's one line per recipe.
+  // `finds` and `time` (for a /24): the dialog's words per recipe.
   var RECIPES = [
-    { id: "lan", name: "Who is on this LAN", finds: "hosts, MAC addresses, vendors · needs root · seconds for a /24", sets: { discovery: "arp" } },
-    { id: "names", name: "Names only", finds: "names from DNS · sends nothing to the targets · seconds", sets: { discovery: "list" }, alone: true },
-    { id: "services", name: "What runs there", finds: "open TCP ports, services, products · no root · minutes for a /24", sets: { ports: "top1000", depth: "versions" } },
-    { id: "identity", name: "Who it really is", finds: "SSH keys, NetBIOS and certificate names, MAC across routers · needs root · minutes", sets: { identity: "on" } },
-    { id: "route", name: "Map the route", finds: "routers and networks on the way · needs root · minutes", sets: { route: "on" } },
-    { id: "firewall", name: "What a firewall passes", finds: "what gets through each firewall on the way · needs root · minutes", sets: { ports: "list", tcp: "syn", reasons: "on", route: "on" } },
-    { id: "checks", name: "Check for known weaknesses", finds: "known vulnerabilities, by checks that break nothing · tens of minutes", sets: { ports: "top1000", depth: "versions", checks: "safe" } },
+    { id: "lan", name: "Who is on this LAN", finds: "Hosts with their MAC addresses and vendors.", time: "seconds", sets: { discovery: "arp" } },
+    { id: "names", name: "Names only", finds: "Names from DNS. Sends nothing to the targets.", time: "seconds", sets: { discovery: "list" }, alone: true },
+    { id: "services", name: "What runs there", finds: "Open TCP ports, services and products.", time: "minutes", sets: { ports: "top1000", depth: "versions" } },
+    { id: "identity", name: "Who it really is", finds: "SSH keys, NetBIOS and certificate names, the MAC across routers.", time: "minutes", sets: { identity: "on" } },
+    { id: "route", name: "Map the route", finds: "Routers and networks on the way.", time: "minutes", sets: { route: "on" } },
+    { id: "firewall", name: "What a firewall passes", finds: "What gets through each firewall on the way.", time: "minutes", sets: { ports: "list", tcp: "syn", reasons: "on", route: "on" } },
+    { id: "checks", name: "Check for known weaknesses", finds: "Known vulnerabilities, by checks that break nothing.", time: "tens of minutes", sets: { ports: "top1000", depth: "versions", checks: "safe" } },
   ];
 
   function block(id) {
@@ -229,8 +229,11 @@
         var given = Object.keys(list.tcp).length + Object.keys(list.udp).length;
         if (!given && !firewall) return { problem: "Give the ports to scan, such as 22,80,8000-8100." };
         // The firewall recipe with nothing drawn to test: the 1000 most common.
-        if (!given) ports = "top1000";
-        else {
+        if (!given) {
+          ports = "top1000";
+          // Without a list, Identity takes its ports as it does elsewhere.
+          if (ch.identity === "on" && ch.udp === "off") ch.udp = "top100";
+        } else {
           if (firewall) join(list, portsOf(COMMON_TCP));
           if (ch.identity === "on") join(list, portsOf("T:" + IDENTITY_PORTS.tcp + ",U:" + IDENTITY_PORTS.udp));
           if (!(adjust && adjust.ports) && (recipeIds || []).some(function (id) { return recipe(id) && recipe(id).sets.ports === "top1000"; })) {

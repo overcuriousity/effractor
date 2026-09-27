@@ -278,69 +278,136 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .view-switch #view-attack.is-blocked { text-decoration: underline dotted var(--color-warning); text-underline-offset: 3px; }
 .topbar > .status.is-blocked { color: var(--color-warning); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
 
-/* The nmap dialog: level, range, command, paste; then the preview. Inputs
-   look like the inspector's, words are the app's sizes, hints are muted. */
-.nmap-dialog { width: min(40rem, 94vw); font-size: var(--text-sm); }
+/* The nmap dialog (nmap recipes spec §2): three numbered steps, then the
+   preview. Recipes are tiles to tick, the blocks behind them a fold; the
+   command reads as a terminal line; the actions stay in sight. Words are
+   the app's sizes, hints are muted, colour is left to states. */
+.nmap-dialog { width: min(46rem, 94vw); padding: 16px 18px 0; font-size: var(--text-sm); }
+.nmap-dialog > .label { margin-bottom: 4px; }
 .nmap-dialog p { margin: 0 0 8px; }
 .nmap-dialog label { color: var(--color-fg-muted); }
-.nmap-dialog .hint { color: var(--color-fg-muted); font-size: var(--text-xs); line-height: 1.35; }
+.nmap-dialog .hint { color: var(--color-fg-muted); font-size: var(--text-xs); line-height: 1.4; }
 .nmap-dialog .hint:empty { display: none; }
 .nmap-dialog input[type="text"], .nmap-dialog textarea {
-  display: block; width: 100%; min-width: 0; margin-top: 4px;
-  padding: 3px 5px;
+  display: block; width: 100%; min-width: 0;
+  padding: 4px 6px;
   border: 1px solid var(--color-border); border-radius: var(--radius-sm);
   background: var(--color-bg-base); color: var(--color-fg-primary);
   font: var(--text-xs)/1.4 var(--font-mono);
 }
-.nmap-dialog textarea { resize: vertical; min-height: 7em; }
+.nmap-dialog input[type="text"]:hover, .nmap-dialog textarea:hover { border-color: var(--color-border-strong); }
 .nmap-dialog input[type="radio"], .nmap-dialog input[type="checkbox"] { margin: 0; accent-color: var(--color-accent); }
 .nmap-dialog :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 0; }
-.nmap-levels { border: 0; padding: 0; margin: 10px 0 12px; display: grid; gap: 2px; }
-.nmap-levels legend { padding: 0; margin-bottom: 4px; }
-.nmap-level { display: grid; grid-template-columns: auto 5.5rem 1fr; gap: 8px; align-items: baseline; padding: 2px 0; cursor: pointer; }
-.nmap-level > span:nth-child(2) { color: var(--color-fg-primary); }
-.nmap-command {
-  display: flex; gap: 8px; align-items: center; margin: 4px 0 12px;
-  padding: 4px 4px 4px 8px;
-  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm);
-  background: var(--color-bg-base);
+.nmap-step { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--color-border-subtle); }
+.nmap-step:first-child { border-top: 0; padding-top: 0; }
+.nmap-step > .label { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.nmap-n {
+  display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--color-bg-active); color: var(--color-fg-secondary);
+  font: 600 0.5625rem/1 var(--font-mono); letter-spacing: 0;
 }
-.nmap-command code { flex: 1; min-width: 0; font: var(--text-xs)/1.4 var(--font-mono); overflow-wrap: anywhere; user-select: all; }
-.nmap-command code:empty::before { content: "—"; color: var(--color-fg-muted); }
-.nmap-actions { display: flex; gap: 8px; margin-top: 12px; }
-.nmap-rows, .nmap-ports { list-style: none; margin: 0; padding: 0; }
-.nmap-rows { max-height: 50vh; overflow: auto; margin: 4px 0 10px; }
-.nmap-host { padding: 6px 0; border-bottom: 1px solid var(--color-border-subtle); }
-.nmap-ports { padding-left: 22px; font-size: var(--text-xs); }
-.nmap-row { display: flex; gap: 8px; align-items: baseline; padding: 1px 0; color: var(--color-fg-primary); }
-.nmap-ports .nmap-row { color: var(--color-fg-secondary); }
-#nmap-problem { color: var(--color-warning); font-size: var(--text-xs); margin-top: 6px; }
+/* A recipe: its purpose, what it finds, what it takes. Ticked, it takes
+   the accent; nothing else in the dialog does. */
+.nmap-recipes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.nmap-recipe {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 3px 8px; align-items: start;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg-base); cursor: pointer;
+}
+.nmap-recipe:hover { border-color: var(--color-border-strong); }
+.nmap-recipe:has(input:checked) { border-color: var(--color-accent); background: var(--color-accent-dim); }
+.nmap-recipe:has(input:focus-visible) { outline: 2px solid var(--color-accent); }
+.nmap-recipe input { grid-row: 1 / span 2; margin-top: 2px; }
+.nmap-recipe input:focus-visible { outline: 0; }
+.nmap-recipe-name { color: var(--color-fg-primary); font-weight: 600; line-height: 1.3; }
+.nmap-recipe .hint { grid-column: 2 / -1; }
+.nmap-tags { display: flex; gap: 4px; }
+.nmap-tag {
+  padding: 2px 5px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  color: var(--color-fg-muted); font: 500 0.625rem/1 var(--font-mono); white-space: nowrap;
+}
+.nmap-tag.is-root { color: var(--color-warning); border-color: color-mix(in srgb, var(--color-warning) 40%, transparent); }
+.nmap-tag[hidden] { display: none; }
+/* The blocks behind the recipes, on demand: closed, the fold says what is
+   set; open, two columns of small choices. */
+.nmap-adjust { margin-top: 8px; }
+.nmap-adjust summary { display: flex; gap: 8px; align-items: baseline; cursor: pointer; color: var(--color-fg-secondary); font-size: var(--text-xs); list-style: none; }
+.nmap-adjust summary::-webkit-details-marker { display: none; }
+.nmap-adjust-word::before { content: "▸"; display: inline-block; width: 1em; color: var(--color-fg-muted); }
+.nmap-adjust[open] .nmap-adjust-word::before { content: "▾"; }
+.nmap-set { color: var(--color-fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.nmap-adjust[open] .nmap-set { visibility: hidden; }
+.nmap-blocks {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; margin-top: 8px;
+  padding: 10px; border-radius: var(--radius-md); background: var(--color-bg-surface);
+}
+.nmap-block { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: 2px 8px; align-items: center; font-size: var(--text-xs); }
+.nmap-block > span:first-child { color: var(--color-fg-muted); }
+.nmap-block.is-set > span:first-child { color: var(--color-fg-primary); }
+.nmap-block .pick { width: 100%; }
+.nmap-block input[type="checkbox"] { justify-self: start; }
+.nmap-block .hint { grid-column: 2; }
+.nmap-block .warning { color: var(--color-warning); }
+/* The range, and the command as a terminal line. */
+.nmap-range { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; margin-bottom: 6px; }
+.nmap-command {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 6px;
+  padding: 7px 7px 7px 10px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+}
+.nmap-command code { flex: 1; min-width: 0; color: var(--color-fg-primary); font: var(--text-xs)/1.5 var(--font-mono); overflow-wrap: anywhere; user-select: all; }
+.nmap-command code::before { content: "$ "; color: var(--color-fg-muted); }
+.nmap-command code:empty::after { content: "—"; color: var(--color-fg-muted); }
+.nmap-command .btn { flex: none; }
+.nmap-dialog .nmap-then { margin: 8px 0 4px; }
+.nmap-problem { color: var(--color-warning); }
+.nmap-dialog textarea { resize: vertical; min-height: 6em; border-style: dashed; }
+.nmap-dialog textarea:focus, .nmap-dialog textarea:not(:placeholder-shown) { border-style: solid; }
+.nmap-dialog textarea.is-drop { border-color: var(--color-accent); background: var(--color-accent-dim); }
+/* The actions stay in sight while the rest scrolls. */
+.nmap-actions {
+  position: sticky; bottom: 0; z-index: 1;
+  display: flex; gap: 8px; align-items: center;
+  margin: 14px -18px 0; padding: 10px 18px 12px;
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-elevated);
+}
+.nmap-summary { flex: 1; min-width: 0; margin: 0; color: var(--color-fg-primary); font-size: var(--text-xs); line-height: 1.35; order: -1; }
+.nmap-dialog .nmap-summary { margin: 0; }
+/* The preview: a block per host, its ports in columns. */
+.nmap-rows, .nmap-ports, .nmap-findings { list-style: none; margin: 0; padding: 0; }
+.nmap-rows { display: grid; gap: 6px; margin: 0 0 10px; }
+.nmap-host { padding: 7px 10px; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); background: var(--color-bg-base); }
+.nmap-host > .label { display: block; margin: 2px 0 5px; }
+.nmap-row { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; color: var(--color-fg-primary); }
 .nmap-row span { overflow-wrap: anywhere; min-width: 0; }
-.nmap-row .pick.nmap-merge { width: auto; margin-left: auto; flex: none; }
+.nmap-host > .nmap-row > span:nth-child(2) { font-weight: 600; }
+.nmap-mono { color: var(--color-fg-secondary); font: var(--text-xs)/1.4 var(--font-mono); }
+.nmap-what { color: var(--color-fg-muted); }
+.nmap-ports, .nmap-findings { margin-left: 21px; font-size: var(--text-xs); }
+.nmap-ports:not(:empty) { margin-top: 3px; padding-top: 3px; border-top: 1px solid var(--color-border-subtle); }
+.nmap-ports .nmap-row { display: grid; grid-template-columns: auto 8rem 5rem minmax(0, 1fr); color: var(--color-fg-secondary); }
+.nmap-ports .nmap-row > span:only-child, .nmap-ports .nmap-row > input + span:last-child { grid-column: 2 / -1; }
+.nmap-ports .nmap-findings { margin-left: 21px; }
+.nmap-findings .nmap-row { color: var(--color-fg-muted); }
+.nmap-findings:empty { display: none; }
+.nmap-row .pick.nmap-merge { width: auto; margin-left: auto; flex: none; font-size: var(--text-xs); }
 .nmap-merge-state { display: flex; gap: 8px; align-items: baseline; margin-left: auto; flex: none; }
 .nmap-merge-state .pick.nmap-merge { margin-left: 0; }
 .nmap-role { display: flex; gap: 8px; align-items: baseline; margin-left: auto; flex: none; }
 .nmap-role .pick.nmap-merge { margin-left: 0; }
 .nmap-role + .nmap-merge, .nmap-role + .nmap-merge-state, .nmap-role + .hint { margin-left: 0; }
-.nmap-level .warning, .nmap-block .warning { color: var(--color-warning); }
-/* What differs from the drawing (nmap recipes spec §5.2). */
-.nmap-changes .nmap-row { color: var(--color-fg-primary); }
+/* What differs from the drawing (nmap recipes spec §5.2): first, and
+   marked at its edge. */
+.nmap-changes { border-left: 3px solid var(--color-warning); }
+.nmap-changes .nmap-ports { margin-left: 0; border-top: 0; padding-top: 0; }
+.nmap-changes .nmap-row { display: flex; color: var(--color-fg-primary); }
 .nmap-changes .nmap-row.warning > span { color: var(--color-warning); }
-.nmap-host > .label { display: block; margin-bottom: 2px; }
-/* Recipes (nmap recipes spec §2.2): a tick, the purpose, what it finds. */
-.nmap-recipe { grid-template-columns: auto 12rem 1fr; }
-/* The blocks behind the recipes, on demand. */
-.nmap-adjust { margin: 0 0 12px; }
-.nmap-adjust summary { cursor: pointer; color: var(--color-fg-muted); font-size: var(--text-xs); width: max-content; }
-.nmap-adjust[open] summary { margin-bottom: 6px; }
-.nmap-blocks { display: grid; gap: 4px; }
-.nmap-block { display: grid; grid-template-columns: 5.5rem 15rem 1fr; gap: 8px; align-items: baseline; }
-.nmap-block .pick { width: 100%; }
-.nmap-block input[type="text"] { width: 100%; }
-.nmap-block.is-set > span:first-child { color: var(--color-fg-primary); }
-#nmap-second-row { margin-top: 4px; }
-.nmap-findings { list-style: none; margin: 0; padding: 0 0 0 22px; }
-.nmap-findings .nmap-row { color: var(--color-fg-muted); }
+@media (max-width: 40rem) {
+  .nmap-recipes, .nmap-blocks { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* The light bulb in the canvas's corner: a suggestion, quiet, dismissable. */
 .hud-bottom-right { right: 10px; bottom: 10px; }

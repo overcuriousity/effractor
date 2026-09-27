@@ -47,9 +47,9 @@
 
   function recipes() {
     var box = $("nmap-recipes");
-    while (box.children.length > 1) box.removeChild(box.lastChild);
+    box.textContent = "";
     N.RECIPES.forEach(function (r) {
-      var label = el("label", null, "nmap-level nmap-recipe");
+      var label = el("label", null, "nmap-recipe");
       var tick = el("input");
       tick.type = "checkbox";
       tick.checked = asked.recipes.indexOf(r.id) >= 0;
@@ -68,7 +68,11 @@
         showCommand();
       });
       label.appendChild(tick);
-      label.appendChild(el("span", r.name));
+      label.appendChild(el("span", r.name, "nmap-recipe-name"));
+      var tags = el("span", null, "nmap-tags");
+      if (N.combine([r.id], {}).root) tags.appendChild(el("span", "root", "nmap-tag is-root"));
+      tags.appendChild(el("span", r.time, "nmap-tag"));
+      label.appendChild(tags);
       label.appendChild(el("span", r.finds, "hint"));
       box.appendChild(label);
     });
@@ -78,7 +82,7 @@
     var row = el("label", null, "nmap-block" + (set ? " is-set" : ""));
     row.appendChild(el("span", name));
     row.appendChild(control);
-    row.appendChild(el("span", hint || "", warning ? "hint warning" : "hint"));
+    if (hint) row.appendChild(el("span", hint, warning ? "hint warning" : "hint"));
     return row;
   }
   function blocks() {
@@ -87,6 +91,7 @@
     var c = N.combine(asked.recipes, asked.adjust);
     $("nmap-adjust").hidden = !c.choices;
     if (!c.choices) return;
+    var set = [];
     N.BLOCKS.forEach(function (b) {
       var menu = window.effractorMenu.dropdown(b.choices.map(function (x) { return [x.id, x.name]; }), c.choices[b.id]);
       menu.addEventListener("change", function () {
@@ -95,7 +100,9 @@
         showCommand();
       });
       var chosen = b.choices.filter(function (x) { return x.id === c.choices[b.id]; })[0];
-      box.appendChild(blockRow(b.name, menu, chosen.warning || chosen.hint, !!chosen.warning, c.choices[b.id] !== N.DEFAULTS[b.id]));
+      var differs = c.choices[b.id] !== N.DEFAULTS[b.id];
+      if (differs) set.push(b.name + ": " + chosen.name);
+      box.appendChild(blockRow(b.name, menu, chosen.warning || chosen.hint, !!chosen.warning, differs));
       if (b.id === "ports" && c.choices.ports === "list") {
         var list = el("input");
         list.type = "text";
@@ -108,7 +115,7 @@
           showCommand();
         });
         var firewall = asked.recipes.indexOf("firewall") >= 0;
-        box.appendChild(blockRow("Port list", list, firewall ? "added to the ports of the flows drawn through a firewall, and the 100 most common" : "numbers and ranges · U: before UDP ports", false, false));
+        box.appendChild(blockRow("Port list", list, firewall ? "besides the ports of the flows drawn through a firewall and the 100 most common" : "numbers and ranges · U: before UDP ports", false, !!asked.portList));
       }
     });
     if (asked.recipes.indexOf("firewall") >= 0) {
@@ -117,10 +124,14 @@
       ack.checked = asked.ack;
       ack.addEventListener("change", function () {
         asked.ack = ack.checked;
+        blocks();
         showCommand();
       });
-      box.appendChild(blockRow("ACK scan", ack, "a second command: tells a firewall that keeps state from one that does not", false, asked.ack));
+      if (asked.ack) set.push("ACK scan");
+      box.appendChild(blockRow("ACK scan", ack, "a second command · tells a firewall that keeps state from one that does not", false, asked.ack));
     }
+    // Closed, the fold says what is set.
+    $("nmap-set").textContent = set.join(" · ");
   }
   // The ports the firewall recipe takes from the drawing (spec §2.3).
   function drawnPorts() {
@@ -129,6 +140,7 @@
   function showCommand() {
     var c = N.command(asked.recipes, asked.adjust, $("nmap-range").value, { portList: asked.portList, ack: asked.ack, drawnPorts: drawnPorts() });
     $("nmap-command").textContent = c.text || "";
+    $("nmap-root").hidden = !c.root;
     $("nmap-copy").disabled = !c.text;
     $("nmap-second").textContent = c.second || "";
     $("nmap-second-row").hidden = !c.second;
@@ -145,6 +157,7 @@
     $("nmap-range").value = prefillRange(host);
     $("nmap-paste").value = "";
     $("nmap-problem").textContent = "";
+    $("nmap-read-problem").textContent = "";
     $("nmap-ask").hidden = false;
     $("nmap-preview").hidden = true;
     recipes();
@@ -159,14 +172,11 @@
 
   function read() {
     var r = N.read($("nmap-paste").value);
-    if (r.problem) {
-      $("nmap-problem").textContent = r.problem.message;
-      return;
-    }
+    $("nmap-read-problem").textContent = r.problem ? r.problem.message : "";
+    if (r.problem) return;
     at.scan = r.scan;
     at.merges = {};
     at.ticks = null;
-    showCommand(); // an earlier read's problem is gone; the command's note stays
     preview();
   }
 
@@ -187,10 +197,10 @@
     changes(rows);
     if (at.plan.network) {
       var net = el("li", null, "nmap-host");
-      var netHead = check(at.ticks.network, "Network " + at.plan.network.label, function (on) {
+      var netHead = check(at.ticks.network, "Network", function (on) {
         at.ticks.network = on;
         count();
-      });
+      }, { mono: at.plan.network.label });
       netHead.appendChild(networkState(at.plan));
       net.appendChild(netHead);
       rows.appendChild(net);
@@ -207,10 +217,10 @@
     }
     at.plan.hosts.forEach(function (h) {
       var li = el("li", null, "nmap-host");
-      var head = check(at.ticks.hosts[h.key], h.label + " · " + h.addresses.join(", "), function (on) {
+      var head = check(at.ticks.hosts[h.key], h.label, function (on) {
         N.tickHost(h, at.ticks, on);
         preview();
-      });
+      }, { mono: h.addresses.filter(function (a) { return a !== h.label; }).join(", ") });
       head.appendChild(role(h));
       head.appendChild(state(h));
       li.appendChild(head);
@@ -218,7 +228,7 @@
       h.ports.forEach(function (r) {
         var nothing = r.known && !r.addsFlow;
         var what = nothing ? "known" : r.known ? "adds the flow" : "adds service, " + (r.product.existing ? "uses " : "") + r.product.label + ", flow";
-        var row = check(!!at.ticks.ports[r.key], r.label + " · " + r.proto + " · " + what, function (on) {
+        var row = check(!!at.ticks.ports[r.key], r.label, function (on) {
           at.ticks.ports[r.key] = on;
           // A new port unticked takes its findings along.
           if (!r.known && r.findings.length) {
@@ -226,7 +236,7 @@
             return preview();
           }
           count();
-        });
+        }, { mono: r.proto, what: what });
         row.querySelector("input").disabled = nothing || !at.ticks.hosts[h.key];
         var item = el("li");
         item.appendChild(row);
@@ -285,10 +295,10 @@
     ch.list.forEach(function (c) {
       var item = el("li");
       if (c.action) {
-        var row = check(!!at.ticks.changes[c.key], c.line + " · " + c.action, function (on) {
+        var row = check(!!at.ticks.changes[c.key], c.line, function (on) {
           at.ticks.changes[c.key] = on;
           count();
-        });
+        }, { what: c.action });
         if (c.warn) row.classList.add("warning");
         item.appendChild(row);
       } else item.appendChild(el("span", c.line, "nmap-row"));
@@ -389,7 +399,9 @@
     Object.keys(fresh).forEach(function (k) { out[k] = k in old ? old[k] : fresh[k]; });
     return out;
   }
-  function check(on, text, change) {
+  // A row to tick: what it is; `more.mono`, its address or port; `more.what`,
+  // what ticking it does.
+  function check(on, text, change, more) {
     var label = el("label", null, "nmap-row");
     var box = el("input");
     box.type = "checkbox";
@@ -397,6 +409,8 @@
     box.addEventListener("change", function () { change(box.checked); });
     label.appendChild(box);
     label.appendChild(el("span", text));
+    if (more && more.mono != null) label.appendChild(el("span", more.mono, "nmap-mono"));
+    if (more && more.what != null) label.appendChild(el("span", more.what, "nmap-what"));
     return label;
   }
   // Spec §4.5: host, router on its box, or router with its firewall;
@@ -606,8 +620,13 @@
   $("nmap-cancel").addEventListener("click", function () { dialog.close(); });
   $("nmap-close").addEventListener("click", function () { dialog.close(); });
   var paste = $("nmap-paste");
-  paste.addEventListener("dragover", function (e) { e.preventDefault(); });
+  paste.addEventListener("dragover", function (e) {
+    e.preventDefault();
+    paste.classList.add("is-drop");
+  });
+  paste.addEventListener("dragleave", function () { paste.classList.remove("is-drop"); });
   paste.addEventListener("drop", function (e) {
+    paste.classList.remove("is-drop");
     var file = e.dataTransfer && e.dataTransfer.files[0];
     if (!file) return;
     e.preventDefault();

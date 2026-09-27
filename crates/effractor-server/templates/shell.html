@@ -304,22 +304,34 @@
   <h2 class="label" id="nmap-title">nmap</h2>
   <p class="hint" id="nmap-unplaced" hidden>nmap is not on a host; the flows will have no route until you place it.</p>
   <div id="nmap-ask">
-    <fieldset class="nmap-levels" id="nmap-recipes"><legend class="label">What is the scan for?</legend></fieldset>
-    <details class="nmap-adjust" id="nmap-adjust"><summary>Adjust</summary><div class="nmap-blocks" id="nmap-blocks"></div></details>
-    <p><label for="nmap-range">Range</label><input id="nmap-range" type="text" autocomplete="off" spellcheck="false" placeholder="10.0.1.0/24"></p>
-    <p class="hint">Real addresses go into the file, and into any link you share.</p>
-    <div class="nmap-command"><code id="nmap-command"></code><button class="btn btn-ghost" id="nmap-copy" type="button">Copy</button></div>
-    <div class="nmap-command" id="nmap-second-row" hidden><code id="nmap-second"></code><button class="btn btn-ghost" id="nmap-copy-second" type="button" title="A second scan: paste its result after the first">Copy</button></div>
-    <label for="nmap-paste">Result</label>
-    <textarea id="nmap-paste" rows="8" spellcheck="false" placeholder="Paste the output, or drop the .xml file here"></textarea>
-    <p class="hint" id="nmap-problem" role="status"></p>
+    <section class="nmap-step">
+      <h3 class="label"><span class="nmap-n">1</span>What is the scan for?</h3>
+      <div class="nmap-recipes" id="nmap-recipes" role="group" aria-label="What is the scan for?"></div>
+      <details class="nmap-adjust" id="nmap-adjust"><summary><span class="nmap-adjust-word">Adjust</span><span class="nmap-set" id="nmap-set"></span></summary><div class="nmap-blocks" id="nmap-blocks"></div></details>
+    </section>
+    <section class="nmap-step">
+      <h3 class="label"><span class="nmap-n">2</span>Run it</h3>
+      <div class="nmap-range"><label for="nmap-range">Range</label><input id="nmap-range" type="text" autocomplete="off" spellcheck="false" placeholder="10.0.1.0/24"></div>
+      <div class="nmap-command"><code id="nmap-command"></code><span class="nmap-tag is-root" id="nmap-root" hidden>root</span><button class="btn btn-ghost btn-small" id="nmap-copy" type="button">Copy</button></div>
+      <div id="nmap-second-row" hidden>
+        <p class="hint nmap-then">Then the ACK scan, a run of its own: nmap does one kind of TCP scan per run. Paste both results, one after the other.</p>
+        <div class="nmap-command"><code id="nmap-second"></code><span class="nmap-tag is-root">root</span><button class="btn btn-ghost btn-small" id="nmap-copy-second" type="button">Copy</button></div>
+      </div>
+      <p class="hint nmap-problem" id="nmap-problem" role="status"></p>
+      <p class="hint">Run it on the host nmap is on. Real addresses go into the file, and into any link you share.</p>
+    </section>
+    <section class="nmap-step">
+      <h3 class="label"><span class="nmap-n">3</span>Paste the result</h3>
+      <textarea id="nmap-paste" rows="6" spellcheck="false" aria-label="Result" placeholder="Paste the output, or drop the .xml file here"></textarea>
+      <p class="hint nmap-problem" id="nmap-read-problem" role="status"></p>
+    </section>
     <div class="nmap-actions"><button class="btn" id="nmap-read" type="button">Read</button><button class="btn btn-ghost" id="nmap-cancel" type="button">Cancel</button></div>
   </div>
   <div id="nmap-preview" hidden>
+    <h3 class="label">What it adds</h3>
     <ul class="nmap-rows" id="nmap-rows"></ul>
     <p class="hint" id="nmap-notes"></p>
-    <p id="nmap-summary" role="status"></p>
-    <div class="nmap-actions"><button class="btn" id="nmap-add" type="button">Add</button><button class="btn btn-ghost" id="nmap-back" type="button">Back</button><button class="btn btn-ghost" id="nmap-close" type="button">Cancel</button></div>
+    <div class="nmap-actions"><p class="nmap-summary" id="nmap-summary" role="status"></p><button class="btn" id="nmap-add" type="button">Add</button><button class="btn btn-ghost" id="nmap-back" type="button">Back</button><button class="btn btn-ghost" id="nmap-close" type="button">Cancel</button></div>
   </div>
 </dialog>
 <dialog class="link-dialog" id="link-dialog" aria-label="Reuse an existing node">
