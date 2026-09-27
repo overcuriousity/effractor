@@ -268,7 +268,7 @@
     <button class="btn" type="submit">Apply</button><button class="btn btn-ghost" id="horizon-close" type="button">Cancel</button>
   </form>
 </dialog>
-<dialog class="help-dialog share-dialog" id="share-dialog" aria-labelledby="share-title" data-server-sharing="{{ sharing }}"{% if sharing %} data-max-ttl="{{ max_ttl }}"{% endif %}>
+<dialog class="help-dialog form-dialog share-dialog" id="share-dialog" aria-labelledby="share-title" data-server-sharing="{{ sharing }}"{% if sharing %} data-max-ttl="{{ max_ttl }}"{% endif %}>
   <h2 class="label" id="share-title">Share snapshot</h2>
 {% if accounts %}
 <section class="share-people" id="share-people" hidden>
@@ -291,7 +291,7 @@
   <p id="share-status" role="status" class="hint"></p>
   {% if sharing %}<div id="share-server-list"><h3 class="label">My shares</h3><p class="hint" id="shares-empty">No shares</p><ul id="my-shares"></ul></div>{% endif %}
   {% if accounts %}</div>{% endif %}
-  <button class="btn btn-ghost" id="share-close" type="button">Close</button>
+  <div class="dialog-actions"><button class="btn btn-ghost" id="share-close" type="button">Close <kbd>Esc</kbd></button></div>
 </dialog>
 <dialog class="help-dialog nmap-dialog" id="nmap-dialog" aria-labelledby="nmap-title">
   <h2 class="label" id="nmap-title">nmap</h2>
@@ -328,38 +328,43 @@
   <button class="btn btn-ghost" id="help-close" type="button">Close <kbd>Esc</kbd></button>
 </dialog>
 {% if accounts %}
-<dialog class="help-dialog login-dialog" id="login-dialog" aria-labelledby="login-title">
+<dialog class="help-dialog form-dialog login-dialog" id="login-dialog" aria-labelledby="login-title">
   <h2 class="label" id="login-title">Log in</h2>
-  <form id="login-form" method="dialog">
+  <form class="dialog-grid" id="login-form" method="dialog">
     <label for="login-name">Name</label>
     <input id="login-name" name="name" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required>
     <label for="login-password">Password</label>
     <input id="login-password" name="password" type="password" autocomplete="current-password" required>
     <p class="hint" id="login-problem" role="status"></p>
-    <div class="login-actions"><button class="btn" type="submit">Log in</button><button class="btn btn-ghost" id="login-close" type="button">Cancel</button></div>
+    <div class="dialog-actions"><button class="btn" type="submit">Log in</button><button class="btn btn-ghost" id="login-close" type="button">Cancel</button></div>
   </form>
   <button class="btn btn-ghost login-other" id="login-passkey" type="button" hidden>Passkey</button>
   <button class="btn btn-ghost login-other" id="login-oidc" type="button" hidden></button>
 </dialog>
-<dialog class="help-dialog account-dialog" id="account-dialog" aria-labelledby="account-title">
+<dialog class="help-dialog form-dialog account-dialog" id="account-dialog" aria-labelledby="account-title">
   <h2 class="label" id="account-title">Account</h2>
-  <label for="account-display-name">Display name</label>
-  <input id="account-display-name" type="text" autocomplete="name">
-  <form id="account-password-form" method="dialog">
+  <div class="dialog-grid">
+    <label for="account-display-name">Display name</label>
+    <input id="account-display-name" type="text" autocomplete="name">
+  </div>
+  <form class="dialog-grid dialog-section" id="account-password-form" method="dialog">
     <h3 class="label">Password</h3>
-    <input id="account-password-current" type="password" autocomplete="current-password" placeholder="current password" aria-label="Current password">
-    <input id="account-password" type="password" autocomplete="new-password" placeholder="12 characters or more" aria-label="New password">
-    <input id="account-password-again" type="password" autocomplete="new-password" placeholder="again" aria-label="New password again">
-    <button class="btn btn-ghost" type="submit">Change</button>
+    <label for="account-password-current" id="account-password-current-label">Current</label>
+    <input id="account-password-current" type="password" autocomplete="current-password">
+    <label for="account-password">New</label>
+    <input id="account-password" type="password" autocomplete="new-password" placeholder="12 characters or more">
+    <label for="account-password-again">Again</label>
+    <input id="account-password-again" type="password" autocomplete="new-password">
+    <div class="dialog-actions"><button class="btn btn-ghost" type="submit">Change password</button></div>
   </form>
-  <section id="account-passkeys" hidden></section>
-  <section id="account-oidc" hidden></section>
+  <section class="dialog-section" id="account-passkeys" hidden></section>
+  <section class="dialog-section" id="account-oidc" hidden></section>
   <p class="hint" id="account-problem" role="status"></p>
-  <div class="account-actions"><button class="btn btn-ghost" id="account-logout-others" type="button">Log out everywhere else</button><button class="btn btn-ghost" id="account-close" type="button">Close <kbd>Esc</kbd></button></div>
+  <div class="dialog-actions"><button class="btn btn-ghost" id="account-logout-others" type="button">Log out everywhere else</button><button class="btn btn-ghost" id="account-close" type="button">Close <kbd>Esc</kbd></button></div>
 </dialog>
 {% endif %}
 {% if accounts %}
-<dialog class="help-dialog admin-dialog" id="admin-dialog" aria-labelledby="admin-title">
+<dialog class="help-dialog form-dialog admin-dialog" id="admin-dialog" aria-labelledby="admin-title">
   <h2 class="label" id="admin-title">Administration</h2>
   <div class="tabs" role="tablist" aria-label="Administration">
     <button class="tab" type="button" role="tab" data-admin-tab="users" aria-selected="true">Users</button>
@@ -371,7 +376,7 @@
     <div class="admin-detail" id="admin-detail"><p class="empty">Select a row</p></div>
   </div>
   <p class="hint" id="admin-problem" role="status"></p>
-  <button class="btn btn-ghost" id="admin-close" type="button">Close <kbd>Esc</kbd></button>
+  <div class="dialog-actions"><button class="btn btn-ghost" id="admin-close" type="button">Close <kbd>Esc</kbd></button></div>
 </dialog>
 {% endif %}
 <div class="menu" id="file-menu" role="menu" hidden>

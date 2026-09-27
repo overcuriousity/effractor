@@ -2,8 +2,29 @@
    the account, login, sharing and administration dialogs. */
 .local-only { color: var(--color-fg-muted); font-size: var(--text-sm); white-space: nowrap; }
 .account-chip { max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.login-dialog form, .account-dialog form { display: grid; gap: 8px; }
-.login-actions, .account-actions { display: flex; gap: 8px; justify-content: flex-end; }
+/* The login, account, administration and sharing dialogs, as the nmap
+   dialog: the app's small words, muted labels, quiet hints that take no
+   room while empty, sections at one rhythm, the actions in a row. */
+.form-dialog { font-size: var(--text-sm); }
+.form-dialog h3.label { margin: 0 0 6px; }
+.form-dialog label { color: var(--color-fg-muted); }
+.form-dialog .hint { margin: 8px 0 0; color: var(--color-fg-muted); font-size: var(--text-xs); line-height: 1.35; }
+.form-dialog .hint:empty { display: none; }
+.form-dialog :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 0; }
+.dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+/* Fields as the inspector's: a label, its field; the rest takes the row. */
+.dialog-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; align-items: center; margin: 10px 0 0; }
+.dialog-grid > :is(h3, .hint, .dialog-actions, ul) { grid-column: 1 / -1; }
+.dialog-grid > .dialog-actions { margin-top: 4px; }
+.dialog-grid > .hint { margin: 0; }
+.dialog-grid > [hidden] { display: none; }
+/* A section after the first: a hairline above, at one rhythm. */
+.dialog-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--color-border-subtle); }
+.dialog-section[hidden] { display: none; }
+.dialog-section > .dialog-actions { margin-top: 8px; }
+/* A field with its button beside it (a new password and Reset). */
+.field-with-button { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.field-with-button input { flex: 1; }
 .login-other { width: 100%; margin-top: 8px; }
 /* Every account input in the app's own font, as the inspector's fields. */
 .login-dialog input, .account-dialog input, .admin-dialog input,
@@ -46,7 +67,7 @@
 
 /* Administration (spec §9.4): the list, and the selected row's detail. */
 .admin-dialog { width: min(820px, 94vw); }
-.admin-body { display: grid; grid-template-columns: 2fr 3fr; gap: 12px; min-height: 320px; margin-top: 8px; }
+.admin-body { display: grid; grid-template-columns: 2fr 3fr; gap: 16px; min-height: 320px; margin-top: 8px; }
 @media (max-width: 640px) { .admin-body { grid-template-columns: 1fr; } }
 .admin-list { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .admin-list ul { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow: auto; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); }
@@ -56,7 +77,9 @@
 .admin-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-meta { color: var(--color-fg-muted); font-size: var(--text-xs); white-space: nowrap; }
 .admin-detail { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; min-width: 0; }
-.admin-detail input { max-width: 320px; }
+.admin-detail > .dialog-grid { align-self: stretch; margin: 0; }
+.admin-detail > h3.label { margin: 0; }
+.admin-detail > .hint { margin: 0; }
 .admin-members { list-style: none; margin: 0; padding: 0; width: 100%; }
 .admin-members li { display: flex; gap: 8px; align-items: center; padding: 2px 0; }
 .admin-members li > span:first-child { flex: 1; }

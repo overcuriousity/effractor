@@ -99,7 +99,7 @@
     $("account-problem").textContent = "";
     $("account-password").value = $("account-password-again").value = $("account-password-current").value = "";
     // Somebody without a password (OIDC, passkeys only) sets one without it.
-    $("account-password-current").hidden = !user.methods.password;
+    $("account-password-current").hidden = $("account-password-current-label").hidden = !user.methods.password;
     // Passkeys (Task 19) and OIDC (Task 21) add their sections here.
     (A.accountSections || []).forEach(function (fill) { fill(); });
     $("account-dialog").showModal();
@@ -123,7 +123,7 @@
       if (res.ok) {
         $("account-password").value = $("account-password-again").value = $("account-password-current").value = "";
         // Now there is a password: the next change asks for it.
-        $("account-password-current").hidden = false;
+        $("account-password-current").hidden = $("account-password-current-label").hidden = false;
         refresh();
       }
     });
@@ -206,7 +206,10 @@
         $("account-problem").textContent = /log in again/.test(e.message) ? e.message : "no passkey made";
       });
     });
-    box.appendChild(add);
+    var row = document.createElement("div");
+    row.className = "dialog-actions";
+    row.appendChild(add);
+    box.appendChild(row);
   });
 
   // ---- OIDC (spec §7.1–7.2) ----

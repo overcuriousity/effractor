@@ -70,6 +70,16 @@
     if (!current) $("admin-detail").innerHTML = '<p class="empty">Select a row</p>';
   }
 
+  // A label and its field, in the detail's grid.
+  function field(grid, id, text, control) {
+    var l = el("label", text);
+    l.htmlFor = id;
+    control.id = id;
+    grid.appendChild(l);
+    grid.appendChild(control);
+    return control;
+  }
+
   function patchUser(id, body) {
     return client.request("PATCH", "/api/admin/users/" + id, body).then(function (res) {
       say(res.ok ? "saved" : refused(res));
@@ -84,14 +94,24 @@
       d.appendChild(el("h3", row.display_name ? row.name + " · " + row.display_name : row.name, "label"));
       d.appendChild(el("p", row.groups.map(function (g) { return g.name + (g.role === "admin" ? " (admin)" : ""); }).join(", ") || "In no group", "hint"));
       if (!admin) return;
+      var grid = el("div", null, "dialog-grid");
+      var role = field(grid, "admin-user-role", "Role", M.dropdown([["user", "User"], ["admin", "Admin"]], row.admin ? "admin" : "user"));
+      role.addEventListener("change", function () { patchUser(row.id, { admin: role.value === "admin" }); });
+      var state = field(grid, "admin-user-state", "State", M.dropdown([["active", "Active"], ["disabled", "Disabled"]], row.disabled ? "disabled" : "active"));
+      state.addEventListener("change", function () { patchUser(row.id, { disabled: state.value === "disabled" }); });
+      // The new password with its Reset beside it, in the field's cell.
       var pw = el("input");
-      pw.type = "password"; pw.placeholder = "new password · 12 or more"; pw.setAttribute("aria-label", "New password");
-      d.appendChild(pw);
-      d.appendChild(button("Reset password", function () {
+      pw.type = "password"; pw.placeholder = "12 characters or more"; pw.autocomplete = "new-password";
+      var pwLabel = el("label", "New password");
+      pwLabel.htmlFor = pw.id = "admin-user-password";
+      var reset = el("div", null, "field-with-button");
+      grid.appendChild(pwLabel);
+      grid.appendChild(reset);
+      reset.appendChild(pw);
+      reset.appendChild(button("Reset", function () {
         if (pw.value) patchUser(row.id, { password: pw.value });
       }));
-      d.appendChild(button(row.admin ? "Remove admin" : "Make admin", function () { patchUser(row.id, { admin: !row.admin }); }));
-      d.appendChild(button(row.disabled ? "Enable" : "Disable", function () { patchUser(row.id, { disabled: !row.disabled }); }));
+      d.appendChild(grid);
       // Not undoable, so a second click that names what goes (spec §8).
       var del = button(armedDelete === row.id ? "Delete · " + row.documents + " documents" : "Delete", function () {
         if (armedDelete !== row.id) { armedDelete = row.id; return detail(row); }
@@ -106,20 +126,19 @@
     // a group
     d.appendChild(el("h3", row.name, "label"));
     if (admin) {
-      var gname = el("input");
+      var grid = el("div", null, "dialog-grid");
+      var gname = field(grid, "admin-group-name", "Name", el("input"));
       gname.value = row.name;
-      gname.setAttribute("aria-label", "Group name");
       gname.addEventListener("change", function () {
         client.request("PATCH", "/api/admin/groups/" + row.id, { name: gname.value }).then(function (res) {
           say(res.ok ? "renamed" : refused(res)); load();
         });
       });
-      d.appendChild(gname);
-      var flag = M.dropdown([["no", "Group admins add members only"], ["yes", "Group admins may create users"]], row.admins_may_create_users ? "yes" : "no");
+      var flag = field(grid, "admin-group-admins", "Its admins", M.dropdown([["no", "Add members only"], ["yes", "May create users"]], row.admins_may_create_users ? "yes" : "no"));
       flag.addEventListener("change", function () {
         client.request("PATCH", "/api/admin/groups/" + row.id, { admins_may_create_users: flag.value === "yes" }).then(load);
       });
-      d.appendChild(flag);
+      d.appendChild(grid);
     }
     var list = el("ul", null, "admin-members");
     row.members.forEach(function (m) {
@@ -182,28 +201,29 @@
     var d = $("admin-detail");
     d.innerHTML = "";
     selected = null;
-    var name = el("input");
-    name.placeholder = "Name"; name.setAttribute("aria-label", "Name");
-    d.appendChild(name);
+    d.appendChild(el("h3", tab === "groups" ? "New group" : "New user", "label"));
+    var grid = el("div", null, "dialog-grid");
+    d.appendChild(grid);
+    var name = field(grid, "admin-new-name", "Name", el("input"));
+    var actions = el("div", null, "dialog-actions");
     if (tab === "groups") {
-      d.appendChild(button("Create", function () {
+      actions.appendChild(button("Create", function () {
         client.request("POST", "/api/admin/groups", { name: name.value }).then(function (res) { say(res.ok ? "" : refused(res)); load(); });
       }, "btn"));
+      grid.appendChild(actions);
       return name.focus();
     }
-    var pw = el("input");
-    pw.type = "password"; pw.placeholder = "Password · 12 or more"; pw.setAttribute("aria-label", "Password");
-    d.appendChild(pw);
+    var pw = field(grid, "admin-new-password", "Password", el("input"));
+    pw.type = "password"; pw.placeholder = "12 characters or more"; pw.autocomplete = "new-password";
     var allowed = A.session.user.admin ? groupsCache : groupsCache.filter(function (g) { return g.admins_may_create_users; });
     var choices = (A.session.user.admin ? [["", "In no group"]] : []).concat(allowed.map(function (g) { return [String(g.id), g.name]; }));
-    var group = M.dropdown(choices, choices.length ? choices[0][0] : "");
-    group.setAttribute("aria-label", "Group");
-    d.appendChild(group);
-    d.appendChild(button("Create", function () {
+    var group = field(grid, "admin-new-group", "Group", M.dropdown(choices, choices.length ? choices[0][0] : ""));
+    actions.appendChild(button("Create", function () {
       var body = { name: name.value, password: pw.value };
       if (group.value) body.group = Number(group.value);
       client.request("POST", "/api/admin/users", body).then(function (res) { say(res.ok ? "created " + name.value : refused(res)); load(); });
     }, "btn"));
+    grid.appendChild(actions);
     name.focus();
   });
 
