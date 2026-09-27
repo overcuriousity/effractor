@@ -23,7 +23,7 @@ async-trait = "0.1"
 axum = "0.8"
 clap = { version = "4", features = ["derive"] }
 # The operating system's randomness, for share ids and delete tokens.
-getrandom = "0.3"
+getrandom = "0.4"
 mime_guess = "2"
 # WebAuthn needs OpenSSL; vendored, so the static musl builds stay static and
 # no system library is linked. Building it needs perl, make and a C compiler.
