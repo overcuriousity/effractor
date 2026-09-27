@@ -197,7 +197,7 @@
       <header class="chat-head"><button class="chat-title" id="chat-title" type="button" aria-haspopup="menu">New session</button><button class="chat-close" id="chat-close" type="button" title="Close (Esc)" aria-label="Close the chat"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8h8"/></svg></button></header>
       <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
       <p class="chat-said" id="chat-said" role="status" hidden></p>
-      <form class="chat-input" id="chat-form" autocomplete="off"><textarea id="chat-text" rows="2" placeholder="Ask …" aria-label="Message"></textarea><button class="btn" id="chat-send" type="submit">Send</button></form>
+      <form class="chat-input" id="chat-form" autocomplete="off"><textarea id="chat-text" rows="2" placeholder="Ask …" aria-label="Message"></textarea><button class="chat-send" id="chat-send" type="submit" title="Send (Enter)" aria-label="Send"><svg class="chat-send-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3.5M4 7.5l4-4 4 4"/></svg><svg class="chat-stop-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="4.5" width="7" height="7" rx="1"/></svg></button></form>
       <div class="chat-edge" id="chat-edge" aria-hidden="true"></div>
     </aside>{% endif %}
     <aside class="inspector" id="inspector" aria-label="Selected node" hidden>

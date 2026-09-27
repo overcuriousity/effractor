@@ -25,6 +25,9 @@
   var running = false, stopping = false, ending = null, poll = null;
   var records = {};      // turn → {before, after}: Undo turn, in this page only
   var catalog = null;    // tools.json
+  var drawn = [];        // what the log shows, row by row: {key, kind, node}
+  var frame = 0;         // a draw waiting for the next animation frame
+  var pin = false;       // scroll to the end on the next draw (the user just sent)
 
   function remember(key, value) {
     try {
@@ -158,36 +161,47 @@
   }
 
   function empty() {
-    var box = el("div", "chat-quiet");
+    var box = el("div", "chat-quiet chat-empty");
     box.appendChild(el("p", null, "Goes to " + (info && info.host) + " · " + (info && info.model)));
     if (viewer()) box.appendChild(el("p", null, "can read, not edit"));
     return box;
   }
 
+  // A tool call: one line of plain words with its state (running, done,
+  // refused). A click selects what it made; a second shows input and result.
   function callLine(row) {
-    var b = el("button", "chat-call" + (row.result && !row.result.ok ? " is-refused" : ""), row.words);
+    var box = el("div", "chat-call");
+    var b = el("button", "chat-call-line");
     b.type = "button";
-    var detail = null;
-    var target = row.result && row.result.ok ? String(row.result.output).split(" → ")[1] : null;
-    if (!target && row.name === "show" && row.input) target = row.input.id;
+    box.appendChild(b);
+    box._row = row;
     b.addEventListener("click", function () {
+      var r = box._row, target = T.target(r, app.state.doc);
+      var detail = box.querySelector("pre");
       if (target && app.state.selected !== target) return app.select(target);
-      if (detail) {
-        detail.remove();
-        detail = null;
-        return;
-      }
-      detail = el("pre", null, JSON.stringify(row.input, null, 1) + (row.result ? "\n→ " + row.result.output : ""));
-      b.after(detail);
+      if (detail) return detail.remove();
+      box.appendChild(el("pre", null, callDetail(r)));
     });
-    return b;
+    patchCall(box, row);
+    return box;
+  }
+  function callDetail(row) {
+    return JSON.stringify(row.input, null, 1) + (row.result ? "\n→ " + row.result.output : "");
+  }
+  function patchCall(box, row) {
+    box._row = row;
+    var state = !row.result ? "is-running" : row.result.ok ? "is-done" : "is-refused";
+    box.className = "chat-call " + state;
+    box.firstChild.textContent = row.words;
+    var detail = box.querySelector("pre");
+    if (detail) detail.textContent = callDetail(row);
   }
 
   // Sessions belong to a document kept in the account: say so, and offer it.
   function unsaved() {
     titleButton.textContent = "Chat";
-    log.textContent = "";
-    var box = el("div", "chat-quiet");
+    reset();
+    var box = el("div", "chat-quiet chat-empty");
     box.appendChild(el("p", null, "Chats are kept with a saved document"));
     var b = el("button", "btn btn-ghost", "Save to documents");
     b.type = "button";
@@ -199,6 +213,81 @@
     input.disabled = sendButton.disabled = true;
   }
 
+  function reset() {
+    log.textContent = "";
+    drawn = [];
+  }
+
+  // Many events arrive per frame while a reply streams: one draw per frame.
+  function schedule() {
+    if (frame) return;
+    frame = requestAnimationFrame(function () {
+      frame = 0;
+      draw();
+    });
+  }
+
+  function build(row, streaming) {
+    var node;
+    if (row.kind === "user") {
+      node = el("div", "chat-from-user");
+      if (row.author) node.appendChild(el("div", "chat-who", row.author));
+      node.appendChild(el("div", "chat-user", row.text));
+      return node;
+    }
+    if (row.kind === "said") return patch(el("div", "chat-agent"), row, streaming);
+    if (row.kind === "thinking") {
+      node = el("details", "chat-thinking");
+      node.appendChild(el("summary"));
+      node.appendChild(el("div", "chat-thinking-text"));
+      return patch(node, row, streaming);
+    }
+    if (row.kind === "call") return callLine(row);
+    if (row.kind === "marker") return el("p", "chat-quiet", "… " + row.n + " earlier turns left out");
+    return el("div", "chat-tokens", T.count(row.input) + " in · " + T.count(row.output) + " out");
+  }
+
+  // Changes a drawn row in place, so a streaming text grows where it is and
+  // an opened fold stays open; returns the node.
+  function patch(node, row, streaming) {
+    if (row.kind === "said") {
+      node.textContent = "";
+      node.appendChild(M.render(M.parse(row.text), document));
+      if (row.interrupted) node.appendChild(el("p", "chat-quiet", "interrupted"));
+      node.classList.toggle("is-streaming", streaming);
+    } else if (row.kind === "thinking") {
+      node.firstChild.textContent = streaming ? "Thinking…" : "Thinking";
+      node.firstChild.classList.toggle("is-live", streaming);
+      node.lastChild.textContent = row.text;
+    } else if (row.kind === "call") {
+      patchCall(node, row);
+    }
+    return node;
+  }
+
+  // The row at `i` as `row`: kept when unchanged, patched when it grew, else
+  // built anew.
+  function place(i, row, streaming, before) {
+    var key = JSON.stringify(row) + (streaming ? "~" : "");
+    var had = drawn[i];
+    if (had && had.key === key) return;
+    if (had && had.kind === row.kind && /^(said|thinking|call)$/.test(row.kind)) {
+      patch(had.node, row, streaming);
+      had.key = key;
+      return;
+    }
+    var node = build(row, streaming);
+    if (had) log.replaceChild(node, had.node);
+    else log.insertBefore(node, before);
+    drawn[i] = { key: key, kind: row.kind, node: node };
+  }
+
+  // Below the rows: waiting for the model, Undo turn, Continue.
+  var waiting = el("div", "chat-waiting");
+  waiting.appendChild(el("span", "chat-pulse"));
+  waiting.appendChild(el("span", null, "Thinking…"));
+  var after = el("div", "chat-after");
+
   function draw() {
     if (doc == null) return unsaved();
     input.disabled = sendButton.disabled = false;
@@ -209,53 +298,48 @@
         return { type: "tool_result", id: r.id, ok: r.ok, output: r.output };
       }) }]);
     }
-    var rows = T.rows(messages, live);
-    var atEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 24;
-    log.textContent = "";
-    if (!rows.length) log.appendChild(empty());
-    var lastTurn = rows.length ? rows[rows.length - 1].turn : null;
-    rows.forEach(function (row) {
-      if (row.kind === "user") {
-        log.appendChild(el("div", "chat-who", row.author));
-        log.appendChild(el("div", "chat-user", row.text));
-      } else if (row.kind === "said") {
-        var box = el("div", "chat-said-by-agent");
-        box.appendChild(M.render(M.parse(row.text), document));
-        if (row.interrupted) box.appendChild(el("p", "chat-quiet", "interrupted"));
-        log.appendChild(box);
-      } else if (row.kind === "thinking") {
-        var d = el("details");
-        d.appendChild(el("summary", null, "thinking"));
-        d.appendChild(el("pre", null, row.text));
-        log.appendChild(d);
-      } else if (row.kind === "call") {
-        log.appendChild(callLine(row));
-      } else if (row.kind === "marker") {
-        log.appendChild(el("p", "chat-quiet", "… " + row.n + " earlier turns left out"));
-      } else if (row.kind === "tokens") {
-        log.appendChild(el("div", "chat-tokens", "in " + (row.input == null ? "—" : row.input) + " · out " + (row.output == null ? "—" : row.output)));
-      }
+    var rows = T.rows(messages, live, running);
+    var atEnd = pin || log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+    pin = false;
+    if (!rows.length) {
+      reset();
+      log.appendChild(empty());
+    } else if (!drawn.length) reset();
+    if (waiting.parentNode !== log) log.appendChild(waiting);
+    if (after.parentNode !== log) log.appendChild(after);
+    var last = rows[rows.length - 1];
+    rows.forEach(function (row, i) {
+      place(i, row, running && !!row.live && row === last, waiting);
     });
-    if (!running && lastTurn != null) {
-      var record = records[lastTurn];
-      if (record) {
-        var can = T.undoTurn(record, app.state.text);
-        var u = el("button", "btn btn-ghost chat-undo", "Undo turn");
-        u.type = "button";
-        u.disabled = !can.offer;
-        if (!can.offer) u.title = can.why;
-        u.addEventListener("click", function () { undoTurn(record); });
-        if (record.before !== record.after) log.appendChild(u);
-      }
-      if (ending === "steps") {
-        var more = el("button", "link-button", "Continue");
-        more.type = "button";
-        more.addEventListener("click", function () { say("Continue."); });
-        log.appendChild(more);
-      }
+    while (drawn.length > rows.length) drawn.pop().node.remove();
+    waiting.hidden = !running || !!answered || !!(last && last.live);
+    waiting.lastChild.textContent = stopping ? "Stopping…" : "Thinking…";
+    drawAfter(last ? last.turn : null);
+    sendButton.classList.toggle("is-stop", running);
+    sendButton.title = running ? "Stop" : "Send (Enter)";
+    sendButton.setAttribute("aria-label", running ? "Stop" : "Send");
+    if (atEnd) log.scrollTop = log.scrollHeight;
+  }
+
+  function drawAfter(lastTurn) {
+    after.textContent = "";
+    if (running || lastTurn == null) return;
+    var record = records[lastTurn];
+    if (record && record.before !== record.after) {
+      var can = T.undoTurn(record, app.state.text);
+      var u = el("button", "btn btn-ghost chat-undo", "Undo turn");
+      u.type = "button";
+      u.disabled = !can.offer;
+      if (!can.offer) u.title = can.why;
+      u.addEventListener("click", function () { undoTurn(record); });
+      after.appendChild(u);
     }
-    sendButton.textContent = running ? "Stop" : "Send";
-    if (atEnd || running) log.scrollTop = log.scrollHeight;
+    if (ending === "steps") {
+      var more = el("button", "link-button", "Continue");
+      more.type = "button";
+      more.addEventListener("click", function () { say("Continue."); });
+      after.appendChild(more);
+    }
   }
 
   function undoTurn(record) {
@@ -303,6 +387,8 @@
     ensureSession().then(function (ok) {
       if (!ok) return;
       input.value = "";
+      fit();
+      pin = true;
       running = true;
       stopping = false;
       ending = null;
@@ -318,7 +404,7 @@
     if (e.event === "end") ending = e.data.reason;
     if (e.event === "error") ending = "error";
     if (e.event === "error") note(e.data.reason);
-    draw();
+    schedule();
   }
 
   // After each streamed step: run its tool calls and go on, or finish.
@@ -473,6 +559,12 @@
     }
     say(input.value);
   });
+  // The field grows with what is typed, up to a few lines.
+  function fit() {
+    input.style.setProperty("height", "auto");
+    input.style.setProperty("height", Math.min(input.scrollHeight + 2, 128) + "px");
+  }
+  input.addEventListener("input", fit);
   input.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
