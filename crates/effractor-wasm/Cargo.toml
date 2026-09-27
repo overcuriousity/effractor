@@ -22,7 +22,7 @@ serde = "1.0.229"
 serde_json = { version = "1.0.151", features = ["preserve_order", "float_roundtrip"] }
 # Pinned exactly: the CLI that post-processes the module must be this version,
 # and scripts/build-wasm.sh reads it from Cargo.lock.
-wasm-bindgen = "=0.2.128"
+wasm-bindgen = "=0.2.129"
 
 [lints]
 workspace = true

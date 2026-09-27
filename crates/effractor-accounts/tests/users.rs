@@ -81,6 +81,29 @@ fn the_password_is_stored_as_argon2id_never_as_given() {
 }
 
 #[test]
+fn a_password_stored_before_the_argon2_update_still_logs_in() {
+    // Made by argon2 0.5 for "preview-password": every database from before
+    // 0.6 holds hashes such as this one.
+    const OLD: &str = "$argon2id$v=19$m=19456,t=2,p=1$W6XIyCb0hPRdjDEOFAXigQ$h3FjjNEDQ9wdT4whLXjXlW8VhegK39mrWQ0pcj8rxcs";
+    let (_d, db) = db();
+    let id = add(&db, "alice", Some(PW));
+    db.write(|t| {
+        t.execute(
+            "UPDATE users SET password_hash = ?2 WHERE id = ?1",
+            rusqlite::params![id, OLD],
+        )?;
+        Ok(())
+    })
+    .unwrap();
+    assert!(
+        db.read(|c| users::login(c, "alice", "preview-password"))
+            .unwrap()
+            .is_some()
+    );
+    assert!(db.read(|c| users::login(c, "alice", PW)).unwrap().is_none());
+}
+
+#[test]
 fn short_passwords_and_odd_names_are_refused() {
     assert!(users::check_password("eleven chars").is_ok());
     assert!(matches!(

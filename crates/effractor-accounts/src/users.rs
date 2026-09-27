@@ -3,7 +3,7 @@
 use std::sync::OnceLock;
 
 use argon2::Argon2;
-use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
+use argon2::{PasswordHasher, PasswordVerifier};
 use rusqlite::{Connection, OptionalExtension, Row, Transaction, params};
 
 use crate::{Error, Id, Result, Timestamp};
@@ -73,9 +73,8 @@ pub fn check_password(pw: &str) -> Result<()> {
 fn hash(pw: &str) -> String {
     let mut salt = [0u8; 16];
     getrandom::fill(&mut salt).expect("the operating system has randomness");
-    let salt = SaltString::encode_b64(&salt).expect("16 bytes is a valid salt");
     Argon2::default()
-        .hash_password(pw.as_bytes(), &salt)
+        .hash_password_with_salt(pw.as_bytes(), &salt)
         .expect("argon2 with default parameters hashes any input")
         .to_string()
 }
@@ -87,9 +86,9 @@ fn dummy() -> &'static str {
 }
 
 fn verify(pw: &str, stored: &str) -> bool {
-    PasswordHash::new(stored)
-        .map(|h| Argon2::default().verify_password(pw.as_bytes(), &h).is_ok())
-        .unwrap_or(false)
+    Argon2::default()
+        .verify_password(pw.as_bytes(), stored)
+        .is_ok()
 }
 
 pub fn create(t: &Transaction, new: &NewUser, now: Timestamp) -> Result<Id> {
