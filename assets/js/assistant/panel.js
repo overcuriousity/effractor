@@ -315,6 +315,9 @@
     waiting.hidden = !running || !!answered || !!(last && last.live);
     waiting.lastChild.textContent = stopping ? "Stopping…" : "Thinking…";
     drawAfter(last ? last.turn : null);
+    // Someone else's turn: the field says who is asking.
+    var other = !running && session && session.turn ? session.turn.by : null;
+    input.placeholder = other ? other + " is asking …" : "Ask …";
     sendButton.classList.toggle("is-stop", running);
     sendButton.title = running ? "Stop" : "Send (Enter)";
     sendButton.setAttribute("aria-label", running ? "Stop" : "Send");
