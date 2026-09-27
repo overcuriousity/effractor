@@ -1,9 +1,9 @@
 //! Fitting a session into the model's context (chat spec §4.6): the task
 //! (the first turn) and the latest turns stay, whole turns go from the
-//! middle, and a marker says how many. Only when the latest turn does not
-//! fit on its own does a text larger than a quarter of the budget keep just
-//! its head and tail. Deterministic; nothing is summarised; the stored session is
-//! never changed.
+//! middle, and a marker says how many. Only when the task's turn and the
+//! latest one do not fit together are their largest texts cut, largest
+//! first and only as far as needed, to a head and a tail. Deterministic;
+//! nothing is summarised; the stored session is never changed.
 
 use super::message::{Block, Message, Role};
 
@@ -31,27 +31,6 @@ fn cut(text: &str, limit: usize) -> String {
     format!("{head}\n… {} characters left out …\n{tail}", n - 2 * keep)
 }
 
-fn trimmed(m: &Message, limit: usize) -> Message {
-    Message {
-        role: m.role,
-        blocks: m
-            .blocks
-            .iter()
-            .map(|b| match b {
-                Block::Text { text } => Block::Text {
-                    text: cut(text, limit),
-                },
-                Block::ToolResult { id, ok, output } => Block::ToolResult {
-                    id: id.clone(),
-                    ok: *ok,
-                    output: cut(output, limit),
-                },
-                other => other.clone(),
-            })
-            .collect(),
-    }
-}
-
 fn size(m: &Message) -> usize {
     m.blocks
         .iter()
@@ -66,15 +45,101 @@ fn size(m: &Message) -> usize {
 }
 
 /// The messages to send, and how many whole turns were left out. Whole
-/// turns go from the middle first; only when the latest turn does not fit
-/// on its own are its large texts cut.
+/// turns go from the middle first; only when the task's turn and the latest
+/// one do not fit together are their texts cut.
 pub fn fit(history: &[Message], budget_chars: usize) -> (Vec<Message>, u32) {
     if let Some(sent) = by_turns(history.to_vec(), budget_chars, false) {
         return sent;
     }
-    let limit = (budget_chars / 4).max(64);
-    let msgs = history.iter().map(|m| trimmed(m, limit)).collect();
-    by_turns(msgs, budget_chars, true).unwrap_or_default()
+    by_turns(cut_to_fit(history, budget_chars), budget_chars, true).unwrap_or_default()
+}
+
+/// Room for the marker, as `by_turns` counts it.
+const MARKER: usize = 40;
+/// No text is cut shorter than this.
+const FLOOR: usize = 64;
+
+/// How long a text of `n` characters is once cut to `limit`.
+fn cut_len(n: usize, limit: usize) -> usize {
+    if n <= limit {
+        return n;
+    }
+    let keep = limit / 2;
+    let said = format!("\n… {} characters left out …\n", n - 2 * keep);
+    (2 * keep + said.chars().count()).min(n)
+}
+
+/// The history with the texts of the task's turn and the latest turn cut
+/// to one length, the longest that lets the two fit: the largest texts are
+/// cut first, and no more than needed. Other turns are left as they are.
+fn cut_to_fit(history: &[Message], budget_chars: usize) -> Vec<Message> {
+    let starts: Vec<usize> = (0..history.len())
+        .filter(|&i| i == 0 || history[i].role == Role::User)
+        .collect();
+    let first_end = starts.get(1).copied().unwrap_or(history.len());
+    let last_start = starts.last().copied().unwrap_or(0);
+    let kept = |i: usize| i < first_end || i >= last_start;
+    let chars = |b: &Block| match b {
+        Block::Text { text } => Some(text.chars().count()),
+        Block::ToolResult { output, .. } => Some(output.chars().count()),
+        _ => None,
+    };
+    let texts: Vec<usize> = (0..history.len())
+        .filter(|&i| kept(i))
+        .flat_map(|i| history[i].blocks.iter().filter_map(chars))
+        .collect();
+    let whole: usize = (0..history.len())
+        .filter(|&i| kept(i))
+        .map(|i| size(&history[i]))
+        .sum::<usize>()
+        + MARKER;
+    let fixed = whole - texts.iter().sum::<usize>();
+    let total = |limit: usize| fixed + texts.iter().map(|&n| cut_len(n, limit)).sum::<usize>();
+    // The longest length that fits; the floor when none does.
+    let (mut lo, mut hi) = (
+        FLOOR,
+        texts.iter().copied().max().unwrap_or(FLOOR).max(FLOOR),
+    );
+    while lo < hi {
+        let mid = lo + (hi - lo).div_ceil(2);
+        if total(mid) <= budget_chars {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    let limit = lo;
+    let cut_block = |b: &Block| match b {
+        Block::Text { text } if cut_len(text.chars().count(), limit) < text.chars().count() => {
+            Block::Text {
+                text: cut(text, limit),
+            }
+        }
+        Block::ToolResult { id, ok, output }
+            if cut_len(output.chars().count(), limit) < output.chars().count() =>
+        {
+            Block::ToolResult {
+                id: id.clone(),
+                ok: *ok,
+                output: cut(output, limit),
+            }
+        }
+        other => other.clone(),
+    };
+    history
+        .iter()
+        .enumerate()
+        .map(|(i, m)| {
+            if kept(i) {
+                Message {
+                    role: m.role,
+                    blocks: m.blocks.iter().map(cut_block).collect(),
+                }
+            } else {
+                m.clone()
+            }
+        })
+        .collect()
 }
 
 /// The task's turn and the latest turns that fit, a marker for the rest;
@@ -96,7 +161,7 @@ fn by_turns(msgs: Vec<Message>, budget_chars: usize, anyway: bool) -> Option<(Ve
     if total <= budget_chars {
         return Some((turns.into_iter().flatten().collect(), 0));
     }
-    let marker = 40;
+    let marker = MARKER;
     let last = turns.len().checked_sub(1)?;
     if last == 0 {
         return anyway.then(|| (turns.into_iter().flatten().collect(), 0));
@@ -273,6 +338,48 @@ mod tests {
         };
         assert!(text.starts_with("TASK") && text.contains("characters left out"));
         assert_eq!(out.last().unwrap(), &said("done"));
+    }
+
+    fn result(id: &str, output: String) -> Message {
+        Message {
+            role: Role::Tool,
+            blocks: vec![Block::ToolResult {
+                id: id.into(),
+                ok: true,
+                output,
+            }],
+        }
+    }
+
+    #[test]
+    fn only_as_much_is_cut_as_needed_largest_first() {
+        // The default budget; the task's turn read the catalog, the latest
+        // one a long document. The catalog stays whole; only the document
+        // is cut, and only to what fits.
+        let budget = 43_000;
+        let catalog = "c".repeat(12_000);
+        let doc = format!("HEAD{}TAIL", "d".repeat(35_000));
+        let mut h = vec![user("TASK"), result("1", catalog.clone())];
+        for i in 0..5 {
+            h.push(user(&format!("q{i}")));
+            h.push(said("y"));
+        }
+        h.push(user("read this"));
+        h.push(result("2", doc));
+        let (out, left) = fit(&h, budget);
+        assert_eq!(left, 5);
+        assert_eq!(out[1], h[1], "the catalog is sent whole");
+        let Block::ToolResult { output, .. } = &out.last().unwrap().blocks[0] else {
+            panic!()
+        };
+        assert!(output.starts_with("HEAD") && output.ends_with("TAIL"));
+        assert!(output.contains("characters left out"));
+        let sent: usize = out.iter().map(size).sum();
+        assert!(sent <= budget, "{sent}");
+        assert!(
+            output.chars().count() > budget - 12_000 - 400,
+            "cut no more than needed"
+        );
     }
 
     #[test]

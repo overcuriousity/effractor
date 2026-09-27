@@ -258,7 +258,7 @@ async fn models(
         }
         None => None,
     };
-    let http = provider::client(cfg.timeout_seconds.min(30));
+    let http = provider::admin_client(cfg.timeout_seconds.min(30));
     let ua = b.user_agent.unwrap_or(cfg.user_agent.clone());
     Ok(Json(
         match provider::models(p, &address, key.as_deref(), ua.trim(), &http).await {
@@ -301,7 +301,7 @@ async fn test(
         reply_tokens: 64,
         replay_thinking: crate::assistant::replays_thinking(&cfg.address),
     };
-    let http = provider::client(cfg.timeout_seconds);
+    let http = provider::admin_client(cfg.timeout_seconds);
     let mut said = String::new();
     let outcome = match provider::stream_explained(&cfg, &req, &http).await {
         Err(e) => Err(e),

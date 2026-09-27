@@ -164,6 +164,14 @@ impl Assistant {
         rx
     }
 
+    /// Whether a step of `session` is streaming in this process.
+    pub fn streaming(&self, session: Id) -> bool {
+        self.stops
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .contains_key(&session)
+    }
+
     /// Whether a streaming step was there to stop.
     pub fn stop(&self, session: Id) -> bool {
         let stops = self.stops.lock().unwrap_or_else(|e| e.into_inner());

@@ -89,14 +89,28 @@ pub fn parse_with(wire: &mut dyn Wire, raw: &[u8]) -> Result<Vec<Event>, Provide
     out.into_iter().collect()
 }
 
+/// For a chat's streamed replies: the timeout is for silence, not for the
+/// whole reply, which a slow local model may take many minutes to write.
 pub fn client(timeout_seconds: u64) -> reqwest::Client {
-    reqwest::Client::builder()
+    base()
+        .read_timeout(Duration::from_secs(timeout_seconds))
+        .build()
+        .unwrap_or_default()
+}
+
+/// For the admin's model list and Test: short answers, a total timeout.
+pub fn admin_client(timeout_seconds: u64) -> reqwest::Client {
+    base()
         .timeout(Duration::from_secs(timeout_seconds))
+        .build()
+        .unwrap_or_default()
+}
+
+fn base() -> reqwest::ClientBuilder {
+    reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(10))
         // A key is never carried to another host.
         .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .unwrap_or_default()
 }
 
 fn overflow(body: &str) -> bool {

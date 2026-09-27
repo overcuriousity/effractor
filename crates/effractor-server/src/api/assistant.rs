@@ -257,8 +257,11 @@ async fn restore(
 
 // ---- the history ----
 
+/// The stored messages as the model sees them. A stored marker only tells
+/// the page what was left out then; `window::fit` adds a fresh one.
 fn history(rows: &[MessageRow]) -> Vec<Message> {
     rows.iter()
+        .filter(|r| r.role != "marker")
         .filter_map(|r| {
             Some(Message {
                 role: Role::parse(&r.role)?,
@@ -339,6 +342,18 @@ struct Say {
     state: String,
 }
 
+/// Whether `user` spent the daily budget (chat spec §8).
+async fn over_budget(accounts: &Accounts, cfg: &Config, user: Id) -> Result<bool, ApiError> {
+    let Some(daily) = cfg.daily_tokens else {
+        return Ok(false);
+    };
+    let since = accounts.db().now().saturating_sub(DAY);
+    let used = accounts
+        .blocking(move |db| db.read(|c| store::used_since(c, user, since)))
+        .await?;
+    Ok(used >= daily as i64)
+}
+
 async fn message(
     State(accounts): State<Accounts>,
     CurrentUser(user, _): CurrentUser,
@@ -358,31 +373,36 @@ async fn message(
         return Err(ApiError::TooLong);
     }
     let me = user.id;
-    if let Some(daily) = cfg.daily_tokens {
-        let since = accounts.db().now().saturating_sub(DAY);
-        let used = accounts
-            .blocking(move |db| db.read(|c| store::used_since(c, me, since)))
-            .await?;
-        if used >= daily as i64 {
-            return Err(ApiError::Budget);
-        }
+    if over_budget(&accounts, &cfg, me).await? {
+        return Err(ApiError::Budget);
     }
     let edit = role >= DocRole::Editor;
     let access = if edit { "edit" } else { "read" };
-    let stale_after = u64::from(cfg.steps) * cfg.timeout_seconds;
+    // A streaming turn may run all its steps; one waiting for its page's
+    // results (none streams here) is dead after one timeout, and its own
+    // asker may take it over at once: the tab was reloaded or closed.
+    let streaming = accounts.assistant().streaming(sid);
+    let stale_after = if streaming {
+        u64::from(cfg.steps) * cfg.timeout_seconds
+    } else {
+        cfg.timeout_seconds
+    };
     let untitled = session.title.is_empty();
     let claimed = accounts
         .blocking(move |db| {
             let now = db.now();
             db.write(|t| {
-                let turn = match store::claim(t, sid, me, access, now, stale_after)? {
+                let rows = store::messages(t, sid)?;
+                let (open, their_turn) = open_calls(&rows);
+                let waiting = !streaming
+                    && !open.is_empty()
+                    && store::turn(t, sid)?.is_some_and(|r| r.turn == their_turn);
+                let turn = match store::claim(t, sid, me, access, now, stale_after, waiting)? {
                     Claim::Busy { by } => return Ok(Err(by)),
                     Claim::Claimed { turn, .. } => turn,
                 };
                 // Calls a page never answered (it went away) are said not run,
                 // so the history stays valid for both wires.
-                let rows = store::messages(t, sid)?;
-                let (open, their_turn) = open_calls(&rows);
                 not_run(t, sid, their_turn, &open, "not run", now)?;
                 let content = serde_json::to_string(&[Block::Text { text: text.clone() }])
                     .unwrap_or_default();
@@ -433,42 +453,48 @@ async fn results(
 ) -> Result<Response, ApiError> {
     let (session, _) = session_for(&accounts, user.id, sid, false).await?;
     let cfg = config(&accounts).await?;
-    let (turn, rows) = accounts
-        .blocking(move |db| db.read(|c| Ok((store::turn(c, sid)?, store::messages(c, sid)?))))
-        .await?;
-    let Some(turn) = turn.filter(|t| t.by == user.id) else {
-        return Err(ApiError::Busy("not your turn".into()));
-    };
-    let (mut open, _) = open_calls(&rows);
-    let mut given: Vec<String> = b.results.iter().map(|r| r.id.clone()).collect();
-    open.sort();
-    given.sort();
-    if open.is_empty() || open != given {
-        return Err(ApiError::Bad("results do not match the calls".into()));
-    }
     let limit = cfg.message_bytes as usize;
+    let given: Vec<String> = b.results.iter().map(|r| r.id.clone()).collect();
     let blocks: Vec<Block> = b
         .results
         .into_iter()
         .map(|r| Block::ToolResult {
             id: r.id,
             ok: r.ok,
-            output: if r.output.chars().count() > limit {
-                let head: String = r.output.chars().take(limit).collect();
-                format!("{head}\n… cut at the message size")
-            } else {
-                r.output
-            },
+            output: capped(r.output, limit),
         })
         .collect();
     let content = serde_json::to_string(&blocks).unwrap_or_default();
-    let turn_no = turn.turn;
-    accounts
+    // Spent while the page ran the tools: what they did is kept, the turn ends.
+    let spent = over_budget(&accounts, &cfg, user.id).await?;
+    let me = user.id;
+    // Checked and stored at once: a second post of the same results finds
+    // the calls answered.
+    let taken = accounts
         .blocking(move |db| {
             let now = db.now();
-            db.write(|t| store::append(t, sid, turn_no, "tool", None, &content, None, now))
+            db.write(|t| {
+                let Some(turn) = store::turn(t, sid)?.filter(|t| t.by == me) else {
+                    return Ok(Err(ApiError::Busy("not your turn".into())));
+                };
+                let rows = store::messages(t, sid)?;
+                let (mut open, _) = open_calls(&rows);
+                let mut given = given;
+                open.sort();
+                given.sort();
+                if open.is_empty() || open != given {
+                    return Ok(Err(ApiError::Bad("results do not match the calls".into())));
+                }
+                store::append(t, sid, turn.turn, "tool", None, &content, None, now)?;
+                if spent {
+                    store::release(t, sid)?;
+                    return Ok(Err(ApiError::Budget));
+                }
+                Ok(Ok(turn))
+            })
         })
         .await?;
+    let turn = taken?;
     Ok(run_step(
         accounts,
         cfg,
@@ -560,18 +586,20 @@ async fn drive(accounts: Accounts, cfg: Config, step: Step, tx: mpsc::Sender<Sse
         Ending::Steps => "not run: step limit",
         _ => "not run",
     };
-    let release = !matches!(end, Ending::Tools);
-    let open_for_db = open.clone();
+    let tools = matches!(end, Ending::Tools);
     let why = why.to_owned();
+    let open_for_db = open.clone();
     let _ = accounts
         .blocking(move |db| {
             let now = db.now();
             db.write(|t| {
-                if release {
+                if tools {
+                    // The wait for the page's results starts now.
+                    store::touch(t, sid, now)
+                } else {
                     not_run(t, sid, turn, &open_for_db, &why, now)?;
-                    store::release(t, sid)?;
+                    store::release(t, sid)
                 }
-                Ok(())
             })
         })
         .await;
@@ -581,17 +609,103 @@ async fn drive(accounts: Accounts, cfg: Config, step: Step, tx: mpsc::Sender<Sse
         Ending::Tools => sse("end", json!({"reason": "tools"})),
         Ending::Steps => sse("end", json!({"reason": "steps"})),
         Ending::Stopped => sse("end", json!({"reason": "stopped"})),
+        Ending::Cut => sse("end", json!({"reason": "max_tokens"})),
         Ending::Error(code, reason) => sse("error", json!({"code": code, "reason": reason})),
     };
-    let _ = tx.send(last).await;
+    // The page went away before it heard to run the calls: nobody will.
+    if tx.send(last).await.is_err() && tools {
+        let _ = accounts
+            .blocking(move |db| {
+                let now = db.now();
+                db.write(|t| {
+                    not_run(t, sid, turn, &open, "not run", now)?;
+                    store::release(t, sid)
+                })
+            })
+            .await;
+    }
 }
 
 enum Ending {
     Done,
+    /// Cut at the reply limit (`reply_tokens`).
+    Cut,
     Tools,
     Steps,
     Stopped,
     Error(String, String),
+}
+
+/// Resolves once the stop signal is raised; never when its sender is gone.
+async fn stopped_by(stop: &mut tokio::sync::watch::Receiver<bool>) {
+    while stop.changed().await.is_ok() {
+        if *stop.borrow() {
+            return;
+        }
+    }
+    std::future::pending::<()>().await;
+}
+
+/// Streamed text of one block, its last (key length − 1) characters held
+/// back: a key the model recites comes in pieces shorter than itself, and
+/// only a whole piece can be scrubbed (chat spec §4.4).
+struct Held<'a> {
+    key: Option<&'a str>,
+    keep: usize,
+    buf: String,
+}
+
+impl<'a> Held<'a> {
+    fn new(key: Option<&'a str>) -> Self {
+        // `scrub` looks at keys of eight characters or more only.
+        let key = key.filter(|k| k.chars().count() >= 8);
+        Held {
+            keep: key.map_or(0, |k| k.chars().count() - 1),
+            key,
+            buf: String::new(),
+        }
+    }
+
+    /// What may go to the page now.
+    fn push(&mut self, t: &str) -> String {
+        self.buf.push_str(t);
+        let scrubbed = scrub(&self.buf, self.key);
+        let n = scrubbed.chars().count();
+        if n <= self.keep {
+            self.buf = scrubbed;
+            return String::new();
+        }
+        let at = scrubbed
+            .char_indices()
+            .nth(n - self.keep)
+            .map_or(scrubbed.len(), |(i, _)| i);
+        self.buf = scrubbed[at..].to_owned();
+        scrubbed[..at].to_owned()
+    }
+
+    fn flush(&mut self) -> String {
+        scrub(&std::mem::take(&mut self.buf), self.key)
+    }
+}
+
+async fn send_held(
+    tx: &mpsc::Sender<SseEvent>,
+    event: &str,
+    t: String,
+) -> Result<(), mpsc::error::SendError<SseEvent>> {
+    if t.is_empty() {
+        return Ok(());
+    }
+    tx.send(sse(event, json!({"text": t}))).await
+}
+
+async fn flush_held(
+    tx: &mpsc::Sender<SseEvent>,
+    thinking: &mut Held<'_>,
+    text: &mut Held<'_>,
+) -> Result<(), mpsc::error::SendError<SseEvent>> {
+    send_held(tx, "thinking", thinking.flush()).await?;
+    send_held(tx, "text", text.flush()).await
 }
 
 /// Streams one model request to the page and stores what came. Returns how
@@ -616,7 +730,10 @@ async fn drive_inner(
         .sum();
     let mut budget = window::budget_chars(cfg.context, system.len(), tools_chars, cfg.reply_tokens);
     let steps = accounts
-        .blocking(move |db| db.write(|t| store::bump_steps(t, sid)))
+        .blocking(move |db| {
+            let now = db.now();
+            db.write(|t| store::bump_steps(t, sid, now))
+        })
         .await?;
     let mut stop = accounts.assistant().stop_signal(sid);
     let http = provider::client(cfg.timeout_seconds);
@@ -629,6 +746,8 @@ async fn drive_inner(
     let mut stopped = false;
     let mut failed: Option<ProviderError> = None;
     let mut marked = false;
+    let mut limit_hit = false;
+    let (mut live_text, mut live_thinking) = (Held::new(key), Held::new(key));
     for attempt in 0..2 {
         let (msgs, left) = window::fit(&past, budget);
         if left > 0 && step.first && !marked {
@@ -656,7 +775,15 @@ async fn drive_inner(
             reply_tokens: cfg.reply_tokens,
             replay_thinking: crate::assistant::replays_thinking(&cfg.address),
         };
-        let mut events = match provider::stream(cfg, &req, &http).await {
+        // Stop is heard while the endpoint has not answered yet, too.
+        let answered = tokio::select! {
+            r = provider::stream(cfg, &req, &http) => r,
+            () = stopped_by(&mut stop) => {
+                stopped = true;
+                break;
+            }
+        };
+        let mut events = match answered {
             Err(ProviderError::ContextOverflow) if attempt == 0 => {
                 budget /= 2;
                 continue;
@@ -684,17 +811,19 @@ async fn drive_inner(
                             break;
                         }
                         Some(Ok(Event::Text { text: t })) => {
-                            let t = scrub(&t, key);
                             text.push_str(&t);
-                            tx.send(sse("text", json!({"text": t}))).await
+                            send_held(tx, "text", live_text.push(&t)).await
                         }
                         Some(Ok(Event::Thinking { text: t })) => {
-                            let t = scrub(&t, key);
                             thinking.push_str(&t);
-                            tx.send(sse("thinking", json!({"text": t}))).await
+                            send_held(tx, "thinking", live_thinking.push(&t)).await
                         }
                         Some(Ok(Event::ToolCall { id, name, input })) => {
-                            let r = tx.send(sse("tool_call", json!({"id": id, "name": name, "input": input}))).await;
+                            let r = flush_held(tx, &mut live_thinking, &mut live_text).await;
+                            let r = match r {
+                                Ok(()) => tx.send(sse("tool_call", json!({"id": id, "name": name, "input": input}))).await,
+                                e => e,
+                            };
                             calls.push((id, name, input));
                             r
                         }
@@ -702,7 +831,10 @@ async fn drive_inner(
                             usage = (input.or(usage.0), output.or(usage.1));
                             Ok(())
                         }
-                        Some(Ok(Event::Stop { .. })) => Ok(()),
+                        Some(Ok(Event::Stop { reason })) => {
+                            limit_hit = reason == "max_tokens";
+                            Ok(())
+                        }
                     };
                     // The page is gone: stop, as if asked.
                     if sent.is_err() {
@@ -714,17 +846,31 @@ async fn drive_inner(
         }
         break;
     }
+    // What was held back of the key's length goes out now, scrubbed whole.
+    if !stopped
+        && flush_held(tx, &mut live_thinking, &mut live_text)
+            .await
+            .is_err()
+    {
+        stopped = true;
+    }
 
     let cut = stopped || failed.is_some();
+    // A reply cut at the reply limit says so, as an interrupted one does.
+    let limited = !cut && limit_hit && calls.is_empty();
     let mut blocks = Vec::new();
     if !thinking.is_empty() {
-        blocks.push(Block::Thinking { text: thinking });
+        blocks.push(Block::Thinking {
+            text: scrub(&thinking, key),
+        });
     }
     if !text.is_empty() {
         let text = scrub(&text, key);
         blocks.push(Block::Text {
             text: if cut {
                 format!("{text} [interrupted]")
+            } else if limited {
+                format!("{text} [cut at the reply limit]")
             } else {
                 text
             },
@@ -758,6 +904,8 @@ async fn drive_inner(
         (Ending::Stopped, ids)
     } else if let Some(e) = failed {
         (Ending::Error(e.code().into(), e.reason()), ids)
+    } else if ids.is_empty() && limited {
+        (Ending::Cut, ids)
     } else if ids.is_empty() {
         (Ending::Done, ids)
     } else if steps >= i64::from(cfg.steps) {
@@ -767,9 +915,55 @@ async fn drive_inner(
     })
 }
 
+/// A result within `message_bytes`, counted in bytes as the page counts a
+/// message: cut at the last whole character that fits, and said so.
+fn capped(output: String, limit: usize) -> String {
+    if output.len() <= limit {
+        return output;
+    }
+    let mut end = limit;
+    while !output.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}\n… cut at the message size", &output[..end])
+}
+
 #[cfg(test)]
 mod tests {
-    use super::title_from;
+    use super::{capped, history, title_from};
+
+    #[test]
+    fn a_result_is_capped_in_bytes_at_a_character_boundary() {
+        assert_eq!(capped("abc".into(), 3), "abc");
+        // Two bytes each: five fit in ten, and the cut says so.
+        let out = capped("éééééé".into(), 10);
+        assert!(out.starts_with("ééééé\n") && out.ends_with("cut at the message size"));
+        // A limit inside a character keeps the whole ones before it.
+        assert!(capped("éé".into(), 3).starts_with("é\n"));
+    }
+    use effractor_accounts::assistant::MessageRow;
+
+    #[test]
+    fn a_stored_marker_is_not_sent_again() {
+        let row = |seq, role: &str, content: &str| MessageRow {
+            id: seq,
+            seq,
+            turn: 1,
+            role: role.into(),
+            author: None,
+            content: content.into(),
+            input_tokens: None,
+            output_tokens: None,
+            created_at: 0,
+        };
+        let rows = vec![
+            row(1, "user", r#"[{"type":"text","text":"a"}]"#),
+            row(2, "marker", r#"[{"type":"marker","left_out_turns":3}]"#),
+            row(3, "assistant", r#"[{"type":"text","text":"b"}]"#),
+        ];
+        let roles: Vec<_> = history(&rows).iter().map(|m| m.role.as_str()).collect();
+        assert_eq!(roles, ["user", "assistant"]);
+    }
 
     #[test]
     fn a_title_is_the_first_words_cut_at_a_word() {

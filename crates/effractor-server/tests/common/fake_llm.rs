@@ -20,6 +20,10 @@ pub enum Reply {
     /// SSE `data:` payloads; `[DONE]` is appended.
     Stream(Vec<serde_json::Value>),
     Status(u16, String),
+    /// As `Stream`, each payload sent after the pause (a slow model).
+    Slow(Vec<serde_json::Value>, std::time::Duration),
+    /// The reply, its headers sent only after the pause.
+    Late(std::time::Duration, Box<Reply>),
 }
 
 impl Fake {
@@ -53,7 +57,12 @@ async fn chat(
         .map(str::to_owned)
         .into();
     f.seen.lock().unwrap().push(seen);
-    match f.replies.lock().unwrap().pop_front() {
+    let next = f.replies.lock().unwrap().pop_front();
+    answer(next).await
+}
+
+async fn answer(next: Option<Reply>) -> axum::response::Response {
+    match next {
         Some(Reply::Stream(chunks)) => {
             let mut s = String::new();
             for c in chunks {
@@ -64,6 +73,24 @@ async fn chat(
         }
         Some(Reply::Status(code, body)) => {
             (StatusCode::from_u16(code).unwrap(), body).into_response()
+        }
+        Some(Reply::Slow(chunks, pause)) => {
+            let mut parts: Vec<String> = chunks.iter().map(|c| format!("data: {c}\n\n")).collect();
+            parts.push("data: [DONE]\n\n".into());
+            let body = futures_util::stream::unfold(parts.into_iter(), move |mut it| async move {
+                let next = it.next()?;
+                tokio::time::sleep(pause).await;
+                Some((Ok::<_, std::convert::Infallible>(next), it))
+            });
+            (
+                [("content-type", "text/event-stream")],
+                axum::body::Body::from_stream(body),
+            )
+                .into_response()
+        }
+        Some(Reply::Late(pause, reply)) => {
+            tokio::time::sleep(pause).await;
+            Box::pin(answer(Some(*reply))).await
         }
         None => (StatusCode::INTERNAL_SERVER_ERROR, "no scripted reply").into_response(),
     }

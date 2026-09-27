@@ -289,7 +289,8 @@ pub fn turn(c: &Connection, session: Id) -> Result<Option<Turn>> {
 }
 
 /// The session's next turn for `user`, unless one runs that is younger than
-/// `stale_after` seconds. A stale one is released and said so.
+/// `stale_after` seconds. A stale one is released and said so; so is one of
+/// `user`'s own when `take_over_own` (it waits on a page that went away).
 pub fn claim(
     t: &Transaction,
     session: Id,
@@ -297,10 +298,12 @@ pub fn claim(
     access: &str,
     now: Timestamp,
     stale_after: u64,
+    take_over_own: bool,
 ) -> Result<Claim> {
     let mut released_stale = false;
     if let Some(running) = turn(t, session)? {
-        if now.saturating_sub(running.since) < stale_after {
+        let own = take_over_own && running.by == user;
+        if !own && now.saturating_sub(running.since) < stale_after {
             let by: String = t
                 .query_row("SELECT name FROM users WHERE id = ?1", [running.by], |r| {
                     r.get(0)
@@ -327,6 +330,15 @@ pub fn claim(
     })
 }
 
+/// The running turn counts as alive from now.
+pub fn touch(t: &Transaction, session: Id, now: Timestamp) -> Result<()> {
+    t.execute(
+        "UPDATE assistant_sessions SET turn_since = ?2 WHERE id = ?1 AND turn_since IS NOT NULL",
+        params![session, now],
+    )?;
+    Ok(())
+}
+
 pub fn release(t: &Transaction, session: Id) -> Result<()> {
     t.execute(
         "UPDATE assistant_sessions SET turn_by = NULL, turn_since = NULL, turn_access = NULL WHERE id = ?1",
@@ -336,10 +348,12 @@ pub fn release(t: &Transaction, session: Id) -> Result<()> {
 }
 
 /// One more model request in this turn; returns how many there have been.
-pub fn bump_steps(t: &Transaction, session: Id) -> Result<i64> {
+/// The turn counts as alive from now.
+pub fn bump_steps(t: &Transaction, session: Id, now: Timestamp) -> Result<i64> {
     t.execute(
-        "UPDATE assistant_sessions SET turn_steps = turn_steps + 1 WHERE id = ?1",
-        [session],
+        "UPDATE assistant_sessions SET turn_steps = turn_steps + 1, turn_since = ?2
+         WHERE id = ?1 AND turn_since IS NOT NULL",
+        params![session, now],
     )?;
     Ok(t.query_row(
         "SELECT turn_steps FROM assistant_sessions WHERE id = ?1",

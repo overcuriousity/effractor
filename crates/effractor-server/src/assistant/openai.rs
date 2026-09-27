@@ -112,17 +112,33 @@ fn input_of(arguments: &str) -> Value {
 }
 
 impl Parser {
+    /// The message's calls. Some servers give no ids, or one id twice; a
+    /// result must name its call, so each gets its own (`call_<n>`).
     fn flush_calls(&mut self) -> Vec<Result<Event, ProviderError>> {
-        std::mem::take(&mut self.calls)
-            .into_iter()
-            .map(|(_, c)| {
-                Ok(Event::ToolCall {
-                    input: input_of(&c.arguments),
-                    id: c.id,
-                    name: c.name,
-                })
-            })
-            .collect()
+        let calls = std::mem::take(&mut self.calls);
+        let given: Vec<String> = calls.iter().map(|(_, c)| c.id.clone()).collect();
+        let mut used: Vec<String> = Vec::new();
+        let mut out = Vec::new();
+        for (at, (_, c)) in calls.into_iter().enumerate() {
+            let mut id = c.id;
+            // The first holder of a given id keeps it.
+            let first = given.iter().position(|g| *g == id) == Some(at);
+            if id.is_empty() || !first || used.contains(&id) {
+                let mut n = at;
+                id = format!("call_{n}");
+                while used.contains(&id) || given.contains(&id) {
+                    n += 1;
+                    id = format!("call_{n}");
+                }
+            }
+            used.push(id.clone());
+            out.push(Ok(Event::ToolCall {
+                input: input_of(&c.arguments),
+                id,
+                name: c.name,
+            }));
+        }
+        out
     }
 }
 
@@ -288,6 +304,33 @@ mod tests {
             serde_json::json!({"role":"tool","tool_call_id":"c1","content":"error: no such item"})
         );
         assert_eq!(m[3]["content"], "[3 earlier turns left out]");
+    }
+
+    #[test]
+    fn missing_or_repeated_call_ids_are_made_unique() {
+        let raw = concat!(
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[",
+            "{\"index\":0,\"function\":{\"name\":\"show\",\"arguments\":\"{}\"}},",
+            "{\"index\":1,\"id\":\"\",\"function\":{\"name\":\"show\",\"arguments\":\"{}\"}},",
+            "{\"index\":2,\"id\":\"call_0\",\"function\":{\"name\":\"show\",\"arguments\":\"{}\"}},",
+            "{\"index\":3,\"id\":\"call_0\",\"function\":{\"name\":\"show\",\"arguments\":\"{}\"}}",
+            "]},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n",
+        );
+        let ids: Vec<String> = parse_all(raw.as_bytes())
+            .unwrap()
+            .into_iter()
+            .filter_map(|e| match e {
+                Event::ToolCall { id, .. } => Some(id),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(ids.len(), 4);
+        assert!(ids.iter().all(|i| !i.is_empty()), "{ids:?}");
+        let mut unique = ids.clone();
+        unique.sort();
+        unique.dedup();
+        assert_eq!(unique.len(), 4, "{ids:?}");
+        assert!(ids.contains(&"call_0".to_owned()), "a given id is kept");
     }
 
     #[test]

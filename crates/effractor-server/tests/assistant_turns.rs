@@ -256,12 +256,37 @@ async fn nobody_without_a_grant_sees_anything() {
     );
 }
 
-#[tokio::test]
-async fn a_second_sender_is_told_who_is_asking() {
-    let c = chat().await;
-    let s = session(&c).await;
+/// Bob, granted the chat and sharing the document as an editor.
+async fn bob(c: &Chat) -> String {
+    let bob = c.h.add_user("bob");
+    c.h.accounts
+        .db()
+        .write(|t| {
+            effractor_accounts::assistant::grant(
+                t,
+                effractor_accounts::assistant::Grantee::User(bob),
+                bob,
+                0,
+            )
+        })
+        .unwrap();
+    let res =
+        c.h.call(
+            "POST",
+            &format!("/api/documents/{}/shares", c.doc),
+            Some(&c.ann),
+            Some(json!({"kind": "user", "name": "bob", "role": "editor"})),
+        )
+        .await;
+    assert!(res.status().is_success());
+    c.h.login("bob").await
+}
+
+/// Ann asks; the model calls a tool; the page never answers.
+async fn left_between_steps(c: &Chat) -> i64 {
+    let s = session(c).await;
     c.fake.push(Fake::call("c1", "read_document", json!({})));
-    events(
+    let ev = events(
         c.h.call(
             "POST",
             &format!("/api/assistant/sessions/{s}/messages"),
@@ -271,16 +296,273 @@ async fn a_second_sender_is_told_who_is_asking() {
         .await,
     )
     .await;
+    assert_eq!(ev.last().unwrap().1, json!({"reason": "tools"}));
+    s
+}
+
+async fn say(c: &Chat, who: &str, s: i64, text: &str) -> axum::response::Response {
+    c.h.call(
+        "POST",
+        &format!("/api/assistant/sessions/{s}/messages"),
+        Some(who),
+        Some(json!({"text": text, "state": ""})),
+    )
+    .await
+}
+
+async fn stored(c: &Chat, s: i64) -> Value {
+    json(
+        c.h.call(
+            "GET",
+            &format!("/api/assistant/sessions/{s}"),
+            Some(&c.ann),
+            None,
+        )
+        .await,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn a_second_sender_is_told_who_is_asking() {
+    let c = chat().await;
+    let s = left_between_steps(&c).await;
+    let b = bob(&c).await;
+    // Still within the timeout of the wait for results.
+    c.h.clock
+        .fetch_add(60, std::sync::atomic::Ordering::Relaxed);
+    let res = say(&c, &b, s, "b").await;
+    assert_eq!(res.status(), 409);
+    assert_eq!(text(res).await, "ann is asking");
+}
+
+#[tokio::test]
+async fn the_asker_may_send_again_after_leaving_a_turn_between_steps() {
+    let c = chat().await;
+    let s = left_between_steps(&c).await;
+    // The tab was reloaded; ann asks again at once.
+    c.fake.push(Fake::text("again"));
+    let res = say(&c, &c.ann, s, "b").await;
+    assert_eq!(res.status(), 200);
+    assert_eq!(
+        events(res).await.last().unwrap().1,
+        json!({"reason": "done"})
+    );
+    let got = stored(&c, s).await;
+    let tool = got["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["role"] == "tool")
+        .unwrap()
+        .clone();
+    assert_eq!(
+        tool["content"][0],
+        json!({"type": "tool_result", "id": "c1", "ok": false, "output": "not run"})
+    );
+}
+
+#[tokio::test]
+async fn a_turn_waiting_longer_than_the_timeout_is_released_for_anyone() {
+    let c = chat().await;
+    let s = left_between_steps(&c).await;
+    let b = bob(&c).await;
+    c.h.clock
+        .fetch_add(120 + 1, std::sync::atomic::Ordering::Relaxed);
+    c.fake.push(Fake::text("hello bob"));
+    let res = say(&c, &b, s, "b").await;
+    assert_eq!(res.status(), 200);
+    events(res).await;
+}
+
+#[tokio::test]
+async fn a_slow_long_reply_is_not_cut_by_the_timeout() {
+    let c = chat().await;
+    c.h.accounts
+        .db()
+        .write(|t| {
+            effractor_accounts::assistant::set_setting(
+                t,
+                "assistant.timeout_seconds",
+                Some("1"),
+                1,
+                0,
+            )
+        })
+        .unwrap();
+    let s = session(&c).await;
+    let mut chunks: Vec<Value> = (0..5)
+        .map(|i| json!({"choices":[{"delta":{"content":format!("part{i} ")}}]}))
+        .collect();
+    chunks.push(json!({"choices":[{"delta":{},"finish_reason":"stop"}]}));
+    // Each gap is under the timeout; all of them together are not.
+    c.fake
+        .push(Reply::Slow(chunks, std::time::Duration::from_millis(400)));
+    let ev = events(say(&c, &c.ann, s, "write a lot").await).await;
+    assert_eq!(
+        ev.last().unwrap(),
+        &("end".into(), json!({"reason": "done"}))
+    );
+    let said: String = ev
+        .iter()
+        .filter(|e| e.0 == "text")
+        .map(|e| e.1["text"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(said, "part0 part1 part2 part3 part4 ");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn results_posted_twice_are_stored_once() {
+    let c = chat().await;
+    let s = left_between_steps(&c).await;
+    for _ in 0..8 {
+        c.fake.push(Fake::text("one"));
+    }
+    // Eight at once, each on its own task: exactly one is taken.
+    let tasks: Vec<_> = (0..8)
+        .map(|_| {
+            let app = c.h.app.clone();
+            let req = axum::http::Request::builder()
+                .method("POST")
+                .uri(format!("/api/assistant/sessions/{s}/results"))
+                .header("host", "effractor.test")
+                .header("origin", "http://effractor.test")
+                .header("cookie", format!("effractor_session={}", c.ann))
+                .header("content-type", "application/json")
+                .extension(axum::extract::ConnectInfo(std::net::SocketAddr::from((
+                    [10, 0, 0, 1],
+                    40000,
+                ))))
+                .body(axum::body::Body::from(
+                    json!({"results": [{"id": "c1", "ok": true, "output": "doc"}], "state": ""})
+                        .to_string(),
+                ))
+                .unwrap();
+            tokio::spawn(async move {
+                use tower::ServiceExt;
+                app.oneshot(req).await.unwrap()
+            })
+        })
+        .collect();
+    let mut all = Vec::new();
+    for t in tasks {
+        all.push(t.await.unwrap());
+    }
+    let mut codes: Vec<u16> = all.iter().map(|r| r.status().as_u16()).collect();
+    codes.sort();
+    for r in all {
+        text(r).await;
+    }
+    assert_eq!(codes[0], 200);
+    assert!(
+        codes[1..].iter().all(|c| *c == 400 || *c == 409),
+        "{codes:?}"
+    );
+    let got = stored(&c, s).await;
+    let tools = got["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["role"] == "tool")
+        .count();
+    assert_eq!(tools, 1);
+}
+
+#[tokio::test]
+async fn a_reply_cut_at_the_reply_limit_says_so() {
+    let c = chat().await;
+    let s = session(&c).await;
+    c.fake.push(Reply::Stream(vec![
+        json!({"choices":[{"delta":{"content":"The first half of"}}]}),
+        json!({"choices":[{"delta":{},"finish_reason":"length"}]}),
+    ]));
+    let ev = events(say(&c, &c.ann, s, "a").await).await;
+    assert_eq!(
+        ev.last().unwrap(),
+        &("end".into(), json!({"reason": "max_tokens"}))
+    );
+    let got = stored(&c, s).await;
+    assert_eq!(
+        got["messages"][1]["content"][0]["text"],
+        "The first half of [cut at the reply limit]"
+    );
+}
+
+#[tokio::test]
+async fn stop_is_heard_while_the_endpoint_has_not_answered() {
+    let c = chat().await;
+    let s = session(&c).await;
+    c.fake.push(Reply::Late(
+        std::time::Duration::from_secs(4),
+        Box::new(Fake::text("late")),
+    ));
+    let began = std::time::Instant::now();
+    let stop = async {
+        tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+        let res =
+            c.h.call(
+                "POST",
+                &format!("/api/assistant/sessions/{s}/stop"),
+                Some(&c.ann),
+                None,
+            )
+            .await;
+        assert_eq!(res.status(), 204);
+    };
+    let ask = async { events(say(&c, &c.ann, s, "a").await).await };
+    let (ev, ()) = tokio::join!(ask, stop);
+    assert_eq!(ev.last().unwrap().1, json!({"reason": "stopped"}));
+    assert!(began.elapsed() < std::time::Duration::from_secs(3));
+}
+
+#[tokio::test]
+async fn results_past_the_daily_budget_end_the_turn() {
+    let c = chat().await;
+    let s = left_between_steps(&c).await;
+    let ann_id =
+        c.h.accounts
+            .db()
+            .read(|r| {
+                Ok(
+                    r.query_row("SELECT id FROM users WHERE name = 'ann'", [], |x| {
+                        x.get::<_, i64>(0)
+                    })?,
+                )
+            })
+            .unwrap();
+    c.h.accounts
+        .db()
+        .write(|t| {
+            effractor_accounts::assistant::set_setting(
+                t,
+                "assistant.daily_tokens",
+                Some("5"),
+                1,
+                0,
+            )?;
+            effractor_accounts::assistant::record_usage(
+                t,
+                ann_id,
+                None,
+                Some(10),
+                Some(2),
+                1_000_000,
+            )
+        })
+        .unwrap();
     let res =
         c.h.call(
             "POST",
-            &format!("/api/assistant/sessions/{s}/messages"),
+            &format!("/api/assistant/sessions/{s}/results"),
             Some(&c.ann),
-            Some(json!({"text": "b", "state": ""})),
+            Some(json!({"results": [{"id": "c1", "ok": true, "output": "doc"}], "state": ""})),
         )
         .await;
-    assert_eq!(res.status(), 409);
-    assert_eq!(text(res).await, "ann is asking");
+    assert_eq!(res.status(), 429);
+    assert_eq!(text(res).await, "daily budget reached");
+    let got = stored(&c, s).await;
+    assert_eq!(got["turn"], Value::Null, "the turn ended");
+    assert_eq!(c.fake.seen.lock().unwrap().len(), 1, "no second request");
 }
 
 #[tokio::test]

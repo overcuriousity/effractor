@@ -92,7 +92,7 @@ fn one_turn_at_a_time_and_a_stale_turn_is_released() {
         .write(|t| assistant::create_session(t, d, "architecture", ann, 10))
         .unwrap();
     let first = db
-        .write(|t| assistant::claim(t, s, ann, "edit", 10, 100))
+        .write(|t| assistant::claim(t, s, ann, "edit", 10, 100, false))
         .unwrap();
     assert!(matches!(
         first,
@@ -102,11 +102,11 @@ fn one_turn_at_a_time_and_a_stale_turn_is_released() {
         }
     ));
     let busy = db
-        .write(|t| assistant::claim(t, s, bob, "read", 50, 100))
+        .write(|t| assistant::claim(t, s, bob, "read", 50, 100, false))
         .unwrap();
     assert!(matches!(busy, Claim::Busy { ref by } if by == "ann"));
     let late = db
-        .write(|t| assistant::claim(t, s, bob, "read", 200, 100))
+        .write(|t| assistant::claim(t, s, bob, "read", 200, 100, false))
         .unwrap();
     assert!(matches!(
         late,
@@ -120,9 +120,41 @@ fn one_turn_at_a_time_and_a_stale_turn_is_released() {
         (turn.by, turn.access.as_str(), turn.steps),
         (bob, "read", 0)
     );
-    assert_eq!(db.write(|t| assistant::bump_steps(t, s)).unwrap(), 1);
+    assert_eq!(db.write(|t| assistant::bump_steps(t, s, 250)).unwrap(), 1);
     db.write(|t| assistant::release(t, s)).unwrap();
     assert!(db.read(|c| assistant::turn(c, s)).unwrap().is_none());
+}
+
+#[test]
+fn each_step_refreshes_the_turn_and_its_asker_may_take_it_over() {
+    let (_d, db) = db();
+    let (ann, bob) = (user(&db, "ann"), user(&db, "bob"));
+    let d = doc(&db, ann, None, "Lab");
+    let s = db
+        .write(|t| assistant::create_session(t, d, "architecture", ann, 10))
+        .unwrap();
+    db.write(|t| assistant::claim(t, s, ann, "edit", 10, 100, false))
+        .unwrap();
+    db.write(|t| assistant::bump_steps(t, s, 90)).unwrap();
+    assert_eq!(
+        db.read(|c| assistant::turn(c, s)).unwrap().unwrap().since,
+        90
+    );
+    db.write(|t| assistant::touch(t, s, 95)).unwrap();
+    assert_eq!(
+        db.read(|c| assistant::turn(c, s)).unwrap().unwrap().since,
+        95
+    );
+    // Young: another is told who is asking even when taking over is allowed;
+    // the asker takes it over.
+    let other = db
+        .write(|t| assistant::claim(t, s, bob, "edit", 150, 100, true))
+        .unwrap();
+    assert!(matches!(other, Claim::Busy { .. }));
+    let own = db
+        .write(|t| assistant::claim(t, s, ann, "edit", 150, 100, true))
+        .unwrap();
+    assert!(matches!(own, Claim::Claimed { turn: 2, .. }));
 }
 
 #[test]
