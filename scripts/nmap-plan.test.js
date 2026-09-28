@@ -299,3 +299,52 @@ test('a wildcard labels nothing and renames nothing', () => {
   const r = N.plan(d, 'nuclei', named(['*.corp.example', 'shop.corp.example'], ['10.0.1.40']), '10.0.1.0/24', {});
   assert.deepEqual(r.hosts[0].rename, { to: 'shop.corp.example', from: 'certificate' });
 });
+
+// From the review of the branch: a host matched by a name it keeps.
+const both = (...hosts) => Object.assign(named([], []), { hosts: hosts.map(h => h.hosts[0]) });
+const STAMPED = { line: 'Last nuclei import: 2026-09-28, scan.', pattern: /^Last nuclei import: .*$/m };
+
+test('a host asked by its address and by its name is one row, its port drawn once', () => {
+  const d = drawing();
+  const scan = both(named([], ['10.0.1.40']), named(['grafana.corp.example']));
+  const p = N.plan(d, 'nuclei', scan, '10.0.1.0/24', {});
+  assert.deepEqual(p.hosts.map(h => [h.key, h.known, h.merged, h.ports.map(r => r.proto)]), [['h0', 'web', null, ['tcp/443']]]);
+  const s = N.summary(d, p, N.defaults(p), null);
+  assert.deepEqual([s.hosts, s.services, s.flows, s.filled], [0, 1, 1, 0]);
+  const out = N.apply(d, p, N.defaults(p), specOf, STAMPED).doc;
+  assert.equal(Object.values(out.entities).filter(e => e.kind === 'service').length, 1);
+  // The other way round: the name first.
+  const q = N.plan(d, 'nuclei', both(named(['grafana.corp.example']), named([], ['10.0.1.40'])), '10.0.1.0/24', {});
+  assert.deepEqual(q.hosts.map(h => [h.known || h.merged, h.ports.length]), [['web', 1]]);
+});
+
+test('two names of one drawn host are that host, not a second one', () => {
+  const d = drawing();
+  d.entities.web.names = ['grafana.corp.example', 'metrics.corp.example'];
+  const p = N.plan(d, 'nuclei', both(named(['grafana.corp.example']), named(['metrics.corp.example'])), '', {});
+  assert.deepEqual(p.hosts.map(h => [h.key, h.merged, h.matchedBy]), [['h0', 'web', 'name']]);
+  const out = N.apply(d, p, N.defaults(p), specOf, STAMPED).doc;
+  assert.equal(Object.values(out.entities).filter(e => e.kind === 'host').length, 2, 'the admin box and the web host');
+  assert.deepEqual(out.entities.web.names, ['grafana.corp.example', 'metrics.corp.example']);
+});
+
+test('a host known by its name gains no address, and nothing is said of addresses', () => {
+  const d = drawing();
+  const scan = named(['grafana.corp.example']);
+  const p = N.plan(d, 'nuclei', scan, '', {});
+  const s = N.summary(d, p, N.defaults(p), null);
+  assert.equal(s.filled, 0);
+  assert.equal(N.said(s), 'Adds 1 service, 1 product, 1 flow.');
+  const out = N.apply(d, p, N.defaults(p), specOf, STAMPED).doc;
+  assert.deepEqual(out.entities.web.addresses, ['10.0.1.40']);
+  // A drawn host without addresses keeps none.
+  const bare = drawing();
+  delete bare.entities.web.addresses;
+  const b = N.plan(bare, 'nuclei', scan, '', {});
+  assert.equal(N.apply(bare, b, N.defaults(b), specOf, STAMPED).doc.entities.web.addresses, undefined);
+  // Again: nothing new, and no edit.
+  const again = N.plan(out, 'nuclei', scan, '', {});
+  const t = N.defaults(again);
+  t.seen = false;
+  assert.equal(N.apply(out, again, t, specOf, STAMPED), null);
+});

@@ -232,20 +232,31 @@
       }
     }
     // A scanned host without an address is the one drawn host that keeps
-    // its name; one with an address is not, since hosts share names.
+    // its name; one with an address is not, since hosts share names. Where
+    // a row is that host already (by its address, or by another of its
+    // names), this one is another listing of it: no host, no port twice.
+    var folded = Object.create(null);
     rows.forEach(function (r) {
       if (r.known || r.merged || r.conflict || has(merges, r.key) || r.scan.addresses.length) return;
       var keepers = [];
       namesOf(r.scan).good.forEach(function (n) {
         (byName[n] || []).forEach(function (h) { if (keepers.indexOf(h) < 0) keepers.push(h); });
       });
-      if (keepers.length !== 1 || takenBy[keepers[0]]) return;
+      if (keepers.length !== 1) return;
+      var is = rowOf[keepers[0]] || rows.filter(function (x) { return x.merged === keepers[0] && !folded[x.key]; })[0];
+      if (is) {
+        is.listings = is.listings.concat(r.listings);
+        is.scan = oneHost(is.listings);
+        folded[r.key] = true;
+        return;
+      }
       r.merged = keepers[0];
       r.guessed = true;
       r.guessedBy = "name";
       r.matchedBy = "name";
       takenBy[keepers[0]] = r.key;
     });
+    rows = rows.filter(function (r) { return !folded[r.key]; });
     // A drawn host without addresses that has the scanned host's name is
     // guessed to be it, as nmap's own host is (spec §3.3).
     rows.forEach(function (r) {
@@ -603,7 +614,7 @@
       if (does.rename) s.renamed++;
       if (!added && does.seen) s.seen++;
       // A merge writes the scanned addresses into the drawn host.
-      if (h.merged) s.filled++;
+      if (h.merged && h.addresses.length) s.filled++;
       h.networks.forEach(function (n) {
         if (n === proposed && !network) return;
         rel++;
@@ -714,7 +725,7 @@
   // `specOf(kind)`: the catalog entry of a kind, for its parameter slots.
   function apply(doc, p, ticks, specOf, stamp) {
     var s = summary(doc, p, ticks, null);
-    var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged; });
+    var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged && h.addresses.length; });
     var stripping = p.hosts.some(function (h) { return ticks.hosts[h.key] && doing(h, ticks, p).strip; });
     if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.named && !s.moved && !s.renamed && !s.seen && !stripping && !s.changes) return null;
     var next = JSON.parse(JSON.stringify(doc));
@@ -784,7 +795,7 @@
       }
       if (h.vendor && !next.entities[host].vendor) next.entities[host].vendor = h.vendor;
       hostOf[h.key] = host;
-      if (h.merged) {
+      if (h.merged && h.addresses.length) {
         // Added to what it had, each address once.
         var had = next.entities[host].addresses || [];
         var keys = had.map(addressKey);
