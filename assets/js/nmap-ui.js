@@ -353,6 +353,8 @@
             r.findings.forEach(function (f) { at.ticks.findings[f.key] = on && !f.known && !f.patchedByAuthor; });
             return preview();
           }
+          // What hangs on the port is offered with it (nuclei templates spec §5.4, §6).
+          if (!r.known && (r.application || hangs(r.key))) return preview();
           count();
         }, { mono: r.proto, what: what });
         row.querySelector("input").disabled = nothing || !at.ticks.hosts[h.key];
@@ -374,6 +376,7 @@
       if (loose.children.length) li.appendChild(loose);
       rows.appendChild(li);
     });
+    connections(rows);
     var notes = [];
     if (at.plan.hosts.some(function (h) { return h.ports.some(function (r) { return !r.known; }); })) notes.push("Services run at an unknown privilege until you set it on their link.");
     S.notes(at.tool, at.scan).forEach(function (n) { notes.push(n); });
@@ -381,6 +384,7 @@
     if (at.plan.silentUdp) notes.push(at.plan.silentUdp + " UDP ports gave no answer (open|filtered); not added.");
     if (at.scan.sharedMacs) notes.push(at.scan.sharedMacs + (at.scan.sharedMacs === 1 ? " MAC answers" : " MACs answer") + " for several addresses (a router or proxy); not used to tell machines apart.");
     at.plan.changes.notes.forEach(function (n) { notes.push(n); });
+    at.plan.connections.notes.forEach(function (n) { notes.push(n); });
     if (at.plan.tcpwrapped) notes.push(at.plan.tcpwrapped + (at.plan.tcpwrapped === 1 ? " port" : " ports") + " closed at once (tcpwrapped); not added.");
     $("nmap-notes").textContent = notes.join(" ");
     $("nmap-ask").hidden = true;
@@ -426,6 +430,38 @@
         if (c.warn) row.classList.add("warning");
         item.appendChild(row);
       } else item.appendChild(el("span", c.line, "nmap-row"));
+      list.appendChild(item);
+    });
+    li.appendChild(list);
+    rows.appendChild(li);
+  }
+  // Whether a connection hangs on the port: its row is offered with it.
+  function hangs(portKey) {
+    return at.plan.connections.list.some(function (c) { return c.port === portKey; });
+  }
+  // Nuclei templates spec §6: how what is drawn connects, in plain words,
+  // each with what ticking it draws; unticked at first but a name kept on
+  // the host it points to.
+  function connections(rows) {
+    var cn = at.plan.connections;
+    if (!cn.list.length) return;
+    var there = {};
+    at.plan.hosts.forEach(function (h) {
+      h.ports.forEach(function (r) { there[r.key] = !!at.ticks.hosts[h.key] && (!!r.known || !!at.ticks.ports[r.key]); });
+    });
+    var li = el("li", null, "nmap-host nmap-changes");
+    li.appendChild(el("span", "Connections", "label"));
+    var list = el("ul", null, "nmap-ports");
+    cn.list.forEach(function (c) {
+      var row = check(!!at.ticks.connections[c.key], c.line, function (on) {
+        at.ticks.connections[c.key] = on;
+        count();
+      }, { what: c.can ? c.what : c.why });
+      // Left out with the host or port it hangs on.
+      var hung = (!c.host || !!at.ticks.hosts[c.host]) && (!c.port || there[c.port]);
+      row.querySelector("input").disabled = !c.can || !hung;
+      var item = el("li");
+      item.appendChild(row);
       list.appendChild(item);
     });
     li.appendChild(list);
@@ -504,6 +540,23 @@
   function findings(h, r) {
     var list = el("ul", null, "nmap-findings");
     var present = at.ticks.hosts[h.key] && (r.known || at.ticks.ports[r.key]);
+    // Nuclei templates spec §5, §7: the product it lacked, the application
+    // behind it, and what differs from the drawing, which is only said.
+    function told(group, text, can) {
+      var row = check(!!at.ticks[group][r.key], text, function (on) {
+        at.ticks[group][r.key] = on;
+        count();
+      });
+      row.querySelector("input").disabled = !can;
+      var item = el("li");
+      item.appendChild(row);
+      list.appendChild(item);
+    }
+    if (r.identifies) told("identifies", "names its product " + r.identifies.to + (/^unidentified /.test(r.identifies.from) ? "" : " · drawn without a version"), !!at.ticks.hosts[h.key]);
+    if (r.differs) list.appendChild(plain(r.differs + " · not changed"));
+    if (r.application && !r.application.known) told("applications", "passes on to " + r.application.product.label + " · adds it as a service of its own", !!present);
+    if (r.application && r.application.known) list.appendChild(plain("passes on to " + doc().entities[r.application.known].label + " · known"));
+    if (r.application && r.application.differs) list.appendChild(plain(r.application.differs + " · not changed"));
     r.findings.forEach(function (f) {
       var what = f.patchedByAuthor ? "marked patched by you; not changed" : f.known ? "already marked" : "marks " + f.productLabel + " unpatched";
       var row = check(!!at.ticks.findings[f.key], (f.tag || f.script) + " · " + f.id + " · " + what, function (on) {
