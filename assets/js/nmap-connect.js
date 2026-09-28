@@ -88,13 +88,33 @@
   // `hosts`: the plan's host rows; `scanOf`: each row's scanned host;
   // `appHost`: the host the scanner runs on. Returns {list, notes}; every
   // item {key, kind, line, what, ticked, can, why?, …}.
+  // Where a router is administered (scan workflow spec §6.3): the ports
+  // of the purpose's list that are a way in to manage a machine.
+  var MANAGED = ["tcp/22", "tcp/23", "tcp/80", "tcp/443", "tcp/8080", "tcp/8443", "udp/161"];
+
   function plan(doc, scan, hosts, scanOf, appHost) {
     var out = { list: [], notes: [] };
-    if (scan.tool !== "nuclei") return out;
     function item(x) {
       if (!out.list.some(function (o) { return o.key === x.key; })) out.list.push(Object.assign({ ticked: false, can: true }, x));
     }
     var nets = appHost ? attached(doc, appHost) : [];
+    // nmap sees no page, only the port: a router with a management port
+    // open to the scanner is offered as administered from its network.
+    if (scan.tool === "nmap") {
+      hosts.forEach(function (h) {
+        var target = h.known || h.merged;
+        var router = target ? routerOn(doc, target) : null;
+        if (h.role === "host" && !router) return;
+        var open = h.ports.filter(function (r) { return MANAGED.indexOf(r.proto) >= 0; });
+        if (!open.length) return;
+        var from = nets.filter(function (n) {
+          return (doc.entities[n].addresses || []).some(function (c) { return h.addresses.some(function (a) { return Ad.inCidr(a, c); }); });
+        })[0] || nets[0] || null;
+        if (router && from && linked(doc, "administration", from, router)) return;
+        item({ key: "administration:" + h.key, kind: "administration", host: h.key, from: from, can: !!from, why: from ? null : appHost ? "Attach “" + labelOf(doc, appHost) + "” to a network to say where from" : "Put nmap on a host to say where from", line: open.map(function (r) { return r.proto; }).join(", ") + " on " + h.label + " is open to the scanner", what: from ? "“" + h.label + "” is administered from “" + labelOf(doc, from) + "”" : "administered from the scanner's network" });
+      });
+    }
+    if (scan.tool !== "nuclei") return out;
     // A login's account is its service's own: nothing was seen that says
     // two machines share their accounts. A label that is taken, drawn or
     // by a row before, is said with the host.

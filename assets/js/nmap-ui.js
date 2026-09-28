@@ -129,6 +129,9 @@
         L.asked.adjust = {};
         recipes();
         blocks();
+        // A purpose aimed at what is drawn takes the network's drawn hosts
+        // (scan workflow spec §6).
+        if (tick.checked && r.targets && at.choice && at.choice.kind === "range") return setTargets({ kind: r.targets, network: at.choice.network });
         showCommand();
       });
       label.appendChild(tick);
@@ -619,6 +622,10 @@
     if (h.sharedIdentity) list.appendChild(plain("two drawn hosts share " + N.identityWords([h.sharedIdentity]) + " · matched by address"));
     var way = N.routeSaid(at.plan, h.key);
     if (way) list.appendChild(plain(way));
+    // Scan workflow spec §6.2: the interfaces it lists, which go with the host.
+    if (h.interfaces.length > 1 || h.gains.length) {
+      list.appendChild(plain("interfaces by SNMP: " + h.interfaces.map(function (i) { return i.name + " " + i.address + "/" + i.cidr.split("/")[1]; }).join(", ")));
+    }
     return list;
   }
   // Spec §3.4, §4.6: each finding under its port, and what is not read.

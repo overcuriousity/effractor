@@ -4,8 +4,8 @@ const C = require('../assets/js/nmap-command.js');
 const r = '10.0.1.0/24';
 const IDENTITY = 'ssh-hostkey or ssl-cert or nbstat or smb-os-discovery';
 
-test('seven recipes by purpose, in the order the dialog offers them', () => {
-  assert.deepEqual(C.RECIPES.map(x => x.id), ['lan', 'names', 'services', 'identity', 'route', 'firewall', 'checks']);
+test('thirteen recipes by purpose, in the order the dialog offers them', () => {
+  assert.deepEqual(C.RECIPES.map(x => x.id), ['lan', 'names', 'services', 'identity', 'route', 'firewall', 'checks', 'still', 'announced', 'udp', 'snmp', 'managed', 'vpn']);
   assert.ok(C.RECIPES.every(x => x.name && x.finds));
   assert.deepEqual(C.BLOCKS.map(b => b.id), ['discovery', 'names', 'exclude', 'interface', 'ports', 'tcp', 'udp', 'depth', 'effort', 'osguess', 'identity', 'route', 'reasons', 'checks', 'pace', 'rate', 'retries', 'patience', 'delay']);
   // Every block a recipe sets is a choice of that block.
@@ -41,7 +41,8 @@ test('names only goes alone; nothing ticked is a problem, not a command', () => 
 
 test('a port list takes numbers, ranges and T:/U: only; the identity ports join it', () => {
   assert.equal(C.command(['services'], { ports: 'list' }, r, { portList: '8000-8100, 80,22' }).text, 'nmap -sT -p 22,80,8000-8100 -sV -oX - 10.0.1.0/24');
-  assert.equal(C.command(['services'], { ports: 'list' }, r, { portList: 'T:80,U:53,161' }).text, 'sudo nmap -sT -sU -p T:80,U:53,161 -sV -oX - 10.0.1.0/24', 'UDP ports need root, and alone do not make the TCP scan SYN');
+  assert.equal(C.command(['services'], { ports: 'list' }, r, { portList: 'T:80,U:53,161' }).text, 'sudo nmap -sS -sU -p T:80,U:53,161 -sV -oX - 10.0.1.0/24', 'UDP ports need root; with root the TCP scan is SYN');
+  assert.equal(C.command(['services'], { ports: 'list', tcp: 'connect' }, r, { portList: 'T:80,U:53' }).text, 'sudo nmap -sT -sU -p T:80,U:53 -sV -oX - 10.0.1.0/24', 'a connect scan chosen by hand stays');
   assert.equal(C.command(['services', 'identity'], { ports: 'list' }, r, { portList: '80' }).text,
     "sudo nmap -sS -sU -p T:22,80,443,445,U:137 -sV --script '" + IDENTITY + "' -oX - 10.0.1.0/24");
   assert.match(C.command(['services'], { ports: 'list' }, r, {}).problem, /ports to scan/);
@@ -194,7 +195,7 @@ test('ports: twenty, as drawn; the counts of TCP and UDP are one', () => {
   assert.match(wide.note, /one count for TCP and UDP/);
   assert.equal(one({ ports: 'top20', udp: 'top100' }).note, undefined, 'UDP is the wider: TCP is fast');
   assert.equal(one({ ports: 'drawn' }, { asDrawn: ['tcp/443', 'tcp/22', 'tcp/23', 'tcp/22', 'bogus', 'tcp/0', 'tcp/70000', 'sctp/9'] }).text, 'nmap -sT -p 22-23,443 -sV -oX - 10.0.1.0/24');
-  assert.equal(one({ ports: 'drawn' }, { asDrawn: ['udp/53', 'tcp/22'] }).text, 'sudo nmap -sT -sU -p T:22,U:53 -sV -oX - 10.0.1.0/24');
+  assert.equal(one({ ports: 'drawn' }, { asDrawn: ['udp/53', 'tcp/22'] }).text, 'sudo nmap -sS -sU -p T:22,U:53 -sV -oX - 10.0.1.0/24');
   const udp = one({ ports: 'drawn' }, { asDrawn: ['udp/53'] });
   assert.equal(udp.text, 'sudo nmap -sU -p U:53 -sV -oX - 10.0.1.0/24');
   assert.equal(udp.root, true);
@@ -223,4 +224,60 @@ test('depth and pace: what adds nothing without its block is left out', () => {
   assert.equal(all.warning, 'Misses ports on all but the fastest networks. Misses ports.');
   assert.equal(one({}).warning, undefined);
   assert.equal(one({ checks: 'all' }).warning, undefined, 'the checks\' warning is the block\'s own line');
+});
+
+// ---- the purposes (scan workflow spec §6) ----
+
+const BROADCAST = 'broadcast-dhcp-discover or broadcast-ping or broadcast-dns-service-discovery or broadcast-upnp-info';
+const MANAGED = 'T:22-23,80,443,3389,5900,5985-5986,8080,8443,U:161,623';
+
+test('each new purpose alone prints the scan it names', () => {
+  const drawn = { asDrawn: ['tcp/443', 'tcp/22'] };
+  assert.equal(C.command(['still'], {}, r, drawn).text, 'nmap -sT -p 22,443 -sV -oX - 10.0.1.0/24');
+  assert.match(C.command(['still'], {}, r, {}).problem, /Nothing is drawn there yet/);
+  // The DHCP request names a client address anyone can trace to
+  // effractor: locally administered, no vendor's (owner, 2026-09-29).
+  assert.equal(C.command(['announced'], {}, r).text, "sudo nmap -sn --script '" + BROADCAST + "' --script-args newtargets,broadcast-dhcp-discover.mac=EE:FF:AC:70:00:00 -oX - 10.0.1.0/24");
+  assert.equal(C.command(['announced'], {}, 'fd00::/120').text, "sudo nmap -6 -sn --script 'targets-ipv6-multicast-echo or targets-ipv6-multicast-slaac or targets-ipv6-multicast-mld' --script-args newtargets -oX - fd00::/120");
+  assert.equal(C.command(['udp'], {}, r).text, 'sudo nmap -sU --top-ports 20 -sV -oX - 10.0.1.0/24');
+  assert.equal(C.command(['snmp'], {}, r).text, "sudo nmap -sU -p U:161 --script 'snmp-interfaces' -oX - 10.0.1.0/24");
+  assert.equal(C.command(['managed'], {}, r).text, 'sudo nmap -sS -sU -p ' + MANAGED + ' -sV -oX - 10.0.1.0/24');
+  assert.equal(C.command(['vpn'], {}, r).text, 'sudo nmap -sS -sU -p T:443,1194,1723,U:500,1194,4500,51820 -sV -oX - 10.0.1.0/24');
+  for (const id of ['announced', 'udp', 'snmp', 'managed', 'vpn']) assert.equal(C.command([id], {}, r).root, true, id);
+  assert.equal(C.command(['still'], {}, r, drawn).root, false);
+});
+
+test('the new purposes combine with the others, their ports in one list', () => {
+  // What the bulb asks for a way between two networks (spec §2).
+  assert.equal(C.command(['route', 'snmp', 'managed'], {}, r).text, "sudo nmap -sS -sU -p " + MANAGED + " -sV --traceroute --script 'snmp-interfaces' -oX - 10.0.1.0/24");
+  assert.equal(C.command(['still', 'managed'], {}, r, { asDrawn: ['tcp/9000', 'udp/53'] }).text, 'sudo nmap -sS -sU -p T:22-23,80,443,3389,5900,5985-5986,8080,8443,9000,U:53,161,623 -sV -oX - 10.0.1.0/24');
+  assert.equal(C.command(['still', 'managed'], {}, r, {}).text, 'sudo nmap -sS -sU -p ' + MANAGED + ' -sV -oX - 10.0.1.0/24', 'nothing drawn: the list alone');
+  assert.equal(C.command(['announced', 'services'], {}, r).text, "sudo nmap -sS -sV --script '" + BROADCAST + "' --script-args newtargets,broadcast-dhcp-discover.mac=EE:FF:AC:70:00:00 -oX - 10.0.1.0/24", 'what announced itself is scanned as the range is');
+  assert.equal(C.command(['announced', 'identity'], {}, r).text, "sudo nmap -sS -sU --top-ports 100 --script '(" + IDENTITY + ") or (" + BROADCAST + ")' --script-args newtargets,broadcast-dhcp-discover.mac=EE:FF:AC:70:00:00 -oX - 10.0.1.0/24");
+  const both = C.command(['services', 'snmp'], {}, r);
+  assert.equal(both.text, "sudo nmap -sU -p U:161 -sV --script 'snmp-interfaces' -oX - 10.0.1.0/24");
+  assert.match(both.note, /this one takes the list/);
+  assert.equal(C.command(['snmp'], { ports: 'list' }, r, { portList: '22,U:162' }).text, "sudo nmap -sS -sU -p T:22,U:161-162 --script 'snmp-interfaces' -oX - 10.0.1.0/24");
+  assert.match(C.command(['names', 'announced'], {}, r).problem, /names only/i);
+  assert.equal(C.command(['udp'], { udp: 'top1000' }, r).text, 'sudo nmap -sU --top-ports 1000 -sV -oX - 10.0.1.0/24');
+  // The ports drawn and the 1000 most common are not one scan: said.
+  assert.match(C.command(['services', 'still'], {}, r, { asDrawn: ['tcp/22'] }).note || '', /ports drawn and the 1000 most common/);
+  assert.equal(C.command(['still'], {}, r, { asDrawn: ['tcp/22'] }).note, undefined);
+  // A port list and UDP's most common ports are not one scan: said, not dropped.
+  assert.match(C.command(['udp', 'snmp'], {}, r).note || '', /most common UDP ports/);
+  for (const alone of ['snmp', 'managed', 'vpn']) assert.equal(C.command([alone], {}, r).note, undefined, alone);
+});
+
+test('the purposes that tell are read back from what nmap says it ran', () => {
+  for (const ids of [['announced'], ['snmp'], ['services', 'route', 'snmp'], ['lan', 'announced']]) {
+    const args = C.command(ids, {}, r).text.replace(/^sudo /, '').replace(/'/g, '"');
+    assert.deepEqual(C.recipesOf(args).filter(id => id !== 'services' || ids.includes('services')), ids, args);
+  }
+  assert.deepEqual(C.recipesOf(C.command(['announced'], {}, 'fd00::/120').text), ['announced']);
+  // A port list says nothing of what it was for.
+  assert.deepEqual(C.recipesOf(C.command(['udp'], {}, r).text), ['services']);
+  assert.deepEqual(C.recipesOf(C.command(['managed'], {}, r).text), ['services']);
+  assert.deepEqual(C.recipesOf(C.command(['vpn'], {}, r).text), ['services']);
+  assert.deepEqual(C.recipesOf(C.command(['still'], {}, r, { asDrawn: ['tcp/22'] }).text), ['services']);
+  assert.equal(C.stampLine(C.stampFor({ args: C.command(['route', 'snmp'], {}, r).text.replace(/'/g, '"') }, '', '2026-09-28')), 'Last nmap import: 2026-09-28, scan of 10.0.1.0/24 · map the route, routers by snmp.');
 });

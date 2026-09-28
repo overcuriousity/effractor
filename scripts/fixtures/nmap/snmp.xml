@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- Hand-written in nmap's shape from snmp-interfaces.nse (nmap 7.92), which writes its result as text; to be replaced by a recorded one. -->
+<nmaprun scanner="nmap" args="nmap -sU -p U:161 -&#45;script &quot;snmp-interfaces&quot; -oX - 10.0.1.0/24" start="1790553600" version="7.92" xmloutputversion="1.05">
+<scaninfo type="udp" protocol="udp" numservices="1" services="161"/>
+<host><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="10.0.1.1" addrtype="ipv4"/>
+<address addr="52:54:00:00:01:01" addrtype="mac" vendor="QEMU virtual NIC"/>
+<hostnames><hostname name="gw.lab" type="PTR"/></hostnames>
+<ports><port protocol="udp" portid="161"><state state="open" reason="udp-response" reason_ttl="64"/><service name="snmp" method="table" conf="3"/><script id="snmp-interfaces" output="&#xa;  lo&#xa;    IP address: 127.0.0.1  Netmask: 255.0.0.0&#xa;    Type: softwareLoopback  Speed: 10 Mbps&#xa;    Status: up&#xa;    Traffic stats: 1.20 Kb sent, 1.20 Kb received&#xa;  eth0&#xa;    IP address: 10.0.1.1  Netmask: 255.255.255.0&#xa;    MAC address: 52:54:00:00:01:01 (QEMU virtual NIC)&#xa;    Type: ethernetCsmacd  Speed: 1 Gbps&#xa;    Status: up&#xa;    Traffic stats: 6.45 Mb sent, 15.01 Mb received&#xa;  eth1&#xa;    IP address: 10.0.2.1  Netmask: 255.255.255.0&#xa;    MAC address: 52:54:00:00:02:01 (QEMU virtual NIC)&#xa;    Type: ethernetCsmacd  Speed: 1 Gbps&#xa;    Status: up&#xa;    Traffic stats: 2.10 Mb sent, 3.40 Mb received&#xa;  eth2&#xa;    IP address: 10.0.9.1  Netmask: 255.255.255.0&#xa;    MAC address: 52:54:00:00:09:01 (QEMU virtual NIC)&#xa;    Type: ethernetCsmacd  Speed: 1 Gbps&#xa;    Status: up&#xa;    Traffic stats: 0.00 Kb sent, 0.00 Kb received&#xa;  eth3&#xa;    IP address: 10.0.7.1  Netmask: 255.255.255.0&#xa;    Type: ethernetCsmacd  Speed: 1 Gbps&#xa;    Status: down&#xa;"/></port>
+</ports>
+</host>
+<host><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="10.0.1.20" addrtype="ipv4"/>
+<address addr="52:54:00:00:01:20" addrtype="mac" vendor="QEMU virtual NIC"/>
+<hostnames><hostname name="printer.lab" type="PTR"/></hostnames>
+<ports><port protocol="udp" portid="161"><state state="open" reason="udp-response" reason_ttl="64"/><service name="snmp" method="table" conf="3"/><script id="snmp-interfaces" output="&#xa;  lo0&#xa;    IP address: 127.0.0.1  Netmask: 255.0.0.0&#xa;    Status: up&#xa;  en0&#xa;    IP address: 10.0.1.20  Netmask: 255.255.255.0&#xa;    Status: up&#xa;"/></port>
+</ports>
+</host>
+<host><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="10.0.1.30" addrtype="ipv4"/>
+<hostnames></hostnames>
+<ports><port protocol="udp" portid="161"><state state="closed" reason="port-unreach" reason_ttl="64"/><service name="snmp" method="table" conf="3"/></port>
+</ports>
+</host>
+<runstats><finished time="1790553660" timestr="" summary="" elapsed="60.00" exit="success"/><hosts up="3" down="253" total="256"/>
+</runstats>
+</nmaprun>

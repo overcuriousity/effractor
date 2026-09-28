@@ -355,8 +355,10 @@
     if (!runs.length) return problem("not-nmap");
     var by = runs[0].attrs.scanner || "nmap";
     if (by !== want) return otherScanner(by, want);
-    var hosts = [];
+    var hosts = [], pre = [];
     for (var r = 0; r < runs.length; r++) {
+      // What nmap's scripts said before the scan (scan workflow spec §6.1).
+      pre = pre.concat(kids(kid(runs[r], "prescript"), "script").map(scriptOf));
       var finished = kid(kid(runs[r], "runstats"), "finished");
       if (!finished) return problem("truncated");
       if (finished.attrs.exit === "error") return problem("nmap-error", finished.attrs.errormsg || "no reason given");
@@ -416,7 +418,7 @@
     var args = argsOf(runs);
     // Different scans pasted together: none asked the others' hosts.
     var asks = runs.length > 1 && !args ? [] : asksOf(args, types, probedPorts);
-    return { scan: { tool: want, args: args, hosts: hosts, silentUdp: silentUdp, date: date, probed: probedPorts, types: types, sharedMacs: shared.length, asks: asks } };
+    return { scan: { tool: want, args: args, hosts: hosts, silentUdp: silentUdp, date: date, probed: probedPorts, types: types, sharedMacs: shared.length, asks: asks, pre: pre } };
   }
 
   // What a scan asked of every host it lists (scan workflow spec §3), from

@@ -296,6 +296,20 @@ fn the_nmap_route_import_fixture_is_a_valid_architecture() {
     );
 }
 
+/// The same for an import of what a device lists by SNMP (scan workflow
+/// spec §6.2): its addresses, the network of an interface nobody drew, the
+/// router on every network the box is on.
+#[test]
+fn the_nmap_snmp_import_fixture_is_a_valid_architecture() {
+    let text = nmap_fixture_is_valid("imported-snmp.doc.json");
+    assert!(
+        text.contains("addresses: [\"10.0.1.1\", \"10.0.2.1\", \"10.0.9.1\"]"),
+        "{text}"
+    );
+    assert!(text.contains("addresses: [\"10.0.9.0/24\"]"), "{text}");
+    assert!(text.contains("kind: router"), "{text}");
+}
+
 /// What masscan adds after nmap (roadmap `scanner-readers`): a masscan
 /// application beside nmap, its flows, nothing drawn twice.
 #[test]

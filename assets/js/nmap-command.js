@@ -14,6 +14,15 @@
   // hold them: nmap takes a list or a top count, never both.
   var COMMON_TCP = "7,9,13,21-23,25-26,37,53,79-81,88,106,110-111,113,119,135,139,143-144,179,199,389,427,443-445,465,513-515,543-544,548,554,587,631,646,873,990,993,995,1025-1029,1110,1433,1720,1723,1755,1900,2000-2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000-6001,6646,7070,8000,8008-8009,8080-8081,8443,8888,9100,9999-10000,32768,49152-49157";
 
+  // What a host says of itself to a call to all (scan workflow spec §6.1);
+  // none of them asks a third party.
+  var BROADCAST = "broadcast-dhcp-discover or broadcast-ping or broadcast-dns-service-discovery or broadcast-upnp-info";
+  var BROADCAST6 = "targets-ipv6-multicast-echo or targets-ipv6-multicast-slaac or targets-ipv6-multicast-mld";
+  // broadcast-dhcp-discover names a client address in its request; this one
+  // is locally administered, no vendor's, and says the scan was effractor's
+  // (owner, 2026-09-29). The packet still leaves from the scanner's own.
+  var DHCP_CLIENT = "broadcast-dhcp-discover.mac=EE:FF:AC:70:00:00";
+
   // Each block is one choice. Where recipes set a block, its choices stand
   // weakest first: combined recipes take the strongest. `group`: where
   // Adjust shows it (scan workflow spec §5). `field`: a text the choice
@@ -152,6 +161,16 @@
     { id: "route", name: "Map the route", finds: "Routers and networks on the way.", time: "minutes", sets: { route: "on" } },
     { id: "firewall", name: "What a firewall passes", finds: "What gets through each firewall on the way.", time: "minutes", sets: { ports: "list", tcp: "syn", reasons: "on", route: "on" } },
     { id: "checks", name: "Check for known weaknesses", finds: "Known vulnerabilities, by checks that break nothing.", time: "tens of minutes", sets: { ports: "top1000", depth: "versions", checks: "safe" } },
+    // Scan workflow spec §6. `ports`: a list of its own, which joins the
+    // port list; `scripts`: what it runs, `scripts6` for an IPv6 range;
+    // `scriptArgs` (`scriptArgs6` with an IPv6 range); `root`: it needs root whatever its blocks say;
+    // `targets`: the choice of the targets row it is aimed at.
+    { id: "still", name: "Is it still so", finds: "What changed on what is drawn.", time: "minutes", sets: { ports: "drawn", depth: "versions" }, targets: "hosts" },
+    { id: "announced", name: "Who announces itself", finds: "Hosts that answer a call to all, and the gateway.", time: "seconds", sets: {}, scripts: BROADCAST, scripts6: BROADCAST6, scriptArgs: "newtargets," + DHCP_CLIENT, scriptArgs6: "newtargets", root: true },
+    { id: "udp", name: "UDP services", finds: "DNS, SNMP, time, VPN and other services on UDP.", time: "tens of minutes", sets: { udp: "top20", depth: "versions" } },
+    { id: "snmp", name: "Routers by SNMP", finds: "The networks a router is on, by its own word.", time: "minutes", sets: { ports: "list" }, ports: "U:161", scripts: "snmp-interfaces", root: true },
+    { id: "managed", name: "Management interfaces", finds: "Where a machine is administered from the network.", time: "minutes", sets: { ports: "list", depth: "versions" }, ports: "T:22,23,80,443,3389,5900,5985,5986,8080,8443,U:161,U:623", root: true },
+    { id: "vpn", name: "VPN endpoints", finds: "Where a network is entered from outside.", time: "minutes", sets: { ports: "list", depth: "versions" }, ports: "T:443,1194,1723,U:500,1194,4500,51820", root: true },
   ];
 
   function block(id) {
@@ -205,11 +224,11 @@
     // What adds nothing without its block is as nmap has it.
     if (ch.depth === "ports") ch.effort = "normal";
     if (ch.depth !== "os") ch.osguess = "normal";
-    var root = Object.keys(ch).some(function (b) { return b !== "tcp" && choice(b, ch[b]).root; });
+    var root = chosen.some(function (r) { return !!r.root; }) || Object.keys(ch).some(function (b) { return b !== "tcp" && choice(b, ch[b]).root; });
     // A scan that runs as root anyway takes the SYN scan, unless told not to.
     if (root && !set.tcp) ch.tcp = "syn";
     if (ch.ports !== "none" && choice("tcp", ch.tcp).root) root = true;
-    return { choices: ch, root: root, notes: notes };
+    return { choices: ch, root: root, notes: notes, recipes: chosen };
   }
 
   // ---- port lists ----
@@ -349,6 +368,9 @@
           if (m && Number(m[2]) >= 1 && Number(m[2]) <= 65535) list[m[1]][Number(m[2])] = true;
         });
         if (!Object.keys(list.tcp).length && !Object.keys(list.udp).length) return { problem: "Nothing is drawn there yet; choose 1000 most common." };
+        if (!(adjust && adjust.ports) && (recipeIds || []).some(function (id) { return recipe(id) && recipe(id).sets.ports === "top1000"; })) {
+          notes.push("The ports drawn and the 1000 most common ports do not go into one scan; this one takes those drawn.");
+        }
         if (ch.identity === "on") join(list, portsOf("T:" + IDENTITY_PORTS.tcp + ",U:" + IDENTITY_PORTS.udp));
       }
       if (ports === "list") {
@@ -360,6 +382,14 @@
         (extra.drawnPorts || []).forEach(function (p) {
           var m = /^(tcp|udp)\/(\d{1,5})$/.exec(p);
           if (m && firewall) list[m[1]][Number(m[2])] = true;
+        });
+        // A purpose's own ports, and what is drawn where that was asked.
+        c.recipes.forEach(function (x) {
+          if (x.ports) join(list, portsOf(x.ports));
+          if (x.sets.ports === "drawn") (extra.asDrawn || []).forEach(function (p) {
+            var m = /^(tcp|udp)\/(\d{1,5})$/.exec(p);
+            if (m && Number(m[2]) >= 1 && Number(m[2]) <= 65535) list[m[1]][Number(m[2])] = true;
+          });
         });
         var given = Object.keys(list.tcp).length + Object.keys(list.udp).length;
         if (!given && !firewall) return { problem: "Give the ports to scan, such as 22,80,8000-8100." };
@@ -374,12 +404,16 @@
           if (!(adjust && adjust.ports) && (recipeIds || []).some(function (id) { return recipe(id) && recipe(id).sets.ports === "top1000"; })) {
             notes.push("A port list and the 1000 most common ports do not go into one scan; this one takes the list.");
           }
+          if (ch.udp !== "off") notes.push("A port list and the most common UDP ports do not go into one scan; this one takes the list.");
         }
       }
       var listed = ports === "list" || ports === "drawn";
       var tcp = listed ? Object.keys(list.tcp).length > 0 : ports !== "none";
       var udp = listed ? Object.keys(list.udp).length > 0 : ch.udp !== "off";
       if (!tcp && !udp) args.push("-sn");
+      // A UDP scan runs as root: the TCP scan beside it is then SYN, unless
+      // a connect scan was chosen by hand.
+      if (udp && ch.tcp === "connect" && !(adjust && adjust.tcp)) ch.tcp = "syn";
       if (tcp) arg("tcp");
       if (udp) args.push("-sU");
       if (listed) args.push(listArg(list));
@@ -397,12 +431,19 @@
       }
       arg("reasons");
       arg("route");
-      var scripts = [];
+      var scripts = [], scriptArgs = [];
       if (ch.identity === "on") scripts.push(IDENTITY.join(" or "));
       if ((tcp || udp) && choice("checks", ch.checks).script) scripts.push(choice("checks", ch.checks).script);
+      c.recipes.forEach(function (x) {
+        var own = six.length && x.scripts6 ? x.scripts6 : x.scripts;
+        if (own) scripts.push(own);
+        var given = six.length && x.scriptArgs6 ? x.scriptArgs6 : x.scriptArgs;
+        if (own && given) scriptArgs.push(given);
+      });
       if (scripts.length) {
         args.push("--script '" + (scripts.length > 1 ? scripts.map(function (x) { return "(" + x + ")"; }).join(" or ") : scripts[0]) + "'");
       }
+      if (scriptArgs.length) args.push("--script-args " + scriptArgs.join(","));
       ["pace", "rate", "retries", "patience", "delay"].forEach(arg);
     }
     if (problem) return { problem: problem };
@@ -450,6 +491,10 @@
     if (expr.indexOf("ssh-hostkey") >= 0) out.push("identity");
     if (has("--traceroute")) out.push(has("--reason") ? "firewall" : "route");
     if (/\bvuln\b/.test(expr)) out.push("checks");
+    // Scan workflow spec §6.4: the purposes that are a port list are not
+    // read back.
+    if (expr.indexOf("broadcast-dhcp-discover") >= 0 || expr.indexOf("targets-ipv6-multicast-echo") >= 0) out.push("announced");
+    if (expr.indexOf("snmp-interfaces") >= 0) out.push("snmp");
     return out;
   }
 

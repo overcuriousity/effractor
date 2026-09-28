@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- Hand-written in nmap's shape from broadcast-dhcp-discover.nse (nmap 7.92); to be replaced by a recorded one. -->
+<nmaprun scanner="nmap" args="nmap -sn -&#45;script &quot;broadcast-dhcp-discover or broadcast-ping or broadcast-dns-service-discovery or broadcast-upnp-info&quot; -&#45;script-args newtargets -oX - 10.0.1.0/24" start="1790553600" version="7.92" xmloutputversion="1.05">
+<prescript><script id="broadcast-dhcp-discover" output="&#xa;  Response 1 of 1: &#xa;    Interface: eth0&#xa;    IP Offered: 10.0.1.114&#xa;    DHCP Message Type: DHCPOFFER&#xa;    Server Identifier: 10.0.1.1&#xa;    IP Address Lease Time: 1 day, 0:00:00&#xa;    Subnet Mask: 255.255.255.0&#xa;    Router: 10.0.1.1&#xa;    Domain Name Server: 10.0.1.1&#xa;    Domain Name: lab"><table key="Response 1 of 1:">
+<elem key="Interface">eth0</elem>
+<elem key="IP Offered">10.0.1.114</elem>
+<elem key="DHCP Message Type">DHCPOFFER</elem>
+<elem key="Server Identifier">10.0.1.1</elem>
+<elem key="IP Address Lease Time">1 day, 0:00:00</elem>
+<elem key="Subnet Mask">255.255.255.0</elem>
+<elem key="Router">10.0.1.1</elem>
+<elem key="Domain Name Server">10.0.1.1</elem>
+<elem key="Domain Name">lab</elem>
+</table>
+</script><script id="broadcast-ping" output="&#xa;  IP: 10.0.1.40  MAC: 52:54:00:00:01:40&#xa;  Use -&#45;script-args=newtargets to add the results as targets"/></prescript>
+<host><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="10.0.1.1" addrtype="ipv4"/>
+<address addr="52:54:00:00:01:01" addrtype="mac" vendor="QEMU virtual NIC"/>
+<hostnames><hostname name="gw.lab" type="PTR"/></hostnames>
+</host>
+<host><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="10.0.1.40" addrtype="ipv4"/>
+<address addr="52:54:00:00:01:40" addrtype="mac" vendor="QEMU virtual NIC"/>
+<hostnames></hostnames>
+</host>
+<runstats><finished time="1790553610" timestr="" summary="" elapsed="10.00" exit="success"/><hosts up="2" down="254" total="256"/>
+</runstats>
+</nmaprun>

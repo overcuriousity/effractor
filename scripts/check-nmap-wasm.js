@@ -24,7 +24,7 @@ function check(doc) {
 // The scanners beside nmap (roadmap scanner-readers, greenbone-import,
 // nuclei-import, nuclei-templates), each after nmap.
 const others = ['masscan/imported.doc.json', 'greenbone/imported.doc.json', 'nuclei/imported.doc.json', 'nuclei/imported-identify.doc.json', 'nuclei/imported-connect.doc.json'];
-for (const name of ['imported.doc.json', 'imported-router.doc.json', 'imported-checks.doc.json', 'imported-route.doc.json'].concat(others)) {
+for (const name of ['imported.doc.json', 'imported-router.doc.json', 'imported-checks.doc.json', 'imported-route.doc.json', 'imported-snmp.doc.json'].concat(others)) {
   const found = check(name.includes('/') ? JSON.parse(fs.readFileSync(path.join(root, 'scripts/fixtures', name), 'utf8')) : load(name));
   if (found.length) {
     console.error(name + ' does not save in wasm:', found);

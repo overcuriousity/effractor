@@ -1,0 +1,303 @@
+{
+  "effractor": 2,
+  "profile": "architecture",
+  "name": "Untitled",
+  "time_unit": "d",
+  "horizon": 100,
+  "library": {
+    "id": "core-components",
+    "version": 1
+  },
+  "entities": {
+    "lan": {
+      "kind": "network",
+      "label": "Office LAN",
+      "addresses": [
+        "10.0.1.0/24"
+      ]
+    },
+    "srv": {
+      "kind": "network",
+      "label": "Server LAN",
+      "addresses": [
+        "10.0.2.0/24"
+      ]
+    },
+    "pc": {
+      "kind": "host",
+      "label": "pc",
+      "addresses": [
+        "10.0.1.5"
+      ]
+    },
+    "nmap": {
+      "kind": "application",
+      "label": "nmap",
+      "tool": "nmap",
+      "description": "Last nmap import: 2026-09-28, scan of 10.0.1.0/24 · routers by snmp."
+    },
+    "gw-lab": {
+      "kind": "host",
+      "label": "gw.lab",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.1",
+        "10.0.2.1",
+        "10.0.9.1"
+      ],
+      "identities": [
+        "mac:52:54:00:00:01:01"
+      ],
+      "names": [
+        "gw.lab"
+      ],
+      "seen": "2026-09-28",
+      "vendor": "QEMU virtual NIC"
+    },
+    "10-0-9-0-24": {
+      "kind": "network",
+      "label": "10.0.9.0/24",
+      "addresses": [
+        "10.0.9.0/24"
+      ]
+    },
+    "gw-lab-router": {
+      "kind": "router",
+      "label": "gw.lab router",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      }
+    },
+    "snmp": {
+      "kind": "service",
+      "label": "snmp",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "unidentified-snmp-on-gw-lab": {
+      "kind": "product",
+      "label": "unidentified snmp on gw.lab",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "printer-lab": {
+      "kind": "host",
+      "label": "printer.lab",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.20"
+      ],
+      "identities": [
+        "mac:52:54:00:00:01:20"
+      ],
+      "names": [
+        "printer.lab"
+      ],
+      "seen": "2026-09-28",
+      "vendor": "QEMU virtual NIC"
+    },
+    "snmp-2": {
+      "kind": "service",
+      "label": "snmp",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "unidentified-snmp-on-printer-lab": {
+      "kind": "product",
+      "label": "unidentified snmp on printer.lab",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-1-30": {
+      "kind": "host",
+      "label": "10.0.1.30",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.30"
+      ],
+      "seen": "2026-09-28"
+    }
+  },
+  "associations": {
+    "a1": {
+      "kind": "attached",
+      "from": "pc",
+      "to": "lan"
+    },
+    "a2": {
+      "kind": "hosts",
+      "from": "pc",
+      "to": "nmap",
+      "privilege": "user"
+    },
+    "gw-lab-attached-lan": {
+      "kind": "attached",
+      "from": "gw-lab",
+      "to": "lan"
+    },
+    "gw-lab-attached-srv": {
+      "kind": "attached",
+      "from": "gw-lab",
+      "to": "srv"
+    },
+    "gw-lab-attached-10-0-9-0-24": {
+      "kind": "attached",
+      "from": "gw-lab",
+      "to": "10-0-9-0-24"
+    },
+    "gw-lab-hosts-gw-lab-router": {
+      "kind": "hosts",
+      "from": "gw-lab",
+      "to": "gw-lab-router",
+      "privilege": "admin"
+    },
+    "gw-lab-router-attached-lan": {
+      "kind": "attached",
+      "from": "gw-lab-router",
+      "to": "lan"
+    },
+    "gw-lab-router-attached-srv": {
+      "kind": "attached",
+      "from": "gw-lab-router",
+      "to": "srv"
+    },
+    "gw-lab-router-attached-10-0-9-0-24": {
+      "kind": "attached",
+      "from": "gw-lab-router",
+      "to": "10-0-9-0-24"
+    },
+    "gw-lab-hosts-snmp": {
+      "kind": "hosts",
+      "from": "gw-lab",
+      "to": "snmp",
+      "privilege": "unknown"
+    },
+    "snmp-instance-of-unidentified-snmp-on-gw-lab": {
+      "kind": "instance-of",
+      "from": "snmp",
+      "to": "unidentified-snmp-on-gw-lab"
+    },
+    "printer-lab-attached-lan": {
+      "kind": "attached",
+      "from": "printer-lab",
+      "to": "lan"
+    },
+    "printer-lab-hosts-snmp-2": {
+      "kind": "hosts",
+      "from": "printer-lab",
+      "to": "snmp-2",
+      "privilege": "unknown"
+    },
+    "snmp-2-instance-of-unidentified-snmp-on-printer-lab": {
+      "kind": "instance-of",
+      "from": "snmp-2",
+      "to": "unidentified-snmp-on-printer-lab"
+    },
+    "10-0-1-30-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-1-30",
+      "to": "lan"
+    }
+  },
+  "flows": {
+    "snmp-on-gw-lab": {
+      "label": "snmp on gw.lab",
+      "source": "nmap",
+      "target": "snmp",
+      "route": [
+        "lan"
+      ],
+      "protocol": "udp/161",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "snmp-on-printer-lab": {
+      "label": "snmp on printer.lab",
+      "source": "nmap",
+      "target": "snmp-2",
+      "route": [
+        "lan"
+      ],
+      "protocol": "udp/161",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    }
+  },
+  "attacker": {
+    "footholds": []
+  },
+  "scenarios": {},
+  "analysis": {
+    "seed": 42,
+    "samples": 10000,
+    "confidence": 0.95
+  }
+}

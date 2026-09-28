@@ -13,6 +13,7 @@
   var P = node ? require("./nmap-products.js") : window.effractorNmapProducts;
   var Cn = node ? require("./nmap-connect.js") : window.effractorNmapConnect;
   var St = node ? require("./scan-targets.js") : window.effractorScanTargets;
+  var Dv = node ? require("./nmap-devices.js") : window.effractorNmapDevices;
   var has = R.has, oneHost = R.oneHost, addressKey = Ad.addressKey, bytes = Ad.bytes, inCidr = Ad.inCidr, networkOf = Ad.networkOf;
   var targetsOf = C.targetsOf, STAMP = C.STAMP, stampLine = C.stampLine;
 
@@ -298,6 +299,25 @@
       takenBy[same[0]] = r.key;
     });
 
+    // The interfaces a device lists by SNMP (scan workflow spec §6.2): its
+    // further addresses, but one another drawn or scanned host has.
+    var scanned = Object.create(null);
+    rows.forEach(function (r) {
+      r.scan.addresses.forEach(function (a) { scanned[addressKey(a)] = r.key; });
+    });
+    rows.forEach(function (r) {
+      var target = r.known || r.merged, listed = [];
+      r.scan.ports.forEach(function (p) {
+        (p.scripts || []).forEach(function (s) { if (s.id === "snmp-interfaces") listed = listed.concat(Dv.interfaces(s.output)); });
+      });
+      r.interfaces = listed.filter(function (i, n) {
+        var k = addressKey(i.address);
+        var drawn = byAddress[k], row = scanned[k];
+        if ((drawn && drawn !== target) || (row && row !== r.key)) return false;
+        return listed.map(function (x) { return addressKey(x.address); }).indexOf(k) === n;
+      });
+    });
+
     // Where each one is attached that it is not yet: every network whose
     // range holds one of its addresses, else the proposed one.
     var usedNew = false;
@@ -315,6 +335,16 @@
         // A drawn one is filled even when everyone in it is attached already.
         if (proposed.merged) usedNew = true;
       }
+      // An interface's network: the drawn one that holds its address, the
+      // proposed one, else one of its own, "new:10.0.9.0/24".
+      r.interfaces.forEach(function (i) {
+        var drawn = networks.filter(function (n) {
+          return (doc.entities[n].addresses || []).some(function (c) { return inCidr(i.address, c); });
+        });
+        var on = drawn.length ? drawn : proposed && inCidr(i.address, cidr) ? [into] : ["new:" + i.cidr];
+        on.forEach(function (n) { if (nets.indexOf(n) < 0) nets.push(n); });
+        if (on[0] === into && proposed && proposed.merged) usedNew = true;
+      });
       r.networks = nets.filter(function (n) { return have.indexOf(n) < 0; });
       r.on = have.concat(r.networks);
       if (r.networks.indexOf("new") >= 0) usedNew = true;
@@ -332,6 +362,7 @@
 
     // What the scan asked of the hosts it covered, and the day it did
     // (scan workflow spec §3).
+    var gateways = Dv.gateways(scan.pre).map(addressKey);
     var asks = ASKED.filter(function (k) { return (scan.asks || []).indexOf(k) >= 0; });
     var day = scan.date || today || null;
     if (!day) asks = [];
@@ -346,6 +377,12 @@
       var suggested = roleOf(h.device);
       // A host others were reached through routes, whatever nmap called it.
       if (onTheWay[r.key] && suggested.role === "host") suggested = { role: "router", device: "on the way to others" };
+      // The router a DHCP answer names; a device with interfaces on two
+      // networks or more (scan workflow spec §6.1, §6.2).
+      if (suggested.role === "host" && h.addresses.some(function (a) { return gateways.indexOf(addressKey(a)) >= 0; })) suggested = { role: "router", device: "gateway by DHCP" };
+      var ownNets = r.interfaces.map(function (i) { return i.cidr; }).filter(function (c, n, all) { return all.indexOf(c) === n; });
+      if (suggested.role === "host" && ownNets.length > 1) suggested = { role: "router", device: r.interfaces.length + " interfaces by SNMP" };
+      var drawnAt = target ? (doc.entities[target].addresses || []).map(addressKey) : [];
       var hostChecks = readScripts(h.scripts);
       // A reader's own findings on the host (Greenbone's general/tcp) have
       // no port to go to.
@@ -372,6 +409,9 @@
         key: r.key,
         label: label,
         addresses: h.addresses.slice(),
+        interfaces: r.interfaces,
+        // The addresses of its interfaces the host is not drawn with.
+        gains: r.interfaces.map(function (i) { return i.address; }).filter(function (a) { return drawnAt.indexOf(addressKey(a)) < 0 && h.addresses.map(addressKey).indexOf(addressKey(a)) < 0; }),
         os: h.os ? osLine(scan.tool, h.os) : null,
         known: r.known,
         merged: r.merged,
@@ -468,7 +508,7 @@
   function readScripts(scripts) {
     var out = { found: [], unread: [] };
     (scripts || []).forEach(function (s) {
-      if (VERSION_SCRIPTS.indexOf(s.id) >= 0) return;
+      if (VERSION_SCRIPTS.indexOf(s.id) >= 0 || s.id === "snmp-interfaces") return;
       if (!s.vulns.length) {
         var first = s.output.split("\n").map(function (l) { return l.trim(); }).filter(Boolean)[0] || "";
         out.unread.push({ script: s.id, text: "not read" + (first ? " · " + first.slice(0, 80) : "") });
@@ -803,6 +843,8 @@
     var proposed = p.network ? p.network.merged || "new" : null;
     if (network && p.network.merged) s.filledNetworks = 1;
     var ticked = 0, proposedMade = false;
+    // The networks of interfaces that no drawn one holds, each once.
+    var own = Object.create(null);
     p.hosts.forEach(function (h) {
       if (!ticks.hosts[h.key]) return;
       ticked++;
@@ -815,12 +857,14 @@
       if (does.rename) s.renamed++;
       if (!added && does.seen) s.seen++;
       if (!added && does.asked.length) s.asked++;
-      // A merge writes the scanned addresses into the drawn host.
-      if (h.merged && h.addresses.length) s.filled++;
+      // A merge writes the scanned addresses into the drawn host; so do
+      // the interfaces a drawn host lists.
+      if ((h.merged && h.addresses.length) || (!added && !h.merged && h.gains.length)) s.filled++;
       h.networks.forEach(function (n) {
         if (n === proposed && !network) return;
         rel++;
         if (n === "new") proposedMade = true;
+        if (n.indexOf("new:") === 0) own[n] = true;
         if (!added) s.attached++;
       });
       var role = roleChosen(h, ticks);
@@ -880,6 +924,7 @@
     // The proposed network is made when something ticked is on it.
     s.proposed = proposedMade && proposed === "new";
     if (s.proposed) s.networks++;
+    s.networks += Object.keys(own).length;
     rel += s.flows;
     s.unpatched = Object.keys(marked).length;
     s.entities = Object.keys(doc.entities || {}).length + s.hosts + s.networks + s.routers + s.firewalls + s.services + s.products + s.connected.entities;
@@ -942,7 +987,7 @@
   // `specOf(kind)`: the catalog entry of a kind, for its parameter slots.
   function apply(doc, p, ticks, specOf, stamp) {
     var s = summary(doc, p, ticks, null);
-    var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged && h.addresses.length; });
+    var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && ((h.merged && h.addresses.length) || h.gains.length); });
     var stripping = p.hosts.some(function (h) { return ticks.hosts[h.key] && doing(h, ticks, p).strip; });
     if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.named && !s.told && !(s.connected.accounts + s.connected.hosts + s.connected.links) && !s.moved && !s.renamed && !s.seen && !s.asked && !stripping && !s.changes) return null;
     var next = JSON.parse(JSON.stringify(doc));
@@ -963,6 +1008,15 @@
       next.entities[network].addresses = p.network.addresses.slice();
     }
     var skipped = p.network && p.network.merged && !s.filledNetworks ? p.network.merged : null;
+    // The network of an interface that no drawn one holds, made once.
+    var ownNetworks = Object.create(null);
+    function ownNetwork(cidr) {
+      if (!ownNetworks[cidr]) {
+        ownNetworks[cidr] = step(A.addEntity(next, "network", cidr, specOf("network"))).entity;
+        next.entities[ownNetworks[cidr]].addresses = [cidr];
+      }
+      return ownNetworks[cidr];
+    }
     var madeProducts = Object.create(null);
     var flows = [], marks = [], hostOf = {}, passes = [], serviceOf = {}, appOf = {};
     // A product by its name and version, drawn or made by this import.
@@ -1048,8 +1102,12 @@
         var keys = had.map(addressKey);
         next.entities[host].addresses = had.concat(h.addresses.filter(function (a) { return keys.indexOf(addressKey(a)) < 0; }));
       }
+      if (h.gains.length) {
+        var drawnAt = (next.entities[host].addresses || []).map(addressKey);
+        next.entities[host].addresses = (next.entities[host].addresses || []).concat(h.gains.filter(function (a) { return drawnAt.indexOf(addressKey(a)) < 0; }));
+      }
       h.networks.forEach(function (n) {
-        var to = n === "new" ? network : n === skipped ? null : n;
+        var to = n === "new" ? network : n === skipped ? null : n.indexOf("new:") === 0 ? ownNetwork(n.slice(4)) : n;
         if (to) link("attached", host, to);
       });
       var role = roleChosen(h, ticks);
@@ -1096,8 +1154,9 @@
     // on its network (nmap's host may have been left unticked).
     // The routers on the way and the networks between them (nmap recipes
     // spec §4), then each flow by its whole way where there is one.
+    // A network the import makes from a device's interface: "new:<cidr>".
     function netOf(n) {
-      return n === "new" ? network : n === skipped ? null : n;
+      return n === "new" ? network : n === skipped ? null : n.indexOf("new:") === 0 ? ownNetwork(n.slice(4)) : n;
     }
     var way = Rt.applyRoutes(p, {
       doc: function () { return next; },
