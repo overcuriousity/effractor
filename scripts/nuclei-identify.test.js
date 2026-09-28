@@ -142,7 +142,7 @@ test('an application whose own server answers is one piece', () => {
   assert.deepEqual(one('10.0.2.134', 443), ['OPNsense', null, undefined]);
   assert.deepEqual(one('10.0.2.140', 8000), ['SAP NetWeaver', null, undefined]);
   // Every server word of the table is one a Server header can begin with, in lower case.
-  for (const a of T.ANSWERS.filter(a => a.server)) assert.match(a.server, /^[a-z][a-z0-9_.+-]*$/, a.name);
+  for (const a of T.ANSWERS.filter(a => a.server)) for (const word of [].concat(a.server)) assert.match(word, /^[a-z][a-z0-9_.+-]*$/, a.name);
   // Nothing in the lab is an application behind itself.
   for (const h of scan.hosts) for (const p of h.ports) if (p.application) assert.notEqual(p.application.product.toLowerCase().split(' ')[0], String(p.service.product).toLowerCase().split(/[ -]/)[0], h.addresses[0] + ':' + p.port);
 });
@@ -388,4 +388,103 @@ test('a drawn product that takes a version is not the product of servers that na
   const q = N.plan(shared, 'nuclei', few(), '10.0.2.0/24', {});
   const made = N.apply(shared, q, N.defaults(q), specOf, STAMP()).doc;
   assert.equal(N.summary(shared, q, N.defaults(q), null).products, count(made) - count(shared));
+});
+
+// ---- from the review of the branch ----
+// A reading whatever the order: hosts by address, ports by number.
+const reading = scan => scan.hosts.map(h => [h.addresses[0] || h.hostname, h.names, h.said.slice().sort(), h.ports.map(p => [p.port, p.service, p.application, p.manages, p.signs, p.login])]).sort((a, b) => a[0] < b[0] ? -1 : 1);
+function shuffled(list, seed) {
+  const out = list.slice();
+  let x = seed;
+  for (let i = out.length - 1; i > 0; i--) {
+    x = (x * 1103515245 + 12345) % 2147483648;
+    const j = x % (i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+test('review: what a port comes to does not depend on the order nuclei wrote its answers in', () => {
+  const all = lines();
+  const as = reading(Nu.read(written(all)).scan);
+  for (let seed = 1; seed <= 25; seed++) assert.deepEqual(reading(Nu.read(written(shuffled(all, seed))).scan), as, 'seed ' + seed);
+  // Two applications, two servers, two products on one port: the same whichever came first.
+  const like = (name, values, at) => Object.assign({}, lines().find(r => r['extractor-name'] === name), { 'extracted-results': values, 'matched-at': at, host: '10.0.2.200', ip: '10.0.2.200', port: '80', url: 'http://10.0.2.200' });
+  const web = [like('server', ['Apache/2.4.57'], 'http://10.0.2.200/'), like('server', ['nginx'], 'http://10.0.2.200/x'), like('wordpress', ['x'], 'http://10.0.2.200/'), like('phpmyadmin', ['x'], 'http://10.0.2.200/phpmyadmin/'), like('openssh', ['9.6p1'], '10.0.2.200:2222'), like('dropbear', ['2022.83'], '10.0.2.200:2222')];
+  const one = reading(Nu.read(written(web)).scan);
+  assert.deepEqual(one[0][3].map(p => [p[0], p[1].product, p[1].version, (p[2] || {}).product]), [[80, 'Apache httpd', '2.4.57', 'WordPress'], [2222, 'OpenSSH', '9.6p1', undefined]], 'the first of the table; the server that names its version');
+  for (let seed = 1; seed <= 10; seed++) assert.deepEqual(reading(Nu.read(written(shuffled(web, seed))).scan), one, 'seed ' + seed);
+});
+
+test('review: a year or an edition before the version belongs to the name', () => {
+  assert.deepEqual(P.parts('Microsoft SQL Server 2019 15.00.2000.00; RTM'), { name: 'microsoft sql server 2019', version: '15.00.2000.00' });
+  assert.deepEqual(P.parts('Oracle Database 11g 11.2.0.4'), { name: 'oracle database 11g', version: '11.2.0.4' });
+  assert.deepEqual(P.parts('Log4j 2 2.17.0'), { name: 'log4j 2', version: '2.17.0' });
+  assert.equal(P.same('Microsoft SQL Server 2019 15.00.2000.00; RTM', 'Microsoft SQL Server 2019 15.00.4355.00; CU26'), false);
+  assert.equal(P.same('Log4j 2 2.14.1', 'Log4j 2 2.17.0'), false);
+  assert.equal(P.same('Microsoft SQL Server 2019 15.00.2000.00; RTM', 'microsoft sql server 2019 15.00.2000.00'), true);
+  assert.equal(P.lacks('Microsoft SQL Server 2019', 'Microsoft SQL Server 2019 15.00.2000.00'), false, 'without its version the year is taken for one: said, not named');
+  // As before.
+  assert.deepEqual(P.parts('OpenSSH 9.6p1 Ubuntu 3ubuntu13.5'), { name: 'openssh', version: '9.6p1' });
+  assert.deepEqual(P.parts('Microsoft IIS httpd 10.0'), { name: 'microsoft iis httpd', version: '10.0' });
+});
+
+// A drawn product with what its author and an earlier import wrote on it.
+function noted(d, id) {
+  d.entities[id].description = 'pinned by the vendor';
+  d.entities[id].defenses = { patched: false };
+  d.entities[id].parameters = { 'find-exploit': { status: 'unknown', note: 'nuclei: High 7.5, cve-2024-0001 (x).' } };
+  return d;
+}
+const made = (d, out) => Object.keys(out.entities).filter(k => out.entities[k].kind === 'product' && !d.entities[k]).length;
+const productOf = (doc, service) => doc.entities[Object.values(doc.associations).find(a => a.kind === 'instance-of' && a.from === service).to];
+const two = (...addresses) => { const s = result(); s.hosts = addresses.map(a => s.hosts.find(h => h.addresses[0] === a)); return s; };
+
+test('review: a product that is named keeps what was written on it, whatever the order of the hosts', () => {
+  for (const order of [['10.0.2.11', '10.0.2.50'], ['10.0.2.50', '10.0.2.11']]) {
+    // Web 1's nginx is drawn without a version and noted; the proxy at 10.0.2.50 is new and runs nginx 1.24.0 too.
+    const d = noted(drawn(), 'nginx');
+    const p = N.plan(d, 'nuclei', two(...order), '10.0.2.0/24', {});
+    const t = N.defaults(p);
+    const s = N.summary(d, p, t, null);
+    const out = N.apply(d, p, t, specOf, STAMP()).doc;
+    assert.deepEqual([out.entities.nginx.label, out.entities.nginx.description, out.entities.nginx.defenses.patched], ['nginx 1.24.0', 'pinned by the vendor', false], String(order));
+    assert.equal(Object.values(out.entities).filter(e => e.kind === 'product' && P.key(e.label) === 'nginx 1.24.0').length, 1, 'named once');
+    assert.equal(s.products, made(d, out), 'the summary counts the products that are made: ' + order);
+  }
+  // Two drawn services share it and are told the same: named in place.
+  const same = noted(drawn(), 'nginx');
+  same.entities.web2 = { kind: 'host', label: 'Web 2', addresses: ['10.0.2.50'] };
+  same.entities.https2 = { kind: 'service', label: 'https' };
+  Object.assign(same.associations, { c1: { kind: 'hosts', from: 'web2', to: 'https2', privilege: 'unknown' }, c2: { kind: 'instance-of', from: 'https2', to: 'nginx' }, c3: { kind: 'attached', from: 'web2', to: 'lan' } });
+  same.flows.f9 = { label: 'https on Web 2', source: 'nmap', target: 'https2', route: ['lan'], protocol: 'tcp/443' };
+  const q = N.plan(same, 'nuclei', two('10.0.2.11', '10.0.2.50'), '10.0.2.0/24', {});
+  const o = N.apply(same, q, N.defaults(q), specOf, STAMP()).doc;
+  assert.deepEqual([o.entities.nginx.label, o.entities.nginx.defenses.patched, productOf(o, 'https').label, productOf(o, 'https2').label], ['nginx 1.24.0', false, 'nginx 1.24.0', 'nginx 1.24.0']);
+  assert.equal(N.summary(same, q, N.defaults(q), null).products, made(same, o));
+  // A product of that name is drawn already: the service takes it, and what was written goes with it.
+  const there = noted(drawn(), 'noftp');
+  there.entities.vs = { kind: 'product', label: 'vsftpd 3.0.5 (Debian)' };
+  const r = N.plan(there, 'nuclei', two('10.0.2.5'), '10.0.2.0/24', {});
+  const u = N.apply(there, r, N.defaults(r), specOf, STAMP()).doc;
+  assert.equal(productOf(u, 'ftpd'), u.entities.vs);
+  assert.equal(u.entities.noftp, undefined, 'nothing else ran it');
+  assert.deepEqual([u.entities.vs.label, u.entities.vs.defenses.patched, u.entities.vs.description, u.entities.vs.parameters['find-exploit'].note], ['vsftpd 3.0.5 (Debian)', false, 'pinned by the vendor', 'nuclei: High 7.5, cve-2024-0001 (x).']);
+  assert.equal(N.summary(there, r, N.defaults(r), null).products, made(there, u));
+});
+
+test('review: the application of a port is reached by http; a database the server talks to is none', () => {
+  const d = drawn();
+  d.entities.db = { kind: 'service', label: 'mysql' };
+  d.entities.maria = { kind: 'product', label: 'MariaDB 10.11.6' };
+  Object.assign(d.associations, { d1: { kind: 'hosts', from: 'web', to: 'db', privilege: 'unknown' }, d2: { kind: 'instance-of', from: 'db', to: 'maria' } });
+  d.flows.f8 = { label: 'the site reads its database', source: 'https', target: 'db', route: ['lan'], protocol: 'tcp/3306' };
+  const p = N.plan(d, 'nuclei', few(), '10.0.2.0/24', {});
+  assert.deepEqual(row(p, '10.0.2.11', 'tcp/443').application, { label: 'Grafana', product: { label: 'Grafana 10.2.3', existing: null }, known: null, differs: null });
+  // One the author drew by another protocol is known by its product.
+  d.entities.g = { kind: 'service', label: 'Dashboards' };
+  d.entities.gp = { kind: 'product', label: 'Grafana' };
+  Object.assign(d.associations, { d3: { kind: 'hosts', from: 'web', to: 'g', privilege: 'unknown' }, d4: { kind: 'instance-of', from: 'g', to: 'gp' } });
+  d.flows.f7 = { label: 'dashboards', source: 'https', target: 'g', route: ['lan'], protocol: 'tcp/3000' };
+  assert.equal(row(N.plan(d, 'nuclei', few(), '10.0.2.0/24', {}), '10.0.2.11', 'tcp/443').application.known, 'g');
 });

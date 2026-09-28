@@ -172,29 +172,40 @@
     // the service on the port; the application a piece of its own, unless
     // it answers by itself.
     function settle(h, p) {
-      var facts = p.facts;
+      // In one order whatever order nuclei wrote them in: by the table,
+      // then by what they say.
+      var facts = p.facts.map(function (f) {
+        return { fact: f, key: [f.kind, 1000 + T.ANSWERS.indexOf(T.answer(f.id || f.name || f.of || "")), f.product || "", f.version || "", f.host || "", (f.names || []).length, (f.names || []).join(" "), f.what || "", f.text || ""].join("\n") };
+      }).sort(function (a, b) { return a.key < b.key ? -1 : a.key > b.key ? 1 : 0; }).map(function (x) { return x.fact; });
       delete p.facts;
       var of = function (kind) { return facts.filter(function (f) { return f.kind === kind; }); };
+      // The one that says more: `more(f)` first, else the first.
+      function best(list, more) {
+        return list.filter(more)[0] || list[0] || null;
+      }
       var products = of("product").filter(function (f) {
         return !(f.unless && facts.some(function (o) { return o.kind === "product" && o.name === f.unless; }));
       });
-      var server = of("server")[0] || null, app = of("application")[0] || null;
+      var app = of("application")[0] || null;
+      // The application's own server where it answers, else one that names its version.
+      var own = app ? [].concat(app.server || []) : [];
+      var server = of("server").filter(function (f) { return own.indexOf(f.word) >= 0; })[0] || best(of("server"), function (f) { return !!f.version; });
       var version = app ? of("version").filter(function (f) { return f.of === app.id; })[0] : null;
       var named = p.service ? p.service.name : null;
       function service(x, v) {
         p.service = { name: named, product: x, version: v || null };
       }
-      if (app && server && server.word !== app.server) {
+      if (app && server && own.indexOf(server.word) < 0) {
         service(server.product, server.version);
         p.application = { id: app.id, label: app.product, product: app.product, version: version ? version.version : null };
       } else if (app) service(app.product, version ? version.version : null);
       else if (server) service(server.product, server.version);
-      else if (products.length) service(products[0].product, products[0].version);
+      else if (products.length) service(best(products, function (f) { return !!f.version; }).product, best(products, function (f) { return !!f.version; }).version);
       if (app) {
         p.manages = app.manages;
         p.signs = app.signs;
       }
-      var sso = of("sso")[0] || null;
+      var sso = best(of("sso"), function (f) { return !!f.product; });
       if (sso || of("login").length) p.login = { password: of("login").length > 0, sso: sso ? { product: sso.product, host: sso.host } : null };
       of("names").forEach(function (f) {
         f.names.forEach(function (n) {
@@ -207,6 +218,7 @@
           var text = f.what + " on " + p.protocol + "/" + p.port + ": " + f.text;
           if (h.said.indexOf(text) < 0) h.said.push(text);
         });
+        h.said.sort();
       }
     }
     if (!hosts.length && !points.length) return problem("no-host");

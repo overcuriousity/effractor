@@ -11,13 +11,17 @@
   }
   // "OpenSSH 9.6p1 Ubuntu 3ubuntu13.5" → {name: "openssh", version: "9.6p1"};
   // the version is the first word that begins with a digit and is not the
-  // first word ("3Com switch" has none).
+  // first word ("3Com switch" has none). Where the word after it is a
+  // version with a dot, the first is a year or an edition and belongs to
+  // the name ("Microsoft SQL Server 2019 15.00.2000.00", "Log4j 2 2.17.0").
   function parts(label) {
     var text = String(label == null ? "" : label).trim().replace(/\s+/g, " ");
     if (unidentified(text)) return { name: text.toLowerCase(), version: null };
     var words = text.split(" ");
     for (var i = 1; i < words.length; i++) {
-      if (/^v?[0-9]/i.test(words[i])) return { name: words.slice(0, i).join(" ").toLowerCase(), version: words[i].toLowerCase().replace(/^v/, "") };
+      if (!/^v?[0-9]/i.test(words[i])) continue;
+      if (/^v?[0-9]+[.][0-9]/i.test(words[i + 1] || "")) i++;
+      return { name: words.slice(0, i).join(" ").toLowerCase(), version: words[i].toLowerCase().replace(/^v/, "").replace(/[^0-9a-z]+$/, "") };
     }
     return { name: text.toLowerCase(), version: null };
   }
