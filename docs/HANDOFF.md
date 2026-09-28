@@ -1290,7 +1290,11 @@ today, all of it after seeing the alternative:
   The file crumb's labelled dropdown is the one left-click menu.
 - **The selected node's form is an inspector on the canvas**, *floating* over
   its right edge (owner, 2026-09-23: the docked column resized the canvas and
-  made the clicked node jump). One fixed size; the HUD steps aside; a node it
+  made the clicked node jump). Resized at its free corner, the bottom
+  left (owner, 2026-09-28): never below 240 by 120 or beyond the canvas, the
+  size kept on this browser (`effractor.inspector`), a double click on the
+  corner back to as tall as what it holds, the arrow keys on the focused
+  corner; `workspace.js` `dragInspector`, `inspectorSize`. The HUD steps aside; a node it
   would cover is panned into view (`renderer.reveal`). Not in either panel:
   the left is the model, the right is the analysis.
 - **Menus are hierarchical** (owner, 2026-09-23): an item may carry a submenu

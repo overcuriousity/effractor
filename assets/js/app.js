@@ -167,7 +167,8 @@
 
   // The inspector is as tall as what it holds: its content is measured, and
   // the height eases there from the last selection's. Opened, it takes its
-  // height at once; there is nothing to ease from.
+  // height at once; there is nothing to ease from. Dragged at its corner
+  // (workspace.js), it is as tall as it was dragged.
   var inspectorShown = false;
   function fitInspector() {
     var box = $("inspector");
@@ -176,7 +177,9 @@
       return;
     }
     var edges = box.offsetHeight - box.clientHeight;
-    var height = box.firstElementChild.offsetHeight + edges + "px";
+    var W = window.effractorWorkspace;
+    var dragged = W && W.inspectorHeight ? W.inspectorHeight() : null;
+    var height = (dragged != null ? dragged : box.firstElementChild.offsetHeight + edges) + "px";
     if (inspectorShown) {
       box.style.height = height;
       return;
@@ -1630,6 +1633,7 @@
   window.effractor.applyEdit = applyEdit;
   window.effractor.tryEdit = tryEdit;
   window.effractor.say = say;
+  window.effractor.fitInspector = fitInspector;
   window.effractor.format = { money: money, probability: probability };
   window.effractor.adoptSource = adoptSource;
   // A crash with nothing waiting on the worker would otherwise pass unseen.

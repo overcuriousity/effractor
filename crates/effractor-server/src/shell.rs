@@ -127,6 +127,8 @@ mod tests {
         assert!(at("architecture-links-ui.js") < at("cluster-ui.js"));
         assert!(at("cluster-ui.js") < at("attacker-pins.js"));
         assert!(html.contains("id=\"nmap-dialog\""));
+        // The inspector's corner, dragged to resize it (workspace.js).
+        assert!(html.contains("id=\"inspector-grip\""));
         assert!(html.contains("id=\"nmap-hint\""));
         assert!(html.contains("id=\"nmap-hint-close\""));
         for side in ["left", "right"] {

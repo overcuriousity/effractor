@@ -310,15 +310,17 @@
 /* ---- the inspector: the selected node's form, floating at the canvas edge ----
    Over the graph, not beside it: selecting never resizes the canvas, so
    nothing under the pointer moves (a node it would cover is panned into view
-   by the renderer). Its width is fixed; its height is what it holds, up to
-   the canvas's, and eases from one selection's to the next (app.js sets it).
+   by the renderer). Its height is what it holds, up to the canvas's, and
+   eases from one selection's to the next (app.js sets it); dragged at its
+   free corner, the bottom left, it is as wide and tall as dragged
+   (workspace.js), never smaller than 240 by 120 or larger than the canvas.
    The HUD steps aside while it is open. There while something is selected.
    Its scrollbar's room is always kept: a bar that came and went would change
    the width, the wrapping, the height, and bring the bar back — a flicker. */
 .stage { position: relative; flex: 1; min-width: 0; }
 .inspector {
   position: absolute; top: 8px; right: 8px; z-index: var(--z-inspector);
-  width: 280px; max-height: calc(100% - 16px);
+  width: var(--inspector-w, 280px); max-width: calc(100% - 16px); max-height: calc(100% - 16px);
   transition: height 160ms ease-out;
   overflow: hidden auto;
   scrollbar-gutter: stable;
@@ -331,9 +333,24 @@
 }
 .inspector[hidden] { display: none; }
 @keyframes inspector-in { from { opacity: 0; transform: translateX(8px); } }
-.inspector.is-placing { transition: none; }
+.inspector.is-placing, .inspector.is-resizing { transition: none; }
+.inspector.is-resizing { user-select: none; }
+/* Dragged taller than what it holds, what it holds fills it, so the corner
+   is the box's. */
+.inspector.is-sized > .panel-section { min-height: 100%; box-sizing: border-box; }
+/* The corner: no height of its own, kept at the bottom while the rest scrolls. */
+.inspector-grip { position: sticky; bottom: 0; left: 0; height: 0; }
+.inspector-grip::after {
+  content: ""; position: absolute; left: 0; bottom: 0; width: 14px; height: 14px;
+  cursor: nesw-resize; opacity: 0.55; touch-action: none;
+  border-bottom-left-radius: var(--radius-md);
+  background: linear-gradient(to top right, transparent 0 16%, var(--color-fg-muted) 16% 24%, transparent 24% 36%, var(--color-fg-muted) 36% 44%, transparent 44%);
+}
+.inspector-grip:hover::after, .inspector-grip:focus-visible::after, .inspector.is-resizing .inspector-grip::after { opacity: 1; }
+.inspector-grip:focus-visible { outline: none; }
+.inspector-grip:focus-visible::after { outline: 2px solid var(--color-accent); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) { .inspector { animation: none; transition: none; } .hud-top-right { transition: none; } }
 .hud-top-right { transition: right 120ms ease-out; }
-.canvas:has(.inspector:not([hidden])) .hud-top-right { right: 298px; }
+.canvas:has(.inspector:not([hidden])) .hud-top-right { right: calc(var(--inspector-w, 280px) + 18px); }
 .inspector .panel-section { border-bottom: 0; }
 .inspector .count { text-transform: none; letter-spacing: 0; font-weight: 400; }

@@ -36,7 +36,29 @@
     return out;
   }
 
-  if (typeof module !== "undefined") module.exports = { clampWidth: clampWidth, nextWidth: nextWidth, initialState: initialState, saved: saved, LIMITS: LIMITS };
+  // The inspector (owner, 2026-09-28): resized at its corner, never below
+  // a smallest size. Its height is what it holds (null) until it is dragged.
+  var INSPECTOR = { width: 280, minWidth: 240, minHeight: 120, most: 4000, edge: 8 };
+  function within(px, min, max) {
+    return Math.round(Math.max(min, Math.min(px, Math.max(min, max))));
+  }
+  function inspectorSize(saved) {
+    var s = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+    return {
+      width: typeof s.width === "number" && isFinite(s.width) ? within(s.width, INSPECTOR.minWidth, INSPECTOR.most) : INSPECTOR.width,
+      height: typeof s.height === "number" && isFinite(s.height) ? within(s.height, INSPECTOR.minHeight, INSPECTOR.most) : null,
+    };
+  }
+  // It hangs at the canvas's top right: its free corner is the bottom left.
+  // `dx`, `dy`: the pointer's way right and down; `room`: the canvas.
+  function dragInspector(start, dx, dy, room) {
+    return {
+      width: within(start.width - (isFinite(dx) ? dx : 0), INSPECTOR.minWidth, room.width - 2 * INSPECTOR.edge),
+      height: within(start.height + (isFinite(dy) ? dy : 0), INSPECTOR.minHeight, room.height - 2 * INSPECTOR.edge),
+    };
+  }
+
+  if (typeof module !== "undefined") module.exports = { clampWidth: clampWidth, nextWidth: nextWidth, initialState: initialState, saved: saved, LIMITS: LIMITS, INSPECTOR: INSPECTOR, inspectorSize: inspectorSize, dragInspector: dragInspector };
   if (typeof document === "undefined") return;
 
   var root = document.getElementById("app");
@@ -105,6 +127,84 @@
       apply();
     },
   };
+
+  // ---- the inspector's size: dragged at its corner, kept on this browser ----
+
+  var INSPECTOR_KEY = "effractor.inspector";
+  var box = document.getElementById("inspector");
+  var corner = document.getElementById("inspector-grip");
+  var size;
+  try {
+    size = inspectorSize(JSON.parse(localStorage.getItem(INSPECTOR_KEY) || "null"));
+  } catch (e) {
+    size = inspectorSize(null);
+  }
+  function showInspector() {
+    root.style.setProperty("--inspector-w", size.width + "px");
+    box.classList.toggle("is-sized", size.height != null);
+    // app.js gives it its height: the one dragged, or what it holds.
+    if (window.effractor && window.effractor.fitInspector) window.effractor.fitInspector();
+  }
+  function keepInspector() {
+    showInspector();
+    try {
+      localStorage.setItem(INSPECTOR_KEY, JSON.stringify(size));
+    } catch (e) {}
+  }
+  // The canvas, less the chat where it is open: the two never overlap.
+  function canvasRoom() {
+    var chat = document.getElementById("chat");
+    var taken = chat && chat.classList.contains("is-open") ? chat.getBoundingClientRect().width + INSPECTOR.edge : 0;
+    return { width: box.parentNode.clientWidth - taken, height: box.parentNode.clientHeight };
+  }
+  function sizeShown() {
+    var r = box.getBoundingClientRect();
+    return { width: r.width, height: r.height };
+  }
+  window.effractorWorkspace.inspectorHeight = function () {
+    return size.height;
+  };
+  showInspector();
+  // The pointer is taken only once a press becomes a drag.
+  corner.addEventListener("pointerdown", function (down) {
+    if (down.button !== 0) return;
+    down.preventDefault();
+    var start = sizeShown(), dragging = false;
+    function move(e) {
+      if (!dragging && Math.abs(e.clientX - down.clientX) < 3 && Math.abs(e.clientY - down.clientY) < 3) return;
+      if (!dragging) {
+        dragging = true;
+        box.classList.add("is-resizing");
+        corner.setPointerCapture(down.pointerId);
+      }
+      size = dragInspector(start, e.clientX - down.clientX, e.clientY - down.clientY, canvasRoom());
+      showInspector();
+    }
+    function up() {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", up);
+      box.classList.remove("is-resizing");
+      if (dragging) keepInspector();
+    }
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+    document.addEventListener("pointercancel", up);
+  });
+  // Back to as tall as what it holds; the width stays.
+  corner.addEventListener("dblclick", function () {
+    size = { width: size.width, height: null };
+    keepInspector();
+  });
+  corner.addEventListener("keydown", function (e) {
+    var dx = e.key === "ArrowLeft" ? -16 : e.key === "ArrowRight" ? 16 : 0;
+    var dy = e.key === "ArrowDown" ? 16 : e.key === "ArrowUp" ? -16 : 0;
+    if (!dx && !dy) return;
+    e.preventDefault();
+    e.stopPropagation();
+    size = dragInspector(sizeShown(), dx, dy, canvasRoom());
+    keepInspector();
+  });
 
   document.querySelectorAll("[data-resize]").forEach(function (grip) {
     var side = grip.getAttribute("data-resize");
