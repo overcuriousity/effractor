@@ -1634,6 +1634,82 @@ fn identity_fields_are_refused_off_hosts_and_in_the_wrong_shape() {
 }
 
 #[test]
+fn a_host_keeps_what_it_was_asked() {
+    let mut image = image(LECTURE);
+    let asked = serde_json::json!({"ports": "2026-09-28", "products": "2026-09-28", "route": "2026-09-27", "connections": "2026-09-29"});
+    image["entities"]["server"]["seen"] = serde_json::json!("2026-09-28");
+    image["entities"]["server"]["asked"] = asked.clone();
+    let text = from_document(&image).unwrap_or_else(|d| panic!("{d:?}"));
+    assert!(
+        text.contains(
+            "    seen: \"2026-09-28\"\n    asked: {ports: \"2026-09-28\", products: \"2026-09-28\", route: \"2026-09-27\", connections: \"2026-09-29\"}\n"
+        ),
+        "{text}"
+    );
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    assert_eq!(self::image(&text)["entities"]["server"]["asked"], asked);
+    // Each key is optional, and the file's order is the writer's.
+    let mut one = self::image(LECTURE);
+    one["entities"]["server"]["asked"] =
+        serde_json::json!({"connections": "2026-09-29", "ports": "2026-09-28"});
+    let text = from_document(&one).unwrap_or_else(|d| panic!("{d:?}"));
+    assert!(
+        text.contains("    asked: {ports: \"2026-09-28\", connections: \"2026-09-29\"}\n"),
+        "{text}"
+    );
+    // A file without the key reads as before, and writes none.
+    let plain = from_document(&self::image(LECTURE)).unwrap_or_else(|d| panic!("{d:?}"));
+    assert!(!plain.contains("asked:"), "{plain}");
+    // An empty map is nothing asked.
+    let mut empty = self::image(LECTURE);
+    empty["entities"]["server"]["asked"] = serde_json::json!({});
+    let text = from_document(&empty).unwrap_or_else(|d| panic!("{d:?}"));
+    assert!(!text.contains("asked:"), "{text}");
+}
+
+#[test]
+fn asked_is_refused_off_hosts_with_another_key_and_without_a_day() {
+    let cases: [(&str, serde_json::Value, &str, &str); 5] = [
+        (
+            "sshd",
+            serde_json::json!({"ports": "2026-09-28"}),
+            "misplaced-key",
+            "entities.sshd.asked",
+        ),
+        (
+            "server-net",
+            serde_json::json!({"ports": "2026-09-28"}),
+            "misplaced-key",
+            "entities.server-net.asked",
+        ),
+        (
+            "server",
+            serde_json::json!({"weaknesses": "2026-09-28"}),
+            "unknown-key",
+            "entities.server.asked.weaknesses",
+        ),
+        (
+            "server",
+            serde_json::json!({"ports": "28.09.2026"}),
+            "wrong-type",
+            "entities.server.asked.ports",
+        ),
+        (
+            "server",
+            serde_json::json!(["ports"]),
+            "wrong-type",
+            "entities.server.asked",
+        ),
+    ];
+    for (entity, value, code, path) in cases {
+        let mut image = image(LECTURE);
+        image["entities"][entity]["asked"] = value;
+        let errors = errors_of(&image);
+        assert!(has(&errors, code, path), "{entity}: {errors:?}");
+    }
+}
+
+#[test]
 fn a_host_keeps_its_names() {
     let mut image = image(LECTURE);
     let names = serde_json::json!(["grafana.corp.example", "metrics.corp.example", "srv01"]);

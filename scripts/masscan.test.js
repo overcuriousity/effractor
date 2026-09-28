@@ -145,3 +145,15 @@ test('scanners are one application each, named in their menus', () => {
   assert.deepEqual(Object.keys(loose.doc.associations), []);
   assert.equal(S.addScanner(E.empty(), 'zmap', null, 'zmap', specOf), null);
 });
+
+test('masscan asks which ports are open, and nothing else (scan workflow spec §3)', () => {
+  const { scan } = M.read(fixture('masscan/lab.xml'));
+  assert.deepEqual(scan.asks, ['ports']);
+  const d = E.empty();
+  const added = S.addScanner(d, 'masscan', null, 'masscan', specOf);
+  const p = N.plan(added.doc, added.entity, scan, '10.0.1.0/24', {});
+  const out = N.apply(added.doc, p, N.defaults(p), specOf, S.stampFor('masscan', scan, '10.0.1.0/24', '2026-09-27')).doc;
+  const hosts = Object.values(out.entities).filter(e => e.kind === 'host');
+  assert.equal(hosts.length, 2);
+  for (const h of hosts) assert.deepEqual(h.asked, { ports: '2026-09-27' });
+});

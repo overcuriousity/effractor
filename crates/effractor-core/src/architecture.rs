@@ -461,6 +461,46 @@ impl Tool {
     }
 }
 
+/// What scans have asked a host, each with the day of the last scan that
+/// asked (scan workflow spec §3). Generation never reads it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Asked {
+    pub ports: Option<String>,
+    pub products: Option<String>,
+    pub route: Option<String>,
+    pub connections: Option<String>,
+}
+
+impl Asked {
+    /// The keys in the order the file writes them.
+    pub const KEYS: [&'static str; 4] = ["ports", "products", "route", "connections"];
+
+    pub fn get(&self, key: &str) -> Option<&str> {
+        match key {
+            "ports" => self.ports.as_deref(),
+            "products" => self.products.as_deref(),
+            "route" => self.route.as_deref(),
+            "connections" => self.connections.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Sets a key of `KEYS`; any other is ignored.
+    pub fn set(&mut self, key: &str, day: Option<String>) {
+        match key {
+            "ports" => self.ports = day,
+            "products" => self.products = day,
+            "route" => self.route = day,
+            "connections" => self.connections = day,
+            _ => {}
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        Self::KEYS.iter().all(|k| self.get(k).is_none())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entity {
     pub kind: EntityKind,
@@ -480,6 +520,8 @@ pub struct Entity {
     pub seen: Option<String>,
     /// `YYYY-MM-DD`: a covered scan the host did not answer; gone once seen.
     pub missed: Option<String>,
+    /// What scans have asked a host; empty elsewhere.
+    pub asked: Asked,
     /// Only on an application.
     pub tool: Option<Tool>,
     pub parameters: IndexMap<Slot, Parameter>,
@@ -499,6 +541,7 @@ impl Entity {
             vendor: None,
             seen: None,
             missed: None,
+            asked: Asked::default(),
             tool: None,
             parameters: IndexMap::new(),
             defenses: Defenses::default(),

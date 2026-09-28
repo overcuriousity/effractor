@@ -193,6 +193,7 @@ test('a rescan that finds nothing new still notes the day; without a date it is 
   assert.equal(next.entities[hostBy(doc, '10.0.2.5')].seen, '2026-09-20');
   const t = N.defaults(p);
   t.seen = false;
+  t.asked = false;
   assert.equal(N.apply(doc, p, t, specOf, N.stampFor(scan, '', scan.date)), null);
   scan.date = null;
   p = N.plan(doc, 'nmap', scan, '', {});
@@ -347,4 +348,124 @@ test('a host known by its name gains no address, and nothing is said of addresse
   const t = N.defaults(again);
   t.seen = false;
   assert.equal(N.apply(out, again, t, specOf, STAMPED), null);
+});
+
+// ---- what a host was asked (scan workflow spec §3) ----
+
+test('what a scan asked is read from what nmap says it ran', () => {
+  const asks = N.asksOf;
+  assert.deepEqual(asks('nmap -sT -sV -oX - 10.0.1.0/24', ['connect']), ['ports', 'products']);
+  assert.deepEqual(asks('nmap -sS -oX - 10.0.1.0/24', ['syn']), ['ports']);
+  assert.deepEqual(asks('nmap -sS -sU --top-ports 100 -sV --traceroute -oX - 10.0.1.0/24', ['syn', 'udp']), ['ports', 'products', 'route']);
+  assert.deepEqual(asks('nmap -A -oX - 10.0.1.0/24', ['syn']), ['ports', 'products', 'route']);
+  assert.deepEqual(asks('nmap -sn --traceroute -oX - 10.0.1.0/24', []), ['route']);
+  assert.deepEqual(asks('nmap -PR -sn -oX - 10.0.1.0/24', []), [], 'who is there is no question to a host');
+  assert.deepEqual(asks('nmap -sL -oX - 10.0.1.0/24', []), []);
+  // What a filter passes is not which ports are open.
+  for (const type of ['ack', 'window', 'fin', 'null', 'xmas', 'maimon', 'sctpinit', 'ipproto']) {
+    assert.deepEqual(asks('nmap -sV -oX - 10.0.1.0/24', [type]), [], type);
+  }
+  assert.deepEqual(asks('nmap -sVx --tracerouteX -oX - 10.0.1.0/24', ['connect']), ['ports'], 'whole words only');
+  assert.deepEqual(asks('', ['connect']), ['ports'], 'a result without its command');
+  assert.deepEqual(asks(null, null), []);
+  // A few ports looked at for another purpose leave the question open;
+  // what runs on them was asked all the same.
+  const few = { tcp: [[22, 23], [443, 443]] }, twenty = { tcp: [[1, 10], [21, 30]] };
+  assert.deepEqual(asks('nmap -sS -sV -p 22-23,443 -oX - 10.0.1.0/24', ['syn'], few), ['products']);
+  assert.deepEqual(asks('nmap -sS -p 22-23,443 -oX - 10.0.1.0/24', ['syn'], few), []);
+  assert.deepEqual(asks('nmap -sS -oX - 10.0.1.0/24', ['syn'], twenty), ['ports']);
+  assert.deepEqual(asks('nmap -sS -oX - 10.0.1.0/24', ['syn'], { tcp: [[1, 19]] }), []);
+  assert.deepEqual(asks('nmap -sU -sV -p U:161 -oX - 10.0.1.0/24', ['udp'], { udp: [[161, 161]] }), ['products'], 'UDP alone is not which ports are open');
+  assert.deepEqual(asks('nmap -sS -sU -oX - 10.0.1.0/24', ['syn', 'udp'], { tcp: [[1, 1000]], udp: [[1, 100]] }), ['ports']);
+  assert.deepEqual(asks('nmap -sS -oX - 10.0.1.0/24', ['syn'], {}), ['ports'], 'nmap did not say what it probed');
+  // nmap takes the scan letters together.
+  assert.deepEqual(asks('nmap -sCV -oX - 10.0.1.0/24', ['syn']), ['ports', 'products']);
+  assert.deepEqual(asks('nmap -sSV -oX - 10.0.1.0/24', ['syn']), ['ports', 'products']);
+});
+
+test('results of different scans pasted together note nothing: none asked the others\' hosts', () => {
+  const scan = N.read(fixture('lan-arp.xml') + fixture('discover-localhost.xml')).scan;
+  assert.equal(scan.hosts.length, 5);
+  assert.deepEqual(scan.asks, []);
+});
+
+test('an import notes what it asked on every host it adds or knows, for the day of the scan', () => {
+  const scan = N.read(fixture('day1.xml')).scan;
+  assert.deepEqual(scan.asks, ['products'], 'four ports, with versions: ' + scan.args);
+  const doc = afterDay1();
+  const hosts = Object.keys(doc.entities).filter(id => doc.entities[id].kind === 'host');
+  assert.equal(hosts.length, 4);
+  for (const id of hosts) assert.deepEqual(doc.entities[id].asked, { products: '2026-09-17' }, id);
+  // Ten days later: the day moves, a key the later scan did not ask keeps its own.
+  const later = day10();
+  later.asks = ['ports'];
+  const p = N.plan(doc, 'nmap', later, '', {});
+  assert.deepEqual(p.asked, { keys: ['ports'], day: '2026-09-27', also: [] });
+  const db = hostBy(doc, '10.0.2.5');
+  assert.deepEqual(rowAt(p, '10.0.2.5').unasked, ['ports']);
+  const next = N.apply(doc, p, N.defaults(p), specOf, N.stampFor(later, '', later.date)).doc;
+  assert.deepEqual(next.entities[db].asked, { ports: '2026-09-27', products: '2026-09-17' });
+  assert.deepEqual(Object.keys(next.entities[db].asked), ['ports', 'products'], 'in the file\'s order');
+  // Unticked, nothing is noted; a key nobody knows is not written.
+  const t = N.defaults(p);
+  t.asked = false;
+  assert.deepEqual(N.apply(doc, p, t, specOf, N.stampFor(later, '', later.date)).doc.entities[db].asked, { products: '2026-09-17' });
+  later.asks = ['ports', 'weaknesses', '__proto__'];
+  assert.deepEqual(N.plan(doc, 'nmap', later, '', {}).asked.keys, ['ports']);
+});
+
+test('a host that was asked and has nothing is noted all the same; the same day again is no edit', () => {
+  const doc = afterDay1();
+  const scan = N.read(fixture('day1.xml')).scan;
+  scan.hosts.forEach(h => { h.ports = []; });
+  scan.date = '2026-09-20';
+  scan.asks = ['ports', 'products'];
+  const p = N.plan(doc, 'nmap', scan, '', {});
+  const t = N.defaults(p);
+  t.seen = false;
+  assert.equal(N.said(N.summary(doc, p, t, null)), 'Notes 4 hosts as asked.');
+  const next = N.apply(doc, p, t, specOf, N.stampFor(scan, '', scan.date)).doc;
+  assert.equal(next.entities[hostBy(doc, '10.0.2.5')].asked.ports, '2026-09-20');
+  const again = N.plan(next, 'nmap', scan, '', {});
+  assert.equal(N.apply(next, again, t, specOf, N.stampFor(scan, '', scan.date)), null);
+});
+
+test('a scan without a day takes the day of the import; without either nothing is noted', () => {
+  const doc = afterDay1();
+  const scan = N.read(fixture('day1.xml')).scan;
+  scan.date = null;
+  scan.asks = ['ports'];
+  assert.deepEqual(N.plan(doc, 'nmap', scan, '', {}, '2026-09-30').asked, { keys: ['ports'], day: '2026-09-30', also: [] });
+  assert.deepEqual(N.plan(doc, 'nmap', scan, '', {}).asked, { keys: [], day: null, also: [] });
+});
+
+test('a scanner that only writes what it found notes the drawn hosts its targets held', () => {
+  const doc = afterDay1();
+  const scan = N.read(fixture('day1.xml')).scan;
+  // One host answered; the targets held the whole network.
+  scan.hosts = scan.hosts.filter(h => h.addresses.includes('10.0.2.5'));
+  scan.date = '2026-09-21';
+  scan.asks = ['connections'];
+  scan.covers = '10.0.2.0/24';
+  const hosts = Object.keys(doc.entities).filter(id => doc.entities[id].kind === 'host');
+  doc.entities[hosts.filter(id => id !== hostBy(doc, '10.0.2.5'))[0]].missed = '2026-09-19';
+  const p = N.plan(doc, 'nmap', scan, '', {});
+  assert.equal(p.asked.also.length, hosts.length - 2, 'not the one with a row, not the one that is gone');
+  const t = N.defaults(p);
+  assert.equal(N.summary(doc, p, t, null).asked, hosts.length - 1);
+  assert.equal(N.askedCount(p, t), hosts.length - 1);
+  assert.equal(N.askedCount(p, Object.assign({}, t, { asked: false })), 0);
+  const next = N.apply(doc, p, t, specOf, N.stampFor(scan, '', scan.date)).doc;
+  for (const id of p.asked.also) assert.equal(next.entities[id].asked.connections, '2026-09-21', id);
+  assert.equal(next.entities[hostBy(doc, '10.0.2.5')].asked.connections, '2026-09-21');
+  t.asked = false;
+  const not = N.apply(doc, p, t, specOf, N.stampFor(scan, '', scan.date));
+  assert.ok(!not || p.asked.also.every(id => !(not.doc.entities[id].asked || {}).connections));
+});
+
+test('what was asked, in words', () => {
+  assert.equal(N.askedWords(['connections']), 'how they connect');
+  assert.equal(N.askedWords(['products', 'connections']), 'what runs there and how they connect');
+  assert.equal(N.askedWords(['nope']), '');
+  assert.equal(N.askedWords(null), '');
 });

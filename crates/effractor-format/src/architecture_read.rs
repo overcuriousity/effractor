@@ -5,9 +5,9 @@
 //! ask for and a save writes them out.
 
 use effractor_core::architecture::{
-    Architecture, Association, Attacker, AttackerProfile, Change, Cluster, Defense, Defenses,
-    Entity, EntityKind, Evidence, Factor, Flow, LibraryPin, Mode, Parameter, Privilege, Relation,
-    RelationKind, Scenario, Slot, State, StateRef, Switch, Tool,
+    Architecture, Asked, Association, Attacker, AttackerProfile, Change, Cluster, Defense,
+    Defenses, Entity, EntityKind, Evidence, Factor, Flow, LibraryPin, Mode, Parameter, Privilege,
+    Relation, RelationKind, Scenario, Slot, State, StateRef, Switch, Tool,
 };
 use effractor_core::{Code, EntityId, Pos, article};
 use std::sync::LazyLock;
@@ -181,6 +181,7 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
             "vendor",
             "seen",
             "missed",
+            "asked",
             "tool",
             "parameters",
             "defenses",
@@ -222,6 +223,11 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
         true => day(cx, &f, "missed"),
         false => None,
     };
+    let asked = match f.get("asked") {
+        Some(e) if host_only(cx, &f, "asked", kind) => asked(cx, e, &f.path("asked")),
+        Some(_) => None,
+        None => Some(Asked::default()),
+    };
     let tool = match f.get("tool") {
         Some(e) => tool(cx, e, &f.path("tool"), kind),
         None => Some(None),
@@ -244,6 +250,7 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
         vendor: vendor?,
         seen: seen?,
         missed: missed?,
+        asked: asked?,
         tool: tool?,
         parameters: parameters?,
         defenses: defenses?,
@@ -380,6 +387,20 @@ fn names(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Vec<String>> {
             ok = false;
         } else {
             out.push(text);
+        }
+    }
+    ok.then_some(out)
+}
+
+/// What scans have asked a host: a day per key (scan workflow spec §3).
+fn asked(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Asked> {
+    let f = cx.fields(&entry.value, path, entry.key_pos, &Asked::KEYS)?;
+    let mut out = Asked::default();
+    let mut ok = true;
+    for key in Asked::KEYS {
+        match day(cx, &f, key) {
+            Some(d) => out.set(key, d),
+            None => ok = false,
         }
     }
     ok.then_some(out)

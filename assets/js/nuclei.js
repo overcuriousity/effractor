@@ -266,6 +266,17 @@
   }
 
   var STAMP = /^Last nuclei import: .*$/m;
+  // nuclei says what it found, not what it asked: the ticked templates and
+  // the targets of the dialog stand in (scan workflow spec §3), where the
+  // result holds an answer of effractor's templates at all.
+  var ASKS = { identify: "products", connect: "connections" };
+  function asking(scan, recipeIds, targets) {
+    var keys = (recipeIds || []).filter(function (id) { return R.has(ASKS, id); }).map(function (id) { return ASKS[id]; });
+    scan.asks = scan.answers ? keys.filter(function (k, i) { return keys.indexOf(k) === i; }) : [];
+    scan.covers = scan.asks.length ? String(targets == null ? "" : targets) : "";
+    return scan;
+  }
+
   function stampFor(scan, range, date) {
     var r = String(range == null ? "" : range).trim().replace(/\s+/g, " ");
     var on = scan && scan.date ? " (scanned " + scan.date + ")" : "";
@@ -316,6 +327,7 @@
   api.read = read;
   api.notes = notes;
   api.stampFor = stampFor;
+  api.asking = asking;
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNuclei = api;
 })();

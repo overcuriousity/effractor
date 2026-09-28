@@ -108,6 +108,7 @@ mod tests {
             "nuclei-command.js",
             "nuclei-templates.js",
             "nmap-connect.js",
+            "scan-targets.js",
             "nmap-plan.js",
         ] {
             assert!(at("architecture-links.js") < at(part), "{part}");
@@ -115,6 +116,8 @@ mod tests {
         }
         assert!(at("nmap-products.js") < at("nmap-changes.js"));
         assert!(at("nmap-products.js") < at("nmap-plan.js"));
+        assert!(at("nmap-address.js") < at("scan-targets.js"));
+        assert!(at("scan-targets.js") < at("nmap-plan.js"));
         // The scanners beside nmap read through nmap's reader (roadmap
         // scanner-readers), and the dialog knows them all.
         assert!(at("nmap.js") < at("masscan.js"));

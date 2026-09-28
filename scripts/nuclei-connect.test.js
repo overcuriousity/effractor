@@ -347,3 +347,40 @@ test('review: connections are read the same whatever the order of the answers', 
   assert.deepEqual(logins(Nu.read(written(recs.slice().reverse())).scan), as);
   assert.deepEqual(Nu.read(written(recs.slice().reverse())).scan.points.slice().sort((a, b) => a.name < b.name ? -1 : 1), Nu.read(written(recs)).scan.points);
 });
+
+// ---- what a host was asked (scan workflow spec §3) ----
+
+test('nuclei says what it found, not what it asked: the ticked templates and the targets stand in', () => {
+  const scan = Nu.asking(few(), ['identify', 'connect'], '10.0.2.0/24');
+  assert.deepEqual(scan.asks, ['products', 'connections']);
+  assert.equal(scan.covers, '10.0.2.0/24');
+  assert.deepEqual(Nu.asking(few(), ['connect', 'connect'], '10.0.2.11').asks, ['connections']);
+  // nuclei's own checks ask nothing the drawing notes.
+  assert.deepEqual(Nu.asking(few(), ['cves', 'tls'], '10.0.2.0/24').asks, []);
+  assert.equal(Nu.asking(few(), ['cves'], '10.0.2.0/24').covers, '');
+  assert.deepEqual(Nu.asking(few(), null, null).asks, []);
+  // A result without one answer of effractor's templates is another run's.
+  const other = few();
+  other.answers = 0;
+  assert.deepEqual(Nu.asking(other, ['identify', 'connect'], '10.0.2.0/24').asks, []);
+});
+
+test('an import of the templates notes every drawn host the targets held, answered or not', () => {
+  const d = start();
+  d.entities.quiet = { kind: 'host', label: 'quiet', addresses: ['10.0.2.200'] };
+  d.entities.far = { kind: 'host', label: 'far', addresses: ['10.0.9.1'] };
+  const scan = Nu.asking(few(), ['identify', 'connect'], '10.0.2.0/24');
+  const p = N.plan(d, 'nuclei', scan, '10.0.2.0/24', {}, '2026-09-28');
+  assert.deepEqual(p.asked.keys, ['products', 'connections']);
+  assert.ok(p.asked.day);
+  assert.deepEqual(p.asked.also, ['box', 'quiet'], 'drawn, held by the targets, without an answer');
+  const out = N.apply(d, p, N.defaults(p), specOf, STAMP()).doc;
+  const want = { products: p.asked.day, connections: p.asked.day };
+  assert.deepEqual(out.entities.quiet.asked, want);
+  assert.deepEqual(out.entities.box.asked, want);
+  assert.equal(out.entities.far.asked, undefined, 'outside the targets');
+  const answered = Object.keys(out.entities).filter(id => (out.entities[id].addresses || []).includes('10.0.2.11'))[0];
+  assert.deepEqual(out.entities[answered].asked, want);
+  // Again: nobody is left to note.
+  assert.deepEqual(N.plan(out, 'nuclei', scan, '10.0.2.0/24', {}, '2026-09-28').asked.also, []);
+});

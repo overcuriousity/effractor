@@ -7,7 +7,9 @@
 use std::fmt::Write;
 
 use effractor_core::EntityId;
-use effractor_core::architecture::{Architecture, Change, Factor, Parameter, Relation, Switch};
+use effractor_core::architecture::{
+    Architecture, Asked, Change, Factor, Parameter, Relation, Switch,
+};
 
 use crate::CURRENT_VERSION;
 use crate::lower::{ARCHITECTURE, Extras, TIME_UNITS};
@@ -112,6 +114,18 @@ fn document(w: &mut Writer, m: &Architecture) {
             if let Some(v) = value {
                 w.line(4, key, &string(v, Context::Block));
             }
+        }
+        let extended = format!("{path}.asked");
+        if !entity.asked.is_empty() || w.has_extensions(&extended) {
+            let mut fields: Vec<String> = Asked::KEYS
+                .iter()
+                .filter_map(|k| {
+                    let day = entity.asked.get(k)?;
+                    Some(format!("{k}: {}", string(day, Context::FlowValue)))
+                })
+                .collect();
+            w.extension_fields(&extended, &mut fields);
+            w.line(4, "asked", &format!("{{{}}}", fields.join(", ")));
         }
         if let Some(tool) = &entity.tool {
             w.line(4, "tool", tool.as_str());

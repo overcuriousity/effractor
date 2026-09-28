@@ -27,6 +27,8 @@
       if (R.has(OWN, r.problem.code)) r.problem.message = OWN[r.problem.code];
       return r;
     }
+    // masscan asks which ports are open, and nothing else.
+    r.scan.asks = ["ports"];
     // A port it only saw open is named by its number, as nmap's table would.
     r.scan.hosts.forEach(function (h) {
       h.ports.forEach(function (p) {

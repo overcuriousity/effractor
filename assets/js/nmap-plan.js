@@ -12,6 +12,7 @@
   var Ch = node ? require("./nmap-changes.js") : window.effractorNmapChanges;
   var P = node ? require("./nmap-products.js") : window.effractorNmapProducts;
   var Cn = node ? require("./nmap-connect.js") : window.effractorNmapConnect;
+  var St = node ? require("./scan-targets.js") : window.effractorScanTargets;
   var has = R.has, oneHost = R.oneHost, addressKey = Ad.addressKey, bytes = Ad.bytes, inCidr = Ad.inCidr, networkOf = Ad.networkOf;
   var targetsOf = C.targetsOf, STAMP = C.STAMP, stampLine = C.stampLine;
 
@@ -69,7 +70,27 @@
     return !!n && !!l && (n === l || n.split(".")[0] === l);
   }
 
-  function plan(doc, appId, scan, range, merges) {
+  // What a host can be noted as asked, in the file's order, and each in
+  // words (scan workflow spec §3).
+  var ASKED = ["ports", "products", "route", "connections"];
+  var ASKED_WORDS = { ports: "which ports are open", products: "what runs there", route: "the way to them", connections: "how they connect" };
+  // The keys of `keys` a host is not noted with for that day.
+  function unasked(entity, keys, day) {
+    var had = (entity && entity.asked) || {};
+    return day ? keys.filter(function (k) { return had[k] !== day; }) : [];
+  }
+  // `add` over what the host was asked before, in the file's order.
+  function noted(entity, keys, day) {
+    var had = entity.asked || {}, out = {};
+    ASKED.forEach(function (k) {
+      if (keys.indexOf(k) >= 0) out[k] = day;
+      else if (has(had, k)) out[k] = had[k];
+    });
+    return out;
+  }
+
+  // `today`: the day of the import, for a scan that does not say when it ran.
+  function plan(doc, appId, scan, range, merges, today) {
     merges = merges || {};
     var hosts = ids(doc, "host");
     var byAddress = Object.create(null);
@@ -309,6 +330,11 @@
     way.routers.forEach(function (r) { if (r.row) onTheWay[r.row] = true; });
     way.links.forEach(function (l) { if (l.network === "new") usedNew = true; });
 
+    // What the scan asked of the hosts it covered, and the day it did
+    // (scan workflow spec §3).
+    var asks = ASKED.filter(function (k) { return (scan.asks || []).indexOf(k) >= 0; });
+    var day = scan.date || today || null;
+    if (!day) asks = [];
     var planned = rows.map(function (r) {
       var h = r.scan, target = r.known || r.merged;
       var label = target ? doc.entities[target].label : (bestName(h) || {}).name || h.hostname || h.addresses[0];
@@ -359,6 +385,7 @@
         saidNames: called.said,
         seen: target ? doc.entities[target].seen || null : null,
         missed: target ? doc.entities[target].missed || null : null,
+        unasked: target ? unasked(doc.entities[target], asks, day) : asks.slice(),
         moved: r.known && r.matchedBy === "identity" ? movedOf(r.known, h) : null,
         sharedIdentity: r.sharedIdentity,
         conflict: r.conflict,
@@ -383,8 +410,15 @@
     });
     var scanOf = {};
     rows.forEach(function (r) { scanOf[r.key] = r.scan; });
+    // The drawn hosts the scan covered and has no word of: a scanner that
+    // only writes what it found (nuclei) asked them too.
+    var rowed = planned.map(function (h) { return h.known || h.merged; }).filter(Boolean);
+    var also = asks.length && scan.covers ? St.asked(doc, scan.covers).filter(function (id) {
+      return rowed.indexOf(id) < 0 && !doc.entities[id].missed && unasked(doc.entities[id], asks, day).length > 0;
+    }) : [];
     return {
       app: appId,
+      asked: { keys: asks, day: day, also: also },
       // What differs from the drawing (nmap recipes spec §5).
       changes: Ch.changes(doc, appId, scan, planned, scanOf, way, appHost),
       // How it connects (nuclei templates spec §6).
@@ -575,7 +609,7 @@
   }
 
   function defaults(p) {
-    var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true, identities: {}, names: {}, identifies: {}, applications: {}, moves: {}, strips: {}, renames: {}, seen: true, routers: {} };
+    var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true, identities: {}, names: {}, identifies: {}, applications: {}, moves: {}, strips: {}, renames: {}, seen: true, asked: true, routers: {} };
     (p.routers || []).forEach(function (r) { t.routers[r.key] = true; });
     // A change is done only when ticked (spec §5.2).
     t.connections = Cn.defaults(p.connections);
@@ -746,11 +780,16 @@
       strip: !!h.moved && h.moved.others.length > 0 && on("strips"),
       rename: !!h.rename && on("renames"),
       seen: !!p.date && ticks.seen === true && (h.seen !== p.date || !!h.missed),
+      asked: ticks.asked === true ? h.unasked || [] : [],
     };
+  }
+  // The drawn hosts without a row that are noted as asked.
+  function alsoAsked(p, ticks) {
+    return ticks.asked === true && p.asked ? p.asked.also : [];
   }
 
   function summary(doc, p, ticks, limits) {
-    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, named: 0, told: 0, moved: 0, renamed: 0, seen: 0, changes: Ch.changesTicked(p, ticks), connected: Cn.count(p.connections, ticks.connections, thereOf(p, ticks)) };
+    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, named: 0, told: 0, moved: 0, renamed: 0, seen: 0, asked: alsoAsked(p, ticks).length, changes: Ch.changesTicked(p, ticks), connected: Cn.count(p.connections, ticks.connections, thereOf(p, ticks)) };
     var rel = 0, newProducts = Object.create(null), marked = Object.create(null);
     // The products that are named: those made for it are counted, and a
     // name that is taken is no new product of a port's.
@@ -774,6 +813,7 @@
       if (does.move) s.moved++;
       if (does.rename) s.renamed++;
       if (!added && does.seen) s.seen++;
+      if (!added && does.asked.length) s.asked++;
       // A merge writes the scanned addresses into the drawn host.
       if (h.merged && h.addresses.length) s.filled++;
       h.networks.forEach(function (n) {
@@ -874,6 +914,7 @@
     if (c && c.accounts + c.hosts + c.links) more.push("draws " + [[c.accounts, "account"], [c.hosts, "host"], [c.links, "connection"]].filter(function (x) { return x[0]; }).map(function (x) { return n(x[0], x[1]); }).join(", "));
     // The day seen is said only when it is all there is.
     if (s.seen && !parts.length && !more.length) more.push("notes " + n(s.seen, "host") + " as seen");
+    else if (s.asked && !parts.length && !more.length) more.push("notes " + n(s.asked, "host") + " as asked");
     var said = (parts.length ? ["adds " + parts.join(", ")] : []).concat(more).join(", ");
     return said ? said[0].toUpperCase() + said.slice(1) + "." : "Nothing new to add.";
   }
@@ -902,7 +943,7 @@
     var s = summary(doc, p, ticks, null);
     var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged && h.addresses.length; });
     var stripping = p.hosts.some(function (h) { return ticks.hosts[h.key] && doing(h, ticks, p).strip; });
-    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.named && !s.told && !(s.connected.accounts + s.connected.hosts + s.connected.links) && !s.moved && !s.renamed && !s.seen && !stripping && !s.changes) return null;
+    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.named && !s.told && !(s.connected.accounts + s.connected.hosts + s.connected.links) && !s.moved && !s.renamed && !s.seen && !s.asked && !stripping && !s.changes) return null;
     var next = JSON.parse(JSON.stringify(doc));
     function step(edit) {
       if (!edit) throw new Error("the nmap import could not be applied");
@@ -978,6 +1019,7 @@
         if (h.identities.length) next.entities[host].identities = h.identities.slice();
         if (h.names.length && ticks.names && ticks.names[h.key]) next.entities[host].names = h.names.slice();
         if (p.date && ticks.seen === true) next.entities[host].seen = p.date;
+        if (does.asked.length) next.entities[host].asked = noted(next.entities[host], does.asked, p.asked.day);
       } else {
         var e = next.entities[host];
         if (does.identities.length) {
@@ -995,6 +1037,7 @@
           e.seen = p.date;
           delete e.missed;
         }
+        if (does.asked.length) e.asked = noted(e, does.asked, p.asked.day);
       }
       if (h.vendor && !next.entities[host].vendor) next.entities[host].vendor = h.vendor;
       hostOf[h.key] = host;
@@ -1099,6 +1142,9 @@
       appOf: appOf,
     }, thereOf(p, ticks));
     Ch.applyChangesAfter(p, ticks, env, way.routes, flowOf, ends);
+    alsoAsked(p, ticks).forEach(function (id) {
+      if (next.entities[id]) next.entities[id].asked = noted(next.entities[id], p.asked.keys, p.asked.day);
+    });
     // A finding marks its product unpatched and says why; its time stays as
     // it is. The author's "patched" stands.
     marks.forEach(function (m) {
@@ -1123,7 +1169,17 @@
   function isAttached(doc, machine, net) {
     return links(doc, "attached").some(function (a) { return a.from === machine && a.to === net; });
   }
-  var api = { identityWords: identityWords, plan: plan, defaults: defaults, summary: summary, said: said, tickHost: tickHost, tickHosts: tickHosts, apply: apply, connectionThere: connectionThere };
+  // The hosts an import notes as asked, new ones too: the preview's row.
+  function askedCount(p, ticks) {
+    return alsoAsked(p, ticks).length + p.hosts.filter(function (h) {
+      return !!ticks.hosts[h.key] && doing(h, ticks, p).asked.length > 0;
+    }).length;
+  }
+  // "how they connect", "what runs there and the way to them".
+  function askedWords(keys) {
+    return (keys || []).map(function (k) { return ASKED_WORDS[k]; }).filter(Boolean).join(" and ");
+  }
+  var api = { askedCount: askedCount, askedWords: askedWords, identityWords: identityWords, plan: plan, defaults: defaults, summary: summary, said: said, tickHost: tickHost, tickHosts: tickHosts, apply: apply, connectionThere: connectionThere };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapPlan = api;
 })();

@@ -132,7 +132,10 @@
       "addresses": [
         "10.0.1.7"
       ],
-      "seen": "2026-09-27"
+      "seen": "2026-09-27",
+      "asked": {
+        "ports": "2026-09-27"
+      }
     },
     "ssh": {
       "kind": "service",
@@ -183,7 +186,10 @@
       "addresses": [
         "10.0.1.20"
       ],
-      "seen": "2026-09-27"
+      "seen": "2026-09-27",
+      "asked": {
+        "ports": "2026-09-27"
+      }
     },
     "ms-wbt-server": {
       "kind": "service",

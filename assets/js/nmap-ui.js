@@ -298,9 +298,28 @@
     preview();
   }
 
+  // Scan workflow spec §3: nuclei does not say what it asked, so what the
+  // dialog asked stands in, said in a row that can be unticked.
+  function noted(rows) {
+    var a = at.plan.asked;
+    if (at.tool !== "nuclei" || !a.keys.length) return;
+    var ticked = {};
+    Object.keys(at.ticks).forEach(function (k) { ticked[k] = at.ticks[k]; });
+    ticked.asked = true;
+    var n = N.askedCount(at.plan, ticked);
+    if (!n) return;
+    var li = el("li", null, "nmap-host");
+    li.appendChild(check(at.ticks.asked, "Notes " + n + (n === 1 ? " host" : " hosts") + " as asked " + N.askedWords(a.keys), function (on) {
+      at.ticks.asked = on;
+      count();
+    }));
+    rows.appendChild(li);
+  }
+
   function preview() {
     var old = at.ticks;
-    at.plan = N.plan(doc(), at.app, at.scan, $("nmap-range").value, at.merges);
+    if (at.tool === "nuclei") Nu.asking(at.scan, asked.nuclei.recipes, $("nmap-range").value);
+    at.plan = N.plan(doc(), at.app, at.scan, $("nmap-range").value, at.merges, new Date().toISOString().slice(0, 10));
     var fresh = N.defaults(at.plan);
     // What was ticked stays ticked over a new plan; what is new takes its default.
     if (old) {
@@ -377,6 +396,7 @@
       rows.appendChild(li);
     });
     connections(rows);
+    noted(rows);
     var notes = [];
     if (at.plan.hosts.some(function (h) { return h.ports.some(function (r) { return !r.known; }); })) notes.push("Services run at an unknown privilege until you set it on their link.");
     S.notes(at.tool, at.scan).forEach(function (n) { notes.push(n); });

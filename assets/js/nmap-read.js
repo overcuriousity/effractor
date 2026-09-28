@@ -413,7 +413,36 @@
         }).filter(function (b) { return b[0] >= 0 && b[1] >= b[0]; }));
       });
     });
-    return { scan: { tool: want, args: argsOf(runs), hosts: hosts, silentUdp: silentUdp, date: date, probed: probedPorts, types: types, sharedMacs: shared.length } };
+    var args = argsOf(runs);
+    // Different scans pasted together: none asked the others' hosts.
+    var asks = runs.length > 1 && !args ? [] : asksOf(args, types, probedPorts);
+    return { scan: { tool: want, args: args, hosts: hosts, silentUdp: silentUdp, date: date, probed: probedPorts, types: types, sharedMacs: shared.length, asks: asks } };
+  }
+
+  // What a scan asked of every host it lists (scan workflow spec §3), from
+  // what nmap says it ran. Only a scan that can find a port open asked for
+  // the ports: an ACK, window, FIN, NULL or Xmas scan says what a filter
+  // passes.
+  var FINDS_OPEN = ["syn", "connect", "udp"];
+  // A host was asked which ports are open by a scan of twenty TCP ports
+  // or more: a few ports looked at for another purpose leave the question
+  // open.
+  var ASKED_PORTS = 20;
+  function asksOf(args, types, probed) {
+    var a = " " + String(args || "").replace(/\s+/g, " ") + " ";
+    function has(word) {
+      return a.indexOf(" " + word + " ") >= 0;
+    }
+    var out = [];
+    var finds = (types || []).filter(function (t) { return FINDS_OPEN.indexOf(t) >= 0; });
+    // Without the list of what was probed, the scan is taken at its word.
+    var tcp = probed && probed.tcp ? probed.tcp.reduce(function (n, r) { return n + r[1] - r[0] + 1; }, 0) : null;
+    if (finds.some(function (t) { return t !== "udp"; }) && (tcp == null || tcp >= ASKED_PORTS)) out.push("ports");
+    // nmap takes the scan letters together: -sCV, -sSV.
+    var versions = /\s-s[A-Z]*V[A-Z]*\s/.test(a) || has("-A");
+    if (finds.length && versions) out.push("products");
+    if (has("--traceroute") || has("-A")) out.push("route");
+    return out;
   }
 
   function probed(scan, proto, port) {
@@ -453,7 +482,7 @@
     return new TextDecoder(enc).decode(b);
   }
 
-  var api = { probed: probed, portState: portState, cleanName: cleanName, read: read, decodeFile: decodeFile, oneHost: oneHost, has: has, parseXml: parseXml, kids: kids, kid: kid, portName: portName, otherScanner: otherScanner, macOf: macOf };
+  var api = { asksOf: asksOf, probed: probed, portState: portState, cleanName: cleanName, read: read, decodeFile: decodeFile, oneHost: oneHost, has: has, parseXml: parseXml, kids: kids, kid: kid, portName: portName, otherScanner: otherScanner, macOf: macOf };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapRead = api;
 })();
