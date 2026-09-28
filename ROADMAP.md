@@ -161,5 +161,5 @@ they are and give one record per named extractor; unsigned scripted
 (`javascript`) templates are refused, so SSH host keys stay nmap's. Owner,
 2026-09-28: built before `scan-workflow`. Design:
 [`2026-09-28-nuclei-templates-design.md`](docs/superpowers/specs/2026-09-28-nuclei-templates-design.md),
-awaiting the owner's review. Done when the templates are served by the page,
+approved 2026-09-28. Done when the templates are served by the page,
 their results read into products, names and links, and fixtures hold each.

@@ -1,6 +1,6 @@
 # nuclei templates of effractor's own
 
-Date: 2026-09-28 · Status: written for the owner's review; not approved yet.
+Date: 2026-09-28 · Status: approved by the owner, 2026-09-28.
 
 Builds on the nuclei import (`docs/HANDOFF.md`, "Continuation — nuclei beside
 nmap") and on the plan every scanner reads into (`nmap-plan.js`). Roadmap item
