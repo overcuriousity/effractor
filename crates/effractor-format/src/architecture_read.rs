@@ -176,6 +176,7 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
             "label",
             "description",
             "addresses",
+            "names",
             "identities",
             "vendor",
             "seen",
@@ -195,6 +196,11 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
     let kind = kind?;
     let addresses = match f.get("addresses") {
         Some(e) => addresses(cx, e, &f.path("addresses"), kind),
+        None => Some(Vec::new()),
+    };
+    let names = match f.get("names") {
+        Some(e) if host_only(cx, &f, "names", kind) => names(cx, e, &f.path("names")),
+        Some(_) => None,
         None => Some(Vec::new()),
     };
     let identities = match f.get("identities") {
@@ -233,6 +239,7 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
         label: label?,
         description: description?,
         addresses: addresses?,
+        names: names?,
         identities: identities?,
         vendor: vendor?,
         seen: seen?,
@@ -314,6 +321,53 @@ fn identities(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Vec<String>> {
         if !shaped {
             let message =
                 format!("expected type:value such as mac:00:1a:2b:3c:4d:5e, found {text:?}");
+            cx.error(Code::WrongType, at, item.pos, message);
+            ok = false;
+        } else if out.contains(&text) {
+            cx.error(
+                Code::WrongType,
+                at,
+                item.pos,
+                format!("{text:?} is listed twice"),
+            );
+            ok = false;
+        } else {
+            out.push(text);
+        }
+    }
+    ok.then_some(out)
+}
+
+/// Whether `text` is a DNS name as a host keeps it (nuclei templates spec
+/// §8): lower case, no wildcard, and not an address.
+fn is_name(text: &str) -> bool {
+    let label = |l: &str| {
+        (1..=63).contains(&l.len())
+            && !l.starts_with('-')
+            && !l.ends_with('-')
+            && l.bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
+    };
+    text.len() <= 253
+        && text.split('.').all(label)
+        && !text.bytes().all(|b| b.is_ascii_digit() || b == b'.')
+}
+
+/// A host's DNS names, each once.
+fn names(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Vec<String>> {
+    let items = cx.list(&entry.value, path)?;
+    let mut out: Vec<String> = Vec::new();
+    let mut ok = true;
+    for (i, item) in items.iter().enumerate() {
+        let at = format!("{path}[{i}]");
+        let Some(text) = cx.string(item, &at) else {
+            ok = false;
+            continue;
+        };
+        if !is_name(&text) {
+            let message = format!(
+                "expected a DNS name in lower case such as app.corp.example, found {text:?}"
+            );
             cx.error(Code::WrongType, at, item.pos, message);
             ok = false;
         } else if out.contains(&text) {

@@ -468,6 +468,9 @@ pub struct Entity {
     pub description: Option<String>,
     /// IP addresses of a host, CIDR ranges of a network; empty elsewhere.
     pub addresses: Vec<String>,
+    /// DNS names of a host, in lower case (nuclei templates spec §8). Two
+    /// hosts may bear one; empty elsewhere. Generation never reads them.
+    pub names: Vec<String>,
     /// What identified a host in a scan: `mac:…`, `ssh-<keytype>:…` (nmap
     /// recipes spec §3.1). Two hosts may share one; empty elsewhere.
     pub identities: Vec<String>,
@@ -491,6 +494,7 @@ impl Entity {
             label: label.into(),
             description: None,
             addresses: Vec::new(),
+            names: Vec::new(),
             identities: Vec::new(),
             vendor: None,
             seen: None,

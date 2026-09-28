@@ -88,6 +88,14 @@ fn document(w: &mut Writer, m: &Architecture) {
                 .collect();
             w.line(4, "addresses", &format!("[{}]", items.join(", ")));
         }
+        if !entity.names.is_empty() {
+            let items: Vec<String> = entity
+                .names
+                .iter()
+                .map(|n| string(n, Context::FlowValue))
+                .collect();
+            w.line(4, "names", &format!("[{}]", items.join(", ")));
+        }
         if !entity.identities.is_empty() {
             let items: Vec<String> = entity
                 .identities

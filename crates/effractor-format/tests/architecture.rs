@@ -1634,6 +1634,106 @@ fn identity_fields_are_refused_off_hosts_and_in_the_wrong_shape() {
 }
 
 #[test]
+fn a_host_keeps_its_names() {
+    let mut image = image(LECTURE);
+    let names = serde_json::json!(["grafana.corp.example", "metrics.corp.example", "srv01"]);
+    image["entities"]["server"]["addresses"] = serde_json::json!(["10.0.1.5"]);
+    image["entities"]["server"]["names"] = names.clone();
+    image["entities"]["server"]["identities"] = serde_json::json!(["mac:52:54:00:12:34:56"]);
+    let text = from_document(&image).unwrap_or_else(|d| panic!("{d:?}"));
+    let at = |key: &str| {
+        text.find(&format!("\n    {key}: ["))
+            .unwrap_or_else(|| panic!("no {key} in {text}"))
+    };
+    assert!(
+        at("addresses") < at("names") && at("names") < at("identities"),
+        "{text}"
+    );
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    assert_eq!(self::image(&text)["entities"]["server"]["names"], names);
+    // Two hosts may bear one name: a certificate sits on several machines.
+    let mut twins = image.clone();
+    twins["entities"]["workstation"]["names"] = serde_json::json!(["grafana.corp.example"]);
+    from_document(&twins).unwrap_or_else(|d| panic!("{d:?}"));
+    // A file without the key reads as before.
+    let plain = from_document(&self::image(LECTURE)).unwrap_or_else(|d| panic!("{d:?}"));
+    assert!(!plain.contains("names:"), "{plain}");
+}
+
+#[test]
+fn names_are_refused_off_hosts_and_in_the_wrong_shape() {
+    let long = format!("{}.example", "a".repeat(250));
+    let cases: [(&str, serde_json::Value, &str, &str); 10] = [
+        (
+            "sshd",
+            serde_json::json!(["a.example"]),
+            "misplaced-key",
+            "entities.sshd.names",
+        ),
+        (
+            "server-net",
+            serde_json::json!(["a.example"]),
+            "misplaced-key",
+            "entities.server-net.names",
+        ),
+        (
+            "server",
+            serde_json::json!(["Grafana.corp.example"]),
+            "wrong-type",
+            "entities.server.names[0]",
+        ),
+        (
+            "server",
+            serde_json::json!(["*.corp.example"]),
+            "wrong-type",
+            "entities.server.names[0]",
+        ),
+        (
+            "server",
+            serde_json::json!(["10.0.1.5"]),
+            "wrong-type",
+            "entities.server.names[0]",
+        ),
+        (
+            "server",
+            serde_json::json!(["a..example"]),
+            "wrong-type",
+            "entities.server.names[0]",
+        ),
+        (
+            "server",
+            serde_json::json!(["-a.example"]),
+            "wrong-type",
+            "entities.server.names[0]",
+        ),
+        (
+            "server",
+            serde_json::json!(["a.example", "a.example"]),
+            "wrong-type",
+            "entities.server.names[1]",
+        ),
+        (
+            "server",
+            serde_json::json!([long]),
+            "wrong-type",
+            "entities.server.names[0]",
+        ),
+        (
+            "server",
+            serde_json::json!(["a.example", 7]),
+            "wrong-type",
+            "entities.server.names[1]",
+        ),
+    ];
+    for (entity, value, code, path) in cases {
+        let mut image = image(LECTURE);
+        image["entities"][entity]["names"] = value;
+        let errors = errors_of(&image);
+        assert!(has(&errors, code, path), "{entity}: {errors:?}");
+    }
+}
+
+#[test]
 fn a_hosting_privilege_may_be_unknown_only_where_a_host_runs_software() {
     let mut doc = image(LECTURE);
     doc["associations"]["server-runs-sshd"]["privilege"] = serde_json::json!("unknown");

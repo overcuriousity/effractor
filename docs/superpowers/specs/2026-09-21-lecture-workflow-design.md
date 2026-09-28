@@ -141,6 +141,8 @@ Two optional fields describe what a scan sees (owner, 2026-09-24; see the
 `network` may carry `addresses` (IP addresses, CIDR ranges), and an
 `application` may carry `tool: nmap` (or `masscan` or `greenbone`, roadmap
 `scanner-readers`, `greenbone-import`). Neither changes generation.
+A `host` may also carry `names`, its DNS names in lower case (owner,
+2026-09-28; nuclei templates design §8). Generation never reads them.
 
 An optional top-level `clusters` map (owner, 2026-09-24; see the
 [clustering design](2026-09-24-clustering-design.md) §2) groups entities to
