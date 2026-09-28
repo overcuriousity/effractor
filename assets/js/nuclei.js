@@ -9,6 +9,7 @@
   var R = node ? require("./nmap-read.js") : window.effractorNmapRead;
   var Ad = node ? require("./nmap-address.js") : window.effractorNmapAddress;
   var C = node ? require("./nuclei-command.js") : window.effractorNucleiCommand;
+  var T = node ? require("./nuclei-templates.js") : window.effractorNucleiTemplates;
 
   var PROBLEMS = {
     "empty": "Paste the result, or drop its file here. No lines at all: nuclei found nothing.",
@@ -78,7 +79,7 @@
 
     var hosts = [], byAddress = Object.create(null), byName = Object.create(null);
     function fresh(addresses) {
-      var h = { addresses: addresses, hostname: null, names: [], identities: [], os: null, device: [], self: false, ports: [], scripts: [], findings: [], hostnames: [], vendor: null, trace: [], extraports: [] };
+      var h = { addresses: addresses, hostname: null, names: [], identities: [], os: null, device: [], self: false, ports: [], scripts: [], findings: [], hostnames: [], vendor: null, trace: [], extraports: [], said: [] };
       hosts.push(h);
       return h;
     }
@@ -102,16 +103,24 @@
       return p;
     }
 
+    // effractor's own templates (nuclei templates spec §4): their answers
+    // are facts about a port, a host or a name, not findings.
+    var ours = got.list.filter(function (r) { return /^effractor-/.test(word(r["template-id"])); });
+    var answers = T.read(ours);
+    var points = [];
+
     // Where each result was found, and what it says.
     var info = 0, first = null;
-    var read = got.list.map(function (r) {
+    got.list.forEach(function (r) {
+      var day = /^\d{4}-\d{2}-\d{2}/.exec(word(r.timestamp));
+      if (day && (!first || day[0] < first)) first = day[0];
+    });
+    var read = got.list.filter(function (r) { return ours.indexOf(r) < 0; }).map(function (r) {
       var at = target(r["matched-at"]), url = target(r.url), host = target(r.host);
       var scheme = at.scheme || url.scheme || word(r.scheme).toLowerCase() || null;
       var said = host.host || at.host || url.host;
       var address = Ad.bytes(word(r.ip)) ? word(r.ip) : said && Ad.bytes(said) ? said : null;
       var severity = word(r.info.severity).toLowerCase();
-      var day = /^\d{4}-\d{2}-\d{2}/.exec(word(r.timestamp));
-      if (day && (!first || day[0] < first)) first = day[0];
       var finding = null;
       if (SEVERITIES.indexOf(severity) >= SEVERITIES.indexOf("low")) {
         var c = r.info.classification && typeof r.info.classification === "object" ? r.info.classification : {};
@@ -134,11 +143,19 @@
         finding: finding,
       };
     });
+    answers.facts.forEach(function (f) {
+      if (f.kind === "points") points.push(f);
+      else if (f.at.port) read.push({ address: f.at.address, name: f.at.name, port: f.at.port, finding: null, fact: f });
+    });
     // A host is one with an open port or a finding. Those with an address
     // first: a result that has only a name is theirs when they bear it.
     function place(h, x) {
       name(h, x.name);
       var list = x.port ? port(h, x.port).findings : h.findings;
+      if (x.fact) {
+        var p = port(h, x.port);
+        (p.facts = p.facts || []).push(x.fact);
+      }
       if (x.finding && !list.some(function (f) { return f.key === x.finding.key; })) list.push(x.finding);
     }
     read.forEach(function (x) {
@@ -151,9 +168,59 @@
       if (x.address || !x.name || !(x.port || x.finding)) return;
       place(byName[x.name.toLowerCase()] || fresh([]), x);
     });
-    if (!hosts.length) return problem("no-host");
+    // What the facts of one port come to (spec §5.2, §5.4): the server is
+    // the service on the port; the application a piece of its own, unless
+    // it answers by itself.
+    function settle(h, p) {
+      var facts = p.facts;
+      delete p.facts;
+      var of = function (kind) { return facts.filter(function (f) { return f.kind === kind; }); };
+      var products = of("product").filter(function (f) {
+        return !(f.unless && facts.some(function (o) { return o.kind === "product" && o.name === f.unless; }));
+      });
+      var server = of("server")[0] || null, app = of("application")[0] || null;
+      var version = app ? of("version").filter(function (f) { return f.of === app.id; })[0] : null;
+      var named = p.service ? p.service.name : null;
+      function service(x, v) {
+        p.service = { name: named, product: x, version: v || null };
+      }
+      if (app && server && server.word !== app.server) {
+        service(server.product, server.version);
+        p.application = { id: app.id, label: app.product, product: app.product, version: version ? version.version : null };
+      } else if (app) service(app.product, version ? version.version : null);
+      else if (server) service(server.product, server.version);
+      else if (products.length) service(products[0].product, products[0].version);
+      if (app) {
+        p.manages = app.manages;
+        p.signs = app.signs;
+      }
+      var sso = of("sso")[0] || null;
+      if (sso || of("login").length) p.login = { password: of("login").length > 0, sso: sso ? { product: sso.product, host: sso.host } : null };
+      of("names").forEach(function (f) {
+        f.names.forEach(function (n) {
+          if (!h.names.some(function (x) { return x.name.toLowerCase() === n.toLowerCase(); })) h.names.push({ name: n, from: "certificate", port: p.port });
+        });
+      });
+      // What a port said is said where it named nothing.
+      if (!p.service || !p.service.product) {
+        of("said").forEach(function (f) {
+          var text = f.what + " on " + p.protocol + "/" + p.port + ": " + f.text;
+          if (h.said.indexOf(text) < 0) h.said.push(text);
+        });
+      }
+    }
+    if (!hosts.length && !points.length) return problem("no-host");
     hosts.forEach(function (h) {
       h.ports.sort(function (a, b) { return a.port - b.port; });
+      h.ports.forEach(function (p) { if (p.facts) settle(h, p); });
+    });
+    // What each name points to, once (spec §6.4).
+    var pointed = [];
+    points.forEach(function (f) {
+      var x = pointed.filter(function (y) { return y.name === f.name; })[0];
+      if (!x) pointed.push(x = { name: f.name, address: null, alias: null });
+      if (f.address) x.address = x.address || f.address;
+      if (f.alias) x.alias = x.alias || f.alias;
     });
     return { scan: {
       tool: "nuclei",
@@ -164,16 +231,26 @@
       probed: {},
       types: [],
       sharedMacs: 0,
-      results: got.list.length,
+      results: got.list.length - ours.length,
       informational: info,
+      answers: ours.length,
+      unknown: answers.unknown,
+      refused: answers.refused,
+      points: pointed,
     } };
   }
 
   // What the preview says of the result itself.
   function notes(scan) {
-    var n = scan.informational || 0;
-    if (!n) return [];
-    return [n + " of " + scan.results + (scan.results === 1 ? " result is" : " results are") + " informational: they say a port is open, not what is wrong."];
+    var n = scan.informational || 0, out = [];
+    if (n) out.push(n + " of " + scan.results + (scan.results === 1 ? " result is" : " results are") + " informational: they say a port is open, not what is wrong.");
+    // Nuclei templates spec §4: what was read past, and what was only said.
+    if (scan.unknown) out.push(scan.unknown + (scan.unknown === 1 ? " answer" : " answers") + " this version does not know; not drawn.");
+    if (scan.refused) out.push(scan.refused + (scan.refused === 1 ? " answer has" : " answers have") + " not the shape of what was asked; not drawn.");
+    (scan.hosts || []).forEach(function (h) {
+      (h.said || []).forEach(function (s) { out.push((h.addresses[0] || h.hostname) + " · " + s + "."); });
+    });
+    return out;
   }
 
   var STAMP = /^Last nuclei import: .*$/m;

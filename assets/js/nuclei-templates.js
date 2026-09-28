@@ -10,6 +10,7 @@
   var Ad = node ? require("./nmap-address.js") : window.effractorNmapAddress;
   var C = node ? require("./nuclei-command.js") : window.effractorNucleiCommand;
   var A = node ? require("./architecture-edit.js") : window.effractorArchitectureEdit;
+  var R = node ? require("./nmap-read.js") : window.effractorNmapRead;
 
   var TEMPLATES = [
     { id: "effractor-banner", group: "identify", protocol: "tcp", name: "What answers on a port" },
@@ -102,7 +103,7 @@
     version("jenkins", ["header", "(?i)x-jenkins:[[:space:]]*" + VERSION]),
     app("sonarqube", "SonarQube", ["body", "/css/sonar[.]css"]),
     version("sonarqube", ["body", "/css/sonar[.]css[?]v=" + VERSION]),
-    app("nexus-repository", "Nexus Repository", ["body", "nexus-coreui-bundle|Sonatype Nexus Repository"]),
+    app("nexus-repository", "Nexus Repository", ["body", "nexus-coreui-bundle|Sonatype Nexus Repository"], { server: "nexus" }),
     version("nexus-repository", ["body", "nexus-coreui-bundle[^\"]*_v=" + VERSION]),
     app("harbor", "Harbor", ["body", "<harbor-app>"]),
     version("harbor", ["body", "\"harbor_version\":[[:space:]]*\"v?" + VERSION + "\""], { paths: ["/api/v2.0/systeminfo"] }),
@@ -147,14 +148,14 @@
     app("esxi", "VMware ESXi", ["body", "(?i)esxUiApp|content=\"VMware ESXi"], { manages: true }),
     app("proxmox-ve", "Proxmox VE", ["body", "PVEAuthCookie"], { manages: true }),
     version("proxmox-ve", ["body", "pvemanagerlib[.]js[?]ver=" + VERSION]),
-    app("hpe-ilo", "HPE iLO", ["body", "(?s)<RIMP>.*<HSI>"], { manages: true, paths: ["/xmldata?item=all"] }),
+    app("hpe-ilo", "HPE iLO", ["body", "(?s)<RIMP>.*<HSI>"], { manages: true, server: "hpe-ilo-server", paths: ["/xmldata?item=all"] }),
     version("hpe-ilo", ["body", "<FWRI>" + VERSION + "</FWRI>"], { paths: ["/xmldata?item=all"] }),
     app("dell-idrac", "Dell iDRAC", ["body", "<idrac-start-screen|thisIDRACText"], { manages: true, paths: ["/", "/login.html"] }),
     version("dell-idrac", ["body", "\"FwVer\"[[:space:]]*:[[:space:]]*\"" + VERSION + "\""], { paths: ["/sysmgmt/2015/bmc/info"] }),
     app("synology-dsm", "Synology DSM", ["body", "content=\"Synology DiskStation|class=\"logo-synology\""], { manages: true }),
     app("pfsense", "pfSense", ["body", "(?s)pfSense - Login.*Netgate|Netgate.*pfSense - Login"], { manages: true }),
     // The title and the login field: the title alone names nothing.
-    app("opnsense", "OPNsense", ["body", "(?s)[|] OPNsense</title>.*usernamefld"], { manages: true }),
+    app("opnsense", "OPNsense", ["body", "(?s)[|] OPNsense</title>.*usernamefld"], { manages: true, server: "opnsense" }),
     app("fritzbox", "FRITZ!Box", ["body", "<e:BoxInfo"], { manages: true, paths: ["/juis_boxinfo.xml"] }),
     app("mikrotik-routeros", "MikroTik RouterOS", ["body", "RouterOS router configuration page"], { manages: true, server: "mikrotik" }),
     version("mikrotik-routeros", ["body", "RouterOS v?" + VERSION]),
@@ -166,7 +167,7 @@
     version("tomcat", ["body", "Apache Tomcat/" + VERSION]),
     app("weblogic", "Oracle WebLogic Server", ["body", "WebLogic Server Version:"], { paths: ["/console/login/LoginForm.jsp"] }),
     version("weblogic", ["body", "WebLogic Server Version: " + VERSION], { paths: ["/console/login/LoginForm.jsp"] }),
-    app("sap-netweaver", "SAP NetWeaver", ["header", "(?i)sap-server:"]),
+    app("sap-netweaver", "SAP NetWeaver", ["header", "(?i)sap-server:"], { server: "sap" }),
     app("phpmyadmin", "phpMyAdmin", ["body", "name=\"pma_username|phpMyAdmin[.]css[.]php"], { paths: ["/", "/phpmyadmin/"] }),
     version("phpmyadmin", ["body", "PMA_VERSION:\"" + VERSION], { paths: ["/", "/phpmyadmin/"] }),
     app("vault", "HashiCorp Vault", ["body", "vault/config/environment"]),
@@ -487,7 +488,106 @@
     return out;
   }
 
-  var api = { TEMPLATES: TEMPLATES, ANSWERS: ANSWERS, VERSION: VERSION, answer: answer, text: text, pattern: pattern, USUAL_PORTS: USUAL_PORTS, GROUPS: GROUPS, ADJUST: ADJUST, targets: targets, command: command };
+  // ---- reading their answers (spec §4) ----
+
+  // What is said of a value at most.
+  var MOST_TEXT = 120;
+  var SHAPE = new RegExp("^" + VERSION.slice(1, -1) + "$");
+  var SCHEME_PORTS = { http: 80, https: 443 };
+  // The servers' names as nmap spells them; any other is drawn as written.
+  var SERVERS = {
+    apache: "Apache httpd", nginx: "nginx", "microsoft-iis": "Microsoft IIS httpd", lighttpd: "lighttpd", openresty: "OpenResty",
+    caddy: "Caddy httpd", jetty: "Jetty", "apache-coyote": "Apache Tomcat/Coyote JSP engine", gunicorn: "gunicorn", "microsoft-httpapi": "Microsoft HTTPAPI httpd",
+  };
+  var DECODE = {
+    // Roundcube's 10611 is 1.6.11.
+    rcversion: function (t) {
+      var n = /^[0-9]{5,6}$/.test(t) ? Number(t) : 0;
+      return n ? [Math.floor(n / 10000), Math.floor(n / 100) % 100, n % 100].join(".") : null;
+    },
+  };
+
+  // A value as text: no control characters, cut; null where nothing is left.
+  function clean(x) {
+    var t = typeof x === "string" ? R.cleanName(x) : null;
+    return t ? t.slice(0, MOST_TEXT) : null;
+  }
+  function shaped(x) {
+    var t = clean(x);
+    return t && SHAPE.test(t) ? t : null;
+  }
+  function portOf(x) {
+    var n = typeof x === "number" ? x : /^\d{1,5}$/.test(String(x == null ? "" : x).trim()) ? Number(x) : 0;
+    return n > 0 && n < 65536 && n === Math.floor(n) ? n : null;
+  }
+  // Where an answer was found. The port is the one in `matched-at`: for a
+  // port a template names itself, nuclei's `port` says 80 (spec §12).
+  function where(r) {
+    var at = C.target(r["matched-at"]), host = C.target(r.host), url = C.target(r.url);
+    var said = host.host || at.host || url.host;
+    var ip = typeof r.ip === "string" ? r.ip.trim() : "";
+    var name = said && !Ad.bytes(said) ? (clean(said) || "").toLowerCase() : "";
+    return {
+      address: Ad.bytes(ip) ? ip : said && Ad.bytes(said) ? said : null,
+      name: name || null,
+      port: r.type === "dns" ? null : at.port || (has(SCHEME_PORTS, String(at.scheme)) ? SCHEME_PORTS[at.scheme] : null) || host.port || url.port || portOf(r.port),
+    };
+  }
+  // "nginx/1.24.0", "Apache/2.4.57 (Debian)", "Jetty(10.0.18)", "nginx".
+  function server(text) {
+    var m = /^([A-Za-z][A-Za-z0-9_.+-]*)(?:[\/(]v?([0-9][0-9A-Za-z._-]*))?/.exec(text);
+    if (!m) return null;
+    var word = m[1].toLowerCase();
+    return { kind: "server", word: word, product: has(SERVERS, word) ? SERVERS[word] : m[1], version: m[2] || null };
+  }
+  // What one answer says, or null where its value has not the shape.
+  function fact(a, values, at) {
+    var first = values[0] || null;
+    if (a.is === "product") {
+      var v = a.gives === "version" ? shaped(first) : null;
+      return a.gives === "version" && !v ? null : { kind: "product", name: a.name, product: a.product, version: v, unless: a.unless || null };
+    }
+    if (a.is === "server") return first ? server(first) : null;
+    if (a.is === "application") return { kind: "application", id: a.name, product: a.product, manages: !!a.manages, signs: !!a.signs, server: a.server || null };
+    if (a.is === "version") {
+      var read = a.decode ? DECODE[a.decode](first || "") : shaped(first);
+      return read ? { kind: "version", of: a.of, version: read } : null;
+    }
+    if (a.is === "names") return values.length ? { kind: "names", names: values } : null;
+    if (a.is === "login") return { kind: "login" };
+    if (a.is === "sso") {
+      var to = (C.target(first || "").host || "").toLowerCase();
+      return A.isName(to) ? { kind: "sso", product: a.kind, host: to } : null;
+    }
+    if (a.is === "address") return at.name && first && Ad.bytes(first) ? { kind: "points", name: at.name, address: first } : null;
+    if (a.is === "alias") {
+      var alias = (first || "").toLowerCase().replace(/\.$/, "");
+      return at.name && A.isName(alias) ? { kind: "points", name: at.name, alias: alias } : null;
+    }
+    return first ? { kind: "said", what: a.name, text: first } : null;
+  }
+
+  // The records of effractor's templates as facts, each with where it was
+  // found ({address, name, port}) and its day. An extractor this table does
+  // not hold is counted, a value without its shape is counted; neither is
+  // drawn. Returns {facts, unknown, refused}.
+  function read(records) {
+    var out = { facts: [], unknown: 0, refused: 0 };
+    (records || []).forEach(function (r) {
+      if (!r || typeof r !== "object") return;
+      var a = answer(r["extractor-name"]);
+      if (!a || a.template !== r["template-id"]) return out.unknown++;
+      var values = (Array.isArray(r["extracted-results"]) ? r["extracted-results"] : []).map(clean).filter(Boolean);
+      var at = where(r);
+      var f = fact(a, values, at);
+      if (!f) return out.refused++;
+      f.at = at;
+      out.facts.push(f);
+    });
+    return out;
+  }
+
+  var api = { TEMPLATES: TEMPLATES, ANSWERS: ANSWERS, VERSION: VERSION, answer: answer, text: text, pattern: pattern, USUAL_PORTS: USUAL_PORTS, GROUPS: GROUPS, ADJUST: ADJUST, targets: targets, command: command, read: read };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNucleiTemplates = api;
 })();
