@@ -163,5 +163,6 @@ they are and give one record per named extractor; unsigned scripted
 [`2026-09-28-nuclei-templates-design.md`](docs/superpowers/specs/2026-09-28-nuclei-templates-design.md),
 approved 2026-09-28; the
 [implementation plan](docs/superpowers/plans/2026-09-28-nuclei-templates.md)
-awaits the owner's review. Done when the templates are served by the page,
+was approved 2026-09-28: native execution in the session, one branch
+per part. Done when the templates are served by the page,
 their results read into products, names and links, and fixtures hold each.
