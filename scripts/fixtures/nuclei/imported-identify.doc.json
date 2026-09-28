@@ -1,0 +1,5908 @@
+{
+  "effractor": 2,
+  "profile": "architecture",
+  "name": "Untitled",
+  "time_unit": "d",
+  "horizon": 100,
+  "library": {
+    "id": "core-components",
+    "version": 1
+  },
+  "entities": {
+    "lan": {
+      "kind": "network",
+      "label": "Lab network",
+      "addresses": [
+        "10.0.2.0/24"
+      ]
+    },
+    "box": {
+      "kind": "host",
+      "label": "Admin box",
+      "addresses": [
+        "10.0.2.2"
+      ]
+    },
+    "nmap": {
+      "kind": "application",
+      "label": "nmap",
+      "tool": "nmap"
+    },
+    "nuclei": {
+      "kind": "application",
+      "label": "nuclei",
+      "tool": "nuclei",
+      "description": "Last nuclei import: 2026-09-28, scan of 10.0.2.0/24 (scanned 2026-09-28)."
+    },
+    "srv": {
+      "kind": "host",
+      "label": "Server",
+      "addresses": [
+        "10.0.2.5"
+      ],
+      "seen": "2026-09-28"
+    },
+    "sshd": {
+      "kind": "service",
+      "label": "ssh"
+    },
+    "ftpd": {
+      "kind": "service",
+      "label": "ftp"
+    },
+    "smtpd": {
+      "kind": "service",
+      "label": "smtp"
+    },
+    "openssh": {
+      "kind": "product",
+      "label": "OpenSSH 9.6p1 Ubuntu 3ubuntu13.5"
+    },
+    "noftp": {
+      "kind": "product",
+      "label": "vsftpd 3.0.5"
+    },
+    "exim": {
+      "kind": "product",
+      "label": "Exim smtpd 4.96"
+    },
+    "web": {
+      "kind": "host",
+      "label": "Web 1",
+      "addresses": [
+        "10.0.2.11"
+      ],
+      "names": [
+        "grafana.corp.example",
+        "metrics.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https": {
+      "kind": "service",
+      "label": "https"
+    },
+    "nginx": {
+      "kind": "product",
+      "label": "nginx"
+    },
+    "imap": {
+      "kind": "service",
+      "label": "imap",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "dovecot": {
+      "kind": "product",
+      "label": "Dovecot",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "tcp-2222": {
+      "kind": "service",
+      "label": "tcp/2222",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "dropbear-sshd-2022-83": {
+      "kind": "product",
+      "label": "Dropbear sshd 2022.83",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "mysql": {
+      "kind": "service",
+      "label": "mysql",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "mariadb-10-11-6": {
+      "kind": "product",
+      "label": "MariaDB 10.11.6",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-6": {
+      "kind": "host",
+      "label": "10.0.2.6",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.6"
+      ],
+      "seen": "2026-09-28"
+    },
+    "ftp": {
+      "kind": "service",
+      "label": "ftp",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "proftpd-1-3-8": {
+      "kind": "product",
+      "label": "ProFTPD 1.3.8",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "smtp": {
+      "kind": "service",
+      "label": "smtp",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "pop3": {
+      "kind": "service",
+      "label": "pop3",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "cyrus-3-8-1": {
+      "kind": "product",
+      "label": "Cyrus 3.8.1",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "imap-2": {
+      "kind": "service",
+      "label": "imap",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "courier": {
+      "kind": "product",
+      "label": "Courier",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "smtps": {
+      "kind": "service",
+      "label": "smtps",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "sendmail-8-17-1": {
+      "kind": "product",
+      "label": "Sendmail 8.17.1",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "submission": {
+      "kind": "service",
+      "label": "submission",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "microsoft-exchange-smtpd": {
+      "kind": "product",
+      "label": "Microsoft Exchange smtpd",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "tcp-2222-2": {
+      "kind": "service",
+      "label": "tcp/2222",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "pure-ftpd": {
+      "kind": "product",
+      "label": "Pure-FTPd",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "mysql-2": {
+      "kind": "service",
+      "label": "mysql",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "mysql-8-0-36": {
+      "kind": "product",
+      "label": "MySQL 8.0.36",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "nginx-1-24-0": {
+      "kind": "product",
+      "label": "nginx 1.24.0",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "wiki-corp-example": {
+      "kind": "host",
+      "label": "wiki.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.12"
+      ],
+      "names": [
+        "wiki.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-2": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "apache-httpd-2-4-57": {
+      "kind": "product",
+      "label": "Apache httpd 2.4.57",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "pve1-corp-example": {
+      "kind": "host",
+      "label": "pve1.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.13"
+      ],
+      "names": [
+        "pve1.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-8006": {
+      "kind": "service",
+      "label": "tcp/8006",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "proxmox-ve-8-1-4": {
+      "kind": "product",
+      "label": "Proxmox VE 8.1.4",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "proxy-corp-example": {
+      "kind": "host",
+      "label": "proxy.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.50"
+      ],
+      "names": [
+        "proxy.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-3": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "portal-corp-example": {
+      "kind": "host",
+      "label": "portal.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.61"
+      ],
+      "names": [
+        "portal.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-4": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "microsoft-iis-httpd-10-0": {
+      "kind": "product",
+      "label": "Microsoft IIS httpd 10.0",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "fw-corp-example": {
+      "kind": "host",
+      "label": "fw.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.14"
+      ],
+      "names": [
+        "fw.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-5": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "10-0-2-16": {
+      "kind": "host",
+      "label": "10.0.2.16",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.16"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-10000": {
+      "kind": "service",
+      "label": "tcp/10000",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "webmin-2-105": {
+      "kind": "product",
+      "label": "Webmin 2.105",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "prtg-corp-example": {
+      "kind": "host",
+      "label": "prtg.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.103"
+      ],
+      "names": [
+        "prtg.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-6": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "prtg-network-monitor-24-1-92-1554": {
+      "kind": "product",
+      "label": "PRTG Network Monitor 24.1.92.1554",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "gitlab-corp-example": {
+      "kind": "host",
+      "label": "gitlab.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.105"
+      ],
+      "names": [
+        "gitlab.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-7": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "harbor-corp-example": {
+      "kind": "host",
+      "label": "harbor.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.109"
+      ],
+      "names": [
+        "harbor.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-8": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "cloud-corp-example": {
+      "kind": "host",
+      "label": "cloud.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.113"
+      ],
+      "names": [
+        "cloud.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-9": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "apache-httpd": {
+      "kind": "product",
+      "label": "Apache httpd",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "webmail-corp-example": {
+      "kind": "host",
+      "label": "webmail.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.115"
+      ],
+      "names": [
+        "webmail.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-10": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "zimbra-corp-example": {
+      "kind": "host",
+      "label": "zimbra.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.116"
+      ],
+      "names": [
+        "zimbra.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-11": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "zimbra-10-0-6-ga-4585": {
+      "kind": "product",
+      "label": "Zimbra 10.0.6_GA_4585",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "mail-corp-example": {
+      "kind": "host",
+      "label": "mail.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.117"
+      ],
+      "names": [
+        "mail.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-12": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "intranet-corp-example": {
+      "kind": "host",
+      "label": "intranet.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.118"
+      ],
+      "names": [
+        "intranet.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-13": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "keycloak-corp-example": {
+      "kind": "host",
+      "label": "keycloak.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.119"
+      ],
+      "names": [
+        "keycloak.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-alt": {
+      "kind": "service",
+      "label": "https-alt",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "keycloak": {
+      "kind": "product",
+      "label": "Keycloak",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "adfs-corp-example": {
+      "kind": "host",
+      "label": "adfs.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.120"
+      ],
+      "names": [
+        "adfs.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-14": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "microsoft-httpapi-httpd-2-0": {
+      "kind": "product",
+      "label": "Microsoft HTTPAPI httpd 2.0",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "gateway-corp-example": {
+      "kind": "host",
+      "label": "gateway.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.121"
+      ],
+      "names": [
+        "gateway.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-15": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "citrix-gateway": {
+      "kind": "product",
+      "label": "Citrix Gateway",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "vpn-corp-example": {
+      "kind": "host",
+      "label": "vpn.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.122"
+      ],
+      "names": [
+        "vpn.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-16": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "globalprotect": {
+      "kind": "product",
+      "label": "GlobalProtect",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "connect-corp-example": {
+      "kind": "host",
+      "label": "connect.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.123"
+      ],
+      "names": [
+        "connect.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-17": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "ivanti-connect-secure": {
+      "kind": "product",
+      "label": "Ivanti Connect Secure",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "asa-corp-example": {
+      "kind": "host",
+      "label": "asa.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.124"
+      ],
+      "names": [
+        "asa.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-18": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "cisco-secure-firewall-asa": {
+      "kind": "product",
+      "label": "Cisco Secure Firewall ASA",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "fortigate-corp-example": {
+      "kind": "host",
+      "label": "fortigate.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.126"
+      ],
+      "names": [
+        "fortigate.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-10443": {
+      "kind": "service",
+      "label": "tcp/10443",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "fortigate": {
+      "kind": "product",
+      "label": "FortiGate",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "bigip-corp-example": {
+      "kind": "host",
+      "label": "bigip.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.127"
+      ],
+      "names": [
+        "bigip.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-19": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "f5-big-ip": {
+      "kind": "product",
+      "label": "F5 BIG-IP",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "sma-corp-example": {
+      "kind": "host",
+      "label": "sma.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.128"
+      ],
+      "names": [
+        "sma.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-20": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "sonicwall-12-4-2-02384": {
+      "kind": "product",
+      "label": "SonicWall 12.4.2-02384",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "vcenter-corp-example": {
+      "kind": "host",
+      "label": "vcenter.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.129"
+      ],
+      "names": [
+        "vcenter.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-21": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "vmware-vcenter": {
+      "kind": "product",
+      "label": "VMware vCenter",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "esx01-corp-example": {
+      "kind": "host",
+      "label": "esx01.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.130"
+      ],
+      "names": [
+        "esx01.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-22": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "vmware-esxi": {
+      "kind": "product",
+      "label": "VMware ESXi",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "ilo01-corp-example": {
+      "kind": "host",
+      "label": "ilo01.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.131"
+      ],
+      "names": [
+        "ilo01.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-23": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "hpe-ilo-2-98": {
+      "kind": "product",
+      "label": "HPE iLO 2.98",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "idrac01-corp-example": {
+      "kind": "host",
+      "label": "idrac01.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.132"
+      ],
+      "names": [
+        "idrac01.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-24": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "dell-idrac-6-10-30-00": {
+      "kind": "product",
+      "label": "Dell iDRAC 6.10.30.00",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "opnsense-corp-example": {
+      "kind": "host",
+      "label": "opnsense.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.134"
+      ],
+      "names": [
+        "opnsense.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "https-25": {
+      "kind": "service",
+      "label": "https",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "opnsense": {
+      "kind": "product",
+      "label": "OPNsense",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "portainer-corp-example": {
+      "kind": "host",
+      "label": "portainer.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.137"
+      ],
+      "names": [
+        "portainer.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-9443": {
+      "kind": "service",
+      "label": "tcp/9443",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "portainer": {
+      "kind": "product",
+      "label": "Portainer",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "backup-corp-example": {
+      "kind": "host",
+      "label": "backup.corp.example",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.143"
+      ],
+      "names": [
+        "backup.corp.example"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-9443-2": {
+      "kind": "service",
+      "label": "tcp/9443",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "10-0-2-60": {
+      "kind": "host",
+      "label": "10.0.2.60",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.60"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http-proxy": {
+      "kind": "service",
+      "label": "http-proxy",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "lighttpd-1-4-69": {
+      "kind": "product",
+      "label": "lighttpd 1.4.69",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-62": {
+      "kind": "host",
+      "label": "10.0.2.62",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.62"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-8000": {
+      "kind": "service",
+      "label": "tcp/8000",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "unidentified-tcp-8000-on-10-0-2-62": {
+      "kind": "product",
+      "label": "unidentified tcp/8000 on 10.0.2.62",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-15": {
+      "kind": "host",
+      "label": "10.0.2.15",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.15"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http-proxy-2": {
+      "kind": "service",
+      "label": "http-proxy",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "jetty-10-0-18": {
+      "kind": "product",
+      "label": "Jetty 10.0.18",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-100": {
+      "kind": "host",
+      "label": "10.0.2.100",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.100"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-5601": {
+      "kind": "service",
+      "label": "tcp/5601",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "kibana-8-12-0": {
+      "kind": "product",
+      "label": "Kibana 8.12.0",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-101": {
+      "kind": "host",
+      "label": "10.0.2.101",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.101"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-9200": {
+      "kind": "service",
+      "label": "tcp/9200",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "elasticsearch-8-12-0": {
+      "kind": "product",
+      "label": "Elasticsearch 8.12.0",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-102": {
+      "kind": "host",
+      "label": "10.0.2.102",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.102"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http": {
+      "kind": "service",
+      "label": "http",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "10-0-2-104": {
+      "kind": "host",
+      "label": "10.0.2.104",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.104"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-8000-2": {
+      "kind": "service",
+      "label": "tcp/8000",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "splunk-9-2-0": {
+      "kind": "product",
+      "label": "Splunk 9.2.0",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-106": {
+      "kind": "host",
+      "label": "10.0.2.106",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.106"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-3000": {
+      "kind": "service",
+      "label": "tcp/3000",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "gitea-1-21-5": {
+      "kind": "product",
+      "label": "Gitea 1.21.5",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-107": {
+      "kind": "host",
+      "label": "10.0.2.107",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.107"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-9000": {
+      "kind": "service",
+      "label": "tcp/9000",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "sonarqube-10-4-0": {
+      "kind": "product",
+      "label": "SonarQube 10.4.0",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-108": {
+      "kind": "host",
+      "label": "10.0.2.108",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.108"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-8081": {
+      "kind": "service",
+      "label": "tcp/8081",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "nexus-repository-3-64-0-04": {
+      "kind": "product",
+      "label": "Nexus Repository 3.64.0-04",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-110": {
+      "kind": "host",
+      "label": "10.0.2.110",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.110"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-8090": {
+      "kind": "service",
+      "label": "tcp/8090",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "confluence-8-5-4": {
+      "kind": "product",
+      "label": "Confluence 8.5.4",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-111": {
+      "kind": "host",
+      "label": "10.0.2.111",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.111"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http-proxy-3": {
+      "kind": "service",
+      "label": "http-proxy",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "jira-9-12-2": {
+      "kind": "product",
+      "label": "Jira 9.12.2",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-112": {
+      "kind": "host",
+      "label": "10.0.2.112",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.112"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-7990": {
+      "kind": "service",
+      "label": "tcp/7990",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "bitbucket-8-17-0": {
+      "kind": "product",
+      "label": "Bitbucket 8.17.0",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-114": {
+      "kind": "host",
+      "label": "10.0.2.114",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.114"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http-2": {
+      "kind": "service",
+      "label": "http",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "10-0-2-125": {
+      "kind": "host",
+      "label": "10.0.2.125",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.125"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http-proxy-4": {
+      "kind": "service",
+      "label": "http-proxy",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "apache-guacamole": {
+      "kind": "product",
+      "label": "Apache Guacamole",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-133": {
+      "kind": "host",
+      "label": "10.0.2.133",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.133"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-5000": {
+      "kind": "service",
+      "label": "tcp/5000",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "10-0-2-135": {
+      "kind": "host",
+      "label": "10.0.2.135",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.135"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http-3": {
+      "kind": "service",
+      "label": "http",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "fritz-box": {
+      "kind": "product",
+      "label": "FRITZ!Box",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-136": {
+      "kind": "host",
+      "label": "10.0.2.136",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.136"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http-4": {
+      "kind": "service",
+      "label": "http",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "mikrotik-routeros-7-13-2": {
+      "kind": "product",
+      "label": "MikroTik RouterOS 7.13.2",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-138": {
+      "kind": "host",
+      "label": "10.0.2.138",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.138"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http-proxy-5": {
+      "kind": "service",
+      "label": "http-proxy",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "apache-tomcat-10-1-18": {
+      "kind": "product",
+      "label": "Apache Tomcat 10.1.18",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-139": {
+      "kind": "host",
+      "label": "10.0.2.139",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.139"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-7001": {
+      "kind": "service",
+      "label": "tcp/7001",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "oracle-weblogic-server-14-1-1-0-0": {
+      "kind": "product",
+      "label": "Oracle WebLogic Server 14.1.1.0.0",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-140": {
+      "kind": "host",
+      "label": "10.0.2.140",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.140"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-8000-3": {
+      "kind": "service",
+      "label": "tcp/8000",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "sap-netweaver": {
+      "kind": "product",
+      "label": "SAP NetWeaver",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-141": {
+      "kind": "host",
+      "label": "10.0.2.141",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.141"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http-5": {
+      "kind": "service",
+      "label": "http",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "10-0-2-142": {
+      "kind": "host",
+      "label": "10.0.2.142",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.142"
+      ],
+      "seen": "2026-09-28"
+    },
+    "tcp-8200": {
+      "kind": "service",
+      "label": "tcp/8200",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "hashicorp-vault-1-15-4": {
+      "kind": "product",
+      "label": "HashiCorp Vault 1.15.4",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "grafana": {
+      "kind": "service",
+      "label": "Grafana",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "grafana-10-2-3": {
+      "kind": "product",
+      "label": "Grafana 10.2.3",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "pfsense": {
+      "kind": "service",
+      "label": "pfSense",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "pfsense-2": {
+      "kind": "product",
+      "label": "pfSense",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "gitlab": {
+      "kind": "service",
+      "label": "GitLab",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "gitlab-2": {
+      "kind": "product",
+      "label": "GitLab",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "harbor": {
+      "kind": "service",
+      "label": "Harbor",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "harbor-2-10-0-6abb4eab": {
+      "kind": "product",
+      "label": "Harbor 2.10.0-6abb4eab",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "nextcloud": {
+      "kind": "service",
+      "label": "Nextcloud",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "nextcloud-28-0-2-5": {
+      "kind": "product",
+      "label": "Nextcloud 28.0.2.5",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "roundcube-webmail": {
+      "kind": "service",
+      "label": "Roundcube Webmail",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "roundcube-webmail-1-6-11": {
+      "kind": "product",
+      "label": "Roundcube Webmail 1.6.11",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "outlook-on-the-web": {
+      "kind": "service",
+      "label": "Outlook on the web",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "outlook-on-the-web-15-2-1258-28": {
+      "kind": "product",
+      "label": "Outlook on the web 15.2.1258.28",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "sharepoint": {
+      "kind": "service",
+      "label": "SharePoint",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "sharepoint-16-0-0-10396": {
+      "kind": "product",
+      "label": "SharePoint 16.0.0.10396",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "ad-fs": {
+      "kind": "service",
+      "label": "AD FS",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "ad-fs-2": {
+      "kind": "product",
+      "label": "AD FS",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "veeam-backup-enterprise-manager": {
+      "kind": "service",
+      "label": "Veeam Backup Enterprise Manager",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "veeam-backup-enterprise-manager-12-1-0-2131": {
+      "kind": "product",
+      "label": "Veeam Backup Enterprise Manager 12.1.0.2131",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "jenkins": {
+      "kind": "service",
+      "label": "Jenkins",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "jenkins-2-440-1": {
+      "kind": "product",
+      "label": "Jenkins 2.440.1",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "zabbix": {
+      "kind": "service",
+      "label": "Zabbix",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "zabbix-2": {
+      "kind": "product",
+      "label": "Zabbix",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "wordpress": {
+      "kind": "service",
+      "label": "WordPress",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "wordpress-6-4-3": {
+      "kind": "product",
+      "label": "WordPress 6.4.3",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "synology-dsm": {
+      "kind": "service",
+      "label": "Synology DSM",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "synology-dsm-2": {
+      "kind": "product",
+      "label": "Synology DSM",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "phpmyadmin": {
+      "kind": "service",
+      "label": "phpMyAdmin",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "phpmyadmin-5-2-1": {
+      "kind": "product",
+      "label": "phpMyAdmin 5.2.1",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    }
+  },
+  "associations": {
+    "a1": {
+      "kind": "attached",
+      "from": "box",
+      "to": "lan"
+    },
+    "a2": {
+      "kind": "attached",
+      "from": "srv",
+      "to": "lan"
+    },
+    "a3": {
+      "kind": "attached",
+      "from": "web",
+      "to": "lan"
+    },
+    "a4": {
+      "kind": "hosts",
+      "from": "box",
+      "to": "nmap",
+      "privilege": "user"
+    },
+    "a5": {
+      "kind": "hosts",
+      "from": "box",
+      "to": "nuclei",
+      "privilege": "user"
+    },
+    "a6": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "sshd",
+      "privilege": "unknown"
+    },
+    "a7": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "ftpd",
+      "privilege": "unknown"
+    },
+    "a8": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "smtpd",
+      "privilege": "unknown"
+    },
+    "a9": {
+      "kind": "hosts",
+      "from": "web",
+      "to": "https",
+      "privilege": "unknown"
+    },
+    "b1": {
+      "kind": "instance-of",
+      "from": "sshd",
+      "to": "openssh"
+    },
+    "b2": {
+      "kind": "instance-of",
+      "from": "ftpd",
+      "to": "noftp"
+    },
+    "b3": {
+      "kind": "instance-of",
+      "from": "smtpd",
+      "to": "exim"
+    },
+    "b4": {
+      "kind": "instance-of",
+      "from": "https",
+      "to": "nginx-1-24-0"
+    },
+    "srv-hosts-imap": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "imap",
+      "privilege": "unknown"
+    },
+    "imap-instance-of-dovecot": {
+      "kind": "instance-of",
+      "from": "imap",
+      "to": "dovecot"
+    },
+    "srv-hosts-tcp-2222": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "tcp-2222",
+      "privilege": "unknown"
+    },
+    "tcp-2222-instance-of-dropbear-sshd-2022-83": {
+      "kind": "instance-of",
+      "from": "tcp-2222",
+      "to": "dropbear-sshd-2022-83"
+    },
+    "srv-hosts-mysql": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "mysql",
+      "privilege": "unknown"
+    },
+    "mysql-instance-of-mariadb-10-11-6": {
+      "kind": "instance-of",
+      "from": "mysql",
+      "to": "mariadb-10-11-6"
+    },
+    "10-0-2-6-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-6",
+      "to": "lan"
+    },
+    "10-0-2-6-hosts-ftp": {
+      "kind": "hosts",
+      "from": "10-0-2-6",
+      "to": "ftp",
+      "privilege": "unknown"
+    },
+    "ftp-instance-of-proftpd-1-3-8": {
+      "kind": "instance-of",
+      "from": "ftp",
+      "to": "proftpd-1-3-8"
+    },
+    "10-0-2-6-hosts-smtp": {
+      "kind": "hosts",
+      "from": "10-0-2-6",
+      "to": "smtp",
+      "privilege": "unknown"
+    },
+    "smtp-instance-of-exim": {
+      "kind": "instance-of",
+      "from": "smtp",
+      "to": "exim"
+    },
+    "10-0-2-6-hosts-pop3": {
+      "kind": "hosts",
+      "from": "10-0-2-6",
+      "to": "pop3",
+      "privilege": "unknown"
+    },
+    "pop3-instance-of-cyrus-3-8-1": {
+      "kind": "instance-of",
+      "from": "pop3",
+      "to": "cyrus-3-8-1"
+    },
+    "10-0-2-6-hosts-imap-2": {
+      "kind": "hosts",
+      "from": "10-0-2-6",
+      "to": "imap-2",
+      "privilege": "unknown"
+    },
+    "imap-2-instance-of-courier": {
+      "kind": "instance-of",
+      "from": "imap-2",
+      "to": "courier"
+    },
+    "10-0-2-6-hosts-smtps": {
+      "kind": "hosts",
+      "from": "10-0-2-6",
+      "to": "smtps",
+      "privilege": "unknown"
+    },
+    "smtps-instance-of-sendmail-8-17-1": {
+      "kind": "instance-of",
+      "from": "smtps",
+      "to": "sendmail-8-17-1"
+    },
+    "10-0-2-6-hosts-submission": {
+      "kind": "hosts",
+      "from": "10-0-2-6",
+      "to": "submission",
+      "privilege": "unknown"
+    },
+    "submission-instance-of-microsoft-exchange-smtpd": {
+      "kind": "instance-of",
+      "from": "submission",
+      "to": "microsoft-exchange-smtpd"
+    },
+    "10-0-2-6-hosts-tcp-2222-2": {
+      "kind": "hosts",
+      "from": "10-0-2-6",
+      "to": "tcp-2222-2",
+      "privilege": "unknown"
+    },
+    "tcp-2222-2-instance-of-pure-ftpd": {
+      "kind": "instance-of",
+      "from": "tcp-2222-2",
+      "to": "pure-ftpd"
+    },
+    "10-0-2-6-hosts-mysql-2": {
+      "kind": "hosts",
+      "from": "10-0-2-6",
+      "to": "mysql-2",
+      "privilege": "unknown"
+    },
+    "mysql-2-instance-of-mysql-8-0-36": {
+      "kind": "instance-of",
+      "from": "mysql-2",
+      "to": "mysql-8-0-36"
+    },
+    "wiki-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "wiki-corp-example",
+      "to": "lan"
+    },
+    "wiki-corp-example-hosts-https-2": {
+      "kind": "hosts",
+      "from": "wiki-corp-example",
+      "to": "https-2",
+      "privilege": "unknown"
+    },
+    "https-2-instance-of-apache-httpd-2-4-57": {
+      "kind": "instance-of",
+      "from": "https-2",
+      "to": "apache-httpd-2-4-57"
+    },
+    "pve1-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "pve1-corp-example",
+      "to": "lan"
+    },
+    "pve1-corp-example-hosts-tcp-8006": {
+      "kind": "hosts",
+      "from": "pve1-corp-example",
+      "to": "tcp-8006",
+      "privilege": "unknown"
+    },
+    "tcp-8006-instance-of-proxmox-ve-8-1-4": {
+      "kind": "instance-of",
+      "from": "tcp-8006",
+      "to": "proxmox-ve-8-1-4"
+    },
+    "proxy-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "proxy-corp-example",
+      "to": "lan"
+    },
+    "proxy-corp-example-hosts-https-3": {
+      "kind": "hosts",
+      "from": "proxy-corp-example",
+      "to": "https-3",
+      "privilege": "unknown"
+    },
+    "https-3-instance-of-nginx-1-24-0": {
+      "kind": "instance-of",
+      "from": "https-3",
+      "to": "nginx-1-24-0"
+    },
+    "portal-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "portal-corp-example",
+      "to": "lan"
+    },
+    "portal-corp-example-hosts-https-4": {
+      "kind": "hosts",
+      "from": "portal-corp-example",
+      "to": "https-4",
+      "privilege": "unknown"
+    },
+    "https-4-instance-of-microsoft-iis-httpd-10-0": {
+      "kind": "instance-of",
+      "from": "https-4",
+      "to": "microsoft-iis-httpd-10-0"
+    },
+    "fw-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "fw-corp-example",
+      "to": "lan"
+    },
+    "fw-corp-example-hosts-https-5": {
+      "kind": "hosts",
+      "from": "fw-corp-example",
+      "to": "https-5",
+      "privilege": "unknown"
+    },
+    "https-5-instance-of-nginx": {
+      "kind": "instance-of",
+      "from": "https-5",
+      "to": "nginx"
+    },
+    "10-0-2-16-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-16",
+      "to": "lan"
+    },
+    "10-0-2-16-hosts-tcp-10000": {
+      "kind": "hosts",
+      "from": "10-0-2-16",
+      "to": "tcp-10000",
+      "privilege": "unknown"
+    },
+    "tcp-10000-instance-of-webmin-2-105": {
+      "kind": "instance-of",
+      "from": "tcp-10000",
+      "to": "webmin-2-105"
+    },
+    "prtg-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "prtg-corp-example",
+      "to": "lan"
+    },
+    "prtg-corp-example-hosts-https-6": {
+      "kind": "hosts",
+      "from": "prtg-corp-example",
+      "to": "https-6",
+      "privilege": "unknown"
+    },
+    "https-6-instance-of-prtg-network-monitor-24-1-92-1554": {
+      "kind": "instance-of",
+      "from": "https-6",
+      "to": "prtg-network-monitor-24-1-92-1554"
+    },
+    "gitlab-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "gitlab-corp-example",
+      "to": "lan"
+    },
+    "gitlab-corp-example-hosts-https-7": {
+      "kind": "hosts",
+      "from": "gitlab-corp-example",
+      "to": "https-7",
+      "privilege": "unknown"
+    },
+    "https-7-instance-of-nginx": {
+      "kind": "instance-of",
+      "from": "https-7",
+      "to": "nginx"
+    },
+    "harbor-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "harbor-corp-example",
+      "to": "lan"
+    },
+    "harbor-corp-example-hosts-https-8": {
+      "kind": "hosts",
+      "from": "harbor-corp-example",
+      "to": "https-8",
+      "privilege": "unknown"
+    },
+    "https-8-instance-of-nginx": {
+      "kind": "instance-of",
+      "from": "https-8",
+      "to": "nginx"
+    },
+    "cloud-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "cloud-corp-example",
+      "to": "lan"
+    },
+    "cloud-corp-example-hosts-https-9": {
+      "kind": "hosts",
+      "from": "cloud-corp-example",
+      "to": "https-9",
+      "privilege": "unknown"
+    },
+    "https-9-instance-of-apache-httpd": {
+      "kind": "instance-of",
+      "from": "https-9",
+      "to": "apache-httpd"
+    },
+    "webmail-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "webmail-corp-example",
+      "to": "lan"
+    },
+    "webmail-corp-example-hosts-https-10": {
+      "kind": "hosts",
+      "from": "webmail-corp-example",
+      "to": "https-10",
+      "privilege": "unknown"
+    },
+    "https-10-instance-of-nginx-1-24-0": {
+      "kind": "instance-of",
+      "from": "https-10",
+      "to": "nginx-1-24-0"
+    },
+    "zimbra-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "zimbra-corp-example",
+      "to": "lan"
+    },
+    "zimbra-corp-example-hosts-https-11": {
+      "kind": "hosts",
+      "from": "zimbra-corp-example",
+      "to": "https-11",
+      "privilege": "unknown"
+    },
+    "https-11-instance-of-zimbra-10-0-6-ga-4585": {
+      "kind": "instance-of",
+      "from": "https-11",
+      "to": "zimbra-10-0-6-ga-4585"
+    },
+    "mail-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "mail-corp-example",
+      "to": "lan"
+    },
+    "mail-corp-example-hosts-https-12": {
+      "kind": "hosts",
+      "from": "mail-corp-example",
+      "to": "https-12",
+      "privilege": "unknown"
+    },
+    "https-12-instance-of-microsoft-iis-httpd-10-0": {
+      "kind": "instance-of",
+      "from": "https-12",
+      "to": "microsoft-iis-httpd-10-0"
+    },
+    "intranet-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "intranet-corp-example",
+      "to": "lan"
+    },
+    "intranet-corp-example-hosts-https-13": {
+      "kind": "hosts",
+      "from": "intranet-corp-example",
+      "to": "https-13",
+      "privilege": "unknown"
+    },
+    "https-13-instance-of-microsoft-iis-httpd-10-0": {
+      "kind": "instance-of",
+      "from": "https-13",
+      "to": "microsoft-iis-httpd-10-0"
+    },
+    "keycloak-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "keycloak-corp-example",
+      "to": "lan"
+    },
+    "keycloak-corp-example-hosts-https-alt": {
+      "kind": "hosts",
+      "from": "keycloak-corp-example",
+      "to": "https-alt",
+      "privilege": "unknown"
+    },
+    "https-alt-instance-of-keycloak": {
+      "kind": "instance-of",
+      "from": "https-alt",
+      "to": "keycloak"
+    },
+    "adfs-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "adfs-corp-example",
+      "to": "lan"
+    },
+    "adfs-corp-example-hosts-https-14": {
+      "kind": "hosts",
+      "from": "adfs-corp-example",
+      "to": "https-14",
+      "privilege": "unknown"
+    },
+    "https-14-instance-of-microsoft-httpapi-httpd-2-0": {
+      "kind": "instance-of",
+      "from": "https-14",
+      "to": "microsoft-httpapi-httpd-2-0"
+    },
+    "gateway-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "gateway-corp-example",
+      "to": "lan"
+    },
+    "gateway-corp-example-hosts-https-15": {
+      "kind": "hosts",
+      "from": "gateway-corp-example",
+      "to": "https-15",
+      "privilege": "unknown"
+    },
+    "https-15-instance-of-citrix-gateway": {
+      "kind": "instance-of",
+      "from": "https-15",
+      "to": "citrix-gateway"
+    },
+    "vpn-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "vpn-corp-example",
+      "to": "lan"
+    },
+    "vpn-corp-example-hosts-https-16": {
+      "kind": "hosts",
+      "from": "vpn-corp-example",
+      "to": "https-16",
+      "privilege": "unknown"
+    },
+    "https-16-instance-of-globalprotect": {
+      "kind": "instance-of",
+      "from": "https-16",
+      "to": "globalprotect"
+    },
+    "connect-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "connect-corp-example",
+      "to": "lan"
+    },
+    "connect-corp-example-hosts-https-17": {
+      "kind": "hosts",
+      "from": "connect-corp-example",
+      "to": "https-17",
+      "privilege": "unknown"
+    },
+    "https-17-instance-of-ivanti-connect-secure": {
+      "kind": "instance-of",
+      "from": "https-17",
+      "to": "ivanti-connect-secure"
+    },
+    "asa-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "asa-corp-example",
+      "to": "lan"
+    },
+    "asa-corp-example-hosts-https-18": {
+      "kind": "hosts",
+      "from": "asa-corp-example",
+      "to": "https-18",
+      "privilege": "unknown"
+    },
+    "https-18-instance-of-cisco-secure-firewall-asa": {
+      "kind": "instance-of",
+      "from": "https-18",
+      "to": "cisco-secure-firewall-asa"
+    },
+    "fortigate-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "fortigate-corp-example",
+      "to": "lan"
+    },
+    "fortigate-corp-example-hosts-tcp-10443": {
+      "kind": "hosts",
+      "from": "fortigate-corp-example",
+      "to": "tcp-10443",
+      "privilege": "unknown"
+    },
+    "tcp-10443-instance-of-fortigate": {
+      "kind": "instance-of",
+      "from": "tcp-10443",
+      "to": "fortigate"
+    },
+    "bigip-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "bigip-corp-example",
+      "to": "lan"
+    },
+    "bigip-corp-example-hosts-https-19": {
+      "kind": "hosts",
+      "from": "bigip-corp-example",
+      "to": "https-19",
+      "privilege": "unknown"
+    },
+    "https-19-instance-of-f5-big-ip": {
+      "kind": "instance-of",
+      "from": "https-19",
+      "to": "f5-big-ip"
+    },
+    "sma-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "sma-corp-example",
+      "to": "lan"
+    },
+    "sma-corp-example-hosts-https-20": {
+      "kind": "hosts",
+      "from": "sma-corp-example",
+      "to": "https-20",
+      "privilege": "unknown"
+    },
+    "https-20-instance-of-sonicwall-12-4-2-02384": {
+      "kind": "instance-of",
+      "from": "https-20",
+      "to": "sonicwall-12-4-2-02384"
+    },
+    "vcenter-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "vcenter-corp-example",
+      "to": "lan"
+    },
+    "vcenter-corp-example-hosts-https-21": {
+      "kind": "hosts",
+      "from": "vcenter-corp-example",
+      "to": "https-21",
+      "privilege": "unknown"
+    },
+    "https-21-instance-of-vmware-vcenter": {
+      "kind": "instance-of",
+      "from": "https-21",
+      "to": "vmware-vcenter"
+    },
+    "esx01-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "esx01-corp-example",
+      "to": "lan"
+    },
+    "esx01-corp-example-hosts-https-22": {
+      "kind": "hosts",
+      "from": "esx01-corp-example",
+      "to": "https-22",
+      "privilege": "unknown"
+    },
+    "https-22-instance-of-vmware-esxi": {
+      "kind": "instance-of",
+      "from": "https-22",
+      "to": "vmware-esxi"
+    },
+    "ilo01-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "ilo01-corp-example",
+      "to": "lan"
+    },
+    "ilo01-corp-example-hosts-https-23": {
+      "kind": "hosts",
+      "from": "ilo01-corp-example",
+      "to": "https-23",
+      "privilege": "unknown"
+    },
+    "https-23-instance-of-hpe-ilo-2-98": {
+      "kind": "instance-of",
+      "from": "https-23",
+      "to": "hpe-ilo-2-98"
+    },
+    "idrac01-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "idrac01-corp-example",
+      "to": "lan"
+    },
+    "idrac01-corp-example-hosts-https-24": {
+      "kind": "hosts",
+      "from": "idrac01-corp-example",
+      "to": "https-24",
+      "privilege": "unknown"
+    },
+    "https-24-instance-of-dell-idrac-6-10-30-00": {
+      "kind": "instance-of",
+      "from": "https-24",
+      "to": "dell-idrac-6-10-30-00"
+    },
+    "opnsense-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "opnsense-corp-example",
+      "to": "lan"
+    },
+    "opnsense-corp-example-hosts-https-25": {
+      "kind": "hosts",
+      "from": "opnsense-corp-example",
+      "to": "https-25",
+      "privilege": "unknown"
+    },
+    "https-25-instance-of-opnsense": {
+      "kind": "instance-of",
+      "from": "https-25",
+      "to": "opnsense"
+    },
+    "portainer-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "portainer-corp-example",
+      "to": "lan"
+    },
+    "portainer-corp-example-hosts-tcp-9443": {
+      "kind": "hosts",
+      "from": "portainer-corp-example",
+      "to": "tcp-9443",
+      "privilege": "unknown"
+    },
+    "tcp-9443-instance-of-portainer": {
+      "kind": "instance-of",
+      "from": "tcp-9443",
+      "to": "portainer"
+    },
+    "backup-corp-example-attached-lan": {
+      "kind": "attached",
+      "from": "backup-corp-example",
+      "to": "lan"
+    },
+    "backup-corp-example-hosts-tcp-9443-2": {
+      "kind": "hosts",
+      "from": "backup-corp-example",
+      "to": "tcp-9443-2",
+      "privilege": "unknown"
+    },
+    "tcp-9443-2-instance-of-microsoft-iis-httpd-10-0": {
+      "kind": "instance-of",
+      "from": "tcp-9443-2",
+      "to": "microsoft-iis-httpd-10-0"
+    },
+    "10-0-2-60-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-60",
+      "to": "lan"
+    },
+    "10-0-2-60-hosts-http-proxy": {
+      "kind": "hosts",
+      "from": "10-0-2-60",
+      "to": "http-proxy",
+      "privilege": "unknown"
+    },
+    "http-proxy-instance-of-lighttpd-1-4-69": {
+      "kind": "instance-of",
+      "from": "http-proxy",
+      "to": "lighttpd-1-4-69"
+    },
+    "10-0-2-62-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-62",
+      "to": "lan"
+    },
+    "10-0-2-62-hosts-tcp-8000": {
+      "kind": "hosts",
+      "from": "10-0-2-62",
+      "to": "tcp-8000",
+      "privilege": "unknown"
+    },
+    "tcp-8000-instance-of-unidentified-tcp-8000-on-10-0-2-62": {
+      "kind": "instance-of",
+      "from": "tcp-8000",
+      "to": "unidentified-tcp-8000-on-10-0-2-62"
+    },
+    "10-0-2-15-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-15",
+      "to": "lan"
+    },
+    "10-0-2-15-hosts-http-proxy-2": {
+      "kind": "hosts",
+      "from": "10-0-2-15",
+      "to": "http-proxy-2",
+      "privilege": "unknown"
+    },
+    "http-proxy-2-instance-of-jetty-10-0-18": {
+      "kind": "instance-of",
+      "from": "http-proxy-2",
+      "to": "jetty-10-0-18"
+    },
+    "10-0-2-100-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-100",
+      "to": "lan"
+    },
+    "10-0-2-100-hosts-tcp-5601": {
+      "kind": "hosts",
+      "from": "10-0-2-100",
+      "to": "tcp-5601",
+      "privilege": "unknown"
+    },
+    "tcp-5601-instance-of-kibana-8-12-0": {
+      "kind": "instance-of",
+      "from": "tcp-5601",
+      "to": "kibana-8-12-0"
+    },
+    "10-0-2-101-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-101",
+      "to": "lan"
+    },
+    "10-0-2-101-hosts-tcp-9200": {
+      "kind": "hosts",
+      "from": "10-0-2-101",
+      "to": "tcp-9200",
+      "privilege": "unknown"
+    },
+    "tcp-9200-instance-of-elasticsearch-8-12-0": {
+      "kind": "instance-of",
+      "from": "tcp-9200",
+      "to": "elasticsearch-8-12-0"
+    },
+    "10-0-2-102-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-102",
+      "to": "lan"
+    },
+    "10-0-2-102-hosts-http": {
+      "kind": "hosts",
+      "from": "10-0-2-102",
+      "to": "http",
+      "privilege": "unknown"
+    },
+    "http-instance-of-nginx-1-24-0": {
+      "kind": "instance-of",
+      "from": "http",
+      "to": "nginx-1-24-0"
+    },
+    "10-0-2-104-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-104",
+      "to": "lan"
+    },
+    "10-0-2-104-hosts-tcp-8000-2": {
+      "kind": "hosts",
+      "from": "10-0-2-104",
+      "to": "tcp-8000-2",
+      "privilege": "unknown"
+    },
+    "tcp-8000-2-instance-of-splunk-9-2-0": {
+      "kind": "instance-of",
+      "from": "tcp-8000-2",
+      "to": "splunk-9-2-0"
+    },
+    "10-0-2-106-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-106",
+      "to": "lan"
+    },
+    "10-0-2-106-hosts-tcp-3000": {
+      "kind": "hosts",
+      "from": "10-0-2-106",
+      "to": "tcp-3000",
+      "privilege": "unknown"
+    },
+    "tcp-3000-instance-of-gitea-1-21-5": {
+      "kind": "instance-of",
+      "from": "tcp-3000",
+      "to": "gitea-1-21-5"
+    },
+    "10-0-2-107-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-107",
+      "to": "lan"
+    },
+    "10-0-2-107-hosts-tcp-9000": {
+      "kind": "hosts",
+      "from": "10-0-2-107",
+      "to": "tcp-9000",
+      "privilege": "unknown"
+    },
+    "tcp-9000-instance-of-sonarqube-10-4-0": {
+      "kind": "instance-of",
+      "from": "tcp-9000",
+      "to": "sonarqube-10-4-0"
+    },
+    "10-0-2-108-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-108",
+      "to": "lan"
+    },
+    "10-0-2-108-hosts-tcp-8081": {
+      "kind": "hosts",
+      "from": "10-0-2-108",
+      "to": "tcp-8081",
+      "privilege": "unknown"
+    },
+    "tcp-8081-instance-of-nexus-repository-3-64-0-04": {
+      "kind": "instance-of",
+      "from": "tcp-8081",
+      "to": "nexus-repository-3-64-0-04"
+    },
+    "10-0-2-110-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-110",
+      "to": "lan"
+    },
+    "10-0-2-110-hosts-tcp-8090": {
+      "kind": "hosts",
+      "from": "10-0-2-110",
+      "to": "tcp-8090",
+      "privilege": "unknown"
+    },
+    "tcp-8090-instance-of-confluence-8-5-4": {
+      "kind": "instance-of",
+      "from": "tcp-8090",
+      "to": "confluence-8-5-4"
+    },
+    "10-0-2-111-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-111",
+      "to": "lan"
+    },
+    "10-0-2-111-hosts-http-proxy-3": {
+      "kind": "hosts",
+      "from": "10-0-2-111",
+      "to": "http-proxy-3",
+      "privilege": "unknown"
+    },
+    "http-proxy-3-instance-of-jira-9-12-2": {
+      "kind": "instance-of",
+      "from": "http-proxy-3",
+      "to": "jira-9-12-2"
+    },
+    "10-0-2-112-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-112",
+      "to": "lan"
+    },
+    "10-0-2-112-hosts-tcp-7990": {
+      "kind": "hosts",
+      "from": "10-0-2-112",
+      "to": "tcp-7990",
+      "privilege": "unknown"
+    },
+    "tcp-7990-instance-of-bitbucket-8-17-0": {
+      "kind": "instance-of",
+      "from": "tcp-7990",
+      "to": "bitbucket-8-17-0"
+    },
+    "10-0-2-114-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-114",
+      "to": "lan"
+    },
+    "10-0-2-114-hosts-http-2": {
+      "kind": "hosts",
+      "from": "10-0-2-114",
+      "to": "http-2",
+      "privilege": "unknown"
+    },
+    "http-2-instance-of-apache-httpd-2-4-57": {
+      "kind": "instance-of",
+      "from": "http-2",
+      "to": "apache-httpd-2-4-57"
+    },
+    "10-0-2-125-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-125",
+      "to": "lan"
+    },
+    "10-0-2-125-hosts-http-proxy-4": {
+      "kind": "hosts",
+      "from": "10-0-2-125",
+      "to": "http-proxy-4",
+      "privilege": "unknown"
+    },
+    "http-proxy-4-instance-of-apache-guacamole": {
+      "kind": "instance-of",
+      "from": "http-proxy-4",
+      "to": "apache-guacamole"
+    },
+    "10-0-2-133-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-133",
+      "to": "lan"
+    },
+    "10-0-2-133-hosts-tcp-5000": {
+      "kind": "hosts",
+      "from": "10-0-2-133",
+      "to": "tcp-5000",
+      "privilege": "unknown"
+    },
+    "tcp-5000-instance-of-nginx": {
+      "kind": "instance-of",
+      "from": "tcp-5000",
+      "to": "nginx"
+    },
+    "10-0-2-135-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-135",
+      "to": "lan"
+    },
+    "10-0-2-135-hosts-http-3": {
+      "kind": "hosts",
+      "from": "10-0-2-135",
+      "to": "http-3",
+      "privilege": "unknown"
+    },
+    "http-3-instance-of-fritz-box": {
+      "kind": "instance-of",
+      "from": "http-3",
+      "to": "fritz-box"
+    },
+    "10-0-2-136-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-136",
+      "to": "lan"
+    },
+    "10-0-2-136-hosts-http-4": {
+      "kind": "hosts",
+      "from": "10-0-2-136",
+      "to": "http-4",
+      "privilege": "unknown"
+    },
+    "http-4-instance-of-mikrotik-routeros-7-13-2": {
+      "kind": "instance-of",
+      "from": "http-4",
+      "to": "mikrotik-routeros-7-13-2"
+    },
+    "10-0-2-138-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-138",
+      "to": "lan"
+    },
+    "10-0-2-138-hosts-http-proxy-5": {
+      "kind": "hosts",
+      "from": "10-0-2-138",
+      "to": "http-proxy-5",
+      "privilege": "unknown"
+    },
+    "http-proxy-5-instance-of-apache-tomcat-10-1-18": {
+      "kind": "instance-of",
+      "from": "http-proxy-5",
+      "to": "apache-tomcat-10-1-18"
+    },
+    "10-0-2-139-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-139",
+      "to": "lan"
+    },
+    "10-0-2-139-hosts-tcp-7001": {
+      "kind": "hosts",
+      "from": "10-0-2-139",
+      "to": "tcp-7001",
+      "privilege": "unknown"
+    },
+    "tcp-7001-instance-of-oracle-weblogic-server-14-1-1-0-0": {
+      "kind": "instance-of",
+      "from": "tcp-7001",
+      "to": "oracle-weblogic-server-14-1-1-0-0"
+    },
+    "10-0-2-140-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-140",
+      "to": "lan"
+    },
+    "10-0-2-140-hosts-tcp-8000-3": {
+      "kind": "hosts",
+      "from": "10-0-2-140",
+      "to": "tcp-8000-3",
+      "privilege": "unknown"
+    },
+    "tcp-8000-3-instance-of-sap-netweaver": {
+      "kind": "instance-of",
+      "from": "tcp-8000-3",
+      "to": "sap-netweaver"
+    },
+    "10-0-2-141-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-141",
+      "to": "lan"
+    },
+    "10-0-2-141-hosts-http-5": {
+      "kind": "hosts",
+      "from": "10-0-2-141",
+      "to": "http-5",
+      "privilege": "unknown"
+    },
+    "http-5-instance-of-apache-httpd-2-4-57": {
+      "kind": "instance-of",
+      "from": "http-5",
+      "to": "apache-httpd-2-4-57"
+    },
+    "10-0-2-142-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-142",
+      "to": "lan"
+    },
+    "10-0-2-142-hosts-tcp-8200": {
+      "kind": "hosts",
+      "from": "10-0-2-142",
+      "to": "tcp-8200",
+      "privilege": "unknown"
+    },
+    "tcp-8200-instance-of-hashicorp-vault-1-15-4": {
+      "kind": "instance-of",
+      "from": "tcp-8200",
+      "to": "hashicorp-vault-1-15-4"
+    },
+    "web-hosts-grafana": {
+      "kind": "hosts",
+      "from": "web",
+      "to": "grafana",
+      "privilege": "unknown"
+    },
+    "grafana-instance-of-grafana-10-2-3": {
+      "kind": "instance-of",
+      "from": "grafana",
+      "to": "grafana-10-2-3"
+    },
+    "fw-corp-example-hosts-pfsense": {
+      "kind": "hosts",
+      "from": "fw-corp-example",
+      "to": "pfsense",
+      "privilege": "unknown"
+    },
+    "pfsense-instance-of-pfsense-2": {
+      "kind": "instance-of",
+      "from": "pfsense",
+      "to": "pfsense-2"
+    },
+    "gitlab-corp-example-hosts-gitlab": {
+      "kind": "hosts",
+      "from": "gitlab-corp-example",
+      "to": "gitlab",
+      "privilege": "unknown"
+    },
+    "gitlab-instance-of-gitlab-2": {
+      "kind": "instance-of",
+      "from": "gitlab",
+      "to": "gitlab-2"
+    },
+    "harbor-corp-example-hosts-harbor": {
+      "kind": "hosts",
+      "from": "harbor-corp-example",
+      "to": "harbor",
+      "privilege": "unknown"
+    },
+    "harbor-instance-of-harbor-2-10-0-6abb4eab": {
+      "kind": "instance-of",
+      "from": "harbor",
+      "to": "harbor-2-10-0-6abb4eab"
+    },
+    "cloud-corp-example-hosts-nextcloud": {
+      "kind": "hosts",
+      "from": "cloud-corp-example",
+      "to": "nextcloud",
+      "privilege": "unknown"
+    },
+    "nextcloud-instance-of-nextcloud-28-0-2-5": {
+      "kind": "instance-of",
+      "from": "nextcloud",
+      "to": "nextcloud-28-0-2-5"
+    },
+    "webmail-corp-example-hosts-roundcube-webmail": {
+      "kind": "hosts",
+      "from": "webmail-corp-example",
+      "to": "roundcube-webmail",
+      "privilege": "unknown"
+    },
+    "roundcube-webmail-instance-of-roundcube-webmail-1-6-11": {
+      "kind": "instance-of",
+      "from": "roundcube-webmail",
+      "to": "roundcube-webmail-1-6-11"
+    },
+    "mail-corp-example-hosts-outlook-on-the-web": {
+      "kind": "hosts",
+      "from": "mail-corp-example",
+      "to": "outlook-on-the-web",
+      "privilege": "unknown"
+    },
+    "outlook-on-the-web-instance-of-outlook-on-the-web-15-2-1258-28": {
+      "kind": "instance-of",
+      "from": "outlook-on-the-web",
+      "to": "outlook-on-the-web-15-2-1258-28"
+    },
+    "intranet-corp-example-hosts-sharepoint": {
+      "kind": "hosts",
+      "from": "intranet-corp-example",
+      "to": "sharepoint",
+      "privilege": "unknown"
+    },
+    "sharepoint-instance-of-sharepoint-16-0-0-10396": {
+      "kind": "instance-of",
+      "from": "sharepoint",
+      "to": "sharepoint-16-0-0-10396"
+    },
+    "adfs-corp-example-hosts-ad-fs": {
+      "kind": "hosts",
+      "from": "adfs-corp-example",
+      "to": "ad-fs",
+      "privilege": "unknown"
+    },
+    "ad-fs-instance-of-ad-fs-2": {
+      "kind": "instance-of",
+      "from": "ad-fs",
+      "to": "ad-fs-2"
+    },
+    "backup-corp-example-hosts-veeam-backup-enterprise-manager": {
+      "kind": "hosts",
+      "from": "backup-corp-example",
+      "to": "veeam-backup-enterprise-manager",
+      "privilege": "unknown"
+    },
+    "veeam-backup-enterprise-manager-instance-of-veeam-backup-enterprise-manager-12-1-0-2131": {
+      "kind": "instance-of",
+      "from": "veeam-backup-enterprise-manager",
+      "to": "veeam-backup-enterprise-manager-12-1-0-2131"
+    },
+    "10-0-2-15-hosts-jenkins": {
+      "kind": "hosts",
+      "from": "10-0-2-15",
+      "to": "jenkins",
+      "privilege": "unknown"
+    },
+    "jenkins-instance-of-jenkins-2-440-1": {
+      "kind": "instance-of",
+      "from": "jenkins",
+      "to": "jenkins-2-440-1"
+    },
+    "10-0-2-102-hosts-zabbix": {
+      "kind": "hosts",
+      "from": "10-0-2-102",
+      "to": "zabbix",
+      "privilege": "unknown"
+    },
+    "zabbix-instance-of-zabbix-2": {
+      "kind": "instance-of",
+      "from": "zabbix",
+      "to": "zabbix-2"
+    },
+    "10-0-2-114-hosts-wordpress": {
+      "kind": "hosts",
+      "from": "10-0-2-114",
+      "to": "wordpress",
+      "privilege": "unknown"
+    },
+    "wordpress-instance-of-wordpress-6-4-3": {
+      "kind": "instance-of",
+      "from": "wordpress",
+      "to": "wordpress-6-4-3"
+    },
+    "10-0-2-133-hosts-synology-dsm": {
+      "kind": "hosts",
+      "from": "10-0-2-133",
+      "to": "synology-dsm",
+      "privilege": "unknown"
+    },
+    "synology-dsm-instance-of-synology-dsm-2": {
+      "kind": "instance-of",
+      "from": "synology-dsm",
+      "to": "synology-dsm-2"
+    },
+    "10-0-2-141-hosts-phpmyadmin": {
+      "kind": "hosts",
+      "from": "10-0-2-141",
+      "to": "phpmyadmin",
+      "privilege": "unknown"
+    },
+    "phpmyadmin-instance-of-phpmyadmin-5-2-1": {
+      "kind": "instance-of",
+      "from": "phpmyadmin",
+      "to": "phpmyadmin-5-2-1"
+    }
+  },
+  "flows": {
+    "f1": {
+      "label": "ssh on Server",
+      "source": "nmap",
+      "target": "sshd",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/22"
+    },
+    "f2": {
+      "label": "ftp on Server",
+      "source": "nmap",
+      "target": "ftpd",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/21"
+    },
+    "f3": {
+      "label": "smtp on Server",
+      "source": "nmap",
+      "target": "smtpd",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/25"
+    },
+    "f4": {
+      "label": "https on Web 1",
+      "source": "nmap",
+      "target": "https",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443"
+    },
+    "imap-on-server": {
+      "label": "imap on Server",
+      "source": "nuclei",
+      "target": "imap",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/143",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-2222-on-server": {
+      "label": "tcp/2222 on Server",
+      "source": "nuclei",
+      "target": "tcp-2222",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/2222",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "mysql-on-server": {
+      "label": "mysql on Server",
+      "source": "nuclei",
+      "target": "mysql",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/3306",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "ftp-on-10-0-2-6": {
+      "label": "ftp on 10.0.2.6",
+      "source": "nuclei",
+      "target": "ftp",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/21",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "smtp-on-10-0-2-6": {
+      "label": "smtp on 10.0.2.6",
+      "source": "nuclei",
+      "target": "smtp",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/25",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "pop3-on-10-0-2-6": {
+      "label": "pop3 on 10.0.2.6",
+      "source": "nuclei",
+      "target": "pop3",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/110",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "imap-on-10-0-2-6": {
+      "label": "imap on 10.0.2.6",
+      "source": "nuclei",
+      "target": "imap-2",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/143",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "smtps-on-10-0-2-6": {
+      "label": "smtps on 10.0.2.6",
+      "source": "nuclei",
+      "target": "smtps",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/465",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "submission-on-10-0-2-6": {
+      "label": "submission on 10.0.2.6",
+      "source": "nuclei",
+      "target": "submission",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/587",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-2222-on-10-0-2-6": {
+      "label": "tcp/2222 on 10.0.2.6",
+      "source": "nuclei",
+      "target": "tcp-2222-2",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/2222",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "mysql-on-10-0-2-6": {
+      "label": "mysql on 10.0.2.6",
+      "source": "nuclei",
+      "target": "mysql-2",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/3306",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-wiki-corp-example": {
+      "label": "https on wiki.corp.example",
+      "source": "nuclei",
+      "target": "https-2",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-8006-on-pve1-corp-example": {
+      "label": "tcp/8006 on pve1.corp.example",
+      "source": "nuclei",
+      "target": "tcp-8006",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8006",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-proxy-corp-example": {
+      "label": "https on proxy.corp.example",
+      "source": "nuclei",
+      "target": "https-3",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-portal-corp-example": {
+      "label": "https on portal.corp.example",
+      "source": "nuclei",
+      "target": "https-4",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-fw-corp-example": {
+      "label": "https on fw.corp.example",
+      "source": "nuclei",
+      "target": "https-5",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-10000-on-10-0-2-16": {
+      "label": "tcp/10000 on 10.0.2.16",
+      "source": "nuclei",
+      "target": "tcp-10000",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/10000",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-prtg-corp-example": {
+      "label": "https on prtg.corp.example",
+      "source": "nuclei",
+      "target": "https-6",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-gitlab-corp-example": {
+      "label": "https on gitlab.corp.example",
+      "source": "nuclei",
+      "target": "https-7",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-harbor-corp-example": {
+      "label": "https on harbor.corp.example",
+      "source": "nuclei",
+      "target": "https-8",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-cloud-corp-example": {
+      "label": "https on cloud.corp.example",
+      "source": "nuclei",
+      "target": "https-9",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-webmail-corp-example": {
+      "label": "https on webmail.corp.example",
+      "source": "nuclei",
+      "target": "https-10",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-zimbra-corp-example": {
+      "label": "https on zimbra.corp.example",
+      "source": "nuclei",
+      "target": "https-11",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-mail-corp-example": {
+      "label": "https on mail.corp.example",
+      "source": "nuclei",
+      "target": "https-12",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-intranet-corp-example": {
+      "label": "https on intranet.corp.example",
+      "source": "nuclei",
+      "target": "https-13",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-alt-on-keycloak-corp-example": {
+      "label": "https-alt on keycloak.corp.example",
+      "source": "nuclei",
+      "target": "https-alt",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-adfs-corp-example": {
+      "label": "https on adfs.corp.example",
+      "source": "nuclei",
+      "target": "https-14",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-gateway-corp-example": {
+      "label": "https on gateway.corp.example",
+      "source": "nuclei",
+      "target": "https-15",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-vpn-corp-example": {
+      "label": "https on vpn.corp.example",
+      "source": "nuclei",
+      "target": "https-16",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-connect-corp-example": {
+      "label": "https on connect.corp.example",
+      "source": "nuclei",
+      "target": "https-17",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-asa-corp-example": {
+      "label": "https on asa.corp.example",
+      "source": "nuclei",
+      "target": "https-18",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-10443-on-fortigate-corp-example": {
+      "label": "tcp/10443 on fortigate.corp.example",
+      "source": "nuclei",
+      "target": "tcp-10443",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/10443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-bigip-corp-example": {
+      "label": "https on bigip.corp.example",
+      "source": "nuclei",
+      "target": "https-19",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-sma-corp-example": {
+      "label": "https on sma.corp.example",
+      "source": "nuclei",
+      "target": "https-20",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-vcenter-corp-example": {
+      "label": "https on vcenter.corp.example",
+      "source": "nuclei",
+      "target": "https-21",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-esx01-corp-example": {
+      "label": "https on esx01.corp.example",
+      "source": "nuclei",
+      "target": "https-22",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-ilo01-corp-example": {
+      "label": "https on ilo01.corp.example",
+      "source": "nuclei",
+      "target": "https-23",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-idrac01-corp-example": {
+      "label": "https on idrac01.corp.example",
+      "source": "nuclei",
+      "target": "https-24",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "https-on-opnsense-corp-example": {
+      "label": "https on opnsense.corp.example",
+      "source": "nuclei",
+      "target": "https-25",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-9443-on-portainer-corp-example": {
+      "label": "tcp/9443 on portainer.corp.example",
+      "source": "nuclei",
+      "target": "tcp-9443",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/9443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-9443-on-backup-corp-example": {
+      "label": "tcp/9443 on backup.corp.example",
+      "source": "nuclei",
+      "target": "tcp-9443-2",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/9443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-proxy-on-10-0-2-60": {
+      "label": "http-proxy on 10.0.2.60",
+      "source": "nuclei",
+      "target": "http-proxy",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8080",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-8000-on-10-0-2-62": {
+      "label": "tcp/8000 on 10.0.2.62",
+      "source": "nuclei",
+      "target": "tcp-8000",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8000",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-proxy-on-10-0-2-15": {
+      "label": "http-proxy on 10.0.2.15",
+      "source": "nuclei",
+      "target": "http-proxy-2",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8080",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-5601-on-10-0-2-100": {
+      "label": "tcp/5601 on 10.0.2.100",
+      "source": "nuclei",
+      "target": "tcp-5601",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/5601",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-9200-on-10-0-2-101": {
+      "label": "tcp/9200 on 10.0.2.101",
+      "source": "nuclei",
+      "target": "tcp-9200",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/9200",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-on-10-0-2-102": {
+      "label": "http on 10.0.2.102",
+      "source": "nuclei",
+      "target": "http",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/80",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-8000-on-10-0-2-104": {
+      "label": "tcp/8000 on 10.0.2.104",
+      "source": "nuclei",
+      "target": "tcp-8000-2",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8000",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-3000-on-10-0-2-106": {
+      "label": "tcp/3000 on 10.0.2.106",
+      "source": "nuclei",
+      "target": "tcp-3000",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/3000",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-9000-on-10-0-2-107": {
+      "label": "tcp/9000 on 10.0.2.107",
+      "source": "nuclei",
+      "target": "tcp-9000",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/9000",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-8081-on-10-0-2-108": {
+      "label": "tcp/8081 on 10.0.2.108",
+      "source": "nuclei",
+      "target": "tcp-8081",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8081",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-8090-on-10-0-2-110": {
+      "label": "tcp/8090 on 10.0.2.110",
+      "source": "nuclei",
+      "target": "tcp-8090",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8090",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-proxy-on-10-0-2-111": {
+      "label": "http-proxy on 10.0.2.111",
+      "source": "nuclei",
+      "target": "http-proxy-3",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8080",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-7990-on-10-0-2-112": {
+      "label": "tcp/7990 on 10.0.2.112",
+      "source": "nuclei",
+      "target": "tcp-7990",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/7990",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-on-10-0-2-114": {
+      "label": "http on 10.0.2.114",
+      "source": "nuclei",
+      "target": "http-2",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/80",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-proxy-on-10-0-2-125": {
+      "label": "http-proxy on 10.0.2.125",
+      "source": "nuclei",
+      "target": "http-proxy-4",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8080",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-5000-on-10-0-2-133": {
+      "label": "tcp/5000 on 10.0.2.133",
+      "source": "nuclei",
+      "target": "tcp-5000",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/5000",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-on-10-0-2-135": {
+      "label": "http on 10.0.2.135",
+      "source": "nuclei",
+      "target": "http-3",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/80",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-on-10-0-2-136": {
+      "label": "http on 10.0.2.136",
+      "source": "nuclei",
+      "target": "http-4",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/80",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-proxy-on-10-0-2-138": {
+      "label": "http-proxy on 10.0.2.138",
+      "source": "nuclei",
+      "target": "http-proxy-5",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8080",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-7001-on-10-0-2-139": {
+      "label": "tcp/7001 on 10.0.2.139",
+      "source": "nuclei",
+      "target": "tcp-7001",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/7001",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-8000-on-10-0-2-140": {
+      "label": "tcp/8000 on 10.0.2.140",
+      "source": "nuclei",
+      "target": "tcp-8000-3",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8000",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-on-10-0-2-141": {
+      "label": "http on 10.0.2.141",
+      "source": "nuclei",
+      "target": "http-5",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/80",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-8200-on-10-0-2-142": {
+      "label": "tcp/8200 on 10.0.2.142",
+      "source": "nuclei",
+      "target": "tcp-8200",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8200",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "grafana-behind-https-on-web-1": {
+      "label": "Grafana behind https on Web 1",
+      "source": "https",
+      "target": "grafana",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "pfsense-behind-https-on-fw-corp-example": {
+      "label": "pfSense behind https on fw.corp.example",
+      "source": "https-5",
+      "target": "pfsense",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "gitlab-behind-https-on-gitlab-corp-example": {
+      "label": "GitLab behind https on gitlab.corp.example",
+      "source": "https-7",
+      "target": "gitlab",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "harbor-behind-https-on-harbor-corp-example": {
+      "label": "Harbor behind https on harbor.corp.example",
+      "source": "https-8",
+      "target": "harbor",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "nextcloud-behind-https-on-cloud-corp-example": {
+      "label": "Nextcloud behind https on cloud.corp.example",
+      "source": "https-9",
+      "target": "nextcloud",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "roundcube-webmail-behind-https-on-webmail-corp-example": {
+      "label": "Roundcube Webmail behind https on webmail.corp.example",
+      "source": "https-10",
+      "target": "roundcube-webmail",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "outlook-on-the-web-behind-https-on-mail-corp-example": {
+      "label": "Outlook on the web behind https on mail.corp.example",
+      "source": "https-12",
+      "target": "outlook-on-the-web",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "sharepoint-behind-https-on-intranet-corp-example": {
+      "label": "SharePoint behind https on intranet.corp.example",
+      "source": "https-13",
+      "target": "sharepoint",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "ad-fs-behind-https-on-adfs-corp-example": {
+      "label": "AD FS behind https on adfs.corp.example",
+      "source": "https-14",
+      "target": "ad-fs",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "veeam-backup-enterprise-manager-behind-tcp-9443-on-backup-corp-example": {
+      "label": "Veeam Backup Enterprise Manager behind tcp/9443 on backup.corp.example",
+      "source": "tcp-9443-2",
+      "target": "veeam-backup-enterprise-manager",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "jenkins-behind-http-proxy-on-10-0-2-15": {
+      "label": "Jenkins behind http-proxy on 10.0.2.15",
+      "source": "http-proxy-2",
+      "target": "jenkins",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "zabbix-behind-http-on-10-0-2-102": {
+      "label": "Zabbix behind http on 10.0.2.102",
+      "source": "http",
+      "target": "zabbix",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "wordpress-behind-http-on-10-0-2-114": {
+      "label": "WordPress behind http on 10.0.2.114",
+      "source": "http-2",
+      "target": "wordpress",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "synology-dsm-behind-tcp-5000-on-10-0-2-133": {
+      "label": "Synology DSM behind tcp/5000 on 10.0.2.133",
+      "source": "tcp-5000",
+      "target": "synology-dsm",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "phpmyadmin-behind-http-on-10-0-2-141": {
+      "label": "phpMyAdmin behind http on 10.0.2.141",
+      "source": "http-5",
+      "target": "phpmyadmin",
+      "route": [
+        "lan"
+      ],
+      "protocol": "http",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    }
+  },
+  "attacker": {
+    "footholds": []
+  },
+  "scenarios": {},
+  "analysis": {
+    "seed": 42,
+    "samples": 10000,
+    "confidence": 0.95
+  }
+}

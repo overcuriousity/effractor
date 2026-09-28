@@ -334,6 +334,19 @@ fn the_nuclei_import_fixture_is_a_valid_architecture() {
     assert!(text.contains("patched: false"), "{text}");
 }
 
+/// What effractor's own nuclei templates add (nuclei templates spec §5):
+/// products, the application behind a server, names on hosts.
+#[test]
+fn the_nuclei_identify_fixture_is_a_valid_architecture() {
+    let text = fixture_is_valid("nuclei", "imported-identify.doc.json");
+    assert!(text.contains("label: Grafana 10.2.3"), "{text}");
+    assert!(
+        text.contains("    names: [grafana.corp.example, metrics.corp.example]"),
+        "{text}"
+    );
+    assert!(text.contains("protocol: http\n"), "{text}");
+}
+
 fn nmap_fixture_is_valid(name: &str) -> String {
     fixture_is_valid("nmap", name)
 }
