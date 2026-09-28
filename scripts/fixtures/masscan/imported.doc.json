@@ -35,6 +35,9 @@
       "identities": [
         "mac:52:54:00:12:34:56"
       ],
+      "names": [
+        "srv-01.lab"
+      ],
       "seen": "2026-09-24",
       "vendor": "QEMU virtual NIC"
     },

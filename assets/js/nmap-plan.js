@@ -84,6 +84,25 @@
     hosts.forEach(function (h) {
       (doc.entities[h].identities || []).forEach(function (i) { (byIdentity[i] = byIdentity[i] || []).push(h); });
     });
+    // Nuclei templates spec §8: the names drawn hosts keep.
+    var byName = Object.create(null);
+    hosts.forEach(function (h) {
+      (doc.entities[h].names || []).forEach(function (n) { (byName[n] = byName[n] || []).push(h); });
+    });
+    function namesOf(h) {
+      var good = [], said = [];
+      (h.names || []).forEach(function (x) {
+        var n = String(x.name || "").toLowerCase().replace(/\.$/, "");
+        if (A.isName(n)) {
+          if (good.indexOf(n) < 0) good.push(n);
+        } else if (said.indexOf(x.name) < 0) said.push(x.name);
+      });
+      return { good: good, said: said };
+    }
+    // The first of its names that is one: a wildcard labels nothing.
+    function bestName(h) {
+      return (h.names || []).filter(function (x) { return A.isName(String(x.name || "").toLowerCase().replace(/\.$/, "")); })[0] || null;
+    }
     function whoIs(h) {
       var one = null, shared = null;
       (h.identities || []).forEach(function (i) {
@@ -126,7 +145,7 @@
     // author gave is never offered for replacement (spec §3.4).
     function renameOf(target, h) {
       var e = doc.entities[target];
-      var best = (h.names || [])[0];
+      var best = bestName(h);
       if (!best || !bytes(String(e.label).trim()) || best.name === e.label) return null;
       return { to: best.name, from: best.from };
     }
@@ -212,6 +231,21 @@
         takenBy[appHost] = own.key;
       }
     }
+    // A scanned host without an address is the one drawn host that keeps
+    // its name; one with an address is not, since hosts share names.
+    rows.forEach(function (r) {
+      if (r.known || r.merged || r.conflict || has(merges, r.key) || r.scan.addresses.length) return;
+      var keepers = [];
+      namesOf(r.scan).good.forEach(function (n) {
+        (byName[n] || []).forEach(function (h) { if (keepers.indexOf(h) < 0) keepers.push(h); });
+      });
+      if (keepers.length !== 1 || takenBy[keepers[0]]) return;
+      r.merged = keepers[0];
+      r.guessed = true;
+      r.guessedBy = "name";
+      r.matchedBy = "name";
+      takenBy[keepers[0]] = r.key;
+    });
     // A drawn host without addresses that has the scanned host's name is
     // guessed to be it, as nmap's own host is (spec §3.3).
     rows.forEach(function (r) {
@@ -262,8 +296,10 @@
 
     var planned = rows.map(function (r) {
       var h = r.scan, target = r.known || r.merged;
-      var label = target ? doc.entities[target].label : ((h.names || [])[0] || {}).name || h.hostname || h.addresses[0];
+      var label = target ? doc.entities[target].label : (bestName(h) || {}).name || h.hostname || h.addresses[0];
       var have = target ? doc.entities[target].identities || [] : [];
+      var called = namesOf(h);
+      var kept = target ? doc.entities[target].names || [] : [];
       var shared = appNets.filter(function (n) { return r.on.indexOf(n) >= 0; });
       var offered = !(target && runsRouter(doc, target));
       var suggested = roleOf(h.device);
@@ -302,6 +338,9 @@
         identities: (h.identities || []).slice(),
         newIdentities: (h.identities || []).filter(function (i) { return have.indexOf(i) < 0; }),
         vendor: h.vendor || null,
+        names: called.good,
+        newNames: called.good.filter(function (n) { return kept.indexOf(n) < 0; }),
+        saidNames: called.said,
         seen: target ? doc.entities[target].seen || null : null,
         missed: target ? doc.entities[target].missed || null : null,
         moved: r.known && r.matchedBy === "identity" ? movedOf(r.known, h) : null,
@@ -479,7 +518,7 @@
   }
 
   function defaults(p) {
-    var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true, identities: {}, moves: {}, strips: {}, renames: {}, seen: true, routers: {} };
+    var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true, identities: {}, names: {}, moves: {}, strips: {}, renames: {}, seen: true, routers: {} };
     (p.routers || []).forEach(function (r) { t.routers[r.key] = true; });
     // A change is done only when ticked (spec §5.2).
     t.changes = {};
@@ -489,6 +528,7 @@
       t.hosts[h.key] = !h.conflict || h.conflict.choice === "same";
       // What only adds knowledge is ticked; taking from another host is not.
       t.identities[h.key] = true;
+      t.names[h.key] = true;
       t.moves[h.key] = true;
       t.strips[h.key] = false;
       t.renames[h.key] = true;
@@ -534,6 +574,7 @@
     var same = !!h.conflict && h.conflict.choice === "same";
     return {
       identities: on("identities") || same ? h.newIdentities : [],
+      names: on("names") ? h.newNames : [],
       replaces: same,
       move: !!h.moved && on("moves"),
       strip: !!h.moved && h.moved.others.length > 0 && on("strips"),
@@ -543,7 +584,7 @@
   }
 
   function summary(doc, p, ticks, limits) {
-    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, moved: 0, renamed: 0, seen: 0, changes: Ch.changesTicked(p, ticks) };
+    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, named: 0, moved: 0, renamed: 0, seen: 0, changes: Ch.changesTicked(p, ticks) };
     var rel = 0, newProducts = Object.create(null), marked = Object.create(null);
     var network = !!(p.network && ticks.network);
     // The proposed network as the rows name it: "new", or the drawn one chosen.
@@ -557,6 +598,7 @@
       if (added) s.hosts++;
       var does = doing(h, ticks, p);
       if (!added && does.identities.length) s.identified++;
+      if (!added && does.names.length) s.named++;
       if (does.move) s.moved++;
       if (does.rename) s.renamed++;
       if (!added && does.seen) s.seen++;
@@ -638,6 +680,7 @@
     if (s.filled) parts.push("addresses for " + n(s.filled, "drawn host"));
     if (s.filledNetworks) parts.push("addresses for " + n(s.filledNetworks, "drawn network"));
     if (s.identified) parts.push("identities for " + n(s.identified, "drawn host"));
+    if (s.named) parts.push("names for " + n(s.named, "drawn host"));
     var more = [];
     if (s.unpatched) more.push("marks " + n(s.unpatched, "product") + " unpatched");
     if (s.moved) more.push("moves " + n(s.moved, "host"));
@@ -673,7 +716,7 @@
     var s = summary(doc, p, ticks, null);
     var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged; });
     var stripping = p.hosts.some(function (h) { return ticks.hosts[h.key] && doing(h, ticks, p).strip; });
-    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.moved && !s.renamed && !s.seen && !stripping && !s.changes) return null;
+    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.named && !s.moved && !s.renamed && !s.seen && !stripping && !s.changes) return null;
     var next = JSON.parse(JSON.stringify(doc));
     function step(edit) {
       if (!edit) throw new Error("the nmap import could not be applied");
@@ -719,6 +762,7 @@
         next.entities[host].addresses = h.addresses.slice();
         if (h.os) next.entities[host].description = h.os;
         if (h.identities.length) next.entities[host].identities = h.identities.slice();
+        if (h.names.length && ticks.names && ticks.names[h.key]) next.entities[host].names = h.names.slice();
         if (p.date && ticks.seen === true) next.entities[host].seen = p.date;
       } else {
         var e = next.entities[host];
@@ -726,6 +770,7 @@
           var types = does.replaces ? h.identities.map(typeOf) : [];
           e.identities = (e.identities || []).filter(function (i) { return types.indexOf(typeOf(i)) < 0; }).concat(does.identities);
         }
+        if (does.names.length) e.names = (e.names || []).concat(does.names);
         if (does.move) {
           without(host, h.moved.from);
           e.addresses = (e.addresses || []).concat(h.moved.to);

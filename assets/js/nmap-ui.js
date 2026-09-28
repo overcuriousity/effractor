@@ -449,6 +449,12 @@
       });
     }
     if (h.rename) offer("renames", "rename to “" + h.rename.to + "” · its " + h.rename.from + " name");
+    // Nuclei templates spec §8: the names it bears, kept on the host.
+    if (h.newNames.length) {
+      if (target) offer("names", "keeps " + (h.newNames.length === 1 ? "the name " : "the names ") + h.newNames.join(", "));
+      else list.appendChild(plain(h.newNames.join(", ")));
+    }
+    if (h.saidNames.length) list.appendChild(plain("not kept, no DNS name: " + h.saidNames.join(", ")));
     if (h.newIdentities.length) {
       var words = N.identityWords(h.newIdentities, h.vendor);
       if (target && !(h.conflict && h.conflict.choice === "same")) offer("identities", "adds " + words);

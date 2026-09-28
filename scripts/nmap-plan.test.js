@@ -220,3 +220,82 @@ test('all hosts at once leaves out another machine on a drawn host\'s address', 
   assert.deepEqual(p.hosts.map(h => t.hosts[h.key]), [true, true, false]);
   assert.equal(N.identityWords(['mac:52:54:00:00:00:05', 'ssh-ed25519:aaaa0005', 'ecdsa-sha2-nistp256:ff'], 'QEMU virtual NIC'), 'MAC 52:54:00:00:00:05 (QEMU virtual NIC), SSH key ed25519, SSH key ecdsa-sha2-nistp256');
 });
+
+const named = (names, addresses) => ({
+  tool: 'nuclei', args: '', date: '2026-09-28', silentUdp: 0, probed: {}, types: [], sharedMacs: 0,
+  hosts: [{ addresses: addresses || [], hostname: names[0] || null, names: names.map(n => ({ name: n, from: 'certificate' })), identities: [], os: null, device: [], self: false, ports: [{ protocol: 'tcp', port: 443, state: 'open', reason: null, service: { name: 'https', product: null, version: null }, scripts: [], findings: [] }], scripts: [], findings: [], hostnames: [], vendor: null, trace: [], extraports: [] }],
+});
+function drawing() {
+  const d = E.empty();
+  d.entities = {
+    lan: { kind: 'network', label: 'LAN', addresses: ['10.0.1.0/24'] },
+    box: { kind: 'host', label: 'Admin box' },
+    nuclei: { kind: 'application', label: 'nuclei', tool: 'nuclei' },
+    web: { kind: 'host', label: 'Web 1', addresses: ['10.0.1.40'], names: ['grafana.corp.example'] },
+  };
+  d.associations = {
+    a1: { kind: 'attached', from: 'box', to: 'lan' },
+    a2: { kind: 'attached', from: 'web', to: 'lan' },
+    a3: { kind: 'hosts', from: 'box', to: 'nuclei', privilege: 'user' },
+  };
+  return d;
+}
+
+test('names a scan reads are kept on the host, each once, in lower case', () => {
+  const d = drawing();
+  const scan = named(['Grafana.corp.example', 'metrics.corp.example.', '*.corp.example', 'WEB 01'], ['10.0.1.40']);
+  const p = N.plan(d, 'nuclei', scan, '10.0.1.0/24', {});
+  const [h] = p.hosts;
+  assert.equal(h.known, 'web');
+  assert.deepEqual(h.names, ['grafana.corp.example', 'metrics.corp.example']);
+  assert.deepEqual(h.newNames, ['metrics.corp.example']);
+  assert.deepEqual(h.saidNames, ['*.corp.example', 'WEB 01']);
+  const t = N.defaults(p);
+  assert.equal(t.names[h.key], true);
+  assert.equal(N.summary(d, p, t, null).named, 1);
+  const out = N.apply(d, p, t, specOf, { line: 'Last nuclei import: 2026-09-28, scan.', pattern: /^Last nuclei import: .*$/m }).doc;
+  assert.deepEqual(out.entities.web.names, ['grafana.corp.example', 'metrics.corp.example']);
+  // Unticked, they are not kept.
+  t.names[h.key] = false;
+  const without = N.apply(d, p, t, specOf, { line: 'Last nuclei import: 2026-09-28, scan.', pattern: /^Last nuclei import: .*$/m }).doc;
+  assert.deepEqual(without.entities.web.names, ['grafana.corp.example']);
+  // Again: nothing to name.
+  const again = N.plan(out, 'nuclei', scan, '10.0.1.0/24', {});
+  assert.deepEqual(again.hosts[0].newNames, []);
+  assert.equal(N.summary(out, again, N.defaults(again), null).named, 0);
+});
+
+test('a new host is drawn with its names', () => {
+  const d = drawing();
+  const scan = named(['wiki.corp.example'], ['10.0.1.41']);
+  const p = N.plan(d, 'nuclei', scan, '10.0.1.0/24', {});
+  const out = N.apply(d, p, N.defaults(p), specOf, { line: 'Last nuclei import: 2026-09-28, scan.', pattern: /^Last nuclei import: .*$/m }).doc;
+  const id = Object.keys(out.entities).find(k => out.entities[k].label === 'wiki.corp.example');
+  assert.deepEqual(out.entities[id].names, ['wiki.corp.example']);
+  assert.equal(N.summary(d, p, N.defaults(p), null).named, 0, 'a new host is counted as a host');
+});
+
+test('a host known only by name is the drawn host that keeps the name', () => {
+  const d = drawing();
+  const p = N.plan(d, 'nuclei', named(['grafana.corp.example']), '', {});
+  assert.deepEqual([p.hosts[0].merged, p.hosts[0].guessedBy, p.hosts[0].matchedBy], ['web', 'name', 'name']);
+  // Kept on two hosts, it names neither.
+  d.entities.other = { kind: 'host', label: 'Web 2', addresses: ['10.0.1.42'], names: ['grafana.corp.example'] };
+  const q = N.plan(d, 'nuclei', named(['grafana.corp.example']), '', {});
+  assert.equal(q.hosts[0].merged, null);
+  // With an address of its own it is not matched by a name: names are shared.
+  const r = N.plan(drawing(), 'nuclei', named(['grafana.corp.example'], ['10.0.1.99']), '10.0.1.0/24', {});
+  assert.deepEqual([r.hosts[0].known, r.hosts[0].merged], [null, null]);
+});
+
+test('a wildcard labels nothing and renames nothing', () => {
+  const scan = named(['*.corp.example', 'Wiki.corp.example'], ['10.0.1.41']);
+  const p = N.plan(drawing(), 'nuclei', scan, '10.0.1.0/24', {});
+  assert.deepEqual([p.hosts[0].label, p.hosts[0].names, p.hosts[0].saidNames], ['Wiki.corp.example', ['wiki.corp.example'], ['*.corp.example']]);
+  const d = drawing();
+  d.entities.web.label = '10.0.1.40';
+  const q = N.plan(d, 'nuclei', named(['*.corp.example'], ['10.0.1.40']), '10.0.1.0/24', {});
+  assert.equal(q.hosts[0].rename, null);
+  const r = N.plan(d, 'nuclei', named(['*.corp.example', 'shop.corp.example'], ['10.0.1.40']), '10.0.1.0/24', {});
+  assert.deepEqual(r.hosts[0].rename, { to: 'shop.corp.example', from: 'certificate' });
+});

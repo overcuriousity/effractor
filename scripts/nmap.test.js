@@ -247,12 +247,13 @@ test('applying adds exactly what was ticked, once, and leaves the rest alone', (
   const out = edit.doc;
   for (const id of Object.keys(d.entities)) {
     // A host the scan saw gains what identified it and the day; nothing else.
-    const { identities, vendor, seen, ...rest } = out.entities[id];
+    const { identities, vendor, seen, names, ...rest } = out.entities[id];
     if (id !== 'nmap') assert.deepEqual(rest, d.entities[id], 'untouched: ' + id);
   }
   assert.deepEqual(out.entities.srv.identities, ['mac:52:54:00:12:34:56']);
   assert.equal(out.entities.srv.vendor, 'QEMU virtual NIC');
   assert.equal(out.entities.srv.seen, '2026-09-24');
+  assert.deepEqual(out.entities.srv.names, ['srv-01.lab'], 'and the name the scan read');
   for (const id of Object.keys(d.associations)) assert.deepEqual(out.associations[id], d.associations[id]);
   assert.deepEqual(out.flows.f1, d.flows.f1);
   assert.equal(out.entities.nmap.description, 'Last nmap import: 2026-09-24, scan of 10.0.1.0/24 · what runs there.');

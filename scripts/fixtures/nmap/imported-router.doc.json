@@ -41,6 +41,9 @@
       "identities": [
         "mac:3c:a6:2f:00:00:01"
       ],
+      "names": [
+        "fritz.box"
+      ],
       "seen": "2026-09-24",
       "vendor": "AVM GmbH"
     },
@@ -137,6 +140,9 @@
         "192.168.2.2"
       ],
       "description": "nmap OS guess: pfSense 2.4 (FreeBSD 11.2) (95%).",
+      "names": [
+        "opnsense.lab"
+      ],
       "seen": "2026-09-24"
     },
     "opnsense-lab-router": {
@@ -200,6 +206,9 @@
         "192.168.2.30"
       ],
       "description": "nmap OS guess: HP LaserJet printer (93%).",
+      "names": [
+        "printer.fritz.box"
+      ],
       "seen": "2026-09-24"
     },
     "ipp": {

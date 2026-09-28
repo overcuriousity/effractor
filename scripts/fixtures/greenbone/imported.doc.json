@@ -35,6 +35,9 @@
       "identities": [
         "mac:52:54:00:12:34:56"
       ],
+      "names": [
+        "srv-01.lab"
+      ],
       "seen": "2026-09-27",
       "vendor": "QEMU virtual NIC"
     },
@@ -191,6 +194,9 @@
         "10.0.1.30"
       ],
       "description": "Greenbone OS guess: Debian GNU/Linux 12.",
+      "names": [
+        "db-01.lab"
+      ],
       "seen": "2026-09-27"
     },
     "mysql": {
