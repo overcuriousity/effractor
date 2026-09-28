@@ -123,3 +123,78 @@ test('fish, bash and sh hand the programs the same arguments', { skip: SHELLS.le
 test('all three shells were there to ask', { skip: process.env.CI ? false : 'only CI must have sh, bash and fish' }, () => {
   assert.deepEqual(SHELLS, ['sh', 'bash', 'fish']);
 });
+
+const T = require('../assets/js/nuclei-templates.js');
+const E = require('../assets/js/architecture-edit.js');
+
+// effractor's own templates (nuclei templates spec §3): the command writes
+// files, so it is run with the real mkdir, echo and awk and a stand-in for
+// nuclei, and what every shell wrote is compared byte for byte.
+function ours() {
+  const d = E.empty();
+  d.entities = {
+    web: { kind: 'host', label: 'Web 1', addresses: ['10.0.1.40'], names: ['grafana.corp.example', 'metrics.corp.example'] },
+    six: { kind: 'host', label: 'six', addresses: ['fd00::5'] },
+    wiki: { kind: 'host', label: 'wiki.lab' },
+    alt: { kind: 'service', label: 'alt' },
+    web2: { kind: 'service', label: 'https' },
+    nu: { kind: 'application', label: 'nuclei', tool: 'nuclei' },
+  };
+  d.associations = { a: { kind: 'hosts', from: 'web', to: 'alt', privilege: 'unknown' }, b: { kind: 'hosts', from: 'wiki', to: 'web2', privilege: 'unknown' } };
+  d.flows = { f: { label: 'alt on Web 1', source: 'nu', target: 'alt', route: [], protocol: 'tcp/8444' } };
+  return [
+    T.command(['identify'], {}, '10.0.1.0/24', d),
+    T.command(['identify', 'connect'], { speed: 'gentle' }, '10.0.1.0/24 fd00::/64 wiki.lab', d),
+    T.command(['connect'], {}, 'https://wiki.lab:8443/a?b=1', d),
+  ].map(c => c.text);
+}
+
+test('effractor\'s templates: only what is quoted holds a shell\'s own signs', () => {
+  for (const c of ours()) {
+    const bare = c.replace(/'[^']*'/g, '');
+    assert.doesNotMatch(bare, /[\\"`$&|<(){}\[\]*?~#!^]/, bare);
+    assert.doesNotMatch(c, /\\/);
+    assert.equal(c.split("'").length % 2, 1, 'quotes close');
+    // Every `>` writes one of the command's own files.
+    for (const m of bare.match(/> [^\s;]+/g)) assert.match(m, /^> (effractor-templates\/effractor-[a-z-]+\.yaml|targets\.txt|names\.txt|resolvers\.txt)$/);
+  }
+});
+
+test('effractor\'s templates: fish, bash and sh write the same files and run nuclei the same way', { skip: SHELLS.length < 2 ? 'fewer than two of sh, bash, fish installed' : false }, () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'effractor-own-'));
+  try {
+    const bin = path.join(dir, 'bin');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'nuclei'), '#!/bin/sh\nfor a in "$@"; do printf \'%s\\n\' "$a"; done >> nuclei.args\nprintf \'%s\\n\' --- >> nuclei.args\n', { mode: 0o755 });
+    const env = Object.assign({}, process.env, { PATH: bin + path.delimiter + process.env.PATH, HOME: dir });
+    ours().forEach((c, i) => {
+      const wrote = {};
+      for (const shell of SHELLS) {
+        const cwd = path.join(dir, shell + '-' + i);
+        fs.mkdirSync(cwd);
+        const r = spawnSync(shell, shell === 'fish' ? ['--no-config', '-c', c] : ['-c', c], { cwd, env, encoding: 'utf8' });
+        assert.equal(r.status, 0, shell + ': ' + r.stderr);
+        assert.equal(r.stderr, '', shell);
+        const files = {};
+        for (const name of fs.readdirSync(cwd)) if (name !== 'effractor-templates' && name !== 'resolvers.txt') files[name] = fs.readFileSync(path.join(cwd, name), 'utf8');
+        for (const name of fs.readdirSync(path.join(cwd, 'effractor-templates'))) {
+          files[name] = fs.readFileSync(path.join(cwd, 'effractor-templates', name), 'utf8');
+          assert.equal(files[name], fs.readFileSync(path.join('assets/nuclei', name), 'utf8'), shell + ' wrote ' + name);
+        }
+        wrote[shell] = files;
+      }
+      for (const shell of SHELLS) assert.deepEqual(wrote[shell], wrote[SHELLS[0]], shell);
+      const first = wrote[SHELLS[0]];
+      if (i === 1) {
+        const lines = first['targets.txt'].trim().split('\n');
+        assert.equal(lines.length, 3 * T.USUAL_PORTS.length + 1);
+        assert.deepEqual([lines[0], lines[T.USUAL_PORTS.length], lines[2 * T.USUAL_PORTS.length], lines[lines.length - 1]], ['10.0.1.40:21', '[fd00::5]:21', 'wiki.lab:21', '10.0.1.40:8444']);
+        assert.equal(first['names.txt'], 'grafana.corp.example\nmetrics.corp.example\n');
+        assert.equal(first['nuclei.args'].split('---\n').filter(Boolean).length, 2, 'two runs');
+      }
+      assert.match(first['nuclei.args'], /^-t\neffractor-templates\//);
+    });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

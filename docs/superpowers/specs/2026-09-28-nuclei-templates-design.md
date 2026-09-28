@@ -106,15 +106,17 @@ One paste writes the templates and the targets, then runs nuclei:
 ```
 mkdir -p effractor-templates; echo 'id: effractor-banner
 info:
-  …' > effractor-templates/effractor-banner.yaml; echo '…' > effractor-templates/effractor-web.yaml; echo '…' > effractor-templates/effractor-certificate.yaml; echo '10.0.1.40:22
-10.0.1.40:80
-…' > targets.txt; nuclei -t effractor-templates/effractor-banner.yaml,effractor-templates/effractor-web.yaml,effractor-templates/effractor-certificate.yaml -list targets.txt -exclude-type dns -jsonl -silent -omit-raw -omit-template -no-interactsh -disable-update-check
+  …' > effractor-templates/effractor-banner.yaml; echo '…' > effractor-templates/effractor-web.yaml; echo '…' > effractor-templates/effractor-certificate.yaml; awk 'BEGIN { n = split("10.0.1.5 10.0.1.40", h, " "); m = split("21 22 25 80 …", p, " "); for (i = 1; i <= n; i++) for (j = 1; j <= m; j++) print h[i] ":" p[j]; print "10.0.1.40:8444" }' > targets.txt; nuclei -t effractor-templates/effractor-banner.yaml,… -list targets.txt -exclude-type dns -jsonl -silent -omit-raw -omit-template -no-interactsh -disable-update-check
 ```
 
 Only the ticked groups' templates are written, and `-t` names each written
-file, never the directory, which may hold others from an earlier run. `;`
-and `>` are the only shell syntax, as the fish rule has it
-(`docs/HANDOFF.md`).
+file, never the directory. The targets are written by `awk`, which crosses
+the hosts with the ports (amended with the plan, 2026-09-28: one line where
+`echo` would carry one per host and port). The names *How it connects* asks
+are written to `names.txt` and asked in a second run of nuclei, with the DNS
+template alone: a name is asked of a resolver and of nothing else, so a name
+that points outside is never sent a request. `;` and `>` are the only shell
+syntax, as the fish rule has it (`docs/HANDOFF.md`).
 
 **Flags.** Always `-jsonl -silent -omit-template -no-interactsh
 -disable-update-check`; `-omit-raw` always (these templates need no
@@ -133,6 +135,9 @@ The range field stays and is prefilled as today. The targets are:
   - every **usual port** (§3.2);
 - for *How it connects*, every name kept on those hosts (§8), bare, for the
   DNS template.
+
+An address, a name or a URL typed into the range is asked whether it is
+drawn or not: it was named by hand.
 
 IPv6 addresses are written `[fd00::5]:443`. A drawn host the range does not
 cover is left out. Where the range covers **nothing drawn**, the range itself

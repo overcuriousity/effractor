@@ -176,3 +176,25 @@ test('the dialog\'s words per recipe say what is drawn and what is only seen', (
   for (const id of informational) assert.match(C.command([id], {}, r).note, /only say a port is open/);
   assert.equal(C.command(['cves', 'tech'], {}, r).note, undefined, 'beside a recipe with findings nothing needs saying');
 });
+
+test('effractor\'s own templates: nothing asks a third party or hides a scan', () => {
+  const T = require('../assets/js/nuclei-templates.js');
+  const E = require('../assets/js/architecture-edit.js');
+  const d = E.empty();
+  d.entities = { h: { kind: 'host', label: 'app.lab', addresses: ['10.0.1.5'], names: ['app.corp.example'] }, s: { kind: 'service', label: 'https' } };
+  d.associations = { a: { kind: 'hosts', from: 'h', to: 's', privilege: 'unknown' } };
+  for (const groups of [['identify'], ['connect'], ['identify', 'connect']]) {
+    for (const range of ['10.0.1.0/24', 'app.lab', '10.0.1.5 app.lab']) {
+      const c = T.command(groups, {}, range, d);
+      const runs = c.text.split('; ').filter(p => /^nuclei /.test(p));
+      assert.ok(runs.length >= 1);
+      for (const run of runs) {
+        assert.match(run, / -no-interactsh /);
+        assert.match(run, / -disable-update-check$/);
+        assert.match(run, / -resolvers resolvers\.txt | -exclude-type dns /);
+        assert.doesNotMatch(run, / -(preflight-portscan|interactsh-server|cloud-upload|dashboard|uncover|ai|proxy|source-ip|interface|tls-impersonate|update|update-templates|templates-url|target) /);
+        assert.doesNotMatch(run, /https?:\/\//);
+      }
+    }
+  }
+});

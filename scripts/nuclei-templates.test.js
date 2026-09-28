@@ -77,3 +77,144 @@ test('the files the page serves are what the table writes', () => {
   for (const [id, text] of texts()) assert.equal(fs.readFileSync('assets/nuclei/' + id + '.yaml', 'utf8'), text, id + ': run node scripts/dev/nuclei-templates-write.js');
   assert.deepEqual(fs.readdirSync('assets/nuclei').sort(), ['README.md'].concat(T.TEMPLATES.map(t => t.id + '.yaml')).sort());
 });
+
+const E = require('../assets/js/architecture-edit.js');
+
+function drawing() {
+  const d = E.empty();
+  d.entities = {
+    lan: { kind: 'network', label: 'LAN', addresses: ['10.0.1.0/24'] },
+    box: { kind: 'host', label: 'Admin box', addresses: ['10.0.1.2'] },
+    nuclei: { kind: 'application', label: 'nuclei', tool: 'nuclei' },
+    web: { kind: 'host', label: 'Web 1', addresses: ['10.0.1.40', 'fd00::40'], names: ['grafana.corp.example', 'metrics.corp.example'] },
+    six: { kind: 'host', label: 'six', addresses: ['fd00::5'] },
+    wiki: { kind: 'host', label: 'wiki.lab' },
+    far: { kind: 'host', label: 'Far', addresses: ['10.9.9.9'], names: ['far.corp.example'] },
+    alt: { kind: 'service', label: 'alt' },
+    https: { kind: 'service', label: 'https' },
+  };
+  d.associations = {
+    a1: { kind: 'hosts', from: 'box', to: 'nuclei', privilege: 'user' },
+    a2: { kind: 'hosts', from: 'web', to: 'alt', privilege: 'unknown' },
+    a3: { kind: 'hosts', from: 'web', to: 'https', privilege: 'unknown' },
+  };
+  d.flows = {
+    f1: { label: 'alt on Web 1', source: 'nuclei', target: 'alt', route: [], protocol: 'tcp/8444' },
+    f2: { label: 'https on Web 1', source: 'nuclei', target: 'https', route: [], protocol: 'tcp/443' },
+    f3: { label: 'again', source: 'nuclei', target: 'alt', route: [], protocol: 'tcp/8444' },
+    f4: { label: 'dns', source: 'nuclei', target: 'alt', route: [], protocol: 'udp/53' },
+  };
+  return d;
+}
+
+test('spec §3.2: thirty-two usual ports', () => {
+  assert.equal(T.USUAL_PORTS.length, 32);
+  assert.deepEqual(T.USUAL_PORTS, T.USUAL_PORTS.slice().sort((a, b) => a - b));
+  assert.deepEqual(T.USUAL_PORTS.filter((p, i) => T.USUAL_PORTS.indexOf(p) !== i), []);
+  for (const p of [21, 22, 25, 80, 443, 465, 993, 3306, 8006, 8443, 10443]) assert.ok(T.USUAL_PORTS.includes(p), String(p));
+});
+
+test('spec §3.1: the drawn hosts the range covers, their drawn ports, and what was typed by hand', () => {
+  const t = T.targets(drawing(), '10.0.1.0/24 fd00::/64 wiki.lab 10.0.1.77', ['identify', 'connect']);
+  assert.deepEqual(t.hosts, ['10.0.1.2', '10.0.1.40', '[fd00::5]', 'wiki.lab', '10.0.1.77']);
+  assert.deepEqual(t.extra, ['10.0.1.40:8444'], 'a drawn port once, a usual one not again, UDP never');
+  assert.deepEqual(t.names, ['grafana.corp.example', 'metrics.corp.example']);
+  assert.equal(t.drawn, 4);
+  assert.equal(t.said, '4 drawn hosts, 32 usual ports and 1 drawn one, 2 names.');
+  assert.equal(t.resolves, true);
+  assert.deepEqual(t.notes, []);
+  // Without connect no name is asked.
+  const i = T.targets(drawing(), '10.0.1.0/24', ['identify']);
+  assert.deepEqual([i.hosts, i.names, i.resolves, i.said], [['10.0.1.2', '10.0.1.40'], [], false, '2 drawn hosts, 32 usual ports and 1 drawn one.']);
+  // A URL names its host; a name a drawn host keeps names that host, by
+  // the name, since it was the name that was typed.
+  const far = T.targets(drawing(), 'https://far.corp.example:8443/x', ['identify']);
+  assert.deepEqual([far.hosts, far.drawn, far.resolves], [['far.corp.example'], 1, true]);
+});
+
+test('spec §3.1: a range with nothing drawn in it is asked itself, up to 1,024 addresses', () => {
+  const t = T.targets(E.empty(), '10.0.1.0/30 10.0.2.8/31', ['identify']);
+  assert.deepEqual(t.hosts, ['10.0.1.1', '10.0.1.2', '10.0.2.8', '10.0.2.9']);
+  assert.equal(t.said, '4 hosts, 32 usual ports.');
+  assert.deepEqual(t.notes, ['Nothing is drawn in 10.0.1.0/30, 10.0.2.8/31 yet. nmap finds hosts faster.']);
+  assert.equal(T.targets(E.empty(), '10.0.0.0/22', ['identify']).hosts.length, 1022);
+  assert.equal(T.targets(E.empty(), '10.0.0.0/21', ['identify']).problem, 'Give a smaller range, or draw the hosts first with nmap.');
+  assert.equal(T.targets(E.empty(), '10.0.0.0/23 10.0.4.0/23', ['identify']).hosts.length, 1020);
+  assert.equal(T.targets(E.empty(), '10.0.0.0/22 10.0.4.0/29', ['identify']).problem, 'Give a smaller range, or draw the hosts first with nmap.');
+  assert.match(T.targets(E.empty(), 'fd00::/64', ['identify']).problem, /^Nothing is drawn in fd00::\/64 yet; give its hosts/);
+  assert.match(T.targets(E.empty(), '', ['identify']).problem, /^Give what to scan/);
+  // A drawn host outside the range is left out, and a range that holds one drawn host is not expanded.
+  assert.deepEqual(T.targets(drawing(), '10.9.9.0/24', ['identify']).hosts, ['10.9.9.9']);
+});
+
+test('what a shell reads as its own is refused in the range', () => {
+  for (const bad of ['10.0.1.5; id', '$(id)', '`id`', "10.0.1.5'", '10.0.1.5"', '-oN', '10.0.1.0/24 | x', 'a\\b', 'a b>c']) {
+    assert.match(T.targets(drawing(), bad, ['identify']).problem || '', /^The range may hold only/, bad);
+    assert.match(T.command(['identify'], {}, bad, drawing()).problem || '', /^The range may hold only/, bad);
+  }
+});
+
+test('spec §3: one paste writes the templates and the targets, then runs nuclei', () => {
+  const c = T.command(['identify'], {}, '10.0.1.0/24', drawing());
+  const parts = c.text.split('; ');
+  assert.equal(parts[0], 'mkdir -p effractor-templates');
+  for (const [i, id] of ['effractor-banner', 'effractor-web', 'effractor-certificate'].entries()) {
+    assert.equal(parts[i + 1], "echo '" + T.text(id).replace(/\n$/, '') + "' > effractor-templates/" + id + '.yaml');
+  }
+  // The awk program holds a `;` of its own: split on the shell's, between the quotes' ends.
+  const rest = c.text.slice(c.text.indexOf("; awk 'BEGIN") + 2);
+  assert.equal(rest, 'awk \'BEGIN { n = split("10.0.1.2 10.0.1.40", h, " "); m = split("' + T.USUAL_PORTS.join(' ') + '", p, " "); for (i = 1; i <= n; i++) for (j = 1; j <= m; j++) print h[i] ":" p[j]; print "10.0.1.40:8444" }\' > targets.txt; '
+    + 'nuclei -t effractor-templates/effractor-banner.yaml,effractor-templates/effractor-web.yaml,effractor-templates/effractor-certificate.yaml -list targets.txt -exclude-type dns -jsonl -silent -omit-raw -omit-template -no-interactsh -disable-update-check');
+  assert.equal(c.said, '2 drawn hosts, 32 usual ports and 1 drawn one.');
+  assert.equal(c.note, undefined);
+  assert.equal(c.warning, undefined);
+});
+
+test('names and connect: this machine\'s resolvers, and the names asked in a run of their own', () => {
+  const c = T.command(['identify', 'connect'], { speed: 'gentle', patience: 'slow', errors: 'never', addresses: 'both', severity: 'high', oast: 'own', browser: 'on' }, '10.0.1.0/24 wiki.lab', drawing());
+  const tail = c.text.slice(c.text.indexOf("' > targets.txt; ") + 17);
+  const more = ' -ip-version 4,6 -rate-limit 20 -concurrency 5 -timeout 20 -retries 2 -no-mhe -jsonl -silent -omit-raw -omit-template -no-interactsh -disable-update-check';
+  assert.equal(tail, "awk '/^nameserver/ {print $2}' /etc/resolv.conf > resolvers.txt; "
+    + 'nuclei -t effractor-templates/effractor-banner.yaml,effractor-templates/effractor-web.yaml,effractor-templates/effractor-certificate.yaml,effractor-templates/effractor-login.yaml -list targets.txt -resolvers resolvers.txt' + more + '; '
+    + "echo 'grafana.corp.example\nmetrics.corp.example' > names.txt; "
+    + 'nuclei -t effractor-templates/effractor-points-to.yaml -list names.txt -resolvers resolvers.txt' + more);
+  assert.match(c.text, /> effractor-templates\/effractor-points-to\.yaml; awk/);
+  assert.equal(c.note, 'Names are asked of this machine\'s resolvers; nuclei\'s own are public ones.');
+  // Connect alone, no name kept: the login template, nothing asked of a resolver.
+  const d = drawing();
+  delete d.entities.web.names;
+  const l = T.command(['connect'], {}, '10.0.1.0/24', d);
+  assert.match(l.text, /nuclei -t effractor-templates\/effractor-login\.yaml -list targets\.txt -exclude-type dns /);
+  assert.doesNotMatch(l.text, /resolvers|names\.txt|points-to/);
+  assert.equal(T.command([], {}, '10.0.1.0/24', drawing()).problem, 'Choose what nuclei should look for.');
+  assert.equal(T.command(['nope'], {}, '10.0.1.0/24', drawing()).problem, 'Choose what nuclei should look for.');
+  assert.match(T.command(['identify'], { speed: 'fast' }, '10.0.1.0/24', drawing()).warning, /^Fast can overload/);
+});
+
+test('review focus 4: hundreds of drawn hosts are one line of targets', () => {
+  const d = drawing();
+  for (let i = 0; i < 600; i++) d.entities['h' + i] = { kind: 'host', label: 'h' + i, addresses: ['10.1.' + Math.floor(i / 250) + '.' + (i % 250 + 1)] };
+  const c = T.command(['identify'], {}, '10.1.0.0/16', d);
+  assert.equal(c.said, '600 drawn hosts, 32 usual ports.');
+  assert.equal(c.text.split('\n').filter(l => /^awk /.test(l) || /; awk /.test(l)).length, 1);
+  assert.ok(c.text.length < 30000, String(c.text.length));
+});
+
+test('what is shown is the command without the templates\' text; what is copied is whole', () => {
+  const c = T.command(['identify', 'connect'], {}, '10.0.1.0/24', drawing());
+  assert.ok(c.shown.length < 1600, String(c.shown.length));
+  assert.equal(c.shown.split('\n').length, 2, 'the names are two lines');
+  assert.match(c.shown, /^mkdir -p effractor-templates; echo '… \d+ lines …' > effractor-templates\/effractor-banner\.yaml; /);
+  assert.equal(c.shown.replace(/echo '… \d+ lines …' > effractor-templates\/[a-z-]+\.yaml; /g, ''), c.text.replace(/echo 'id: effractor-[^']*' > effractor-templates\/[a-z-]+\.yaml; /g, ''));
+});
+
+test('spec §10: How it connects on a drawing without services says what to run first', () => {
+  const d = drawing();
+  d.associations = { a1: d.associations.a1 };
+  d.flows = {};
+  assert.equal(T.command(['connect'], {}, '10.0.1.0/24', d).problem, 'Nothing drawn to ask yet; run What is there first.');
+  assert.ok(T.command(['identify', 'connect'], {}, '10.0.1.0/24', d).text, 'with What is there it is asked at once');
+  assert.ok(T.command(['connect'], {}, '10.0.1.0/24', drawing()).text);
+  // Hosts typed by hand on an empty drawing are asked: nothing is drawn to wait for.
+  assert.ok(T.command(['connect'], {}, '10.0.1.5', E.empty()).text);
+});

@@ -7,6 +7,9 @@
 // between single quotes, where fish reads a backslash and sh does not. Pure.
 (function () {
   var node = typeof module !== "undefined";
+  var Ad = node ? require("./nmap-address.js") : window.effractorNmapAddress;
+  var C = node ? require("./nuclei-command.js") : window.effractorNucleiCommand;
+  var A = node ? require("./architecture-edit.js") : window.effractorArchitectureEdit;
 
   var TEMPLATES = [
     { id: "effractor-banner", group: "identify", protocol: "tcp", name: "What answers on a port" },
@@ -260,7 +263,182 @@
     });
   }
 
-  var api = { TEMPLATES: TEMPLATES, ANSWERS: ANSWERS, VERSION: VERSION, answer: answer, text: text, pattern: pattern };
+  // ---- what they are pointed at (spec §3.1, §3.2) ----
+
+  // Ports where one of the templates can get an answer.
+  var USUAL = {
+    speaks: [21, 22, 25, 110, 143, 587, 2222, 3306],
+    mail: [465, 993, 995],
+    web: [80, 443, 3000, 4443, 5000, 5601, 7001, 8000, 8006, 8008, 8080, 8081, 8088, 8443, 8888, 9000, 9090, 9200, 9443, 10000, 10443],
+  };
+  var USUAL_PORTS = USUAL.speaks.concat(USUAL.mail, USUAL.web).sort(function (a, b) { return a - b; });
+  // The addresses of a range nobody has drawn, at most.
+  var MOST = 1024;
+  var GROUPS = ["identify", "connect"];
+  // The blocks of nuclei's Adjust that apply to these templates.
+  var ADJUST = ["addresses", "speed", "patience", "errors"];
+  // As nuclei-command.js: nothing a shell reads as its own.
+  var RANGE_CHARS = /^[0-9A-Za-z.:\/\-_~%?=&@\[\]+]+$/;
+
+  function has(o, k) {
+    return Object.prototype.hasOwnProperty.call(o, k);
+  }
+  function links(doc, kind) {
+    return Object.keys(doc.associations || {}).map(function (k) { return doc.associations[k]; }).filter(function (a) { return a.kind === kind; });
+  }
+  // An address as a target has it: an IPv6 one between brackets.
+  function written(address) {
+    return address.indexOf(":") >= 0 ? "[" + address + "]" : address;
+  }
+  // The addresses of an IPv4 range, without its network and broadcast
+  // address where it has them; null for any other word.
+  function expand(cidr) {
+    var m = /^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/.exec(cidr);
+    var b = m ? Ad.bytes(m[1]) : null, bits = m ? Number(m[2]) : 0;
+    if (!b || b.length !== 4 || bits > 32) return null;
+    var size = Math.pow(2, 32 - bits), edges = bits < 31 ? 1 : 0;
+    if (size - 2 * edges > MOST) return { tooMany: true };
+    var base = b[0] * 16777216 + b[1] * 65536 + b[2] * 256 + b[3];
+    base -= base % size;
+    var out = [];
+    for (var i = edges; i < size - edges; i++) {
+      var n = base + i;
+      out.push([Math.floor(n / 16777216) % 256, Math.floor(n / 65536) % 256, Math.floor(n / 256) % 256, n % 256].join("."));
+    }
+    return { list: out };
+  }
+  function count(k, one) {
+    return k + " " + one + (k === 1 ? "" : "s");
+  }
+
+  function targets(doc, range, groups) {
+    var words = String(range == null ? "" : range).trim().split(/[\s,]+/).filter(Boolean);
+    if (!words.length) return { problem: "Give what to scan, such as 10.0.1.0/24." };
+    if (!words.every(function (w) { return RANGE_CHARS.test(w) && w[0] !== "-"; })) {
+      return { problem: "The range may hold only addresses, names, CIDR and URLs, such as 10.0.1.0/24 or https://app.lab:8443." };
+    }
+    var nets = [], singles = [], named = [];
+    words.forEach(function (w) {
+      var cidr = /^([^\/]+)\/\d{1,3}$/.exec(w);
+      if (cidr && Ad.bytes(cidr[1])) return nets.push(w);
+      var host = C.target(w).host;
+      if (host && Ad.bytes(host)) singles.push(host);
+      else if (host) named.push(host.toLowerCase());
+    });
+    var cover = nets.concat(singles).join(" ");
+    var hosts = [], extra = [], names = [], drawn = 0, services = 0;
+    var hostOf = Object.create(null);
+    links(doc, "hosts").forEach(function (a) {
+      if (doc.entities[a.to] && doc.entities[a.to].kind === "service") hostOf[a.to] = a.from;
+    });
+    Object.keys(doc.entities || {}).forEach(function (id) {
+      var e = doc.entities[id];
+      if (e.kind !== "host") return;
+      var address = cover ? (e.addresses || []).filter(function (a) { return Ad.covers(cover, a); })[0] : null;
+      var own = [String(e.label).trim().toLowerCase()].concat(e.names || []).filter(A.isName);
+      var called = own.filter(function (n) { return named.indexOf(n) >= 0; })[0];
+      if (!address && !called) return;
+      var at = address ? written(address) : called;
+      if (hosts.indexOf(at) >= 0) return;
+      hosts.push(at);
+      drawn++;
+      Object.keys(hostOf).forEach(function (s) { if (hostOf[s] === id) services++; });
+      Object.keys(doc.flows || {}).forEach(function (k) {
+        var f = doc.flows[k], m = /^tcp\/(\d{1,5})$/.exec(f.protocol || "");
+        if (!m || hostOf[f.target] !== id) return;
+        var port = Number(m[1]);
+        if (port < 1 || port > 65535 || USUAL_PORTS.indexOf(port) >= 0 || extra.indexOf(at + ":" + port) >= 0) return;
+        extra.push(at + ":" + port);
+      });
+      (e.names || []).forEach(function (n) { if (A.isName(n) && names.indexOf(n) < 0) names.push(n); });
+    });
+    // What was typed by hand and is not drawn is asked too.
+    singles.forEach(function (a) { if (hosts.indexOf(written(a)) < 0) hosts.push(written(a)); });
+    named.forEach(function (n) { if (hosts.indexOf(n) < 0) hosts.push(n); });
+    var notes = [];
+    if (!drawn && nets.length) {
+      for (var i = 0; i < nets.length; i++) {
+        var x = expand(nets[i]);
+        if (!x) return { problem: "Nothing is drawn in " + nets[i] + " yet; give its hosts, or draw them first with nmap." };
+        if (x.tooMany || hosts.length + x.list.length > MOST) return { problem: "Give a smaller range, or draw the hosts first with nmap." };
+        x.list.forEach(function (a) { if (hosts.indexOf(a) < 0) hosts.push(a); });
+      }
+      notes.push("Nothing is drawn in " + nets.join(", ") + " yet. nmap finds hosts faster.");
+    }
+    if (!hosts.length) return { problem: "Nothing is drawn in " + words.join(", ") + " yet; give its hosts, or draw them first with nmap." };
+    var connect = (groups || []).indexOf("connect") >= 0;
+    if (!connect) names = [];
+    var said = (drawn ? count(drawn, "drawn host") : count(hosts.length, "host")) + ", " + USUAL_PORTS.length + " usual ports"
+      + (extra.length ? " and " + count(extra.length, "drawn one") : "") + (names.length ? ", " + count(names.length, "name") : "") + ".";
+    return { hosts: hosts, ports: USUAL_PORTS.slice(), extra: extra, names: names, drawn: drawn, services: services, said: said, notes: notes, resolves: hosts.some(A.isName) };
+  }
+
+  // ---- the command (spec §3) ----
+
+  var DIR = "effractor-templates";
+  // nuclei asks public resolvers unless given a list: this machine's own.
+  var RESOLVERS = "awk '/^nameserver/ {print $2}' /etc/resolv.conf > resolvers.txt";
+  var ALWAYS = "-jsonl -silent -omit-raw -omit-template -no-interactsh -disable-update-check";
+
+  function adjusted(adjust) {
+    var args = [], warnings = [];
+    C.BLOCKS.forEach(function (b) {
+      if (ADJUST.indexOf(b.id) < 0) return;
+      var id = adjust && has(adjust, b.id) ? adjust[b.id] : C.DEFAULTS[b.id];
+      var x = b.choices.filter(function (c) { return c.id === id; })[0] || b.choices[0];
+      if (x.args) args.push(x.args);
+      if (x.warning) warnings.push(x.warning);
+    });
+    return { args: args, warnings: warnings };
+  }
+
+  // Writes the ticked groups' templates and the targets, then runs nuclei:
+  // once against the ports, and once for the names, which are asked of a
+  // resolver and of nothing else. Returns {text, shown, said, note?,
+  // warning?} or {problem}.
+  function command(groups, adjust, range, doc) {
+    var chosen = GROUPS.filter(function (g) { return (groups || []).indexOf(g) >= 0; });
+    if (!chosen.length) return { problem: "Choose what nuclei should look for." };
+    var t = targets(doc, range, chosen);
+    if (t.problem) return { problem: t.problem };
+    // Logins are asked of what is drawn: without a service there is nothing to ask.
+    if (chosen.length === 1 && chosen[0] === "connect" && t.drawn && !t.services) return { problem: "Nothing drawn to ask yet; run What is there first." };
+    var files = TEMPLATES.filter(function (x) { return chosen.indexOf(x.group) >= 0; });
+    var ports = files.filter(function (x) { return x.protocol !== "dns"; });
+    var dns = t.names.length ? files.filter(function (x) { return x.protocol === "dns"; }) : [];
+    function paths(list) {
+      return list.map(function (x) { return DIR + "/" + x.id + ".yaml"; }).join(",");
+    }
+    // `short`: the same with each template's text left out, to be shown.
+    var parts = ["mkdir -p " + DIR], short = ["mkdir -p " + DIR];
+    ports.concat(dns).forEach(function (x) {
+      var body = text(x.id).replace(/\n$/, "");
+      parts.push("echo '" + body + "' > " + DIR + "/" + x.id + ".yaml");
+      short.push("echo '… " + body.split("\n").length + " lines …' > " + DIR + "/" + x.id + ".yaml");
+    });
+    function both(part) {
+      parts.push(part);
+      short.push(part);
+    }
+    var prints = t.extra.map(function (x) { return '; print "' + x + '"'; }).join("");
+    both("awk 'BEGIN { n = split(\"" + t.hosts.join(" ") + "\", h, \" \"); m = split(\"" + t.ports.join(" ") + "\", p, \" \"); for (i = 1; i <= n; i++) for (j = 1; j <= m; j++) print h[i] \":\" p[j]" + prints + " }' > targets.txt");
+    if (t.resolves || dns.length) both(RESOLVERS);
+    var a = adjusted(adjust);
+    var more = (a.args.length ? " " + a.args.join(" ") : "") + " " + ALWAYS;
+    both("nuclei -t " + paths(ports) + " -list targets.txt " + (t.resolves ? "-resolvers resolvers.txt" : "-exclude-type dns") + more);
+    if (dns.length) {
+      both("echo '" + t.names.join("\n") + "' > names.txt");
+      both("nuclei -t " + paths(dns) + " -list names.txt -resolvers resolvers.txt" + more);
+    }
+    var out = { text: parts.join("; "), shown: short.join("; "), said: t.said };
+    var notes = t.notes.slice();
+    if (t.resolves || dns.length) notes.push("Names are asked of this machine's resolvers; nuclei's own are public ones.");
+    if (notes.length) out.note = notes.join(" ");
+    if (a.warnings.length) out.warning = a.warnings.join(" ");
+    return out;
+  }
+
+  var api = { TEMPLATES: TEMPLATES, ANSWERS: ANSWERS, VERSION: VERSION, answer: answer, text: text, pattern: pattern, USUAL_PORTS: USUAL_PORTS, GROUPS: GROUPS, ADJUST: ADJUST, targets: targets, command: command };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNucleiTemplates = api;
 })();
