@@ -342,7 +342,11 @@
     </section>
     <section class="nmap-step" id="nmap-step-greenbone" hidden>
       <h3 class="label"><span class="nmap-n">1</span>Scan, then export the report</h3>
+      <div class="nmap-range"><span class="nmap-range-word">Targets</span><button class="pick nmap-targets" id="greenbone-targets" type="button" aria-haspopup="menu"></button></div>
+      <div class="nmap-command nmap-list"><code id="greenbone-hosts"></code><button class="btn btn-ghost btn-small" id="greenbone-copy" type="button">Copy</button></div>
+      <p class="hint nmap-left" id="greenbone-left"></p>
       <ol class="nmap-how">
+        <li>Give the target these hosts.</li>
         <li>Scan from inside the network. Greenbone in rootless containers sees it through NAT and finds few hosts: set the target's <b>Alive test</b> to <b>Consider Alive</b> (slow on a large range), or run the scanner container as root on the host's network.</li>
         <li>In Greenbone: <b>Scans › Reports</b>, open the report.</li>
         <li>In its filter, tick every severity, <b>Log</b> included, and show all rows (<code>rows=-1</code>): Log results name the services.</li>
@@ -358,7 +362,9 @@
     </section>
     <section class="nmap-step" id="nmap-step-run">
       <h3 class="label"><span class="nmap-n">2</span>Run it</h3>
+      <div class="nmap-range"><span class="nmap-range-word">Targets</span><button class="pick nmap-targets" id="nmap-targets" type="button" aria-haspopup="menu"></button></div>
       <div class="nmap-range"><label for="nmap-range">Range</label><input id="nmap-range" type="text" autocomplete="off" spellcheck="false" placeholder="10.0.1.0/24"></div>
+      <p class="hint nmap-left" id="nmap-left"></p>
       <p class="hint" id="nmap-asks"></p>
       <div class="nmap-command"><code id="nmap-command"></code><span class="nmap-tag is-root" id="nmap-root" hidden>root</span><button class="btn btn-ghost btn-small" id="nmap-whole" type="button" hidden>Show all</button><button class="btn btn-ghost btn-small" id="nmap-copy" type="button">Copy</button></div>
       <div id="nmap-second-row" hidden>

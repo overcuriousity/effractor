@@ -258,7 +258,11 @@
     // Esc steps out one layer at a time: a menu, then a field, then the
     // selection itself — which takes the inspector with it.
     if (e.key === "Escape") {
-      if (!$("context-menu").hidden) return closeMenu();
+      // Taken, so a dialog the menu opened in stays open.
+      if (!$("context-menu").hidden) {
+        e.preventDefault();
+        return closeMenu();
+      }
       if ($("properties").contains(document.activeElement)) return document.activeElement.blur();
       if (!typingElsewhere(e) && selected()) return app.select(null);
     }
@@ -310,6 +314,9 @@
   // while the pointer or the keys are anywhere in what it opened.
   var lists = [$("context-menu")];
   var openers = [null]; // openers[n]: the item in list n-1 that opened list n
+  // Where the lists are: the page, or the modal dialog a menu was opened
+  // in, which makes everything outside it inert.
+  var home = document.body;
 
   // Every list deeper than `depth` goes; list `depth` stays.
   function closeFrom(depth) {
@@ -323,6 +330,8 @@
   function closeMenu() {
     closeFrom(0);
     $("context-menu").hidden = true;
+    if (home !== document.body) document.body.appendChild($("context-menu"));
+    home = document.body;
   }
 
   // The same menu wherever a node is shown: on the canvas, and in the model
@@ -363,7 +372,7 @@
     list.className = "menu submenu";
     list.setAttribute("role", "menu");
     list.hidden = true;
-    document.body.appendChild(list);
+    home.appendChild(list);
     lists.push(list);
     openers.push(button);
     button.setAttribute("aria-expanded", "true");
@@ -489,12 +498,14 @@
   }
 
   // At the point (x, y), or beside `anchor` — the box of what opened it —
-  // when there is one.
-  function showMenu(items, x, y, anchor) {
+  // when there is one. `within`: the open modal dialog the menu belongs to.
+  function showMenu(items, x, y, anchor, within) {
     closeMenu();
     // Nothing to offer is not an empty box: the caller says why instead.
     if (!items.some(function (item) { return item[2] != null; })) return;
     var menu = $("context-menu");
+    home = within || document.body;
+    if (within) within.appendChild(menu);
     fill(menu, items, 0);
     place(menu, anchor || { left: x, right: x, top: y });
     focusFirst(menu); // Tab and Enter work from here; Esc closes

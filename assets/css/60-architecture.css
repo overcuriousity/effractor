@@ -359,7 +359,11 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .nmap-block .hint { grid-column: 2; }
 .nmap-block .warning { color: var(--color-warning); }
 /* The range, and the command as a terminal line. */
-.nmap-range { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; margin-bottom: 6px; }
+.nmap-range { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); gap: 8px; align-items: center; margin-bottom: 6px; }
+.nmap-range-word { color: var(--color-fg-secondary); font-size: var(--text-xs); }
+.nmap-targets { width: 100%; text-align: left; }
+.nmap-left:empty { display: none; }
+.nmap-list code::before { content: none; }
 .nmap-command {
   display: flex; gap: 8px; align-items: center; margin-bottom: 6px;
   padding: 7px 7px 7px 10px;

@@ -40,7 +40,8 @@ function page() {
   document.createElementNS = (_, t) => element(t);
   document.querySelectorAll = () => [];
   document.querySelector = () => null;
-  document.addEventListener = () => {};
+  const keys = [];
+  document.addEventListener = (type, f) => { if (type === "keydown") keys.push(f); };
   document.body = element("body");
   const listeners = [];
   const doc = { profile: "fault-tree", name: "x", horizon: 1, top: "top", nodes: { top: { label: "Top", gate: "or", children: ["a"] }, a: { label: "New event", leaf: "basic" } } };
@@ -58,7 +59,7 @@ function page() {
   vm.runInNewContext(readFileSync("assets/js/editor.js", "utf8"), { window, document, console, setTimeout, Event: function () {} });
   const notify = () => listeners.forEach((f) => f());
   notify(); // the form for the selected node
-  return { app, document, notify, $: (id) => document.getElementById(id) };
+  return { app, document, notify, keys, $: (id) => document.getElementById(id) };
 }
 
 test("a label being typed survives the page being drawn again (a solve arriving)", () => {
@@ -116,4 +117,15 @@ test("the tree's and the canvas's keys are not taken from a field, a link, a men
   assert.equal(keyElsewhere(doc(false), { target: target("A") }), true);
   assert.equal(keyElsewhere(doc(false), { target: target("INPUT") }), true);
   assert.equal(keyElsewhere(doc(false), { target: target("BUTTON", ".menu") }), true);
+});
+
+test("Esc with a menu open closes the menu and nothing else: not the dialog it opened in, not the selection", () => {
+  const { app, keys, $ } = page();
+  $("context-menu").hidden = false;
+  let prevented = false;
+  const esc = { key: "Escape", target: { tagName: "BUTTON", closest: () => null }, preventDefault() { prevented = true; } };
+  keys.forEach((f) => f(esc));
+  assert.equal($("context-menu").hidden, true);
+  assert.equal(prevented, true, "a dialog's cancel follows an Esc that was not taken");
+  assert.equal(app.state.selected, "a");
 });

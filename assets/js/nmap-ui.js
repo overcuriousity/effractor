@@ -11,11 +11,12 @@
   var M = window.effractorMasscan;
   var Nu = window.effractorNuclei;
   var S = window.effractorScanners;
+  var St = window.effractorScanTargets;
   var $ = function (id) { return document.getElementById(id); };
   var dialog = $("nmap-dialog");
   // What the scan is for is kept for the session, as the range is not.
   var asked = { recipes: ["services"], adjust: {}, portList: "", ack: false, masscan: { ports: "common", rate: "1000" }, nuclei: { recipes: ["identify"], adjust: {}, extra: {} } };
-  var at = { app: null, tool: "nmap", scan: null, merges: {}, ticks: null, plan: null };
+  var at = { app: null, tool: "nmap", scan: null, merges: {}, ticks: null, plan: null, choice: null, selection: [] };
   // The open scanner's name: "nmap", "masscan".
   function toolName() {
     return S.TOOLS.filter(function (t) { return t.id === at.tool; })[0].name;
@@ -42,13 +43,41 @@
     })[0];
     return k ? d.associations[k].from : null;
   }
-  // The ranges of the networks nmap's host is attached to.
-  function prefillRange(host) {
-    var d = doc();
-    if (!host) return "";
-    return Object.keys(d.associations || {}).map(function (k) { return d.associations[k]; }).filter(function (a) {
-      return a.kind === "attached" && a.from === host && d.entities[a.to];
-    }).map(function (a) { return (d.entities[a.to].addresses || []).join(" "); }).filter(Boolean).join(" ");
+
+  // ---- the targets (scan workflow spec §4) ----
+
+  // What is aimed at, in words on the row and as words in the range; for
+  // Greenbone, which is given no command, as the list its target takes.
+  // `typing`: the range is being typed and is left as it stands.
+  function setTargets(choice, typing) {
+    at.choice = choice;
+    var w = St.words(doc(), choice, at.tool === "nuclei");
+    if (!typing) $("nmap-range").value = w.text;
+    var left = w.left ? w.left + (w.left === 1 ? " host" : " hosts") + " without an address left out" : "";
+    ["nmap", "greenbone"].forEach(function (id) {
+      $(id + "-targets").textContent = w.said;
+      $(id + "-left").textContent = left;
+    });
+    $("greenbone-hosts").textContent = $("nmap-range").value.trim().split(/\s+/).filter(Boolean).join(", ");
+    $("greenbone-copy").disabled = !$("greenbone-hosts").textContent;
+    if (at.tool === "nmap") blocks();
+    showCommand();
+  }
+  function targetsMenu(button) {
+    var c = St.choices(doc(), hostOf(at.app), at.selection);
+    var items = c.networks.map(function (n) {
+      return [n.label, "", n.items.map(function (i) {
+        var none = i.count === 0;
+        return [i.name, "", none ? null : function () { setTargets(i.choice); }, { hint: none ? "nothing drawn there yet" : i.count == null ? n.range : String(i.count) }];
+      })];
+    });
+    if (!items.length) items.push(["No network with addresses is drawn", "", null]);
+    if (at.tool !== "greenbone") items.push(["typed by hand…", "", function () {
+      setTargets({ kind: "typed", text: $("nmap-range").value });
+      $("nmap-range").focus();
+    }]);
+    var box = button.getBoundingClientRect();
+    app.showMenu(items, 0, 0, { left: box.left, right: box.left - 2, top: box.bottom + 2 }, dialog);
   }
 
   // ---- the command ----
@@ -250,9 +279,12 @@
 
   // ---- open ----
 
-  function open(appId) {
+  // `preset`: what the bulb sets ({recipes, targets}); else what was asked
+  // last, aimed at the scanner's own network. Targets are chosen in the
+  // dialog, not by selecting on the canvas (owner, 2026-09-29).
+  function open(appId, preset) {
     var tool = S.tool(doc().entities[appId]);
-    at = { app: appId, tool: tool ? tool.id : "nmap", scan: null, merges: {}, ticks: null, plan: null };
+    at = { app: appId, tool: tool ? tool.id : "nmap", scan: null, merges: {}, ticks: null, plan: null, choice: null, selection: [] };
     var host = hostOf(appId);
     var name = toolName();
     $("nmap-title").textContent = host ? name + " on " + doc().entities[host].label : name + " (not on a host)";
@@ -269,18 +301,20 @@
     $("nmap-paste-n").textContent = exported ? "2" : "3";
     $("nmap-paste").placeholder = exported ? "Paste the report, or drop its .xml file here" : at.tool === "nuclei" ? "Paste the lines, or drop the file here" : "Paste the output, or drop the .xml file here";
     $("nmap-range").placeholder = at.tool === "nuclei" ? "10.0.1.0/24 or https://app.lab:8443" : "10.0.1.0/24";
-    $("nmap-range").value = prefillRange(host);
+    $("nmap-range").value = "";
     $("nmap-paste").value = "";
     $("nmap-problem").textContent = "";
     $("nmap-read-problem").textContent = "";
     $("nmap-ask").hidden = false;
     $("nmap-preview").hidden = true;
+    if (preset && preset.recipes) library().asked.recipes = preset.recipes.slice();
+    if (preset && preset.recipes) library().asked.adjust = {};
     if (at.tool === "masscan") masscanBlocks();
-    else {
+    else if (at.tool !== "greenbone") {
       recipes();
       blocks();
     }
-    showCommand();
+    setTargets((preset && preset.targets) || St.choices(doc(), host, at.selection).first);
     U.loadCatalog().catch(function () {}).then(function () {
       if (!dialog.open) dialog.showModal();
     });
@@ -808,7 +842,19 @@
 
   // ---- wiring ----
 
-  $("nmap-range").addEventListener("input", showCommand);
+  $("nmap-range").addEventListener("input", function () {
+    // Edited by hand, the range is what is typed.
+    setTargets({ kind: "typed", text: $("nmap-range").value }, true);
+  });
+  ["nmap-targets", "greenbone-targets"].forEach(function (id) {
+    $(id).addEventListener("click", function () { targetsMenu($(id)); });
+  });
+  // Esc closes an open menu and leaves the dialog.
+  dialog.addEventListener("cancel", function (e) {
+    if ($("context-menu").hidden) return;
+    e.preventDefault();
+    app.showMenu([], 0, 0);
+  });
   function copies(button, code) {
     $(button).addEventListener("click", function () {
       function failed() {
@@ -831,6 +877,7 @@
   }
   copies("nmap-copy", "nmap-command");
   copies("nmap-copy-second", "nmap-second");
+  copies("greenbone-copy", "greenbone-hosts");
   $("nmap-whole").addEventListener("click", function () {
     at.whole = !at.whole;
     showCommand();
