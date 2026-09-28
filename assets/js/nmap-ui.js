@@ -437,7 +437,9 @@
   }
   // Whether a connection hangs on the port: its row is offered with it.
   function hangs(portKey) {
-    return at.plan.connections.list.some(function (c) { return c.port === portKey; });
+    return at.plan.connections.list.some(function (c) {
+      return c.port === portKey || (c.kind === "pass-on" && !!c.to.row && c.to.row + "/" + c.proto === portKey);
+    });
   }
   // Nuclei templates spec §6: how what is drawn connects, in plain words,
   // each with what ticking it draws; unticked at first but a name kept on
@@ -445,10 +447,6 @@
   function connections(rows) {
     var cn = at.plan.connections;
     if (!cn.list.length) return;
-    var there = {};
-    at.plan.hosts.forEach(function (h) {
-      h.ports.forEach(function (r) { there[r.key] = !!at.ticks.hosts[h.key] && (!!r.known || !!at.ticks.ports[r.key]); });
-    });
     var li = el("li", null, "nmap-host nmap-changes");
     li.appendChild(el("span", "Connections", "label"));
     var list = el("ul", null, "nmap-ports");
@@ -457,8 +455,9 @@
         at.ticks.connections[c.key] = on;
         count();
       }, { what: c.can ? c.what : c.why });
-      // Left out with the host or port it hangs on.
-      var hung = (!c.host || !!at.ticks.hosts[c.host]) && (!c.port || there[c.port]);
+      // Left out with the host, the port or the application it hangs on,
+      // as the summary and apply leave it out.
+      var hung = N.connectionThere(at.plan, at.ticks, c);
       row.querySelector("input").disabled = !c.can || !hung;
       var item = el("li");
       item.appendChild(row);
@@ -545,6 +544,8 @@
     function told(group, text, can) {
       var row = check(!!at.ticks[group][r.key], text, function (on) {
         at.ticks[group][r.key] = on;
+        // A login hangs on the application that logs in.
+        if (group === "applications" && hangs(r.key)) return preview();
         count();
       });
       row.querySelector("input").disabled = !can;
@@ -791,6 +792,12 @@
   function copies(button, code) {
     $(button).addEventListener("click", function () {
       function failed() {
+        // Shown short, it is not the command and cannot be selected.
+        if (code === "nmap-command" && at.command && !at.whole) {
+          at.whole = true;
+          showCommand();
+          return app.say("copy failed; the command is shown whole now: select it instead");
+        }
         app.say("copy failed; select the command instead");
       }
       try {
