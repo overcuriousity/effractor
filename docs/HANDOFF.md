@@ -6,6 +6,188 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — nuclei templates of effractor's own (2026-09-28)
+
+Roadmap `nuclei-templates`, built from the spec
+`2026-09-28-nuclei-templates-design.md` and its plan
+`docs/superpowers/plans/2026-09-28-nuclei-templates.md`, both deleted with
+this landing. `git log --diff-filter=D --format=%h -1 --
+docs/superpowers/specs/2026-09-28-nuclei-templates-design.md` names the
+deleting commit, and `git show <that>^:<path>` prints either. Code comments
+cite the spec as "nuclei templates spec §…". Five parts, each a branch and a
+PR: `host-names`, `nuclei-own-templates`, `nuclei-identify`,
+`nuclei-connect`, `nuclei-dialog`.
+
+- **The table and the templates.** `nuclei-templates.js` (pure) holds
+  everything a template can answer (`ANSWERS`: what it is, the product's
+  name, how it is found) and writes the five templates from it (`text`);
+  `assets/nuclei/*.yaml` are that text, held equal by a test
+  (`node scripts/dev/nuclei-templates-write.js` writes them: change the
+  table, not the files). The rules of spec §2.1 are held by
+  `scripts/nuclei-templates.test.js`: no backslash, no single quote,
+  printable ASCII; `tcp`, `http`, `ssl`, `dns` only; they only read; every
+  extractor named and in the table. 49 applications; Prometheus, QNAP QTS
+  and RabbitMQ were struck (known by their title alone). An application
+  that names itself in its `Server` header has that word in the table
+  (`server`), so it is one piece and not an application behind itself.
+- **The command** (`T.targets`, `T.command`): the drawn hosts the range
+  covers, each with 32 usual ports and the ports drawn on it; what is typed
+  by hand is asked too; a range with nothing drawn is asked itself, up to
+  1,024 addresses. A word of the range is an address as nuclei reads
+  one, a range of them, or a name, with a port or in a URL; anything else
+  is refused, since nuclei would look it up at public resolvers
+  (`10.0.1.300`, `010.0.1.9`, `fe80::1%eth0`). A port typed by hand is
+  asked. One paste writes the templates (`echo '…' >`), the
+  targets (`awk`, one line whatever the number of hosts) and runs nuclei;
+  the names *How it connects* asks go to `names.txt` and a second run with
+  the DNS template alone, so a name that points outside is never sent a
+  request. The page shows it short and copies it whole (about 17 KB).
+- **Reading** (`T.read`, folded in `nuclei.js`): records whose template id
+  begins with `effractor-` are facts about a port, a host or a name, not
+  findings; one paste may hold them beside nuclei's own. Host and port come
+  from `matched-at`. An extractor the table does not hold is counted and
+  said (*n answers this version does not know*); a value without its shape
+  is refused and counted; neither is drawn. What a port said is said where
+  it named nothing. What a port comes to does not depend on the order of
+  the answers: its facts are put in one order first (`settle`), then the
+  first application of the table, its own server or the one that names
+  its version, the sign-on that names its product.
+- **Products** (`nmap-products.js`, pure): one comparison for every
+  scanner, by name and by the first word of the version, whatever their
+  case; a year or an edition before a version with a dot belongs to the
+  name (`Microsoft SQL Server 2019 15.00.2000.00`). A product keeps the
+  label of whoever named it first. An unnamed
+  product takes the name, one without a version the version; what differs
+  is said (*drawn: … · nuclei: …*) and not changed. A product that other
+  services are instances of, drawn or of the same import, keeps its name
+  and one of the new name is made. Naming is decided once, for the
+  summary and for apply, whatever the order of the hosts (`naming` in
+  `nmap-plan.js`); what was written on a product that goes (a finding,
+  a note, the author's words) is kept on the one its service takes
+  (`carry`).
+- **Applications:** the server is the service on the port; the application
+  a service of its own on the same host, at `privilege: unknown`, which the
+  server passes on to by a flow of protocol `http`. On a later import it is
+  the service on the host that a flow from the port's service reaches and
+  whose product is the application's, else the one reached by `http`; a
+  database the server talks to is none (this narrows spec §5.4, from the
+  review).
+- **Names on hosts:** `names` in the file, beside `addresses`, in place;
+  every scanner's names are kept, ticked. A scanned host without an address
+  is the one drawn host that keeps its name, and is folded into the row
+  that already is that host. The wasm module must be rebuilt for a page to
+  read the key.
+- **Connections** (`nmap-connect.js`, pure): a login (a stand-in account
+  the service accepts), single sign-on (one account per sign-on and the
+  sign-on's host, by name, without an address, outside ones too), a
+  management page (administration from the scanner's network; an account
+  with admin rights on the machine or its router), what a name points to
+  (the name on the host it points to; who stands in front; a host nobody
+  drew, several names on one address being one host; outside is only
+  said). Every row unticked at first but a name kept on the host it points
+  to. A login's and a management page's account is its service's own and
+  never joined by its label: where `pfSense accounts` is taken, the next
+  is `pfSense accounts on fw2`; only a sign-on's account is shared (from
+  the review: a shared account is a path in the attack graph, and nothing
+  was seen that says two machines share theirs). A row whose host, port or
+  application is left out is neither counted, said nor applied
+  (`Cn.hangs`, `N.connectionThere`).
+- **The lab and the fixtures:** `scripts/dev/nuclei-lab.py` starts
+  throwaway servers on 127.0.0.1 that say what
+  `scripts/fixtures/nuclei/lab.json` holds (69 hosts: the twelve the tests
+  speak of by address, sign-ons from 10.0.2.70, 44 applications from
+  10.0.2.100, and at 10.0.2.63 and 10.0.2.81 a page of links and a
+  redirect that only mention others and must name nothing; every page
+  written by hand from the table's trace) and
+  records `identify.jsonl` and `connect.jsonl`, **recorded with nuclei
+  3.11.0**. CI has no nuclei: a test holds that every named extractor has a
+  record. `imported-identify.doc.json` and `imported-connect.doc.json` are
+  pinned by Node, `tests/json.rs` and `check-nmap-wasm.js`.
+- **Probed with nuclei 3.11.0** (spec §12, all on 127.0.0.1): unsigned
+  `tcp`, `http`, `ssl` and `dns` templates run as they are, one record per
+  named extractor; one file holding three protocols answers with one, so
+  the templates are separate files; a target given as `host:port` is asked
+  by all templates on that port; for a port a template names in a path the
+  record's `port` says 80 and `matched-at` the real one; closed ports do
+  not make nuclei give up on a host; `-preflight-portscan` dropped every
+  web and certificate answer; with `-resolvers` naming one resolver the DNS
+  template asked that one only.
+- **Owner decisions (2026-09-28):** templates before `scan-workflow`; new
+  ports are drawn; server and application as two pieces ("we have
+  clustering for that"); the command writes the templates, nothing is
+  downloaded; about fifty applications, corporate ones included; names are
+  kept on the host; *connect* stays in this item; a login is offered, not
+  ticked; one shared account per sign-on and the sign-on's host; a
+  management page's two rows unticked; the name on the host it points to,
+  the pass-on offered. With the plan: `targets.txt` by `awk`; the page
+  fetches no template; *Names* a field of its own in the inspector; two
+  modules more; 49 applications. After the reviews: the command's size is
+  fine pasted into fish ("the user sees it before executing"); a login's
+  account is its service's own ("seems logical"); the narrowed rule for
+  the application of a port ("fine, KISS but correct").
+- **Looked at by the owner** (2026-09-28): the *Names* field and the
+  import's line *keeps the name …* in the 8081 preview, and the dialog with
+  everything in the 8082 preview ("both deployments look good,
+  approved"). **Landed unseen:** parts 2 to 4 (nothing of them shows
+  without the dialog). What the reviews changed afterwards in what the
+  page says was told to the owner in plain words before it landed, and
+  answered; the owner did not say they looked at it in the preview.
+- **Reviews:** a fresh reviewer read each part; none found anything
+  critical, twenty findings that mattered were fixed with tests that
+  failed first, most of them in the plan's own code.
+- **Deferred minors** of the fresh reviews, none fixed:
+  Part 1: a name the reader cut at 120 characters is kept as a name the
+  host does not bear; lower-casing turns a non-ASCII letter (Kelvin sign)
+  into an ASCII one before the name is tested; the agent's list items are
+  joined with a space and split again: names ["my server"] writes two names
+  (addresses do the same since before); the 253-character limit is tested by
+  cases that fail for another reason, in both languages; no test holds the
+  Rust and the JavaScript rule of a name together; no test for ticks without
+  `names`, nor for the name match beside takenBy, a known row, a chosen
+  "new".
+  Part 2: no ceiling on drawn hosts; past about 9,700 the awk argument
+  passes the kernel's limit and nuclei still runs on an empty list; one IPv6
+  host under several spellings is asked several times; the 1,024 check
+  counts before removing duplicates; a range with nothing drawn beside one
+  that has something is skipped without a note; `said` counts drawn hosts
+  only where some were typed beside them; a prefix that is too long (/33)
+  gets the message of an undrawn range; several version patterns are
+  identical or fire on prose; part 3 takes a version only with its
+  application; the recorder's port run does not name the lab's resolver
+  though its docstring says so; the recorder ignores nuclei's exit status;
+  spec §9 rows of nuclei-templates.js and nmap-ui.js are stale (the spec is
+  deleted with part 5); targets(null, …) throws; no test sends a hostile
+  document or the odd range characters through the three shells.
+  Part 3: an answer without a usable place (port 0, no host) is dropped
+  without being counted; a Server word "unidentified" draws a product every
+  later import takes for unnamed; an author's product beginning
+  "Unidentified …" is offered a rename; one application on two ports of a
+  host is drawn twice; an application whose flow the author deleted is drawn
+  again; a drawn service without any product is told nothing; the host is
+  read from `host` before `matched-at` (spec §4 says matched-at first; the
+  port follows the spec); cleanName lets bidi controls through (older
+  helper); tests of hostile values cover extracted-results only; "Exchange
+  Server 2019 CU12" and "CU14", "Windows 10" and "Windows 10 Pro" are still
+  one product by the comparison.
+  Part 4: a sign-on's account the author renamed is offered again; a
+  pass-on whose front service this import made is drawn again where the name
+  row was unticked; two drawn hosts keep the sign-on's name: a third is
+  drawn; the sentence counts sign-ons per row, not per account; a name
+  pointing to loopback or link-local is offered as a host; a management page
+  is known by the exact product name only (nmap's "VMware vCenter Server
+  8.0" is none); test gaps named by the reviewer beyond the fixes' own
+  tests.
+  Part 5: ticking one group unticks the other without the line that says
+  why (spec §10); the headings' hints may be that line — the owner's to say;
+  Nu.combine(['identify','nope']) answers the line about nuclei's checks
+  though nothing of nuclei's is ticked; a recipe list that is no array
+  throws in nuclei.js's wrappers; Show all outlives a change of recipes
+  within one open dialog; rows disabled by an unticked host or port do not
+  say why; ticking a port that rebuilds the preview loses the keyboard's
+  place, as host ticks do.
+- **Open:** a real result of the owner's network; the list of
+  applications, for the owner to strike and add.
+
 ## Continuation — nuclei beside nmap (2026-09-28)
 
 Roadmap `nuclei-import`, built from the roadmap's text and a short design
