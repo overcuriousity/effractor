@@ -8,6 +8,7 @@
   var A = node ? require("./architecture-edit.js") : window.effractorArchitectureEdit;
   var Ad = node ? require("./nmap-address.js") : window.effractorNmapAddress;
   var R = node ? require("./nmap-read.js") : window.effractorNmapRead;
+  var P = node ? require("./nmap-products.js") : window.effractorNmapProducts;
   var C = node ? require("./nmap-command.js") : window.effractorNmapCommand;
 
   function links(doc, kind) {
@@ -176,7 +177,7 @@
       if ((scan.tool || "nmap") === "nmap") h.ports.forEach(function (r) {
         if (!r.known || !r.product.identified) return;
         var of = links(doc, "instance-of").filter(function (a) { return a.from === r.known; })[0];
-        if (!of || !doc.entities[of.to] || doc.entities[of.to].label === r.product.label) return;
+        if (!of || !doc.entities[of.to] || P.same(doc.entities[of.to].label, r.product.label)) return;
         item({ key: "version:" + r.known, kind: "version", host: target, service: r.known, association: of.id, from: of.to, to: r.product.label, existing: r.product.existing, line: r.label + " on " + name(doc, target) + ": " + doc.entities[of.to].label + " → " + r.product.label, action: "make it the product of the service" });
       });
 

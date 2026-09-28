@@ -10,6 +10,7 @@
   var C = node ? require("./nmap-command.js") : window.effractorNmapCommand;
   var Rt = node ? require("./nmap-route.js") : window.effractorNmapRoute;
   var Ch = node ? require("./nmap-changes.js") : window.effractorNmapChanges;
+  var P = node ? require("./nmap-products.js") : window.effractorNmapProducts;
   var has = R.has, oneHost = R.oneHost, addressKey = Ad.addressKey, bytes = Ad.bytes, inCidr = Ad.inCidr, networkOf = Ad.networkOf;
   var targetsOf = C.targetsOf, STAMP = C.STAMP, stampLine = C.stampLine;
 
@@ -185,9 +186,11 @@
     }
     // By label, whatever its case: Greenbone's "openssh 9.6p1" is nmap's
     // "OpenSSH 9.6p1".
+    // And by name and version, whatever follows them (nuclei templates
+    // spec §7.3).
     var products = Object.create(null);
     ids(doc, "product").forEach(function (p) {
-      var k = String(doc.entities[p].label).toLowerCase();
+      var k = P.key(doc.entities[p].label);
       products[k] = products[k] || p;
     });
 
@@ -524,7 +527,7 @@
     var product = s.product
       ? { label: s.product + (s.version ? " " + s.version : ""), existing: null, identified: true }
       : { label: "unidentified " + label + " on " + hostLabel, existing: null, identified: false };
-    if (product.identified && products[product.label.toLowerCase()]) product.existing = products[product.label.toLowerCase()];
+    if (product.identified && products[P.key(product.label)]) product.existing = products[P.key(product.label)];
     return { key: hostKey + "/" + proto, proto: proto, label: label, product: product, known: known, addsFlow: addsFlow };
   }
 
@@ -637,8 +640,9 @@
         if (!r.known) {
           s.services++;
           rel += 2; // hosts, instance-of
-          if (!r.product.existing && !(r.product.identified && newProducts[r.product.label])) {
-            newProducts[r.product.label] = true;
+          var k = r.product.identified ? P.key(r.product.label) : r.product.label;
+          if (!r.product.existing && !(r.product.identified && newProducts[k])) {
+            newProducts[k] = true;
             s.products++;
           }
         }
@@ -748,6 +752,12 @@
     var skipped = p.network && p.network.merged && !s.filledNetworks ? p.network.merged : null;
     var madeProducts = Object.create(null);
     var flows = [], marks = [], hostOf = {};
+    // A product by its name and version, drawn or made by this import.
+    function productFor(label, existing) {
+      var id = existing || madeProducts[P.key(label)] || ids(next, "product").filter(function (x) { return P.key(next.entities[x].label) === P.key(label); })[0];
+      if (!id) id = madeProducts[P.key(label)] = step(A.addEntity(next, "product", label, specOf("product"))).entity;
+      return id;
+    }
     var env = {
       doc: function () { return next; },
       step: step,
@@ -832,11 +842,7 @@
           service = step(A.addEntity(next, "service", r.label, specOf("service"))).entity;
           // nmap cannot see the account it runs as: unknown, not a guess.
           link("hosts", host, service, { privilege: "unknown" });
-          var product = r.product.existing || madeProducts[r.product.label];
-          if (!product) {
-            product = step(A.addEntity(next, "product", r.product.label, specOf("product"))).entity;
-            if (r.product.identified) madeProducts[r.product.label] = product;
-          }
+          var product = r.product.identified ? productFor(r.product.label, r.product.existing) : step(A.addEntity(next, "product", r.product.label, specOf("product"))).entity;
           link("instance-of", service, product);
         }
         marking(r, ticks).forEach(function (f) { marks.push({ product: productOfService(next, service), line: f.line }); });

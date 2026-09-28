@@ -103,12 +103,15 @@ mod tests {
             "nmap-read.js",
             "nmap-command.js",
             "nmap-route.js",
+            "nmap-products.js",
             "nmap-changes.js",
             "nmap-plan.js",
         ] {
             assert!(at("architecture-links.js") < at(part), "{part}");
             assert!(at(part) < at("nmap.js"), "{part} loads before nmap.js");
         }
+        assert!(at("nmap-products.js") < at("nmap-changes.js"));
+        assert!(at("nmap-products.js") < at("nmap-plan.js"));
         // The scanners beside nmap read through nmap's reader (roadmap
         // scanner-readers), and the dialog knows them all.
         assert!(at("nmap.js") < at("masscan.js"));
