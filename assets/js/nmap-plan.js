@@ -351,7 +351,8 @@
       // no port to go to.
       var hostOwn = neutral(h.findings);
       var seen = reached(doc, appId, target);
-      var ports = h.ports.filter(function (p) { return p.state === "open" && !wrapped(p); }).map(function (p) {
+      // A scan of filters calls no port open that is (scan workflow spec §5.1).
+      var ports = (R.passing(scan) ? [] : h.ports).filter(function (p) { return p.state === "open" && !wrapped(p); }).map(function (p) {
         var row = portRow(seen, r.key, label, p, products);
         told(doc, scan, target, row, p, products);
         var own = readScripts(p.scripts);

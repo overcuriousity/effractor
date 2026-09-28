@@ -22,7 +22,12 @@ function commands() {
   for (const range of ranges) {
     for (const r of N.RECIPES) take(N.command([r.id], {}, range, { portList: '22,80,8000-8100', drawnPorts: ['tcp/443', 'udp/53'], ack: true }));
     take(N.command(N.RECIPES.filter(r => !r.alone).map(r => r.id), {}, range, { drawnPorts: ['tcp/443'], ack: true }));
-    for (const b of N.BLOCKS) for (const c of b.choices) take(N.command(['services'], { [b.id]: c.id }, range, { portList: 'T:22,U:53' }));
+    const typed = { portList: 'T:22,U:53', asDrawn: ['tcp/443', 'udp/53'], self: ['10.0.1.2', 'fd00::2'], resolver: '10.0.1.1, fd00::53', exclude: '10.0.1.1 10.0.1.16/28,printer.lab fe80::1%eth0', iface: 'enp3s0.100', rate: '100' };
+    for (const b of N.BLOCKS) for (const c of b.choices) take(N.command(['services'], { [b.id]: c.id }, range, typed));
+    // Every block at its last choice, in one command (scan workflow spec §8).
+    const every = {};
+    for (const b of N.BLOCKS) every[b.id] = b.choices[b.choices.length - 1].id;
+    take(N.command(['services'], Object.assign(every, { discovery: 'every', ports: 'drawn' }), range, typed));
   }
   for (const range of ['10.0.1.0/24', '10.0.1.5 10.0.1.7', '10.0.1.5-10.0.1.9']) {
     for (const p of M.PORTS) for (const r of M.RATES) take(M.command({ ports: p.id, rate: r.id }, range));

@@ -198,6 +198,42 @@ test('an ACK scan says whether a firewall keeps state, and nothing else', () => 
   assert.ok(p.hosts.every(h => h.ports.length === 0), 'it adds no service');
 });
 
+// Scan workflow spec §5.1: window, FIN, NULL and Xmas scans are read as the
+// ACK scan is. A reset came through the filter, whatever nmap calls the port.
+test('a window, FIN, NULL or Xmas scan says what a filter passes, and draws no port', () => {
+  const as = (type, flag, states) => {
+    let text = fs.readFileSync('scripts/fixtures/nmap/firewall-ack.xml', 'utf8').replace('nmap -sA', 'nmap ' + flag).replace('type="ack"', 'type="' + type + '"');
+    for (const port of Object.keys(states)) text = text.replace(new RegExp('(portid="' + port + '"><state state=")[a-z|]+'), '$1' + states[port]);
+    return N.read(text).scan;
+  };
+  const cases = [
+    ['window', '-sW', { 22: 'open', 443: 'filtered', 3389: 'closed' }, 'an ACK'],
+    ['fin', '-sF', { 22: 'closed', 443: 'filtered', 3389: 'closed' }, 'a FIN'],
+    ['null', '-sN', { 22: 'closed', 443: 'filtered', 3389: 'closed' }, 'a packet without flags'],
+    ['xmas', '-sX', { 22: 'closed', 443: 'filtered', 3389: 'closed' }, 'an Xmas packet'],
+  ];
+  for (const [type, flag, states, sent] of cases) {
+    const scan = as(type, flag, states);
+    assert.deepEqual(scan.types, [type]);
+    assert.deepEqual(scan.asks, [], type + ' asks no host which ports are open');
+    const p = N.plan(walled(), 'nmap', scan, '', {});
+    assert.deepEqual(p.changes.list.map(c => [c.kind, c.line]), [
+      ['said', 'tcp/443 to “https” on “web”: ' + sent + ' is dropped, so a firewall on the way keeps state or blocks it'],
+      ['said', 'tcp/3389 to “rdp” on “web”: ' + sent + ' gets through, so no firewall on the way keeps state for it'],
+      ['said', 'tcp/22 to “ssh” on “web”: ' + sent + ' gets through, so no firewall on the way keeps state for it'],
+    ], type);
+    assert.ok(p.hosts.every(h => h.ports.length === 0), type + ': a window scan\'s open port is no service');
+  }
+  // No answer says nothing: the port may be open, or the packet dropped.
+  const silent = N.plan(walled(), 'nmap', as('fin', '-sF', { 22: 'open|filtered', 443: 'open|filtered', 3389: 'open|filtered' }), '', {});
+  assert.deepEqual(silent.changes.list, []);
+  // Beside a scan that finds ports, ports are found.
+  assert.equal(N.passing({ types: ['syn', 'ack'] }), null);
+  assert.equal(N.passing({ types: [] }), null);
+  assert.equal(N.passing(null), null);
+  assert.equal(N.passing({ types: ['ack', 'fin'] }), 'an ACK');
+});
+
 test('another way to a host is offered for nmap\'s flows to it', () => {
   const doc = walled();
   doc.flows['to-ssh'].route = [];

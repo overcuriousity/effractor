@@ -7,7 +7,7 @@ const IDENTITY = 'ssh-hostkey or ssl-cert or nbstat or smb-os-discovery';
 test('seven recipes by purpose, in the order the dialog offers them', () => {
   assert.deepEqual(C.RECIPES.map(x => x.id), ['lan', 'names', 'services', 'identity', 'route', 'firewall', 'checks']);
   assert.ok(C.RECIPES.every(x => x.name && x.finds));
-  assert.deepEqual(C.BLOCKS.map(b => b.id), ['discovery', 'ports', 'tcp', 'udp', 'depth', 'identity', 'route', 'reasons', 'checks', 'pace']);
+  assert.deepEqual(C.BLOCKS.map(b => b.id), ['discovery', 'names', 'exclude', 'interface', 'ports', 'tcp', 'udp', 'depth', 'effort', 'osguess', 'identity', 'route', 'reasons', 'checks', 'pace', 'rate', 'retries', 'patience', 'delay']);
   // Every block a recipe sets is a choice of that block.
   for (const x of C.RECIPES) for (const b of Object.keys(x.sets)) assert.ok(C.BLOCKS.filter(k => k.id === b)[0].choices.some(c => c.id === x.sets[b]), x.id + '.' + b);
 });
@@ -41,7 +41,7 @@ test('names only goes alone; nothing ticked is a problem, not a command', () => 
 
 test('a port list takes numbers, ranges and T:/U: only; the identity ports join it', () => {
   assert.equal(C.command(['services'], { ports: 'list' }, r, { portList: '8000-8100, 80,22' }).text, 'nmap -sT -p 22,80,8000-8100 -sV -oX - 10.0.1.0/24');
-  assert.equal(C.command(['services'], { ports: 'list' }, r, { portList: 'T:80,U:53,161' }).text, 'sudo nmap -sS -sU -p T:80,U:53,161 -sV -oX - 10.0.1.0/24'.replace('sudo nmap -sS', 'nmap -sT'), 'UDP ports alone do not make the TCP scan SYN');
+  assert.equal(C.command(['services'], { ports: 'list' }, r, { portList: 'T:80,U:53,161' }).text, 'sudo nmap -sT -sU -p T:80,U:53,161 -sV -oX - 10.0.1.0/24', 'UDP ports need root, and alone do not make the TCP scan SYN');
   assert.equal(C.command(['services', 'identity'], { ports: 'list' }, r, { portList: '80' }).text,
     "sudo nmap -sS -sU -p T:22,80,443,445,U:137 -sV --script '" + IDENTITY + "' -oX - 10.0.1.0/24");
   assert.match(C.command(['services'], { ports: 'list' }, r, {}).problem, /ports to scan/);
@@ -79,13 +79,20 @@ test('pace and discovery are the author\'s; the range rules stay', () => {
   assert.match(C.command(['firewall'], {}, 'fd00::5', { ack: true }).second, /^sudo nmap -6 -sA /);
 });
 
+// What every typed text is, where a test needs them all.
+const TYPED = { resolver: '10.0.1.1', exclude: '10.0.1.20', iface: 'eth0', rate: '100' };
+const EXTRA = Object.assign({ drawnPorts: ['tcp/443'], ack: true, asDrawn: ['tcp/22', 'udp/53'], self: ['10.0.1.2'], portList: '22,80' }, TYPED);
+
 test('no command asks a third party or hides the scan', () => {
   const all = [];
-  for (const x of C.RECIPES) for (const checks of ['none', 'safe', 'all']) all.push(C.command([x.id], { checks }, r, { drawnPorts: ['tcp/443'], ack: true }));
-  all.push(C.command(C.RECIPES.filter(x => !x.alone).map(x => x.id), { checks: 'all' }, r, { drawnPorts: ['tcp/443'], ack: true }));
+  for (const x of C.RECIPES) for (const checks of ['none', 'safe', 'all']) all.push(C.command([x.id], { checks }, r, EXTRA));
+  all.push(C.command(C.RECIPES.filter(x => !x.alone).map(x => x.id), { checks: 'all' }, r, EXTRA));
+  // Scan workflow spec §5.2: every recipe under every choice of every block.
+  for (const x of C.RECIPES) for (const b of C.BLOCKS) for (const c of b.choices) all.push(C.command([x.id], { [b.id]: c.id }, r, EXTRA));
+  assert.ok(all.filter(c => c.text).length > 400, String(all.filter(c => c.text).length));
   for (const c of all) {
     for (const t of [c.text, c.second].filter(Boolean)) {
-      assert.doesNotMatch(t, /vulners|whois|shodan|-D |-S |-f |--spoof|--data-length|--source-port|--proxies|--badsum| -g /, t);
+      assert.doesNotMatch(t, /vulners|whois|shodan|-D |-S |-f |--spoof|--mtu|--data-length|--source-port|--proxies|--badsum| -g | -sI | -b | -T0| -T1|--randomize-hosts|--ttl|--ip-options/, t);
       if (/vuln/.test(t)) assert.match(t, /not external/, t);
     }
   }
@@ -101,4 +108,119 @@ test('the recipes a command holds are read back from what nmap says it ran', () 
   assert.deepEqual(C.recipesOf(C.command(['firewall'], {}, r, { drawnPorts: [] }).text), ['firewall']);
   assert.deepEqual(C.recipesOf(''), []);
   assert.deepEqual(C.recipesOf('nmap -sn -oX - 10.0.1.0/24'), []);
+});
+
+// ---- the library of options (scan workflow spec §5) ----
+
+const one = (adjust, extra, recipes) => C.command(recipes || ['services'], adjust, r, extra || {});
+
+test('the blocks stand in four groups, each choice with the argument the design names', () => {
+  assert.deepEqual(C.GROUPS.map(g => g.id), ['hosts', 'ports', 'depth', 'pace']);
+  assert.ok(C.BLOCKS.every(b => C.GROUPS.some(g => g.id === b.group)), 'every block is in a group');
+  assert.deepEqual(Object.keys(C.DEFAULTS), C.BLOCKS.map(b => b.id));
+  for (const b of C.BLOCKS) assert.ok(b.choices.some(c => c.id === C.DEFAULTS[b.id]), b.id);
+  const args = (block, id) => C.BLOCKS.filter(b => b.id === block)[0].choices.filter(c => c.id === id)[0];
+  const table = [
+    ['discovery', 'arp', '-PR', true], ['discovery', 'tcp', '-PS22,80,443,445 -PA80,443', undefined], ['discovery', 'udp', '-PU53,161', true],
+    ['discovery', 'icmp', '-PE -PP -PM', true], ['discovery', 'every', '-PE -PP -PM -PS22,80,443,445 -PA80,443 -PU53,161', true],
+    ['discovery', 'noping', '-Pn', undefined], ['discovery', 'list', '-sL', undefined],
+    ['names', 'never', '-n', undefined], ['names', 'every', '-R', undefined], ['names', 'system', '--system-dns', undefined],
+    ['tcp', 'connect', '-sT', undefined], ['tcp', 'syn', '-sS', true], ['tcp', 'ack', '-sA', true], ['tcp', 'window', '-sW', true],
+    ['tcp', 'fin', '-sF', true], ['tcp', 'null', '-sN', true], ['tcp', 'xmas', '-sX', true],
+    ['effort', 'light', '--version-light', undefined], ['effort', 'all', '--version-all', undefined],
+    ['osguess', 'limit', '--osscan-limit', undefined], ['osguess', 'guess', '--osscan-guess', undefined],
+    ['pace', 'polite', '-T2', undefined], ['pace', 'fast', '-T4', undefined], ['pace', 'insane', '-T5', undefined],
+    ['retries', 'one', '--max-retries 1', undefined], ['retries', 'none', '--max-retries 0', undefined],
+    ['patience', 'quarter', '--host-timeout 15m', undefined], ['patience', 'hour', '--host-timeout 1h', undefined],
+    ['delay', 'second', '--scan-delay 1s', undefined],
+  ];
+  for (const [block, id, arg, root] of table) {
+    assert.equal(args(block, id).args, arg, block + '.' + id);
+    assert.equal(args(block, id).root, root, block + '.' + id + ' root');
+  }
+  for (const id of ['ack', 'window', 'fin', 'null', 'xmas']) assert.match(args('tcp', id).hint, /what a filter passes, not what is open/, id);
+  assert.match(args('pace', 'insane').warning, /Misses ports/);
+  assert.match(args('retries', 'none').warning, /Misses ports/);
+  assert.match(args('rate', 'least').warning, /overload/);
+});
+
+test('finding hosts: the probes, the names, what is left out, the interface', () => {
+  assert.equal(one({ discovery: 'tcp' }).text, 'nmap -PS22,80,443,445 -PA80,443 -sT -sV -oX - 10.0.1.0/24');
+  assert.equal(one({ discovery: 'every' }).text, 'sudo nmap -PE -PP -PM -PS22,80,443,445 -PA80,443 -PU53,161 -sS -sV -oX - 10.0.1.0/24', 'root, so SYN');
+  assert.equal(one({ discovery: 'icmp', tcp: 'connect' }).text, 'sudo nmap -PE -PP -PM -sT -sV -oX - 10.0.1.0/24');
+  assert.equal(one({ names: 'never' }).text, 'nmap -n -sT -sV -oX - 10.0.1.0/24');
+  assert.equal(one({ names: 'own' }, { resolver: ' 10.0.1.1, fd00::53 ' }).text, 'nmap --dns-servers 10.0.1.1,fd00::53 -sT -sV -oX - 10.0.1.0/24');
+  assert.equal(one({ exclude: 'typed' }, { exclude: '10.0.1.1 10.0.1.16/28,printer.lab' }).text, 'nmap --exclude 10.0.1.1,10.0.1.16/28,printer.lab -sT -sV -oX - 10.0.1.0/24');
+  assert.equal(one({ exclude: 'self' }, { self: ['10.0.1.2', 'fd00::2', 'bogus'] }).text, 'nmap --exclude 10.0.1.2,fd00::2 -sT -sV -oX - 10.0.1.0/24');
+  const nowhere = one({ exclude: 'self' }, {});
+  assert.equal(nowhere.text, 'nmap -sT -sV -oX - 10.0.1.0/24');
+  assert.match(nowhere.note, /nothing is left out/);
+  assert.equal(one({ interface: 'named' }, { iface: 'enp3s0.100' }).text, 'nmap -e enp3s0.100 -sT -sV -oX - 10.0.1.0/24');
+  // Names only asks DNS: how it asks, and whom it leaves out, still count.
+  assert.equal(C.command(['names'], { names: 'own', exclude: 'typed', pace: 'fast', retries: 'one' }, r, { resolver: '10.0.1.1', exclude: '10.0.1.9' }).text, 'nmap -sL --dns-servers 10.0.1.1 --exclude 10.0.1.9 -oX - 10.0.1.0/24');
+});
+
+test('what is typed into the command is held to its shape, or refused', () => {
+  const cases = {
+    resolver: [{ names: 'own' }, ['', ' ', 'dns.lab', '10.0.1', '10.0.1.1;id', '10.0.1.1 -oN x', "10.0.1.1'", '$(id)', '10.0.1.300', '-n']],
+    exclude: [{ exclude: 'typed' }, ['', '-iL /etc/passwd', '10.0.1.1;id', '`id`', "a'b", '10.0.1.1 | x', '$HOME', 'a\\b', '--exclude']],
+    iface: [{ interface: 'named' }, ['', '-e', 'eth0 -oN x', 'eth0;id', 'a'.repeat(16), '.eth0', "e'0", 'eth 0', '$IF']],
+    rate: [{ rate: 'most' }, ['', '0', '-5', '1.5', '1e3', '100001', '1000000', '10 0', '0x10', 'fast', '007']],
+  };
+  for (const key of Object.keys(cases)) {
+    for (const bad of cases[key][1]) {
+      const c = one(cases[key][0], { [key]: bad });
+      assert.equal(c.text, undefined, key + ': ' + JSON.stringify(bad));
+      assert.ok(c.problem && /^Give /.test(c.problem), key + ': ' + JSON.stringify(bad));
+    }
+    assert.equal(one(cases[key][0], {}).text, undefined, key + ' left out');
+    assert.equal(one(cases[key][0], { [key]: null }).text, undefined, key + ' null');
+  }
+  assert.equal(one({ rate: 'most' }, { rate: 12 }).text, 'nmap -sT -sV --max-rate 12 -oX - 10.0.1.0/24', 'a number is read as its text');
+  assert.equal(one({ rate: 'most' }, { rate: '100000' }).text, 'nmap -sT -sV --max-rate 100000 -oX - 10.0.1.0/24');
+  const least = one({ rate: 'least' }, { rate: ' 1000 ' });
+  assert.equal(least.text, 'nmap -sT -sV --min-rate 1000 -oX - 10.0.1.0/24');
+  assert.match(least.warning, /overload/);
+  // A text whose choice is not taken is not looked at.
+  assert.equal(one({}, { resolver: ';id', exclude: '`x`', iface: '-', rate: 'x' }).text, 'nmap -sT -sV -oX - 10.0.1.0/24');
+});
+
+test('ports: twenty, as drawn; the counts of TCP and UDP are one', () => {
+  assert.equal(one({ ports: 'top20' }).text, 'nmap -sT --top-ports 20 -sV -oX - 10.0.1.0/24');
+  assert.equal(one({ ports: 'top100' }).text, 'nmap -sT --top-ports 100 -sV -oX - 10.0.1.0/24');
+  assert.equal(one({ ports: 'top20', udp: 'top20' }).text, 'sudo nmap -sS -sU --top-ports 20 -sV -oX - 10.0.1.0/24');
+  const wide = one({ ports: 'top100', udp: 'top20' });
+  assert.equal(wide.text, 'sudo nmap -sS -sU --top-ports 100 -sV -oX - 10.0.1.0/24');
+  assert.match(wide.note, /one count for TCP and UDP/);
+  assert.equal(one({ ports: 'top20', udp: 'top100' }).note, undefined, 'UDP is the wider: TCP is fast');
+  assert.equal(one({ ports: 'drawn' }, { asDrawn: ['tcp/443', 'tcp/22', 'tcp/23', 'tcp/22', 'bogus', 'tcp/0', 'tcp/70000', 'sctp/9'] }).text, 'nmap -sT -p 22-23,443 -sV -oX - 10.0.1.0/24');
+  assert.equal(one({ ports: 'drawn' }, { asDrawn: ['udp/53', 'tcp/22'] }).text, 'sudo nmap -sT -sU -p T:22,U:53 -sV -oX - 10.0.1.0/24');
+  const udp = one({ ports: 'drawn' }, { asDrawn: ['udp/53'] });
+  assert.equal(udp.text, 'sudo nmap -sU -p U:53 -sV -oX - 10.0.1.0/24');
+  assert.equal(udp.root, true);
+  assert.equal(one({ ports: 'drawn' }, { asDrawn: ['tcp/8080'] }, ['services', 'identity']).text, "sudo nmap -sS -sU -p T:22,443,445,8080,U:137 -sV --script '" + IDENTITY + "' -oX - 10.0.1.0/24");
+  for (const none of [{}, { asDrawn: [] }, { asDrawn: ['bogus'] }, { asDrawn: null }]) {
+    assert.match(one({ ports: 'drawn' }, none).problem, /Nothing is drawn there yet; choose 1000 most common\./);
+  }
+});
+
+test('the scans that say what a filter passes are root scans of their own kind', () => {
+  for (const [id, arg] of [['ack', '-sA'], ['window', '-sW'], ['fin', '-sF'], ['null', '-sN'], ['xmas', '-sX']]) {
+    const c = one({ tcp: id });
+    assert.equal(c.text, 'sudo nmap ' + arg + ' -sV -oX - 10.0.1.0/24', id);
+    assert.equal(c.root, true, id);
+  }
+});
+
+test('depth and pace: what adds nothing without its block is left out', () => {
+  assert.equal(one({ effort: 'light' }).text, 'nmap -sT -sV --version-light -oX - 10.0.1.0/24');
+  assert.equal(one({ effort: 'all', depth: 'ports' }).text, 'nmap -sT -oX - 10.0.1.0/24', 'no versions, no effort');
+  assert.equal(one({ osguess: 'guess' }).text, 'nmap -sT -sV -oX - 10.0.1.0/24', 'no OS guess asked');
+  assert.equal(one({ osguess: 'guess', depth: 'os', effort: 'all' }).text, 'sudo nmap -sS -sV -O --version-all --osscan-guess -oX - 10.0.1.0/24');
+  assert.equal(one({ osguess: 'limit', depth: 'os' }).text, 'sudo nmap -sS -sV -O --osscan-limit -oX - 10.0.1.0/24');
+  const all = one({ pace: 'insane', rate: 'most', retries: 'none', patience: 'quarter', delay: 'second' }, { rate: '50' });
+  assert.equal(all.text, 'nmap -sT -sV -T5 --max-rate 50 --max-retries 0 --host-timeout 15m --scan-delay 1s -oX - 10.0.1.0/24');
+  assert.equal(all.warning, 'Misses ports on all but the fastest networks. Misses ports.');
+  assert.equal(one({}).warning, undefined);
+  assert.equal(one({ checks: 'all' }).warning, undefined, 'the checks\' warning is the block\'s own line');
 });

@@ -346,11 +346,19 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .nmap-adjust-word::before { content: "▸"; display: inline-block; width: 1em; color: var(--color-fg-muted); }
 .nmap-adjust[open] .nmap-adjust-word::before { content: "▾"; }
 .nmap-set { color: var(--color-fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.nmap-adjust[open] .nmap-set { visibility: hidden; }
+.nmap-adjust[open] > summary .nmap-set { visibility: hidden; }
 .nmap-blocks {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; margin-top: 8px;
   padding: 10px; border-radius: var(--radius-md); background: var(--color-bg-surface);
 }
+.nmap-groups { display: block; padding: 0; background: none; }
+.nmap-group { margin-top: 4px; }
+.nmap-group > summary { display: flex; gap: 8px; align-items: baseline; cursor: pointer; color: var(--color-fg-secondary); font-size: var(--text-xs); list-style: none; }
+.nmap-group > summary::-webkit-details-marker { display: none; }
+.nmap-group[open] > summary .nmap-adjust-word::before { content: "▾"; }
+.nmap-group:not([open]) > summary .nmap-adjust-word::before { content: "▸"; }
+.nmap-group[open] > summary .nmap-set { visibility: hidden; }
+.nmap-group > .nmap-blocks { margin: 4px 0 6px 1em; }
 .nmap-block { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: 2px 8px; align-items: center; font-size: var(--text-xs); }
 .nmap-block > span:first-child { color: var(--color-fg-muted); }
 .nmap-block.is-set > span:first-child { color: var(--color-fg-primary); }

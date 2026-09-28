@@ -92,8 +92,9 @@
     var args = String(scan.args || "");
     // A list scan sends nothing; an ACK scan says nothing of open or closed.
     if (/ -sL /.test(" " + args + " ")) return out;
-    var types = scan.types || [];
-    var ackOnly = types.length > 0 && types.every(function (t) { return t === "ack"; });
+    // What a scan of filters sent (scan workflow spec §5.1), or null.
+    var probe = R.passing(scan);
+    var ackOnly = !!probe;
     var targets = C.targetsOf(scan);
     var date = scan.date || null;
     var firewallRan = C.recipesOf(args).indexOf("firewall") >= 0 || ackOnly;
@@ -132,8 +133,11 @@
           var state = R.portState(s, scan, at.proto, at.port);
           var what = f.protocol + " to " + name(doc, f.target) + " on " + name(doc, target);
           if (ackOnly) {
-            if (state === "unfiltered") item({ key: "ack:" + f.id, kind: "said", host: target, line: what + ": an ACK gets through, so no firewall on the way keeps state for it" });
-            if (state === "filtered") item({ key: "ack:" + f.id, kind: "said", host: target, line: what + ": an ACK is dropped, so a firewall on the way keeps state or blocks it" });
+            // Answered with a reset, it got through: nmap says unfiltered
+            // (ACK), open or closed (window), closed (FIN, NULL, Xmas).
+            var got = state === "unfiltered" || state === "open" || state === "closed";
+            if (got) item({ key: "ack:" + f.id, kind: "said", host: target, line: what + ": " + probe + " gets through, so no firewall on the way keeps state for it" });
+            if (state === "filtered") item({ key: "ack:" + f.id, kind: "said", host: target, line: what + ": " + probe + " is dropped, so a firewall on the way keeps state or blocks it" });
             return;
           }
           var through = state === "open" || state === "closed";

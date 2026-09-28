@@ -2,6 +2,7 @@
 // import design §3.2, in history; nmap recipes spec §2). Pure.
 (function () {
   var node = typeof module !== "undefined";
+  var Ad = node ? require("./nmap-address.js") : window.effractorNmapAddress;
 
   // ---- blocks and recipes (nmap recipes spec §2) ----
 
@@ -14,59 +15,133 @@
   var COMMON_TCP = "7,9,13,21-23,25-26,37,53,79-81,88,106,110-111,113,119,135,139,143-144,179,199,389,427,443-445,465,513-515,543-544,548,554,587,631,646,873,990,993,995,1025-1029,1110,1433,1720,1723,1755,1900,2000-2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000-6001,6646,7070,8000,8008-8009,8080-8081,8443,8888,9100,9999-10000,32768,49152-49157";
 
   // Each block is one choice. Where recipes set a block, its choices stand
-  // weakest first: combined recipes take the strongest.
+  // weakest first: combined recipes take the strongest. `group`: where
+  // Adjust shows it (scan workflow spec §5). `field`: a text the choice
+  // needs, by its key in `extra`; it goes into the command, so `shape`
+  // says what it may be.
+  var GROUPS = [
+    { id: "hosts", name: "Finding hosts" },
+    { id: "ports", name: "Ports" },
+    { id: "depth", name: "Depth" },
+    { id: "pace", name: "Pace" },
+  ];
+  var USUAL_TCP = "-PS22,80,443,445 -PA80,443", USUAL_UDP = "-PU53,161", ICMP = "-PE -PP -PM";
   var BLOCKS = [
-    { id: "discovery", name: "Discovery", choices: [
+    { id: "discovery", group: "hosts", name: "Discovery", choices: [
       { id: "ping", name: "ping" },
       { id: "arp", name: "ARP on this LAN", args: "-PR", root: true, hint: "finds MAC addresses · this network only" },
+      { id: "tcp", name: "TCP to usual ports", args: USUAL_TCP, hint: "for hosts that ignore ping" },
+      { id: "udp", name: "UDP to usual ports", args: USUAL_UDP, root: true },
+      { id: "icmp", name: "every ICMP kind", args: ICMP, root: true, hint: "echo, timestamp and netmask" },
+      { id: "every", name: "every probe", args: ICMP + " " + USUAL_TCP + " " + USUAL_UDP, root: true, hint: "finds the most · slower" },
       { id: "noping", name: "don't ping", args: "-Pn", hint: "for hosts that ignore ping · slower" },
       { id: "list", name: "names only", args: "-sL", hint: "asks DNS · sends nothing to the targets" },
     ] },
-    { id: "ports", name: "Ports", choices: [
+    { id: "names", group: "hosts", name: "Names", choices: [
+      { id: "found", name: "of hosts that answer" },
+      { id: "never", name: "never asked", args: "-n", hint: "faster · hosts go by their address" },
+      { id: "every", name: "of every address", args: "-R", hint: "of those that do not answer too" },
+      { id: "system", name: "by this machine's resolver", args: "--system-dns", hint: "one by one · slower" },
+      { id: "own", name: "by a resolver of yours", field: { key: "resolver", name: "Resolver", placeholder: "10.0.1.1", hint: "addresses, separated by commas", flag: "--dns-servers" } },
+    ] },
+    { id: "exclude", group: "hosts", name: "Leave out", choices: [
+      { id: "none", name: "nothing" },
+      { id: "self", name: "the scanner's own host" },
+      { id: "typed", name: "what is typed", field: { key: "exclude", name: "Left out", placeholder: "10.0.1.1 10.0.1.20", hint: "addresses, names, ranges and CIDR", flag: "--exclude" } },
+    ] },
+    { id: "interface", group: "hosts", name: "Interface", choices: [
+      { id: "auto", name: "nmap's choice" },
+      { id: "named", name: "named", field: { key: "iface", name: "Interface", placeholder: "eth0", hint: "as ip link names it", flag: "-e" } },
+    ] },
+    { id: "ports", group: "ports", name: "Ports", choices: [
       { id: "none", name: "none" },
+      { id: "top20", name: "20 most common" },
       { id: "top100", name: "100 most common" },
       { id: "top1000", name: "1000 most common" },
+      { id: "drawn", name: "as drawn", hint: "the ports drawn on the targets" },
       { id: "list", name: "a list" },
       { id: "all", name: "every TCP port", hint: "hours for a /24" },
     ] },
-    { id: "tcp", name: "TCP scan", choices: [
+    { id: "tcp", group: "ports", name: "TCP scan", choices: [
       { id: "connect", name: "connect", args: "-sT" },
       { id: "syn", name: "SYN", args: "-sS", root: true },
+      { id: "ack", name: "ACK", args: "-sA", root: true, passes: true },
+      { id: "window", name: "window", args: "-sW", root: true, passes: true },
+      { id: "fin", name: "FIN", args: "-sF", root: true, passes: true },
+      { id: "null", name: "NULL", args: "-sN", root: true, passes: true },
+      { id: "xmas", name: "Xmas", args: "-sX", root: true, passes: true },
     ] },
-    { id: "udp", name: "UDP", choices: [
+    { id: "udp", group: "ports", name: "UDP", choices: [
       { id: "off", name: "off" },
+      { id: "top20", name: "20 most common", root: true },
       { id: "top100", name: "100 most common", root: true },
       { id: "top1000", name: "1000 most common", root: true, hint: "slow" },
     ] },
-    { id: "depth", name: "Depth", choices: [
+    { id: "depth", group: "depth", name: "Depth", choices: [
       { id: "ports", name: "open ports only" },
       { id: "versions", name: "products and versions", args: "-sV" },
       { id: "os", name: "versions and OS guess", args: "-sV -O", root: true },
     ] },
-    { id: "identity", name: "Identity", choices: [
+    { id: "effort", group: "depth", name: "Version effort", choices: [
+      { id: "normal", name: "nmap's" },
+      { id: "light", name: "light", args: "--version-light", hint: "faster · names fewer products" },
+      { id: "all", name: "every probe", args: "--version-all", hint: "slow" },
+    ] },
+    { id: "osguess", group: "depth", name: "OS guess", choices: [
+      { id: "normal", name: "nmap's" },
+      { id: "limit", name: "only where it can tell", args: "--osscan-limit", hint: "hosts with an open and a closed port" },
+      { id: "guess", name: "guess harder", args: "--osscan-guess" },
+    ] },
+    { id: "identity", group: "depth", name: "Identity", choices: [
       { id: "off", name: "off" },
       { id: "on", name: "SSH keys, NetBIOS and certificate names", root: true },
     ] },
-    { id: "route", name: "Route", choices: [
+    { id: "route", group: "depth", name: "Route", choices: [
       { id: "off", name: "off" },
       { id: "on", name: "traceroute", args: "--traceroute", root: true },
     ] },
-    { id: "reasons", name: "Reasons", choices: [
+    { id: "reasons", group: "depth", name: "Reasons", choices: [
       { id: "off", name: "off" },
       { id: "on", name: "why each port is in its state", args: "--reason" },
     ] },
-    { id: "checks", name: "Checks", choices: [
+    { id: "checks", group: "depth", name: "Checks", choices: [
       { id: "none", name: "none", hint: "no scripts" },
       { id: "safe", name: "safe", script: "vuln and safe and not external", hint: "vulnerability checks that break nothing · slower" },
       { id: "all", name: "all", script: "vuln and not external", warning: "Runs exploits and denial-of-service checks." },
     ] },
-    { id: "pace", name: "Pace", choices: [
+    { id: "pace", group: "pace", name: "Pace", choices: [
       { id: "polite", name: "polite", args: "-T2", hint: "slower · gentler on the network" },
       { id: "normal", name: "normal" },
       { id: "fast", name: "fast", args: "-T4", hint: "for a fast, reliable network" },
+      { id: "insane", name: "insane", args: "-T5", warning: "Misses ports on all but the fastest networks." },
+    ] },
+    { id: "rate", group: "pace", name: "Rate", choices: [
+      { id: "auto", name: "nmap's" },
+      { id: "most", name: "at most", field: { key: "rate", name: "Packets a second", placeholder: "100", hint: "1 to 100,000", flag: "--max-rate" } },
+      { id: "least", name: "at least", warning: "Can overload small routers and set off alarms.", field: { key: "rate", name: "Packets a second", placeholder: "1000", hint: "1 to 100,000", flag: "--min-rate" } },
+    ] },
+    { id: "retries", group: "pace", name: "Retries", choices: [
+      { id: "auto", name: "nmap's" },
+      { id: "one", name: "one", args: "--max-retries 1" },
+      { id: "none", name: "none", args: "--max-retries 0", warning: "Misses ports." },
+    ] },
+    { id: "patience", group: "pace", name: "Giving up on a host", choices: [
+      { id: "never", name: "never" },
+      { id: "quarter", name: "after 15 minutes", args: "--host-timeout 15m" },
+      { id: "hour", name: "after an hour", args: "--host-timeout 1h" },
+    ] },
+    { id: "delay", group: "pace", name: "Wait between probes", choices: [
+      { id: "none", name: "none" },
+      { id: "second", name: "1 second", args: "--scan-delay 1s", hint: "for devices that limit their answers" },
     ] },
   ];
-  var DEFAULTS = { discovery: "ping", ports: "none", tcp: "connect", udp: "off", depth: "ports", identity: "off", route: "off", reasons: "off", checks: "none", pace: "normal" };
+  // The scans that say what a filter passes, not what is open.
+  var PASSES_HINT = "says what a filter passes, not what is open";
+  BLOCKS.forEach(function (b) {
+    b.choices.forEach(function (c) { if (c.passes) c.hint = PASSES_HINT; });
+  });
+  var DEFAULTS = { discovery: "ping", names: "found", exclude: "none", "interface": "auto", ports: "none", tcp: "connect", udp: "off", depth: "ports", effort: "normal", osguess: "normal", identity: "off", route: "off", reasons: "off", checks: "none", pace: "normal", rate: "auto", retries: "auto", patience: "never", delay: "none" };
+  var TOP = { top20: 20, top100: 100, top1000: 1000 };
 
   // `finds` and `time` (for a /24): the dialog's words per recipe.
   var RECIPES = [
@@ -127,10 +202,13 @@
       ch.depth = "ports";
       ch.checks = "none";
     }
+    // What adds nothing without its block is as nmap has it.
+    if (ch.depth === "ports") ch.effort = "normal";
+    if (ch.depth !== "os") ch.osguess = "normal";
     var root = Object.keys(ch).some(function (b) { return b !== "tcp" && choice(b, ch[b]).root; });
     // A scan that runs as root anyway takes the SYN scan, unless told not to.
     if (root && !set.tcp) ch.tcp = "syn";
-    if (ch.ports !== "none" && ch.tcp === "syn") root = true;
+    if (ch.ports !== "none" && choice("tcp", ch.tcp).root) root = true;
     return { choices: ch, root: root, notes: notes };
   }
 
@@ -185,9 +263,45 @@
   function unzoned(w) {
     return w.indexOf(":") >= 0 ? w.replace(ZONE, "") : w;
   }
+  // ---- what is typed into the command (scan workflow spec §5.1) ----
+
+  // Each is held to its shape, since it goes into the command: what it
+  // comes to there, or null.
+  var SHAPES = {
+    resolver: function (text) {
+      var list = text.split(/[\s,]+/).filter(Boolean);
+      return list.length && list.every(function (a) { return !!Ad.bytes(a); }) ? list.join(",") : null;
+    },
+    exclude: function (text) {
+      var list = text.split(/[\s,]+/).filter(Boolean);
+      var fine = list.length && list.every(function (w) { return RANGE_CHARS.test(unzoned(w)) && w[0] !== "-"; });
+      return fine ? list.join(",") : null;
+    },
+    iface: function (text) {
+      return /^[0-9A-Za-z][0-9A-Za-z_.\-]{0,14}$/.test(text) ? text : null;
+    },
+    rate: function (text) {
+      return /^[1-9]\d{0,5}$/.test(text) && Number(text) <= 100000 ? text : null;
+    },
+  };
+  var ASKS = {
+    resolver: "Give the resolver's address, such as 10.0.1.1.",
+    exclude: "Give what to leave out: addresses, names, ranges and CIDR, such as 10.0.1.1.",
+    iface: "Give the interface, such as eth0.",
+    rate: "Give the packets a second, from 1 to 100000.",
+  };
+  // The argument of a choice that needs a text: {arg} or {problem}.
+  function typed(field, extra) {
+    var text = String(extra[field.key] == null ? "" : extra[field.key]).trim();
+    var value = text ? SHAPES[field.key](text) : null;
+    return value ? { arg: field.flag + " " + value } : { problem: ASKS[field.key] };
+  }
+
   // `extra`: {portList: the typed list, drawnPorts: ["tcp/443", …] the
   // firewall recipe takes from the drawing, ack: the ACK scan as a second
-  // command}. Returns {text, root, second?, note?} or {problem}.
+  // command, asDrawn: ["tcp/443", …] the ports drawn on the targets, self:
+  // the addresses of the scanner's own host, and the typed texts by their
+  // keys}. Returns {text, root, second?, note?, warning?} or {problem}.
   function command(recipeIds, adjust, range, extra) {
     extra = extra || {};
     var c = combine(recipeIds, adjust);
@@ -208,14 +322,35 @@
     }
     var ch = c.choices, notes = c.notes.slice();
     var firewall = (recipeIds || []).indexOf("firewall") >= 0;
-    var args = [], list = null;
+    var args = [], list = null, problem = null, warnings = [];
     function arg(blockId) {
-      var a = choice(blockId, ch[blockId]).args;
-      if (a) args.push(a);
+      var c = choice(blockId, ch[blockId]);
+      if (c.warning && blockId !== "checks") warnings.push(c.warning);
+      if (c.args) args.push(c.args);
+      if (!c.field || problem) return;
+      var t = typed(c.field, extra);
+      if (t.problem) problem = t.problem;
+      else args.push(t.arg);
     }
     arg("discovery");
+    arg("names");
+    if (ch.exclude === "self") {
+      var own = (extra.self || []).filter(function (a) { return !!Ad.bytes(a); });
+      if (own.length) args.push("--exclude " + own.join(","));
+      else notes.push("The scanner is on no host with an address; nothing is left out.");
+    } else arg("exclude");
+    arg("interface");
     if (ch.discovery !== "list") {
       var ports = ch.ports;
+      if (ports === "drawn") {
+        list = { tcp: Object.create(null), udp: Object.create(null) };
+        (extra.asDrawn || []).forEach(function (p) {
+          var m = /^(tcp|udp)\/(\d{1,5})$/.exec(p);
+          if (m && Number(m[2]) >= 1 && Number(m[2]) <= 65535) list[m[1]][Number(m[2])] = true;
+        });
+        if (!Object.keys(list.tcp).length && !Object.keys(list.udp).length) return { problem: "Nothing is drawn there yet; choose 1000 most common." };
+        if (ch.identity === "on") join(list, portsOf("T:" + IDENTITY_PORTS.tcp + ",U:" + IDENTITY_PORTS.udp));
+      }
       if (ports === "list") {
         list = portsOf(String(extra.portList || "").trim() || null);
         if (String(extra.portList || "").trim() && !list) {
@@ -241,7 +376,7 @@
           }
         }
       }
-      var listed = ports === "list";
+      var listed = ports === "list" || ports === "drawn";
       var tcp = listed ? Object.keys(list.tcp).length > 0 : ports !== "none";
       var udp = listed ? Object.keys(list.udp).length > 0 : ch.udp !== "off";
       if (!tcp && !udp) args.push("-sn");
@@ -250,12 +385,16 @@
       if (listed) args.push(listArg(list));
       else if (ports === "all") args.push(udp ? "-p T:1-65535,U:1-1024" : "-p-");
       else if (tcp || udp) {
-        var most = (tcp && ports === "top1000") || (udp && ch.udp === "top1000") ? 1000 : 100;
+        var most = Math.max(tcp ? TOP[ports] || 0 : 0, udp ? TOP[ch.udp] || 0 : 0);
         // nmap's own default is the 1000 most common TCP ports.
-        if (most === 100 || udp) args.push("--top-ports " + most);
-        if (tcp && udp && most === 1000 && ch.udp === "top100") notes.push("nmap takes one count for TCP and UDP: UDP is scanned as widely as TCP here, which is slow.");
+        if (most !== 1000 || udp) args.push("--top-ports " + most);
+        if (tcp && udp && (TOP[ch.udp] || 0) < most) notes.push("nmap takes one count for TCP and UDP: UDP is scanned as widely as TCP here, which is slow.");
       }
-      if (tcp || udp) arg("depth");
+      if (tcp || udp) {
+        arg("depth");
+        arg("effort");
+        arg("osguess");
+      }
       arg("reasons");
       arg("route");
       var scripts = [];
@@ -264,9 +403,11 @@
       if (scripts.length) {
         args.push("--script '" + (scripts.length > 1 ? scripts.map(function (x) { return "(" + x + ")"; }).join(" or ") : scripts[0]) + "'");
       }
-      arg("pace");
+      ["pace", "rate", "retries", "patience", "delay"].forEach(arg);
     }
-    var root = c.root && ch.discovery !== "list";
+    if (problem) return { problem: problem };
+    // A UDP scan needs root, however its ports were named (a list, as drawn).
+    var root = (c.root || !!udp) && ch.discovery !== "list";
     var v6 = six.length ? "-6 " : "";
     var out = { text: (root ? "sudo " : "") + "nmap " + v6 + args.join(" ") + " -oX - " + text, root: root };
     // nmap runs one TCP scan type per run: the ACK scan is a second command.
@@ -277,6 +418,7 @@
     var wide = six.map(unzoned).filter(function (w) { return /\/(\d{1,3})$/.test(w) && Number(w.split("/")[1]) < 112; });
     if (wide.length) notes.unshift(wide[0] + " is too wide to scan in useful time; give addresses or a /112 or narrower.");
     if (notes.length) out.note = notes.join(" ");
+    if (warnings.length) out.warning = warnings.join(" ");
     return out;
   }
 
@@ -328,7 +470,7 @@
     return "Last nmap import: " + stamp.date + ", scan" + (stamp.range ? " of " + stamp.range : "") + (names.length ? " · " + names.join(", ") : "") + ".";
   }
 
-  var api = { BLOCKS: BLOCKS, RECIPES: RECIPES, DEFAULTS: DEFAULTS, combine: combine, command: command, portsOf: portsOf, recipesOf: recipesOf, targetsOf: targetsOf, STAMP: STAMP, stampLine: stampLine, stampFor: stampFor };
+  var api = { GROUPS: GROUPS, BLOCKS: BLOCKS, RECIPES: RECIPES, DEFAULTS: DEFAULTS, combine: combine, command: command, portsOf: portsOf, recipesOf: recipesOf, targetsOf: targetsOf, STAMP: STAMP, stampLine: stampLine, stampFor: stampFor };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapCommand = api;
 })();

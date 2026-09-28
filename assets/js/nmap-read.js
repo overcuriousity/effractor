@@ -428,6 +428,15 @@
   // or more: a few ports looked at for another purpose leave the question
   // open.
   var ASKED_PORTS = 20;
+  // The scans that say what a filter passes (scan workflow spec §5.1),
+  // and what each sends, in words.
+  var PASSES = { ack: "an ACK", window: "an ACK", fin: "a FIN", "null": "a packet without flags", xmas: "an Xmas packet", maimon: "a FIN with an ACK" };
+  // What a scan of nothing but these sent, or null: no port is open by it.
+  function passing(scan) {
+    var types = (scan && scan.types) || [];
+    var only = types.length > 0 && types.every(function (t) { return has(PASSES, t); });
+    return only ? PASSES[types[0]] : null;
+  }
   function asksOf(args, types, probed) {
     var a = " " + String(args || "").replace(/\s+/g, " ") + " ";
     function has(word) {
@@ -482,7 +491,7 @@
     return new TextDecoder(enc).decode(b);
   }
 
-  var api = { asksOf: asksOf, probed: probed, portState: portState, cleanName: cleanName, read: read, decodeFile: decodeFile, oneHost: oneHost, has: has, parseXml: parseXml, kids: kids, kid: kid, portName: portName, otherScanner: otherScanner, macOf: macOf };
+  var api = { asksOf: asksOf, passing: passing, probed: probed, portState: portState, cleanName: cleanName, read: read, decodeFile: decodeFile, oneHost: oneHost, has: has, parseXml: parseXml, kids: kids, kid: kid, portName: portName, otherScanner: otherScanner, macOf: macOf };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapRead = api;
 })();
