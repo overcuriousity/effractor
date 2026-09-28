@@ -105,6 +105,9 @@ mod tests {
             "nmap-route.js",
             "nmap-products.js",
             "nmap-changes.js",
+            "nuclei-command.js",
+            "nuclei-templates.js",
+            "nmap-connect.js",
             "nmap-plan.js",
         ] {
             assert!(at("architecture-links.js") < at(part), "{part}");
@@ -124,6 +127,8 @@ mod tests {
         assert!(at("nmap-read.js") < at("nuclei-command.js"));
         assert!(at("nuclei-command.js") < at("nuclei-templates.js"));
         assert!(at("nuclei-templates.js") < at("nuclei.js"));
+        assert!(at("nuclei-templates.js") < at("nmap-connect.js"));
+        assert!(at("nmap-connect.js") < at("nmap-plan.js"));
         assert!(at("nuclei.js") < at("scanners.js"));
         assert!(html.contains("id=\"nmap-step-nuclei\""));
         assert!(at("scanners.js") < at("nmap-ui.js"));

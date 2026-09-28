@@ -11,6 +11,7 @@
   var Rt = node ? require("./nmap-route.js") : window.effractorNmapRoute;
   var Ch = node ? require("./nmap-changes.js") : window.effractorNmapChanges;
   var P = node ? require("./nmap-products.js") : window.effractorNmapProducts;
+  var Cn = node ? require("./nmap-connect.js") : window.effractorNmapConnect;
   var has = R.has, oneHost = R.oneHost, addressKey = Ad.addressKey, bytes = Ad.bytes, inCidr = Ad.inCidr, networkOf = Ad.networkOf;
   var targetsOf = C.targetsOf, STAMP = C.STAMP, stampLine = C.stampLine;
 
@@ -386,6 +387,8 @@
       app: appId,
       // What differs from the drawing (nmap recipes spec §5).
       changes: Ch.changes(doc, appId, scan, planned, scanOf, way, appHost),
+      // How it connects (nuclei templates spec §6).
+      connections: Cn.plan(doc, scan, planned, scanOf, appHost),
       routers: way.routers,
       links: way.links,
       paths: way.paths,
@@ -552,6 +555,8 @@
   // (spec §5, §7): the product a drawn service lacks, a product that
   // differs, and the application behind the server.
   function told(doc, scan, target, row, p, products) {
+    row.login = null;
+    row.manages = false;
     if (scan.tool !== "nuclei") return;
     var drawn = row.known ? productOfService(doc, row.known) : null;
     if (drawn && row.product.identified) {
@@ -559,6 +564,8 @@
       if (P.lacks(was, row.product.label)) row.identifies = { product: drawn, from: was, to: row.product.label, existing: row.product.existing };
       else if (!P.same(was, row.product.label)) row.differs = "drawn: " + was + " · nuclei: " + row.product.label;
     }
+    row.login = p.login || null;
+    row.manages = !!p.manages;
     if (!p.application) return;
     var label = p.application.product + (p.application.version ? " " + p.application.version : "");
     var app = { label: p.application.label, product: { label: label, existing: products[P.key(label)] || null }, known: row.known ? passesTo(doc, target, row.known, label) : null, differs: null };
@@ -571,6 +578,7 @@
     var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true, identities: {}, names: {}, identifies: {}, applications: {}, moves: {}, strips: {}, renames: {}, seen: true, routers: {} };
     (p.routers || []).forEach(function (r) { t.routers[r.key] = true; });
     // A change is done only when ticked (spec §5.2).
+    t.connections = Cn.defaults(p.connections);
     t.changes = {};
     ((p.changes && p.changes.list) || []).forEach(function (c) { if (c.action) t.changes[c.key] = false; });
     p.hosts.forEach(function (h) {
@@ -725,7 +733,7 @@
   }
 
   function summary(doc, p, ticks, limits) {
-    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, named: 0, told: 0, moved: 0, renamed: 0, seen: 0, changes: Ch.changesTicked(p, ticks) };
+    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, named: 0, told: 0, moved: 0, renamed: 0, seen: 0, changes: Ch.changesTicked(p, ticks), connected: Cn.count(p.connections, ticks.connections) };
     var rel = 0, newProducts = Object.create(null), marked = Object.create(null);
     // The products that are named: those made for it are counted, and a
     // name that is taken is no new product of a port's.
@@ -816,8 +824,8 @@
     if (s.proposed) s.networks++;
     rel += s.flows;
     s.unpatched = Object.keys(marked).length;
-    s.entities = Object.keys(doc.entities || {}).length + s.hosts + s.networks + s.routers + s.firewalls + s.services + s.products;
-    s.relationships = Object.keys(doc.associations || {}).length + Object.keys(doc.flows || {}).length + rel;
+    s.entities = Object.keys(doc.entities || {}).length + s.hosts + s.networks + s.routers + s.firewalls + s.services + s.products + s.connected.entities;
+    s.relationships = Object.keys(doc.associations || {}).length + Object.keys(doc.flows || {}).length + rel + s.connected.relationships;
     s.tooMany = null;
     // Many hosts: fewer, or a smaller range; one host: its ports.
     var fix = ticked > 1 ? " Untick some hosts, or scan a smaller range." : " Untick some ports.";
@@ -845,6 +853,8 @@
     if (s.moved) more.push("moves " + n(s.moved, "host"));
     if (s.renamed) more.push("renames " + n(s.renamed, "host"));
     if (s.changes) more.push("makes " + n(s.changes, "change"));
+    var c = s.connected;
+    if (c && c.accounts + c.hosts + c.links) more.push("draws " + [[c.accounts, "account"], [c.hosts, "host"], [c.links, "connection"]].filter(function (x) { return x[0]; }).map(function (x) { return n(x[0], x[1]); }).join(", "));
     // The day seen is said only when it is all there is.
     if (s.seen && !parts.length && !more.length) more.push("notes " + n(s.seen, "host") + " as seen");
     var said = (parts.length ? ["adds " + parts.join(", ")] : []).concat(more).join(", ");
@@ -875,7 +885,7 @@
     var s = summary(doc, p, ticks, null);
     var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged && h.addresses.length; });
     var stripping = p.hosts.some(function (h) { return ticks.hosts[h.key] && doing(h, ticks, p).strip; });
-    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.named && !s.told && !s.moved && !s.renamed && !s.seen && !stripping && !s.changes) return null;
+    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.named && !s.told && !(s.connected.accounts + s.connected.hosts + s.connected.links) && !s.moved && !s.renamed && !s.seen && !stripping && !s.changes) return null;
     var next = JSON.parse(JSON.stringify(doc));
     function step(edit) {
       if (!edit) throw new Error("the nmap import could not be applied");
@@ -895,7 +905,7 @@
     }
     var skipped = p.network && p.network.merged && !s.filledNetworks ? p.network.merged : null;
     var madeProducts = Object.create(null);
-    var flows = [], marks = [], hostOf = {}, passes = [];
+    var flows = [], marks = [], hostOf = {}, passes = [], serviceOf = {}, appOf = {};
     // A product by its name and version, drawn or made by this import.
     function productFor(label, existing) {
       var id = existing || madeProducts[P.key(label)] || ids(next, "product").filter(function (x) { return P.key(next.entities[x].label) === P.key(label); })[0];
@@ -996,6 +1006,8 @@
       }
       h.ports.forEach(function (r) {
         var tells = telling(r, ticks);
+        if (r.known && next.entities[r.known]) serviceOf[r.key] = r.known;
+        if (r.application && r.application.known && next.entities[r.application.known]) appOf[r.key] = r.application.known;
         if (tells.application && r.known && next.entities[r.known]) passes.push({ row: r, host: host, label: h.label, server: r.known });
         // A known port with nothing to add is unticked, and its product still
         // takes the finding.
@@ -1013,6 +1025,7 @@
           var product = r.product.identified ? productFor(r.product.label, r.product.existing) : step(A.addEntity(next, "product", r.product.label, specOf("product"))).entity;
           link("instance-of", service, product);
           if (tells.application) passes.push({ row: r, host: host, label: h.label, server: service });
+          serviceOf[r.key] = service;
         }
         marking(r, ticks).forEach(function (f) { marks.push({ product: productOfService(next, service), line: f.line }); });
         if (r.addsFlow) flows.push({ label: r.label + " on " + h.label, target: service, host: host, row: h.key, port: r.key, route: h.route, protocol: r.proto });
@@ -1052,11 +1065,21 @@
     // service of its own on the same host, which the server passes on to
     // over the first network the host is on.
     passes.forEach(function (x) {
-      var made = step(A.addEntity(next, "service", x.row.application.label, specOf("service"))).entity;
+      var made = appOf[x.row.key] = step(A.addEntity(next, "service", x.row.application.label, specOf("service"))).entity;
       link("hosts", x.host, made, { privilege: "unknown" });
       link("instance-of", made, productFor(x.row.application.product.label, x.row.application.product.existing));
       var on = attachedNetworks(next, x.host);
       step(L.putFlow(next, null, { label: x.row.application.label + " behind " + x.row.label + " on " + x.label, source: x.server, target: made, route: on.length ? [on[0]] : [], protocol: "http" }));
+    });
+    Cn.apply(p.connections, ticks.connections, {
+      doc: function () { return next; },
+      add: env.add,
+      link: link,
+      flow: function (value) { step(L.putFlow(next, null, value)); },
+      product: function (label) { return productFor(label, null); },
+      hostOf: hostOf,
+      serviceOf: serviceOf,
+      appOf: appOf,
     });
     Ch.applyChangesAfter(p, ticks, env, way.routes, flowOf, ends);
     // A finding marks its product unpatched and says why; its time stays as

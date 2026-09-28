@@ -207,6 +207,11 @@
   function answer(name) {
     return typeof name === "string" && Object.prototype.hasOwnProperty.call(byName, name) ? byName[name] : null;
   }
+  // The application of a product's name ("grafana", "proxmox ve"), or null.
+  function application(name) {
+    var want = String(name == null ? "" : name).trim().toLowerCase();
+    return ANSWERS.filter(function (a) { return a.is === "application" && a.product.toLowerCase() === want; })[0] || null;
+  }
   function template(id) {
     return TEMPLATES.filter(function (t) { return t.id === id; })[0] || null;
   }
@@ -587,7 +592,7 @@
     return out;
   }
 
-  var api = { TEMPLATES: TEMPLATES, ANSWERS: ANSWERS, VERSION: VERSION, answer: answer, text: text, pattern: pattern, USUAL_PORTS: USUAL_PORTS, GROUPS: GROUPS, ADJUST: ADJUST, targets: targets, command: command, read: read };
+  var api = { TEMPLATES: TEMPLATES, ANSWERS: ANSWERS, VERSION: VERSION, answer: answer, application: application, text: text, pattern: pattern, USUAL_PORTS: USUAL_PORTS, GROUPS: GROUPS, ADJUST: ADJUST, targets: targets, command: command, read: read };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNucleiTemplates = api;
 })();
