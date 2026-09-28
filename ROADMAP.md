@@ -143,7 +143,11 @@ Owner, 2026-09-28: effractor draws network diagrams and attack vectors; it
 is no vulnerability manager. The scanners are to complement each other in a
 workflow the page quietly leads through (nmap finds hosts and ports; the next
 tool is handed what is drawn and says what each service is), and nothing is
-drawn that the model does not use. Needs a design first, with the owner.
+drawn that the model does not use. The design also grows nmap's library of
+commands (owner, 2026-09-28). Design:
+[`2026-09-28-scan-workflow-design.md`](docs/superpowers/specs/2026-09-28-scan-workflow-design.md),
+approved in conversation 2026-09-28; the written text awaits the owner's
+review, and no plan is written before it.
 Done when the page says what to run next from what the drawing lacks, and
 each tool's command takes its targets from the drawing (effractor's own
 nuclei templates do so already).
