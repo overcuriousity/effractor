@@ -1,0 +1,1291 @@
+{
+  "hosts": [
+    {
+      "address": "10.0.2.5",
+      "name": "srv-01.corp.example",
+      "ports": [
+        {
+          "port": 22,
+          "banner": "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.5\r\n"
+        },
+        {
+          "port": 2222,
+          "banner": "SSH-2.0-dropbear_2022.83\r\n"
+        },
+        {
+          "port": 21,
+          "banner": "220 (vsFTPd 3.0.5)\r\n"
+        },
+        {
+          "port": 25,
+          "banner": "220 srv-01.corp.example ESMTP Postfix\r\n"
+        },
+        {
+          "port": 143,
+          "banner": "* OK [CAPABILITY IMAP4rev1 STARTTLS] Dovecot ready.\r\n"
+        },
+        {
+          "port": 3306,
+          "banner": "Y\u0000\u0000\u0000\n5.5.5-10.11.6-MariaDB-0+deb12u1\u0000\u0011\u0000\u0000\u0000abcdefgh\u0000mysql_native_password\u0000"
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.6",
+      "ports": [
+        {
+          "port": 21,
+          "banner": "220 ProFTPD 1.3.8 Server (Debian) [10.0.2.6]\r\n"
+        },
+        {
+          "port": 25,
+          "banner": "220 mail.corp.example ESMTP Exim 4.96 Mon, 28 Sep 2026 10:00:00 +0000\r\n"
+        },
+        {
+          "port": 110,
+          "banner": "+OK Cyrus POP3 v3.8.1 server ready\r\n"
+        },
+        {
+          "port": 143,
+          "banner": "* OK [CAPABILITY IMAP4rev1] Courier-IMAP ready.\r\n"
+        },
+        {
+          "port": 587,
+          "banner": "220 mx.corp.example Microsoft ESMTP MAIL Service ready at Mon, 28 Sep 2026 10:00:00 +0000\r\n"
+        },
+        {
+          "port": 2222,
+          "banner": "220---------- Welcome to Pure-FTPd [privsep] [TLS] ----------\r\n"
+        },
+        {
+          "port": 3306,
+          "banner": "J\u0000\u0000\u0000\n8.0.36\u0000\u0011\u0000\u0000\u0000abcdefgh\u0000caching_sha2_password\u0000"
+        },
+        {
+          "port": 465,
+          "banner": "220 relay.corp.example ESMTP Sendmail 8.17.1/8.17.1; Mon, 28 Sep 2026 10:00:00 GMT\r\n"
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.11",
+      "name": "grafana.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "grafana.corp.example",
+              "metrics.corp.example",
+              "*.corp.example"
+            ]
+          },
+          "server": "nginx/1.24.0",
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/login"
+            },
+            "/login": {
+              "body": "<!doctype html><html><head><title>Grafana</title></head><body><script>window.grafanaBootData = {\"settings\":{\"buildInfo\":{\"version\":\"10.2.3\"}}};</script><form><input name=\"user\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.12",
+      "name": "wiki.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "wiki.corp.example"
+            ]
+          },
+          "server": "Apache/2.4.57 (Debian)",
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "https://sso.corp.example/realms/corp/protocol/openid-connect/auth?client_id=wiki&response_type=code"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.13",
+      "ports": [
+        {
+          "port": 8006,
+          "tls": {
+            "names": [
+              "pve1.corp.example"
+            ]
+          },
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>pve1 - Proxmox Virtual Environment</title><script src=\"/pve2/js/pvemanagerlib.js?ver=8.1.4\"></script></head><body><script>Proxmox = { UserName: null, CSRFPreventionToken: null }; /* PVEAuthCookie */</script><form><input type=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.50",
+      "name": "proxy.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "proxy.corp.example"
+            ]
+          },
+          "server": "nginx/1.24.0",
+          "pages": {
+            "/": {
+              "body": "<html><head><title>Welcome</title></head><body>ok</body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.60",
+      "ports": [
+        {
+          "port": 8080,
+          "server": "lighttpd/1.4.69",
+          "pages": {
+            "/": {
+              "body": "<html><head><title>Sign in</title></head><body><form><input name=u><input type=password name=p></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.61",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "portal.corp.example"
+            ]
+          },
+          "server": "Microsoft-IIS/10.0",
+          "pages": {
+            "/": {
+              "body": "<html><head><title>Portal</title></head><body><a href=\"https://login.microsoftonline.com/0000/oauth2/v2.0/authorize?client_id=portal\">Sign in</a></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.62",
+      "ports": [
+        {
+          "port": 8000,
+          "pages": {
+            "/": {
+              "body": "<html><head><title>Printer status</title></head><body>ok</body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.14",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "fw.corp.example"
+            ]
+          },
+          "server": "nginx",
+          "pages": {
+            "/": {
+              "body": "<html><head><title>pfSense - Login</title></head><body><form><input name=\"usernamefld\"><input type=\"password\" name=\"passwordfld\"></form><p>pfSense is developed and maintained by Netgate.</p></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.15",
+      "ports": [
+        {
+          "port": 8080,
+          "server": "Jetty(10.0.18)",
+          "headers": {
+            "X-Jenkins": "2.440.1"
+          },
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/login"
+            },
+            "/login": {
+              "body": "<html><head><title>Sign in [Jenkins]</title></head><body><form><input name=j_username><input type=password name=j_password></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.16",
+      "ports": [
+        {
+          "port": 10000,
+          "tls": {
+            "names": [
+              "10.0.2.16"
+            ]
+          },
+          "server": "MiniServ/2.105",
+          "pages": {
+            "/": {
+              "body": "<html><head><title>Login to Webmin</title></head><body><form class=session_login><input type=password name=pass></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.70",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "https://login.microsoftonline.com/0000/oauth2/v2.0/authorize?client_id=hr"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.71",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "https://adfs.corp.example/adfs/ls/?wa=wsignin1.0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.72",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "https://corp.okta.com/app/corp_crm_1/exk1/sso/saml"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.73",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "https://accounts.google.com/o/oauth2/v2/auth?client_id=crm"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.74",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "https://idp.corp.example/sso?SAMLRequest=fZJNT8MwDIb"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.75",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "https://id.corp.example/authorize?response_type=code&client_id=shop"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.76",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Files</title></head><body><a href=\"https://sso.corp.example/realms/corp/protocol/openid-connect/auth?client_id=files\">Sign in</a></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.77",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Travel</title></head><body><form action=\"https://adfs.corp.example/adfs/oauth2/authorize\"><button>Sign in</button></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.78",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Tickets</title></head><body><a href=\"https://corp.okta.com/login/default\">Sign in</a></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.79",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Forms</title></head><body><a href=\"https://accounts.google.com/o/oauth2/v2/auth\">Sign in</a></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.100",
+      "ports": [
+        {
+          "port": 5601,
+          "headers": {
+            "kbn-name": "kibana",
+            "kbn-version": "8.12.0"
+          },
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/login"
+            },
+            "/login": {
+              "body": "<!doctype html><html><head><title>Elastic</title></head><body><div id=\"kbn_loading_message\"></div><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.101",
+      "ports": [
+        {
+          "port": 9200,
+          "pages": {
+            "/": {
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": "{\"name\": \"es01\", \"cluster_name\": \"corp\", \"version\": {\"number\": \"8.12.0\"}, \"tagline\": \"You Know, for Search\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.102",
+      "ports": [
+        {
+          "port": 80,
+          "server": "nginx/1.24.0",
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>corp: Zabbix</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form><footer>Zabbix 6.4, 2001-2024, Zabbix SIA</footer></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.103",
+      "name": "prtg.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "prtg.corp.example"
+            ]
+          },
+          "server": "PRTG/24.1.92.1554",
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/index.htm"
+            },
+            "/index.htm": {
+              "body": "<!doctype html><html><head><title>Welcome | PRTG Network Monitor</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.104",
+      "ports": [
+        {
+          "port": 8000,
+          "server": "Splunkd",
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/en-US/account/login"
+            },
+            "/en-US/account/login": {
+              "body": "<!doctype html><html><head><title>Login | Splunk</title></head><body><script>window.$C = {\"BUILD_NUMBER\": \"1fff88043d5f\", \"VERSION_LABEL\": \"9.2.0\"};</script><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.105",
+      "name": "gitlab.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "gitlab.corp.example"
+            ]
+          },
+          "server": "nginx",
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/users/sign_in"
+            },
+            "/users/sign_in": {
+              "body": "<!doctype html><html><head><title>Sign in</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form><a href=\"https://about.gitlab.com/\">About GitLab</a></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.106",
+      "ports": [
+        {
+          "port": 3000,
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Gitea: Git with a cup of tea</title></head><body><footer>Powered by Gitea Version: 1.21.5</footer></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.107",
+      "ports": [
+        {
+          "port": 9000,
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>SonarQube</title><link href=\"/css/sonar.css?v=10.4.0\" rel=\"stylesheet\"></head><body><div id=\"content\"></div></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.108",
+      "ports": [
+        {
+          "port": 8081,
+          "server": "Nexus/3.64.0-04 (OSS)",
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Sonatype Nexus Repository</title></head><body><script src=\"/static/rapture/nexus-coreui-bundle.js?_v=3.64.0-04\"></script></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.109",
+      "name": "harbor.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "harbor.corp.example"
+            ]
+          },
+          "server": "nginx",
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Harbor</title></head><body><harbor-app></harbor-app></body></html>"
+            },
+            "/api/v2.0/systeminfo": {
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": "{\"auth_mode\": \"db_auth\", \"harbor_version\": \"v2.10.0-6abb4eab\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.110",
+      "ports": [
+        {
+          "port": 8090,
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/login.action"
+            },
+            "/login.action": {
+              "body": "<!doctype html><html><head><title>Log In - Confluence</title><meta name=\"confluence-base-url\" content=\"http://10.0.2.110:8090\"><meta name=\"ajs-version-number\" content=\"8.5.4\"></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.111",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/secure/Dashboard.jspa"
+            },
+            "/secure/Dashboard.jspa": {
+              "body": "<!doctype html><html><head><title>System Dashboard - Jira</title></head><body><script src=\"/s/1/_/download/batch/com.atlassian.jira.jira-tzdetect-plugin:tzdetect-lib/x.js\"></script><input type=\"hidden\" title=\"JiraVersion\" value=\"9.12.2\"></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.112",
+      "ports": [
+        {
+          "port": 7990,
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/login"
+            },
+            "/login": {
+              "body": "<!doctype html><html><head><title>Log in - Bitbucket</title></head><body><script src=\"/s/1/_/download/resources/com.atlassian.bitbucket.server.bitbucket-webpack-INTERNAL:x/y.js\"></script><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form><span id=\"product-version\" data-commitid=\"0a1b2c\"> v8.17.0</span></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.113",
+      "name": "cloud.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "cloud.corp.example"
+            ]
+          },
+          "server": "Apache",
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/login"
+            },
+            "/login": {
+              "body": "<!doctype html><html><head><title>Nextcloud</title></head><body><script>var nc_lastLogin = 0; var nc_pageLoad = 1706000000; var oc_config = {\"version\":\"28.0.2.5\",\"versionstring\":\"28.0.2\"};</script><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.114",
+      "ports": [
+        {
+          "port": 80,
+          "server": "Apache/2.4.57 (Debian)",
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Corp News</title><meta name=\"generator\" content=\"WordPress 6.4.3\"></head><body><p>Hello.</p></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.115",
+      "name": "webmail.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "webmail.corp.example"
+            ]
+          },
+          "server": "nginx/1.24.0",
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Roundcube Webmail :: Welcome</title></head><body><script>rcmail.set_env({\"task\":\"login\",\"rcversion\":10611});</script><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.116",
+      "name": "zimbra.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "zimbra.corp.example"
+            ]
+          },
+          "headers": {
+            "Set-Cookie": "ZM_TEST=true; Secure"
+          },
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Zimbra Web Client Sign In</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            },
+            "/js/zimbraMail/share/model/ZmSettings.js": {
+              "headers": {
+                "Content-Type": "application/javascript"
+              },
+              "body": "this.registerSetting(\"CLIENT_VERSION\", {type:ZmSetting.T_CONFIG, defaultValue:\"10.0.6_GA_4585\"});"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.117",
+      "name": "mail.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "mail.corp.example"
+            ]
+          },
+          "server": "Microsoft-IIS/10.0",
+          "headers": {
+            "X-OWA-Version": "15.2.1258.28"
+          },
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/owa/auth/logon.aspx"
+            },
+            "/owa/auth/logon.aspx": {
+              "body": "<!doctype html><html><head><title>Outlook</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.118",
+      "name": "intranet.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "intranet.corp.example"
+            ]
+          },
+          "server": "Microsoft-IIS/10.0",
+          "headers": {
+            "MicrosoftSharePointTeamServices": "16.0.0.10396"
+          },
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Home - Intranet</title></head><body><div id=\"s4-workspace\"></div></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.119",
+      "name": "keycloak.corp.example",
+      "ports": [
+        {
+          "port": 8443,
+          "tls": {
+            "names": [
+              "keycloak.corp.example"
+            ]
+          },
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/realms/master/account"
+            },
+            "/realms/master/account": {
+              "body": "<!doctype html><html><head><title>Sign in to master</title></head><body><form id=\"kc-form-login\"><input name=\"username\"><input type=\"password\" name=\"password\"><div id=\"kc-form-buttons\"><input type=\"submit\"></div></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.120",
+      "name": "adfs.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "adfs.corp.example"
+            ]
+          },
+          "server": "Microsoft-HTTPAPI/2.0",
+          "pages": {
+            "/adfs/ls/idpinitiatedsignon.aspx": {
+              "body": "<!doctype html><html><head><title>Sign In</title><link rel=\"stylesheet\" href=\"/adfs/portal/css/style.css?id=0A1B\"></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.121",
+      "name": "gateway.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "gateway.corp.example"
+            ]
+          },
+          "headers": {
+            "Set-Cookie": "NSC_TEMP=xyz; Path=/"
+          },
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/vpn/index.html"
+            },
+            "/vpn/index.html": {
+              "body": "<!doctype html><html><head><title>Gateway</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.122",
+      "name": "vpn.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "vpn.corp.example"
+            ]
+          },
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/global-protect/login.esp"
+            },
+            "/global-protect/login.esp": {
+              "body": "<!doctype html><html><head><title>GlobalProtect Portal</title></head><body><form action=\"/global-protect/login.esp\"><input name=\"user\"><input type=\"password\" name=\"passwd\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.123",
+      "name": "connect.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "connect.corp.example"
+            ]
+          },
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/dana-na/auth/url_default/welcome.cgi"
+            },
+            "/dana-na/auth/url_default/welcome.cgi": {
+              "body": "<!doctype html><html><head><title>Secure Access</title></head><body><form action=\"/dana-na/auth/url_default/login.cgi\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.124",
+      "name": "asa.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "asa.corp.example"
+            ]
+          },
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/+CSCOE+/logon.html"
+            },
+            "/+CSCOE+/logon.html": {
+              "body": "<!doctype html><html><head><title>SSL VPN Service</title><link rel=\"stylesheet\" href=\"/+CSCOU+/portal.css\"></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.125",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Remote desktops</title></head><body><img class=\"logo\" src=\"images/guacamole-logo-64.png\"><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.126",
+      "name": "fortigate.corp.example",
+      "ports": [
+        {
+          "port": 10443,
+          "tls": {
+            "names": [
+              "fortigate.corp.example"
+            ]
+          },
+          "pages": {
+            "/": {
+              "body": "<html><head><script>top.location=\"/remote/login\";</script></head><body></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.127",
+      "name": "bigip.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "bigip.corp.example"
+            ]
+          },
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/tmui/login.jsp"
+            },
+            "/tmui/login.jsp": {
+              "body": "<!doctype html><html><head><title>BIG-IP - Configuration Utility</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form><footer>F5 Networks, Inc.</footer></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.128",
+      "name": "sma.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "sma.corp.example"
+            ]
+          },
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/cgi-bin/welcome",
+              "headers": {
+                "Server": "SonicWALL"
+              }
+            },
+            "/cgi-bin/welcome": {
+              "headers": {
+                "Server": "SMA/12.4.2-02384"
+              },
+              "body": "<!doctype html><html><head><title>Virtual Office</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.129",
+      "name": "vcenter.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "vcenter.corp.example"
+            ]
+          },
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Welcome</title><meta name=\"description\" content=\"VMware vCenter Server\"></head><body><a href=\"/ui/\">Launch</a></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.130",
+      "name": "esx01.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "esx01.corp.example"
+            ]
+          },
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/ui/"
+            },
+            "/ui/": {
+              "body": "<!doctype html><html><head><title>Log in</title></head><body ng-app=\"esxUiApp\"></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.131",
+      "name": "ilo01.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "ilo01.corp.example"
+            ]
+          },
+          "server": "HPE-iLO-Server/1.30",
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>iLO</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            },
+            "/xmldata?item=all": {
+              "headers": {
+                "Content-Type": "text/xml"
+              },
+              "body": "<?xml version=\"1.0\"?><RIMP><HSI><SPN>ProLiant DL380 Gen10</SPN></HSI><MP><PN>Integrated Lights-Out 5 (iLO 5)</PN><FWRI>2.98</FWRI></MP></RIMP>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.132",
+      "name": "idrac01.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "idrac01.corp.example"
+            ]
+          },
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/login.html"
+            },
+            "/login.html": {
+              "body": "<!doctype html><html><head><title>Remote access controller</title></head><body><idrac-start-screen></idrac-start-screen></body></html>"
+            },
+            "/sysmgmt/2015/bmc/info": {
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": "{\"Attributes\": {\"FwVer\": \"6.10.30.00\", \"Generation\": \"15G\"}}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.133",
+      "ports": [
+        {
+          "port": 5000,
+          "server": "nginx",
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>nas01</title><meta name=\"description\" content=\"Synology DiskStation provides a full-featured network attached storage.\"></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.134",
+      "name": "opnsense.corp.example",
+      "ports": [
+        {
+          "port": 443,
+          "tls": {
+            "names": [
+              "opnsense.corp.example"
+            ]
+          },
+          "server": "OPNsense",
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Login | OPNsense</title></head><body><form><input name=\"usernamefld\"><input type=\"password\" name=\"passwordfld\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.135",
+      "ports": [
+        {
+          "port": 80,
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>FRITZ!Box</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            },
+            "/juis_boxinfo.xml": {
+              "headers": {
+                "Content-Type": "text/xml"
+              },
+              "body": "<?xml version=\"1.0\"?><e:BoxInfo xmlns:e=\"http://juis.avm.de/updateinfo\" xmlns:j=\"http://juis.avm.de/request\"><j:Name>FRITZ!Box 7590</j:Name><j:Version>154.07.57</j:Version></e:BoxInfo>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.136",
+      "ports": [
+        {
+          "port": 80,
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>RouterOS router configuration page</title></head><body><h1>RouterOS v7.13.2</h1><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.137",
+      "name": "portainer.corp.example",
+      "ports": [
+        {
+          "port": 9443,
+          "tls": {
+            "names": [
+              "portainer.corp.example"
+            ]
+          },
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html lang=\"en\" ng-app=\"portainer\"><head><title>Containers</title></head><body></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.138",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Apache Tomcat/10.1.18</title></head><body><h1>Apache Tomcat/10.1.18</h1><a href=\"/manager/html\">Manager App</a></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.139",
+      "ports": [
+        {
+          "port": 7001,
+          "pages": {
+            "/console/login/LoginForm.jsp": {
+              "body": "<!doctype html><html><head><title>Administration Console</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form><p id=\"footerVersion\">WebLogic Server Version: 14.1.1.0.0</p></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.140",
+      "ports": [
+        {
+          "port": 8000,
+          "server": "SAP NetWeaver Application Server 7.53 / ICM 7.53",
+          "headers": {
+            "sap-server": "true"
+          },
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Logon</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.141",
+      "ports": [
+        {
+          "port": 80,
+          "server": "Apache/2.4.57 (Debian)",
+          "pages": {
+            "/phpmyadmin/": {
+              "body": "<!doctype html><html><head><title>Database administration</title></head><body><form><input name=\"pma_username\"><input type=\"password\" name=\"pma_password\"></form><script>var common = {PMA_VERSION:\"5.2.1\"};</script></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.142",
+      "ports": [
+        {
+          "port": 8200,
+          "pages": {
+            "/": {
+              "status": 307,
+              "location": "/ui/"
+            },
+            "/ui/": {
+              "body": "<!doctype html><html><head><title>Vault</title><meta name=\"vault/config/environment\" content=\"%7B%7D\"></head><body></body></html>"
+            },
+            "/v1/sys/health": {
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": "{\"initialized\": true, \"sealed\": false, \"version\": \"1.15.4\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.143",
+      "name": "backup.corp.example",
+      "ports": [
+        {
+          "port": 9443,
+          "tls": {
+            "names": [
+              "backup.corp.example"
+            ]
+          },
+          "server": "Microsoft-IIS/10.0",
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "/login.aspx"
+            },
+            "/login.aspx": {
+              "body": "<!doctype html><html><head><title>Veeam Backup Enterprise Manager : Login</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form><script src=\"scripts/build/production/login.bundle.js?v=12.1.0.2131\"></script></body></html>"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "names": {
+    "grafana.corp.example": {
+      "alias": "proxy.corp.example",
+      "address": "10.0.2.50"
+    },
+    "metrics.corp.example": {
+      "address": "10.0.2.11"
+    },
+    "wiki.corp.example": {
+      "address": "10.0.2.99"
+    },
+    "pve1.corp.example": {
+      "alias": "pve1.cdn.example.net",
+      "address": "203.0.113.7"
+    }
+  }
+}

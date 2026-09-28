@@ -218,3 +218,40 @@ test('spec §10: How it connects on a drawing without services says what to run 
   // Hosts typed by hand on an empty drawing are asked: nothing is drawn to wait for.
   assert.ok(T.command(['connect'], {}, '10.0.1.5', E.empty()).text);
 });
+
+const LAB = JSON.parse(fs.readFileSync('scripts/fixtures/nuclei/lab.json', 'utf8'));
+
+// Every answer has a place in the lab where its own pattern finds it: what
+// the fixtures hold is then what nuclei found there (spec §2.1 rule 6).
+test('the lab answers every question of the table', () => {
+  const ports = LAB.hosts.flatMap(h => h.ports.map(p => Object.assign({ host: h.address }, p)));
+  const head = (p, page) => Object.entries(Object.assign({}, p.server ? { Server: p.server } : {}, p.headers || {}, page.headers || {}, page.location ? { Location: page.location } : {})).map(([k, v]) => k + ': ' + v).join('\r\n');
+  const found = a => {
+    if (a.is === 'names') return ports.some(p => p.tls && p.tls.names.length);
+    if (a.is === 'server') return ports.some(p => p.server);
+    if (a.is === 'address') return Object.values(LAB.names).some(n => n.address);
+    if (a.is === 'alias') return Object.values(LAB.names).some(n => n.alias);
+    const res = T.pattern(a);
+    if (!a.paths) return ports.some(p => p.banner && res.some(r => r.test(p.banner)));
+    return ports.some(p => a.paths.some(path => {
+      // The root page is followed where it sends on, on the same host.
+      let page = (p.pages || {})[path], hops = 0;
+      while (path === '/' && page && page.location && /^\//.test(page.location) && hops++ < 3) {
+        if (a.part === 'header' && res.some(r => r.test(head(p, page)))) return true;
+        page = p.pages[page.location];
+      }
+      if (!page) return false;
+      return res.some(r => r.test(a.part === 'header' ? head(p, page) : page.body || ''));
+    }));
+  };
+  assert.deepEqual(T.ANSWERS.filter(a => !found(a)).map(a => a.name), []);
+  // Each application is alone on its port: a page that two applications claim proves neither.
+  for (const p of ports.filter(p => p.pages)) {
+    const apps = T.ANSWERS.filter(a => a.is === 'application' && a.paths.some(path => {
+      const page = p.pages[path];
+      return page && T.pattern(a).some(r => r.test(a.part === 'header' ? head(p, page) : page.body || ''));
+    })).map(a => a.name);
+    assert.ok(apps.length <= 1, p.host + ':' + p.port + ' answers as ' + apps.join(' and '));
+  }
+  for (const h of LAB.hosts) assert.match(h.address, /^10\.0\.2\.\d+$|^fd00:2::[0-9a-f]+$/, 'the lab is 10.0.2.0/24 and fd00:2::/64');
+});
