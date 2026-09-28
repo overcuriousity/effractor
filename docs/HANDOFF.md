@@ -6,6 +6,66 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — nuclei beside nmap (2026-09-28)
+
+Roadmap `nuclei-import`, built from the roadmap's text and a short design
+the owner approved in the session; no spec or plan was written. A fourth
+application, `tool: nuclei` (core `Tool::Nuclei`), read into the scan
+`nmap-plan.js` plans from.
+
+- **`nuclei.js`** reads nuclei's JSON lines (`-jsonl`) and its export file
+  (a JSON list); what nuclei says between the lines is skipped, a cut-off
+  line is said. A host is known by `ip`, else by its name alone (matched by
+  name against the drawing; new, it is drawn without an address). The port
+  is nuclei's `port`, else the URL's, else the scheme's; always TCP; a DNS
+  result has none. Severity low and above is a finding (`nuclei: High 7.5,
+  CVE-… (title).`), once per port, on the host where there is no port
+  (shown *not applied*); `info` and `unknown` only say the port is open, and
+  the preview counts them. nuclei draws no product and no OS. A port is
+  named by nmap's table only: named by the scheme, two ports called "http"
+  would share one unidentified product, and a finding on one would mark the
+  other's.
+- **`nuclei-command.js`** is the library of commands (owner: "a nuclei
+  reference command library for me, too (like with nmap)"): thirteen
+  recipes that are nuclei's tags, ticked into one list; *Everything
+  standard*, *Fit the checks to the site* (`-automatic-scan`) and *Fuzz the
+  parameters* (`-dast`, which runs the fuzzing checks and no others) go
+  alone; eighteen *Adjust* blocks, the first choice of each nuclei's own.
+  A choice may need a typed text (`field`): the interactsh server, the
+  login header; they are kept for the session, never in the file. A block
+  may belong to one recipe (`only`). Every offered command was run through
+  nuclei 3.11.0 with `-tl` (it lists the templates and scans nothing).
+- **Nothing offered asks a third party or hides a scan**
+  (`scripts/nuclei-command.test.js` holds both): always
+  `-disable-update-check`; `-no-interactsh` unless the user names an
+  interactsh server of their own, and nuclei's public ones are refused by
+  name; no upload, no search engines, no AI prompt, no template from a URL,
+  no proxy, no source address, no TLS impersonation. **nuclei asks public
+  resolvers** (8.8.8.8, 8.8.4.4, 1.1.1.1, 1.0.0.1) for every name, and
+  `-system-resolvers` does not stop it (traced in a network namespace
+  without a network); only a list does, and `-resolvers` takes a file. So a
+  range with a name, or the DNS protocol chosen, writes this machine's
+  resolvers first (`awk … /etc/resolv.conf > resolvers.txt; nuclei …
+  -resolvers resolvers.txt`), and a range of addresses leaves the DNS
+  checks out (`-exclude-type dns`).
+- **Dialog:** `nmap-ui.js` `library()` gives `recipes()` and `blocks()` the
+  open scanner's commands, state and elements; nuclei's step 1 is
+  `#nmap-step-nuclei`.
+- **Fixtures:** `scripts/fixtures/nuclei/lab.jsonl` is what nuclei 3.11.0
+  wrote against throwaway servers on 127.0.0.1 (the owner allowed exactly
+  that), with addresses, names, ports, times and the home directory
+  rewritten; `imported.doc.json` is pinned by Node, `tests/json.rs` and
+  `check-nmap-wasm.js`. nuclei writes CVE and CWE ids in lower case, and
+  waits on stdin when it is a pipe (`< /dev/null` in a script).
+- **Owner, 2026-09-28, for what follows:** effractor draws network diagrams
+  and attack vectors and is to replace securiCAD; it is no vulnerability
+  manager. The scanners are to build on each other in a workflow the page
+  quietly leads through, and effractor is to ship nuclei templates of its
+  own. Both are on the roadmap (`scan-workflow`, `nuclei-templates`) and
+  need a design with the owner first.
+- **Open:** a real nuclei result of the owner's; whether the first recipe
+  ticked (*Exploited in the wild*) is the right one.
+
 ## Continuation — the agent chat on the document (2026-09-27)
 
 Roadmap `assistant-chat`, built from the spec

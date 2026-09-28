@@ -447,6 +447,7 @@ pub enum Tool {
     Nmap,
     Masscan,
     Greenbone,
+    Nuclei,
 }
 
 impl Tool {
@@ -455,6 +456,7 @@ impl Tool {
             Self::Nmap => "nmap",
             Self::Masscan => "masscan",
             Self::Greenbone => "greenbone",
+            Self::Nuclei => "nuclei",
         }
     }
 }

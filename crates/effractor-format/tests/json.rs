@@ -321,6 +321,19 @@ fn the_greenbone_import_fixture_is_a_valid_architecture() {
     assert!(text.contains("patched: false"), "{text}");
 }
 
+/// What nuclei adds after nmap (roadmap `nuclei-import`): its findings on
+/// the products nmap drew, a new host, nothing twice.
+#[test]
+fn the_nuclei_import_fixture_is_a_valid_architecture() {
+    let text = fixture_is_valid("nuclei", "imported.doc.json");
+    assert!(text.contains("tool: nuclei"), "{text}");
+    assert!(
+        text.contains("nuclei: Critical 9.8, CVE-2021-42013"),
+        "{text}"
+    );
+    assert!(text.contains("patched: false"), "{text}");
+}
+
 fn nmap_fixture_is_valid(name: &str) -> String {
     fixture_is_valid("nmap", name)
 }

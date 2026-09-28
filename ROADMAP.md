@@ -137,8 +137,26 @@ toward a host or port, and filtering by a host itself, change the model
 generation honours them, and the nmap preview offers them where it now only
 says *nothing drawn to say it on* and *filtered by … itself*.
 
-### nuclei-import — nuclei findings
-needs: —            cost: 2   benefit: 2
-A nuclei application reading its JSON lines: findings by host and port (or
-URL), with CVE ids, placed on existing hosts and services where they match and
-added as new ones otherwise. Done when fixtures read and place as described.
+### scan-workflow — Scanners that build on each other
+needs: —            cost: 4   benefit: 4
+Owner, 2026-09-28: effractor draws network diagrams and attack vectors; it
+is no vulnerability manager. The scanners are to complement each other in a
+workflow the page quietly leads through (nmap finds hosts and ports; the next
+tool is handed what is drawn and says what each service is), and nothing is
+drawn that the model does not use. Needs a design first, with the owner.
+Done when the page says what to run next from what the drawing lacks, and
+each tool's command takes its targets from the drawing.
+
+### nuclei-templates — Templates of our own, read into the drawing
+needs: scan-workflow            cost: 4   benefit: 4
+Owner, 2026-09-28: nuclei's strength is its templates, so effractor ships
+its own, offered by the page, each asking what the drawing needs and
+answering in fields the reader knows. First *identify* (what answers on a
+port, which web application, which names a certificate bears: products and
+names), then *connect* (logins, single sign-on, management pages, what a name
+points to: accounts and links, which need the owner's word on how they are
+drawn). Probed with nuclei 3.11.0: unsigned web, TLS and TCP templates run as
+they are and give one record per named extractor; unsigned scripted
+(`javascript`) templates are refused, so SSH host keys stay nmap's. Needs a
+design first. Done when the templates are served by the page, their results
+read into products, names and links, and fixtures hold each.

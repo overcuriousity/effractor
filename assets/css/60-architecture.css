@@ -301,7 +301,7 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .nmap-step { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--color-border-subtle); }
 .nmap-step:first-child { border-top: 0; padding-top: 0; }
 /* Another scanner's first step stands where nmap's is hidden. */
-#nmap-step-masscan, #nmap-step-greenbone { border-top: 0; padding-top: 0; }
+#nmap-step-masscan, #nmap-step-greenbone, #nmap-step-nuclei { border-top: 0; padding-top: 0; }
 #masscan-blocks { margin: 0 0 8px; }
 /* Where to find the export, in the order of the clicks. */
 .nmap-how { margin: 0 0 8px; padding-left: 1.4em; display: grid; gap: 3px; color: var(--color-fg-secondary); font-size: var(--text-xs); line-height: 1.4; }

@@ -37,10 +37,11 @@ static EVIDENCE: LazyLock<Vec<(&str, Evidence)>> =
 static DEFENSES: LazyLock<Vec<(&str, Defense)>> =
     LazyLock::new(|| words(&Defense::ALL, Defense::as_str));
 
-pub const TOOLS: [(&str, Tool); 3] = [
+pub const TOOLS: [(&str, Tool); 4] = [
     ("nmap", Tool::Nmap),
     ("masscan", Tool::Masscan),
     ("greenbone", Tool::Greenbone),
+    ("nuclei", Tool::Nuclei),
 ];
 pub const PRIVILEGES: [(&str, Privilege); 2] =
     [("user", Privilege::User), ("admin", Privilege::Admin)];

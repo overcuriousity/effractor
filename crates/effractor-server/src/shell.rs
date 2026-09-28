@@ -116,6 +116,11 @@ mod tests {
         assert!(at("greenbone.js") < at("scanners.js"));
         assert!(at("nmap-read.js") < at("greenbone.js"));
         assert!(html.contains("id=\"nmap-step-greenbone\""));
+        // nuclei's reader has its commands' names (roadmap nuclei-import).
+        assert!(at("nmap-read.js") < at("nuclei-command.js"));
+        assert!(at("nuclei-command.js") < at("nuclei.js"));
+        assert!(at("nuclei.js") < at("scanners.js"));
+        assert!(html.contains("id=\"nmap-step-nuclei\""));
         assert!(at("scanners.js") < at("nmap-ui.js"));
         assert!(html.contains("id=\"nmap-step-masscan\""));
         assert!(at("architecture-links-ui.js") < at("nmap-ui.js"));

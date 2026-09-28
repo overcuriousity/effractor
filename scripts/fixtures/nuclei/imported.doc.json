@@ -1,0 +1,450 @@
+{
+  "effractor": 2,
+  "profile": "architecture",
+  "name": "Untitled",
+  "time_unit": "d",
+  "horizon": 100,
+  "library": {
+    "id": "core-components",
+    "version": 1
+  },
+  "entities": {
+    "lan": {
+      "kind": "network",
+      "label": "Lab network",
+      "addresses": [
+        "10.0.1.0/24"
+      ]
+    },
+    "admin-box": {
+      "kind": "host",
+      "label": "Admin box"
+    },
+    "nmap": {
+      "kind": "application",
+      "label": "nmap",
+      "tool": "nmap",
+      "description": "Last nmap import: 2026-09-24, scan of 10.0.1.0/24 · what runs there."
+    },
+    "srv": {
+      "kind": "host",
+      "label": "Server",
+      "addresses": [
+        "10.0.1.5"
+      ],
+      "identities": [
+        "mac:52:54:00:12:34:56"
+      ],
+      "seen": "2026-09-27",
+      "vendor": "QEMU virtual NIC"
+    },
+    "sshd": {
+      "kind": "service",
+      "label": "ssh"
+    },
+    "openssh": {
+      "kind": "product",
+      "label": "OpenSSH 9.6p1"
+    },
+    "tcp-8443": {
+      "kind": "service",
+      "label": "tcp/8443",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "unidentified-tcp-8443-on-server": {
+      "kind": "product",
+      "label": "unidentified tcp/8443 on Server",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown",
+          "note": "nuclei: Critical 9.8, CVE-2021-42013 (Apache 2.4.49/2.4.50 - Path Traversal and Remote Code Execution).\nnuclei: Low, self-signed-ssl (Self Signed SSL Certificate)."
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": false
+      }
+    },
+    "domain": {
+      "kind": "service",
+      "label": "domain",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "dnsmasq-2-90": {
+      "kind": "product",
+      "label": "dnsmasq 2.90",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-1-7": {
+      "kind": "host",
+      "label": "10.0.1.7",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.7"
+      ],
+      "seen": "2026-09-27"
+    },
+    "ssh": {
+      "kind": "service",
+      "label": "ssh",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "nuclei": {
+      "kind": "application",
+      "label": "nuclei",
+      "parameters": {
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      },
+      "tool": "nuclei",
+      "description": "Last nuclei import: 2026-09-28, scan of 10.0.1.0/24 (scanned 2026-09-27)."
+    },
+    "app-lab": {
+      "kind": "host",
+      "label": "app.lab",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.1.40"
+      ],
+      "seen": "2026-09-27"
+    },
+    "http": {
+      "kind": "service",
+      "label": "http",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "unidentified-http-on-app-lab": {
+      "kind": "product",
+      "label": "unidentified http on app.lab",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "tcp-3000": {
+      "kind": "service",
+      "label": "tcp/3000",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "unidentified-tcp-3000-on-app-lab": {
+      "kind": "product",
+      "label": "unidentified tcp/3000 on app.lab",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown",
+          "note": "nuclei: High 7.5, CVE-2021-43798 (Grafana v8.x - Arbitrary File Read).\nnuclei: Medium 5.3, git-config (Git Configuration - Detect).\nnuclei: High 8.3, laravel-env (Laravel - Sensitive Information Disclosure)."
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": false
+      }
+    }
+  },
+  "associations": {
+    "a1": {
+      "kind": "attached",
+      "from": "admin-box",
+      "to": "lan"
+    },
+    "a2": {
+      "kind": "attached",
+      "from": "srv",
+      "to": "lan"
+    },
+    "a3": {
+      "kind": "hosts",
+      "from": "admin-box",
+      "to": "nmap",
+      "privilege": "user"
+    },
+    "a4": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "sshd",
+      "privilege": "admin"
+    },
+    "a5": {
+      "kind": "instance-of",
+      "from": "sshd",
+      "to": "openssh"
+    },
+    "srv-hosts-tcp-8443": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "tcp-8443",
+      "privilege": "unknown"
+    },
+    "tcp-8443-instance-of-unidentified-tcp-8443-on-server": {
+      "kind": "instance-of",
+      "from": "tcp-8443",
+      "to": "unidentified-tcp-8443-on-server"
+    },
+    "srv-hosts-domain": {
+      "kind": "hosts",
+      "from": "srv",
+      "to": "domain",
+      "privilege": "unknown"
+    },
+    "domain-instance-of-dnsmasq-2-90": {
+      "kind": "instance-of",
+      "from": "domain",
+      "to": "dnsmasq-2-90"
+    },
+    "10-0-1-7-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-1-7",
+      "to": "lan"
+    },
+    "10-0-1-7-hosts-ssh": {
+      "kind": "hosts",
+      "from": "10-0-1-7",
+      "to": "ssh",
+      "privilege": "unknown"
+    },
+    "ssh-instance-of-openssh": {
+      "kind": "instance-of",
+      "from": "ssh",
+      "to": "openssh"
+    },
+    "admin-box-hosts-nuclei": {
+      "kind": "hosts",
+      "from": "admin-box",
+      "to": "nuclei",
+      "privilege": "user"
+    },
+    "app-lab-attached-lan": {
+      "kind": "attached",
+      "from": "app-lab",
+      "to": "lan"
+    },
+    "app-lab-hosts-http": {
+      "kind": "hosts",
+      "from": "app-lab",
+      "to": "http",
+      "privilege": "unknown"
+    },
+    "http-instance-of-unidentified-http-on-app-lab": {
+      "kind": "instance-of",
+      "from": "http",
+      "to": "unidentified-http-on-app-lab"
+    },
+    "app-lab-hosts-tcp-3000": {
+      "kind": "hosts",
+      "from": "app-lab",
+      "to": "tcp-3000",
+      "privilege": "unknown"
+    },
+    "tcp-3000-instance-of-unidentified-tcp-3000-on-app-lab": {
+      "kind": "instance-of",
+      "from": "tcp-3000",
+      "to": "unidentified-tcp-3000-on-app-lab"
+    }
+  },
+  "flows": {
+    "f1": {
+      "label": "ssh on Server",
+      "source": "nmap",
+      "target": "sshd",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/22"
+    },
+    "tcp-8443-on-server": {
+      "label": "tcp/8443 on Server",
+      "source": "nmap",
+      "target": "tcp-8443",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8443",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "domain-on-server": {
+      "label": "domain on Server",
+      "source": "nmap",
+      "target": "domain",
+      "route": [
+        "lan"
+      ],
+      "protocol": "udp/53",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "ssh-on-10-0-1-7": {
+      "label": "ssh on 10.0.1.7",
+      "source": "nmap",
+      "target": "ssh",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/22",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-on-app-lab": {
+      "label": "http on app.lab",
+      "source": "nuclei",
+      "target": "http",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/80",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "tcp-3000-on-app-lab": {
+      "label": "tcp/3000 on app.lab",
+      "source": "nuclei",
+      "target": "tcp-3000",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/3000",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    }
+  },
+  "attacker": {
+    "footholds": []
+  },
+  "scenarios": {},
+  "analysis": {
+    "seed": 42,
+    "samples": 10000,
+    "confidence": 0.95
+  }
+}

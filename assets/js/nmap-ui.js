@@ -9,11 +9,12 @@
   var U = window.effractorArchitectureUi;
   var N = window.effractorNmap;
   var M = window.effractorMasscan;
+  var Nu = window.effractorNuclei;
   var S = window.effractorScanners;
   var $ = function (id) { return document.getElementById(id); };
   var dialog = $("nmap-dialog");
   // What the scan is for is kept for the session, as the range is not.
-  var asked = { recipes: ["services"], adjust: {}, portList: "", ack: false, masscan: { ports: "common", rate: "1000" } };
+  var asked = { recipes: ["services"], adjust: {}, portList: "", ack: false, masscan: { ports: "common", rate: "1000" }, nuclei: { recipes: ["exploited"], adjust: {}, extra: {} } };
   var at = { app: null, tool: "nmap", scan: null, merges: {}, ticks: null, plan: null };
   // The open scanner's name: "nmap", "masscan".
   function toolName() {
@@ -52,24 +53,31 @@
 
   // ---- the command ----
 
+  // The commands of the open scanner, what was asked of them, and where
+  // they are shown: nmap's, or nuclei's (roadmap nuclei-import).
+  function library() {
+    if (at.tool === "nuclei") return { of: Nu, asked: asked.nuclei, recipes: "nuclei-recipes", adjust: "nuclei-adjust", blocks: "nuclei-blocks", set: "nuclei-set" };
+    return { of: N, asked: asked, recipes: "nmap-recipes", adjust: "nmap-adjust", blocks: "nmap-blocks", set: "nmap-set" };
+  }
   function recipes() {
-    var box = $("nmap-recipes");
+    var L = library();
+    var box = $(L.recipes);
     box.textContent = "";
-    N.RECIPES.forEach(function (r) {
+    L.of.RECIPES.forEach(function (r) {
       var label = el("label", null, "nmap-recipe");
       var tick = el("input");
       tick.type = "checkbox";
-      tick.checked = asked.recipes.indexOf(r.id) >= 0;
+      tick.checked = L.asked.recipes.indexOf(r.id) >= 0;
       tick.addEventListener("change", function () {
-        var others = asked.recipes.filter(function (id) { return id !== r.id; });
+        var others = L.asked.recipes.filter(function (id) { return id !== r.id; });
         // One that goes alone unticks the rest, and is unticked by them.
         if (tick.checked) {
-          asked.recipes = r.alone ? [r.id] : others.filter(function (id) {
-            return !N.RECIPES.some(function (o) { return o.id === id && o.alone; });
+          L.asked.recipes = r.alone ? [r.id] : others.filter(function (id) {
+            return !L.of.RECIPES.some(function (o) { return o.id === id && o.alone; });
           }).concat([r.id]);
-        } else asked.recipes = others;
+        } else L.asked.recipes = others;
         // The blocks are the recipes' again: an adjustment was of the old set.
-        asked.adjust = {};
+        L.asked.adjust = {};
         recipes();
         blocks();
         showCommand();
@@ -77,7 +85,8 @@
       label.appendChild(tick);
       label.appendChild(el("span", r.name, "nmap-recipe-name"));
       var tags = el("span", null, "nmap-tags");
-      if (N.combine([r.id], {}).root) tags.appendChild(el("span", "root", "nmap-tag is-root"));
+      if (L.of.combine([r.id], {}).root) tags.appendChild(el("span", "root", "nmap-tag is-root"));
+      if (r.warning) tags.appendChild(el("span", "attacks", "nmap-tag is-root"));
       tags.appendChild(el("span", r.time, "nmap-tag"));
       label.appendChild(tags);
       label.appendChild(el("span", r.finds, "hint"));
@@ -93,24 +102,41 @@
     return row;
   }
   function blocks() {
-    var box = $("nmap-blocks");
+    var L = library();
+    var box = $(L.blocks);
     box.textContent = "";
-    var c = N.combine(asked.recipes, asked.adjust);
-    $("nmap-adjust").hidden = !c.choices;
+    var c = L.of.combine(L.asked.recipes, L.asked.adjust);
+    $(L.adjust).hidden = !c.choices;
     if (!c.choices) return;
     var set = [];
-    N.BLOCKS.forEach(function (b) {
+    L.of.BLOCKS.forEach(function (b) {
+      // A block of one recipe is offered with it.
+      if (b.only && L.asked.recipes.indexOf(b.only) < 0) return;
       var menu = window.effractorMenu.dropdown(b.choices.map(function (x) { return [x.id, x.name]; }), c.choices[b.id]);
       menu.addEventListener("change", function () {
-        asked.adjust[b.id] = menu.value;
+        L.asked.adjust[b.id] = menu.value;
         blocks();
         showCommand();
       });
       var chosen = b.choices.filter(function (x) { return x.id === c.choices[b.id]; })[0];
-      var differs = c.choices[b.id] !== N.DEFAULTS[b.id];
+      var differs = c.choices[b.id] !== L.of.DEFAULTS[b.id];
       if (differs) set.push(b.name + ": " + chosen.name);
       box.appendChild(blockRow(b.name, menu, chosen.warning || chosen.hint, !!chosen.warning, differs));
-      if (b.id === "ports" && c.choices.ports === "list") {
+      // What a choice needs typed: never kept beyond the session.
+      if (chosen.field) {
+        var typed = el("input");
+        typed.type = "text";
+        typed.value = L.asked.extra[chosen.field.key] || "";
+        typed.placeholder = chosen.field.placeholder;
+        typed.spellcheck = false;
+        typed.autocomplete = "off";
+        typed.addEventListener("input", function () {
+          L.asked.extra[chosen.field.key] = typed.value;
+          showCommand();
+        });
+        box.appendChild(blockRow(chosen.field.name, typed, chosen.field.hint, false, !!typed.value));
+      }
+      if (at.tool === "nmap" && b.id === "ports" && c.choices.ports === "list") {
         var list = el("input");
         list.type = "text";
         list.value = asked.portList;
@@ -125,7 +151,7 @@
         box.appendChild(blockRow("Port list", list, firewall ? "besides the ports of the flows drawn through a firewall and the 100 most common" : "numbers and ranges · U: before UDP ports", false, !!asked.portList));
       }
     });
-    if (asked.recipes.indexOf("firewall") >= 0) {
+    if (at.tool === "nmap" && asked.recipes.indexOf("firewall") >= 0) {
       var ack = el("input");
       ack.type = "checkbox";
       ack.checked = asked.ack;
@@ -138,7 +164,7 @@
       box.appendChild(blockRow("ACK scan", ack, "a second command · tells a firewall that keeps state from one that does not", false, asked.ack));
     }
     // Closed, the fold says what is set.
-    $("nmap-set").textContent = set.join(" · ");
+    $(L.set).textContent = set.join(" · ");
   }
   // masscan's first step: which ports, how fast; always in sight.
   function masscanBlocks() {
@@ -169,6 +195,15 @@
       $("nmap-problem").textContent = m.problem || m.warning || "";
       return;
     }
+    if (at.tool === "nuclei") {
+      var n = Nu.command(asked.nuclei.recipes, asked.nuclei.adjust, $("nmap-range").value, asked.nuclei.extra);
+      $("nmap-command").textContent = n.text || "";
+      $("nmap-root").hidden = true;
+      $("nmap-copy").disabled = !n.text;
+      $("nmap-second-row").hidden = true;
+      $("nmap-problem").textContent = n.problem || [n.warning, n.note].filter(Boolean).join(" ");
+      return;
+    }
     var c = N.command(asked.recipes, asked.adjust, $("nmap-range").value, { portList: asked.portList, ack: asked.ack, drawnPorts: drawnPorts() });
     $("nmap-command").textContent = c.text || "";
     $("nmap-root").hidden = !c.root;
@@ -191,12 +226,14 @@
     $("nmap-where").textContent = name;
     $("nmap-step-nmap").hidden = at.tool !== "nmap";
     $("nmap-step-masscan").hidden = at.tool !== "masscan";
+    $("nmap-step-nuclei").hidden = at.tool !== "nuclei";
     // Greenbone runs elsewhere: export, then paste.
     var exported = at.tool === "greenbone";
     $("nmap-step-greenbone").hidden = !exported;
     $("nmap-step-run").hidden = exported;
     $("nmap-paste-n").textContent = exported ? "2" : "3";
-    $("nmap-paste").placeholder = exported ? "Paste the report, or drop its .xml file here" : "Paste the output, or drop the .xml file here";
+    $("nmap-paste").placeholder = exported ? "Paste the report, or drop its .xml file here" : at.tool === "nuclei" ? "Paste the lines, or drop the file here" : "Paste the output, or drop the .xml file here";
+    $("nmap-range").placeholder = at.tool === "nuclei" ? "10.0.1.0/24 or https://app.lab:8443" : "10.0.1.0/24";
     $("nmap-range").value = prefillRange(host);
     $("nmap-paste").value = "";
     $("nmap-problem").textContent = "";
@@ -580,7 +617,7 @@
   function createNmap(hostId) {
     createScanner(S.TOOLS[0], hostId);
   }
-  var FINDS = { nmap: "Scan from a host and add what it sees", masscan: "Find open ports fast and add them", greenbone: "Add a report's hosts and findings" };
+  var FINDS = { nmap: "Scan from a host and add what it sees", masscan: "Find open ports fast and add them", greenbone: "Add a report's hosts and findings", nuclei: "Check what is drawn and add what it finds" };
   // One "Scanners" item, the tools nested in it (owner, 2026-09-27).
   function scannerMenu(hostId) {
     return ["Scanners", "", S.TOOLS.map(function (t) {

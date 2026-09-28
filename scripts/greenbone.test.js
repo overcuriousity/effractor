@@ -183,5 +183,5 @@ test('a report from behind a container\'s NAT, exported without Log, says so', (
 });
 
 test('Greenbone is a scanner of its own in the menus', () => {
-  assert.deepEqual(S.TOOLS.map(t => [t.id, t.name]), [['nmap', 'nmap'], ['masscan', 'masscan'], ['greenbone', 'Greenbone']]);
+  assert.deepEqual(S.TOOLS.map(t => [t.id, t.name]), [['nmap', 'nmap'], ['masscan', 'masscan'], ['greenbone', 'Greenbone'], ['nuclei', 'nuclei']]);
 });

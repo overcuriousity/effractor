@@ -6,12 +6,14 @@
   var N = node ? require("./nmap.js") : window.effractorNmap;
   var M = node ? require("./masscan.js") : window.effractorMasscan;
   var G = node ? require("./greenbone.js") : window.effractorGreenbone;
+  var Nu = node ? require("./nuclei.js") : window.effractorNuclei;
 
   // `looks`: whether a text that one tool refused is plainly this one's.
   var TOOLS = [
     { id: "nmap", name: "nmap", read: function (text) { return N.read(text); }, stampFor: N.stampFor, looks: /<nmaprun(?![^>]*scanner="(?!nmap")[^"]*")[\s>]/ },
     { id: "masscan", name: "masscan", read: M.read, stampFor: M.stampFor, looks: /<nmaprun[^>]*scanner="masscan"/ },
     { id: "greenbone", name: "Greenbone", read: G.read, stampFor: G.stampFor, notes: G.notes, looks: /<report[^>]*format_id=|<get_reports_response[\s>]/ },
+    { id: "nuclei", name: "nuclei", read: Nu.read, stampFor: Nu.stampFor, notes: Nu.notes, looks: /"template-id"\s*:/ },
   ];
   function byId(id) {
     return TOOLS.filter(function (t) { return t.id === id; })[0] || null;

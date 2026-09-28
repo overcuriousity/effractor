@@ -45,6 +45,8 @@
 <script src="{{ asset_prefix }}assets/js/nmap.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/masscan.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/greenbone.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/nuclei-command.js" defer></script>
+<script src="{{ asset_prefix }}assets/js/nuclei.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/scanners.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/problems.js" defer></script>
 <script src="{{ asset_prefix }}assets/js/vocabulary.js" defer></script>
@@ -342,6 +344,12 @@
         <li><b>Download</b> it in the report format <b>XML</b>.</li>
       </ol>
       <p class="hint">Real addresses go into the file, and into any link you share.</p>
+    </section>
+    <section class="nmap-step" id="nmap-step-nuclei" hidden>
+      <h3 class="label"><span class="nmap-n">1</span>What should nuclei look for?</h3>
+      <div class="nmap-recipes" id="nuclei-recipes" role="group" aria-label="What should nuclei look for?"></div>
+      <details class="nmap-adjust" id="nuclei-adjust"><summary><span class="nmap-adjust-word">Adjust</span><span class="nmap-set" id="nuclei-set"></span></summary><div class="nmap-blocks" id="nuclei-blocks"></div></details>
+      <p class="hint">nuclei checks what it is pointed at; nmap before it finds the hosts and ports. Its templates must be installed.</p>
     </section>
     <section class="nmap-step" id="nmap-step-run">
       <h3 class="label"><span class="nmap-n">2</span>Run it</h3>
