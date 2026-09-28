@@ -48,6 +48,14 @@ application, `tool: nuclei` (core `Tool::Nuclei`), read into the scan
   resolvers first (`awk … /etc/resolv.conf > resolvers.txt; nuclei …
   -resolvers resolvers.txt`), and a range of addresses leaves the DNS
   checks out (`-exclude-type dns`).
+- **Every command the page offers runs as it stands in fish, bash and sh**
+  (owner, 2026-09-28; the owner's shell is fish).
+  `scripts/shell-commands.test.js` runs each command of nmap, masscan and
+  nuclei in each shell with stand-ins for the programs and compares the
+  arguments they were handed; CI installs fish for it. What keeps them so:
+  single quotes only, no backslash anywhere, nothing a shell reads as its
+  own outside the quotes, `;` and one `>` as the only shell syntax. A new
+  command goes into that test's `commands()`.
 - **Dialog:** `nmap-ui.js` `library()` gives `recipes()` and `blocks()` the
   open scanner's commands, state and elements; nuclei's step 1 is
   `#nmap-step-nuclei`.

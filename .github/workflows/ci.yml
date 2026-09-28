@@ -94,6 +94,9 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --ignore-scripts
+      # The commands the page offers are run in sh, bash and fish
+      # (scripts/shell-commands.test.js).
+      - run: sudo apt-get update && sudo apt-get install -y fish
       - run: npm test
       - run: npm run vendor:check
       - run: node scripts/check-roadmap.js

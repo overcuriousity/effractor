@@ -1,0 +1,125 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const N = require('../assets/js/nmap-command.js');
+const M = require('../assets/js/masscan.js');
+const Nu = require('../assets/js/nuclei-command.js');
+
+// Owner, 2026-09-28: every command the page offers runs as it stands in
+// fish, bash and sh. Each is run in each shell with stand-ins for the
+// programs, which write down the arguments they were given; every shell
+// must hand over the same ones, and they must be what the command says.
+// A shell that is not installed is left out; CI installs all three.
+const SHELLS = ['sh', 'bash', 'fish'].filter(s => spawnSync(s, ['-c', 'true']).status === 0);
+
+function commands() {
+  const out = [];
+  const take = c => { if (c && c.text) out.push(c.text); if (c && c.second) out.push(c.second); };
+  const ranges = ['10.0.1.0/24', '10.0.1.5 10.0.1.7', 'fd00::/120', 'fe80::1%eth0', 'srv-01.lab 10.0.1.5'];
+  for (const range of ranges) {
+    for (const r of N.RECIPES) take(N.command([r.id], {}, range, { portList: '22,80,8000-8100', drawnPorts: ['tcp/443', 'udp/53'], ack: true }));
+    take(N.command(N.RECIPES.filter(r => !r.alone).map(r => r.id), {}, range, { drawnPorts: ['tcp/443'], ack: true }));
+    for (const b of N.BLOCKS) for (const c of b.choices) take(N.command(['services'], { [b.id]: c.id }, range, { portList: 'T:22,U:53' }));
+  }
+  for (const range of ['10.0.1.0/24', '10.0.1.5 10.0.1.7', '10.0.1.5-10.0.1.9']) {
+    for (const p of M.PORTS) for (const r of M.RATES) take(M.command({ ports: p.id, rate: r.id }, range));
+  }
+  const extra = { server: 'https://oast.lab.example:8443', header: 'Cookie: session=a1b2; theme=dark & $HOME `id` "x" (y) {z} *?~ #!' };
+  const urls = ['10.0.1.0/24', 'app.lab 10.0.1.5:8443', 'https://app.lab:8443/a/?b=1&c=[2]~%20+@=', 'http://[fd00::5]:8080'];
+  for (const range of urls) {
+    for (const r of Nu.RECIPES) take(Nu.command([r.id], {}, range));
+    take(Nu.command(Nu.RECIPES.filter(r => !r.alone).map(r => r.id), {}, range));
+    for (const b of Nu.BLOCKS) for (const c of b.choices) take(Nu.command([b.only || 'cves'], { [b.id]: c.id }, range, extra));
+    const every = {};
+    for (const b of Nu.BLOCKS) every[b.id] = b.choices[b.choices.length - 1].id;
+    take(Nu.command(['cves', 'tls'], every, range, extra));
+  }
+  return out.filter((c, i) => out.indexOf(c) === i);
+}
+
+// The words of a command as a POSIX shell reads them, by hand: quotes are
+// single ones only, and nothing else is special in what the page writes.
+function words(command) {
+  const parts = [];
+  let out = [], word = null, quoted = false;
+  const end = () => {
+    if (word != null) out.push(word);
+    word = null;
+  };
+  for (const ch of command) {
+    if (quoted) {
+      if (ch === "'") quoted = false;
+      else word += ch;
+    } else if (ch === "'") {
+      quoted = true;
+      word = word == null ? '' : word;
+    } else if (ch === ' ') end();
+    else if (ch === ';') {
+      end();
+      parts.push(out);
+      out = [];
+    } else word = (word == null ? '' : word) + ch;
+  }
+  end();
+  parts.push(out);
+  return parts;
+}
+
+test('the page offers commands of every tool, and only what is quoted holds a shell\'s own signs', () => {
+  const all = commands();
+  assert.ok(all.length > 300, String(all.length));
+  assert.ok(all.some(c => /^sudo nmap /.test(c)) && all.some(c => /^sudo masscan /.test(c)) && all.some(c => /^awk .*; nuclei /.test(c)));
+  for (const c of all) {
+    // Outside single quotes: nothing fish, bash or sh would read as its own.
+    const bare = c.replace(/'[^']*'/g, '');
+    assert.doesNotMatch(bare, /[\\"`$&|<(){}\[\]*?~#!^]/, c);
+    assert.ok(bare.split(';').length <= 2 && bare.split('>').length <= 2, c);
+    // Inside them: no backslash, which fish reads there and sh does not.
+    assert.doesNotMatch(c, /\\/, c);
+    assert.equal(c.split("'").length % 2, 1, 'quotes close: ' + c);
+  }
+});
+
+test('fish, bash and sh hand the programs the same arguments', { skip: SHELLS.length < 2 ? 'fewer than two of sh, bash, fish installed' : false }, () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'effractor-shells-'));
+  try {
+    const bin = path.join(dir, 'bin');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(dir, 'resolv.conf'), 'nameserver 192.0.2.53\n');
+    // Each stand-in writes its name and arguments, one a line, the line
+    // breaks of an argument shown; sudo is one more program with its own.
+    const stub = '#!/bin/sh\nn=$(basename "$0")\nfor a in "$@"; do printf \'%s\\037\' "$a"; done >> "$OUT.args"\nprintf \'%s\\036\' "$n" >> "$OUT.args"\n';
+    for (const name of ['nmap', 'masscan', 'nuclei', 'sudo', 'awk']) fs.writeFileSync(path.join(bin, name), stub, { mode: 0o755 });
+    const all = commands();
+    const env = Object.assign({}, process.env, { PATH: bin + path.delimiter + process.env.PATH, HOME: dir });
+    const ran = {};
+    for (const shell of SHELLS) {
+      ran[shell] = all.map((c, i) => {
+        const out = path.join(dir, shell + '-' + i);
+        const args = shell === 'fish' ? ['--no-config', '-c', c] : ['-c', c];
+        const r = spawnSync(shell, args, { cwd: dir, env: Object.assign({}, env, { OUT: out }), encoding: 'utf8' });
+        assert.equal(r.status, 0, shell + ' could not run: ' + c + '\n' + r.stderr);
+        assert.equal(r.stderr, '', shell + ' complained of: ' + c);
+        return fs.readFileSync(out + '.args', 'utf8').split('\u001e').filter(Boolean).map(p => {
+          const parts = p.split('\u001f');
+          return [parts.pop()].concat(parts);
+        });
+      });
+    }
+    all.forEach((c, i) => {
+      const expected = words(c).map(w => w.filter(x => x !== '>' && x !== 'resolvers.txt' || w[0] !== 'awk'));
+      for (const shell of SHELLS) assert.deepEqual(ran[shell][i], expected, shell + ': ' + c);
+    });
+    // What the first part of a command with a name writes is a file.
+    assert.ok(fs.existsSync(path.join(dir, 'resolvers.txt')));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('all three shells were there to ask', { skip: process.env.CI ? false : 'only CI must have sh, bash and fish' }, () => {
+  assert.deepEqual(SHELLS, ['sh', 'bash', 'fish']);
+});
