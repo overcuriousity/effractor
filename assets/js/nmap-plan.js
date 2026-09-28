@@ -703,6 +703,23 @@
       });
     });
   }
+  // What is drawn or will be, by row: what a connection hangs on.
+  function thereOf(p, ticks) {
+    var out = { hosts: {}, ports: {}, apps: {} };
+    p.hosts.forEach(function (h) {
+      out.hosts[h.key] = !!ticks.hosts[h.key];
+      h.ports.forEach(function (r) {
+        out.ports[r.key] = out.hosts[h.key] && (!!r.known || !!ticks.ports[r.key]);
+        out.apps[r.key] = out.ports[r.key] && !!r.application && (!!r.application.known || telling(r, ticks).application);
+      });
+    });
+    return out;
+  }
+  // Whether a connection's row hangs on what is drawn or will be: the
+  // page leaves it out otherwise, as the summary and apply do.
+  function connectionThere(p, ticks, row) {
+    return Cn.hangs(row, thereOf(p, ticks));
+  }
   function markKey(r, f) {
     return f.product ? "id:" + f.product : r.product.identified ? "new:" + r.product.label : "port:" + r.key;
   }
@@ -733,7 +750,7 @@
   }
 
   function summary(doc, p, ticks, limits) {
-    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, named: 0, told: 0, moved: 0, renamed: 0, seen: 0, changes: Ch.changesTicked(p, ticks), connected: Cn.count(p.connections, ticks.connections) };
+    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, named: 0, told: 0, moved: 0, renamed: 0, seen: 0, changes: Ch.changesTicked(p, ticks), connected: Cn.count(p.connections, ticks.connections, thereOf(p, ticks)) };
     var rel = 0, newProducts = Object.create(null), marked = Object.create(null);
     // The products that are named: those made for it are counted, and a
     // name that is taken is no new product of a port's.
@@ -1080,7 +1097,7 @@
       hostOf: hostOf,
       serviceOf: serviceOf,
       appOf: appOf,
-    });
+    }, thereOf(p, ticks));
     Ch.applyChangesAfter(p, ticks, env, way.routes, flowOf, ends);
     // A finding marks its product unpatched and says why; its time stays as
     // it is. The author's "patched" stands.
@@ -1106,7 +1123,7 @@
   function isAttached(doc, machine, net) {
     return links(doc, "attached").some(function (a) { return a.from === machine && a.to === net; });
   }
-  var api = { identityWords: identityWords, plan: plan, defaults: defaults, summary: summary, said: said, tickHost: tickHost, tickHosts: tickHosts, apply: apply };
+  var api = { identityWords: identityWords, plan: plan, defaults: defaults, summary: summary, said: said, tickHost: tickHost, tickHosts: tickHosts, apply: apply, connectionThere: connectionThere };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapPlan = api;
 })();

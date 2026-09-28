@@ -227,3 +227,123 @@ test('the imported document is the one the Rust and wasm checks validate', () =>
   if (process.env.NMAP_FIXTURE === 'write') fs.writeFileSync(file, text);
   assert.equal(fs.readFileSync(file, 'utf8'), text);
 });
+
+// ---- from the reviews of the branch and of the dialog ----
+const entitiesOf = doc => Object.keys(doc.entities).length;
+const relationsOf = doc => Object.keys(doc.associations).length + Object.keys(doc.flows).length;
+const only = (p, ...keys) => {
+  const t = N.defaults(p);
+  for (const k of Object.keys(t.connections)) t.connections[k] = keys.includes(k);
+  return t;
+};
+
+test('review: a name that points is a DNS name and what it points to an address, or the answer is refused', () => {
+  const dns = lines().find(r => r.type === 'dns' && r['extractor-name'] === 'address');
+  const bad = (host, values) => Object.assign({}, dns, { host, 'matched-at': host, 'extracted-results': values });
+  const scan = Nu.read(fixture('identify') + written([bad('<img src=x onerror=alert(1)>', ['10.0.2.50']), bad('Evil Name.example', ['10.0.2.50']), bad('1.2.3', ['10.0.2.50']), bad('ok.corp.example', ['010.000.002.095']), bad('fine.corp.example', ['10.0.2.50'])])).scan;
+  assert.equal(scan.refused, 4);
+  assert.deepEqual(scan.points, [{ name: 'fine.corp.example', address: '10.0.2.50', alias: null }]);
+});
+
+test('review: a sign-on that joins an account is applied, also where it is all there is', () => {
+  const out = drawn(start());
+  const wiki = links(out, 'hosts').find(a => a.from === id(out, 'wiki.corp.example', 'host') && out.entities[a.to].label === 'https').to;
+  const account = id(out, 'Keycloak accounts at sso.corp.example', 'account');
+  for (const k of Object.keys(out.associations)) if (out.associations[k].kind === 'authorizes' && out.associations[k].from === account && out.associations[k].to === wiki) delete out.associations[k];
+  const p = N.plan(out, 'nuclei', few(), '10.0.2.0/24', {});
+  assert.deepEqual(p.connections.list.map(c => [c.key, c.what]), [['sso:h1/tcp/443', 'joins “Keycloak accounts at sso.corp.example”']]);
+  const t = only(p, 'sso:h1/tcp/443');
+  t.seen = false;
+  const s = N.summary(out, p, t, null);
+  assert.deepEqual(s.connected, { entities: 0, relationships: 1, accounts: 0, hosts: 0, links: 1 });
+  assert.equal(N.said(s), 'Draws 1 connection.');
+  const more = N.apply(out, p, t, specOf, STAMP()).doc;
+  assert.deepEqual(accepted(more, 'Keycloak accounts at sso.corp.example'), ['https on sso.corp.example', 'https on wiki.corp.example']);
+});
+
+test('review: what is counted of a connection is what is made of it, never less', () => {
+  const docs = { empty: start(), 'the sign-on\'s host drawn without a service': Object.assign(start(), {}) };
+  docs['the sign-on\'s host drawn without a service'].entities.idp = { kind: 'host', label: 'sso.corp.example' };
+  for (const [name, d] of Object.entries(docs)) {
+    const p = N.plan(d, 'nuclei', few(), '10.0.2.0/24', {});
+    const base = N.apply(d, p, only(p), specOf, STAMP()).doc;
+    for (const c of p.connections.list.filter(c => c.can)) {
+      const t = only(p, c.key);
+      const counted = N.summary(d, p, t, null).connected;
+      const out = N.apply(d, p, t, specOf, STAMP()).doc;
+      const made = [entitiesOf(out) - entitiesOf(base), relationsOf(out) - relationsOf(base)];
+      assert.ok(counted.entities >= made[0] && counted.relationships >= made[1], name + ', ' + c.key + ': counted ' + [counted.entities, counted.relationships] + ', made ' + made);
+      if (c.kind !== 'pass-on') assert.deepEqual([counted.entities, counted.relationships], made, name + ', ' + c.key);
+    }
+  }
+});
+
+test('review: two names that point to one address nobody drew are one host', () => {
+  const scan = few();
+  scan.points.push({ name: 'one.example', address: '10.0.2.99', alias: null }, { name: 'two.example', address: '10.0.2.99', alias: null });
+  const d = start();
+  const p = N.plan(d, 'nuclei', scan, '10.0.2.0/24', {});
+  assert.deepEqual(p.connections.list.filter(c => c.kind === 'host').map(c => [c.key, c.line, c.what]), [['host:wiki.corp.example', 'wiki.corp.example, one.example and two.example point to 10.0.2.99, which is not drawn', 'draws the host']]);
+  const out = N.apply(d, p, all(p), specOf, STAMP()).doc;
+  const there = Object.values(out.entities).filter(e => (e.addresses || []).includes('10.0.2.99'));
+  assert.deepEqual(there.map(e => e.names), [['wiki.corp.example', 'one.example', 'two.example']]);
+});
+
+test('review: a login\'s account is its service\'s own: two machines of one product share none, an author\'s is not taken', () => {
+  const scan = few();
+  const twin = JSON.parse(JSON.stringify(scan.hosts.find(h => h.addresses[0] === '10.0.2.14')));
+  twin.addresses = ['10.0.2.114'];
+  twin.names = [{ name: 'fw2.corp.example', from: 'certificate', port: 443 }];
+  twin.hostname = 'fw2.corp.example';
+  scan.hosts.push(twin);
+  const d = start();
+  d.entities.payroll = { kind: 'service', label: 'Payroll' };
+  d.entities.theirs = { kind: 'account', label: 'grafana accounts' };
+  Object.assign(d.associations, { y1: { kind: 'hosts', from: 'box', to: 'payroll', privilege: 'unknown' }, y2: { kind: 'authorizes', from: 'theirs', to: 'payroll' } });
+  const p = N.plan(d, 'nuclei', scan, '10.0.2.0/24', {});
+  const what = key => p.connections.list.find(c => c.key === key).what;
+  assert.equal(what('login:h0/tcp/443'), 'draws “Grafana accounts on grafana.corp.example”, which it accepts');
+  assert.equal(what('admin-login:h3/tcp/443'), 'draws “pfSense accounts”, admin on “fw.corp.example”');
+  assert.equal(what('admin-login:h9/tcp/443'), 'draws “pfSense accounts on fw2.corp.example”, admin on “fw2.corp.example”');
+  const out = N.apply(d, p, all(p), specOf, STAMP()).doc;
+  assert.deepEqual(accepted(out, 'grafana accounts'), ['Payroll on Admin box']);
+  assert.deepEqual(accepted(out, 'pfSense accounts'), ['pfSense on fw.corp.example']);
+  assert.deepEqual(accepted(out, 'pfSense accounts on fw2.corp.example'), ['pfSense on fw2.corp.example']);
+  for (const label of ['pfSense accounts', 'pfSense accounts on fw2.corp.example']) assert.equal(links(out, 'grants').filter(a => a.from === id(out, label, 'account')).length, 1, label);
+  // Again, nothing.
+  assert.deepEqual(N.plan(out, 'nuclei', scan, '10.0.2.0/24', {}).connections.list, []);
+});
+
+test('review of the dialog: a connection whose host, port or application is left out is neither counted nor said', () => {
+  const d = start();
+  const p = N.plan(d, 'nuclei', few(), '10.0.2.0/24', {});
+  const none = { entities: 0, relationships: 0, accounts: 0, hosts: 0, links: 0 };
+  const left = (keys, change) => {
+    const t = only(p, ...keys);
+    change(t);
+    const s = N.summary(d, p, t, null);
+    const edit = N.apply(d, p, t, specOf, STAMP());
+    return [s.connected, /draws/i.test(N.said(s)), edit && Object.values(edit.doc.entities).filter(e => e.kind === 'account').length];
+  };
+  const noHosts = t => { N.tickHosts(p, t, false); t.seen = false; };
+  assert.deepEqual(left(['login:h0/tcp/443'], noHosts), [none, false, null], 'every host unticked: nothing to add');
+  assert.deepEqual(left(['sso:h1/tcp/443', 'administration:h2', 'admin-login:h2/tcp/8006', 'pass-on:grafana.corp.example>h0', 'name:grafana.corp.example'], noHosts), [none, false, null]);
+  assert.deepEqual(left(['login:h0/tcp/443'], t => { t.ports['h0/tcp/443'] = false; }), [none, false, 0], 'its port unticked');
+  assert.deepEqual(left(['login:h0/tcp/443'], t => { t.applications['h0/tcp/443'] = false; }), [none, false, 0], 'its application unticked');
+  assert.deepEqual(left(['pass-on:grafana.corp.example>h0'], t => { N.tickHost(p.hosts[0], t, false); }), [none, false, 0], 'the bearer unticked');
+  assert.deepEqual(left(['login:h0/tcp/443'], () => {})[0], { entities: 1, relationships: 1, accounts: 1, hosts: 0, links: 0 });
+  // What the page asks: whether a row hangs on something that is left out.
+  const t = only(p, 'login:h0/tcp/443');
+  const row = p.connections.list.find(c => c.key === 'login:h0/tcp/443');
+  assert.equal(N.connectionThere(p, t, row), true);
+  t.applications['h0/tcp/443'] = false;
+  assert.equal(N.connectionThere(p, t, row), false);
+});
+
+test('review: connections are read the same whatever the order of the answers', () => {
+  const recs = (fixture('identify') + fixture('connect')).trim().split('\n').map(l => JSON.parse(l));
+  const logins = scan => scan.hosts.map(h => [h.addresses[0], h.ports.map(p => [p.port, p.login])]).sort((a, b) => a[0] < b[0] ? -1 : 1);
+  const as = logins(Nu.read(written(recs)).scan);
+  assert.deepEqual(logins(Nu.read(written(recs.slice().reverse())).scan), as);
+  assert.deepEqual(Nu.read(written(recs.slice().reverse())).scan.points.slice().sort((a, b) => a.name < b.name ? -1 : 1), Nu.read(written(recs)).scan.points);
+});

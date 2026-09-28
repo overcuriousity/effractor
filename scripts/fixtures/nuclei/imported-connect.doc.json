@@ -2168,6 +2168,40 @@
         "patched": "unknown"
       }
     },
+    "10-0-2-63": {
+      "kind": "host",
+      "label": "10.0.2.63",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.63"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http-proxy-2": {
+      "kind": "service",
+      "label": "http-proxy",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
     "10-0-2-15": {
       "kind": "host",
       "label": "10.0.2.15",
@@ -2181,7 +2215,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-2": {
+    "http-proxy-3": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -2215,6 +2249,40 @@
       },
       "defenses": {
         "patched": "unknown"
+      }
+    },
+    "10-0-2-81": {
+      "kind": "host",
+      "label": "10.0.2.81",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.81"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http-proxy-4": {
+      "kind": "service",
+      "label": "http-proxy",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
       }
     },
     "10-0-2-100": {
@@ -2607,7 +2675,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-3": {
+    "http-proxy-5": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -2739,7 +2807,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-4": {
+    "http-proxy-6": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -2920,7 +2988,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-5": {
+    "http-proxy-7": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -3150,7 +3218,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-6": {
+    "http-proxy-8": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -3199,7 +3267,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-7": {
+    "http-proxy-9": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -3248,7 +3316,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-8": {
+    "http-proxy-10": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -3297,7 +3365,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-9": {
+    "http-proxy-11": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -3346,7 +3414,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-10": {
+    "http-proxy-12": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -3395,7 +3463,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-11": {
+    "http-proxy-13": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -3444,7 +3512,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-12": {
+    "http-proxy-14": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -3493,7 +3561,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-13": {
+    "http-proxy-15": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -3542,7 +3610,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-14": {
+    "http-proxy-16": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -3591,7 +3659,7 @@
       ],
       "seen": "2026-09-28"
     },
-    "http-proxy-15": {
+    "http-proxy-17": {
       "kind": "service",
       "label": "http-proxy",
       "parameters": {
@@ -3615,6 +3683,55 @@
     "unidentified-http-proxy-on-10-0-2-79": {
       "kind": "product",
       "label": "unidentified http-proxy on 10.0.2.79",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
+    "10-0-2-80": {
+      "kind": "host",
+      "label": "10.0.2.80",
+      "parameters": {
+        "escape": {
+          "status": "unknown"
+        }
+      },
+      "addresses": [
+        "10.0.2.80"
+      ],
+      "seen": "2026-09-28"
+    },
+    "http-proxy-18": {
+      "kind": "service",
+      "label": "http-proxy",
+      "parameters": {
+        "deploy-exploit": {
+          "status": "unknown"
+        },
+        "login": {
+          "status": "unknown"
+        },
+        "take-over": {
+          "status": "unknown"
+        },
+        "take-over-guarded": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "guarded": "unknown"
+      }
+    },
+    "unidentified-http-proxy-on-10-0-2-80": {
+      "kind": "product",
+      "label": "unidentified http-proxy on 10.0.2.80",
       "parameters": {
         "find-exploit": {
           "status": "unknown"
@@ -5751,21 +5868,53 @@
       "from": "tcp-8000",
       "to": "unidentified-tcp-8000-on-10-0-2-62"
     },
+    "10-0-2-63-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-63",
+      "to": "lan"
+    },
+    "10-0-2-63-hosts-http-proxy-2": {
+      "kind": "hosts",
+      "from": "10-0-2-63",
+      "to": "http-proxy-2",
+      "privilege": "unknown"
+    },
+    "http-proxy-2-instance-of-nginx-1-24-0": {
+      "kind": "instance-of",
+      "from": "http-proxy-2",
+      "to": "nginx-1-24-0"
+    },
     "10-0-2-15-attached-lan": {
       "kind": "attached",
       "from": "10-0-2-15",
       "to": "lan"
     },
-    "10-0-2-15-hosts-http-proxy-2": {
+    "10-0-2-15-hosts-http-proxy-3": {
       "kind": "hosts",
       "from": "10-0-2-15",
-      "to": "http-proxy-2",
+      "to": "http-proxy-3",
       "privilege": "unknown"
     },
-    "http-proxy-2-instance-of-jetty-10-0-18": {
+    "http-proxy-3-instance-of-jetty-10-0-18": {
       "kind": "instance-of",
-      "from": "http-proxy-2",
+      "from": "http-proxy-3",
       "to": "jetty-10-0-18"
+    },
+    "10-0-2-81-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-81",
+      "to": "lan"
+    },
+    "10-0-2-81-hosts-http-proxy-4": {
+      "kind": "hosts",
+      "from": "10-0-2-81",
+      "to": "http-proxy-4",
+      "privilege": "unknown"
+    },
+    "http-proxy-4-instance-of-nginx-1-24-0": {
+      "kind": "instance-of",
+      "from": "http-proxy-4",
+      "to": "nginx-1-24-0"
     },
     "10-0-2-100-attached-lan": {
       "kind": "attached",
@@ -5900,15 +6049,15 @@
       "from": "10-0-2-111",
       "to": "lan"
     },
-    "10-0-2-111-hosts-http-proxy-3": {
+    "10-0-2-111-hosts-http-proxy-5": {
       "kind": "hosts",
       "from": "10-0-2-111",
-      "to": "http-proxy-3",
+      "to": "http-proxy-5",
       "privilege": "unknown"
     },
-    "http-proxy-3-instance-of-jira-9-12-2": {
+    "http-proxy-5-instance-of-jira-9-12-2": {
       "kind": "instance-of",
-      "from": "http-proxy-3",
+      "from": "http-proxy-5",
       "to": "jira-9-12-2"
     },
     "10-0-2-112-attached-lan": {
@@ -5948,15 +6097,15 @@
       "from": "10-0-2-125",
       "to": "lan"
     },
-    "10-0-2-125-hosts-http-proxy-4": {
+    "10-0-2-125-hosts-http-proxy-6": {
       "kind": "hosts",
       "from": "10-0-2-125",
-      "to": "http-proxy-4",
+      "to": "http-proxy-6",
       "privilege": "unknown"
     },
-    "http-proxy-4-instance-of-apache-guacamole": {
+    "http-proxy-6-instance-of-apache-guacamole": {
       "kind": "instance-of",
-      "from": "http-proxy-4",
+      "from": "http-proxy-6",
       "to": "apache-guacamole"
     },
     "10-0-2-133-attached-lan": {
@@ -6012,15 +6161,15 @@
       "from": "10-0-2-138",
       "to": "lan"
     },
-    "10-0-2-138-hosts-http-proxy-5": {
+    "10-0-2-138-hosts-http-proxy-7": {
       "kind": "hosts",
       "from": "10-0-2-138",
-      "to": "http-proxy-5",
+      "to": "http-proxy-7",
       "privilege": "unknown"
     },
-    "http-proxy-5-instance-of-apache-tomcat-10-1-18": {
+    "http-proxy-7-instance-of-apache-tomcat-10-1-18": {
       "kind": "instance-of",
-      "from": "http-proxy-5",
+      "from": "http-proxy-7",
       "to": "apache-tomcat-10-1-18"
     },
     "10-0-2-139-attached-lan": {
@@ -6092,15 +6241,15 @@
       "from": "10-0-2-70",
       "to": "lan"
     },
-    "10-0-2-70-hosts-http-proxy-6": {
+    "10-0-2-70-hosts-http-proxy-8": {
       "kind": "hosts",
       "from": "10-0-2-70",
-      "to": "http-proxy-6",
+      "to": "http-proxy-8",
       "privilege": "unknown"
     },
-    "http-proxy-6-instance-of-unidentified-http-proxy-on-10-0-2-70": {
+    "http-proxy-8-instance-of-unidentified-http-proxy-on-10-0-2-70": {
       "kind": "instance-of",
-      "from": "http-proxy-6",
+      "from": "http-proxy-8",
       "to": "unidentified-http-proxy-on-10-0-2-70"
     },
     "10-0-2-71-attached-lan": {
@@ -6108,15 +6257,15 @@
       "from": "10-0-2-71",
       "to": "lan"
     },
-    "10-0-2-71-hosts-http-proxy-7": {
+    "10-0-2-71-hosts-http-proxy-9": {
       "kind": "hosts",
       "from": "10-0-2-71",
-      "to": "http-proxy-7",
+      "to": "http-proxy-9",
       "privilege": "unknown"
     },
-    "http-proxy-7-instance-of-unidentified-http-proxy-on-10-0-2-71": {
+    "http-proxy-9-instance-of-unidentified-http-proxy-on-10-0-2-71": {
       "kind": "instance-of",
-      "from": "http-proxy-7",
+      "from": "http-proxy-9",
       "to": "unidentified-http-proxy-on-10-0-2-71"
     },
     "10-0-2-72-attached-lan": {
@@ -6124,15 +6273,15 @@
       "from": "10-0-2-72",
       "to": "lan"
     },
-    "10-0-2-72-hosts-http-proxy-8": {
+    "10-0-2-72-hosts-http-proxy-10": {
       "kind": "hosts",
       "from": "10-0-2-72",
-      "to": "http-proxy-8",
+      "to": "http-proxy-10",
       "privilege": "unknown"
     },
-    "http-proxy-8-instance-of-unidentified-http-proxy-on-10-0-2-72": {
+    "http-proxy-10-instance-of-unidentified-http-proxy-on-10-0-2-72": {
       "kind": "instance-of",
-      "from": "http-proxy-8",
+      "from": "http-proxy-10",
       "to": "unidentified-http-proxy-on-10-0-2-72"
     },
     "10-0-2-73-attached-lan": {
@@ -6140,15 +6289,15 @@
       "from": "10-0-2-73",
       "to": "lan"
     },
-    "10-0-2-73-hosts-http-proxy-9": {
+    "10-0-2-73-hosts-http-proxy-11": {
       "kind": "hosts",
       "from": "10-0-2-73",
-      "to": "http-proxy-9",
+      "to": "http-proxy-11",
       "privilege": "unknown"
     },
-    "http-proxy-9-instance-of-unidentified-http-proxy-on-10-0-2-73": {
+    "http-proxy-11-instance-of-unidentified-http-proxy-on-10-0-2-73": {
       "kind": "instance-of",
-      "from": "http-proxy-9",
+      "from": "http-proxy-11",
       "to": "unidentified-http-proxy-on-10-0-2-73"
     },
     "10-0-2-74-attached-lan": {
@@ -6156,15 +6305,15 @@
       "from": "10-0-2-74",
       "to": "lan"
     },
-    "10-0-2-74-hosts-http-proxy-10": {
+    "10-0-2-74-hosts-http-proxy-12": {
       "kind": "hosts",
       "from": "10-0-2-74",
-      "to": "http-proxy-10",
+      "to": "http-proxy-12",
       "privilege": "unknown"
     },
-    "http-proxy-10-instance-of-unidentified-http-proxy-on-10-0-2-74": {
+    "http-proxy-12-instance-of-unidentified-http-proxy-on-10-0-2-74": {
       "kind": "instance-of",
-      "from": "http-proxy-10",
+      "from": "http-proxy-12",
       "to": "unidentified-http-proxy-on-10-0-2-74"
     },
     "10-0-2-75-attached-lan": {
@@ -6172,15 +6321,15 @@
       "from": "10-0-2-75",
       "to": "lan"
     },
-    "10-0-2-75-hosts-http-proxy-11": {
+    "10-0-2-75-hosts-http-proxy-13": {
       "kind": "hosts",
       "from": "10-0-2-75",
-      "to": "http-proxy-11",
+      "to": "http-proxy-13",
       "privilege": "unknown"
     },
-    "http-proxy-11-instance-of-unidentified-http-proxy-on-10-0-2-75": {
+    "http-proxy-13-instance-of-unidentified-http-proxy-on-10-0-2-75": {
       "kind": "instance-of",
-      "from": "http-proxy-11",
+      "from": "http-proxy-13",
       "to": "unidentified-http-proxy-on-10-0-2-75"
     },
     "10-0-2-76-attached-lan": {
@@ -6188,15 +6337,15 @@
       "from": "10-0-2-76",
       "to": "lan"
     },
-    "10-0-2-76-hosts-http-proxy-12": {
+    "10-0-2-76-hosts-http-proxy-14": {
       "kind": "hosts",
       "from": "10-0-2-76",
-      "to": "http-proxy-12",
+      "to": "http-proxy-14",
       "privilege": "unknown"
     },
-    "http-proxy-12-instance-of-unidentified-http-proxy-on-10-0-2-76": {
+    "http-proxy-14-instance-of-unidentified-http-proxy-on-10-0-2-76": {
       "kind": "instance-of",
-      "from": "http-proxy-12",
+      "from": "http-proxy-14",
       "to": "unidentified-http-proxy-on-10-0-2-76"
     },
     "10-0-2-77-attached-lan": {
@@ -6204,15 +6353,15 @@
       "from": "10-0-2-77",
       "to": "lan"
     },
-    "10-0-2-77-hosts-http-proxy-13": {
+    "10-0-2-77-hosts-http-proxy-15": {
       "kind": "hosts",
       "from": "10-0-2-77",
-      "to": "http-proxy-13",
+      "to": "http-proxy-15",
       "privilege": "unknown"
     },
-    "http-proxy-13-instance-of-unidentified-http-proxy-on-10-0-2-77": {
+    "http-proxy-15-instance-of-unidentified-http-proxy-on-10-0-2-77": {
       "kind": "instance-of",
-      "from": "http-proxy-13",
+      "from": "http-proxy-15",
       "to": "unidentified-http-proxy-on-10-0-2-77"
     },
     "10-0-2-78-attached-lan": {
@@ -6220,15 +6369,15 @@
       "from": "10-0-2-78",
       "to": "lan"
     },
-    "10-0-2-78-hosts-http-proxy-14": {
+    "10-0-2-78-hosts-http-proxy-16": {
       "kind": "hosts",
       "from": "10-0-2-78",
-      "to": "http-proxy-14",
+      "to": "http-proxy-16",
       "privilege": "unknown"
     },
-    "http-proxy-14-instance-of-unidentified-http-proxy-on-10-0-2-78": {
+    "http-proxy-16-instance-of-unidentified-http-proxy-on-10-0-2-78": {
       "kind": "instance-of",
-      "from": "http-proxy-14",
+      "from": "http-proxy-16",
       "to": "unidentified-http-proxy-on-10-0-2-78"
     },
     "10-0-2-79-attached-lan": {
@@ -6236,16 +6385,32 @@
       "from": "10-0-2-79",
       "to": "lan"
     },
-    "10-0-2-79-hosts-http-proxy-15": {
+    "10-0-2-79-hosts-http-proxy-17": {
       "kind": "hosts",
       "from": "10-0-2-79",
-      "to": "http-proxy-15",
+      "to": "http-proxy-17",
       "privilege": "unknown"
     },
-    "http-proxy-15-instance-of-unidentified-http-proxy-on-10-0-2-79": {
+    "http-proxy-17-instance-of-unidentified-http-proxy-on-10-0-2-79": {
       "kind": "instance-of",
-      "from": "http-proxy-15",
+      "from": "http-proxy-17",
       "to": "unidentified-http-proxy-on-10-0-2-79"
+    },
+    "10-0-2-80-attached-lan": {
+      "kind": "attached",
+      "from": "10-0-2-80",
+      "to": "lan"
+    },
+    "10-0-2-80-hosts-http-proxy-18": {
+      "kind": "hosts",
+      "from": "10-0-2-80",
+      "to": "http-proxy-18",
+      "privilege": "unknown"
+    },
+    "http-proxy-18-instance-of-unidentified-http-proxy-on-10-0-2-80": {
+      "kind": "instance-of",
+      "from": "http-proxy-18",
+      "to": "unidentified-http-proxy-on-10-0-2-80"
     },
     "grafana-corp-example-hosts-grafana": {
       "kind": "hosts",
@@ -6691,10 +6856,10 @@
       "from": "bitbucket-accounts",
       "to": "tcp-7990"
     },
-    "apache-guacamole-accounts-authorizes-http-proxy-4": {
+    "apache-guacamole-accounts-authorizes-http-proxy-6": {
       "kind": "authorizes",
       "from": "apache-guacamole-accounts",
-      "to": "http-proxy-4"
+      "to": "http-proxy-6"
     },
     "lan-administration-10-0-2-133": {
       "kind": "administration",
@@ -6749,25 +6914,25 @@
       "from": "sap-netweaver-accounts",
       "to": "tcp-8000-3"
     },
-    "microsoft-entra-id-accounts-at-login-microsoftonline-com-authorizes-http-proxy-6": {
+    "microsoft-entra-id-accounts-at-login-microsoftonline-com-authorizes-http-proxy-8": {
       "kind": "authorizes",
       "from": "microsoft-entra-id-accounts-at-login-microsoftonline-com",
-      "to": "http-proxy-6"
+      "to": "http-proxy-8"
     },
-    "ad-fs-accounts-at-adfs-corp-example-authorizes-http-proxy-7": {
+    "ad-fs-accounts-at-adfs-corp-example-authorizes-http-proxy-9": {
       "kind": "authorizes",
       "from": "ad-fs-accounts-at-adfs-corp-example",
-      "to": "http-proxy-7"
+      "to": "http-proxy-9"
     },
     "ad-fs-accounts-at-adfs-corp-example-authorizes-https-14": {
       "kind": "authorizes",
       "from": "ad-fs-accounts-at-adfs-corp-example",
       "to": "https-14"
     },
-    "okta-accounts-at-corp-okta-com-authorizes-http-proxy-8": {
+    "okta-accounts-at-corp-okta-com-authorizes-http-proxy-10": {
       "kind": "authorizes",
       "from": "okta-accounts-at-corp-okta-com",
-      "to": "http-proxy-8"
+      "to": "http-proxy-10"
     },
     "corp-okta-com-hosts-https-28": {
       "kind": "hosts",
@@ -6785,10 +6950,10 @@
       "from": "okta-accounts-at-corp-okta-com",
       "to": "https-28"
     },
-    "google-sign-in-accounts-at-accounts-google-com-authorizes-http-proxy-9": {
+    "google-sign-in-accounts-at-accounts-google-com-authorizes-http-proxy-11": {
       "kind": "authorizes",
       "from": "google-sign-in-accounts-at-accounts-google-com",
-      "to": "http-proxy-9"
+      "to": "http-proxy-11"
     },
     "accounts-google-com-hosts-https-29": {
       "kind": "hosts",
@@ -6806,10 +6971,10 @@
       "from": "google-sign-in-accounts-at-accounts-google-com",
       "to": "https-29"
     },
-    "sign-on-accounts-at-idp-corp-example-authorizes-http-proxy-10": {
+    "sign-on-accounts-at-idp-corp-example-authorizes-http-proxy-12": {
       "kind": "authorizes",
       "from": "sign-on-accounts-at-idp-corp-example",
-      "to": "http-proxy-10"
+      "to": "http-proxy-12"
     },
     "idp-corp-example-hosts-https-30": {
       "kind": "hosts",
@@ -6827,10 +6992,10 @@
       "from": "sign-on-accounts-at-idp-corp-example",
       "to": "https-30"
     },
-    "sign-on-accounts-at-id-corp-example-authorizes-http-proxy-11": {
+    "sign-on-accounts-at-id-corp-example-authorizes-http-proxy-13": {
       "kind": "authorizes",
       "from": "sign-on-accounts-at-id-corp-example",
-      "to": "http-proxy-11"
+      "to": "http-proxy-13"
     },
     "id-corp-example-hosts-https-31": {
       "kind": "hosts",
@@ -6848,25 +7013,30 @@
       "from": "sign-on-accounts-at-id-corp-example",
       "to": "https-31"
     },
-    "keycloak-accounts-at-sso-corp-example-authorizes-http-proxy-12": {
+    "keycloak-accounts-at-sso-corp-example-authorizes-http-proxy-14": {
       "kind": "authorizes",
       "from": "keycloak-accounts-at-sso-corp-example",
-      "to": "http-proxy-12"
-    },
-    "ad-fs-accounts-at-adfs-corp-example-authorizes-http-proxy-13": {
-      "kind": "authorizes",
-      "from": "ad-fs-accounts-at-adfs-corp-example",
-      "to": "http-proxy-13"
-    },
-    "okta-accounts-at-corp-okta-com-authorizes-http-proxy-14": {
-      "kind": "authorizes",
-      "from": "okta-accounts-at-corp-okta-com",
       "to": "http-proxy-14"
     },
-    "google-sign-in-accounts-at-accounts-google-com-authorizes-http-proxy-15": {
+    "ad-fs-accounts-at-adfs-corp-example-authorizes-http-proxy-15": {
+      "kind": "authorizes",
+      "from": "ad-fs-accounts-at-adfs-corp-example",
+      "to": "http-proxy-15"
+    },
+    "okta-accounts-at-corp-okta-com-authorizes-http-proxy-16": {
+      "kind": "authorizes",
+      "from": "okta-accounts-at-corp-okta-com",
+      "to": "http-proxy-16"
+    },
+    "google-sign-in-accounts-at-accounts-google-com-authorizes-http-proxy-17": {
       "kind": "authorizes",
       "from": "google-sign-in-accounts-at-accounts-google-com",
-      "to": "http-proxy-15"
+      "to": "http-proxy-17"
+    },
+    "sign-on-accounts-at-id-corp-example-authorizes-http-proxy-18": {
+      "kind": "authorizes",
+      "from": "sign-on-accounts-at-id-corp-example",
+      "to": "http-proxy-18"
     }
   },
   "flows": {
@@ -7528,10 +7698,38 @@
         }
       }
     },
+    "http-proxy-on-10-0-2-63": {
+      "label": "http-proxy on 10.0.2.63",
+      "source": "nuclei",
+      "target": "http-proxy-2",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8080",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
     "http-proxy-on-10-0-2-15": {
       "label": "http-proxy on 10.0.2.15",
       "source": "nuclei",
-      "target": "http-proxy-2",
+      "target": "http-proxy-3",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8080",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-proxy-on-10-0-2-81": {
+      "label": "http-proxy on 10.0.2.81",
+      "source": "nuclei",
+      "target": "http-proxy-4",
       "route": [
         "lan"
       ],
@@ -7657,7 +7855,7 @@
     "http-proxy-on-10-0-2-111": {
       "label": "http-proxy on 10.0.2.111",
       "source": "nuclei",
-      "target": "http-proxy-3",
+      "target": "http-proxy-5",
       "route": [
         "lan"
       ],
@@ -7699,7 +7897,7 @@
     "http-proxy-on-10-0-2-125": {
       "label": "http-proxy on 10.0.2.125",
       "source": "nuclei",
-      "target": "http-proxy-4",
+      "target": "http-proxy-6",
       "route": [
         "lan"
       ],
@@ -7755,7 +7953,7 @@
     "http-proxy-on-10-0-2-138": {
       "label": "http-proxy on 10.0.2.138",
       "source": "nuclei",
-      "target": "http-proxy-5",
+      "target": "http-proxy-7",
       "route": [
         "lan"
       ],
@@ -7825,7 +8023,7 @@
     "http-proxy-on-10-0-2-70": {
       "label": "http-proxy on 10.0.2.70",
       "source": "nuclei",
-      "target": "http-proxy-6",
+      "target": "http-proxy-8",
       "route": [
         "lan"
       ],
@@ -7839,7 +8037,7 @@
     "http-proxy-on-10-0-2-71": {
       "label": "http-proxy on 10.0.2.71",
       "source": "nuclei",
-      "target": "http-proxy-7",
+      "target": "http-proxy-9",
       "route": [
         "lan"
       ],
@@ -7853,7 +8051,7 @@
     "http-proxy-on-10-0-2-72": {
       "label": "http-proxy on 10.0.2.72",
       "source": "nuclei",
-      "target": "http-proxy-8",
+      "target": "http-proxy-10",
       "route": [
         "lan"
       ],
@@ -7867,7 +8065,7 @@
     "http-proxy-on-10-0-2-73": {
       "label": "http-proxy on 10.0.2.73",
       "source": "nuclei",
-      "target": "http-proxy-9",
+      "target": "http-proxy-11",
       "route": [
         "lan"
       ],
@@ -7881,7 +8079,7 @@
     "http-proxy-on-10-0-2-74": {
       "label": "http-proxy on 10.0.2.74",
       "source": "nuclei",
-      "target": "http-proxy-10",
+      "target": "http-proxy-12",
       "route": [
         "lan"
       ],
@@ -7895,7 +8093,7 @@
     "http-proxy-on-10-0-2-75": {
       "label": "http-proxy on 10.0.2.75",
       "source": "nuclei",
-      "target": "http-proxy-11",
+      "target": "http-proxy-13",
       "route": [
         "lan"
       ],
@@ -7909,7 +8107,7 @@
     "http-proxy-on-10-0-2-76": {
       "label": "http-proxy on 10.0.2.76",
       "source": "nuclei",
-      "target": "http-proxy-12",
+      "target": "http-proxy-14",
       "route": [
         "lan"
       ],
@@ -7923,7 +8121,7 @@
     "http-proxy-on-10-0-2-77": {
       "label": "http-proxy on 10.0.2.77",
       "source": "nuclei",
-      "target": "http-proxy-13",
+      "target": "http-proxy-15",
       "route": [
         "lan"
       ],
@@ -7937,7 +8135,7 @@
     "http-proxy-on-10-0-2-78": {
       "label": "http-proxy on 10.0.2.78",
       "source": "nuclei",
-      "target": "http-proxy-14",
+      "target": "http-proxy-16",
       "route": [
         "lan"
       ],
@@ -7951,7 +8149,21 @@
     "http-proxy-on-10-0-2-79": {
       "label": "http-proxy on 10.0.2.79",
       "source": "nuclei",
-      "target": "http-proxy-15",
+      "target": "http-proxy-17",
+      "route": [
+        "lan"
+      ],
+      "protocol": "tcp/8080",
+      "parameters": {
+        "connect": {
+          "status": "unknown"
+        }
+      }
+    },
+    "http-proxy-on-10-0-2-80": {
+      "label": "http-proxy on 10.0.2.80",
+      "source": "nuclei",
+      "target": "http-proxy-18",
       "route": [
         "lan"
       ],
@@ -8104,7 +8316,7 @@
     },
     "jenkins-behind-http-proxy-on-10-0-2-15": {
       "label": "Jenkins behind http-proxy on 10.0.2.15",
-      "source": "http-proxy-2",
+      "source": "http-proxy-3",
       "target": "jenkins",
       "route": [
         "lan"

@@ -58,6 +58,27 @@
     });
     return found.length === 1 ? found[0] : null;
   }
+  // The service of a sign-on on its host: the one on tcp/443, else one
+  // that is an instance of the sign-on's product.
+  function signOnService(doc, host, product) {
+    return serviceAt(doc, host, "tcp/443") || links(doc, "hosts").filter(function (x) {
+      return x.from === host && doc.entities[x.to] && doc.entities[x.to].kind === "service" && product && productOf(doc, x.to) && P.parts(doc.entities[productOf(doc, x.to)].label).name === product.toLowerCase();
+    }).map(function (x) { return x.to; })[0] || null;
+  }
+  // Whether what a row hangs on is drawn or will be. `there`: {hosts,
+  // ports, apps}, each by row key; without it every row is taken to hang.
+  function hangs(c, there) {
+    if (!there) return true;
+    function at(x) {
+      return !!x && (!!x.id || !!there.hosts[x.row]);
+    }
+    if (c.kind === "host") return true;
+    if (c.kind === "name") return at(c.to);
+    if (c.kind === "pass-on") return at(c.from) && at(c.to) && !(c.to.row && there.ports[c.to.row + "/" + c.proto] === false);
+    if (c.host && !there.hosts[c.host]) return false;
+    if (c.port && !there.ports[c.port]) return false;
+    return !(c.on === "application" && !there.apps[c.port]);
+  }
   // Whether a product is a management page (spec §6.3), by its name.
   function manages(label) {
     var a = label == null ? null : T.application(P.parts(label).name);
@@ -74,6 +95,18 @@
       if (!out.list.some(function (o) { return o.key === x.key; })) out.list.push(Object.assign({ ticked: false, can: true }, x));
     }
     var nets = appHost ? attached(doc, appHost) : [];
+    // A login's account is its service's own: nothing was seen that says
+    // two machines share their accounts. A label that is taken, drawn or
+    // by a row before, is said with the host.
+    var taken = Object.create(null);
+    Object.keys(doc.entities || {}).forEach(function (id) {
+      if (doc.entities[id].kind === "account") taken[String(doc.entities[id].label).toLowerCase()] = true;
+    });
+    function own(label, host) {
+      var l = taken[label.toLowerCase()] ? label + " on " + host : label;
+      taken[l.toLowerCase()] = true;
+      return l;
+    }
     var byAddress = Object.create(null);
     Object.keys(doc.entities || {}).forEach(function (id) {
       if (doc.entities[id].kind !== "host") return;
@@ -93,7 +126,8 @@
         var known = on === "application" ? r.application.label : product ? (T.application(P.parts(product).name) || {}).product || null : null;
         if (!known && drawn) known = (T.application(P.parts(doc.entities[drawn].label).name) || {}).product || null;
         var named = known || r.label;
-        var accounts = known ? known + " accounts" : "accounts of " + r.label + " on " + h.label;
+        var accounts = function () { return own(known ? known + " accounts" : "accounts of " + r.label + " on " + h.label, h.label); };
+        var account;
         var accepted = service ? links(doc, "authorizes").filter(function (a) { return a.to === service; }).length > 0 : false;
         var page = r.manages || manages(product) || (drawn ? manages(doc.entities[drawn].label) : false);
         var where = { host: h.key, port: r.key, on: on };
@@ -109,21 +143,27 @@
               item({ key: "administration:" + h.key, kind: "administration", host: h.key, from: from, can: !!from, why: from ? null : appHost ? "Attach “" + labelOf(doc, appHost) + "” to a network to say where from" : "Put nuclei on a host to say where from", line: named + " on " + h.label + " is a management page", what: from ? "“" + h.label + "” is administered from “" + labelOf(doc, from) + "”" : "administered from the scanner's network" });
             }
           }
-          if (!accepted && r.login) item(Object.assign({ key: "admin-login:" + r.key, kind: "admin-login", account: accounts, line: named + " on " + h.label + " has a login", what: "draws “" + accounts + "”, admin on “" + h.label + "”" }, where));
+          if (!accepted && r.login) {
+            account = accounts();
+            item(Object.assign({ key: "admin-login:" + r.key, kind: "admin-login", account: account, line: named + " on " + h.label + " has a login", what: "draws “" + account + "”, admin on “" + h.label + "”" }, where));
+          }
           return;
         }
         if (!r.login) return;
         if (r.login.sso) {
           var sso = r.login.sso;
           var label = (sso.product || "Sign-on") + " accounts at " + sso.host;
-          var account = accountNamed(doc, label);
-          if (!(account && service && linked(doc, "authorizes", account, service))) {
+          var shared = accountNamed(doc, label);
+          if (!(shared && service && linked(doc, "authorizes", shared, service))) {
             var there = hostNamed(doc, sso.host);
-            item(Object.assign({ key: "sso:" + r.key, kind: "sso", account: label, existing: account, signon: { host: sso.host, product: sso.product, drawn: there }, line: named + " on " + h.label + " sends its logins to " + (sso.product ? sso.product + " at " : "") + sso.host, what: (account ? "joins “" : "draws “") + label + "”" + (there || account ? "" : " and the host " + sso.host) }, where));
+            item(Object.assign({ key: "sso:" + r.key, kind: "sso", account: label, existing: shared, signon: { host: sso.host, product: sso.product, drawn: there, service: there ? signOnService(doc, there, sso.product) : null }, line: named + " on " + h.label + " sends its logins to " + (sso.product ? sso.product + " at " : "") + sso.host, what: (shared ? "joins “" : "draws “") + label + "”" + (there || shared ? "" : " and the host " + sso.host) }, where));
           }
           if (!r.login.password) return;
         }
-        if (!accepted) item(Object.assign({ key: "login:" + r.key, kind: "login", account: accounts, line: named + " on " + h.label + " has a login", what: "draws “" + accounts + "”, which it accepts" }, where));
+        if (!accepted) {
+          account = accounts();
+          item(Object.assign({ key: "login:" + r.key, kind: "login", account: account, line: named + " on " + h.label + " has a login", what: "draws “" + account + "”, which it accepts" }, where));
+        }
       });
     });
 
@@ -152,7 +192,12 @@
       if (to && bearers.some(function (b) { return (b.id && b.id === to.id) || (b.row && b.row === to.row); })) return;
       if (!to) {
         if (!ours(x.address)) return out.notes.push(x.name + " points outside, to " + (x.alias || x.address) + ".");
-        return item({ key: "host:" + x.name, kind: "host", name: x.name, address: x.address, line: x.name + " points to " + x.address + ", which is not drawn", what: "draws the host" });
+        // Several names on one address are one host.
+        var same = out.list.filter(function (o) { return o.kind === "host" && Ad.addressKey(o.address) === Ad.addressKey(x.address); })[0];
+        if (!same) return item({ key: "host:" + x.name, kind: "host", name: x.name, names: [x.name], address: x.address, line: x.name + " points to " + x.address + ", which is not drawn", what: "draws the host" });
+        if (same.names.indexOf(x.name) < 0) same.names.push(x.name);
+        same.line = same.names.slice(0, -1).join(", ") + " and " + same.names[same.names.length - 1] + " point to " + same.address + ", which is not drawn";
+        return;
       }
       var kept = to.id ? (doc.entities[to.id].names || []).indexOf(x.name) >= 0 : false;
       if (!kept) item({ key: "name:" + x.name, kind: "name", ticked: true, name: x.name, to: to, line: x.name + " points to “" + to.label + "” (" + x.address + ")", what: "keeps the name on it" });
@@ -174,27 +219,35 @@
     ((p && p.list) || []).forEach(function (c) { t[c.key] = c.ticked && c.can; });
     return t;
   }
-  function ticked(p, ticks) {
-    return ((p && p.list) || []).filter(function (c) { return c.can && ticks && ticks[c.key] === true; });
+  // The rows that are done: ticked, and hanging on what is drawn.
+  function ticked(p, ticks, there) {
+    return ((p && p.list) || []).filter(function (c) { return c.can && ticks && ticks[c.key] === true && hangs(c, there); });
   }
   // What the ticked rows add at most: {entities, relationships, accounts,
   // hosts, links}.
-  function count(p, ticks) {
+  function count(p, ticks, there) {
     var s = { entities: 0, relationships: 0, accounts: 0, hosts: 0, links: 0 };
-    ticked(p, ticks).forEach(function (c) {
+    ticked(p, ticks, there).forEach(function (c) {
       if (c.kind === "login" || c.kind === "admin-login") {
         s.accounts++;
         s.entities++;
         s.relationships += c.kind === "login" ? 1 : 2;
       } else if (c.kind === "sso") {
-        if (!c.existing) {
-          s.accounts++;
+        // Joining an account that is there is one link.
+        if (c.existing) {
+          s.links++;
+          s.relationships++;
+          return;
+        }
+        s.accounts++;
+        s.entities++;
+        s.relationships += 2;
+        if (!c.signon.drawn) {
+          s.hosts++;
           s.entities++;
         }
-        s.relationships += 2;
-        if (!c.signon.drawn && !c.existing) {
-          s.hosts++;
-          s.entities += 3; // host, service, product
+        if (!c.signon.service) {
+          s.entities += 2; // its service, its product
           s.relationships += 2;
         }
       } else if (c.kind === "administration") {
@@ -216,7 +269,7 @@
   // product(label), hostOf: {row key: host id}, serviceOf: {port key:
   // service id}, appOf: {port key: application's service id}}. A row whose
   // host or port this import did not draw is left out.
-  function apply(p, ticks, env) {
+  function apply(p, ticks, env, there) {
     function service(c) {
       return (c.on === "application" ? env.appOf[c.port] : env.serviceOf[c.port]) || null;
     }
@@ -241,12 +294,12 @@
       env.link("instance-of", made, env.add("product", "unidentified " + label + " on " + labelOf(env.doc(), host)));
       return made;
     }
-    ticked(p, ticks).forEach(function (c) {
+    ticked(p, ticks, there).forEach(function (c) {
       var doc = env.doc();
       if (c.kind === "login" || c.kind === "admin-login") {
         var s = service(c), host = env.hostOf[c.host];
         if (!s || !host) return;
-        var a = account(c.account, null);
+        var a = env.add("account", c.account);
         accept(a, s);
         var machine = routerOn(env.doc(), host) || host;
         if (c.kind === "admin-login" && !linked(env.doc(), "grants", a, machine)) env.link("grants", a, machine, { privilege: "admin" });
@@ -263,9 +316,7 @@
           at = env.add("host", c.signon.host);
           env.doc().entities[at].names = [c.signon.host];
         }
-        var on = serviceAt(env.doc(), at, "tcp/443") || links(env.doc(), "hosts").filter(function (x) {
-          return x.from === at && env.doc().entities[x.to].kind === "service" && c.signon.product && productOf(env.doc(), x.to) && P.parts(env.doc().entities[productOf(env.doc(), x.to)].label).name === c.signon.product.toLowerCase();
-        }).map(function (x) { return x.to; })[0];
+        var on = signOnService(env.doc(), at, c.signon.product);
         if (!on) {
           on = env.add("service", "https");
           env.link("hosts", at, on, { privilege: "unknown" });
@@ -286,7 +337,7 @@
         // Labelled by its address: the name may be another host's label.
         var made = env.add("host", c.address);
         env.doc().entities[made].addresses = [c.address];
-        env.doc().entities[made].names = [c.name];
+        env.doc().entities[made].names = (c.names || [c.name]).slice();
       } else if (c.kind === "pass-on") {
         var front = where(c.from), behind = where(c.to);
         var target = behind ? serviceAt(env.doc(), behind, c.proto) : null;
@@ -298,7 +349,7 @@
     });
   }
 
-  var api = { plan: plan, defaults: defaults, ticked: ticked, count: count, apply: apply };
+  var api = { plan: plan, defaults: defaults, ticked: ticked, count: count, apply: apply, hangs: hangs };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapConnect = api;
 })();

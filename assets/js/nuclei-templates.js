@@ -564,10 +564,12 @@
       var to = (C.target(first || "").host || "").toLowerCase();
       return A.isName(to) ? { kind: "sso", product: a.kind, host: to } : null;
     }
-    if (a.is === "address") return at.name && first && Ad.bytes(first) ? { kind: "points", name: at.name, address: first } : null;
+    // What points is a DNS name, and what it points to an address as it
+    // is written: nothing else reaches a row or a host's names.
+    if (a.is === "address") return A.isName(at.name) && first && address(first) ? { kind: "points", name: at.name, address: first } : null;
     if (a.is === "alias") {
       var alias = (first || "").toLowerCase().replace(/\.$/, "");
-      return at.name && A.isName(alias) ? { kind: "points", name: at.name, alias: alias } : null;
+      return A.isName(at.name) && A.isName(alias) ? { kind: "points", name: at.name, alias: alias } : null;
     }
     return first ? { kind: "said", what: a.name, text: first } : null;
   }
