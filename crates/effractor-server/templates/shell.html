@@ -353,12 +353,13 @@
       <h3 class="label"><span class="nmap-n">1</span>What should nuclei look for?</h3>
       <div class="nmap-recipes" id="nuclei-recipes" role="group" aria-label="What should nuclei look for?"></div>
       <details class="nmap-adjust" id="nuclei-adjust"><summary><span class="nmap-adjust-word">Adjust</span><span class="nmap-set" id="nuclei-set"></span></summary><div class="nmap-blocks" id="nuclei-blocks"></div></details>
-      <p class="hint">nuclei checks what it is pointed at; nmap before it finds the hosts and ports. Its templates must be installed.</p>
+      <p class="hint">effractor's templates come with the command; nuclei's own must be installed. nmap before them finds the hosts and ports.</p>
     </section>
     <section class="nmap-step" id="nmap-step-run">
       <h3 class="label"><span class="nmap-n">2</span>Run it</h3>
       <div class="nmap-range"><label for="nmap-range">Range</label><input id="nmap-range" type="text" autocomplete="off" spellcheck="false" placeholder="10.0.1.0/24"></div>
-      <div class="nmap-command"><code id="nmap-command"></code><span class="nmap-tag is-root" id="nmap-root" hidden>root</span><button class="btn btn-ghost btn-small" id="nmap-copy" type="button">Copy</button></div>
+      <p class="hint" id="nmap-asks"></p>
+      <div class="nmap-command"><code id="nmap-command"></code><span class="nmap-tag is-root" id="nmap-root" hidden>root</span><button class="btn btn-ghost btn-small" id="nmap-whole" type="button" hidden>Show all</button><button class="btn btn-ghost btn-small" id="nmap-copy" type="button">Copy</button></div>
       <div id="nmap-second-row" hidden>
         <p class="hint nmap-then">Then the ACK scan, a run of its own: nmap does one kind of TCP scan per run. Paste both results, one after the other.</p>
         <div class="nmap-command"><code id="nmap-second"></code><span class="nmap-tag is-root">root</span><button class="btn btn-ghost btn-small" id="nmap-copy-second" type="button">Copy</button></div>

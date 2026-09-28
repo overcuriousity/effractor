@@ -14,7 +14,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var dialog = $("nmap-dialog");
   // What the scan is for is kept for the session, as the range is not.
-  var asked = { recipes: ["services"], adjust: {}, portList: "", ack: false, masscan: { ports: "common", rate: "1000" }, nuclei: { recipes: ["exploited"], adjust: {}, extra: {} } };
+  var asked = { recipes: ["services"], adjust: {}, portList: "", ack: false, masscan: { ports: "common", rate: "1000" }, nuclei: { recipes: ["identify"], adjust: {}, extra: {} } };
   var at = { app: null, tool: "nmap", scan: null, merges: {}, ticks: null, plan: null };
   // The open scanner's name: "nmap", "masscan".
   function toolName() {
@@ -63,7 +63,24 @@
     var L = library();
     var box = $(L.recipes);
     box.textContent = "";
+    function ours(id) {
+      return L.of.RECIPES.some(function (o) { return o.id === id && !!o.ours; });
+    }
+    // Nuclei templates spec §10: effractor's templates set apart from
+    // nuclei's checks, each group under its own quiet heading.
+    var headed = {};
+    function heading(key, text, hint) {
+      if (headed[key]) return;
+      headed[key] = true;
+      var h = el("div", null, "nmap-recipes-head");
+      h.appendChild(el("span", text, "label"));
+      h.appendChild(el("span", hint, "hint"));
+      box.appendChild(h);
+    }
+    var mixed = L.of.RECIPES.some(function (r) { return r.ours; });
     L.of.RECIPES.forEach(function (r) {
+      if (mixed && r.ours) heading("ours", "effractor's templates", "asked of what is drawn · run them first");
+      if (mixed && !r.ours) heading("theirs", "nuclei's checks", "findings · a run of their own");
       var label = el("label", null, "nmap-recipe");
       var tick = el("input");
       tick.type = "checkbox";
@@ -72,7 +89,10 @@
         var others = L.asked.recipes.filter(function (id) { return id !== r.id; });
         // One that goes alone unticks the rest, and is unticked by them.
         if (tick.checked) {
-          L.asked.recipes = r.alone ? [r.id] : others.filter(function (id) {
+          // effractor's templates and nuclei's checks untick each other:
+          // they are run one after the other.
+          var kin = others.filter(function (id) { return ours(id) === !!r.ours; });
+          L.asked.recipes = r.alone ? [r.id] : kin.filter(function (id) {
             return !L.of.RECIPES.some(function (o) { return o.id === id && o.alone; });
           }).concat([r.id]);
         } else L.asked.recipes = others;
@@ -112,6 +132,7 @@
     L.of.BLOCKS.forEach(function (b) {
       // A block of one recipe is offered with it.
       if (b.only && L.asked.recipes.indexOf(b.only) < 0) return;
+      if (L.of.offered && L.of.offered(L.asked.recipes).indexOf(b.id) < 0) return;
       var menu = window.effractorMenu.dropdown(b.choices.map(function (x) { return [x.id, x.name]; }), c.choices[b.id]);
       menu.addEventListener("change", function () {
         L.asked.adjust[b.id] = menu.value;
@@ -186,6 +207,11 @@
     return N.drawnPorts ? N.drawnPorts(doc(), at.app, $("nmap-range").value) : [];
   }
   function showCommand() {
+    // What Copy copies where it is not what is shown.
+    at.command = null;
+    $("nmap-asks").textContent = "";
+    $("nmap-whole").hidden = true;
+    $("nmap-command").classList.remove("is-short", "is-whole");
     if (at.tool === "masscan") {
       var m = M.command(asked.masscan, $("nmap-range").value);
       $("nmap-command").textContent = m.text || "";
@@ -196,8 +222,17 @@
       return;
     }
     if (at.tool === "nuclei") {
-      var n = Nu.command(asked.nuclei.recipes, asked.nuclei.adjust, $("nmap-range").value, asked.nuclei.extra);
-      $("nmap-command").textContent = n.text || "";
+      var n = Nu.command(asked.nuclei.recipes, asked.nuclei.adjust, $("nmap-range").value, Object.assign({}, asked.nuclei.extra, { doc: doc() }));
+      // effractor's templates (spec §10): the command is shown without the
+      // templates' text, copied whole, and says what it asks.
+      var whole = !!n.shown && !!at.whole;
+      at.command = n.text || null;
+      $("nmap-command").textContent = (n.shown && !whole ? n.shown : n.text) || "";
+      $("nmap-command").classList.toggle("is-short", !!n.shown && !whole);
+      $("nmap-command").classList.toggle("is-whole", whole);
+      $("nmap-whole").hidden = !n.shown;
+      $("nmap-whole").textContent = whole ? "Show less" : "Show all";
+      $("nmap-asks").textContent = n.said || "";
       $("nmap-root").hidden = true;
       $("nmap-copy").disabled = !n.text;
       $("nmap-second-row").hidden = true;
@@ -706,7 +741,7 @@
         app.say("copy failed; select the command instead");
       }
       try {
-        navigator.clipboard.writeText($(code).textContent).then(function () {
+        navigator.clipboard.writeText(code === "nmap-command" && at.command ? at.command : $(code).textContent).then(function () {
           app.say("command copied");
         }, failed);
       } catch (e) {
@@ -716,6 +751,10 @@
   }
   copies("nmap-copy", "nmap-command");
   copies("nmap-copy-second", "nmap-second");
+  $("nmap-whole").addEventListener("click", function () {
+    at.whole = !at.whole;
+    showCommand();
+  });
   $("nmap-read").addEventListener("click", read);
   $("nmap-back").addEventListener("click", function () {
     $("nmap-ask").hidden = false;

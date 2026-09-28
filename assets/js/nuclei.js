@@ -272,8 +272,47 @@
     return { line: "Last nuclei import: " + date + ", scan" + (r ? " of " + r : "") + on + ".", pattern: STAMP };
   }
 
+  // ---- effractor's templates beside nuclei's checks (spec §10) ----
+
+  var OURS = [
+    { id: "identify", ours: true, name: "What is there", finds: "What answers on each port, which web application, which names a certificate bears.", time: "seconds per host", tags: [] },
+    { id: "connect", ours: true, name: "How it connects", finds: "Logins, single sign-on, management pages, where names point.", time: "seconds per host", tags: [] },
+  ];
+  var APART = "effractor's templates and nuclei's checks are run one after the other; untick one of the two.";
+  function own(ids) {
+    return (ids || []).filter(function (id) { return OURS.some(function (r) { return r.id === id; }); });
+  }
+  // The blocks of Adjust that are offered with what is ticked.
+  function offered(recipeIds) {
+    return own(recipeIds).length ? T.ADJUST.slice() : C.BLOCKS.map(function (b) { return b.id; });
+  }
+  function combine(recipeIds, adjust) {
+    var ours = own(recipeIds);
+    if (!ours.length) return C.combine(recipeIds, adjust);
+    if (ours.length < (recipeIds || []).length) return { problem: APART };
+    var ch = {};
+    C.BLOCKS.forEach(function (b) {
+      var asked = adjust && R.has(adjust, b.id) ? adjust[b.id] : null;
+      ch[b.id] = T.ADJUST.indexOf(b.id) >= 0 && b.choices.some(function (c) { return c.id === asked; }) ? asked : C.DEFAULTS[b.id];
+    });
+    return { choices: ch, recipes: OURS.filter(function (r) { return ours.indexOf(r.id) >= 0; }), notes: [] };
+  }
+  // `extra.doc`: the drawing, which effractor's templates take their
+  // targets from.
+  function command(recipeIds, adjust, range, extra) {
+    var ours = own(recipeIds);
+    if (!ours.length) return C.command(recipeIds, adjust, range, extra);
+    var c = combine(recipeIds, adjust);
+    if (c.problem) return { problem: c.problem };
+    return T.command(ours, c.choices, range, (extra || {}).doc || { entities: {} });
+  }
+
   var api = {};
   Object.keys(C).forEach(function (k) { api[k] = C[k]; });
+  api.RECIPES = OURS.concat(C.RECIPES);
+  api.combine = combine;
+  api.command = command;
+  api.offered = offered;
   api.read = read;
   api.notes = notes;
   api.stampFor = stampFor;

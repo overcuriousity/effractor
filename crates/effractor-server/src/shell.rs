@@ -131,6 +131,7 @@ mod tests {
         assert!(at("nmap-connect.js") < at("nmap-plan.js"));
         assert!(at("nuclei.js") < at("scanners.js"));
         assert!(html.contains("id=\"nmap-step-nuclei\""));
+        assert!(html.contains("id=\"nmap-asks\"") && html.contains("id=\"nmap-whole\""));
         assert!(at("scanners.js") < at("nmap-ui.js"));
         assert!(html.contains("id=\"nmap-step-masscan\""));
         assert!(at("architecture-links-ui.js") < at("nmap-ui.js"));

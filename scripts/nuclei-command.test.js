@@ -16,7 +16,7 @@ test('the recipes by purpose, in the order the dialog offers them', () => {
   // Every block starts at its first choice, which adds nothing but the fixed end.
   for (const b of C.BLOCKS) assert.equal(C.DEFAULTS[b.id], b.choices[0].id, b.id);
   assert.ok(C.BLOCKS.every(b => b.name && b.choices.every(c => c.id && c.name)));
-  assert.equal(Nu.RECIPES, C.RECIPES, 'nuclei.js has every name of the commands');
+  assert.deepEqual(Nu.RECIPES.filter(r => !r.ours), C.RECIPES, 'nuclei.js has every name of the commands, after effractor\'s two');
 });
 
 test('each recipe alone prints the scan it names', () => {

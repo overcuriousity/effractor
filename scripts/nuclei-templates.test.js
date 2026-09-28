@@ -352,3 +352,32 @@ test('spec §2.1: every named extractor has a record in the fixtures, and nuclei
   }
   assert.match(fs.readFileSync('docs/HANDOFF.md', 'utf8'), /nuclei 3\.11\.0/);
 });
+
+// ---- the dialog's view of them (nuclei templates spec §10) ----
+const Nu = require('../assets/js/nuclei.js');
+const Own = require('../assets/js/nuclei-command.js');
+
+test('spec §10: two recipes of effractor\'s own before nuclei\'s, apart from them', () => {
+  assert.deepEqual(Nu.RECIPES.slice(0, 2).map(r => [r.id, r.ours, r.name, r.time]), [['identify', true, 'What is there', 'seconds per host'], ['connect', true, 'How it connects', 'seconds per host']]);
+  assert.deepEqual(Nu.RECIPES.slice(2), Own.RECIPES);
+  assert.deepEqual(Own.RECIPES.filter(r => r.ours), [], 'nuclei\'s own library is as it was');
+  for (const r of Nu.RECIPES.slice(0, 2)) assert.ok(r.finds.length < 100 && !r.alone && !r.warning);
+  // The two go together, and with nothing of nuclei's.
+  assert.deepEqual(Nu.combine(['identify', 'connect'], {}).recipes.map(r => r.id), ['identify', 'connect']);
+  assert.equal(Nu.combine(['identify', 'cves'], {}).problem, 'effractor\'s templates and nuclei\'s checks are run one after the other; untick one of the two.');
+  assert.equal(Nu.command(['connect', 'all'], {}, '10.0.1.0/24', { doc: drawing() }).problem, Nu.combine(['identify', 'cves'], {}).problem);
+  assert.deepEqual(Nu.combine(['cves'], {}), Own.combine(['cves'], {}));
+  assert.deepEqual(Nu.command(['cves'], { speed: 'gentle' }, '10.0.1.0/24', { doc: drawing() }), Own.command(['cves'], { speed: 'gentle' }, '10.0.1.0/24', {}));
+});
+
+test('spec §10: Adjust offers what applies, and nothing else reaches the command', () => {
+  assert.deepEqual(Nu.offered(['identify']), ['addresses', 'speed', 'patience', 'errors']);
+  assert.deepEqual(Nu.offered(['cves']), Own.BLOCKS.map(b => b.id));
+  const c = Nu.combine(['identify'], { speed: 'gentle', severity: 'high', browser: 'on', oast: 'own', code: 'on', nope: 'x' });
+  assert.equal(c.choices.speed, 'gentle');
+  for (const b of Own.BLOCKS) if (!T.ADJUST.includes(b.id)) assert.equal(c.choices[b.id], Own.DEFAULTS[b.id], b.id);
+  const text = Nu.command(['identify'], { speed: 'gentle', severity: 'high', browser: 'on', code: 'on' }, '10.0.1.0/24', { doc: drawing() }).text;
+  assert.match(text, / -rate-limit 20 -concurrency 5 /);
+  assert.doesNotMatch(text, /-severity|-headless|-code|-interactsh-server/);
+  assert.deepEqual(Nu.command(['identify'], {}, '10.0.1.0/24', { doc: drawing() }), T.command(['identify'], {}, '10.0.1.0/24', drawing()));
+});

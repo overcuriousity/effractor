@@ -328,6 +328,9 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .nmap-recipe input:focus-visible { outline: 0; }
 .nmap-recipe-name { color: var(--color-fg-primary); font-weight: 600; line-height: 1.3; }
 .nmap-recipe .hint { grid-column: 2 / -1; }
+/* effractor's templates apart from nuclei's checks (nuclei templates spec §10). */
+.nmap-recipes-head { grid-column: 1 / -1; display: flex; gap: 8px; align-items: baseline; margin-top: 4px; }
+.nmap-recipes-head:first-child { margin-top: 0; }
 .nmap-tags { display: flex; gap: 4px; }
 .nmap-tag {
   padding: 2px 5px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
@@ -366,6 +369,9 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
 .nmap-command code { flex: 1; min-width: 0; color: var(--color-fg-primary); font: var(--text-xs)/1.5 var(--font-mono); overflow-wrap: anywhere; user-select: all; }
 .nmap-command code::before { content: "$ "; color: var(--color-fg-muted); }
 .nmap-command code:empty::after { content: "—"; color: var(--color-fg-muted); }
+/* Shown without the templates' text: copied whole, not by selecting. */
+.nmap-command code.is-short { user-select: none; }
+.nmap-command code.is-whole { max-height: 14em; overflow: auto; white-space: pre-wrap; }
 .nmap-command .btn { flex: none; }
 .nmap-dialog .nmap-then { margin: 8px 0 4px; }
 .nmap-problem { color: var(--color-warning); }
