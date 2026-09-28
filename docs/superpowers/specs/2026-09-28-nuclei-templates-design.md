@@ -392,9 +392,9 @@ Greenbone's host names beyond the label), and imports match a scanned host's
 names against labels **and** kept names. The pinned documents of the other
 scanners' fixtures gain the key where their scans name hosts.
 
-The inspector's *Identity* row lists them; each can be removed there and one
-can be typed. The agent's tools reach the same edit
-(`scripts/assistant-tools.test.js`).
+The inspector has a field *Names* under *Addresses*, edited the same way
+(names separated by commas; amended with the plan, 2026-09-28). The agent's
+tools reach the same edit (`scripts/assistant-tools.test.js`).
 
 ## 9. Modules
 

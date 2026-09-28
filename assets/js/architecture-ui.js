@@ -793,6 +793,17 @@
         }, null, true);
       });
     }
+    // Nuclei templates spec §8: a host's DNS names, edited as its addresses are.
+    if (e.kind === "host") {
+      var names = field(form, "prop-names", "Names", input("text", (e.names || []).join(", ")));
+      names.placeholder = "app.corp.example";
+      names.spellcheck = false;
+      names.addEventListener("change", function () {
+        apply(function () {
+          return A.setNames(doc(), id, names.value);
+        }, null, true);
+      });
+    }
     var note = field(form, "prop-description", "Note", input("textarea", e.description));
     note.addEventListener("change", function () {
       apply(function () {

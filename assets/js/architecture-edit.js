@@ -107,6 +107,32 @@
     return { doc: next, select: "entity/" + id };
   }
 
+  // A DNS name as a host keeps it (nuclei templates spec §8): lower case,
+  // no wildcard, not an address. The file's reader has the same rule.
+  function isName(text) {
+    if (typeof text !== "string" || !text || text.length > 253 || /^[0-9.]+$/.test(text)) return false;
+    return text.split(".").every(function (l) {
+      return /^[a-z0-9_-]{1,63}$/.test(l) && l[0] !== "-" && l[l.length - 1] !== "-";
+    });
+  }
+
+  // Names as typed, separated by spaces or commas: lower case, without a
+  // final dot, each once. What is no name is refused by validation, as an
+  // address is.
+  function setNames(doc, id, text) {
+    if (!has(doc.entities, id) || doc.entities[id].kind !== "host") return null;
+    var list = [];
+    String(text == null ? "" : text).split(/[\s,]+/).filter(Boolean).forEach(function (n) {
+      var name = n.toLowerCase().replace(/\.$/, "");
+      if (name && list.indexOf(name) < 0) list.push(name);
+    });
+    if (JSON.stringify(doc.entities[id].names || []) === JSON.stringify(list)) return null;
+    var next = clone(doc);
+    if (list.length) next.entities[id].names = list;
+    else delete next.entities[id].names;
+    return { doc: next, select: "entity/" + id };
+  }
+
   function ownerOf(doc, owner) {
     if (owner && has(owner, "entity")) return has(doc.entities, owner.entity) ? { record: doc.entities[owner.entity], select: "entity/" + owner.entity } : null;
     if (owner && has(owner, "flow")) return has(doc.flows, owner.flow) ? { record: doc.flows[owner.flow], select: "flow/" + owner.flow } : null;
@@ -152,7 +178,7 @@
     return { doc: next, select: "entity/" + id };
   }
 
-  var api = { KINDS: KINDS, GROUPS: GROUPS, STATUSES: STATUSES, has: has, clone: clone, extensions: extensions, empty: empty, addEntity: addEntity, renameEntity: renameEntity, setDescription: setDescription, setAddresses: setAddresses, setParameter: setParameter, setDefense: setDefense };
+  var api = { KINDS: KINDS, GROUPS: GROUPS, STATUSES: STATUSES, has: has, clone: clone, extensions: extensions, empty: empty, addEntity: addEntity, renameEntity: renameEntity, setDescription: setDescription, setAddresses: setAddresses, isName: isName, setNames: setNames, setParameter: setParameter, setDefense: setDefense };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureEdit = api;
 })();

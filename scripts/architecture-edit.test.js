@@ -161,3 +161,21 @@ test('hosts and networks take addresses as one line; others do not', () => {
   // Not checked here: wasm says whether an address is one.
   assert.deepEqual(E.setAddresses(doc, 'srv', 'nonsense').doc.entities.srv.addresses, ['nonsense']);
 });
+
+test('a host\'s names: lower case, each once, only on hosts', () => {
+  const doc = E.empty();
+  doc.entities = { srv: { kind: 'host', label: 'Server' }, lan: { kind: 'network', label: 'LAN' } };
+  const set = E.setNames(doc, 'srv', ' Grafana.Corp.Example., metrics.corp.example grafana.corp.example ,,');
+  assert.deepEqual(set.doc.entities.srv.names, ['grafana.corp.example', 'metrics.corp.example']);
+  assert.equal(set.select, 'entity/srv');
+  assert.equal(E.setNames(set.doc, 'srv', 'grafana.corp.example metrics.corp.example'), null, 'unchanged');
+  assert.equal(E.setNames(set.doc, 'srv', '  ').doc.entities.srv.names, undefined);
+  assert.equal(E.setNames(doc, 'lan', 'a.example'), null);
+  assert.equal(E.setNames(doc, 'nope', 'a.example'), null);
+  assert.equal(doc.entities.srv.names, undefined, 'the document given is not changed');
+});
+
+test('what a name is', () => {
+  for (const good of ['a', 'srv01', 'app.corp.example', 'x_y.example', 'a-b.example', '1a.example', 'a'.repeat(63) + '.example']) assert.equal(E.isName(good), true, good);
+  for (const bad of ['', 'A.example', '*.corp.example', '10.0.1.5', '1.2.3', 'fd00::5', 'a..example', '.a', 'a.', '-a.example', 'a-.example', 'a b', 'a'.repeat(64) + '.example', ('a'.repeat(60) + '.').repeat(5), 7, null]) assert.equal(E.isName(bad), false, String(bad));
+});

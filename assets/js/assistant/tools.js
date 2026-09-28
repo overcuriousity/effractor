@@ -217,6 +217,10 @@
       if (e.kind !== "host" && e.kind !== "network") return { refused: "only hosts and networks have addresses" };
       c.apply(AE.setAddresses(c.doc(), id, (i.addresses || []).join(" ")));
     }
+    if (i.names !== undefined) {
+      if (e.kind !== "host") return { refused: "only hosts have names" };
+      c.apply(AE.setNames(c.doc(), id, (i.names || []).join(" ")));
+    }
     ["identities", "vendor"].forEach(function (k) {
       if (i[k] === undefined) return;
       c.put(function (d) { if (i[k] === null || (Array.isArray(i[k]) && !i[k].length)) delete d.entities[id][k]; else d.entities[id][k] = i[k]; });
@@ -340,10 +344,10 @@
 
   // The lists each tool takes (tools.json). Anything else in their place is
   // refused before the tool reads it: an object there once cleared the list.
-  var LISTS = { put_control: ["effects"], set_node: ["consequences"], add_entity: ["addresses"], set_entity: ["addresses", "identities"],
+  var LISTS = { put_control: ["effects"], set_node: ["consequences"], add_entity: ["addresses"], set_entity: ["addresses", "identities", "names"],
     put_flow: ["route"], set_attacker: ["footholds"], cluster: ["members"] };
   // Where the tool reads null as none.
-  var NULLABLE = { consequences: true, addresses: true, identities: true, route: true, members: true };
+  var NULLABLE = { consequences: true, addresses: true, identities: true, names: true, route: true, members: true };
 
   function wrongList(name, input) {
     var fields = LISTS[name] || [];
@@ -374,7 +378,7 @@
   var USES = {
     "edit.js": ["setHorizon", "addChild", "rename", "setId", "setLeafKind", "link", "removeEdge", "deleteNode", "reparent", "setAttribute",
       "addAsset", "setAssetLabel", "setAssetLoss", "removeAsset", "toggleControl", "addControl", "setControl", "addEffect", "removeEffect", "removeControl"],
-    "architecture-edit.js": ["addEntity", "renameEntity", "setDescription", "setAddresses", "setParameter", "setDefense"],
+    "architecture-edit.js": ["addEntity", "renameEntity", "setDescription", "setAddresses", "setNames", "setParameter", "setDefense"],
     "architecture-links.js": ["putAssociation", "putFlow", "setFoothold", "setTarget", "remove"],
     "clusters.js": ["make", "rename", "takeOut", "moveTo", "merge", "dissolve", "setClosed", "build", "toggleAll"],
     "comparison.js": ["putScenario", "rename", "removeScenario", "setChange", "setSpeed", "freshId"],
@@ -400,7 +404,7 @@
   var NOT_EDIT = {
     "edit.js": ["readNumber", "fromPercent", "slug", "parentsOf", "removal", "gateRefusal", "linkCandidates", "moveCandidates", "outline",
       "rateFrom", "meanTime", "usesOfAsset", "effectTargets", "walk", "createHistory"],
-    "architecture-edit.js": ["KINDS", "GROUPS", "STATUSES", "has", "clone", "extensions", "empty"],
+    "architecture-edit.js": ["KINDS", "GROUPS", "STATUSES", "has", "clone", "extensions", "empty", "isName"],
     "architecture-links.js": ["notes", "emptyLink", "emptyFlow", "emptyHop", "phrase", "fieldsOf", "variants", "fieldWord", "fieldValue",
       "addChoices", "linkChoices", "nextHops", "nearHops", "flowPermissions", "linksOf", "flowsOf"],
     "clusters.js": ["SPECIFIC", "opened", "inPlace", "held", "spread", "pickable", "drawnLine", "transitions", "clusterOf", "label", "lead",

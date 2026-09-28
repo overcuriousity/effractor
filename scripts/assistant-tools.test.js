@@ -133,3 +133,12 @@ test('the input is never mutated and ctx.doc stays as it was', () => {
   T.edit('add_node', { parent: 'top', label: 'X' }, tree());
   assert.equal(JSON.stringify(TREE), before);
 });
+
+test('set_entity sets and clears a host\'s names', () => {
+  let d = T.edit('add_entity', { kind: 'host', label: 'Web 1' }, arch()).doc;
+  d = T.edit('set_entity', { id: 'web-1', names: ['App.Corp.Example', 'app.corp.example'] }, arch(d)).doc;
+  assert.deepEqual(d.entities['web-1'].names, ['app.corp.example']);
+  assert.equal(T.edit('set_entity', { id: 'web-1', names: null }, arch(d)).doc.entities['web-1'].names, undefined);
+  d = T.edit('add_entity', { kind: 'service', label: 'ssh' }, arch(d)).doc;
+  assert.equal(T.edit('set_entity', { id: 'ssh', names: ['a.example'] }, arch(d)).refused, 'only hosts have names');
+});
