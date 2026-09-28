@@ -348,7 +348,7 @@
           "port": 8080,
           "pages": {
             "/": {
-              "body": "<!doctype html><html><head><title>Files</title></head><body><a href=\"https://sso.corp.example/realms/corp/protocol/openid-connect/auth?client_id=files\">Sign in</a></body></html>"
+              "body": "<!doctype html><html><body><a href=\"https://sso.corp.example/realms/corp/protocol/openid-connect/auth?client_id=files\">Sign in</a></body></html>"
             }
           }
         }
@@ -361,7 +361,7 @@
           "port": 8080,
           "pages": {
             "/": {
-              "body": "<!doctype html><html><head><title>Travel</title></head><body><form action=\"https://adfs.corp.example/adfs/oauth2/authorize\"><button>Sign in</button></form></body></html>"
+              "body": "<!doctype html><html><body><form action=\"https://adfs.corp.example/adfs/oauth2/authorize\"><button>Sign in</button></form></body></html>"
             }
           }
         }
@@ -374,7 +374,7 @@
           "port": 8080,
           "pages": {
             "/": {
-              "body": "<!doctype html><html><head><title>Tickets</title></head><body><a href=\"https://corp.okta.com/login/default\">Sign in</a></body></html>"
+              "body": "<!doctype html><html><body><a href=\"https://corp.okta.com/login/default\">Sign in</a></body></html>"
             }
           }
         }
@@ -387,7 +387,7 @@
           "port": 8080,
           "pages": {
             "/": {
-              "body": "<!doctype html><html><head><title>Forms</title></head><body><a href=\"https://accounts.google.com/o/oauth2/v2/auth\">Sign in</a></body></html>"
+              "body": "<!doctype html><html><body><a href=\"https://accounts.google.com/o/oauth2/v2/auth\">Sign in</a></body></html>"
             }
           }
         }
