@@ -224,15 +224,19 @@ sign-on, §6.2):
 
 | Group | Applications |
 |---|---|
-| Monitoring and data | Grafana, Kibana, Elasticsearch, Prometheus, Zabbix, PRTG, Splunk |
+| Monitoring and data | Grafana, Kibana, Elasticsearch, Zabbix, PRTG, Splunk |
 | Development | GitLab, Gitea, Jenkins, SonarQube, Nexus Repository, Harbor |
 | Collaboration and mail | Confluence, Jira, Bitbucket, Nextcloud, WordPress, Roundcube, Zimbra, Outlook on the web (Exchange), SharePoint |
 | Identity | Keycloak (S), AD FS (S) |
 | Remote access and edge | Citrix Gateway, Palo Alto GlobalProtect, Ivanti Connect Secure, Cisco Secure Firewall (ASA), Apache Guacamole, FortiGate (M), F5 BIG-IP (M), SonicWall (M) |
-| Machines and their management | VMware vCenter (M), VMware ESXi (M), Proxmox VE (M), HPE iLO (M), Dell iDRAC (M), Synology DSM (M), QNAP QTS (M), pfSense (M), OPNsense (M), FRITZ!Box (M), MikroTik RouterOS (M), Webmin (M), Portainer (M) |
-| Middleware and stores | Apache Tomcat, Oracle WebLogic, SAP NetWeaver, phpMyAdmin, RabbitMQ, HashiCorp Vault, Veeam Backup |
+| Machines and their management | VMware vCenter (M), VMware ESXi (M), Proxmox VE (M), HPE iLO (M), Dell iDRAC (M), Synology DSM (M), pfSense (M), OPNsense (M), FRITZ!Box (M), MikroTik RouterOS (M), Webmin (M), Portainer (M) |
+| Middleware and stores | Apache Tomcat, Oracle WebLogic, SAP NetWeaver, phpMyAdmin, HashiCorp Vault, Veeam Backup |
 
-Fifty-two. An application is named only by a trace of its own (a header, a
+Forty-nine. Prometheus, QNAP QTS and RabbitMQ were struck with the plan
+(2026-09-28): the collection knows them by their title alone, and no second
+trace shows without a login.
+
+An application is named only by a trace of its own (a header, a
 path that answers in its shape, a marker in the page), never by the title
 alone. The title (`title`) is said in the preview and never drawn.
 
@@ -402,15 +406,16 @@ tools reach the same edit (`scripts/assistant-tools.test.js`).
 |---|---|---|
 | `assets/nuclei/*.yaml` | the templates | nothing |
 | `nuclei-templates.js` (pure) | the reader's table (extractor → what it is, product name, shape, M, S), usual ports, `targets(doc, app, range)`, `command(groups, adjust, range, texts)`, `read(records)` | `nmap-address.js`, `nuclei-command.js` |
-| `nuclei.js` | hands `effractor-` records on; the rest as today | the above |
-| `nuclei-command.js` | two recipes more, `ours: true`; they go with each other and with nothing else | |
+| `nuclei.js` | hands `effractor-` records on; adds the two recipes before nuclei's; the rest as today | the above |
+| `nmap-products.js` (pure) | one comparison of products for every scanner (§7.3) | nothing |
+| `nmap-connect.js` (pure) | plans and applies the connections (§6) | `nuclei-templates.js`, `nmap-products.js` |
 | `nmap-plan.js` | rows and apply for applications, names, connections; the product comparison of §7.3 | `clusters.js`, the edit functions |
 | `nmap-ui.js` | fetches the templates' text when the dialog opens; the tiles; the *Connections* section | |
 
-`command` is given the templates' text; it fetches nothing itself, so Node
-tests hand it the files from disk. The page fetches them from its own
-origin, as it fetches every asset. A template that cannot be fetched is
-said in place of the command.
+The templates' text is written by `nuclei-templates.js` from its table
+(amended with the plan, 2026-09-28); the files in `assets/nuclei/` are that
+text, held equal by a test and served for reading. The page fetches nothing
+to write the command.
 
 ## 10. The dialog
 

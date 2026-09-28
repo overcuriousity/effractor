@@ -1,0 +1,82 @@
+id: effractor-banner
+info:
+  name: What answers on a port
+  author: effractor
+  severity: info
+tcp:
+  - host:
+      - "{{Hostname}}"
+    inputs:
+      - data: "0a"
+        type: hex
+    read-size: 256
+    extractors:
+      - type: regex
+        name: openssh
+        group: 1
+        regex:
+          - "SSH-[0-9.]+-OpenSSH_([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: dropbear
+        group: 1
+        regex:
+          - "SSH-[0-9.]+-dropbear_([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: vsftpd
+        group: 1
+        regex:
+          - "220[ -][(]?vsFTPd ([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: proftpd
+        group: 1
+        regex:
+          - "220[ -]ProFTPD ([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: pure-ftpd
+        regex:
+          - "220-+ Welcome to Pure-FTPd"
+      - type: regex
+        name: postfix
+        regex:
+          - "220 [^ ]+ ESMTP Postfix"
+      - type: regex
+        name: exim
+        group: 1
+        regex:
+          - "220 [^ ]+ ESMTP Exim ([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: sendmail
+        group: 1
+        regex:
+          - "ESMTP Sendmail ([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: exchange-smtp
+        regex:
+          - "Microsoft ESMTP MAIL Service"
+      - type: regex
+        name: dovecot
+        regex:
+          - "[*+] ?OK.*Dovecot"
+      - type: regex
+        name: courier
+        regex:
+          - "[*+] ?OK.*Courier"
+      - type: regex
+        name: cyrus
+        group: 1
+        regex:
+          - "[*+] ?OK.*Cyrus (?:IMAP|POP3)[^ ]* v?([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: mariadb
+        group: 1
+        regex:
+          - "([0-9]+[.][0-9]+[.][0-9]+)-MariaDB"
+      - type: regex
+        name: mysql
+        group: 1
+        regex:
+          - "(?s)([0-9]+[.][0-9]+[.][0-9]+)[^[:cntrl:]]*[[:cntrl:]].*(?:mysql_native_password|caching_sha2_password)"
+      - type: regex
+        name: banner
+        regex:
+          - "^[ -~]{4,120}"

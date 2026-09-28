@@ -1,0 +1,21 @@
+id: effractor-points-to
+info:
+  name: What a name points to
+  author: effractor
+  severity: info
+dns:
+  - name: "{{FQDN}}"
+    type: A
+    class: inet
+    recursion: true
+    extractors:
+      - type: regex
+        name: address
+        group: 1
+        regex:
+          - "IN[[:space:]]+A[[:space:]]+([0-9.]+)"
+      - type: regex
+        name: alias
+        group: 1
+        regex:
+          - "IN[[:space:]]+CNAME[[:space:]]+([0-9A-Za-z._-]+)"

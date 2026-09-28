@@ -1,0 +1,584 @@
+id: effractor-web
+info:
+  name: Which web server and application
+  author: effractor
+  severity: info
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/"
+    host-redirects: true
+    max-redirects: 3
+    extractors:
+      - type: kval
+        name: server
+        kval:
+          - "server"
+      - type: regex
+        name: title
+        part: body
+        group: 1
+        regex:
+          - "(?i)<title>([^<]{1,120})</title>"
+      - type: regex
+        name: grafana
+        part: body
+        regex:
+          - "window[.]grafanaBootData"
+      - type: regex
+        name: grafana-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            "version":"([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: kibana
+        part: header
+        regex:
+          - "(?i)kbn-name:"
+      - type: regex
+        name: kibana-version
+        part: header
+        group: 1
+        regex:
+          - "(?i)kbn-version:[[:space:]]*([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: elasticsearch
+        part: body
+        regex:
+          - "You Know, for Search"
+      - type: regex
+        name: elasticsearch-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            "number"[[:space:]]*:[[:space:]]*"([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: zabbix
+        part: body
+        regex:
+          - "Zabbix SIA|zbxCallPostScripts"
+      - type: regex
+        name: prtg
+        part: header
+        regex:
+          - "(?i)server:[[:space:]]*PRTG"
+      - type: regex
+        name: prtg-version
+        part: header
+        group: 1
+        regex:
+          - "(?i)server:[[:space:]]*PRTG/([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: splunk
+        part: header
+        regex:
+          - "(?i)server:[[:space:]]*Splunkd"
+      - type: regex
+        name: splunk-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            "VERSION_LABEL":[[:space:]]*"([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: gitlab
+        part: body
+        regex:
+          - "about[.]gitlab[.]com"
+      - type: regex
+        name: gitea
+        part: body
+        regex:
+          - "Powered by Gitea"
+      - type: regex
+        name: gitea-version
+        part: body
+        group: 1
+        regex:
+          - "Gitea Version:[[:space:]]*([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: jenkins
+        part: header
+        regex:
+          - "(?i)x-jenkins:"
+      - type: regex
+        name: jenkins-version
+        part: header
+        group: 1
+        regex:
+          - "(?i)x-jenkins:[[:space:]]*([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: sonarqube
+        part: body
+        regex:
+          - "/css/sonar[.]css"
+      - type: regex
+        name: sonarqube-version
+        part: body
+        group: 1
+        regex:
+          - "/css/sonar[.]css[?]v=([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: nexus-repository
+        part: body
+        regex:
+          - "nexus-coreui-bundle|Sonatype Nexus Repository"
+      - type: regex
+        name: nexus-repository-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            nexus-coreui-bundle[^"]*_v=([0-9][0-9A-Za-z._-]*)
+      - type: regex
+        name: harbor
+        part: body
+        regex:
+          - "<harbor-app>"
+      - type: regex
+        name: confluence
+        part: body
+        regex:
+          - "confluence-base-url"
+      - type: regex
+        name: confluence-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            <meta name="ajs-version-number" content="([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: jira
+        part: body
+        regex:
+          - "com[.]atlassian[.]jira"
+      - type: regex
+        name: jira-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            title="JiraVersion" value="([0-9][0-9A-Za-z._-]*)
+      - type: regex
+        name: bitbucket
+        part: body
+        regex:
+          - "com[.]atlassian[.]bitbucket[.]server|bitbucket-webpack-INTERNAL"
+      - type: regex
+        name: bitbucket-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            id="product-version"[^>]*>[[:space:]]*v?([0-9][0-9A-Za-z._-]*)
+      - type: regex
+        name: nextcloud
+        part: body
+        regex:
+          - "var nc_lastLogin|var nc_pageLoad"
+      - type: regex
+        name: nextcloud-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            "version":"([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: wordpress
+        part: body
+        regex:
+          - >-
+            name="generator" content="WordPress|/wp-content/
+      - type: regex
+        name: wordpress-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            name="generator" content="WordPress ([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: roundcube
+        part: body
+        regex:
+          - >-
+            "rcversion":
+      - type: regex
+        name: roundcube-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            "rcversion":([0-9]{5,6})
+      - type: regex
+        name: zimbra
+        part: header
+        regex:
+          - "(?i)set-cookie:[[:space:]]*ZM_(?:LOGIN_CSRF|TEST)"
+      - type: regex
+        name: outlook-web
+        part: header
+        regex:
+          - "(?i)x-owa-version:"
+      - type: regex
+        name: outlook-web-version
+        part: header
+        group: 1
+        regex:
+          - "(?i)x-owa-version:[[:space:]]*([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: sharepoint
+        part: header
+        regex:
+          - "(?i)microsoftsharepointteamservices:"
+      - type: regex
+        name: sharepoint-version
+        part: header
+        group: 1
+        regex:
+          - "(?i)microsoftsharepointteamservices:[[:space:]]*([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: keycloak
+        part: body
+        regex:
+          - "kc-form-buttons|<span>Keycloak</span>"
+      - type: regex
+        name: citrix-gateway
+        part: header
+        regex:
+          - "(?i)set-cookie:[[:space:]]*(?:NSC_|citrix_ns_id)"
+      - type: regex
+        name: ivanti-connect-secure
+        part: body
+        regex:
+          - "/dana-na/"
+      - type: regex
+        name: cisco-asa
+        part: body
+        regex:
+          - "/[+]CSCOU[+]/portal[.]css"
+      - type: regex
+        name: guacamole
+        part: body
+        regex:
+          - "guacamole-logo"
+      - type: regex
+        name: fortigate
+        part: body
+        regex:
+          - >-
+            top[.]location="/remote/login"
+      - type: regex
+        name: sonicwall
+        part: header
+        regex:
+          - "(?i)server:[[:space:]]*SonicWALL"
+      - type: regex
+        name: sonicwall-version
+        part: header
+        group: 1
+        regex:
+          - "(?i)server:[[:space:]]*SMA/([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: vcenter
+        part: body
+        regex:
+          - >-
+            content="VMware vCenter
+      - type: regex
+        name: esxi
+        part: body
+        regex:
+          - >-
+            (?i)esxUiApp|content="VMware ESXi
+      - type: regex
+        name: proxmox-ve
+        part: body
+        regex:
+          - "PVEAuthCookie"
+      - type: regex
+        name: proxmox-ve-version
+        part: body
+        group: 1
+        regex:
+          - "pvemanagerlib[.]js[?]ver=([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: dell-idrac
+        part: body
+        regex:
+          - "<idrac-start-screen|thisIDRACText"
+      - type: regex
+        name: synology-dsm
+        part: body
+        regex:
+          - >-
+            content="Synology DiskStation|class="logo-synology"
+      - type: regex
+        name: pfsense
+        part: body
+        regex:
+          - "(?s)pfSense - Login.*Netgate|Netgate.*pfSense - Login"
+      - type: regex
+        name: opnsense
+        part: body
+        regex:
+          - "(?s)[|] OPNsense</title>.*usernamefld"
+      - type: regex
+        name: mikrotik-routeros
+        part: body
+        regex:
+          - "RouterOS router configuration page"
+      - type: regex
+        name: mikrotik-routeros-version
+        part: body
+        group: 1
+        regex:
+          - "RouterOS v?([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: webmin
+        part: header
+        regex:
+          - "(?i)server:[[:space:]]*MiniServ"
+      - type: regex
+        name: webmin-version
+        part: header
+        group: 1
+        regex:
+          - "(?i)server:[[:space:]]*MiniServ/([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: portainer
+        part: body
+        regex:
+          - >-
+            ng-app="portainer|portainer[.]auth
+      - type: regex
+        name: tomcat
+        part: body
+        regex:
+          - "(?s)Apache Tomcat.*/manager/html"
+      - type: regex
+        name: tomcat-version
+        part: body
+        group: 1
+        regex:
+          - "Apache Tomcat/([0-9][0-9A-Za-z._-]*)"
+      - type: regex
+        name: sap-netweaver
+        part: header
+        regex:
+          - "(?i)sap-server:"
+      - type: regex
+        name: phpmyadmin
+        part: body
+        regex:
+          - >-
+            name="pma_username|phpMyAdmin[.]css[.]php
+      - type: regex
+        name: phpmyadmin-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            PMA_VERSION:"([0-9][0-9A-Za-z._-]*)
+      - type: regex
+        name: vault
+        part: body
+        regex:
+          - "vault/config/environment"
+      - type: regex
+        name: veeam
+        part: body
+        regex:
+          - "(?s)Veeam Backup Enterprise Manager.*login[.]bundle[.]js"
+      - type: regex
+        name: veeam-version
+        part: body
+        group: 1
+        regex:
+          - "login[.]bundle[.]js[?]v=([0-9][0-9A-Za-z._-]*)"
+  - method: GET
+    path:
+      - "{{BaseURL}}/api/v2.0/systeminfo"
+    extractors:
+      - type: regex
+        name: harbor-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            "harbor_version":[[:space:]]*"v?([0-9][0-9A-Za-z._-]*)"
+  - method: GET
+    path:
+      - "{{BaseURL}}/js/zimbraMail/share/model/ZmSettings.js"
+    extractors:
+      - type: regex
+        name: zimbra-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            CLIENT_VERSION"[^"]*defaultValue:"([0-9][0-9A-Za-z._-]*)
+  - method: GET
+    path:
+      - "{{BaseURL}}/owa/auth/logon.aspx"
+    extractors:
+      - type: regex
+        name: outlook-web
+        part: header
+        regex:
+          - "(?i)x-owa-version:"
+      - type: regex
+        name: outlook-web-version
+        part: header
+        group: 1
+        regex:
+          - "(?i)x-owa-version:[[:space:]]*([0-9][0-9A-Za-z._-]*)"
+  - method: GET
+    path:
+      - "{{BaseURL}}/adfs/ls/idpinitiatedsignon.aspx"
+    extractors:
+      - type: regex
+        name: adfs
+        part: body
+        regex:
+          - "/adfs/portal/css/style[.]css"
+  - method: GET
+    path:
+      - "{{BaseURL}}/vpn/index.html"
+    extractors:
+      - type: regex
+        name: citrix-gateway
+        part: header
+        regex:
+          - "(?i)set-cookie:[[:space:]]*(?:NSC_|citrix_ns_id)"
+  - method: GET
+    path:
+      - "{{BaseURL}}/global-protect/login.esp"
+    extractors:
+      - type: regex
+        name: globalprotect
+        part: body
+        regex:
+          - "(?s)GlobalProtect Portal.*global-protect|global-protect.*GlobalProtect Portal"
+  - method: GET
+    path:
+      - "{{BaseURL}}/+CSCOE+/logon.html"
+    extractors:
+      - type: regex
+        name: cisco-asa
+        part: body
+        regex:
+          - "/[+]CSCOU[+]/portal[.]css"
+  - method: GET
+    path:
+      - "{{BaseURL}}/tmui/login.jsp"
+    extractors:
+      - type: regex
+        name: big-ip
+        part: body
+        regex:
+          - "(?s)Configuration Utility.*F5 Networks|F5 Networks.*Configuration Utility"
+  - method: GET
+    path:
+      - "{{BaseURL}}/cgi-bin/welcome"
+    extractors:
+      - type: regex
+        name: sonicwall
+        part: header
+        regex:
+          - "(?i)server:[[:space:]]*SonicWALL"
+      - type: regex
+        name: sonicwall-version
+        part: header
+        group: 1
+        regex:
+          - "(?i)server:[[:space:]]*SMA/([0-9][0-9A-Za-z._-]*)"
+  - method: GET
+    path:
+      - "{{BaseURL}}/xmldata?item=all"
+    extractors:
+      - type: regex
+        name: hpe-ilo
+        part: body
+        regex:
+          - "(?s)<RIMP>.*<HSI>"
+      - type: regex
+        name: hpe-ilo-version
+        part: body
+        group: 1
+        regex:
+          - "<FWRI>([0-9][0-9A-Za-z._-]*)</FWRI>"
+  - method: GET
+    path:
+      - "{{BaseURL}}/login.html"
+    extractors:
+      - type: regex
+        name: dell-idrac
+        part: body
+        regex:
+          - "<idrac-start-screen|thisIDRACText"
+  - method: GET
+    path:
+      - "{{BaseURL}}/sysmgmt/2015/bmc/info"
+    extractors:
+      - type: regex
+        name: dell-idrac-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            "FwVer"[[:space:]]*:[[:space:]]*"([0-9][0-9A-Za-z._-]*)"
+  - method: GET
+    path:
+      - "{{BaseURL}}/juis_boxinfo.xml"
+    extractors:
+      - type: regex
+        name: fritzbox
+        part: body
+        regex:
+          - "<e:BoxInfo"
+  - method: GET
+    path:
+      - "{{BaseURL}}/console/login/LoginForm.jsp"
+    extractors:
+      - type: regex
+        name: weblogic
+        part: body
+        regex:
+          - "WebLogic Server Version:"
+      - type: regex
+        name: weblogic-version
+        part: body
+        group: 1
+        regex:
+          - "WebLogic Server Version: ([0-9][0-9A-Za-z._-]*)"
+  - method: GET
+    path:
+      - "{{BaseURL}}/phpmyadmin/"
+    extractors:
+      - type: regex
+        name: phpmyadmin
+        part: body
+        regex:
+          - >-
+            name="pma_username|phpMyAdmin[.]css[.]php
+      - type: regex
+        name: phpmyadmin-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            PMA_VERSION:"([0-9][0-9A-Za-z._-]*)
+  - method: GET
+    path:
+      - "{{BaseURL}}/v1/sys/health"
+    extractors:
+      - type: regex
+        name: vault-version
+        part: body
+        group: 1
+        regex:
+          - >-
+            "version":[[:space:]]*"([0-9][0-9A-Za-z._-]*)"

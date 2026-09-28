@@ -1,0 +1,16 @@
+id: effractor-certificate
+info:
+  name: Which names a certificate bears
+  author: effractor
+  severity: info
+ssl:
+  - address: "{{Host}}:{{Port}}"
+    extractors:
+      - type: json
+        name: names
+        json:
+          - ".subject_an[]"
+      - type: json
+        name: subject
+        json:
+          - ".subject_cn"
