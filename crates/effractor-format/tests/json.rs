@@ -347,6 +347,19 @@ fn the_nuclei_identify_fixture_is_a_valid_architecture() {
     assert!(text.contains("protocol: http\n"), "{text}");
 }
 
+/// And how it connects (spec §6): accounts, administration, flows between
+/// hosts.
+#[test]
+fn the_nuclei_connect_fixture_is_a_valid_architecture() {
+    let text = fixture_is_valid("nuclei", "imported-connect.doc.json");
+    assert!(
+        text.contains("label: Keycloak accounts at sso.corp.example"),
+        "{text}"
+    );
+    assert!(text.contains("kind: administration"), "{text}");
+    assert!(text.contains("kind: authorizes"), "{text}");
+}
+
 fn nmap_fixture_is_valid(name: &str) -> String {
     fixture_is_valid("nmap", name)
 }

@@ -339,3 +339,16 @@ test('review: one Server header tells SonicWall and its version', () => {
   assert.deepEqual([].concat(T.answer('sonicwall').server), ['sonicwall', 'sma']);
   for (const p of LAB.hosts.flatMap(h => h.ports)) for (const page of Object.values(p.pages || {})) assert.equal((page.headers || {}).Server, undefined, 'a port has one Server');
 });
+
+// CI has no nuclei: that nuclei accepts the templates and finds with them
+// what the table says is proved by the fixtures, which nuclei wrote.
+test('spec §2.1: every named extractor has a record in the fixtures, and nuclei\'s version is said', () => {
+  const records = ['identify', 'connect'].flatMap(g => fs.readFileSync('scripts/fixtures/nuclei/' + g + '.jsonl', 'utf8').trim().split('\n').map(l => JSON.parse(l)));
+  const seen = new Set(records.map(r => r['extractor-name']));
+  assert.deepEqual(T.ANSWERS.map(a => a.name).filter(n => !seen.has(n)), []);
+  for (const r of records) {
+    assert.equal(T.answer(r['extractor-name']).template, r['template-id']);
+    assert.doesNotMatch(JSON.stringify(r), /127\.0\.0\.1|\/home\/(?!user\/)/, 'the lab\'s addresses, no machine\'s own');
+  }
+  assert.match(fs.readFileSync('docs/HANDOFF.md', 'utf8'), /nuclei 3\.11\.0/);
+});
