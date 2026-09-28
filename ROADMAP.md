@@ -146,8 +146,10 @@ tool is handed what is drawn and says what each service is), and nothing is
 drawn that the model does not use. The design also grows nmap's library of
 commands (owner, 2026-09-28). Design:
 [`2026-09-28-scan-workflow-design.md`](docs/superpowers/specs/2026-09-28-scan-workflow-design.md),
-approved in conversation 2026-09-28; the written text awaits the owner's
-review, and no plan is written before it.
+approved by the owner 2026-09-28. The
+[implementation plan](docs/superpowers/plans/2026-09-28-scan-workflow.md),
+with the code it was run with as patches beside it, awaits the owner's
+review; execution is native, in the session, one branch per part.
 Done when the page says what to run next from what the drawing lacks, and
 each tool's command takes its targets from the drawing (effractor's own
 nuclei templates do so already).

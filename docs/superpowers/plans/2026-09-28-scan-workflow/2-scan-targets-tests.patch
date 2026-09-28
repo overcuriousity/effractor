@@ -1,0 +1,114 @@
+diff --git a/scripts/scan-targets.test.js b/scripts/scan-targets.test.js
+index 4fc9471..a02ac4b 100644
+--- a/scripts/scan-targets.test.js
++++ b/scripts/scan-targets.test.js
+@@ -37,3 +37,109 @@ test('a word with a port or in a URL names its host', () => {
+   assert.deepEqual(T.asked(d, '[fd00::9]:443'), ['pc9']);
+   assert.equal(T.hostOf('fd00::9'), 'fd00::9', 'an IPv6 address is no host with a port');
+ });
++
++// ---- the targets row (scan workflow spec §4) ----
++
++function lab() {
++  const d = drawing();
++  d.entities.srv = { kind: 'network', label: 'Server LAN', addresses: ['10.0.2.0/24'] };
++  d.entities.empty = { kind: 'network', label: 'Empty', addresses: ['10.0.5.0/24'] };
++  d.entities.unnumbered = { kind: 'network', label: 'No range' };
++  d.entities.pc9.missed = '2026-09-22';
++  d.entities.gone = { kind: 'host', label: 'gone', addresses: ['10.0.1.30'], missed: '2026-09-20' };
++  d.entities.nmap = { kind: 'application', label: 'nmap', tool: 'nmap' };
++  d.associations = {
++    a1: { kind: 'attached', from: 'pc7', to: 'lan' },
++    a2: { kind: 'hosts', from: 'pc7', to: 'sshd', privilege: 'unknown' },
++    a3: { kind: 'hosts', from: 'pc7', to: 'nmap', privilege: 'user' },
++    a4: { kind: 'attached', from: 'wiki', to: 'lan' },
++  };
++  d.flows = {
++    f1: { label: 'ssh on pc-7', source: 'nmap', target: 'sshd', route: ['lan'], protocol: 'tcp/22' },
++    f2: { label: 'odd', source: 'nmap', target: 'sshd', route: ['lan'], protocol: 'ssh' },
++  };
++  d.clusters = { c1: { members: ['pc9', 'sshd', 'db1'], closed: true } };
++  return d;
++}
++
++test('the menu lists every drawn network that has addresses, with what can be chosen of it', () => {
++  const c = T.choices(lab(), 'pc7', []);
++  assert.deepEqual(c.networks.map(n => [n.id, n.label, n.range]), [['lan', 'Office LAN', '10.0.1.0/24'], ['srv', 'Server LAN', '10.0.2.0/24'], ['empty', 'Empty', '10.0.5.0/24']]);
++  assert.deepEqual(c.networks[0].items.map(i => [i.choice.kind, i.name, i.count]), [
++    ['range', 'the whole range', undefined],
++    ['hosts', 'drawn hosts only', 4],
++    ['unported', 'hosts without ports', 3],
++    ['missed', 'not seen since 2026-09-20', 2],
++  ]);
++  assert.deepEqual(c.networks[2].items.map(i => [i.name, i.count]), [['the whole range', undefined], ['drawn hosts only', 0], ['hosts without ports', 0], ['not seen', 0]]);
++  assert.ok(c.networks.every(n => n.items.every(i => i.choice.network === n.id)));
++});
++
++test('at opening: the selection, else the scanner\'s own network, else what was typed', () => {
++  const d = lab();
++  assert.deepEqual(T.choices(d, 'pc7', []).first, { kind: 'range', network: 'lan' });
++  assert.deepEqual(T.choices(d, 'pc7', ['entity/db1', 'entity/srv', 'entity/sshd', 'flow/f1', 'entity/nope', 'entity/db1']).first, { kind: 'selection', networks: ['srv'], hosts: ['db1'] });
++  assert.deepEqual(T.choices(d, 'pc7', ['cluster/c1']).first, { kind: 'selection', networks: [], hosts: ['pc9', 'db1'] }, 'a cluster stands for the hosts in it');
++  assert.equal(T.choices(d, 'pc7', ['cluster/c1']).selection.count, 2);
++  assert.deepEqual(T.choices(d, 'pc7', ['entity/sshd']).first, { kind: 'range', network: 'lan' }, 'a selection without a host or network is none');
++  assert.deepEqual(T.choices(d, null, []).first, { kind: 'typed', text: '' });
++  assert.deepEqual(T.choices(d, 'db1', null).first, { kind: 'typed', text: '' }, 'a scanner on no network');
++  d.associations.a5 = { kind: 'attached', from: 'pc7', to: 'srv' };
++  d.associations.a6 = { kind: 'attached', from: 'pc7', to: 'unnumbered' };
++  assert.deepEqual(T.choices(d, 'pc7', []).first, { kind: 'typed', text: '10.0.1.0/24 10.0.2.0/24' }, 'on several: their ranges, as before');
++  assert.deepEqual(T.choices(null, null, null), { networks: [], selection: { choice: { kind: 'selection', networks: [], hosts: [] }, count: 0 }, first: { kind: 'typed', text: '' } });
++});
++
++test('a choice in words: a range as it is written, hosts by their address in the range', () => {
++  const d = lab();
++  d.entities.pc9.addresses = ['192.168.1.9', '10.0.1.9'];
++  assert.deepEqual(T.words(d, { kind: 'range', network: 'lan' }), { text: '10.0.1.0/24', hosts: 0, left: 0, said: 'Office LAN · 10.0.1.0/24' });
++  assert.deepEqual(T.words(d, { kind: 'hosts', network: 'lan' }), { text: '10.0.1.7 10.0.1.9 10.0.1.30', hosts: 3, left: 1, said: '3 hosts on Office LAN' });
++  assert.deepEqual(T.words(d, { kind: 'unported', network: 'lan' }), { text: '10.0.1.9 10.0.1.30', hosts: 2, left: 1, said: '2 hosts without ports on Office LAN' });
++  assert.deepEqual(T.words(d, { kind: 'missed', network: 'lan' }), { text: '10.0.1.9 10.0.1.30', hosts: 2, left: 0, said: '2 hosts not seen on Office LAN' });
++  assert.deepEqual(T.words(d, { kind: 'hosts', network: 'srv' }), { text: '10.0.2.9', hosts: 1, left: 0, said: '1 host on Server LAN' });
++  assert.deepEqual(T.words(d, { kind: 'hosts', network: 'empty' }), { text: '', hosts: 0, left: 0, said: '0 hosts on Empty' });
++  // nuclei asks names: a host without an address goes by its label.
++  assert.deepEqual(T.words(d, { kind: 'hosts', network: 'lan' }, true), { text: '10.0.1.7 10.0.1.9 wiki.lab 10.0.1.30', hosts: 4, left: 0, said: '4 hosts on Office LAN' });
++});
++
++test('the selection in words: ranges first, a host a range holds is scanned once', () => {
++  const d = lab();
++  assert.deepEqual(T.words(d, { kind: 'selection', networks: ['lan'], hosts: ['pc7', 'db1', 'wiki', 'sshd', 'nope'] }), { text: '10.0.1.0/24 10.0.2.9', hosts: 1, left: 1, said: 'the selection · 1 network, 1 host' });
++  assert.deepEqual(T.words(d, { kind: 'selection', networks: [], hosts: ['db1', 'pc7'] }), { text: '10.0.2.9 10.0.1.7', hosts: 2, left: 0, said: 'the selection · 2 hosts' });
++  assert.deepEqual(T.words(d, { kind: 'selection' }), { text: '', hosts: 0, left: 0, said: 'the selection' });
++});
++
++test('typed by hand is what was typed; a choice nobody knows is nothing', () => {
++  const d = lab();
++  assert.deepEqual(T.words(d, { kind: 'typed', text: '  10.0.1.5   srv.lab ' }), { text: '10.0.1.5 srv.lab', hosts: 0, left: 0, said: 'typed by hand' });
++  assert.deepEqual(T.words(d, null), { text: '', hosts: 0, left: 0, said: 'typed by hand' });
++  assert.equal(T.words(d, { kind: 'hosts', network: 'nope' }).text, '');
++  assert.equal(T.words(d, { kind: 'constructor', network: 'lan' }).text, '');
++  assert.equal(T.words(d, { kind: 'range', network: 'pc7' }).text, '', 'a host is no network');
++  assert.equal(T.words(null, { kind: 'hosts', network: 'lan' }).text, '');
++});
++
++test('the ports drawn on the targets: the flows to their services', () => {
++  const d = lab();
++  assert.deepEqual(T.drawnPorts(d, '10.0.1.0/24'), ['tcp/22']);
++  assert.deepEqual(T.drawnPorts(d, '10.0.1.7'), ['tcp/22']);
++  assert.deepEqual(T.drawnPorts(d, '10.0.1.9'), []);
++  assert.deepEqual(T.drawnPorts(d, ''), []);
++  assert.deepEqual(T.drawnPorts(null, '10.0.1.0/24'), []);
++});
++
++test('a network with ranges of both kinds gives both, and nmap says they are two scans', () => {
++  const d = lab();
++  d.entities.lan.addresses = ['10.0.1.0/24', 'fd00::/120'];
++  assert.equal(T.words(d, { kind: 'range', network: 'lan' }).text, '10.0.1.0/24 fd00::/120');
++  const C = require('../assets/js/nmap-command.js');
++  assert.match(C.command(['services'], {}, T.words(d, { kind: 'range', network: 'lan' }).text).problem, /separate scans/);
++  // Its hosts go by one address each, the first its ranges hold.
++  assert.equal(T.words(d, { kind: 'hosts', network: 'lan' }).text, '10.0.1.7 10.0.1.9 10.0.1.30');
++  // A thousand hosts are one line of words, none twice.
++  for (let i = 0; i < 1000; i++) d.entities['h' + i] = { kind: 'host', label: 'h' + i, addresses: ['10.0.1.' + (i % 250 + 1)] };
++  const many = T.words(d, { kind: 'hosts', network: 'lan' });
++  assert.equal(many.hosts, 1003);
++  assert.equal(many.text.split(' ').length, 250);
++});

@@ -1,7 +1,7 @@
 # Scanners that build on each other
 
-Date: 2026-09-28 · Status: the design was approved by the owner in
-conversation, 2026-09-28; this text awaits the owner's review.
+Date: 2026-09-28 · Status: approved by the owner, 2026-09-28. Amended with
+the plan the same day (§12); where §12 and a section differ, §12 stands.
 
 Builds on the four imports (`docs/HANDOFF.md`: nmap import, nmap recipes,
 masscan and Greenbone, nuclei, nuclei templates) and on the plan every
@@ -421,3 +421,35 @@ before it lands.
 
 Part 5 deletes `scan-workflow` from the roadmap, and this spec and its plan
 with it.
+
+## 12. Amended with the plan
+
+The plan (`docs/superpowers/plans/2026-09-28-scan-workflow.md`) was built
+and run before it was written; where that showed a simpler or a truer way,
+it stands here. The owner approves these with the plan.
+
+1. **§3:** `ports` is noted only by a scan of twenty TCP ports or more;
+   `products` whenever versions were asked of a scan that can find a port
+   open. A few ports looked at for another purpose leave the question of
+   which ports are open unanswered.
+2. **§3:** the row *Notes … as asked* is shown for nuclei only. For nmap
+   and masscan it is what the scan says it ran, and is said as `seen` is.
+3. **§3:** the file writes the days quoted: `asked: {ports: "2026-09-28"}`.
+4. **§5:** 19 blocks. *Other protocols* is cut (nothing of theirs is
+   drawn), and so is UDP's *a list* (the Ports block's list takes `U:`
+   ports).
+5. **§6.1:** *Who announces itself* alone is `-sn` with the scripts.
+6. **§6.2:** only `snmp-interfaces` runs.
+7. **§6.3:** *VPN endpoints* names no script; `ike-version` runs with `-sV`.
+8. **§6.1, §6.2:** the role is said as *gateway by DHCP* and *3 interfaces
+   by SNMP*.
+9. **§6:** *managed from* is offered for any nmap import in which a router
+   has a management port open to the scanner.
+10. **§2.2:** *Say what to scan next* is in the canvas's own menu too,
+    where something is silenced.
+11. **§2.1:** a network counts as scanned once a host on it was seen,
+    attached to it or at an address its range holds.
+12. **§6.4:** *UDP services* and *VPN endpoints* are not read back either:
+    they are port lists.
+13. **§7:** the bulb's page code is `scan-hint-ui.js`; `nmap-ui.js` gives
+    it `effractorNmapUi` (`open`, `create`).

@@ -1,0 +1,383 @@
+diff --git a/assets/css/60-architecture.css b/assets/css/60-architecture.css
+index 28b1d5e..20989f6 100644
+--- a/assets/css/60-architecture.css
++++ b/assets/css/60-architecture.css
+@@ -359,7 +359,11 @@ body.is-pinning, body.is-pinning * { cursor: grabbing !important; }
+ .nmap-block .hint { grid-column: 2; }
+ .nmap-block .warning { color: var(--color-warning); }
+ /* The range, and the command as a terminal line. */
+-.nmap-range { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; margin-bottom: 6px; }
++.nmap-range { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); gap: 8px; align-items: center; margin-bottom: 6px; }
++.nmap-range-word { color: var(--color-fg-secondary); font-size: var(--text-xs); }
++.nmap-targets { width: 100%; text-align: left; }
++.nmap-left:empty { display: none; }
++.nmap-list code::before { content: none; }
+ .nmap-command {
+   display: flex; gap: 8px; align-items: center; margin-bottom: 6px;
+   padding: 7px 7px 7px 10px;
+diff --git a/assets/js/editor.js b/assets/js/editor.js
+index d5fdc1f..d2c2e2e 100644
+--- a/assets/js/editor.js
++++ b/assets/js/editor.js
+@@ -310,6 +310,9 @@
+   // while the pointer or the keys are anywhere in what it opened.
+   var lists = [$("context-menu")];
+   var openers = [null]; // openers[n]: the item in list n-1 that opened list n
++  // Where the lists are: the page, or the modal dialog a menu was opened
++  // in, which makes everything outside it inert.
++  var home = document.body;
+ 
+   // Every list deeper than `depth` goes; list `depth` stays.
+   function closeFrom(depth) {
+@@ -323,6 +326,8 @@
+   function closeMenu() {
+     closeFrom(0);
+     $("context-menu").hidden = true;
++    if (home !== document.body) document.body.appendChild($("context-menu"));
++    home = document.body;
+   }
+ 
+   // The same menu wherever a node is shown: on the canvas, and in the model
+@@ -363,7 +368,7 @@
+     list.className = "menu submenu";
+     list.setAttribute("role", "menu");
+     list.hidden = true;
+-    document.body.appendChild(list);
++    home.appendChild(list);
+     lists.push(list);
+     openers.push(button);
+     button.setAttribute("aria-expanded", "true");
+@@ -489,12 +494,14 @@
+   }
+ 
+   // At the point (x, y), or beside `anchor` — the box of what opened it —
+-  // when there is one.
+-  function showMenu(items, x, y, anchor) {
++  // when there is one. `within`: the open modal dialog the menu belongs to.
++  function showMenu(items, x, y, anchor, within) {
+     closeMenu();
+     // Nothing to offer is not an empty box: the caller says why instead.
+     if (!items.some(function (item) { return item[2] != null; })) return;
+     var menu = $("context-menu");
++    home = within || document.body;
++    if (within) within.appendChild(menu);
+     fill(menu, items, 0);
+     place(menu, anchor || { left: x, right: x, top: y });
+     focusFirst(menu); // Tab and Enter work from here; Esc closes
+diff --git a/assets/js/nmap-ui.js b/assets/js/nmap-ui.js
+index 6de0136..319e0e1 100644
+--- a/assets/js/nmap-ui.js
++++ b/assets/js/nmap-ui.js
+@@ -11,11 +11,12 @@
+   var M = window.effractorMasscan;
+   var Nu = window.effractorNuclei;
+   var S = window.effractorScanners;
++  var St = window.effractorScanTargets;
+   var $ = function (id) { return document.getElementById(id); };
+   var dialog = $("nmap-dialog");
+   // What the scan is for is kept for the session, as the range is not.
+   var asked = { recipes: ["services"], adjust: {}, portList: "", ack: false, masscan: { ports: "common", rate: "1000" }, nuclei: { recipes: ["identify"], adjust: {}, extra: {} } };
+-  var at = { app: null, tool: "nmap", scan: null, merges: {}, ticks: null, plan: null };
++  var at = { app: null, tool: "nmap", scan: null, merges: {}, ticks: null, plan: null, choice: null, selection: [] };
+   // The open scanner's name: "nmap", "masscan".
+   function toolName() {
+     return S.TOOLS.filter(function (t) { return t.id === at.tool; })[0].name;
+@@ -42,13 +43,42 @@
+     })[0];
+     return k ? d.associations[k].from : null;
+   }
+-  // The ranges of the networks nmap's host is attached to.
+-  function prefillRange(host) {
+-    var d = doc();
+-    if (!host) return "";
+-    return Object.keys(d.associations || {}).map(function (k) { return d.associations[k]; }).filter(function (a) {
+-      return a.kind === "attached" && a.from === host && d.entities[a.to];
+-    }).map(function (a) { return (d.entities[a.to].addresses || []).join(" "); }).filter(Boolean).join(" ");
++
++  // ---- the targets (scan workflow spec §4) ----
++
++  // What is aimed at, in words on the row and as words in the range; for
++  // Greenbone, which is given no command, as the list its target takes.
++  // `typing`: the range is being typed and is left as it stands.
++  function setTargets(choice, typing) {
++    at.choice = choice;
++    var w = St.words(doc(), choice, at.tool === "nuclei");
++    if (!typing) $("nmap-range").value = w.text;
++    var left = w.left ? w.left + (w.left === 1 ? " host" : " hosts") + " without an address left out" : "";
++    ["nmap", "greenbone"].forEach(function (id) {
++      $(id + "-targets").textContent = w.said;
++      $(id + "-left").textContent = left;
++    });
++    $("greenbone-hosts").textContent = $("nmap-range").value.trim().split(/\s+/).filter(Boolean).join(", ");
++    $("greenbone-copy").disabled = !$("greenbone-hosts").textContent;
++    if (at.tool === "nmap") blocks();
++    showCommand();
++  }
++  function targetsMenu(button) {
++    var c = St.choices(doc(), hostOf(at.app), at.selection);
++    var items = c.networks.map(function (n) {
++      return [n.label, "", n.items.map(function (i) {
++        var none = i.count === 0;
++        return [i.name, "", none ? null : function () { setTargets(i.choice); }, { hint: none ? "nothing drawn there yet" : i.count == null ? n.range : String(i.count) }];
++      })];
++    });
++    if (!items.length) items.push(["No network with addresses is drawn", "", null]);
++    items.push(["the selection", "", c.selection.count ? function () { setTargets(c.selection.choice); } : null, { hint: c.selection.count ? String(c.selection.count) : "nothing selected" }]);
++    if (at.tool !== "greenbone") items.push(["typed by hand…", "", function () {
++      setTargets({ kind: "typed", text: $("nmap-range").value });
++      $("nmap-range").focus();
++    }]);
++    var box = button.getBoundingClientRect();
++    app.showMenu(items, 0, 0, { left: box.left, right: box.left - 2, top: box.bottom + 2 }, dialog);
+   }
+ 
+   // ---- the command ----
+@@ -250,9 +280,12 @@
+ 
+   // ---- open ----
+ 
+-  function open(appId) {
++  // `preset`: what the bulb sets ({recipes, targets}); else what was asked
++  // last, aimed at the selection or the scanner's own network.
++  function open(appId, preset) {
+     var tool = S.tool(doc().entities[appId]);
+-    at = { app: appId, tool: tool ? tool.id : "nmap", scan: null, merges: {}, ticks: null, plan: null };
++    var picked = app.state.picked && app.state.picked.length ? app.state.picked : [app.state.selected];
++    at = { app: appId, tool: tool ? tool.id : "nmap", scan: null, merges: {}, ticks: null, plan: null, choice: null, selection: picked.filter(Boolean) };
+     var host = hostOf(appId);
+     var name = toolName();
+     $("nmap-title").textContent = host ? name + " on " + doc().entities[host].label : name + " (not on a host)";
+@@ -269,18 +302,20 @@
+     $("nmap-paste-n").textContent = exported ? "2" : "3";
+     $("nmap-paste").placeholder = exported ? "Paste the report, or drop its .xml file here" : at.tool === "nuclei" ? "Paste the lines, or drop the file here" : "Paste the output, or drop the .xml file here";
+     $("nmap-range").placeholder = at.tool === "nuclei" ? "10.0.1.0/24 or https://app.lab:8443" : "10.0.1.0/24";
+-    $("nmap-range").value = prefillRange(host);
++    $("nmap-range").value = "";
+     $("nmap-paste").value = "";
+     $("nmap-problem").textContent = "";
+     $("nmap-read-problem").textContent = "";
+     $("nmap-ask").hidden = false;
+     $("nmap-preview").hidden = true;
++    if (preset && preset.recipes) library().asked.recipes = preset.recipes.slice();
++    if (preset && preset.recipes) library().asked.adjust = {};
+     if (at.tool === "masscan") masscanBlocks();
+-    else {
++    else if (at.tool !== "greenbone") {
+       recipes();
+       blocks();
+     }
+-    showCommand();
++    setTargets((preset && preset.targets) || St.choices(doc(), host, at.selection).first);
+     U.loadCatalog().catch(function () {}).then(function () {
+       if (!dialog.open) dialog.showModal();
+     });
+@@ -808,7 +843,19 @@
+ 
+   // ---- wiring ----
+ 
+-  $("nmap-range").addEventListener("input", showCommand);
++  $("nmap-range").addEventListener("input", function () {
++    // Edited by hand, the range is what is typed.
++    setTargets({ kind: "typed", text: $("nmap-range").value }, true);
++  });
++  ["nmap-targets", "greenbone-targets"].forEach(function (id) {
++    $(id).addEventListener("click", function () { targetsMenu($(id)); });
++  });
++  // Esc closes an open menu and leaves the dialog.
++  dialog.addEventListener("cancel", function (e) {
++    if ($("context-menu").hidden) return;
++    e.preventDefault();
++    app.showMenu([], 0, 0);
++  });
+   function copies(button, code) {
+     $(button).addEventListener("click", function () {
+       function failed() {
+@@ -831,6 +878,7 @@
+   }
+   copies("nmap-copy", "nmap-command");
+   copies("nmap-copy-second", "nmap-second");
++  copies("greenbone-copy", "greenbone-hosts");
+   $("nmap-whole").addEventListener("click", function () {
+     at.whole = !at.whole;
+     showCommand();
+diff --git a/assets/js/scan-targets.js b/assets/js/scan-targets.js
+index 734f120..0c45ebb 100644
+--- a/assets/js/scan-targets.js
++++ b/assets/js/scan-targets.js
+@@ -32,7 +32,149 @@
+     });
+   }
+ 
+-  var api = { asked: asked, hostOf: hostOf };
++  // ---- the targets row (spec §4) ----
++
++  function entities(doc, kind) {
++    return Object.keys((doc && doc.entities) || {}).filter(function (id) { return doc.entities[id].kind === kind; });
++  }
++  function links(doc, kind) {
++    return Object.keys((doc && doc.associations) || {}).map(function (k) { return doc.associations[k]; }).filter(function (a) { return a.kind === kind; });
++  }
++  function count(n, one) {
++    return n + " " + one + (n === 1 ? "" : "s");
++  }
++  function rangeOf(doc, network) {
++    var e = doc.entities[network];
++    return e && e.kind === "network" ? (e.addresses || []).join(" ") : "";
++  }
++  // The hosts on a network: attached to it, or at an address its range holds.
++  function hostsOn(doc, network) {
++    var range = rangeOf(doc, network);
++    var attached = links(doc, "attached").filter(function (a) { return a.to === network; }).map(function (a) { return a.from; });
++    return entities(doc, "host").filter(function (id) {
++      return attached.indexOf(id) >= 0 || (doc.entities[id].addresses || []).some(function (a) { return Ad.covers(range, a); });
++    });
++  }
++  function ported(doc, host) {
++    return links(doc, "hosts").some(function (a) { return a.from === host && doc.entities[a.to] && doc.entities[a.to].kind === "service"; });
++  }
++  var KINDS = {
++    hosts: function () { return true; },
++    unported: function (doc, id) { return !ported(doc, id); },
++    missed: function (doc, id) { return !!doc.entities[id].missed; },
++  };
++  function members(doc, choice) {
++    if (!choice || !has(KINDS, choice.kind) || !doc.entities[choice.network]) return [];
++    return hostsOn(doc, choice.network).filter(function (id) { return KINDS[choice.kind](doc, id); });
++  }
++  function has(o, k) {
++    return Object.prototype.hasOwnProperty.call(o, k);
++  }
++  // What is selected, as networks and hosts: "entity/pc7", "cluster/c1".
++  function selected(doc, selection) {
++    var out = { networks: [], hosts: [] };
++    function take(id) {
++      var e = doc.entities[id];
++      if (!e) return;
++      var list = e.kind === "network" ? out.networks : e.kind === "host" ? out.hosts : null;
++      if (list && list.indexOf(id) < 0) list.push(id);
++    }
++    (selection || []).forEach(function (q) {
++      var m = /^(entity|cluster)\/(.+)$/.exec(String(q));
++      if (!m) return;
++      if (m[1] === "entity") return take(m[2]);
++      var c = (doc.clusters || {})[m[2]];
++      ((c && c.members) || []).forEach(take);
++    });
++    return out;
++  }
++
++  // The menu: every drawn network that has addresses, in file order, with
++  // what can be chosen of it; the selection; `first`, what is chosen when
++  // the dialog opens. `appHost`: the host the scanner runs on, or null.
++  function choices(doc, appHost, selection) {
++    doc = doc && doc.entities ? doc : { entities: {} };
++    var networks = entities(doc, "network").filter(function (n) { return !!rangeOf(doc, n); }).map(function (n) {
++      var missed = members(doc, { kind: "missed", network: n });
++      var since = missed.map(function (id) { return doc.entities[id].missed; }).sort()[0];
++      return { id: n, label: doc.entities[n].label, range: rangeOf(doc, n), items: [
++        { choice: { kind: "range", network: n }, name: "the whole range" },
++        { choice: { kind: "hosts", network: n }, name: "drawn hosts only", count: members(doc, { kind: "hosts", network: n }).length },
++        { choice: { kind: "unported", network: n }, name: "hosts without ports", count: members(doc, { kind: "unported", network: n }).length },
++        { choice: { kind: "missed", network: n }, name: "not seen" + (since ? " since " + since : ""), count: missed.length },
++      ] };
++    });
++    var sel = selected(doc, selection);
++    var picked = { kind: "selection", networks: sel.networks, hosts: sel.hosts };
++    var own = appHost ? links(doc, "attached").filter(function (a) { return a.from === appHost && !!rangeOf(doc, a.to); }).map(function (a) { return a.to; }) : [];
++    var first = sel.networks.length + sel.hosts.length ? picked
++      : own.length === 1 ? { kind: "range", network: own[0] }
++      // On several networks: their ranges, as the range was filled before.
++      : { kind: "typed", text: own.map(function (n) { return rangeOf(doc, n); }).join(" ") };
++    return { networks: networks, selection: { choice: picked, count: sel.networks.length + sel.hosts.length }, first: first };
++  }
++
++  // A choice in words for the command: {text, hosts, left, said}. `left`
++  // counts the hosts without an address, which are left out; `names`: a
++  // host without an address is taken by its label where that is a name
++  // (nuclei asks names).
++  function words(doc, choice, names) {
++    doc = doc && doc.entities ? doc : { entities: {} };
++    choice = choice || { kind: "typed", text: "" };
++    if (choice.kind === "typed") return { text: String(choice.text == null ? "" : choice.text).trim().replace(/\s+/g, " "), hosts: 0, left: 0, said: "typed by hand" };
++    if (choice.kind === "range") {
++      var net = doc.entities[choice.network];
++      return { text: rangeOf(doc, choice.network), hosts: 0, left: 0, said: net ? net.label + " · " + rangeOf(doc, choice.network) : "" };
++    }
++    var ranges = [], hosts = [], range = "";
++    if (choice.kind === "selection") {
++      ranges = (choice.networks || []).map(function (n) { return rangeOf(doc, n); }).filter(Boolean);
++      hosts = (choice.hosts || []).filter(function (id) { return doc.entities[id] && doc.entities[id].kind === "host"; });
++    } else {
++      hosts = members(doc, choice);
++      range = rangeOf(doc, choice.network);
++    }
++    var out = [], left = 0, taken = 0;
++    hosts.forEach(function (id) {
++      var e = doc.entities[id], all = e.addresses || [];
++      // Held by a selected range already: scanned once.
++      if (all.some(function (a) { return Ad.covers(ranges.join(" "), a); })) return;
++      var a = all.filter(function (x) { return Ad.covers(range, x); })[0] || all[0];
++      var label = String(e.label || "").trim().toLowerCase();
++      if (!a && names && isName(label)) a = label;
++      if (!a) return void left++;
++      taken++;
++      if (out.indexOf(a) < 0) out.push(a);
++    });
++    var on = choice.network && doc.entities[choice.network] ? " on " + doc.entities[choice.network].label : "";
++    var what = choice.kind === "unported" ? " without ports" : choice.kind === "missed" ? " not seen" : "";
++    var said = choice.kind === "selection"
++      ? ["the selection"].concat([[ranges.length, "network"], [taken, "host"]].filter(function (x) { return x[0]; }).map(function (x) { return count(x[0], x[1]); }).join(", ") || []).join(" · ")
++      : count(taken, "host") + what + on;
++    return { text: ranges.concat(out).join(" "), hosts: taken, left: left, said: said };
++  }
++  // A DNS name, as architecture-edit.js has it.
++  function isName(text) {
++    if (!text || text.length > 253 || /^[0-9.]+$/.test(text)) return false;
++    return text.split(".").every(function (l) {
++      return /^[a-z0-9_-]{1,63}$/.test(l) && l[0] !== "-" && l[l.length - 1] !== "-";
++    });
++  }
++  // The ports drawn on the hosts the words hold, as "tcp/443": the flows'
++  // protocols to services those hosts run.
++  function drawnPorts(doc, text) {
++    var hosts = asked(doc, text), out = [];
++    var hostOfService = Object.create(null);
++    links(doc, "hosts").forEach(function (a) { hostOfService[a.to] = a.from; });
++    Object.keys((doc && doc.flows) || {}).forEach(function (k) {
++      var f = doc.flows[k];
++      if (!/^(tcp|udp)\/\d{1,5}$/.test(f.protocol || "") || hosts.indexOf(hostOfService[f.target]) < 0) return;
++      if (out.indexOf(f.protocol) < 0) out.push(f.protocol);
++    });
++    return out;
++  }
++
++  var api = { asked: asked, hostOf: hostOf, choices: choices, words: words, drawnPorts: drawnPorts };
+   if (node) module.exports = api;
+   if (typeof window !== "undefined") window.effractorScanTargets = api;
+ })();
+diff --git a/crates/effractor-server/templates/shell.html b/crates/effractor-server/templates/shell.html
+index 4a27bc9..e7b6702 100644
+--- a/crates/effractor-server/templates/shell.html
++++ b/crates/effractor-server/templates/shell.html
+@@ -342,7 +342,11 @@
+     </section>
+     <section class="nmap-step" id="nmap-step-greenbone" hidden>
+       <h3 class="label"><span class="nmap-n">1</span>Scan, then export the report</h3>
++      <div class="nmap-range"><span class="nmap-range-word">Targets</span><button class="pick nmap-targets" id="greenbone-targets" type="button" aria-haspopup="menu"></button></div>
++      <div class="nmap-command nmap-list"><code id="greenbone-hosts"></code><button class="btn btn-ghost btn-small" id="greenbone-copy" type="button">Copy</button></div>
++      <p class="hint nmap-left" id="greenbone-left"></p>
+       <ol class="nmap-how">
++        <li>Give the target these hosts.</li>
+         <li>Scan from inside the network. Greenbone in rootless containers sees it through NAT and finds few hosts: set the target's <b>Alive test</b> to <b>Consider Alive</b> (slow on a large range), or run the scanner container as root on the host's network.</li>
+         <li>In Greenbone: <b>Scans › Reports</b>, open the report.</li>
+         <li>In its filter, tick every severity, <b>Log</b> included, and show all rows (<code>rows=-1</code>): Log results name the services.</li>
+@@ -358,7 +362,9 @@
+     </section>
+     <section class="nmap-step" id="nmap-step-run">
+       <h3 class="label"><span class="nmap-n">2</span>Run it</h3>
++      <div class="nmap-range"><span class="nmap-range-word">Targets</span><button class="pick nmap-targets" id="nmap-targets" type="button" aria-haspopup="menu"></button></div>
+       <div class="nmap-range"><label for="nmap-range">Range</label><input id="nmap-range" type="text" autocomplete="off" spellcheck="false" placeholder="10.0.1.0/24"></div>
++      <p class="hint nmap-left" id="nmap-left"></p>
+       <p class="hint" id="nmap-asks"></p>
+       <div class="nmap-command"><code id="nmap-command"></code><span class="nmap-tag is-root" id="nmap-root" hidden>root</span><button class="btn btn-ghost btn-small" id="nmap-whole" type="button" hidden>Show all</button><button class="btn btn-ghost btn-small" id="nmap-copy" type="button">Copy</button></div>
+       <div id="nmap-second-row" hidden>

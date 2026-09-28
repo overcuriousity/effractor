@@ -1,0 +1,530 @@
+diff --git a/assets/js/masscan.js b/assets/js/masscan.js
+index 63ba2e2..b5435e5 100644
+--- a/assets/js/masscan.js
++++ b/assets/js/masscan.js
+@@ -27,6 +27,8 @@
+       if (R.has(OWN, r.problem.code)) r.problem.message = OWN[r.problem.code];
+       return r;
+     }
++    // masscan asks which ports are open, and nothing else.
++    r.scan.asks = ["ports"];
+     // A port it only saw open is named by its number, as nmap's table would.
+     r.scan.hosts.forEach(function (h) {
+       h.ports.forEach(function (p) {
+diff --git a/assets/js/nmap-plan.js b/assets/js/nmap-plan.js
+index e6055e3..72db3ac 100644
+--- a/assets/js/nmap-plan.js
++++ b/assets/js/nmap-plan.js
+@@ -12,6 +12,7 @@
+   var Ch = node ? require("./nmap-changes.js") : window.effractorNmapChanges;
+   var P = node ? require("./nmap-products.js") : window.effractorNmapProducts;
+   var Cn = node ? require("./nmap-connect.js") : window.effractorNmapConnect;
++  var St = node ? require("./scan-targets.js") : window.effractorScanTargets;
+   var has = R.has, oneHost = R.oneHost, addressKey = Ad.addressKey, bytes = Ad.bytes, inCidr = Ad.inCidr, networkOf = Ad.networkOf;
+   var targetsOf = C.targetsOf, STAMP = C.STAMP, stampLine = C.stampLine;
+ 
+@@ -69,7 +70,27 @@
+     return !!n && !!l && (n === l || n.split(".")[0] === l);
+   }
+ 
+-  function plan(doc, appId, scan, range, merges) {
++  // What a host can be noted as asked, in the file's order, and each in
++  // words (scan workflow spec §3).
++  var ASKED = ["ports", "products", "route", "connections"];
++  var ASKED_WORDS = { ports: "which ports are open", products: "what runs there", route: "the way to them", connections: "how they connect" };
++  // The keys of `keys` a host is not noted with for that day.
++  function unasked(entity, keys, day) {
++    var had = (entity && entity.asked) || {};
++    return day ? keys.filter(function (k) { return had[k] !== day; }) : [];
++  }
++  // `add` over what the host was asked before, in the file's order.
++  function noted(entity, keys, day) {
++    var had = entity.asked || {}, out = {};
++    ASKED.forEach(function (k) {
++      if (keys.indexOf(k) >= 0) out[k] = day;
++      else if (has(had, k)) out[k] = had[k];
++    });
++    return out;
++  }
++
++  // `today`: the day of the import, for a scan that does not say when it ran.
++  function plan(doc, appId, scan, range, merges, today) {
+     merges = merges || {};
+     var hosts = ids(doc, "host");
+     var byAddress = Object.create(null);
+@@ -309,6 +330,11 @@
+     way.routers.forEach(function (r) { if (r.row) onTheWay[r.row] = true; });
+     way.links.forEach(function (l) { if (l.network === "new") usedNew = true; });
+ 
++    // What the scan asked of the hosts it covered, and the day it did
++    // (scan workflow spec §3).
++    var asks = ASKED.filter(function (k) { return (scan.asks || []).indexOf(k) >= 0; });
++    var day = scan.date || today || null;
++    if (!day) asks = [];
+     var planned = rows.map(function (r) {
+       var h = r.scan, target = r.known || r.merged;
+       var label = target ? doc.entities[target].label : (bestName(h) || {}).name || h.hostname || h.addresses[0];
+@@ -359,6 +385,7 @@
+         saidNames: called.said,
+         seen: target ? doc.entities[target].seen || null : null,
+         missed: target ? doc.entities[target].missed || null : null,
++        unasked: target ? unasked(doc.entities[target], asks, day) : asks.slice(),
+         moved: r.known && r.matchedBy === "identity" ? movedOf(r.known, h) : null,
+         sharedIdentity: r.sharedIdentity,
+         conflict: r.conflict,
+@@ -383,8 +410,15 @@
+     });
+     var scanOf = {};
+     rows.forEach(function (r) { scanOf[r.key] = r.scan; });
++    // The drawn hosts the scan covered and has no word of: a scanner that
++    // only writes what it found (nuclei) asked them too.
++    var rowed = planned.map(function (h) { return h.known || h.merged; }).filter(Boolean);
++    var also = asks.length && scan.covers ? St.asked(doc, scan.covers).filter(function (id) {
++      return rowed.indexOf(id) < 0 && !doc.entities[id].missed && unasked(doc.entities[id], asks, day).length > 0;
++    }) : [];
+     return {
+       app: appId,
++      asked: { keys: asks, day: day, also: also },
+       // What differs from the drawing (nmap recipes spec §5).
+       changes: Ch.changes(doc, appId, scan, planned, scanOf, way, appHost),
+       // How it connects (nuclei templates spec §6).
+@@ -575,7 +609,7 @@
+   }
+ 
+   function defaults(p) {
+-    var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true, identities: {}, names: {}, identifies: {}, applications: {}, moves: {}, strips: {}, renames: {}, seen: true, routers: {} };
++    var t = { hosts: {}, ports: {}, roles: {}, findings: {}, network: true, identities: {}, names: {}, identifies: {}, applications: {}, moves: {}, strips: {}, renames: {}, seen: true, asked: true, routers: {} };
+     (p.routers || []).forEach(function (r) { t.routers[r.key] = true; });
+     // A change is done only when ticked (spec §5.2).
+     t.connections = Cn.defaults(p.connections);
+@@ -746,11 +780,16 @@
+       strip: !!h.moved && h.moved.others.length > 0 && on("strips"),
+       rename: !!h.rename && on("renames"),
+       seen: !!p.date && ticks.seen === true && (h.seen !== p.date || !!h.missed),
++      asked: ticks.asked === true ? h.unasked || [] : [],
+     };
+   }
++  // The drawn hosts without a row that are noted as asked.
++  function alsoAsked(p, ticks) {
++    return ticks.asked === true && p.asked ? p.asked.also : [];
++  }
+ 
+   function summary(doc, p, ticks, limits) {
+-    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, named: 0, told: 0, moved: 0, renamed: 0, seen: 0, changes: Ch.changesTicked(p, ticks), connected: Cn.count(p.connections, ticks.connections, thereOf(p, ticks)) };
++    var s = { hosts: 0, filled: 0, filledNetworks: 0, networks: 0, attached: 0, routers: 0, firewalls: 0, services: 0, products: 0, flows: 0, unpatched: 0, identified: 0, named: 0, told: 0, moved: 0, renamed: 0, seen: 0, asked: alsoAsked(p, ticks).length, changes: Ch.changesTicked(p, ticks), connected: Cn.count(p.connections, ticks.connections, thereOf(p, ticks)) };
+     var rel = 0, newProducts = Object.create(null), marked = Object.create(null);
+     // The products that are named: those made for it are counted, and a
+     // name that is taken is no new product of a port's.
+@@ -774,6 +813,7 @@
+       if (does.move) s.moved++;
+       if (does.rename) s.renamed++;
+       if (!added && does.seen) s.seen++;
++      if (!added && does.asked.length) s.asked++;
+       // A merge writes the scanned addresses into the drawn host.
+       if (h.merged && h.addresses.length) s.filled++;
+       h.networks.forEach(function (n) {
+@@ -874,6 +914,7 @@
+     if (c && c.accounts + c.hosts + c.links) more.push("draws " + [[c.accounts, "account"], [c.hosts, "host"], [c.links, "connection"]].filter(function (x) { return x[0]; }).map(function (x) { return n(x[0], x[1]); }).join(", "));
+     // The day seen is said only when it is all there is.
+     if (s.seen && !parts.length && !more.length) more.push("notes " + n(s.seen, "host") + " as seen");
++    else if (s.asked && !parts.length && !more.length) more.push("notes " + n(s.asked, "host") + " as asked");
+     var said = (parts.length ? ["adds " + parts.join(", ")] : []).concat(more).join(", ");
+     return said ? said[0].toUpperCase() + said.slice(1) + "." : "Nothing new to add.";
+   }
+@@ -902,7 +943,7 @@
+     var s = summary(doc, p, ticks, null);
+     var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && h.merged && h.addresses.length; });
+     var stripping = p.hosts.some(function (h) { return ticks.hosts[h.key] && doing(h, ticks, p).strip; });
+-    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.named && !s.told && !(s.connected.accounts + s.connected.hosts + s.connected.links) && !s.moved && !s.renamed && !s.seen && !stripping && !s.changes) return null;
++    if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.named && !s.told && !(s.connected.accounts + s.connected.hosts + s.connected.links) && !s.moved && !s.renamed && !s.seen && !s.asked && !stripping && !s.changes) return null;
+     var next = JSON.parse(JSON.stringify(doc));
+     function step(edit) {
+       if (!edit) throw new Error("the nmap import could not be applied");
+@@ -978,6 +1019,7 @@
+         if (h.identities.length) next.entities[host].identities = h.identities.slice();
+         if (h.names.length && ticks.names && ticks.names[h.key]) next.entities[host].names = h.names.slice();
+         if (p.date && ticks.seen === true) next.entities[host].seen = p.date;
++        if (does.asked.length) next.entities[host].asked = noted(next.entities[host], does.asked, p.asked.day);
+       } else {
+         var e = next.entities[host];
+         if (does.identities.length) {
+@@ -995,6 +1037,7 @@
+           e.seen = p.date;
+           delete e.missed;
+         }
++        if (does.asked.length) e.asked = noted(e, does.asked, p.asked.day);
+       }
+       if (h.vendor && !next.entities[host].vendor) next.entities[host].vendor = h.vendor;
+       hostOf[h.key] = host;
+@@ -1099,6 +1142,9 @@
+       appOf: appOf,
+     }, thereOf(p, ticks));
+     Ch.applyChangesAfter(p, ticks, env, way.routes, flowOf, ends);
++    alsoAsked(p, ticks).forEach(function (id) {
++      if (next.entities[id]) next.entities[id].asked = noted(next.entities[id], p.asked.keys, p.asked.day);
++    });
+     // A finding marks its product unpatched and says why; its time stays as
+     // it is. The author's "patched" stands.
+     marks.forEach(function (m) {
+@@ -1123,7 +1169,17 @@
+   function isAttached(doc, machine, net) {
+     return links(doc, "attached").some(function (a) { return a.from === machine && a.to === net; });
+   }
+-  var api = { identityWords: identityWords, plan: plan, defaults: defaults, summary: summary, said: said, tickHost: tickHost, tickHosts: tickHosts, apply: apply, connectionThere: connectionThere };
++  // The hosts an import notes as asked, new ones too: the preview's row.
++  function askedCount(p, ticks) {
++    return alsoAsked(p, ticks).length + p.hosts.filter(function (h) {
++      return !!ticks.hosts[h.key] && doing(h, ticks, p).asked.length > 0;
++    }).length;
++  }
++  // "how they connect", "what runs there and the way to them".
++  function askedWords(keys) {
++    return (keys || []).map(function (k) { return ASKED_WORDS[k]; }).filter(Boolean).join(" and ");
++  }
++  var api = { askedCount: askedCount, askedWords: askedWords, identityWords: identityWords, plan: plan, defaults: defaults, summary: summary, said: said, tickHost: tickHost, tickHosts: tickHosts, apply: apply, connectionThere: connectionThere };
+   if (node) module.exports = api;
+   if (typeof window !== "undefined") window.effractorNmapPlan = api;
+ })();
+diff --git a/assets/js/nmap-read.js b/assets/js/nmap-read.js
+index 52ffe0f..65d34cb 100644
+--- a/assets/js/nmap-read.js
++++ b/assets/js/nmap-read.js
+@@ -413,7 +413,32 @@
+         }).filter(function (b) { return b[0] >= 0 && b[1] >= b[0]; }));
+       });
+     });
+-    return { scan: { tool: want, args: argsOf(runs), hosts: hosts, silentUdp: silentUdp, date: date, probed: probedPorts, types: types, sharedMacs: shared.length } };
++    var args = argsOf(runs);
++    return { scan: { tool: want, args: args, hosts: hosts, silentUdp: silentUdp, date: date, probed: probedPorts, types: types, sharedMacs: shared.length, asks: asksOf(args, types, probedPorts) } };
++  }
++
++  // What a scan asked of every host it lists (scan workflow spec §3), from
++  // what nmap says it ran. Only a scan that can find a port open asked for
++  // the ports: an ACK, window, FIN, NULL or Xmas scan says what a filter
++  // passes.
++  var FINDS_OPEN = ["syn", "connect", "udp"];
++  // A host was asked which ports are open by a scan of twenty TCP ports
++  // or more: a few ports looked at for another purpose leave the question
++  // open.
++  var ASKED_PORTS = 20;
++  function asksOf(args, types, probed) {
++    var a = " " + String(args || "").replace(/\s+/g, " ") + " ";
++    function has(word) {
++      return a.indexOf(" " + word + " ") >= 0;
++    }
++    var out = [];
++    var finds = (types || []).filter(function (t) { return FINDS_OPEN.indexOf(t) >= 0; });
++    // Without the list of what was probed, the scan is taken at its word.
++    var tcp = probed && probed.tcp ? probed.tcp.reduce(function (n, r) { return n + r[1] - r[0] + 1; }, 0) : null;
++    if (finds.some(function (t) { return t !== "udp"; }) && (tcp == null || tcp >= ASKED_PORTS)) out.push("ports");
++    if (finds.length && (has("-sV") || has("-A"))) out.push("products");
++    if (has("--traceroute") || has("-A")) out.push("route");
++    return out;
+   }
+ 
+   function probed(scan, proto, port) {
+@@ -453,7 +478,7 @@
+     return new TextDecoder(enc).decode(b);
+   }
+ 
+-  var api = { probed: probed, portState: portState, cleanName: cleanName, read: read, decodeFile: decodeFile, oneHost: oneHost, has: has, parseXml: parseXml, kids: kids, kid: kid, portName: portName, otherScanner: otherScanner, macOf: macOf };
++  var api = { asksOf: asksOf, probed: probed, portState: portState, cleanName: cleanName, read: read, decodeFile: decodeFile, oneHost: oneHost, has: has, parseXml: parseXml, kids: kids, kid: kid, portName: portName, otherScanner: otherScanner, macOf: macOf };
+   if (node) module.exports = api;
+   if (typeof window !== "undefined") window.effractorNmapRead = api;
+ })();
+diff --git a/assets/js/nmap-ui.js b/assets/js/nmap-ui.js
+index 4a07ae9..6de0136 100644
+--- a/assets/js/nmap-ui.js
++++ b/assets/js/nmap-ui.js
+@@ -298,9 +298,28 @@
+     preview();
+   }
+ 
++  // Scan workflow spec §3: nuclei does not say what it asked, so what the
++  // dialog asked stands in, said in a row that can be unticked.
++  function noted(rows) {
++    var a = at.plan.asked;
++    if (at.tool !== "nuclei" || !a.keys.length) return;
++    var ticked = {};
++    Object.keys(at.ticks).forEach(function (k) { ticked[k] = at.ticks[k]; });
++    ticked.asked = true;
++    var n = N.askedCount(at.plan, ticked);
++    if (!n) return;
++    var li = el("li", null, "nmap-host");
++    li.appendChild(check(at.ticks.asked, "Notes " + n + (n === 1 ? " host" : " hosts") + " as asked " + N.askedWords(a.keys), function (on) {
++      at.ticks.asked = on;
++      count();
++    }));
++    rows.appendChild(li);
++  }
++
+   function preview() {
+     var old = at.ticks;
+-    at.plan = N.plan(doc(), at.app, at.scan, $("nmap-range").value, at.merges);
++    if (at.tool === "nuclei") Nu.asking(at.scan, asked.nuclei.recipes, $("nmap-range").value);
++    at.plan = N.plan(doc(), at.app, at.scan, $("nmap-range").value, at.merges, new Date().toISOString().slice(0, 10));
+     var fresh = N.defaults(at.plan);
+     // What was ticked stays ticked over a new plan; what is new takes its default.
+     if (old) {
+@@ -377,6 +396,7 @@
+       rows.appendChild(li);
+     });
+     connections(rows);
++    noted(rows);
+     var notes = [];
+     if (at.plan.hosts.some(function (h) { return h.ports.some(function (r) { return !r.known; }); })) notes.push("Services run at an unknown privilege until you set it on their link.");
+     S.notes(at.tool, at.scan).forEach(function (n) { notes.push(n); });
+diff --git a/assets/js/nuclei.js b/assets/js/nuclei.js
+index 060730c..57fc06e 100644
+--- a/assets/js/nuclei.js
++++ b/assets/js/nuclei.js
+@@ -266,6 +266,17 @@
+   }
+ 
+   var STAMP = /^Last nuclei import: .*$/m;
++  // nuclei says what it found, not what it asked: the ticked templates and
++  // the targets of the dialog stand in (scan workflow spec §3), where the
++  // result holds an answer of effractor's templates at all.
++  var ASKS = { identify: "products", connect: "connections" };
++  function asking(scan, recipeIds, targets) {
++    var keys = (recipeIds || []).filter(function (id) { return R.has(ASKS, id); }).map(function (id) { return ASKS[id]; });
++    scan.asks = scan.answers ? keys.filter(function (k, i) { return keys.indexOf(k) === i; }) : [];
++    scan.covers = scan.asks.length ? String(targets == null ? "" : targets) : "";
++    return scan;
++  }
++
+   function stampFor(scan, range, date) {
+     var r = String(range == null ? "" : range).trim().replace(/\s+/g, " ");
+     var on = scan && scan.date ? " (scanned " + scan.date + ")" : "";
+@@ -316,6 +327,7 @@
+   api.read = read;
+   api.notes = notes;
+   api.stampFor = stampFor;
++  api.asking = asking;
+   if (node) module.exports = api;
+   if (typeof window !== "undefined") window.effractorNuclei = api;
+ })();
+diff --git a/assets/js/scan-targets.js b/assets/js/scan-targets.js
+new file mode 100644
+index 0000000..734f120
+--- /dev/null
++++ b/assets/js/scan-targets.js
+@@ -0,0 +1,38 @@
++// What a scan is aimed at, from the drawing (scan workflow spec §3, §4).
++// Pure: no DOM, no wasm.
++(function () {
++  var node = typeof module !== "undefined";
++  var Ad = node ? require("./nmap-address.js") : window.effractorNmapAddress;
++
++  function split(words) {
++    return String(words == null ? "" : words).trim().split(/[\s,]+/).filter(Boolean);
++  }
++  // The host a word names: the word itself, without the port or the URL
++  // around it ("https://app.lab:8443/x", "[fd00::5]:443", "10.0.1.5:22").
++  function hostOf(word) {
++    var w = String(word);
++    var url = /^[a-z][a-z0-9+.\-]*:\/\/([^\/?#]*)/i.exec(w);
++    if (url) w = url[1];
++    var six = /^\[([^\]]+)\](?::\d+)?$/.exec(w);
++    if (six) return six[1];
++    return /^[^:]+:\d+$/.test(w) ? w.replace(/:\d+$/, "") : w;
++  }
++
++  // The drawn hosts the words hold, by an address or by a name, in file
++  // order: the hosts a scan of these words asked.
++  function asked(doc, words) {
++    var hosts = split(words).map(hostOf);
++    var names = hosts.map(function (w) { return w.toLowerCase(); });
++    var cover = hosts.join(" ");
++    return Object.keys((doc && doc.entities) || {}).filter(function (id) {
++      var e = doc.entities[id];
++      if (e.kind !== "host") return false;
++      if ((e.addresses || []).some(function (a) { return Ad.covers(cover, a); })) return true;
++      return [String(e.label || "").trim().toLowerCase()].concat(e.names || []).some(function (n) { return !!n && names.indexOf(n) >= 0; });
++    });
++  }
++
++  var api = { asked: asked, hostOf: hostOf };
++  if (node) module.exports = api;
++  if (typeof window !== "undefined") window.effractorScanTargets = api;
++})();
+diff --git a/crates/effractor-core/src/architecture.rs b/crates/effractor-core/src/architecture.rs
+index c13de0f..a1ffda3 100644
+--- a/crates/effractor-core/src/architecture.rs
++++ b/crates/effractor-core/src/architecture.rs
+@@ -461,6 +461,46 @@ impl Tool {
+     }
+ }
+ 
++/// What scans have asked a host, each with the day of the last scan that
++/// asked (scan workflow spec §3). Generation never reads it.
++#[derive(Debug, Clone, Default, PartialEq, Eq)]
++pub struct Asked {
++    pub ports: Option<String>,
++    pub products: Option<String>,
++    pub route: Option<String>,
++    pub connections: Option<String>,
++}
++
++impl Asked {
++    /// The keys in the order the file writes them.
++    pub const KEYS: [&'static str; 4] = ["ports", "products", "route", "connections"];
++
++    pub fn get(&self, key: &str) -> Option<&str> {
++        match key {
++            "ports" => self.ports.as_deref(),
++            "products" => self.products.as_deref(),
++            "route" => self.route.as_deref(),
++            "connections" => self.connections.as_deref(),
++            _ => None,
++        }
++    }
++
++    /// Sets a key of `KEYS`; any other is ignored.
++    pub fn set(&mut self, key: &str, day: Option<String>) {
++        match key {
++            "ports" => self.ports = day,
++            "products" => self.products = day,
++            "route" => self.route = day,
++            "connections" => self.connections = day,
++            _ => {}
++        }
++    }
++
++    pub fn is_empty(&self) -> bool {
++        Self::KEYS.iter().all(|k| self.get(k).is_none())
++    }
++}
++
+ #[derive(Debug, Clone, PartialEq)]
+ pub struct Entity {
+     pub kind: EntityKind,
+@@ -480,6 +520,8 @@ pub struct Entity {
+     pub seen: Option<String>,
+     /// `YYYY-MM-DD`: a covered scan the host did not answer; gone once seen.
+     pub missed: Option<String>,
++    /// What scans have asked a host; empty elsewhere.
++    pub asked: Asked,
+     /// Only on an application.
+     pub tool: Option<Tool>,
+     pub parameters: IndexMap<Slot, Parameter>,
+@@ -499,6 +541,7 @@ impl Entity {
+             vendor: None,
+             seen: None,
+             missed: None,
++            asked: Asked::default(),
+             tool: None,
+             parameters: IndexMap::new(),
+             defenses: Defenses::default(),
+diff --git a/crates/effractor-format/src/architecture_read.rs b/crates/effractor-format/src/architecture_read.rs
+index b5b1eb2..f8ff352 100644
+--- a/crates/effractor-format/src/architecture_read.rs
++++ b/crates/effractor-format/src/architecture_read.rs
+@@ -5,9 +5,9 @@
+ //! ask for and a save writes them out.
+ 
+ use effractor_core::architecture::{
+-    Architecture, Association, Attacker, AttackerProfile, Change, Cluster, Defense, Defenses,
+-    Entity, EntityKind, Evidence, Factor, Flow, LibraryPin, Mode, Parameter, Privilege, Relation,
+-    RelationKind, Scenario, Slot, State, StateRef, Switch, Tool,
++    Architecture, Asked, Association, Attacker, AttackerProfile, Change, Cluster, Defense,
++    Defenses, Entity, EntityKind, Evidence, Factor, Flow, LibraryPin, Mode, Parameter, Privilege,
++    Relation, RelationKind, Scenario, Slot, State, StateRef, Switch, Tool,
+ };
+ use effractor_core::{Code, EntityId, Pos, article};
+ use std::sync::LazyLock;
+@@ -181,6 +181,7 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
+             "vendor",
+             "seen",
+             "missed",
++            "asked",
+             "tool",
+             "parameters",
+             "defenses",
+@@ -222,6 +223,11 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
+         true => day(cx, &f, "missed"),
+         false => None,
+     };
++    let asked = match f.get("asked") {
++        Some(e) if host_only(cx, &f, "asked", kind) => asked(cx, e, &f.path("asked")),
++        Some(_) => None,
++        None => Some(Asked::default()),
++    };
+     let tool = match f.get("tool") {
+         Some(e) => tool(cx, e, &f.path("tool"), kind),
+         None => Some(None),
+@@ -244,6 +250,7 @@ fn entity(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Entity> {
+         vendor: vendor?,
+         seen: seen?,
+         missed: missed?,
++        asked: asked?,
+         tool: tool?,
+         parameters: parameters?,
+         defenses: defenses?,
+@@ -385,6 +392,20 @@ fn names(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Vec<String>> {
+     ok.then_some(out)
+ }
+ 
++/// What scans have asked a host: a day per key (scan workflow spec §3).
++fn asked(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Asked> {
++    let f = cx.fields(&entry.value, path, entry.key_pos, &Asked::KEYS)?;
++    let mut out = Asked::default();
++    let mut ok = true;
++    for key in Asked::KEYS {
++        match day(cx, &f, key) {
++            Some(d) => out.set(key, d),
++            None => ok = false,
++        }
++    }
++    ok.then_some(out)
++}
++
+ /// An optional day, `YYYY-MM-DD`.
+ fn day(cx: &mut Cx, f: &Fields, key: &str) -> Option<Option<String>> {
+     let Some(text) = cx.optional_string(f, key)? else {
+diff --git a/crates/effractor-format/src/architecture_write.rs b/crates/effractor-format/src/architecture_write.rs
+index a96f3e4..7785fc0 100644
+--- a/crates/effractor-format/src/architecture_write.rs
++++ b/crates/effractor-format/src/architecture_write.rs
+@@ -7,7 +7,9 @@
+ use std::fmt::Write;
+ 
+ use effractor_core::EntityId;
+-use effractor_core::architecture::{Architecture, Change, Factor, Parameter, Relation, Switch};
++use effractor_core::architecture::{
++    Architecture, Asked, Change, Factor, Parameter, Relation, Switch,
++};
+ 
+ use crate::CURRENT_VERSION;
+ use crate::lower::{ARCHITECTURE, Extras, TIME_UNITS};
+@@ -113,6 +115,18 @@ fn document(w: &mut Writer, m: &Architecture) {
+                 w.line(4, key, &string(v, Context::Block));
+             }
+         }
++        let extended = format!("{path}.asked");
++        if !entity.asked.is_empty() || w.has_extensions(&extended) {
++            let mut fields: Vec<String> = Asked::KEYS
++                .iter()
++                .filter_map(|k| {
++                    let day = entity.asked.get(k)?;
++                    Some(format!("{k}: {}", string(day, Context::FlowValue)))
++                })
++                .collect();
++            w.extension_fields(&extended, &mut fields);
++            w.line(4, "asked", &format!("{{{}}}", fields.join(", ")));
++        }
+         if let Some(tool) = &entity.tool {
+             w.line(4, "tool", tool.as_str());
+         }
+diff --git a/crates/effractor-server/templates/shell.html b/crates/effractor-server/templates/shell.html
+index 8b4ed22..4a27bc9 100644
+--- a/crates/effractor-server/templates/shell.html
++++ b/crates/effractor-server/templates/shell.html
+@@ -45,6 +45,7 @@
+ <script src="{{ asset_prefix }}assets/js/nuclei-command.js" defer></script>
+ <script src="{{ asset_prefix }}assets/js/nuclei-templates.js" defer></script>
+ <script src="{{ asset_prefix }}assets/js/nmap-connect.js" defer></script>
++<script src="{{ asset_prefix }}assets/js/scan-targets.js" defer></script>
+ <script src="{{ asset_prefix }}assets/js/nmap-plan.js" defer></script>
+ <script src="{{ asset_prefix }}assets/js/nmap.js" defer></script>
+ <script src="{{ asset_prefix }}assets/js/masscan.js" defer></script>
