@@ -21,75 +21,75 @@ http:
         part: header
         group: 1
         regex:
-          - "(?i)location:[[:space:]]*(https?://[^[:space:]]*/realms/[^/[:space:]]+/protocol/(?:openid-connect|saml)[^[:space:]]*)"
+          - "(?im)^location:[[:space:]]*(https?://[^/?#@[:space:]]+(?:/[^?#[:space:]]*)?/realms/[^/[:space:]]+/protocol/(?:openid-connect|saml)[^[:space:]]*)[[:space:]]*$"
       - type: regex
         name: sso-adfs
         part: header
         group: 1
         regex:
-          - "(?i)location:[[:space:]]*(https?://[^[:space:]]*/adfs/(?:ls|oauth2)[^[:space:]]*)"
+          - "(?im)^location:[[:space:]]*(https?://[^/?#@[:space:]]+(?:/[^?#[:space:]]*)?/adfs/(?:ls|oauth2)[^[:space:]]*)[[:space:]]*$"
       - type: regex
         name: sso-entra
         part: header
         group: 1
         regex:
-          - "(?i)location:[[:space:]]*(https?://[^[:space:]]*login[.]microsoftonline[.]com[^[:space:]]*)"
+          - "(?im)^location:[[:space:]]*(https?://(?:[^/?#@[:space:]]*[.])?login[.]microsoftonline[.]com(?:[:/?#][^[:space:]]*)?)[[:space:]]*$"
       - type: regex
         name: sso-okta
         part: header
         group: 1
         regex:
-          - "(?i)location:[[:space:]]*(https?://[^[:space:]]*[.]okta[.]com[^[:space:]]*)"
+          - "(?im)^location:[[:space:]]*(https?://(?:[^/?#@[:space:]]*[.])?okta[.]com(?:[:/?#][^[:space:]]*)?)[[:space:]]*$"
       - type: regex
         name: sso-google
         part: header
         group: 1
         regex:
-          - "(?i)location:[[:space:]]*(https?://[^[:space:]]*accounts[.]google[.]com[^[:space:]]*)"
+          - "(?im)^location:[[:space:]]*(https?://(?:[^/?#@[:space:]]*[.])?accounts[.]google[.]com(?:[:/?#][^[:space:]]*)?)[[:space:]]*$"
       - type: regex
         name: sso-saml
         part: header
         group: 1
         regex:
-          - "(?i)location:[[:space:]]*(https?://[^[:space:]]*[?&]SAMLRequest=[^[:space:]]*)"
+          - "(?im)^location:[[:space:]]*(https?://[^/?#@[:space:]]+[^?#[:space:]]*[?](?:[^#[:space:]]*&)?(?:SAMLRequest=)[^[:space:]]*)[[:space:]]*$"
       - type: regex
         name: sso-oidc
         part: header
         group: 1
         regex:
-          - "(?i)location:[[:space:]]*(https?://[^[:space:]]*[?&]response_type=[^[:space:]]*client_id=|[?&]client_id=[^[:space:]]*response_type=[^[:space:]]*)"
+          - "(?im)^location:[[:space:]]*(https?://[^/?#@[:space:]]+[^?#[:space:]]*[?](?:[^#[:space:]]*&)?(?:response_type=[^&#[:space:]]*&(?:[^#[:space:]]*&)?client_id=|client_id=[^&#[:space:]]*&(?:[^#[:space:]]*&)?response_type=)[^[:space:]]*)[[:space:]]*$"
       - type: regex
         name: sso-keycloak-link
         part: body
         group: 1
         regex:
           - >-
-            (?i)(?:href|action)="(https?://[^"[:space:]]*/realms/[^/"[:space:]]+/protocol/(?:openid-connect|saml)[^"[:space:]]*)"
+            (?i)(?:href|action)="(https?://[^/?#@"[:space:]]+(?:/[^?#"[:space:]]*)?/realms/[^/"[:space:]]+/protocol/(?:openid-connect|saml)[^"[:space:]]*)"
       - type: regex
         name: sso-adfs-link
         part: body
         group: 1
         regex:
           - >-
-            (?i)(?:href|action)="(https?://[^"[:space:]]*/adfs/(?:ls|oauth2)[^"[:space:]]*)"
+            (?i)(?:href|action)="(https?://[^/?#@"[:space:]]+(?:/[^?#"[:space:]]*)?/adfs/(?:ls|oauth2)[^"[:space:]]*)"
       - type: regex
         name: sso-entra-link
         part: body
         group: 1
         regex:
           - >-
-            (?i)(?:href|action)="(https?://[^"[:space:]]*login[.]microsoftonline[.]com[^"[:space:]]*)"
+            (?i)(?:href|action)="(https?://(?:[^/?#@"[:space:]]*[.])?login[.]microsoftonline[.]com(?:[:/?#][^"[:space:]]*)?)"
       - type: regex
         name: sso-okta-link
         part: body
         group: 1
         regex:
           - >-
-            (?i)(?:href|action)="(https?://[^"[:space:]]*[.]okta[.]com[^"[:space:]]*)"
+            (?i)(?:href|action)="(https?://(?:[^/?#@"[:space:]]*[.])?okta[.]com(?:[:/?#][^"[:space:]]*)?)"
       - type: regex
         name: sso-google-link
         part: body
         group: 1
         regex:
           - >-
-            (?i)(?:href|action)="(https?://[^"[:space:]]*accounts[.]google[.]com[^"[:space:]]*)"
+            (?i)(?:href|action)="(https?://(?:[^/?#@"[:space:]]*[.])?accounts[.]google[.]com(?:[:/?#][^"[:space:]]*)?)"

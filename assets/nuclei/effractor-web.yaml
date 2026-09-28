@@ -87,7 +87,8 @@ http:
         name: gitlab
         part: body
         regex:
-          - "about[.]gitlab[.]com"
+          - >-
+            content="GitLab" property="og:site_name"|property="og:site_name" content="GitLab"|gon[.]gitlab_url
       - type: regex
         name: gitea
         part: body
@@ -191,7 +192,7 @@ http:
         part: body
         regex:
           - >-
-            name="generator" content="WordPress|/wp-content/
+            name="generator" content="WordPress|/wp-includes/
       - type: regex
         name: wordpress-version
         part: body
@@ -253,7 +254,8 @@ http:
         name: ivanti-connect-secure
         part: body
         regex:
-          - "/dana-na/"
+          - >-
+            (?i)(?:href|action|src)="/dana-na/
       - type: regex
         name: cisco-asa
         part: body
@@ -274,7 +276,7 @@ http:
         name: sonicwall
         part: header
         regex:
-          - "(?i)server:[[:space:]]*SonicWALL"
+          - "(?i)server:[[:space:]]*(?:SonicWALL|SMA/[0-9])"
       - type: regex
         name: sonicwall-version
         part: header
@@ -488,7 +490,7 @@ http:
         name: sonicwall
         part: header
         regex:
-          - "(?i)server:[[:space:]]*SonicWALL"
+          - "(?i)server:[[:space:]]*(?:SonicWALL|SMA/[0-9])"
       - type: regex
         name: sonicwall-version
         part: header

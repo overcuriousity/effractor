@@ -199,6 +199,20 @@
       ]
     },
     {
+      "address": "10.0.2.63",
+      "ports": [
+        {
+          "port": 8080,
+          "server": "nginx/1.24.0",
+          "pages": {
+            "/": {
+              "body": "<!doctype html><html><head><title>Start</title></head><body><a href=\"https://vpn.corp.example/dana-na/auth/url_default/welcome.cgi\">VPN</a> <a href=\"https://about.gitlab.com/\">GitLab</a> <img src=\"https://blog.corp.example/wp-content/uploads/logo.png\"> <a href=\"https://help.corp.example/kb?q=login.microsoftonline.com\">Help</a></body></html>"
+            }
+          }
+        }
+      ]
+    },
+    {
       "address": "10.0.2.14",
       "ports": [
         {
@@ -394,6 +408,35 @@
       ]
     },
     {
+      "address": "10.0.2.80",
+      "ports": [
+        {
+          "port": 8080,
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "https://id.corp.example/authorize?client_id=desk&response_type=code&scope=openid"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "address": "10.0.2.81",
+      "ports": [
+        {
+          "port": 8080,
+          "server": "nginx/1.24.0",
+          "pages": {
+            "/": {
+              "status": 302,
+              "location": "https://portal.corp.example/start?partner=foo.okta.com"
+            }
+          }
+        }
+      ]
+    },
+    {
       "address": "10.0.2.100",
       "ports": [
         {
@@ -504,7 +547,7 @@
               "location": "/users/sign_in"
             },
             "/users/sign_in": {
-              "body": "<!doctype html><html><head><title>Sign in</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form><a href=\"https://about.gitlab.com/\">About GitLab</a></body></html>"
+              "body": "<!doctype html><html><head><meta content=\"GitLab\" property=\"og:site_name\"><title>Sign in</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form><a href=\"https://about.gitlab.com/\">About GitLab</a></body></html>"
             }
           }
         }
@@ -967,18 +1010,13 @@
               "sma.corp.example"
             ]
           },
+          "server": "SMA/12.4.2-02384",
           "pages": {
             "/": {
               "status": 302,
-              "location": "/cgi-bin/welcome",
-              "headers": {
-                "Server": "SonicWALL"
-              }
+              "location": "/cgi-bin/welcome"
             },
             "/cgi-bin/welcome": {
-              "headers": {
-                "Server": "SMA/12.4.2-02384"
-              },
               "body": "<!doctype html><html><head><title>Virtual Office</title></head><body><form method=\"post\"><input name=\"username\"><input type=\"password\" name=\"password\"></form></body></html>"
             }
           }

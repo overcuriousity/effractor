@@ -255,3 +255,87 @@ test('the lab answers every question of the table', () => {
   }
   for (const h of LAB.hosts) assert.match(h.address, /^10\.0\.2\.\d+$|^fd00:2::[0-9a-f]+$/, 'the lab is 10.0.2.0/24 and fd00:2::/64');
 });
+
+// ---- from the review of the branch ----
+const found = (name, text) => T.pattern(T.answer(name)).map(r => r.exec(text)).filter(Boolean).map(m => m[1] === undefined ? m[0] : m[1]);
+
+test('review: a word that is neither an address nor a name is refused; nuclei would ask a public resolver for it', () => {
+  for (const bad of ['10.0.1.300', '10.0.1', '1.2.3.4.5', 'a..b', 'http://-a.example', 'fe80::1%eth0', '::ffff:10.0.0.1', '010.0.1.9', '010.0.1.0/24', '10.0.1.0/33', 'fd00::/129', 'a&b', 'a~b', '10.0.1.5:99999', 'https://app.lab:0/x']) {
+    assert.match(T.targets(drawing(), bad, ['identify']).problem || '', /^The range may hold only/, bad);
+    assert.match(T.command(['identify'], {}, '10.0.1.0/24 ' + bad, drawing()).problem || '', /^The range may hold only/, bad);
+  }
+  // An address of the drawing that is none as nuclei reads it is left out.
+  const d = drawing();
+  d.entities.box.addresses = ['010.0.1.2'];
+  assert.deepEqual(T.targets(d, '10.0.1.0/24', ['identify']).hosts, ['10.0.1.40']);
+  // Whatever is asked by a name is asked with this machine's resolvers.
+  for (const range of ['wiki.lab', 'https://app.lab/x', '10.0.1.0/24 wiki.lab', 'far.corp.example']) {
+    const c = T.command(['identify'], {}, range, drawing());
+    const run = c.text.split('; ').filter(p => /^nuclei /.test(p));
+    assert.equal(run.length, 1, range);
+    assert.match(run[0], / -list targets\.txt -resolvers resolvers\.txt /, range);
+    assert.match(c.text, /; awk '\/\^nameserver\/ \{print \$2\}' \/etc\/resolv\.conf > resolvers\.txt; nuclei /, range);
+  }
+});
+
+test('review: a port typed by hand is asked', () => {
+  const t = T.targets(E.empty(), '10.0.1.5:2375 https://app.lab:8444/x [fd00::5]:8444 10.0.1.6:443 http://10.0.1.7', ['identify']);
+  assert.deepEqual(t.hosts, ['10.0.1.5', '[fd00::5]', '10.0.1.6', '10.0.1.7', 'app.lab']);
+  assert.deepEqual(t.extra, ['10.0.1.5:2375', 'app.lab:8444', '[fd00::5]:8444'], 'a usual port is asked anyway');
+  assert.equal(t.said, '5 hosts, 32 usual ports and 3 typed ones.');
+  const both = T.targets(drawing(), '10.0.1.0/24 10.0.1.40:8444 10.0.1.40:9999', ['identify']);
+  assert.deepEqual(both.extra, ['10.0.1.40:8444', '10.0.1.40:9999'], 'a port drawn and typed is asked once');
+  assert.equal(both.said, '2 drawn hosts, 32 usual ports, 1 drawn one and 1 typed one.');
+  assert.match(T.command(['identify'], {}, '10.0.1.5:2375', E.empty()).text, /; print "10\.0\.1\.5:2375" \}' > targets\.txt; /);
+});
+
+test('review: a sign-on is known by the host or the path of where logins are sent, not by a word in it', () => {
+  const at = url => 'HTTP/1.1 302 Found\r\nServer: nginx\r\nLocation: ' + url + '\r\nContent-Length: 0\r\n\r\n';
+  const link = url => '<html><body><a class="x" href="' + url + '">Sign in</a></body></html>';
+  const cases = [
+    ['sso-okta', 'https://corp.okta.com/app/corp_crm_1/exk1/sso/saml', true],
+    ['sso-okta', 'https://portal.corp.example/start?partner=foo.okta.com', false],
+    ['sso-okta', 'https://evil.okta.com.attacker.example/x', false],
+    ['sso-okta', 'https://notokta.com/', false],
+    ['sso-entra', 'https://login.microsoftonline.com/0000/oauth2/v2.0/authorize?client_id=hr', true],
+    ['sso-entra', 'https://help.corp.example/kb?q=login.microsoftonline.com', false],
+    ['sso-google', 'https://accounts.google.com/o/oauth2/v2/auth?client_id=crm', true],
+    ['sso-google', 'https://accounts.google.com.example/', false],
+    ['sso-keycloak', 'https://sso.corp.example/realms/corp/protocol/openid-connect/auth?client_id=wiki&response_type=code', true],
+    ['sso-keycloak', 'https://sso.corp.example/auth/realms/corp/protocol/saml', true],
+    ['sso-keycloak', 'https://help.corp.example/kb?next=/realms/corp/protocol/saml', false],
+    ['sso-adfs', 'https://adfs.corp.example/adfs/ls/?wa=wsignin1.0', true],
+    ['sso-adfs', 'https://help.corp.example/kb?next=/adfs/ls', false],
+    ['sso-saml', 'https://idp.corp.example/sso?SAMLRequest=fZJNT8MwDIb', true],
+    ['sso-saml', 'https://idp.corp.example/sso?RelayState=x&SAMLRequest=fZJNT8MwDIb', true],
+    ['sso-oidc', 'https://id.corp.example/authorize?response_type=code&client_id=shop&scope=openid', true],
+    ['sso-oidc', 'https://id.corp.example/authorize?client_id=shop&response_type=code&scope=openid', true],
+    ['sso-oidc', 'https://id.corp.example/authorize?client_id=shop', false],
+  ];
+  for (const [name, url, is] of cases) {
+    assert.deepEqual(found(name, at(url)), is ? [url] : [], name + ' ' + url);
+    assert.deepEqual(found(name, at(url).replace('Location:', 'Content-Location:')), [], name + ': another header');
+    if (T.answer(name + '-link')) assert.deepEqual(found(name + '-link', link(url)), is ? [url] : [], name + '-link ' + url);
+  }
+});
+
+test('review: an application is known by a trace of its own, not by a link to another machine', () => {
+  const plain = '<html><head><title>Start</title></head><body><a href="https://vpn.corp.example/dana-na/auth/url_default/welcome.cgi">VPN</a> <a href="https://about.gitlab.com/">GitLab</a> <img src="https://blog.corp.example/wp-content/uploads/logo.png"> <a href="https://blog.corp.example/wp-login.php">Blog</a></body></html>';
+  assert.deepEqual(T.ANSWERS.filter(a => a.is === 'application' && a.part === 'body' && T.pattern(a).some(r => r.test(plain))).map(a => a.name), []);
+  assert.equal(found('gitlab', '<meta content="GitLab" property="og:site_name"><a href="https://about.gitlab.com/">About GitLab</a>').length, 1);
+  assert.equal(found('wordpress', '<link rel="stylesheet" href="https://blog.corp.example/wp-includes/css/dist/block-library/style.min.css?ver=6.4.3">').length, 1);
+  assert.equal(found('wordpress', '<meta name="generator" content="WordPress 6.4.3">').length, 1);
+  assert.equal(found('ivanti-connect-secure', '<form name="frmLogin" action="/dana-na/auth/url_default/login.cgi" method="post">').length, 1);
+  // The lab holds such a page, and a redirect whose query names a sign-on: nuclei named nothing there.
+  const quiet = LAB.hosts.filter(h => ['10.0.2.63', '10.0.2.81'].includes(h.address));
+  assert.equal(quiet.length, 2);
+});
+
+test('review: one Server header tells SonicWall and its version', () => {
+  const head = 'HTTP/1.1 200 OK\r\nServer: SMA/12.4.2-02384\r\n\r\n';
+  assert.equal(found('sonicwall', head).length, 1);
+  assert.deepEqual(found('sonicwall-version', head), ['12.4.2-02384']);
+  assert.equal(found('sonicwall', 'HTTP/1.1 200 OK\r\nServer: SonicWALL SSL-VPN Web Server\r\n\r\n').length, 1);
+  assert.deepEqual([].concat(T.answer('sonicwall').server), ['sonicwall', 'sma']);
+  for (const p of LAB.hosts.flatMap(h => h.ports)) for (const page of Object.values(p.pages || {})) assert.equal((page.headers || {}).Server, undefined, 'a port has one Server');
+});

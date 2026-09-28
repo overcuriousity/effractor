@@ -38,12 +38,25 @@
     return { name: name, template: L, is: "sso", kind: kind, paths: ROOT, part: part, regex: regex, group: 1 };
   }
   // Where a sign-on is named: in a redirect that leaves the host, in a link.
-  function sent(to) {
-    return ["(?i)location:[[:space:]]*(https?://[^[:space:]]*" + to + "[^[:space:]]*)"];
+  // It is known by the URL's host (that name or one under it), by its path,
+  // or by its query, never by a word somewhere in the URL. `{X}` in a
+  // pattern is what ends the URL: a space, in a link a double quote too.
+  function signOn(where, quote) {
+    var x = quote + "[:space:]";
+    var host = "https?://[^/?#@" + x + "]+";
+    var found = where.host ? "https?://(?:[^/?#@" + x + "]*[.])?" + where.host + "(?:[:/?#][^" + x + "]*)?"
+      : where.path ? host + "(?:/[^?#" + x + "]*)?" + where.path + "[^" + x + "]*"
+        : host + "[^?#" + x + "]*[?](?:[^#" + x + "]*&)?(?:" + where.query + ")[^" + x + "]*";
+    return found.split("{X}").join(x);
   }
-  function linked(to) {
-    return ["(?i)(?:href|action)=\"(https?://[^\"[:space:]]*" + to + "[^\"[:space:]]*)\""];
+  function sent(where) {
+    return ["(?im)^location:[[:space:]]*(" + signOn(where, "") + ")[[:space:]]*$"];
   }
+  function linked(where) {
+    return ["(?i)(?:href|action)=\"(" + signOn(where, "\"") + ")\""];
+  }
+  var KEYCLOAK = { path: "/realms/[^/{X}]+/protocol/(?:openid-connect|saml)" }, ADFS = { path: "/adfs/(?:ls|oauth2)" };
+  var ENTRA = { host: "login[.]microsoftonline[.]com" }, OKTA = { host: "okta[.]com" }, GOOGLE = { host: "accounts[.]google[.]com" };
 
   var ANSWERS = [
     // ---- what answers on a port (spec §5.1), spelled as nmap spells it ----
@@ -81,7 +94,8 @@
     app("splunk", "Splunk", ["header", "(?i)server:[[:space:]]*Splunkd"], { server: "splunkd" }),
     version("splunk", ["body", "\"VERSION_LABEL\":[[:space:]]*\"" + VERSION + "\""]),
     // ---- development ----
-    app("gitlab", "GitLab", ["body", "about[.]gitlab[.]com"]),
+    // Its own page says so; a link to about.gitlab.com is on many a start page.
+    app("gitlab", "GitLab", ["body", "content=\"GitLab\" property=\"og:site_name\"|property=\"og:site_name\" content=\"GitLab\"|gon[.]gitlab_url"]),
     app("gitea", "Gitea", ["body", "Powered by Gitea"]),
     version("gitea", ["body", "Gitea Version:[[:space:]]*" + VERSION]),
     app("jenkins", "Jenkins", ["header", "(?i)x-jenkins:"]),
@@ -101,7 +115,8 @@
     version("bitbucket", ["body", "id=\"product-version\"[^>]*>[[:space:]]*v?" + VERSION]),
     app("nextcloud", "Nextcloud", ["body", "var nc_lastLogin|var nc_pageLoad"]),
     version("nextcloud", ["body", "\"version\":\"" + VERSION + "\""]),
-    app("wordpress", "WordPress", ["body", "name=\"generator\" content=\"WordPress|/wp-content/"]),
+    // /wp-content/ is in every page that shows a picture of another's blog.
+    app("wordpress", "WordPress", ["body", "name=\"generator\" content=\"WordPress|/wp-includes/"]),
     version("wordpress", ["body", "name=\"generator\" content=\"WordPress " + VERSION + "\""]),
     app("roundcube", "Roundcube Webmail", ["body", "\"rcversion\":"]),
     // 10611 is 1.6.11.
@@ -118,12 +133,14 @@
     // ---- remote access and edge ----
     app("citrix-gateway", "Citrix Gateway", ["header", "(?i)set-cookie:[[:space:]]*(?:NSC_|citrix_ns_id)"], { paths: ["/", "/vpn/index.html"] }),
     app("globalprotect", "GlobalProtect", ["body", "(?s)GlobalProtect Portal.*global-protect|global-protect.*GlobalProtect Portal"], { paths: ["/global-protect/login.esp"] }),
-    app("ivanti-connect-secure", "Ivanti Connect Secure", ["body", "/dana-na/"]),
+    // On the machine itself: a link to another machine's is no trace.
+    app("ivanti-connect-secure", "Ivanti Connect Secure", ["body", "(?i)(?:href|action|src)=\"/dana-na/"]),
     app("cisco-asa", "Cisco Secure Firewall ASA", ["body", "/[+]CSCOU[+]/portal[.]css"], { paths: ["/", "/+CSCOE+/logon.html"] }),
     app("guacamole", "Apache Guacamole", ["body", "guacamole-logo"]),
     app("fortigate", "FortiGate", ["body", "top[.]location=\"/remote/login\""], { manages: true }),
     app("big-ip", "F5 BIG-IP", ["body", "(?s)Configuration Utility.*F5 Networks|F5 Networks.*Configuration Utility"], { manages: true, paths: ["/tmui/login.jsp"] }),
-    app("sonicwall", "SonicWall", ["header", "(?i)server:[[:space:]]*SonicWALL"], { manages: true, server: "sonicwall", paths: ["/", "/cgi-bin/welcome"] }),
+    // Its Server header names the maker or the machine (SMA), which has the version.
+    app("sonicwall", "SonicWall", ["header", "(?i)server:[[:space:]]*(?:SonicWALL|SMA/[0-9])"], { manages: true, server: ["sonicwall", "sma"], paths: ["/", "/cgi-bin/welcome"] }),
     version("sonicwall", ["header", "(?i)server:[[:space:]]*SMA/" + VERSION], { paths: ["/", "/cgi-bin/welcome"] }),
     // ---- machines and their management ----
     app("vcenter", "VMware vCenter", ["body", "content=\"VMware vCenter"], { manages: true }),
@@ -164,19 +181,20 @@
 
     // ---- logins and where they are sent (spec §6.1, §6.2) ----
     { name: "login", template: L, is: "login", paths: ROOT, part: "body", regex: "(?i)<input[^>]*type=[\"]?password" },
-    sso("sso-keycloak", "Keycloak", "header", sent("/realms/[^/[:space:]]+/protocol/(?:openid-connect|saml)")),
-    sso("sso-adfs", "AD FS", "header", sent("/adfs/(?:ls|oauth2)")),
-    sso("sso-entra", "Microsoft Entra ID", "header", sent("login[.]microsoftonline[.]com")),
-    sso("sso-okta", "Okta", "header", sent("[.]okta[.]com")),
-    sso("sso-google", "Google sign-in", "header", sent("accounts[.]google[.]com")),
-    sso("sso-saml", null, "header", sent("[?&]SAMLRequest=")),
-    sso("sso-oidc", null, "header", sent("[?&]response_type=[^[:space:]]*client_id=|[?&]client_id=[^[:space:]]*response_type=")),
+    sso("sso-keycloak", "Keycloak", "header", sent(KEYCLOAK)),
+    sso("sso-adfs", "AD FS", "header", sent(ADFS)),
+    sso("sso-entra", "Microsoft Entra ID", "header", sent(ENTRA)),
+    sso("sso-okta", "Okta", "header", sent(OKTA)),
+    sso("sso-google", "Google sign-in", "header", sent(GOOGLE)),
+    sso("sso-saml", null, "header", sent({ query: "SAMLRequest=" })),
+    // Both parameters, whichever comes first.
+    sso("sso-oidc", null, "header", sent({ query: "response_type=[^&#{X}]*&(?:[^#{X}]*&)?client_id=|client_id=[^&#{X}]*&(?:[^#{X}]*&)?response_type=" })),
     // The same, as a link or a form on the login page.
-    sso("sso-keycloak-link", "Keycloak", "body", linked("/realms/[^/\"[:space:]]+/protocol/(?:openid-connect|saml)")),
-    sso("sso-adfs-link", "AD FS", "body", linked("/adfs/(?:ls|oauth2)")),
-    sso("sso-entra-link", "Microsoft Entra ID", "body", linked("login[.]microsoftonline[.]com")),
-    sso("sso-okta-link", "Okta", "body", linked("[.]okta[.]com")),
-    sso("sso-google-link", "Google sign-in", "body", linked("accounts[.]google[.]com")),
+    sso("sso-keycloak-link", "Keycloak", "body", linked(KEYCLOAK)),
+    sso("sso-adfs-link", "AD FS", "body", linked(ADFS)),
+    sso("sso-entra-link", "Microsoft Entra ID", "body", linked(ENTRA)),
+    sso("sso-okta-link", "Okta", "body", linked(OKTA)),
+    sso("sso-google-link", "Google sign-in", "body", linked(GOOGLE)),
 
     // ---- what a name points to (spec §6.4) ----
     { name: "address", template: "effractor-points-to", is: "address", regex: "IN[[:space:]]+A[[:space:]]+([0-9.]+)", group: 1 },
@@ -254,7 +272,7 @@
   function pattern(a) {
     return patterns(a).map(function (p) {
       var flags = "";
-      var m = /^\(\?([is]+)\)/.exec(p);
+      var m = /^\(\?([ims]+)\)/.exec(p);
       if (m) {
         flags = m[1];
         p = p.slice(m[0].length);
@@ -279,6 +297,7 @@
   var ADJUST = ["addresses", "speed", "patience", "errors"];
   // As nuclei-command.js: nothing a shell reads as its own.
   var RANGE_CHARS = /^[0-9A-Za-z.:\/\-_~%?=&@\[\]+]+$/;
+  var RANGE_PROBLEM = "The range may hold only addresses, names, CIDR and URLs, such as 10.0.1.0/24 or https://app.lab:8443.";
 
   function has(o, k) {
     return Object.prototype.hasOwnProperty.call(o, k);
@@ -310,21 +329,47 @@
   function count(k, one) {
     return k + " " + one + (k === 1 ? "" : "s");
   }
+  // An address as nuclei reads one. What it cannot read (an octet with a
+  // leading zero, a zone) it would look up as a name.
+  function address(text) {
+    var s = String(text);
+    if (!Ad.bytes(s)) return false;
+    return s.indexOf(":") >= 0 || /^(?:0|[1-9][0-9]{0,2})(?:[.](?:0|[1-9][0-9]{0,2})){3}$/.test(s);
+  }
+  // Whether a word of the range names a port, as C.target reads one.
+  function portTyped(word) {
+    var s = String(word).replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").split(/[\/?#]/)[0];
+    s = s.slice(s.lastIndexOf("@") + 1);
+    var v6 = /^\[[^\]]*\](.*)$/.exec(s);
+    return v6 ? v6[1] !== "" : s.split(":").length === 2;
+  }
 
   function targets(doc, range, groups) {
     var words = String(range == null ? "" : range).trim().split(/[\s,]+/).filter(Boolean);
     if (!words.length) return { problem: "Give what to scan, such as 10.0.1.0/24." };
     if (!words.every(function (w) { return RANGE_CHARS.test(w) && w[0] !== "-"; })) {
-      return { problem: "The range may hold only addresses, names, CIDR and URLs, such as 10.0.1.0/24 or https://app.lab:8443." };
+      return { problem: RANGE_PROBLEM };
     }
-    var nets = [], singles = [], named = [];
+    // A word is an address, a range of them, or a name, with a port or in
+    // a URL; anything else nuclei would look up as a name, at public
+    // resolvers.
+    var nets = [], singles = [], named = [], typed = [], odd = false;
     words.forEach(function (w) {
-      var cidr = /^([^\/]+)\/\d{1,3}$/.exec(w);
-      if (cidr && Ad.bytes(cidr[1])) return nets.push(w);
-      var host = C.target(w).host;
-      if (host && Ad.bytes(host)) singles.push(host);
-      else if (host) named.push(host.toLowerCase());
+      var cidr = /^([^\/]+)\/(\d{1,3})$/.exec(w);
+      if (cidr) {
+        if (address(cidr[1]) && Number(cidr[2]) <= (cidr[1].indexOf(":") >= 0 ? 128 : 32)) nets.push(w);
+        else odd = true;
+        return;
+      }
+      var t = C.target(w), host = (t.host || "").toLowerCase();
+      if (address(host)) singles.push(host);
+      else if (A.isName(host)) named.push(host);
+      else odd = true;
+      if (portTyped(w) && !t.port) odd = true;
+      // A port typed by hand is asked, as what is typed by hand is.
+      if (t.port && USUAL_PORTS.indexOf(t.port) < 0) typed.push((address(host) ? written(host) : host) + ":" + t.port);
     });
+    if (odd) return { problem: RANGE_PROBLEM };
     var cover = nets.concat(singles).join(" ");
     var hosts = [], extra = [], names = [], drawn = 0, services = 0;
     var hostOf = Object.create(null);
@@ -334,11 +379,12 @@
     Object.keys(doc.entities || {}).forEach(function (id) {
       var e = doc.entities[id];
       if (e.kind !== "host") return;
-      var address = cover ? (e.addresses || []).filter(function (a) { return Ad.covers(cover, a); })[0] : null;
+      var at = null, called = null;
+      var found = cover ? (e.addresses || []).filter(function (a) { return address(a) && Ad.covers(cover, a); })[0] : null;
       var own = [String(e.label).trim().toLowerCase()].concat(e.names || []).filter(A.isName);
-      var called = own.filter(function (n) { return named.indexOf(n) >= 0; })[0];
-      if (!address && !called) return;
-      var at = address ? written(address) : called;
+      called = own.filter(function (n) { return named.indexOf(n) >= 0; })[0];
+      if (!found && !called) return;
+      at = found ? written(found) : called;
       if (hosts.indexOf(at) >= 0) return;
       hosts.push(at);
       drawn++;
@@ -368,8 +414,11 @@
     if (!hosts.length) return { problem: "Nothing is drawn in " + words.join(", ") + " yet; give its hosts, or draw them first with nmap." };
     var connect = (groups || []).indexOf("connect") >= 0;
     if (!connect) names = [];
+    var ofDrawing = extra.length;
+    typed.forEach(function (x) { if (extra.indexOf(x) < 0) extra.push(x); });
+    var more = [[ofDrawing, "drawn one"], [extra.length - ofDrawing, "typed one"]].filter(function (x) { return x[0]; }).map(function (x) { return count(x[0], x[1]); });
     var said = (drawn ? count(drawn, "drawn host") : count(hosts.length, "host")) + ", " + USUAL_PORTS.length + " usual ports"
-      + (extra.length ? " and " + count(extra.length, "drawn one") : "") + (names.length ? ", " + count(names.length, "name") : "") + ".";
+      + (more.length === 2 ? ", " : more.length ? " and " : "") + more.join(" and ") + (names.length ? ", " + count(names.length, "name") : "") + ".";
     return { hosts: hosts, ports: USUAL_PORTS.slice(), extra: extra, names: names, drawn: drawn, services: services, said: said, notes: notes, resolves: hosts.some(A.isName) };
   }
 
