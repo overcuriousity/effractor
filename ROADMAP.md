@@ -137,20 +137,3 @@ toward a host or port, and filtering by a host itself, change the model
 generation honours them, and the nmap preview offers them where it now only
 says *nothing drawn to say it on* and *filtered by … itself*.
 
-### scan-workflow — Scanners that build on each other
-needs: —            cost: 4   benefit: 4
-Owner, 2026-09-28: effractor draws network diagrams and attack vectors; it
-is no vulnerability manager. The scanners are to complement each other in a
-workflow the page quietly leads through (nmap finds hosts and ports; the next
-tool is handed what is drawn and says what each service is), and nothing is
-drawn that the model does not use. The design also grows nmap's library of
-commands (owner, 2026-09-28). Design:
-[`2026-09-28-scan-workflow-design.md`](docs/superpowers/specs/2026-09-28-scan-workflow-design.md),
-approved by the owner 2026-09-28. The
-[implementation plan](docs/superpowers/plans/2026-09-28-scan-workflow.md),
-with the code it was run with as patches beside it, awaits the owner's
-review; execution is native, in the session, one branch per part.
-Done when the page says what to run next from what the drawing lacks, and
-each tool's command takes its targets from the drawing (effractor's own
-nuclei templates do so already).
-

@@ -573,15 +573,19 @@ test('a tcpwrapped port is no service: counted in a note, never a row', () => {
   assert.equal(N.plan(lab(), 'nmap', deep(), '10.0.1.0/24', {}).tcpwrapped, 0);
 });
 
-test('the nmap hint shows on an architecture until it has an nmap, never once dismissed', () => {
+// The bulb is scan-gaps.js's now (scan workflow spec §2): its first step is
+// what the hint said.
+test('the bulb says to scan with nmap on an architecture until it has a scanner, never once silenced', () => {
+  const G = require('../assets/js/scan-gaps.js');
+  const first = (doc, silenced) => (G.steps(doc, silenced)[0] || {}).says;
   const d = lab();
-  assert.equal(N.hintWanted(d, false), false, 'it has an nmap already');
+  assert.notEqual(first(d, []), 'Scan a network with nmap', 'it has an nmap already');
   delete d.entities.nmap;
-  assert.equal(N.hintWanted(d, false), true);
-  assert.equal(N.hintWanted(E.empty(), false), true, 'an empty architecture too');
-  assert.equal(N.hintWanted(d, true), false, 'dismissed');
-  assert.equal(N.hintWanted({ profile: 'attack-tree', nodes: {} }, false), false);
-  assert.equal(N.hintWanted(null, false), false);
+  assert.equal(first(d, []), 'Scan a network with nmap');
+  assert.equal(first(E.empty(), []), 'Scan a network with nmap', 'an empty architecture too');
+  assert.notEqual(first(d, G.silenced(null, 'dismissed')), 'Scan a network with nmap', 'dismissed before');
+  assert.equal(first({ profile: 'attack-tree', nodes: {} }, []), undefined);
+  assert.equal(first(null, []), undefined);
 });
 
 // ---- checks (spec §3.2, §4.6) ----

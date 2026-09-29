@@ -342,8 +342,10 @@
     $("nmap-read-problem").textContent = "";
     $("nmap-ask").hidden = false;
     $("nmap-preview").hidden = true;
-    if (preset && preset.recipes) library().asked.recipes = preset.recipes.slice();
-    if (preset && preset.recipes) library().asked.adjust = {};
+    if (preset && preset.recipes && at.tool !== "masscan" && at.tool !== "greenbone") {
+      library().asked.recipes = preset.recipes.slice();
+      library().asked.adjust = Object.assign({}, preset.adjust || {});
+    }
     if (at.tool === "masscan") masscanBlocks();
     else if (at.tool !== "greenbone") {
       recipes();
@@ -788,7 +790,8 @@
 
   // ---- menus ----
 
-  function createScanner(tool, hostId) {
+  // `preset`: what the dialog opens with (scan workflow spec §2.2).
+  function createScanner(tool, hostId, preset) {
     U.loadCatalog().then(function () {
       var made = null;
       U.apply(function () {
@@ -796,14 +799,11 @@
         made = e && e.entity;
         return e;
       }).then(function (applied) {
-        if (applied && made) open(made);
+        if (applied && made) open(made, preset);
       });
     }, function () {
       app.say("the component library could not be read");
     });
-  }
-  function createNmap(hostId) {
-    createScanner(S.TOOLS[0], hostId);
   }
   var FINDS = { nmap: "Scan from a host and add what it sees", masscan: "Find open ports fast and add them", greenbone: "Add a report's hosts and findings", nuclei: "Check what is drawn and add what it finds" };
   // One "Scanners" item, the tools nested in it (owner, 2026-09-27).
@@ -848,36 +848,6 @@
     said.title = "From a scan: what a later one knows this machine by";
     U.field(form, "prop-identity", "Identity", said);
   });
-
-  // ---- the light bulb (owner, 2026-09-24) ----
-
-  // Dismissed once, gone on this browser; a convenience, so storage that
-  // fails only means it shows again.
-  var HINT = "effractor.hint.nmap";
-  function dismissed() {
-    try {
-      return localStorage.getItem(HINT) === "dismissed";
-    } catch (e) {
-      return false;
-    }
-  }
-  function showHint() {
-    $("nmap-hint").hidden = !N.hintWanted(doc(), dismissed());
-  }
-  $("nmap-hint-go").addEventListener("click", function () {
-    // On the selected host when one is selected, as Tab would.
-    var q = window.effractorProfiles.qualified(app.state.selected);
-    var e = q && q.kind === "entity" ? doc().entities[q.id] : null;
-    createNmap(e && e.kind === "host" ? q.id : null);
-  });
-  $("nmap-hint-close").addEventListener("click", function () {
-    try {
-      localStorage.setItem(HINT, "dismissed");
-    } catch (e) {}
-    showHint();
-  });
-  app.onChange(showHint);
-  showHint();
 
   // ---- wiring ----
 
@@ -947,4 +917,7 @@
       app.say("the file could not be read");
     });
   });
+  // The bulb opens a scanner's dialog, or adds the scanner first
+  // (scan-hint-ui.js).
+  window.effractorNmapUi = { open: open, create: createScanner };
 })();

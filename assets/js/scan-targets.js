@@ -174,7 +174,7 @@
     return out;
   }
 
-  var api = { asked: asked, hostOf: hostOf, choices: choices, words: words, drawnPorts: drawnPorts };
+  var api = { asked: asked, hostOf: hostOf, choices: choices, words: words, drawnPorts: drawnPorts, hostsOn: hostsOn, ported: ported, isName: isName };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorScanTargets = api;
 })();

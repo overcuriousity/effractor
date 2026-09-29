@@ -6,6 +6,99 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — scanners that build on each other (2026-09-29)
+
+Roadmap `scan-workflow`, built from the spec
+`2026-09-28-scan-workflow-design.md` (its §12 amends the sections it names)
+and its plan `docs/superpowers/plans/2026-09-28-scan-workflow.md`, whose
+code travelled as ten patches beside it; all deleted with this landing.
+`git log --diff-filter=D --format=%h -1 --
+docs/superpowers/specs/2026-09-28-scan-workflow-design.md` names the
+deleting commit, and `git show <that>^:<path>` prints any of them. Code
+comments cite the spec as "scan workflow spec §…". Five parts, each a
+branch and a PR, built in the session (native execution), each read by a
+fresh reviewer and looked at by the owner before it landed: `host-asked`
+(#173), `scan-targets` (#174), `nmap-options` (#175), `nmap-purposes`
+(#176), `scan-hint`.
+
+- **What a host was asked** (`asked` in the file, beside `seen`, in place:
+  `ports`, `products`, `route`, `connections`, each a quoted day; refused
+  off hosts, with another key, or without a day). nmap notes what it says
+  it ran (`asksOf` in `nmap-read.js`): `ports` only for a scan of 20 TCP
+  ports or more that can find one open, `products` where versions were
+  asked (`-sV`, `-sCV`, `-A`), `route` with `--traceroute`; several
+  pasted results of different scans note nothing. masscan notes `ports`.
+  nuclei writes only what it found, so the ticked templates and the targets
+  stand in: a ticked row in its preview only (*Notes n hosts as asked …*).
+  Greenbone and nuclei's checks note nothing. Generation never reads it.
+- **Targets from the drawing** (`scan-targets.js`, pure): one *Targets* row
+  in every scanner's dialog, the app's own nested menu (`app.showMenu(…,
+  within)`, a menu inside a modal dialog; Esc closes the menu only): each
+  drawn network with a range, and in it *the whole range*, *drawn hosts
+  only*, *hosts without ports*, *not seen since …*. The range field shows
+  the words and stays editable (*typed by hand*); Greenbone gets them as a
+  comma list with *Copy*. **Owner, 2026-09-29: targets are chosen in the
+  dialog only** — the spec's *the selection* (select hosts, then open the
+  scanner) "makes no sense" and was dropped; the pure `{kind:
+  "selection"}` choice stays for the bulb's host lists.
+- **nmap's options** (`nmap-command.js`): 19 blocks in four groups
+  (*Finding hosts*, *Ports*, *Depth*, *Pace*), one open at a time, a
+  closed one saying what is set in it. Typed texts (resolver, what is left
+  out, interface, rate) are held to their shape or refused, kept for the
+  session only. ACK, window, FIN, NULL and Xmas scans are read as the ACK
+  scan is, for the firewall check, and draw no port. A UDP scan asks for
+  root however its ports were named; the TCP scan beside it is then SYN
+  unless a connect scan was chosen by hand. Never offered, held over every
+  recipe and choice: `-D -S --spoof-mac -f --mtu --data-length
+  --source-port -g --badsum -sI -b --proxies -T0 -T1 --randomize-hosts`.
+- **nmap's purposes**: *Is it still so*, *Who announces itself*, *UDP
+  services*, *Routers by SNMP*, *Management interfaces*, *VPN endpoints*.
+  `nmap-devices.js` (pure) reads the router a DHCP answer names (one elem,
+  or several as nmap's nested table) and SNMP's interfaces (up, IPv4, of a
+  network; loopback, link-local, 0.0.0.0/8, multicast, /31, /32 left out).
+  An import adds a device's interface addresses and networks (`new:<cidr>`
+  rows, routes included) and preselects *router* (*gateway by DHCP*, *3
+  interfaces by SNMP*); *managed from* is offered for a router with a
+  management port open to the scanner. **Owner, 2026-09-29:**
+  `broadcast-dhcp-discover` stays, with `--script-args
+  broadcast-dhcp-discover.mac=EE:FF:AC:70:00:00` — a fixed, locally
+  administered client address inside the request, so a DHCP server's log
+  tells the scan was effractor's (the packet still leaves from the
+  scanner's own address). IPv4 only.
+- **The bulb** (`scan-gaps.js`, pure; `scan-hint-ui.js` the page's part;
+  `nmap-ui.js` gives it `effractorNmapUi {open, create}`): names the first
+  step the drawing lacks — a scanner; a network no scan saw a host on
+  (masscan past 1,024 addresses, its IPv4 ranges only); what runs on drawn
+  hosts; a way to a network no drawn router joins; how services connect
+  (nuclei). It never names Greenbone or any check. Right click: the other
+  steps, *Say nothing about this*, *Say it again*; × silences on this
+  browser (`effractor.hint.silenced`; the old `effractor.hint.nmap` reads
+  as `scanner` silenced). Silenced whole, the canvas's menu offers *Say
+  what to scan next*. It reads the associations once per answer: it is
+  answered on every change of the page (2,000 hosts: about 20 ms).
+- **What the owner looked at:** every part, in a preview. Part 3 landed on
+  "an edge case, proceed" after one sighting of no command and no reason,
+  not reproduced (every recipe pair under every pair of block choices, and
+  half-typed fields, give a command or a reason).
+- **Deferred minors of the reviews:** hand-written `x-` keys inside
+  `asked` are dropped when an import rewrites the map; a nuclei host whose
+  answer was left out as a conflict is still noted as asked; the targets
+  menu is quadratic in associations (about 0.4 s at 1,000 hosts, on
+  opening only); each keystroke in the range redraws nmap's Adjust
+  blocks; *typed by hand* is said for a scanner on several or no networks,
+  in Greenbone too; a closed *Ports* group does not say *ACK scan*;
+  version effort and OS guess fall back to nmap's without a word when
+  Depth does not ask for them; the firewall recipe's ACK tick beside a
+  chosen ACK scan gives two identical runs; the *Is it still so* tile
+  shows no root tag where the drawn ports need it (the command's tag does).
+- **Open:** the fixtures of *Who announces itself* and *Routers by SNMP*
+  (`scripts/fixtures/nmap/announced.xml`, `snmp.xml`) are hand-written
+  from the scripts' source; the owner's recordings are to replace them
+  (the commands need root and a real LAN and router). A network where
+  nobody answered cannot be imported, so the bulb says it again until
+  silenced. A large nuclei result draws very many hosts (owner: "we will
+  contain this later").
+
 ## Continuation — nuclei templates of effractor's own (2026-09-28)
 
 Roadmap `nuclei-templates`, built from the spec

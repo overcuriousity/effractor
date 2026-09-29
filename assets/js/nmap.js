@@ -31,21 +31,12 @@
     return addScanner(doc, "nmap", hostId, label, specOf);
   }
 
-  // The canvas's light bulb (owner, 2026-09-24): on an architecture without
-  // an nmap yet, until the visitor dismisses it.
-  function hintWanted(doc, dismissed) {
-    if (dismissed || !doc || doc.profile !== "architecture") return false;
-    var entities = doc.entities || {};
-    return !Object.keys(entities).some(function (id) { return entities[id].tool === "nmap"; });
-  }
-
   var api = {};
   parts.forEach(function (p) {
     Object.keys(p).forEach(function (k) { api[k] = p[k]; });
   });
   api.addNmap = addNmap;
   api.addScanner = addScanner;
-  api.hintWanted = hintWanted;
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmap = api;
 })();
