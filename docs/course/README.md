@@ -1,7 +1,8 @@
 # Course walkthrough
 
-Use the [reference fault tree](reference-fault-tree.yaml) and the
-[office attack tree](office-attack-tree.yaml) as downloadable YAML files.
+Use the [reference fault tree](reference-fault-tree.yaml), the
+[office attack tree](office-attack-tree.yaml) and the three architecture files
+of the [SSH exercise](#ssh-server-behind-a-router) as downloadable YAML files.
 They are documentation fixtures, not bundled into the app or loaded on startup.
 Open a file from the model-name menu or with Ctrl+O.
 
@@ -45,6 +46,171 @@ for confidentiality and integrity plus a control scenario.
    Select a point or row to highlight its graph path. Select a graph leaf to
    mark its matching rows and points.
 4. Toggle the control and compare the new risk and path results.
+
+## SSH server behind a router
+
+An architecture, not a tree: you draw what is there, and the attack graph is
+built from it. The exercise follows the lecture's sections 5.3–5.5.
+
+| File | What it is |
+|---|---|
+| [lecture-architecture.yaml](lecture-architecture.yaml) | The exercise. Defences that stop an attacker outright. |
+| [lecture-partial-defenses.yaml](lecture-partial-defenses.yaml) | The same, with defences that slow an attacker down instead. |
+| [lecture-unknown.yaml](lecture-unknown.yaml) | The same, with the time to find an exploit left unknown. |
+
+The three differ in nothing else: same components, same seed (42), same
+10,000 samples, days as the time unit, a horizon of 100 days.
+
+### What is drawn
+
+Three networks: Client, Server and Administration. A router joins the client
+and the server network and has a firewall. The workstation is in the client
+network and runs an SSH client as a user. The server is in the server network
+and runs the SSH server (OpenSSH) as admin. One flow, SSH over tcp/22, goes
+from the client through the router to the server, and the firewall permits it.
+
+The workstation keeps two keys. The server account's key is readable by a
+user; it logs in to the SSH server, and that account has admin control of the
+server. The router administrator's key is readable by an admin only; that
+account has admin control of the router, which is managed from the
+Administration network. Nothing is attached to the Administration network.
+
+The attacker starts with admin control of the workstation. The target is
+admin control of the server.
+
+### Build it from empty
+
+1. Choose the Architecture mode (3) and File → New. **A** adds a component;
+   add the three networks, the router, its firewall, the two hosts, the SSH
+   client (an application), the SSH server (a service), OpenSSH (a product),
+   the two accounts and the two keys (credentials).
+2. Link them with **L**, or add a component already linked to the selected
+   one with **Tab**. The table below lists every relationship. Add the flow
+   from the SSH client to the SSH server, lead its route over the client
+   network, the router and the server network, and let the firewall permit it.
+3. Drag *Foothold* onto the workstation and *Target* onto the server, both
+   with admin control.
+4. Open *Attack graph* (G). Two ways lead to the target: finding and using an
+   exploit for the SSH server, and extracting the server account's key and
+   logging in. Select a step to see the rule that made it and where in the
+   drawing its time is set.
+5. Fill in the times from the table further down, each as *illustrative* with
+   its note, or open the file. Calculate, and read the Time tab.
+6. In Compare, choose *Patch the SSH server*, *Protect the stored key*,
+   *Patch and protect*, then *Deny SSH at the router*. Read which paths a
+   scenario blocks and which remain. Undo restores the baseline.
+7. Clear the time to find an exploit and set it to *unknown*: the target has
+   no number until it is set again, and the path is still drawn.
+
+| From | Relationship | To |
+|---|---|---|
+| Workstation, Router | connected to | Client network |
+| Server, Router | connected to | Server network |
+| Workstation | runs, as user | SSH client |
+| Server | runs, as admin | SSH server |
+| SSH server | is a version of | OpenSSH |
+| Router | its firewall | Firewall |
+| Firewall | permits | the SSH flow |
+| Router | managed from | Administration network |
+| Workstation | keeps, user-readable | Server account key |
+| Workstation | keeps, admin-only | Router administrator key |
+| Server account key | unlocks | Server account |
+| Router administrator key | unlocks | Router administrator |
+| Server account | may log in to | SSH server |
+| Server account | is admin on | Server |
+| Router administrator | is admin on | Router |
+
+The Link menu words each relationship from the side of the component that is
+selected, and then offers what can be at the other end: *runs here as user*
+on the workstation, *runs this as user* on the SSH client.
+
+### The times, and what each one sets
+
+Every time is an **exercise assumption**, marked *illustrative* in the file,
+with its note. None is measured, none is calibrated to the lecture, and the
+component library installs none of them. `Exponential(mean 10)` is a waiting
+time that averages 10 days; `Never` is a step that cannot be taken.
+
+| On | Time | Exercise | Partial defences | The step it times |
+|---|---|---|---|---|
+| SSH flow | Connect | `Exponential(mean 0.5)` | the same | Connect along the flow |
+| OpenSSH | Find an exploit | `Exponential(mean 10)` | the same | Find an exploit |
+| OpenSSH | Find an exploit (patched) | `Never` | `Exponential(mean 100)` | Find an exploit, while *Patched* is on |
+| SSH server | Use the exploit | `Exponential(mean 2)` | the same | Use the exploit |
+| SSH server | Log in | `Exponential(mean 1)` | the same | Log in to a service |
+| Both keys | Extract | `Exponential(mean 5)` | the same | Extract a credential |
+| Both keys | Extract (protected) | `Never` | `Exponential(mean 50)` | Extract a credential, while *Protected* is on |
+| Router administrator | Admin login | `Exponential(mean 1)` | the same | Admin login from a network |
+
+Using the exploit includes getting past whatever detection the server has;
+that is not modelled as a step of its own. Times left *unknown* in the files
+(escaping to a host, taking software over through content, getting past
+multi-factor login, the server account's admin login) belong to steps this
+drawing does not have or that do not lead to the target, so they cost no
+number.
+
+### What to read from it
+
+With seed 42 and 10,000 samples, the share of attackers who have admin
+control of the server by that day:
+
+| File | Scenario | 12.5 d | 25 d | 50 d | 100 d |
+|---|---|---|---|---|---|
+| `lecture-architecture.yaml` | `baseline` | 0.9633 | 0.999 | 1 | 1 |
+| `lecture-architecture.yaml` | `patch` | 0.904 | 0.9918 | 1 | 1 |
+| `lecture-architecture.yaml` | `protect` | 0.625 | 0.8927 | 0.992 | 0.9998 |
+| `lecture-architecture.yaml` | `both` | 0 | 0 | 0 | 0 |
+| `lecture-partial-defenses.yaml` | `baseline` | 0.9633 | 0.999 | 1 | 1 |
+| `lecture-partial-defenses.yaml` | `patch` | 0.9119 | 0.9932 | 1 | 1 |
+| `lecture-partial-defenses.yaml` | `protect` | 0.707 | 0.9338 | 0.9965 | 1 |
+| `lecture-partial-defenses.yaml` | `both` | 0.2907 | 0.5147 | 0.7711 | 0.9512 |
+
+`deny` is 0 throughout in both files. These are what this release computes
+from these inputs, held by a test; they are not the lecture's numbers.
+
+- **One defence alone changes little by day 100.** Patching leaves the login
+  path, protecting the key leaves the exploit. The curve moves, its end
+  hardly: read the Time tab, not only the number at the horizon.
+- **A perfect defence and a partial one.** `Never` closes a path, and with
+  both defences on nothing is left. Perfect blocking is an assumption of the
+  exercise, not a property of patching. The partial file says the same
+  defences make a step ten times slower: every path stays open, and 95 of 100
+  attackers are through by day 100.
+- **Full foothold, user software.** The attacker holds the workstation as
+  admin, which includes what a user can do, so both keys can be extracted and
+  the SSH client is theirs. The SSH client still runs as a user: controlling
+  it alone would give user control of the workstation and never admin. The
+  SSH server runs as admin, so controlling it is admin control of the server.
+- **The Administration network is isolated.** The attacker can extract the
+  router administrator's key, and it is of no use: logging in to the router's
+  management needs access to the network that manages it, and nothing leads
+  there. That is why denying SSH at the router closes both paths. Put a
+  second foothold on the Administration network and the denial no longer
+  holds: a router's admin lets the flow through.
+- **Nothing is allowed by being near.** Being in a network permits no
+  connection. Only a drawn flow connects, and only where every firewall on
+  its route allows it.
+- **Unknown is not zero and not never.** In the unknown file the target has
+  no number, the missing input is named, and the path is drawn. With *Patch
+  the SSH server* chosen there is a number again: the unknown time is on a
+  path the patch closes. An unknown on a path that is blocked costs nothing.
+- **The curve and its band.** The curve is the share of all sampled
+  attackers who reached the target by each day, those who never do included;
+  it is not rescaled to the ones who succeed. The band is the sampling
+  uncertainty of that share at each day, at 95%: it says how far 10,000
+  samples may be off, not how good the inputs are. A difference in Compare
+  is measured on the same draws for both sides.
+
+### What it does not say
+
+No vulnerability database stands behind *Find an exploit*: the time is what
+its author writes. The library is small on purpose, and retries, account
+lockout, detection and response are outside it. The numbers are not expected
+to match the lecture's screenshots, whose rules and inputs are not published
+with them. Existing securiCAD or MAL models are not read.
+
+The [acceptance record](../LECTURE-ACCEPTANCE.md) says what was checked, on
+which release.
 
 ## Timing
 

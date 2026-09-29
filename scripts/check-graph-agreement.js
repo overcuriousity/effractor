@@ -11,9 +11,10 @@ const { performance } = require('node:perf_hooks');
 const root = path.resolve(__dirname, '..');
 const lecture = fs.readFileSync(path.join(root, 'docs/course/lecture-architecture.yaml'), 'utf8');
 const unknown = fs.readFileSync(
-  path.join(root, 'crates/effractor-components/tests/fixtures/lecture-unknown.yaml'),
+  path.join(root, 'docs/course/lecture-unknown.yaml'),
   'utf8',
 );
+const partial = fs.readFileSync(path.join(root, 'docs/course/lecture-partial-defenses.yaml'), 'utf8');
 const cloud = fs.readFileSync(
   path.join(root, 'crates/effractor-components/tests/fixtures/architectures/cloud-support-agent.yaml'),
   'utf8',
@@ -31,6 +32,7 @@ const CASES = [
   { name: 'patch', text: lecture, scenario: 'patch' },
   { name: 'deny', text: lecture, scenario: 'deny' },
   { name: 'unknown', text: unknown, scenario: '' },
+  { name: 'partial defences, both', text: partial, scenario: 'both' },
   {
     // Finite, slower defences and a short horizon: a paired interval with width.
     name: 'slower both',

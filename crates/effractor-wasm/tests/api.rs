@@ -311,7 +311,7 @@ fn generation_says_what_can_happen_before_any_number() {
 
     // An unknown input on the route: the target is still possible, and
     // says which source fields its number waits for.
-    let unknown = include_str!("../../effractor-components/tests/fixtures/lecture-unknown.yaml");
+    let unknown = include_str!("../../../docs/course/lecture-unknown.yaml");
     let (graph, support) = support_of(unknown);
     let target = status(&graph, &support, "state/host/server/admin");
     assert_eq!(target["status"], "possible");

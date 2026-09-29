@@ -11,8 +11,7 @@ use effractor_solver::graph_results::{GraphConfig, GraphSolve};
 use serde_json::Value;
 
 const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
-const UNKNOWN: &str =
-    include_str!("../../effractor-components/tests/fixtures/lecture-unknown.yaml");
+const UNKNOWN: &str = include_str!("../../../docs/course/lecture-unknown.yaml");
 
 fn architecture(text: &str) -> Architecture {
     match effractor_format::load_document(text) {

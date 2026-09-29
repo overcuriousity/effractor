@@ -6,6 +6,39 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — lecture acceptance, evidence in, walkthrough open (2026-09-29)
+
+Plan Task 8 (`lecture-workflow`), on branch `lecture-acceptance`. No code the
+page or the solver runs changed. **The milestone is not complete:** the
+owner's walkthrough (spec §11, five steps, listed in
+`docs/LECTURE-ACCEPTANCE.md`) is outstanding, so `lecture-workflow` stays on
+the roadmap and its spec and plan stay in `docs/superpowers/`.
+
+- **Course files.** `docs/course/lecture-unknown.yaml` moved there from
+  `crates/effractor-components/tests/fixtures/` (one copy; the tests, the
+  agreement check and `graph-fixtures.js` read it from the course folder).
+  `docs/course/lecture-partial-defenses.yaml` is new: patched discovery
+  `Exponential(mean 100)`, protected extraction `Exponential(mean 50)`, the
+  plan's `Exponential(0.01)` and `(0.02)` in the spelling files are written in.
+- **Course text.** `docs/course/README.md` has the exercise: what is drawn,
+  building it from empty, every time with its step, what to read from it,
+  what it does not say. Its table of numbers is held by
+  `crates/effractor-solver/tests/course_files.rs`
+  (`the_course_text_quotes_what_the_solver_says`): a change to the solver,
+  the library or a course file that moves one fails there, and the table is
+  then rewritten from the solver, not the test loosened. The course files
+  are compiled into that test (`include_str!`), because the solver's tests
+  also run under wasmtime, which sees no directory above the crate.
+- **Performance.** `node scripts/check-graph-performance.js [file]
+  [scenario]` after `build-wasm.sh`; not in CI (timings on shared runners
+  say little). Measurements are in the acceptance record.
+- **To finish:** the owner walks the five steps; their answer goes into
+  `docs/LECTURE-ACCEPTANCE.md`; then one change removes `lecture-workflow`
+  (`scripts/dev/roadmap-done.py lecture-workflow`), deletes the spec and the
+  plan, and says here where they are in history. If the walkthrough finds
+  something, it is fixed test-first on a branch and the affected steps are
+  walked again.
+
 ## Roadmap pruned (2026-09-29)
 
 Owner, 2026-09-29: two items were dropped, not built.

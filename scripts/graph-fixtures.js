@@ -15,7 +15,7 @@ const root = path.resolve(__dirname, '..');
 const DIR = path.join(root, 'scripts/fixtures/graph');
 const lecture = fs.readFileSync(path.join(root, 'docs/course/lecture-architecture.yaml'), 'utf8');
 const unknown = fs.readFileSync(
-  path.join(root, 'crates/effractor-components/tests/fixtures/lecture-unknown.yaml'),
+  path.join(root, 'docs/course/lecture-unknown.yaml'),
   'utf8',
 );
 
