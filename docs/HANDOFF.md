@@ -6,6 +6,21 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Roadmap pruned (2026-09-29)
+
+Owner, 2026-09-29: two items were dropped, not built.
+
+- `e2e-vault` — not needed any more; stored documents stay plaintext at rest.
+- `firewall-denies` — a service is reached only along a drawn flow
+  (`service-reachable` needs an inbound `flow.connected`; membership of a
+  network implies no flow permission), so a denial toward a port nothing is
+  drawn to could not change a route or a number. The nmap preview keeps
+  saying it (`nmap-changes.js`, *what is blocked with nothing drawn to say
+  it on*).
+
+Left: `lecture-workflow` (plan Task 8), then `mal-securicad-compatibility`;
+`audit-log` and `api-tokens`, each needing a design first.
+
 ## Continuation — scanners that build on each other (2026-09-29)
 
 Roadmap `scan-workflow`, built from the spec
@@ -534,8 +549,9 @@ inspector's *Identity* row — they landed with the rest on the owner's word.
   `route`, `firewall`, `firewall-ack`, `day1`, `day10`; `imported-route.doc.json`
   is pinned three ways like the others, which gained identities, vendor,
   seen and the new stamp line.
-- **Open:** a real `--traceroute` scan of the owner's against `route.xml`;
-  `firewall-denies` on the roadmap for what the preview can only say.
+- **Open:** a real `--traceroute` scan of the owner's against `route.xml`.
+  What the preview can only say (*nothing drawn to say it on*, *filtered by
+  … itself*) stays said: `firewall-denies` was dropped, see *Roadmap pruned*.
 
 ## Continuation — visual and ergonomic review, landed (2026-09-27)
 

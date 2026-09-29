@@ -96,13 +96,6 @@ build with opt-in accounts, stored documents and sharing with people — built
 (`docs/HANDOFF.md` says how). What follows are the later items the design
 named.
 
-### e2e-vault — Evaluate end-to-end encrypted storage
-needs: —            cost: 5   benefit: 2
-Owner, 2026-09-26: stored documents are plaintext at rest for now; evaluate an
-end-to-end encrypted vault (per-user keys, wrapped keys for group shares, what
-OIDC-only users and password resets would mean). Done when a design is
-approved or the idea is dropped.
-
 ### audit-log — Who did what, for admins
 needs: —            cost: 2   benefit: 2
 Logins, shares and administrative actions recorded and shown to admins. Needs a
@@ -126,14 +119,4 @@ the dialog that creates or fills it always guides explicitly, as nmap's does
 (what to run, what to paste, what will be added), and what it adds is
 deduplicated against the drawing by best effort (by address, then by name and
 product), never drawn twice. Files with `tool: nmap` keep opening unchanged.
-
-### firewall-denies — What a firewall blocks with no service behind it
-needs: —            cost: 4   benefit: 3
-Owner, 2026-09-27, from the nmap firewall recipe: a permission hangs on a flow
-to a service, so *nothing reaches tcp/445 on db1* and a host that filters by
-itself can only be said in the nmap preview, not drawn. A firewall's denial
-toward a host or port, and filtering by a host itself, change the model
-(generation reads them). Needs a design first. Done when both can be drawn,
-generation honours them, and the nmap preview offers them where it now only
-says *nothing drawn to say it on* and *filtered by … itself*.
 
