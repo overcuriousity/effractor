@@ -30,7 +30,7 @@ Run on the candidate tree after `scripts/build-wasm.sh`, all passing:
 
 | Check | Result |
 |---|---|
-| `npm test` | 905 tests, 904 pass, 1 skipped, 0 fail |
+| `npm test` | 906 tests, 905 pass, 1 skipped, 0 fail |
 | `cargo test --workspace` | 69 test binaries, all ok |
 | `cargo fmt --all --check` | clean |
 | `cargo clippy --workspace --all-targets -- -D warnings` | clean |
@@ -40,8 +40,8 @@ Run on the candidate tree after `scripts/build-wasm.sh`, all passing:
 | `scripts/build-site.sh` | static export built |
 
 What the course files are held to (`crates/effractor-solver/tests/course_files.rs`):
-the unknown and the partial file differ from the exercise only in what their
-names say; a partial defence leaves its step and the target possible and
+the unknown and the partial file are the exercise's text with exactly the
+replacements their names say; a partial defence leaves its step and the target possible and
 slower; both together lower the target without closing it, with a paired
 interval above zero; a denied flow closes the partial file too; and every
 number in the course text's table is what the solver says.
@@ -57,7 +57,9 @@ wasm module under Node, the lecture file generated and sampled with 10,000
 samples, the baseline and one scenario measured apart, each in a module of
 its own, one cold run and five warm. Generation is parse, validation,
 generation and serialization; the solve is parse, generation, sampling, the
-comparison and serialization. The graph has 39 steps and 48 dependencies.
+comparison and serialization; loading and instantiating the module is not
+timed. The graph has 39 nodes (11 steps, 24 states, 4 inputs) and 48
+dependencies.
 The bundle is 1,381,823 bytes of wasm and 14,002 of JavaScript.
 
 | File | Measured | Cold: generate / solve | Warm: generate | Warm: solve |
@@ -85,13 +87,19 @@ Outstanding. The five steps of spec §11, against the final candidate:
 3. Fill in or open the documented times. Calculate; read the probability
    over time, its band, the table and the assumptions.
 4. Compare patching, protecting the key, both, and the denied flow; read
-   what is blocked and what remains; restore the baseline with undo.
+   what is blocked and what remains; return to the baseline.
 5. Clear a time that matters and see *unknown*; restore it. Save and reopen,
    switch theme and view, and see that a fault tree and an attack tree still
    edit and calculate. A new browser profile still opens an empty document.
 
 What the owner checked, and what they said, is recorded here when it has
 happened.
+
+Known before the walk (review of `39ecb20`): the spec's step 4 says *restore
+the baseline with undo*. Choosing a scenario is a choice of the workspace,
+not an edit, so undo does not take it back; *nothing · baseline only* in
+Compare does. Undo takes back edits to a scenario. Whether the page should
+do as the spec says is the owner's to decide.
 
 ## Known limits
 

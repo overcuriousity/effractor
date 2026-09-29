@@ -42,8 +42,15 @@ function measure(api, source, scenario, now = () => performance.now()) {
   };
 }
 
+// Why a run is outside the budget, or null.
+function reason(run) {
+  if (run.samples !== SAMPLES) return run.samples + ' samples, the budget is for ' + SAMPLES;
+  const ms = run.generate_ms + run.solve_ms;
+  return ms < BUDGET_MS ? null : ms + ' ms, the budget is ' + BUDGET_MS;
+}
+
 function withinBudget(run) {
-  return run.samples === SAMPLES && run.generate_ms + run.solve_ms < BUDGET_MS;
+  return reason(run) === null;
 }
 
 function range(runs, key) {
@@ -66,9 +73,11 @@ if (require.main === module) {
     const source = fs.readFileSync(file, 'utf8');
     const wasm = path.join(root, 'assets/wasm');
     const cases = ['', process.argv[3] || 'both'].map(scenario => {
-      // A module of its own, so the first run of each is a cold one.
+      // A module of its own, so the first run of each is a cold one. Loading
+      // and instantiating it is not timed.
       const api = require('./wasm.js').loadWasm();
       const runs = Array.from({ length: 6 }, () => measure(api, source, scenario));
+      new Set(runs.map(reason).filter(Boolean)).forEach(why => console.error((scenario || 'baseline') + ': ' + why));
       const { nodes, edges, samples, library, semantics } = runs[0];
       return Object.assign({ scenario: scenario || 'baseline', nodes, edges, samples, library, semantics, within_budget: runs.every(withinBudget) }, summary(runs));
     });
@@ -89,4 +98,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { measure, withinBudget, summary };
+module.exports = { measure, reason, withinBudget, summary };

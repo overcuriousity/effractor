@@ -46,3 +46,10 @@ test('the first run is reported as cold and the rest as a range', () => {
     warm: { runs: 5, generate_ms: [1, 3], solve_ms: [10, 30] },
   });
 });
+
+test('a run outside the budget says why', () => {
+  const { reason } = require('./check-graph-performance.js');
+  assert.equal(reason({ generate_ms: 1, solve_ms: 2, samples: 10000 }), null);
+  assert.equal(reason({ generate_ms: 1, solve_ms: 2, samples: 4096 }), '4096 samples, the budget is for 10000');
+  assert.equal(reason({ generate_ms: 400, solve_ms: 700.5, samples: 10000 }), '1100.5 ms, the budget is 1000');
+});

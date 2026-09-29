@@ -69,24 +69,32 @@ fn assumption<'a>(report: &'a Value, path: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("no assumption {path}"))
 }
 
-/// The lines of `other` that the exercise does not have, in order.
-fn added(other: &str) -> Vec<String> {
-    let exercise = course("lecture-architecture.yaml");
-    let had: Vec<&str> = exercise.lines().collect();
-    other
-        .lines()
-        .filter(|l| !had.contains(l))
-        .map(|l| l.trim().to_owned())
-        .collect()
+/// The exercise with `from` written as `to`, which has to be there `times` times.
+fn rewritten(text: &str, from: &str, to: &str, times: usize) -> String {
+    assert_eq!(text.matches(from).count(), times, "{from}");
+    text.replace(from, to)
 }
+
+const NAME: &str = "name: SSH server behind a router\n";
+const NEVER_PATCHED: &str = "        ttc: \"Never\"\n        note: \"Exercise assumption: perfect blocking, a patched service has no exploit to find\"\n";
+const NEVER_PROTECTED: &str = "        ttc: \"Never\"\n        note: \"Exercise assumption: perfect blocking, a protected store gives nothing up\"\n";
 
 #[test]
 fn the_unknown_file_is_the_exercise_with_discovery_unknown() {
-    let text = course("lecture-unknown.yaml");
-    assert_eq!(
-        added(text),
-        ["name: SSH server behind a router, discovery unknown"]
+    let exercise = course("lecture-architecture.yaml");
+    let expected = rewritten(
+        &rewritten(
+            exercise,
+            NAME,
+            "name: SSH server behind a router, discovery unknown\n",
+            1,
+        ),
+        "      find-exploit:\n        status: illustrative\n        ttc: \"Exponential(mean 10)\"\n        note: Exercise assumption; not calibrated to the lecture\n",
+        "      find-exploit:\n        status: unknown\n",
+        1,
     );
+    let text = course("lecture-unknown.yaml");
+    assert_eq!(text, expected);
     let r = solve(text, None);
     assert_eq!(
         r["baseline"]["outcome"]["unavailable"]["missing"],
@@ -101,37 +109,32 @@ fn the_unknown_file_is_the_exercise_with_discovery_unknown() {
 
 #[test]
 fn the_partial_file_changes_only_what_a_defence_is_replaced_by() {
+    let exercise = course("lecture-architecture.yaml");
+    let expected = rewritten(
+        &rewritten(
+            &rewritten(
+                exercise,
+                NAME,
+                "name: SSH server behind a router, partial defences\n",
+                1,
+            ),
+            NEVER_PATCHED,
+            "        ttc: \"Exponential(mean 100)\"\n        note: \"Exercise assumption: a patch leaves flaws nobody has reported yet, ten times harder to find\"\n",
+            1,
+        ),
+        NEVER_PROTECTED,
+        "        ttc: \"Exponential(mean 50)\"\n        note: \"Exercise assumption: a protected store gives the key up to patience, ten times slower\"\n",
+        2,
+    );
     let text = course("lecture-partial-defenses.yaml");
-    let lines = added(text);
-    assert_eq!(
-        lines[0],
-        "name: SSH server behind a router, partial defences"
-    );
-    let ttcs: Vec<&String> = lines.iter().filter(|l| l.starts_with("ttc:")).collect();
-    assert_eq!(
-        ttcs,
-        [
-            "ttc: \"Exponential(mean 100)\"",
-            "ttc: \"Exponential(mean 50)\"",
-            "ttc: \"Exponential(mean 50)\""
-        ],
-        "patched discovery, then the two stored keys"
-    );
-    // Everything else it adds is the note beside a replacement.
-    assert!(
-        lines[1..]
-            .iter()
-            .all(|l| l.starts_with("ttc:") || l.starts_with("note:")),
-        "{lines:?}"
-    );
+    assert_eq!(text, expected);
     assert!(!text.contains("Never"), "a partial defence never stops one");
 
     // With no defence on, it is the exercise.
-    let exercise = solve(course("lecture-architecture.yaml"), None);
     let partial = solve(text, None);
     assert_eq!(
         partial["baseline"]["outcome"],
-        exercise["baseline"]["outcome"]
+        solve(exercise, None)["baseline"]["outcome"]
     );
 }
 

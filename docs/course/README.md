@@ -80,49 +80,59 @@ admin control of the server.
 
 ### Build it from empty
 
-1. Choose the Architecture mode (3) and File → New. **A** adds a component;
-   add the three networks, the router, its firewall, the two hosts, the SSH
-   client (an application), the SSH server (a service), OpenSSH (a product),
-   the two accounts and the two keys (credentials).
+1. Choose the Architecture mode (3) and *New* in the menu under the
+   document's name. **A** adds a component; add the three networks, the
+   router, its firewall, the two hosts, the SSH client (an application), the
+   SSH server (a service), OpenSSH (a product), the two accounts and the two
+   keys (credentials).
 2. Link them with **L**, or add a component already linked to the selected
    one with **Tab**. The table below lists every relationship. Add the flow
-   from the SSH client to the SSH server, lead its route over the client
-   network, the router and the server network, and let the firewall permit it.
+   from the SSH client to the SSH server and select it: in its form, lead
+   its route over the client network, the router and the server network, and
+   set the firewall's entry to *Allowed*.
 3. Drag *Foothold* onto the workstation and *Target* onto the server, both
    with admin control.
 4. Open *Attack graph* (G). Two ways lead to the target: finding and using an
    exploit for the SSH server, and extracting the server account's key and
    logging in. Select a step to see the rule that made it and where in the
    drawing its time is set.
-5. Fill in the times from the table further down, each as *illustrative* with
-   its note, or open the file. Calculate, and read the Time tab.
-6. In Compare, choose *Patch the SSH server*, *Protect the stored key*,
-   *Patch and protect*, then *Deny SSH at the router*. Read which paths a
-   scenario blocks and which remain. Undo restores the baseline.
-7. Clear the time to find an exploit and set it to *unknown*: the target has
-   no number until it is set again, and the path is still drawn.
+5. Set the switches to *Off*: *Patched* on OpenSSH, *Protected* on both
+   keys, *Multi-factor login* on both accounts. A new component has its
+   switch at *Unknown*, and the target has no number while one that matters
+   is. Fill in the times from the table further down, each with Confidence
+   *Illustrative* and its note as Reason. Or open the file, which has all of
+   it. Calculate, and read the Time tab.
+6. In Compare, **+** adds a scenario; name it, and set what it changes with
+   *Set a defence or a permission*. Make four: *Patched* on for OpenSSH;
+   *Protected* on for the server account's key; both; and the firewall's
+   permission for the SSH flow denied. The file has them as *Patch the SSH
+   server*, *Protect the stored key*, *Patch and protect* and *Deny SSH at
+   the router*. Choose one and read which paths it blocks and which remain;
+   *nothing · baseline only* shows the baseline alone again. Undo takes back
+   an edit to a scenario, not the choice of one.
+7. Set the Confidence of the time to find an exploit to *Unknown*: the
+   target has no number until it is set again, and the path is still drawn.
 
-| From | Relationship | To |
+| Select | In the Link menu | Choose |
 |---|---|---|
-| Workstation, Router | connected to | Client network |
-| Server, Router | connected to | Server network |
-| Workstation | runs, as user | SSH client |
-| Server | runs, as admin | SSH server |
+| Workstation, then Router | connected to | Client network |
+| Server, then Router | connected to | Server network |
+| Workstation | runs here as user | SSH client |
+| Server | runs here as admin | SSH server |
 | SSH server | is a version of | OpenSSH |
 | Router | its firewall | Firewall |
-| Firewall | permits | the SSH flow |
-| Router | managed from | Administration network |
-| Workstation | keeps, user-readable | Server account key |
-| Workstation | keeps, admin-only | Router administrator key |
+| Administration network | managed from here | Router |
+| Workstation | kept here, user-readable | Server account key |
+| Workstation | kept here, admin-only | Router administrator key |
 | Server account key | unlocks | Server account |
 | Router administrator key | unlocks | Router administrator |
-| Server account | may log in to | SSH server |
-| Server account | is admin on | Server |
-| Router administrator | is admin on | Router |
+| Server account | accepts this account | SSH server |
+| Server account | grants it admin | Server |
+| Router administrator | grants it admin | Router |
 
-The Link menu words each relationship from the side of the component that is
-selected, and then offers what can be at the other end: *runs here as user*
-on the workstation, *runs this as user* on the SSH client.
+Selected from the other end, the menu words the same relationship from
+there: *runs this as user* on the SSH client, then the workstation. What the
+firewall permits is not a link: it is set in the flow's form.
 
 ### The times, and what each one sets
 
@@ -144,10 +154,10 @@ time that averages 10 days; `Never` is a step that cannot be taken.
 
 Using the exploit includes getting past whatever detection the server has;
 that is not modelled as a step of its own. Times left *unknown* in the files
-(escaping to a host, taking software over through content, getting past
-multi-factor login, the server account's admin login) belong to steps this
-drawing does not have or that do not lead to the target, so they cost no
-number.
+cost no number. Escaping to a host, taking software over through content and
+the server account's admin login belong to steps this drawing does not have.
+Getting past multi-factor login is a step on the login path, and is not
+needed: multi-factor login is off, so a key alone logs in.
 
 ### What to read from it
 
