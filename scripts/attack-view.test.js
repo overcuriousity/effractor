@@ -48,7 +48,7 @@ test('each source field leads to the place in the architecture that sets it', ()
   assert.deepEqual(find.paths.map(at), [
     { select: 'entity/openssh', slot: 'find-exploit', path: 'entities.openssh.parameters.find-exploit' },
     { select: 'entity/openssh', slot: 'find-exploit-patched', path: 'entities.openssh.parameters.find-exploit-patched' },
-    { select: 'entity/openssh', field: 'defense', path: 'entities.openssh.defenses.patched' },
+    { select: 'entity/openssh', field: 'defense', defense: 'patched', path: 'entities.openssh.defenses.patched' },
   ]);
   // Extraction: the credential's slot.
   assert.deepEqual(at('entities.server-key.parameters.extract'), { select: 'entity/server-key', slot: 'extract', path: 'entities.server-key.parameters.extract' });

@@ -161,11 +161,16 @@
   // `value`: {status, ttc, note}, submitted together. Unknown carries neither
   // a TTC nor a note; anything else is written as given — an empty TTC or
   // note is left out, for the format to refuse, never filled in.
-  function setParameter(doc, owner, slot, value) {
+  // `spec`, the kind's catalog entry, lets an optional slot the component
+  // does not have yet be given.
+  function setParameter(doc, owner, slot, value, spec) {
     if (!value || STATUSES.indexOf(value.status) < 0) return null;
     var next = clone(doc);
     var at = ownerOf(next, owner);
-    if (!at || !has(at.record.parameters, slot)) return null;
+    if (!at) return null;
+    var optional = !!spec && (spec.optional || []).indexOf(slot) >= 0;
+    if (!has(at.record.parameters, slot) && !optional) return null;
+    at.record.parameters = at.record.parameters || {};
     var parameter = { status: value.status };
     if (value.status !== "unknown") {
       var ttc = String(value.ttc == null ? "" : value.ttc).trim();
@@ -180,11 +185,17 @@
     return { doc: next, select: at.select };
   }
 
-  function setDefense(doc, id, defense, value) {
+  // `spec` lets an optional switch the component has not set yet be set.
+  function setDefense(doc, id, defense, value, spec) {
     if (value !== true && value !== false && value !== "unknown") return null;
-    if (!has(doc.entities, id) || !has(doc.entities[id].defenses, defense)) return null;
-    if (doc.entities[id].defenses[defense] === value) return null;
+    if (!has(doc.entities, id)) return null;
+    var optional = !!spec && (spec.optional_defenses || []).indexOf(defense) >= 0;
+    if (!has(doc.entities[id].defenses, defense) && !optional) return null;
+    // An optional switch not set is off: setting it off changes nothing.
+    var now = has(doc.entities[id].defenses, defense) ? doc.entities[id].defenses[defense] : false;
+    if (now === value) return null;
     var next = clone(doc);
+    next.entities[id].defenses = next.entities[id].defenses || {};
     next.entities[id].defenses[defense] = value;
     return { doc: next, select: "entity/" + id };
   }

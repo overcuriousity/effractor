@@ -267,7 +267,13 @@ test("a scenario can switch each of a component's switches", () => {
 });
 
 test('an optional switch that is not set is off in the baseline', () => {
-  const doc = { entities: { srv: { kind: 'host', label: 'Server' } }, associations: {} };
-  const cat = { entities: [{ kind: 'host', defenses: ['aslr', 'dep'], optional_defenses: ['aslr', 'dep'] }], defenses: [] };
+  const doc = { entities: { srv: { kind: 'host', label: 'Server' }, sshd: { kind: 'service', label: 'SSH' } }, associations: { h: { kind: 'hosts', from: 'srv', to: 'sshd', privilege: 'admin' } } };
+  const cat = { entities: [{ kind: 'host', defenses: ['aslr', 'dep'], optional_defenses: ['aslr', 'dep'] }, { kind: 'service', defenses: [] }], defenses: [] };
   assert.deepEqual(C.switches(doc, cat).map((x) => x.defense + ':' + x.baseline), ['aslr:false', 'dep:false']);
+});
+
+test('Compare offers ASLR and DEP only on a host they can change', () => {
+  const doc = { entities: { srv: { kind: 'host', label: 'Server' }, ws: { kind: 'host', label: 'Workstation' }, sshd: { kind: 'service', label: 'SSH' } }, associations: { h: { kind: 'hosts', from: 'srv', to: 'sshd', privilege: 'admin' } } };
+  const cat = { entities: [{ kind: 'host', defenses: ['aslr', 'dep'], optional_defenses: ['aslr', 'dep'] }, { kind: 'service', defenses: [] }], defenses: [] };
+  assert.deepEqual(C.switches(doc, cat).map((x) => x.entity + ':' + x.defense), ['srv:aslr', 'srv:dep']);
 });

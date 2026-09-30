@@ -653,22 +653,26 @@ fn a_kind_answers_the_switches_it_carries_as_a_list() {
 
 #[test]
 fn only_slots_added_to_an_existing_kind_are_optional() {
-    use effractor_core::architecture::{EntityKind, Slot};
+    use effractor_core::architecture::EntityKind;
+    let mut optional: Vec<String> = Vec::new();
     for kind in EntityKind::ALL {
         for slot in kind.slots() {
-            let added = (*slot == Slot::DeployExploit
-                && matches!(kind, EntityKind::Host | EntityKind::Application))
-                || (matches!(slot, Slot::DeployExploitAslr | Slot::DeployExploitDep)
-                    && matches!(kind, EntityKind::Host | EntityKind::Service));
-            assert_eq!(
-                slot.optional(kind),
-                added,
-                "{} on {}",
-                slot.as_str(),
-                kind.as_str()
-            );
+            if slot.optional(kind) {
+                optional.push(format!("{} on {}", slot.as_str(), kind.as_str()));
+            }
         }
     }
+    assert_eq!(
+        optional,
+        [
+            "deploy-exploit on host",
+            "deploy-exploit-aslr on host",
+            "deploy-exploit-dep on host",
+            "deploy-exploit on application",
+            "deploy-exploit-aslr on service",
+            "deploy-exploit-dep on service",
+        ]
+    );
 }
 
 #[test]

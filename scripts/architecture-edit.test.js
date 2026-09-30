@@ -196,3 +196,14 @@ test('a new host leaves out the switches optional on its kind', () => {
   const r = E.addEntity(E.empty(), 'host', 'Server', { parameters: [], defenses: ['aslr', 'dep'], optional_defenses: ['aslr', 'dep'] });
   assert.equal('defenses' in r.doc.entities[r.entity], false, 'absent is off');
 });
+
+test('an optional slot or switch the kind carries is written when it is given', () => {
+  const spec = { kind: 'host', parameters: ['escape', 'deploy-exploit'], optional: ['deploy-exploit'], defenses: ['aslr', 'dep'], optional_defenses: ['aslr', 'dep'] };
+  let doc = E.addEntity(E.empty(), 'host', 'Server', spec).doc;
+  const p = E.setParameter(doc, { entity: 'server' }, 'deploy-exploit', { status: 'illustrative', ttc: 'Exponential(mean 3)', note: 'x' }, spec);
+  assert.deepEqual(p.doc.entities.server.parameters['deploy-exploit'], { status: 'illustrative', ttc: 'Exponential(mean 3)', note: 'x' });
+  const d = E.setDefense(p.doc, 'server', 'aslr', true, spec);
+  assert.deepEqual(d.doc.entities.server.defenses, { aslr: true });
+  assert.equal(E.setParameter(doc, { entity: 'server' }, 'login', { status: 'unknown' }, spec), null, 'not a slot of the kind');
+  assert.equal(E.setDefense(doc, 'server', 'patched', true, spec), null, 'not a switch of the kind');
+});

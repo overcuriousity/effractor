@@ -480,3 +480,28 @@ test('a host running an unpatched operating system is ringed exposed', () => {
   assert.equal(nodes['entity/ubuntu'].rings[0].state, 'vulnerable');
   assert.equal(nodes['entity/srv'].rings[0].state, 'exposed');
 });
+
+// The catalog as it is, for rows that depend on the kind's optional lists.
+const REAL = require('./fixtures/catalog.json');
+
+test('ASLR and DEP are shown only on a host they can change, and say so', () => {
+  const doc = lecture();
+  // ws runs cli, an application: nothing there reads ASLR.
+  assert.deepEqual(V.defenseRows(doc, REAL, 'ws'), []);
+  // srv runs sshd, a service.
+  assert.deepEqual(V.defenseRows(doc, REAL, 'srv').map((r) => r.defense), ['aslr', 'dep']);
+  // sshd's replacement times are shown only while their switch is not off.
+  const slots = () => V.slotRows(doc, REAL, 'sshd').filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
+  assert.deepEqual(slots(), []);
+  doc.entities.srv.defenses = { aslr: true };
+  assert.deepEqual(slots(), ['deploy-exploit-aslr: used while ASLR is on · unknown until given']);
+});
+
+test("a host's own exploit time is offered only once it runs a product", () => {
+  const doc = lecture();
+  const absent = (id) => V.slotRows(doc, REAL, id).filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
+  assert.deepEqual(absent('srv'), []);
+  doc.entities.os = { kind: 'product', label: 'OS' };
+  doc.associations['srv-os'] = { kind: 'instance-of', from: 'srv', to: 'os' };
+  assert.deepEqual(absent('srv'), ['deploy-exploit: not drawn until a time is given']);
+});

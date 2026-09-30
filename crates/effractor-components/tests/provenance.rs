@@ -867,3 +867,69 @@ fn aslr_on_the_host_replaces_the_time_of_using_an_exploit_on_its_service() {
         "{paths:?}"
     );
 }
+
+#[test]
+fn a_scenario_turning_aslr_on_changes_a_host_that_never_said_it() {
+    // The server says nothing of ASLR; sshd has its time under it.
+    let text = LECTURE
+        .replacen(
+            "  sshd:\n    kind: service\n    label: SSH server\n    parameters:\n",
+            "  sshd:\n    kind: service\n    label: SSH server\n    parameters:\n      deploy-exploit-aslr:\n        status: illustrative\n        ttc: \"Exponential(mean 20)\"\n        note: exercise\n",
+            1,
+        )
+        .replacen(
+            "\nanalysis:\n",
+            "  aslr:\n    label: ASLR on the server\n    changes:\n      - {entity: server, defense: aslr, value: true}\n\nanalysis:\n",
+            1,
+        );
+    let model = architecture(&text);
+    let g = generate(&model).unwrap();
+    let i = index(&g, "action/service-deploy-exploit/sshd");
+    let base = resolve(&model, &g, None).unwrap();
+    assert_eq!(
+        base.ttc[i],
+        ResolvedTtc::Known(Distribution::ExponentialMean(2.0))
+    );
+    let on = resolve(&model, &g, Some(&id("aslr"))).unwrap();
+    assert_eq!(
+        on.ttc[i],
+        ResolvedTtc::Known(Distribution::ExponentialMean(20.0))
+    );
+}
+
+#[test]
+fn an_unknown_dep_is_named_first_and_the_host_step_reads_aslr_too() {
+    let m = hardened("false", "unknown");
+    let g = generate(&m).unwrap();
+    let r = resolve(&m, &g, None).unwrap();
+    let i = index(&g, "action/service-deploy-exploit/sshd");
+    assert_eq!(
+        r.ttc[i],
+        ResolvedTtc::Unknown(vec!["entities.server.defenses.dep".to_owned()])
+    );
+    assert_eq!(
+        r.paths[i][0], "entities.server.defenses.dep",
+        "the assumption list names the first path"
+    );
+
+    // The host's own step, with Ubuntu on it and ASLR on.
+    let text = LECTURE
+        .replacen(
+            "\nassociations:\n",
+            "  ubuntu:\n    kind: product\n    label: Ubuntu Linux\n    parameters:\n      find-exploit:\n        status: illustrative\n        ttc: \"Exponential(mean 20)\"\n        note: exercise\n      find-exploit-patched:\n        status: illustrative\n        ttc: \"Never\"\n        note: exercise\n    defenses: {patched: false}\n\nassociations:\n  server-os:\n    kind: instance-of\n    from: server\n    to: ubuntu\n",
+            1,
+        )
+        .replacen(
+            "  server:\n    kind: host\n    label: Server\n    parameters:\n",
+            "  server:\n    kind: host\n    label: Server\n    defenses: {aslr: true}\n    parameters:\n      deploy-exploit:\n        status: illustrative\n        ttc: \"Exponential(mean 3)\"\n        note: exercise\n      deploy-exploit-aslr:\n        status: illustrative\n        ttc: \"Exponential(mean 30)\"\n        note: exercise\n",
+            1,
+        );
+    let m = architecture(&text);
+    let g = generate(&m).unwrap();
+    let r = resolve(&m, &g, None).unwrap();
+    let h = index(&g, "action/host-deploy-exploit/server");
+    assert_eq!(
+        r.ttc[h],
+        ResolvedTtc::Known(Distribution::ExponentialMean(30.0))
+    );
+}

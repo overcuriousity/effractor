@@ -54,7 +54,7 @@
     });
   }
   function kindSpec(kind) {
-    return (catalog.entities || []).filter(function (e) {
+    return ((catalog && catalog.entities) || []).filter(function (e) {
       return e.kind === kind;
     })[0];
   }
@@ -601,7 +601,7 @@
     applyButton.addEventListener("click", function () {
       if (missing()) return;
       apply(function () {
-        var edit = A.setParameter(doc(), owner, slot, draft);
+        var edit = A.setParameter(doc(), owner, slot, draft, owner.entity ? kindSpec(doc().entities[owner.entity].kind) : null);
         if (!edit) close();
         return edit;
       }, close, true);
@@ -774,11 +774,11 @@
     window.effractorArchitectureView.defenseRows(doc(), catalog, id).forEach(function (row, i) {
       var defense = row.defense;
       var current = row.value;
-      var toggle = field(form, i ? "prop-defense-" + defense : "prop-defense", catalog ? W.defense(catalog, defense) : word(defense), window.effractorMenu.dropdown(SWITCH, String(current)));
+      var toggle = field(form, "prop-defense-" + defense, catalog ? W.defense(catalog, defense) : word(defense), window.effractorMenu.dropdown(SWITCH, String(current)));
       toggle.addEventListener("change", function () {
         var v = toggle.value === "true" ? true : toggle.value === "false" ? false : "unknown";
         apply(function () {
-          return A.setDefense(doc(), id, defense, v);
+          return A.setDefense(doc(), id, defense, v, kindSpec(e.kind));
         }, null, true);
       });
     });
@@ -885,15 +885,23 @@
     // where a generated step's source leads.
     openParameter: function (owner, slot) {
       var record = ownerRecord(owner);
-      if (!record || !Object.prototype.hasOwnProperty.call(record.parameters || {}, slot)) return;
+      // An optional slot not given yet opens too, where its row is shown.
+      var shown = owner.indexOf("entity/") === 0 && window.effractorArchitectureView.slotRows(doc(), catalog, owner.slice(7)).some(function (r) { return r.slot === slot; });
+      if (!record || (!Object.prototype.hasOwnProperty.call(record.parameters || {}, slot) && !shown)) return;
       openSlot = owner + "\u0000" + slot;
       renderProperties();
       var first = $("param-ttc-preset") || $("param-ttc");
       if (first) first.focus();
     },
     // A control of the selected item's form, by what it sets.
-    focusField: function (field) {
-      var control = $({ defense: "prop-defense", foothold: "prop-foothold", target: "prop-target", allowed: "prop-allowed", privilege: "prop-privilege", factor: "prop-factor", contained: "prop-contained", decrypts: "prop-decrypts", mode: "prop-mode", route: "prop-route-add" }[field] || "");
+    // A switch goes to its own row, else the first.
+    focusField: function (field, defense) {
+      if (field === "defense") {
+        var row = (defense && $("prop-defense-" + defense)) || document.querySelector("[id^='prop-defense-']");
+        if (row) row.focus();
+        return;
+      }
+      var control = $({ foothold: "prop-foothold", target: "prop-target", allowed: "prop-allowed", privilege: "prop-privilege", factor: "prop-factor", contained: "prop-contained", decrypts: "prop-decrypts", mode: "prop-mode", route: "prop-route-add" }[field] || "");
       if (control) control.focus();
     },
     // For architecture-links-ui.js: the same edit queue, form parts and hooks.

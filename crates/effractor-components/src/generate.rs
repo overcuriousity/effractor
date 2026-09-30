@@ -13,7 +13,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use effractor_core::architecture::{
-    Architecture, Defense, EntityKind, Factor, Mode, Privilege, Relation, Slot, State,
+    Architecture, Change, Defense, EntityKind, Factor, Mode, Privilege, Relation, Slot, State,
 };
 use effractor_core::{
     AssociationId, Code, Diagnostic, EntityId, FlowId, Severity, validate_architecture,
@@ -261,10 +261,18 @@ impl<'a> Builder<'a> {
     /// generate exactly as before. Returns the binding and the paths it reads.
     fn deploy_binding(&self, owner: &EntityId, host: Option<&EntityId>) -> (Binding, Vec<String>) {
         let o = Owner::Entity(owner.clone());
+        // Said in the file, or switched by a scenario: either can select a
+        // replacement, so then the step reads the host's switches.
         let said = host.filter(|h| {
             let e = &self.m.entities[*h];
+            let switched = self.m.scenarios.values().any(|s| {
+                s.changes.iter().any(|c| {
+                    matches!(c, Change::EntityDefense { entity, defense: Defense::Aslr | Defense::Dep, .. } if entity == *h)
+                })
+            });
             e.kind == EntityKind::Host
-                && (e.defenses.get(Defense::Aslr).is_some()
+                && (switched
+                    || e.defenses.get(Defense::Aslr).is_some()
                     || e.defenses.get(Defense::Dep).is_some())
         });
         match said {

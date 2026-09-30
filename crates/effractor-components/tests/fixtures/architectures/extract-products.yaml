@@ -45,14 +45,14 @@ entities:
     kind: application
     label: SSH client
     parameters:
-      take-over:
-        status: unknown
-      take-over-guarded:
-        status: unknown
       deploy-exploit:
         status: illustrative
         ttc: "Exponential(mean 2)"
         note: Test fixture; not calibrated
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
     defenses: {guarded: unknown}
   sshd:
     kind: service

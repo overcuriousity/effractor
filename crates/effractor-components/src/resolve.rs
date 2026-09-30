@@ -133,7 +133,13 @@ pub fn resolve(
                 };
                 let (aslr, aslr_path) = setting(Defense::Aslr);
                 let (dep, dep_path) = setting(Defense::Dep);
-                let mut paths = vec![aslr_path.clone(), dep_path.clone()];
+                // The switch that decides comes first: the assumption list
+                // names a node's first path.
+                let mut paths = if aslr == Switch::Off {
+                    vec![dep_path.clone(), aslr_path.clone()]
+                } else {
+                    vec![aslr_path.clone(), dep_path.clone()]
+                };
                 let slot = match (aslr, dep) {
                     (Switch::On, _) => Some(Slot::DeployExploitAslr),
                     (Switch::Unknown, _) => None,

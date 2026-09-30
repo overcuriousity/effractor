@@ -225,15 +225,19 @@
       if (i[k] === undefined) return;
       c.put(function (d) { if (i[k] === null || (Array.isArray(i[k]) && !i[k].length)) delete d.entities[id][k]; else d.entities[id][k] = i[k]; });
     });
+    // What the kind carries, optional ones included (catalog spec).
+    var spec = ((ctx.catalog && ctx.catalog.entities) || []).filter(function (k) { return k.kind === e.kind; })[0] || null;
+    var slotsOf = Object.keys(e.parameters || {}).concat(((spec && spec.optional) || []).filter(function (s) { return !has(e.parameters, s); }));
+    var switchesOf = Object.keys(e.defenses || {}).concat(((spec && spec.optional_defenses) || []).filter(function (s) { return !has(e.defenses, s); }));
     var slots = Object.keys(i.parameters || {});
     for (var s = 0; s < slots.length; s++) {
-      if (!has(e.parameters, slots[s])) return { refused: "“" + id + "” has no parameter “" + slots[s] + "”; it has " + Object.keys(e.parameters || {}).join(", ") };
-      c.apply(AE.setParameter(c.doc(), { entity: id }, slots[s], i.parameters[slots[s]]));
+      if (slotsOf.indexOf(slots[s]) < 0) return { refused: "“" + id + "” has no parameter “" + slots[s] + "”; it has " + slotsOf.join(", ") };
+      c.apply(AE.setParameter(c.doc(), { entity: id }, slots[s], i.parameters[slots[s]], spec));
     }
     var defs = Object.keys(i.defenses || {});
     for (var d = 0; d < defs.length; d++) {
-      if (!has(e.defenses, defs[d])) return { refused: "“" + id + "” has no defense “" + defs[d] + "”" };
-      c.apply(AE.setDefense(c.doc(), id, defs[d], i.defenses[defs[d]]));
+      if (switchesOf.indexOf(defs[d]) < 0) return { refused: "“" + id + "” has no defense “" + defs[d] + "”" + (switchesOf.length ? "; it has " + switchesOf.join(", ") : "") };
+      c.apply(AE.setDefense(c.doc(), id, defs[d], i.defenses[defs[d]], spec));
     }
     return c.done("Changed “" + e.label + "”", "entity/" + id);
   }

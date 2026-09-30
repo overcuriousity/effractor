@@ -143,3 +143,12 @@ test('a solve already running is waited for, not toggled off', async () => {
   assert.equal(app.solves, 0);
   assert.deepEqual([r.ok, JSON.parse(r.output)], [true, { p: 0.25 }]);
 });
+
+test("the agent's catalog carries each kind's switches and what is optional", () => {
+  const library = require('./fixtures/catalog.json');
+  const host = P.forAgent(library).entities.find((e) => e.kind === 'host');
+  assert.deepEqual(host.defenses, ['aslr', 'dep']);
+  assert.deepEqual(host.optional_defenses, ['aslr', 'dep']);
+  assert.ok(host.optional.includes('deploy-exploit'));
+  assert.deepEqual(P.forAgent(library).entities.find((e) => e.kind === 'product').defenses, ['patched']);
+});

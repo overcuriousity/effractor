@@ -144,7 +144,13 @@
     var out = [];
     Object.keys(doc.entities || {}).forEach(function (id) {
       var e = doc.entities[id];
+      // A host's ASLR and DEP only where it runs a service or a product.
+      var hardens = Object.keys(doc.associations || {}).some(function (k) {
+        var a = doc.associations[k];
+        return a.from === id && (a.kind === "instance-of" || (a.kind === "hosts" && doc.entities[a.to] && doc.entities[a.to].kind === "service"));
+      });
       (defensesOf[e.kind] || []).forEach(function (d) {
+        if ((d === "aslr" || d === "dep") && !hardens && !(e.defenses && has(e.defenses, d))) return;
         // An optional switch not set is off; any other one unsaid, unknown.
         var v = e.defenses && has(e.defenses, d) ? e.defenses[d] : (optionalOf[e.kind] || []).indexOf(d) >= 0 ? false : "unknown";
         out.push({ key: keyOf({ entity: id, defense: d }), entity: id, defense: d, label: labelOf(doc, "entities", id), word: words[d] || d, baseline: v });

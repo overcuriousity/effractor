@@ -132,7 +132,7 @@
       if (target.source) return app.showSourcePath(target.source);
       app.select(target.select);
       if (target.slot) U.openParameter(target.select, target.slot);
-      else if (target.field) U.focusField(target.field);
+      else if (target.field) U.focusField(target.field, target.defense);
     });
   }
 

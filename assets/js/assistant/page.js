@@ -44,7 +44,7 @@
     }
     return {
       library: c.library,
-      entities: (c.entities || []).map(function (e) { return pick(e, ["kind", "description", "states", "parameters", "defense"]); }),
+      entities: (c.entities || []).map(function (e) { return pick(e, ["kind", "description", "states", "parameters", "optional", "defenses", "optional_defenses"]); }),
       associations: c.associations,
       flows: {
         source: "an application or service; its host is attached to the route's first network",
@@ -241,7 +241,7 @@
     };
   }
 
-  var api = { allowed: allowed, shape: shape, graphSummary: graphSummary, stateLine: stateLine, createExecutor: createExecutor };
+  var api = { forAgent: forAgent, allowed: allowed, shape: shape, graphSummary: graphSummary, stateLine: stateLine, createExecutor: createExecutor };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorAssistantPage = api;
 })();

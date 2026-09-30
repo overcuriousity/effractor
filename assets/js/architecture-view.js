@@ -51,9 +51,50 @@
       return { slot: slot };
     });
     ((spec && spec.optional) || []).forEach(function (slot) {
-      if (!has(e.parameters || {}, slot)) rows.push({ slot: slot, absent: true, note: "not drawn until a time is given" });
+      if (has(e.parameters || {}, slot)) return;
+      var note = optionalNote(doc, id, slot);
+      if (note) rows.push({ slot: slot, absent: true, note: note });
     });
     return rows;
+  }
+
+  // Whether `id` is an instance of a product.
+  function hasProduct(doc, id) {
+    return Object.keys(doc.associations || {}).some(function (k) {
+      var a = doc.associations[k];
+      return a.kind === "instance-of" && a.from === id;
+    });
+  }
+  // The host whose ASLR and DEP a step on `id` reads: itself, or the host
+  // that runs it.
+  function hardenedBy(doc, id) {
+    var e = doc.entities[id];
+    if (e.kind === "host") return id;
+    var k = Object.keys(doc.associations || {}).find(function (k) {
+      var a = doc.associations[k];
+      return a.kind === "hosts" && a.to === id && has(doc.entities, a.from) && doc.entities[a.from].kind === "host";
+    });
+    return k ? doc.associations[k].from : null;
+  }
+  var REPLACED = { "deploy-exploit-aslr": ["aslr", "ASLR"], "deploy-exploit-dep": ["dep", "DEP"] };
+  // What an absent optional slot means here, or null where it could change
+  // nothing and is not shown.
+  function optionalNote(doc, id, slot) {
+    if (has(REPLACED, slot)) {
+      var host = hardenedBy(doc, id);
+      var d = host && doc.entities[host].defenses;
+      var on = !!d && has(d, REPLACED[slot][0]) && d[REPLACED[slot][0]] !== false;
+      return on ? "used while " + REPLACED[slot][1] + " is on · unknown until given" : null;
+    }
+    if (slot === "deploy-exploit" && !hasProduct(doc, id)) return null;
+    return "not drawn until a time is given";
+  }
+  // Whether a host runs anything ASLR and DEP could change.
+  function hardens(doc, id) {
+    return hasProduct(doc, id) || Object.keys(doc.associations || {}).some(function (k) {
+      var a = doc.associations[k];
+      return a.kind === "hosts" && a.from === id && has(doc.entities, a.to) && doc.entities[a.to].kind === "service";
+    });
   }
 
   // Every switch row of a component with its value: the switches it has
@@ -66,7 +107,9 @@
       return { defense: defense, value: e.defenses[defense] };
     });
     ((spec && spec.optional_defenses) || []).forEach(function (defense) {
-      if (!has(e.defenses || {}, defense)) rows.push({ defense: defense, value: false });
+      if (has(e.defenses || {}, defense)) return;
+      if ((defense === "aslr" || defense === "dep") && !hardens(doc, id)) return;
+      rows.push({ defense: defense, value: false });
     });
     var order = (spec && spec.defenses) || [];
     return rows.sort(function (a, b) {

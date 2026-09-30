@@ -974,7 +974,8 @@
       },
       "scope": "one per host with a product and a `deploy-exploit` time",
       "assumptions": [
-        "An operating-system exploit gives administrative control; whatever bypass it needs is in its time's note."
+        "An operating-system exploit gives administrative control; whatever bypass it needs is in its time's note.",
+        "While the host has ASLR on, `deploy-exploit-aslr` stands in; while DEP is on and ASLR is not, `deploy-exploit-dep`."
       ]
     },
     {

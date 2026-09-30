@@ -75,8 +75,8 @@
     if ((m = /^entities\.([^.[\]]+)\.parameters\.([^.[\]]+)$/.exec(path))) {
       return has(doc.entities, m[1]) ? { select: "entity/" + m[1], slot: m[2], path: path } : source;
     }
-    if ((m = /^entities\.([^.[\]]+)\.defenses\.[^.[\]]+$/.exec(path))) {
-      return has(doc.entities, m[1]) ? { select: "entity/" + m[1], field: "defense", path: path } : source;
+    if ((m = /^entities\.([^.[\]]+)\.defenses\.([^.[\]]+)$/.exec(path))) {
+      return has(doc.entities, m[1]) ? { select: "entity/" + m[1], field: "defense", defense: m[2], path: path } : source;
     }
     if ((m = /^flows\.([^.[\]]+)\.parameters\.([^.[\]]+)$/.exec(path))) {
       return has(doc.flows, m[1]) ? { select: "flow/" + m[1], slot: m[2], path: path } : source;

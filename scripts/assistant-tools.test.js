@@ -149,3 +149,16 @@ test('the assistant may add every kind and every link the component library has'
   assert.deepEqual(tool('add_entity').slice().sort(), library.entities.map((e) => e.kind).sort());
   assert.deepEqual(tool('link').slice().sort(), library.associations.map((a) => a.kind).sort());
 });
+
+test('the assistant may give a host the times and switches optional on it', () => {
+  const HOSTSPEC = { kind: 'host', parameters: ['escape', 'deploy-exploit'], optional: ['deploy-exploit'], defenses: ['aslr', 'dep'], optional_defenses: ['aslr', 'dep'] };
+  const ctx = (doc) => ({ doc, profile: 'architecture', catalog: { entities: [HOSTSPEC] } });
+  let r = T.edit('add_entity', { kind: 'host', label: 'Server' }, ctx(AE.empty()));
+  assert.ok(r.doc, JSON.stringify(r));
+  r = T.edit('set_entity', { id: 'server', parameters: { 'deploy-exploit': { status: 'illustrative', ttc: 'Exponential(mean 3)', note: 'x' } }, defenses: { aslr: true } }, ctx(r.doc));
+  assert.ok(r.doc, JSON.stringify(r));
+  assert.equal(r.doc.entities.server.parameters['deploy-exploit'].ttc, 'Exponential(mean 3)');
+  assert.equal(r.doc.entities.server.defenses.aslr, true);
+  const refused = T.edit('set_entity', { id: 'server', defenses: { patched: true } }, ctx(r.doc));
+  assert.ok(refused.refused, 'a switch the kind does not have is refused');
+});
