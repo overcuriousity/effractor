@@ -202,13 +202,20 @@ on an account.
 
 ## 6. Containment (5.20, 5.21)
 
-Dragging a component onto a host or a router and releasing it puts both in a
-cluster headed by the machine (an existing cluster headed by it grows). A
-headed cluster draws, closed, as the machine's icon and name with the member
-count; open, as today. The inspector of the head lists its members under
-*Inside*, the extract's "Extra" tab. Clusters are a way of looking; the file
-records them as it records clusters today plus a `head`; generation reads
-nothing. Dragging a member out of the open cluster removes it.
+Built with what the page already had (ruling during Branch A, 2026-09-30):
+dragging a component onto another makes a cluster with the target first;
+dragging one onto that cluster adds it. Dropping the firewall and the access
+control onto the router gives a cluster named after the router ("Router +2"),
+drawn with the icon of its most specific member (a router over a firewall, an
+access control over accounts). The cluster's inspector lists its members, each
+with *Take out*: the extract's "Extra" tab. Clusters are a way of looking; the
+file records them as today, with no new field; generation reads nothing.
+
+What differs from the extract: the members are listed in the cluster's
+inspector, not the machine's; the icon is the most specific member's, not
+always the drop target's (dropping a router onto the host that runs it shows
+the router). The owner looks at it on the Branch A preview and says whether
+that is close enough.
 
 ## 7. Page
 
@@ -251,7 +258,7 @@ One roadmap item `securicad-extract` replacing `host-products`, decomposed
 into branches in this order, each landed and looked at before the next:
 
 1. `access-control` — §3.1, §6 (containment, since 5.20 hides the access
-   control and firewall inside the router).
+   control and firewall inside the router; built on the existing clusters).
 2. `host-products` — §3.3 and the ASLR / DEP switches of §4.
 3. `sensors` — §3.2 and *Anti-malware* of §4.
 4. `host-steps` — §5.1–5.4, *Hardened*, *Host firewall*, *Static ARP tables*.
