@@ -13,7 +13,7 @@
   var GROUPS = [
     ["Network", ["network", "router", "firewall"]],
     ["Compute", ["host", "application", "service", "product"]],
-    ["Identity", ["account", "credential", "person"]],
+    ["Identity", ["account", "credential", "person", "access-control"]],
     ["Data", ["data"]],
   ];
   var STATUSES = ["unknown", "illustrative", "assumed", "calibrated"];

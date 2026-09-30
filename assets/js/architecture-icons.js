@@ -52,6 +52,11 @@
       ["circle", { cx: 7.5, cy: 15.5, r: 4 }],
       ["path", { d: "M10.4 12.6 20 3M16 7l3 3M13.5 9.5l2 2" }],
     ],
+    // A padlock: where accounts log in to a machine.
+    "access-control": [
+      ["rect", { x: 5, y: 10.5, width: 14, height: 10, rx: 1.5 }],
+      ["path", { d: "M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2.5" }],
+    ],
     // A cylinder: stored records.
     data: [
       ["path", { d: "M5 6c0-1.66 3.13-3 7-3s7 1.34 7 3-3.13 3-7 3-7-1.34-7-3z" }],
@@ -62,7 +67,7 @@
   var FAMILY = {
     network: "network", router: "network", firewall: "network",
     host: "compute", application: "compute", service: "compute", product: "compute",
-    account: "identity", credential: "identity", person: "identity",
+    account: "identity", credential: "identity", person: "identity", "access-control": "identity",
     data: "data",
   };
   var DOT = [["circle", { cx: 12, cy: 12, r: 3 }]];

@@ -50,7 +50,8 @@
         return s.kind === e.kind;
       })[0];
       var states = spec ? spec.states : [];
-      if (!states.length) return app.say("a " + e.kind + " takes no pin: what an attacker gets there follows from its links");
+      var word = e.kind.replace(/-/g, " ");
+      if (!states.length) return app.say((/^[aeiou]/.test(word) ? "an " : "a ") + word + " takes no pin: what an attacker gets there follows from its links");
       if (states.length === 1) return place(role, entity, states[0], from);
       app.showMenu([[role + " on " + e.label, "", null]].concat(states.map(function (s) {
         return [window.effractorWords.state(catalog, s), "", function () {

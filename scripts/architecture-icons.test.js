@@ -15,7 +15,7 @@ test('every kind of component has an icon of plain line parts', () => {
 });
 
 test('kinds fall in three families, each drawn in its own colour', () => {
-  assert.deepEqual(A.KINDS.map(I.family), ['network', 'network', 'network', 'compute', 'compute', 'compute', 'compute', 'identity', 'identity', 'identity', 'data']);
+  assert.deepEqual(A.KINDS.map(I.family), ['network', 'network', 'network', 'compute', 'compute', 'compute', 'compute', 'identity', 'identity', 'identity', 'data', 'identity']);
 });
 
 test('an unknown kind still draws: a plain dot, in no family', () => {
@@ -26,4 +26,10 @@ test('an unknown kind still draws: a plain dot, in no family', () => {
 test('a person is drawn as a person and an account as a badge', () => {
   assert.notDeepEqual(I.parts('person'), I.parts('account'));
   assert.ok(I.parts('account').some(([tag]) => tag === 'rect'));
+});
+
+test('an access control is identity, drawn as a lock, not as an account', () => {
+  assert.equal(I.family('access-control'), 'identity');
+  assert.notDeepEqual(I.parts('access-control'), I.parts('account'));
+  assert.notDeepEqual(I.parts('access-control'), I.parts('credential'));
 });
