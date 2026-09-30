@@ -773,6 +773,30 @@ impl Cx<'_> {
                 _ => None,
             })
             .collect();
+        // One grant per account and machine, however it is said: on the
+        // machine, or through its access control.
+        let mut grant_on: HashMap<(&EntityId, &EntityId), &AssociationId> = HashMap::new();
+        for (id, association) in &m.associations {
+            if let Relation::Grants { from, to, .. } = &association.relation {
+                let machine = *machine_of_access.get(to).unwrap_or(&to);
+                match grant_on.get(&(from, machine)) {
+                    // Said the same way twice is the duplicate check's to report.
+                    Some(first) if m.associations[*first].relation.to_entity() != Some(to) => {
+                        self.error(
+                            Code::Cardinality,
+                            format!("associations.{id}"),
+                            format!(
+                                "\"{from}\" is already granted on \"{machine}\" by \"{first}\"; one grant per account and machine"
+                            ),
+                        );
+                    }
+                    Some(_) => {}
+                    None => {
+                        grant_on.insert((from, machine), id);
+                    }
+                }
+            }
+        }
         for (id, association) in &m.associations {
             let at = format!("associations.{id}");
             match &association.relation {

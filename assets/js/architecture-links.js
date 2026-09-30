@@ -387,8 +387,9 @@
             // One firewall per router, one router per firewall; one access
             // control per machine, one machine per access control.
             if (oneEachWay(spec.kind) && (hasLink(doc, spec.kind, "from", id) || hasLink(doc, spec.kind, "to", other))) return false;
-            // A machine behind an access control is granted through it.
-            if (spec.kind === "grants" && hasLink(doc, "controls-access", "from", other)) return false;
+            // A machine behind an access control is granted through it; one
+            // grant per account and machine, however it is said.
+            if (spec.kind === "grants" && (hasLink(doc, "controls-access", "from", other) || grantedOn(doc, id, other))) return false;
             return !linked(doc, spec.kind, id, other);
           }),
         });
@@ -403,6 +404,7 @@
               spec.from.indexOf(kindOf(doc, other)) >= 0 &&
               endsAllowed(spec.kind, kindOf(doc, other), kind) &&
               !(oneEachWay(spec.kind) && hasLink(doc, spec.kind, "from", other)) &&
+              !(spec.kind === "grants" && grantedOn(doc, other, id)) &&
               !(spec.kind === "instance-of" && productOf(doc, other)) &&
               !linked(doc, spec.kind, other, id)
             );
@@ -522,6 +524,17 @@
   var ONE_EACH_WAY = ["filters", "controls-access"];
   function oneEachWay(relation) {
     return ONE_EACH_WAY.indexOf(relation) >= 0;
+  }
+  // Is `account` granted on the machine `target` is or controls access to,
+  // said either way?
+  function grantedOn(doc, account, target) {
+    var machine = kindOf(doc, target) === "access-control" ? machineOfAccess(doc, target) : target;
+    if (!machine) return false;
+    return Object.keys(doc.associations || {}).some(function (k) {
+      var a = doc.associations[k];
+      if (a.kind !== "grants" || a.from !== account) return false;
+      return a.to === machine || machineOfAccess(doc, a.to) === machine;
+    });
   }
   // The machine an access control belongs to, or null.
   function machineOfAccess(doc, accessControl) {

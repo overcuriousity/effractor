@@ -2222,3 +2222,19 @@ fn management_access_counts_a_grant_through_the_access_control() {
         "the router's administrator is granted, through its login"
     );
 }
+
+#[test]
+fn a_grant_through_the_access_control_and_one_on_the_machine_is_said_twice() {
+    // The format fixture grants admin-account admin straight on server.
+    let mut image = image(LECTURE);
+    image["entities"]["server-login"] =
+        serde_json::json!({"kind": "access-control", "label": "Server login"});
+    image["associations"]["server-access"] =
+        serde_json::json!({"kind": "controls-access", "from": "server", "to": "server-login"});
+    image["associations"]["admin-through-login"] = serde_json::json!({"kind": "grants", "from": "admin-account", "to": "server-login", "privilege": "user"});
+    assert!(has(
+        &errors_of(&image),
+        "cardinality",
+        "associations.admin-through-login"
+    ));
+}

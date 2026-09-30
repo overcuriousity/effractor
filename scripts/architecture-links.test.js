@@ -708,3 +708,15 @@ test('the words for an access control read from either side', () => {
   assert.equal(L.phrase('controls-access', 'out'), 'its access control');
   assert.equal(L.phrase('controls-access', 'in'), 'controls access to');
 });
+
+test('an account granted on a machine is not offered its access control too', () => {
+  const doc = lecture();
+  doc.entities['server-login'] = { kind: 'access-control', label: 'Server login' };
+  doc.associations['server-access'] = { kind: 'controls-access', from: 'server', to: 'server-login' };
+  // server-account is granted straight on server in the fixture.
+  const out = L.linkChoices(doc, CATALOG, 'server-account').find((c) => c.kind === 'grants' && c.direction === 'out');
+  assert.ok(!out.candidates.includes('server-login'), 'already granted on server');
+  const into = L.linkChoices(doc, CATALOG, 'server-login').find((c) => c.kind === 'grants' && c.direction === 'in');
+  assert.ok(!into.candidates.includes('server-account'));
+  assert.ok(into.candidates.includes('admin-account'), 'an account not granted there is offered');
+});
