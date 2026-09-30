@@ -631,7 +631,7 @@ fn a_login_through_an_access_control_names_both_links() {
 }
 
 #[test]
-fn a_grant_through_access_control_and_on_the_machine_is_one_grant() {
+fn a_grant_through_access_control_and_on_the_machine_is_refused() {
     let mut m = through_access_control();
     m.associations.insert(
         id("router-grant-direct"),
@@ -644,18 +644,42 @@ fn a_grant_through_access_control_and_on_the_machine_is_one_grant() {
             ..m.associations[&id::<AssociationId>("router-grant")].clone()
         },
     );
-    let g = generate(&m).unwrap();
-    let logins = g
-        .nodes
+    let refused = generate(&m).unwrap_err();
+    assert!(
+        refused
+            .iter()
+            .any(|d| d.code == Code::Cardinality && d.path == "associations.router-grant-direct"),
+        "{refused:?}"
+    );
+}
+
+#[test]
+fn a_session_through_an_access_control_names_both_links() {
+    // The server account's grant routed through the server's access control.
+    let text = LECTURE
+        .replacen(
+            "\nassociations:\n",
+            "  server-login:\n    kind: access-control\n    label: Server login\n\nassociations:\n  server-access:\n    kind: controls-access\n    from: server\n    to: server-login\n",
+            1,
+        )
+        .replacen(
+            "  server-grant:\n    kind: grants\n    from: server-account\n    to: server\n",
+            "  server-grant:\n    kind: grants\n    from: server-account\n    to: server-login\n",
+            1,
+        );
+    let direct = generate(&architecture(LECTURE)).unwrap();
+    let g = generate(&architecture(&text)).unwrap();
+    assert_eq!(shape(&direct), shape(&g));
+    let admin = &g.nodes[index(&g, "state/host/server/admin")];
+    let o = admin
+        .origins
         .iter()
-        .filter(|n| {
-            n.id.starts_with("action/administration-login/admin-net/admin-account/")
-        })
-        .count();
-    assert_eq!(logins, 1, "one login, not one per way of saying the grant");
-    let step = &g.nodes[index(
-        &g,
-        "action/administration-login/admin-net/admin-account/bridge",
-    )];
-    assert_eq!(step.origins.len(), 1, "{:?}", step.origins);
+        .find(|o| o.rule == "session-grant")
+        .unwrap();
+    let names: Vec<&str> = o.associations.iter().map(|a| a.as_str()).collect();
+    assert!(
+        names.contains(&"server-grant") && names.contains(&"server-access"),
+        "{names:?}"
+    );
+    assert!(o.entities.iter().any(|e| e.as_str() == "server-login"));
 }
