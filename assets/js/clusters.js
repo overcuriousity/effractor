@@ -10,7 +10,7 @@
     return (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug(text);
   }
   // Which kind's icon a cluster shows: the most specific among its members.
-  var SPECIFIC = ["router", "firewall", "host", "service", "application", "product", "network", "account", "credential", "person", "data"];
+  var SPECIFIC = ["router", "firewall", "host", "service", "application", "product", "network", "access-control", "account", "credential", "person", "data"];
   var SOFTWARE = { application: true, service: true };
 
   function has(o, k) {

@@ -453,3 +453,24 @@ test('opening or closing a cluster leaves everything else where it was drawn', (
   assert.deepEqual(C.held(before, now, stored), { 'entity/far': { x: 900, y: 40 } }, 'what was drawn and still is stays; stored places stay stored');
   assert.deepEqual(C.held(null, now, stored), {});
 });
+
+// Extract Fig. 5.20, 5.21: the firewall and the access control dropped onto
+// the router are hidden inside it, and listed there.
+test('components dropped onto a router are inside it, the router named and drawn', () => {
+  const doc = copy(LECTURE);
+  doc.entities['bridge-login'] = { kind: 'access-control', label: 'Router login' };
+  doc.associations['bridge-access'] = { kind: 'controls-access', from: 'bridge', to: 'bridge-login' };
+  const one = C.merge(doc, 'entity/filter', 'entity/bridge');
+  const cid = Object.keys(one.doc.clusters)[0];
+  assert.deepEqual(one.doc.clusters[cid].members, ['bridge', 'filter'], 'the router first');
+  const two = C.merge(one.doc, 'entity/bridge-login', 'cluster/' + cid);
+  assert.deepEqual(two.doc.clusters[cid].members, ['bridge', 'filter', 'bridge-login']);
+  assert.equal(C.label(two.doc, cid), 'Router +2');
+  assert.equal(C.lead(two.doc, two.doc.clusters[cid].members), 'router');
+});
+
+test('an access control with the accounts on it is drawn as an access control', () => {
+  const doc = copy(LECTURE);
+  doc.entities['bridge-login'] = { kind: 'access-control', label: 'Router login' };
+  assert.equal(C.lead(doc, ['admin-account', 'bridge-login']), 'access-control');
+});
