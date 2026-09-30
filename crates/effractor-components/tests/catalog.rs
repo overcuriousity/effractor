@@ -199,7 +199,7 @@ fn the_catalog_describes_access_control() {
     );
     assert_eq!(e["states"], serde_json::json!([]));
     assert_eq!(e["parameters"], serde_json::json!([]));
-    assert!(e["defense"].is_null());
+    assert_eq!(e["defenses"], serde_json::json!([]));
     let a = c["associations"]
         .as_array()
         .unwrap()
@@ -224,4 +224,24 @@ fn the_catalog_describes_access_control() {
             .unwrap()
             .contains("access control")
     );
+}
+
+#[test]
+fn every_kind_lists_its_switches() {
+    let c = catalog();
+    for e in c["entities"].as_array().unwrap() {
+        assert!(e["defenses"].is_array(), "{}", e["kind"]);
+        assert!(
+            e.get("defense").is_none(),
+            "{}: one switch is a list now",
+            e["kind"]
+        );
+    }
+    let product = c["entities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["kind"] == "product")
+        .unwrap();
+    assert_eq!(product["defenses"], serde_json::json!(["patched"]));
 }

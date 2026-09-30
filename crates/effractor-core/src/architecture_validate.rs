@@ -999,11 +999,16 @@ impl Cx<'_> {
                     } => {
                         if let Some(kind) =
                             self.entity(entity, &format!("{at}.entity")).map(|e| e.kind)
-                            && kind.defense() != Some(*defense)
+                            && !kind.defenses().contains(defense)
                         {
-                            let has = kind
-                                .defense()
-                                .map_or("no defence".to_owned(), |d| format!("`{}`", d.as_str()));
+                            let has = match kind.defenses() {
+                                [] => "no defence".to_owned(),
+                                list => list
+                                    .iter()
+                                    .map(|d| format!("`{}`", d.as_str()))
+                                    .collect::<Vec<_>>()
+                                    .join(", "),
+                            };
                             self.error(
                                 Code::UnknownState,
                                 format!("{at}.defense"),

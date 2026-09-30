@@ -68,9 +68,12 @@
         entity.parameters[slot] = { status: "unknown" };
       });
     }
-    if (spec && spec.defense) {
+    var switches = (spec && spec.defenses) || [];
+    if (switches.length) {
       entity.defenses = {};
-      entity.defenses[spec.defense] = "unknown";
+      switches.forEach(function (defense) {
+        entity.defenses[defense] = "unknown";
+      });
     }
     next.entities[id] = entity;
     return { doc: next, select: "entity/" + id, entity: id };

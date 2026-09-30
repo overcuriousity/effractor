@@ -258,3 +258,10 @@ test('a speed is said as a plain number', () => {
   assert.equal(C.speedText(0.5), '0.5 × speed');
   assert.equal(C.speedText(1.25), '1.25 × speed');
 });
+
+test("a scenario can switch each of a component's switches", () => {
+  const doc = { entities: { srv: { kind: 'host', label: 'Server', defenses: { aslr: 'unknown', dep: true } } }, associations: {} };
+  const cat = { entities: [{ kind: 'host', defenses: ['aslr', 'dep'] }], defenses: [{ id: 'aslr', word: 'ASLR' }, { id: 'dep', word: 'DEP' }] };
+  const s = C.switches(doc, cat);
+  assert.deepEqual(s.map((x) => x.defense + ':' + x.baseline + ':' + x.word), ['aslr:unknown:ASLR', 'dep:true:DEP']);
+});

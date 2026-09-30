@@ -41,13 +41,13 @@
     });
   }
 
-  // The defence switch worth showing, or null: guarding software matters
-  // only where content reaches it.
-  function shownDefense(doc, id) {
+  // The defence switches worth showing: guarding software matters only
+  // where content reaches it.
+  function shownDefenses(doc, id) {
     var e = doc.entities[id];
-    var defense = Object.keys((e && e.defenses) || {})[0] || null;
-    if (defense === "guarded" && !reader(doc, id)) return null;
-    return defense;
+    return Object.keys((e && e.defenses) || {}).filter(function (defense) {
+      return defense !== "guarded" || reader(doc, id);
+    });
   }
 
   function unknowns(doc, id) {
@@ -461,7 +461,7 @@
     return { rows: rows, empty: ids.length && !rows.length ? "no component named “" + String(query).trim() + "”" : null };
   }
 
-  var api = { outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, shownDefense: shownDefense, ringsIn: ringsIn };
+  var api = { outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, shownDefenses: shownDefenses, ringsIn: ringsIn };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureView = api;
 })();

@@ -47,7 +47,7 @@ fn a_new_entity_carries_every_slot_and_switch_of_its_kind_as_unknown() {
     assert_eq!(network.defenses.patched, None);
     assert_eq!(EntityKind::Firewall.states(), &[]);
     assert_eq!(EntityKind::Host.states(), &[State::User, State::Admin]);
-    assert_eq!(EntityKind::Credential.defense(), Some(Defense::Protected));
+    assert_eq!(EntityKind::Credential.defenses(), &[Defense::Protected]);
 }
 
 #[test]
@@ -342,8 +342,8 @@ fn a_service_without_a_product_is_incomplete_and_two_are_an_error() {
 
 #[test]
 fn patching_belongs_to_the_product() {
-    assert_eq!(EntityKind::Product.defense(), Some(Defense::Patched));
-    assert_eq!(EntityKind::Service.defense(), Some(Defense::Guarded));
+    assert_eq!(EntityKind::Product.defenses(), &[Defense::Patched]);
+    assert_eq!(EntityKind::Service.defenses(), &[Defense::Guarded]);
     assert_eq!(
         EntityKind::Product.slots(),
         &[Slot::FindExploit, Slot::FindExploitPatched]
@@ -361,7 +361,7 @@ fn patching_belongs_to_the_product() {
 
 #[test]
 fn accounts_carry_mfa_and_its_bypass() {
-    assert_eq!(EntityKind::Account.defense(), Some(Defense::Mfa));
+    assert_eq!(EntityKind::Account.defenses(), &[Defense::Mfa]);
     assert_eq!(
         EntityKind::Account.slots(),
         &[Slot::AdminLogin, Slot::MfaBypass]
@@ -421,7 +421,7 @@ fn people_carry_their_training_switch() {
         EntityKind::Person.slots(),
         &[Slot::Phish, Slot::PhishTrained]
     );
-    assert_eq!(EntityKind::Person.defense(), Some(Defense::Trained));
+    assert_eq!(EntityKind::Person.defenses(), &[Defense::Trained]);
 }
 
 #[test]
@@ -443,7 +443,7 @@ fn software_carries_its_take_over_and_guard() {
             kind.slots()
                 .ends_with(&[Slot::TakeOver, Slot::TakeOverGuarded])
         );
-        assert_eq!(kind.defense(), Some(Defense::Guarded));
+        assert_eq!(kind.defenses(), &[Defense::Guarded]);
     }
     assert_eq!(
         effractor_core::architecture::RelationKind::Delivers.to_kinds(),
@@ -495,7 +495,7 @@ fn only_software_is_contained() {
 fn data_is_a_target_with_an_encryption_switch() {
     assert_eq!(EntityKind::Data.states(), &[State::Read, State::Modified]);
     assert_eq!(EntityKind::Data.slots(), &[] as &[Slot]);
-    assert_eq!(EntityKind::Data.defense(), Some(Defense::Encrypted));
+    assert_eq!(EntityKind::Data.defenses(), &[Defense::Encrypted]);
 }
 
 fn bucket_model(decrypts: Option<bool>, privilege: Privilege) -> Architecture {
@@ -615,7 +615,7 @@ fn an_access_control_is_a_kind_with_nothing_of_its_own() {
     assert_eq!(EntityKind::AccessControl.as_str(), "access-control");
     assert!(EntityKind::AccessControl.states().is_empty());
     assert!(EntityKind::AccessControl.slots().is_empty());
-    assert!(EntityKind::AccessControl.defense().is_none());
+    assert!(EntityKind::AccessControl.defenses().is_empty());
     assert_eq!(
         RelationKind::ControlsAccess.from_kinds(),
         &[EntityKind::Host, EntityKind::Router]
@@ -630,4 +630,13 @@ fn an_access_control_is_a_kind_with_nothing_of_its_own() {
             .to_kinds()
             .contains(&EntityKind::AccessControl)
     );
+}
+
+#[test]
+fn a_kind_answers_the_switches_it_carries_as_a_list() {
+    use effractor_core::architecture::{Defense, EntityKind};
+    assert_eq!(EntityKind::Product.defenses(), &[Defense::Patched]);
+    assert_eq!(EntityKind::Account.defenses(), &[Defense::Mfa]);
+    assert!(EntityKind::Host.defenses().is_empty());
+    assert!(EntityKind::AccessControl.defenses().is_empty());
 }

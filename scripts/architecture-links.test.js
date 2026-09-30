@@ -12,7 +12,7 @@ const privileges = (doc, kind, from, to) => {
   const p = [...new Set(L.variants(doc, kind, from, to).map((v) => v.privilege).filter(Boolean))];
   return p.length ? p : null;
 };
-const SPEC = Object.fromEntries(CATALOG.entities.map((e) => [e.kind, e.defense ? { parameters: e.parameters, defense: e.defense } : { parameters: e.parameters }]));
+const SPEC = Object.fromEntries(CATALOG.entities.map((e) => [e.kind, { parameters: e.parameters, defenses: e.defenses }]));
 
 test('footholds and the target are explicit states', () => {
   let doc = E.empty();

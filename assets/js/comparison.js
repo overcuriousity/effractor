@@ -131,9 +131,9 @@
   // Everything a scenario can switch, in document order: each component's
   // defence (the kind's, from the catalog) and each firewall permission.
   function switches(doc, catalog) {
-    var defenseOf = Object.create(null);
+    var defensesOf = Object.create(null);
     ((catalog && catalog.entities) || []).forEach(function (k) {
-      defenseOf[k.kind] = k.defense;
+      defensesOf[k.kind] = k.defenses || [];
     });
     var words = Object.create(null);
     ((catalog && catalog.defenses) || []).forEach(function (d) {
@@ -142,10 +142,10 @@
     var out = [];
     Object.keys(doc.entities || {}).forEach(function (id) {
       var e = doc.entities[id];
-      var d = defenseOf[e.kind];
-      if (!d) return;
-      var v = e.defenses && has(e.defenses, d) ? e.defenses[d] : "unknown";
-      out.push({ key: keyOf({ entity: id, defense: d }), entity: id, defense: d, label: labelOf(doc, "entities", id), word: words[d] || d, baseline: v });
+      (defensesOf[e.kind] || []).forEach(function (d) {
+        var v = e.defenses && has(e.defenses, d) ? e.defenses[d] : "unknown";
+        out.push({ key: keyOf({ entity: id, defense: d }), entity: id, defense: d, label: labelOf(doc, "entities", id), word: words[d] || d, baseline: v });
+      });
     });
     Object.keys(doc.associations || {}).forEach(function (id) {
       var a = doc.associations[id];

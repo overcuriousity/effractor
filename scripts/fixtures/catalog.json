@@ -12,7 +12,7 @@
         "access"
       ],
       "parameters": [],
-      "defense": null
+      "defenses": []
     },
     {
       "kind": "router",
@@ -24,7 +24,7 @@
       "parameters": [
         "escape"
       ],
-      "defense": null
+      "defenses": []
     },
     {
       "kind": "firewall",
@@ -32,7 +32,7 @@
       "meaning": "A router's filter: which flows it lets through.",
       "states": [],
       "parameters": [],
-      "defense": null
+      "defenses": []
     },
     {
       "kind": "host",
@@ -45,7 +45,7 @@
       "parameters": [
         "escape"
       ],
-      "defense": null
+      "defenses": []
     },
     {
       "kind": "application",
@@ -58,7 +58,9 @@
         "take-over",
         "take-over-guarded"
       ],
-      "defense": "guarded"
+      "defenses": [
+        "guarded"
+      ]
     },
     {
       "kind": "service",
@@ -73,7 +75,9 @@
         "take-over",
         "take-over-guarded"
       ],
-      "defense": "guarded"
+      "defenses": [
+        "guarded"
+      ]
     },
     {
       "kind": "product",
@@ -84,7 +88,9 @@
         "find-exploit",
         "find-exploit-patched"
       ],
-      "defense": "patched"
+      "defenses": [
+        "patched"
+      ]
     },
     {
       "kind": "account",
@@ -95,7 +101,9 @@
         "admin-login",
         "mfa-bypass"
       ],
-      "defense": "mfa"
+      "defenses": [
+        "mfa"
+      ]
     },
     {
       "kind": "credential",
@@ -108,7 +116,9 @@
         "extract",
         "extract-protected"
       ],
-      "defense": "protected"
+      "defenses": [
+        "protected"
+      ]
     },
     {
       "kind": "person",
@@ -122,7 +132,9 @@
         "phish",
         "phish-trained"
       ],
-      "defense": "trained"
+      "defenses": [
+        "trained"
+      ]
     },
     {
       "kind": "data",
@@ -133,7 +145,9 @@
         "modified"
       ],
       "parameters": [],
-      "defense": "encrypted"
+      "defenses": [
+        "encrypted"
+      ]
     },
     {
       "kind": "access-control",
@@ -141,7 +155,7 @@
       "meaning": "Where accounts log in to a machine: its user database, its login.",
       "states": [],
       "parameters": [],
-      "defense": null
+      "defenses": []
     }
   ],
   "associations": [

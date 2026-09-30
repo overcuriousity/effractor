@@ -144,15 +144,15 @@ fn document(w: &mut Writer, m: &Architecture) {
             w.extension_lines(6, &extended);
         }
         let extended = format!("{path}.defenses");
-        if entity.kind.defense().is_some() || w.has_extensions(&extended) {
+        if !entity.kind.defenses().is_empty() || w.has_extensions(&extended) {
             let mut fields: Vec<String> = entity
                 .kind
-                .defense()
-                .map(|defense| {
+                .defenses()
+                .iter()
+                .map(|&defense| {
                     let value = entity.defenses.get(defense).unwrap_or(Switch::Unknown);
                     format!("{}: {}", defense.as_str(), value.as_str())
                 })
-                .into_iter()
                 .collect();
             w.extension_fields(&extended, &mut fields);
             w.line(4, "defenses", &format!("{{{}}}", fields.join(", ")));

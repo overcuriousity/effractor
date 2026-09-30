@@ -4,8 +4,8 @@ const T = require('../assets/js/assistant/tools.js');
 const AE = require('../assets/js/architecture-edit.js');
 const catalog = JSON.parse(require('node:fs').readFileSync('assets/js/assistant/tools.json', 'utf8'));
 
-const HOST = { kind: 'host', parameters: [], defense: null };
-const SERVICE = { kind: 'service', parameters: ['find-exploit', 'deploy-exploit'], defense: 'patched' };
+const HOST = { kind: 'host', parameters: [], defenses: [] };
+const SERVICE = { kind: 'service', parameters: ['find-exploit', 'deploy-exploit'], defenses: ['patched'] };
 const CAT = { entities: [HOST, SERVICE] };
 const arch = (doc) => ({ doc: doc || AE.empty(), profile: 'architecture', catalog: CAT });
 const TREE = { effractor: 2, profile: 'fault-tree', name: 'T', time_unit: 'd', horizon: 10, top: 'top',

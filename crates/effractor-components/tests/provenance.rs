@@ -543,7 +543,7 @@ fn switches_never_change_the_graph() {
     for value in [Switch::On, Switch::Off, Switch::Unknown] {
         let mut m = model.clone();
         for e in m.entities.values_mut() {
-            if let Some(defense) = e.kind.defense() {
+            for &defense in e.kind.defenses() {
                 e.defenses.set(defense, Some(value));
             }
         }
@@ -577,7 +577,7 @@ fn operator_switches_never_change_the_graph() {
     for value in [Switch::On, Switch::Off, Switch::Unknown] {
         let mut m = model.clone();
         for e in m.entities.values_mut() {
-            if let Some(defense) = e.kind.defense() {
+            for &defense in e.kind.defenses() {
                 e.defenses.set(defense, Some(value));
             }
         }

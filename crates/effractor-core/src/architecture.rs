@@ -179,16 +179,16 @@ impl EntityKind {
         }
     }
 
-    /// The defence switch this kind carries, if any.
-    pub fn defense(self) -> Option<Defense> {
+    /// The defence switches this kind carries, in canonical order.
+    pub fn defenses(self) -> &'static [Defense] {
         match self {
-            Self::Product => Some(Defense::Patched),
-            Self::Account => Some(Defense::Mfa),
-            Self::Person => Some(Defense::Trained),
-            Self::Credential => Some(Defense::Protected),
-            Self::Application | Self::Service => Some(Defense::Guarded),
-            Self::Data => Some(Defense::Encrypted),
-            _ => None,
+            Self::Product => &[Defense::Patched],
+            Self::Account => &[Defense::Mfa],
+            Self::Person => &[Defense::Trained],
+            Self::Credential => &[Defense::Protected],
+            Self::Application | Self::Service => &[Defense::Guarded],
+            Self::Data => &[Defense::Encrypted],
+            _ => &[],
         }
     }
 
@@ -558,10 +558,10 @@ impl Entity {
         for slot in self.kind.slots() {
             self.parameters.entry(*slot).or_default();
         }
-        if let Some(defense) = self.kind.defense()
-            && self.defenses.get(defense).is_none()
-        {
-            self.defenses.set(defense, Some(Switch::Unknown));
+        for &defense in self.kind.defenses() {
+            if self.defenses.get(defense).is_none() {
+                self.defenses.set(defense, Some(Switch::Unknown));
+            }
         }
     }
 }

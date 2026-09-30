@@ -188,9 +188,9 @@ test('take-over and its guard are shown only on software content reaches', () =>
     flows: {},
   };
   assert.deepEqual(V.shownSlots(doc, 'bot'), ['take-over', 'take-over-guarded']);
-  assert.equal(V.shownDefense(doc, 'bot'), 'guarded');
+  assert.deepEqual(V.shownDefenses(doc, 'bot'), ['guarded']);
   assert.deepEqual(V.shownSlots(doc, 'cli'), []);
-  assert.equal(V.shownDefense(doc, 'cli'), null);
+  assert.deepEqual(V.shownDefenses(doc, 'cli'), []);
   // What is not shown is not counted as unknown on the canvas.
   const drawn = V.describe(doc).nodes;
   assert.equal(drawn.find((n) => n.id === 'entity/cli').unknown, 0);
@@ -223,7 +223,7 @@ test('software that reads data processes content; data links read in plain words
     flows: {},
   };
   assert.deepEqual(V.shownSlots(doc, 'bot'), ['take-over', 'take-over-guarded']);
-  assert.equal(V.shownDefense(doc, 'bot'), 'guarded');
+  assert.deepEqual(V.shownDefenses(doc, 'bot'), ['guarded']);
   const label = (id) => V.describe(doc).edges.find((e) => e.id === 'association/' + id).label;
   assert.equal(label('r'), 'reads');
   assert.equal(label('h'), 'holds · ciphertext only');
@@ -442,4 +442,11 @@ test('an access control line reads in words along its arrow', () => {
   doc.associations['srv-access'] = { kind: 'controls-access', from: 'srv', to: 'srv-login' };
   const edge = V.describe(doc).edges.find((e) => e.id === 'association/srv-access');
   assert.equal(edge.label, 'logs in through');
+});
+
+test('every switch a component carries is shown, guarding only where content reaches it', () => {
+  const doc = lecture();
+  doc.entities.srv.defenses = { aslr: 'unknown', dep: false };
+  assert.deepEqual(V.shownDefenses(doc, 'srv'), ['aslr', 'dep']);
+  assert.deepEqual(V.shownDefenses(doc, 'cli'), [], 'a client nothing delivers to is not worth guarding');
 });

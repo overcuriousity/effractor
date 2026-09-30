@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const E = require('../assets/js/architecture-edit.js');
 
-const HOST = { kind: 'host', parameters: [], defense: null };
-const SERVICE = { kind: 'service', parameters: ['find-exploit', 'find-exploit-patched', 'deploy-exploit', 'login'], defense: 'patched' };
-const CREDENTIAL = { kind: 'credential', parameters: ['extract', 'extract-protected'], defense: 'protected' };
+const HOST = { kind: 'host', parameters: [], defenses: [] };
+const SERVICE = { kind: 'service', parameters: ['find-exploit', 'find-exploit-patched', 'deploy-exploit', 'login'], defenses: ['patched'] };
+const CREDENTIAL = { kind: 'credential', parameters: ['extract', 'extract-protected'], defenses: ['protected'] };
 
 test('an architecture starts empty and label changes keep identity', () => {
   const doc = E.empty();
@@ -178,4 +178,11 @@ test('a host\'s names: lower case, each once, only on hosts', () => {
 test('what a name is', () => {
   for (const good of ['a', 'srv01', 'app.corp.example', 'x_y.example', 'a-b.example', '1a.example', 'a'.repeat(63) + '.example']) assert.equal(E.isName(good), true, good);
   for (const bad of ['', 'A.example', '*.corp.example', '10.0.1.5', '1.2.3', 'fd00::5', 'a..example', '.a', 'a.', '-a.example', 'a-.example', 'a b', 'a'.repeat(64) + '.example', ('a'.repeat(60) + '.').repeat(5), 7, null]) assert.equal(E.isName(bad), false, String(bad));
+});
+
+test('a new component carries every switch of its kind, each unknown', () => {
+  const r = E.addEntity(E.empty(), 'host', 'Server', { parameters: [], defenses: ['aslr', 'dep'] });
+  assert.deepEqual(r.doc.entities[r.entity].defenses, { aslr: 'unknown', dep: 'unknown' });
+  const none = E.addEntity(E.empty(), 'network', 'LAN', { parameters: [], defenses: [] });
+  assert.equal('defenses' in none.doc.entities[none.entity], false);
 });

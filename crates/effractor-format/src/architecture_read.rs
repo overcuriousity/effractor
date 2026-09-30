@@ -504,7 +504,7 @@ fn parameter(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Parameter> {
 }
 
 fn defenses(cx: &mut Cx, entry: &Entry, path: &str, kind: EntityKind) -> Option<Defenses> {
-    let allowed: Vec<&str> = kind.defense().map(|d| d.as_str()).into_iter().collect();
+    let allowed: Vec<&str> = kind.defenses().iter().map(|d| d.as_str()).collect();
     let none = format!(
         "{} {} has no defence",
         article(kind.as_str()),
