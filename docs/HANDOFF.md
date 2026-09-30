@@ -6,6 +6,35 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — what the extract draws: access control (2026-09-30)
+
+Roadmap `securicad-extract`, spec
+`docs/superpowers/specs/2026-09-30-securicad-extract-design.md`, plan
+`docs/superpowers/plans/2026-09-30-securicad-extract.md` (branches A–E; D2
+onward and E are planned before Branch D starts). Owner: native execution,
+one branch per plan branch, each looked at before it lands. Branch A,
+`access-control`, looked at and approved 2026-09-30.
+
+- **Access control** (extract Fig. 5.18, 5.19): kind `access-control`, link
+  `controls-access` (host | router → it, one each way, as `filters`). A
+  `grants` may name it; that is a grant on its machine (generation resolves
+  it; provenance names both links). A router's access control is granted
+  admin only; a grant to one nothing controls is unfinished; one grant per
+  account and machine however it is said (`cardinality`). Existing files
+  generate unchanged (tests freeze it).
+- **Containment** (Fig. 5.20, 5.21): no new field. Dragging a component onto
+  another already clusters them, target first; the cluster's inspector lists
+  its members with *Take out*. Spec §6 says so.
+- **Words:** `effractorWords.kind(kind)` names a kind in words ("Access
+  control"); the page never shows a hyphenated kind id. The assistant's tool
+  lists are held to the catalog by a test.
+- A fresh review: 0 critical, 4 important (all fixed with tests), 6 minor
+  (4 fixed, 2 kept with reasons in the plan's ledger).
+- Dependabot: its six PRs of 2026-09-27 were already folded into master and
+  closed; this landing adds the four patch releases `cargo update` found.
+
+Next: Branch B, `host-products` (plan tasks B1–B6).
+
 ## Continuation — the lecture milestone is closed (2026-09-29/30)
 
 Plan Task 8 (`lecture-workflow`), branch `lecture-acceptance`, landed as
