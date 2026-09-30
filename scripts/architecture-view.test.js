@@ -471,3 +471,12 @@ test('an optional switch that is not set is shown, as off', () => {
   doc.entities.srv.defenses = { aslr: true };
   assert.deepEqual(V.defenseRows(doc, cat, 'srv'), [{ defense: 'aslr', value: true }, { defense: 'dep', value: false }]);
 });
+
+test('a host running an unpatched operating system is ringed exposed', () => {
+  const doc = lecture();
+  doc.entities.ubuntu = { kind: 'product', label: 'Ubuntu Linux', defenses: { patched: false } };
+  doc.associations['srv-os'] = { kind: 'instance-of', from: 'srv', to: 'ubuntu' };
+  const nodes = Object.fromEntries(V.describe(doc).nodes.map((n) => [n.id, n]));
+  assert.equal(nodes['entity/ubuntu'].rings[0].state, 'vulnerable');
+  assert.equal(nodes['entity/srv'].rings[0].state, 'exposed');
+});
