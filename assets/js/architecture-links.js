@@ -384,8 +384,11 @@
             if (spec.kind === "hosts" && hostOf(doc, other)) return false;
             // One product per service.
             if (spec.kind === "instance-of" && productOf(doc, id)) return false;
-            // One firewall per router, one router per firewall.
-            if (spec.kind === "filters" && (hasFilters(doc, "from", id) || hasFilters(doc, "to", other))) return false;
+            // One firewall per router, one router per firewall; one access
+            // control per machine, one machine per access control.
+            if (oneEachWay(spec.kind) && (hasLink(doc, spec.kind, "from", id) || hasLink(doc, spec.kind, "to", other))) return false;
+            // A machine behind an access control is granted through it.
+            if (spec.kind === "grants" && hasLink(doc, "controls-access", "from", other)) return false;
             return !linked(doc, spec.kind, id, other);
           }),
         });
@@ -394,12 +397,12 @@
         out.push({
           kind: spec.kind,
           direction: "in",
-          candidates: (spec.kind === "hosts" && hostOf(doc, id)) || (spec.kind === "filters" && hasFilters(doc, "to", id)) ? [] : ids.filter(function (other) {
+          candidates: (spec.kind === "hosts" && hostOf(doc, id)) || (oneEachWay(spec.kind) && hasLink(doc, spec.kind, "to", id)) || (spec.kind === "grants" && hasLink(doc, "controls-access", "from", id)) ? [] : ids.filter(function (other) {
             return (
               other !== id &&
               spec.from.indexOf(kindOf(doc, other)) >= 0 &&
               endsAllowed(spec.kind, kindOf(doc, other), kind) &&
-              !(spec.kind === "filters" && hasFilters(doc, "from", other)) &&
+              !(oneEachWay(spec.kind) && hasLink(doc, spec.kind, "from", other)) &&
               !(spec.kind === "instance-of" && productOf(doc, other)) &&
               !linked(doc, spec.kind, other, id)
             );
@@ -441,7 +444,13 @@
 
   // Every combination of those values: the ways the Link menu offers.
   function variants(doc, kind, from, to) {
-    return combinations(kind, kindOf(doc, from), kindOf(doc, to));
+    var toKind = kindOf(doc, to);
+    // A grant on a router's access control is a grant on the router.
+    if (kind === "grants" && toKind === "access-control") {
+      var machine = machineOfAccess(doc, to);
+      if (machine) toKind = kindOf(doc, machine);
+    }
+    return combinations(kind, kindOf(doc, from), toKind);
   }
 
   // What a field the file leaves out means: its value where absent says one
@@ -462,6 +471,7 @@
     attached: { out: "connected to", in: "connected here" },
     hosts: { out: "runs here", in: "runs this" },
     filters: { out: "its firewall", in: "its router" },
+    "controls-access": { out: "its access control", in: "controls access to" },
     stores: { out: "kept here", in: "keeps this" },
     authenticates: { out: "unlocks", in: "unlocks this" },
     authorizes: { out: "accepts this account", in: "may log in" },
@@ -500,10 +510,26 @@
   }
 
   function hasFilters(doc, end, id) {
+    return hasLink(doc, "filters", end, id);
+  }
+  function hasLink(doc, relation, end, id) {
     return Object.keys(doc.associations || {}).some(function (k) {
       var a = doc.associations[k];
-      return a.kind === "filters" && a[end] === id;
+      return a.kind === relation && a[end] === id;
     });
+  }
+  // One each way, like a router's firewall: a machine's access control.
+  var ONE_EACH_WAY = ["filters", "controls-access"];
+  function oneEachWay(relation) {
+    return ONE_EACH_WAY.indexOf(relation) >= 0;
+  }
+  // The machine an access control belongs to, or null.
+  function machineOfAccess(doc, accessControl) {
+    var k = Object.keys(doc.associations || {}).find(function (k) {
+      var a = doc.associations[k];
+      return a.kind === "controls-access" && a.to === accessControl;
+    });
+    return k ? doc.associations[k].from : null;
   }
 
   // Every combination of the fields a link carries between these kinds.
@@ -550,12 +576,12 @@
     }
     (catalog.associations || []).forEach(function (spec) {
       if (spec.kind === "permits") return;
-      if (spec.from.indexOf(kind) >= 0 && !(spec.kind === "filters" && hasFilters(doc, "from", id)) && !(spec.kind === "instance-of" && productOf(doc, id))) {
+      if (spec.from.indexOf(kind) >= 0 && !(oneEachWay(spec.kind) && hasLink(doc, spec.kind, "from", id)) && !(spec.kind === "instance-of" && productOf(doc, id))) {
         spec.to.forEach(function (k) { offer(k, spec.kind, "out"); });
       }
       if (spec.to.indexOf(kind) >= 0) {
         if (spec.kind === "hosts" && hostOf(doc, id)) return;
-        if (spec.kind === "filters" && hasFilters(doc, "to", id)) return;
+        if (oneEachWay(spec.kind) && hasLink(doc, spec.kind, "to", id)) return;
         spec.from.forEach(function (k) { offer(k, spec.kind, "in"); });
       }
     });
@@ -696,7 +722,7 @@
     if (choices.some(function (c) { return c.candidates.length; })) return null;
     if (kind === "firewall" && hasFilters(doc, "to", id)) return "a firewall permits flows · set it in each flow that crosses its router";
     var kinds = addChoices(doc, catalog, id).map(function (c) {
-      return c.kind;
+      return c.kind.replace(/-/g, " ");
     });
     return "no " + list(kinds) + " yet · Tab adds one linked";
   }

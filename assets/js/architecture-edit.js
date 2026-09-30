@@ -8,7 +8,7 @@
 // Links and deletion are in architecture-links.js.
 (function () {
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
-  var KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential", "person", "data"];
+  var KINDS = ["network", "router", "firewall", "host", "application", "service", "product", "account", "credential", "person", "data", "access-control"];
   // The Add menu's groups: the families the canvas colours.
   var GROUPS = [
     ["Network", ["network", "router", "firewall"]],

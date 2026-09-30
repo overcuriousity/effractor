@@ -364,10 +364,11 @@ test('Tab offers the kinds that can be linked to the selection, with each way to
     'account: ← grants · user, ← grants · admin, runs-as → · user, runs-as → · admin',
     'credential: stores → · user, stores → · admin',
     'data: holds → · user · decrypts=true, holds → · user · decrypts=false, holds → · admin · decrypts=true, holds → · admin · decrypts=false',
+    'access-control: controls-access →',
   ]);
   // A router hosts and is granted only as admin; it has its firewall already.
   const router = L.addChoices(doc, CATALOG, 'bridge').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
-  assert.deepEqual(router, ['network: attached, administration', 'host: hosts·user, hosts·admin', 'application: hosts·admin', 'service: hosts·admin', 'account: grants·admin']);
+  assert.deepEqual(router, ['network: attached, administration', 'host: hosts·user, hosts·admin', 'application: hosts·admin', 'service: hosts·admin', 'account: grants·admin', 'access-control: controls-access']);
   // A hosted executable offers no second host; an application stores as user.
   const client = L.addChoices(doc, CATALOG, 'ssh-client').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
   assert.deepEqual(client, ['network: delivers', 'service: flow', 'account: runs-as·user', 'credential: stores·user', 'person: operates', 'data: holds·user, holds·user, reads']);
@@ -461,7 +462,7 @@ test('an empty Link menu says what is missing', () => {
   assert.equal(L.emptyLink(doc, CATALOG, 'filter'), 'a firewall permits flows · set it in each flow that crosses its router');
   // A lone host in a new document: nothing to link to yet.
   const lone = { entities: { h: { kind: 'host', label: 'H' } }, associations: {}, flows: {} };
-  assert.equal(L.emptyLink(lone, CATALOG, 'h'), 'no network, router, host, application, service, account, credential or data yet · Tab adds one linked');
+  assert.equal(L.emptyLink(lone, CATALOG, 'h'), 'no network, router, host, application, service, account, credential, data or access control yet · Tab adds one linked');
   assert.equal(L.emptyLink(doc, CATALOG, 'sshd'), null, 'there is something to link');
 });
 
@@ -654,4 +655,56 @@ test('a field the file leaves out reads as what absent means, or as not said', (
   assert.equal(L.fieldValue({ kind: 'holds', privilege: 'user' }, 'decrypts'), null, 'no default: not "sees plaintext"');
   assert.equal(L.fieldValue({ kind: 'holds', decrypts: false }, 'decrypts'), false);
   assert.equal(L.fieldValue({ kind: 'accesses' }, 'mode'), null);
+});
+
+// The router's access control (extract Fig. 5.18, 5.19).
+const withAccessControl = () => {
+  const doc = lecture();
+  doc.entities['bridge-login'] = { kind: 'access-control', label: 'Router login' };
+  doc.associations['bridge-access'] = { kind: 'controls-access', from: 'bridge', to: 'bridge-login' };
+  return doc;
+};
+
+test('an account is granted on a machine through its access control, not on both', () => {
+  const doc = withAccessControl();
+  const grants = L.linkChoices(doc, CATALOG, 'server-account').find((c) => c.kind === 'grants' && c.direction === 'out');
+  assert.ok(grants.candidates.includes('bridge-login'), 'the access control is offered');
+  assert.ok(!grants.candidates.includes('bridge'), 'the router behind it is not offered too');
+  assert.ok(grants.candidates.includes('workstation'), 'a machine without one still is');
+});
+
+test('a machine has one access control and an access control one machine', () => {
+  const doc = withAccessControl();
+  doc.entities['spare-login'] = { kind: 'access-control', label: 'Spare' };
+  const out = L.linkChoices(doc, CATALOG, 'bridge').find((c) => c.kind === 'controls-access' && c.direction === 'out');
+  assert.deepEqual(out.candidates, [], 'bridge has its access control');
+  const into = L.linkChoices(doc, CATALOG, 'bridge-login').find((c) => c.kind === 'controls-access' && c.direction === 'in');
+  assert.deepEqual(into.candidates, [], 'bridge-login has its machine');
+  const free = L.linkChoices(doc, CATALOG, 'spare-login').find((c) => c.kind === 'controls-access' && c.direction === 'in');
+  assert.ok(!free.candidates.includes('bridge'), 'nor is bridge offered a second one');
+  assert.ok(free.candidates.includes('server'));
+  const kinds = L.addChoices(doc, CATALOG, 'bridge').map((c) => c.kind);
+  assert.ok(!kinds.includes('access-control'), 'Tab offers no second access control');
+  assert.ok(L.addChoices(lecture(), CATALOG, 'bridge').map((c) => c.kind).includes('access-control'), 'but offers a first');
+});
+
+test("a router's access control is granted admin only", () => {
+  const doc = withAccessControl();
+  assert.deepEqual(privileges(doc, 'grants', 'server-account', 'bridge-login'), ['admin']);
+  doc.entities['server-login'] = { kind: 'access-control', label: 'Server login' };
+  doc.associations['server-access'] = { kind: 'controls-access', from: 'server', to: 'server-login' };
+  assert.deepEqual(privileges(doc, 'grants', 'server-account', 'server-login'), ['user', 'admin']);
+});
+
+test('removing an access control takes its link and its grants along', () => {
+  let doc = withAccessControl();
+  doc.associations['root'] = { kind: 'grants', from: 'admin-account', to: 'bridge-login', privilege: 'admin' };
+  doc = L.remove(doc, 'entities', 'bridge-login').doc;
+  assert.equal(doc.associations['bridge-access'], undefined);
+  assert.equal(doc.associations.root, undefined);
+});
+
+test('the words for an access control read from either side', () => {
+  assert.equal(L.phrase('controls-access', 'out'), 'its access control');
+  assert.equal(L.phrase('controls-access', 'in'), 'controls access to');
 });
