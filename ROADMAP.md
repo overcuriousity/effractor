@@ -45,19 +45,18 @@ The existing tree profiles, local-first operation and native/wasm determinism
 remain requirements. Generated graphs use explicit prerequisite-dependent
 attack steps with accumulated durations.
 
-### host-products — An operating system is a product too
-needs: —            cost: 2   benefit: 3
-Owner, 2026-09-30, from walking the lecture extract: securiCAD puts *Ubuntu
-Linux*, *Windows 7* and *putty* on hosts and clients as software products;
-effractor's `instance-of` goes only from a service to a product, so a host or
-an application has no version to find an exploit for, and the extract's OS
-routes cannot be drawn. Let a host and an application be an instance of a
-product, with the rules that follow (finding and using an exploit against a
-host reached over its network, an application reached through content), and
-consider one or two host defences the extract switches (a host firewall,
-hardening). Done when the extract's Fig. 5.28/5.35 products can be drawn, the
-generated routes name them, and the lecture fixture's numbers are unchanged
-where it draws none.
+### securicad-extract — What the lecture extract draws that the library lacks
+needs: —            cost: 4   benefit: 5
+Owner, 2026-09-30: the extract (5.3–5.5) does not rebuild in the page as
+securiCAD draws it. Close that gap — what the extract shows, not securiCAD's
+whole vocabulary. Design:
+[`2026-09-30-securicad-extract-design.md`](docs/superpowers/specs/2026-09-30-securicad-extract-design.md):
+an access-control object, IDS and IPS, products on hosts and applications,
+the host defences of Fig. 5.37, the host attack steps of Fig. 5.33/5.34, a
+foothold on an account, containment through clusters. Five branches in the
+spec's §9 order. Done when the owner rebuilds 5.3–5.5 figure by figure on a
+preview and the acceptance record has that walk; existing files generate the
+same graphs and numbers throughout.
 
 ## Compatibility after the lecture milestone
 
