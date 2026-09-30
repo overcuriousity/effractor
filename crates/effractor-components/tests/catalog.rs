@@ -3,7 +3,7 @@
 use effractor_components::{RULES, catalog};
 use serde_json::Value;
 
-const RULE_IDS: [&str; 38] = [
+const RULE_IDS: [&str; 42] = [
     "foothold",
     "admin-implies-user",
     "host-execution",
@@ -19,6 +19,10 @@ const RULE_IDS: [&str; 38] = [
     "product-reachable",
     "product-find-exploit",
     "service-deploy-exploit",
+    "host-reachable",
+    "application-reachable",
+    "host-deploy-exploit",
+    "application-deploy-exploit",
     "credential-extract",
     "account-material",
     "mfa-policy",
@@ -249,6 +253,10 @@ fn every_kind_lists_its_switches() {
 #[test]
 fn every_kind_says_which_of_its_slots_are_optional() {
     for e in catalog()["entities"].as_array().unwrap() {
-        assert_eq!(e["optional"], serde_json::json!([]), "{}", e["kind"]);
+        let want = match e["kind"].as_str().unwrap() {
+            "host" | "application" => serde_json::json!(["deploy-exploit"]),
+            _ => serde_json::json!([]),
+        };
+        assert_eq!(e["optional"], want, "{}", e["kind"]);
     }
 }

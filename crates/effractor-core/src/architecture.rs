@@ -169,11 +169,12 @@ impl EntityKind {
                 Slot::TakeOver,
                 Slot::TakeOverGuarded,
             ],
-            Self::Application => &[Slot::TakeOver, Slot::TakeOverGuarded],
+            Self::Application => &[Slot::DeployExploit, Slot::TakeOver, Slot::TakeOverGuarded],
             Self::Product => &[Slot::FindExploit, Slot::FindExploitPatched],
             Self::Credential => &[Slot::Extract, Slot::ExtractProtected],
             Self::Account => &[Slot::AdminLogin, Slot::MfaBypass],
-            Self::Host | Self::Router => &[Slot::Escape],
+            Self::Host => &[Slot::Escape, Slot::DeployExploit],
+            Self::Router => &[Slot::Escape],
             Self::Person => &[Slot::Phish, Slot::PhishTrained],
             _ => &[],
         }
@@ -343,8 +344,13 @@ impl Slot {
     /// added to a kind after files already existed are optional there, so
     /// those files keep their graphs.
     pub fn optional(self, kind: EntityKind) -> bool {
-        let _ = kind;
-        false
+        matches!(
+            (self, kind),
+            (
+                Self::DeployExploit,
+                EntityKind::Host | EntityKind::Application
+            )
+        )
     }
 
     pub const ALL: [Slot; 14] = [
@@ -632,7 +638,9 @@ pub enum Relation {
         to: FlowId,
         allowed: Switch,
     },
-    /// service → product: which software version it runs; exactly one.
+    /// service/host/application → product: which software version it runs
+    /// (for a host, its operating system); at most one, exactly one for a
+    /// service.
     InstanceOf { from: EntityId, to: EntityId },
     /// host/software → account: the workload's own identity; a host at this
     /// privilege, software as user.
@@ -792,7 +800,7 @@ impl RelationKind {
             Self::Authorizes | Self::Grants => &[K::Account],
             Self::Administration => &[K::Network],
             Self::Permits => &[K::Firewall],
-            Self::InstanceOf => &[K::Service],
+            Self::InstanceOf => &[K::Service, K::Host, K::Application],
             Self::RunsAs => &[K::Host, K::Application, K::Service],
             Self::Assumes => &[K::Account],
             Self::Knows | Self::Operates => &[K::Person],

@@ -1,0 +1,290 @@
+effractor: 2
+profile: architecture
+name: SSH server behind a router, with operating systems
+time_unit: d
+horizon: 100
+library: {id: core-components, version: 1}
+
+entities:
+  client-net:
+    kind: network
+    label: Client network
+  server-net:
+    kind: network
+    label: Server network
+  admin-net:
+    kind: network
+    label: Administration network
+    description: Isolated; nothing in this exercise is attached to it
+  bridge:
+    kind: router
+    label: Router
+    parameters:
+      escape:
+        status: unknown
+  filter:
+    kind: firewall
+    label: Firewall
+  workstation:
+    kind: host
+    label: Workstation
+    parameters:
+      escape:
+        status: unknown
+  server:
+    kind: host
+    label: Server
+    parameters:
+      escape:
+        status: unknown
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 3)"
+        note: Test fixture; not calibrated
+  ssh-client:
+    kind: application
+    label: SSH client
+    parameters:
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 2)"
+        note: Test fixture; not calibrated
+    defenses: {guarded: unknown}
+  sshd:
+    kind: service
+    label: SSH server
+    parameters:
+      deploy-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 2)"
+        note: Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately
+      login:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: Exercise assumption; not calibrated to the lecture
+      take-over:
+        status: unknown
+      take-over-guarded:
+        status: unknown
+    defenses: {guarded: unknown}
+  openssh:
+    kind: product
+    label: OpenSSH
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 10)"
+        note: Exercise assumption; not calibrated to the lecture
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: "Exercise assumption: perfect blocking, a patched service has no exploit to find"
+    defenses: {patched: false}
+  server-account:
+    kind: account
+    label: Server account
+    parameters:
+      admin-login:
+        status: unknown
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: false}
+  admin-account:
+    kind: account
+    label: Router administrator
+    parameters:
+      admin-login:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: Exercise assumption; not calibrated to the lecture
+      mfa-bypass:
+        status: unknown
+    defenses: {mfa: false}
+  server-key:
+    kind: credential
+    label: Server account key
+    description: Where the workstation keeps it; the secret itself is not modelled
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(mean 5)"
+        note: Exercise assumption; not calibrated to the lecture
+      extract-protected:
+        status: illustrative
+        ttc: "Never"
+        note: "Exercise assumption: perfect blocking, a protected store gives nothing up"
+    defenses: {protected: false}
+  admin-key:
+    kind: credential
+    label: Router administrator key
+    parameters:
+      extract:
+        status: illustrative
+        ttc: "Exponential(mean 5)"
+        note: Exercise assumption; not calibrated to the lecture
+      extract-protected:
+        status: illustrative
+        ttc: "Never"
+        note: "Exercise assumption: perfect blocking, a protected store gives nothing up"
+    defenses: {protected: false}
+  ubuntu:
+    kind: product
+    label: Ubuntu Linux
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 20)"
+        note: Test fixture; not calibrated
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: Test fixture; not calibrated
+    defenses: {patched: false}
+  putty:
+    kind: product
+    label: putty
+    parameters:
+      find-exploit:
+        status: illustrative
+        ttc: "Exponential(mean 30)"
+        note: Test fixture; not calibrated
+      find-exploit-patched:
+        status: illustrative
+        ttc: "Never"
+        note: Test fixture; not calibrated
+    defenses: {patched: false}
+
+associations:
+  server-os:
+    kind: instance-of
+    from: server
+    to: ubuntu
+  client-version:
+    kind: instance-of
+    from: ssh-client
+    to: putty
+  client-reads:
+    kind: delivers
+    from: client-net
+    to: ssh-client
+  workstation-net:
+    kind: attached
+    from: workstation
+    to: client-net
+  server-net-link:
+    kind: attached
+    from: server
+    to: server-net
+  bridge-client:
+    kind: attached
+    from: bridge
+    to: client-net
+  bridge-server:
+    kind: attached
+    from: bridge
+    to: server-net
+  client-hosting:
+    kind: hosts
+    from: workstation
+    to: ssh-client
+    privilege: user
+  service-hosting:
+    kind: hosts
+    from: server
+    to: sshd
+    privilege: admin
+  sshd-instance:
+    kind: instance-of
+    from: sshd
+    to: openssh
+  bridge-filter:
+    kind: filters
+    from: bridge
+    to: filter
+  manage-bridge:
+    kind: administration
+    from: admin-net
+    to: bridge
+  server-key-store:
+    kind: stores
+    from: workstation
+    to: server-key
+    privilege: user
+  admin-key-store:
+    kind: stores
+    from: workstation
+    to: admin-key
+    privilege: admin
+  server-auth:
+    kind: authenticates
+    from: server-key
+    to: server-account
+  admin-auth:
+    kind: authenticates
+    from: admin-key
+    to: admin-account
+  ssh-authorizes:
+    kind: authorizes
+    from: server-account
+    to: sshd
+  server-grant:
+    kind: grants
+    from: server-account
+    to: server
+    privilege: admin
+  router-grant:
+    kind: grants
+    from: admin-account
+    to: bridge
+    privilege: admin
+  allow-ssh:
+    kind: permits
+    from: filter
+    to: ssh
+    allowed: true
+
+flows:
+  ssh:
+    label: SSH from the workstation
+    source: ssh-client
+    target: sshd
+    route: [client-net, bridge, server-net]
+    protocol: tcp/22
+    parameters:
+      connect:
+        status: illustrative
+        ttc: "Exponential(mean 0.5)"
+        note: Exercise assumption; not calibrated to the lecture
+
+attacker:
+  footholds:
+    - {entity: workstation, state: admin}
+  target: {entity: server, state: admin}
+
+scenarios:
+  patch:
+    label: Patch the SSH server
+    changes:
+      - {entity: openssh, defense: patched, value: true}
+  protect:
+    label: Protect the stored key
+    changes:
+      - {entity: server-key, defense: protected, value: true}
+  both:
+    label: Patch and protect
+    changes:
+      - {entity: openssh, defense: patched, value: true}
+      - {entity: server-key, defense: protected, value: true}
+  deny:
+    label: Deny SSH at the router
+    changes:
+      - {association: allow-ssh, field: allowed, value: false}
+
+analysis:
+  seed: 42
+  samples: 10000
+  confidence: 0.95

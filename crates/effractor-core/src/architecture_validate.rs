@@ -343,7 +343,7 @@ impl Cx<'_> {
                 "filters",
             ),
             (
-                "a service is an instance of one product",
+                "a service, host or application is an instance of one product",
                 &instances_of,
                 "instance-of",
             ),

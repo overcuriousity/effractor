@@ -254,7 +254,10 @@ fn a_host_may_run_on_a_host_and_nest() {
 
 #[test]
 fn every_host_and_router_carries_an_escape_slot() {
-    assert_eq!(EntityKind::Host.slots(), &[Slot::Escape]);
+    assert_eq!(
+        EntityKind::Host.slots(),
+        &[Slot::Escape, Slot::DeployExploit]
+    );
     assert_eq!(EntityKind::Router.slots(), &[Slot::Escape]);
 }
 
@@ -642,12 +645,15 @@ fn a_kind_answers_the_switches_it_carries_as_a_list() {
 }
 
 #[test]
-fn no_existing_slot_is_optional() {
-    use effractor_core::architecture::EntityKind;
+fn only_slots_added_to_an_existing_kind_are_optional() {
+    use effractor_core::architecture::{EntityKind, Slot};
     for kind in EntityKind::ALL {
         for slot in kind.slots() {
-            assert!(
-                !slot.optional(kind),
+            let added = *slot == Slot::DeployExploit
+                && matches!(kind, EntityKind::Host | EntityKind::Application);
+            assert_eq!(
+                slot.optional(kind),
+                added,
                 "{} on {}",
                 slot.as_str(),
                 kind.as_str()

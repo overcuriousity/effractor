@@ -74,6 +74,7 @@ fn generate_within(
     b.operators();
     b.products();
     b.services();
+    b.instances();
     b.credentials();
     b.accounts();
     b.identities();
@@ -249,7 +250,6 @@ impl<'a> Builder<'a> {
 
     /// Whether `entity` has `slot` to draw a step from: a required slot always
     /// (unknown when unsaid), an optional one only once the file gives it.
-    #[allow(dead_code)] // the first optional slot arrives with plan task B3
     fn has_slot(&self, entity: &EntityId, slot: Slot) -> bool {
         let e = &self.m.entities[entity];
         !slot.optional(e.kind) || e.parameters.contains_key(&slot)
@@ -863,6 +863,106 @@ impl<'a> Builder<'a> {
                 },
                 &[ready, reachable],
                 &control,
+                deploy,
+            );
+        }
+    }
+
+    /// A host's operating system and an application's version (extract Fig.
+    /// 5.28, 5.35): reached through the services the host runs, or through
+    /// content in front of the application; exploited once the file says how
+    /// long using the exploit takes (an optional slot).
+    fn instances(&mut self) {
+        for (eid, entity) in &self.m.entities {
+            if !matches!(entity.kind, EntityKind::Host | EntityKind::Application) {
+                continue;
+            }
+            let Some(&(pid, instance)) = self.product_of.get(eid) else {
+                continue;
+            };
+            let reachable = self.state_id(eid, "reachable");
+            let mut reached = false;
+            if entity.kind == EntityKind::Host {
+                let served: Vec<(&EntityId, &AssociationId)> = self
+                    .m
+                    .associations
+                    .iter()
+                    .filter_map(|(aid, a)| match &a.relation {
+                        Relation::Hosts { from, to, .. }
+                            if from == eid && self.kind(to) == EntityKind::Service =>
+                        {
+                            Some((to, aid))
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                if !served.is_empty() {
+                    self.fact(reachable.clone(), format!("Reachable · {}", entity.label));
+                }
+                for (sid, hosts) in served {
+                    let o = Origin {
+                        entities: vec![sid.clone(), eid.clone()],
+                        associations: vec![hosts.clone()],
+                        ..origin("host-reachable")
+                    };
+                    let service_reachable = self.state_id(sid, "reachable");
+                    self.produce(&service_reachable, &reachable, o);
+                    reached = true;
+                }
+            } else if self.readers.contains(eid) {
+                self.fact(reachable.clone(), format!("Reachable · {}", entity.label));
+                let o = Origin {
+                    entities: vec![eid.clone()],
+                    ..origin("application-reachable")
+                };
+                let contacted = self.state_id(eid, State::Contacted.as_str());
+                self.produce(&contacted, &reachable, o);
+                reached = true;
+            }
+            if !reached {
+                continue;
+            }
+            let product_reachable = self.state_id(pid, "reachable");
+            let r = Origin {
+                entities: vec![eid.clone(), pid.clone()],
+                associations: vec![instance.clone()],
+                ..origin("product-reachable")
+            };
+            self.produce(&reachable, &product_reachable, r);
+            if !self.has_slot(eid, Slot::DeployExploit) {
+                continue;
+            }
+            let owner = Owner::Entity(eid.clone());
+            let (rule, word, output) = if entity.kind == EntityKind::Host {
+                (
+                    "host-deploy-exploit",
+                    "Use the exploit",
+                    self.state_id(eid, State::Admin.as_str()),
+                )
+            } else {
+                (
+                    "application-deploy-exploit",
+                    "Use the exploit",
+                    self.state_id(eid, State::Control.as_str()),
+                )
+            };
+            let deploy = Origin {
+                entities: vec![pid.clone(), eid.clone()],
+                associations: vec![instance.clone()],
+                paths: vec![owner.slot_path(Slot::DeployExploit)],
+                ..origin(rule)
+            };
+            let ready = self.state_id(pid, "exploit-ready");
+            self.action(
+                format!("action/{rule}/{eid}"),
+                format!("{word} · {}", entity.label),
+                Binding::Parameter {
+                    owner,
+                    base: Slot::DeployExploit,
+                    replacement: None,
+                },
+                &[ready, reachable],
+                &output,
                 deploy,
             );
         }

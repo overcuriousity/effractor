@@ -12,7 +12,7 @@ const privileges = (doc, kind, from, to) => {
   const p = [...new Set(L.variants(doc, kind, from, to).map((v) => v.privilege).filter(Boolean))];
   return p.length ? p : null;
 };
-const SPEC = Object.fromEntries(CATALOG.entities.map((e) => [e.kind, { parameters: e.parameters, defenses: e.defenses }]));
+const SPEC = Object.fromEntries(CATALOG.entities.map((e) => [e.kind, { parameters: e.parameters, optional: e.optional, defenses: e.defenses }]));
 
 test('footholds and the target are explicit states', () => {
   let doc = E.empty();
@@ -258,7 +258,7 @@ test('the link menu offers the kinds a component can stand in, with eligible end
   const doc = lecture();
   const choices = L.linkChoices(doc, CATALOG, 'server');
   const kinds = choices.map((c) => c.kind + ':' + c.direction);
-  assert.deepEqual(kinds, ['attached:out', 'hosts:out', 'hosts:in', 'stores:out', 'grants:in', 'administration:in', 'runs-as:out', 'holds:out', 'controls-access:out']);
+  assert.deepEqual(kinds, ['attached:out', 'hosts:out', 'hosts:in', 'stores:out', 'grants:in', 'administration:in', 'instance-of:out', 'runs-as:out', 'holds:out', 'controls-access:out']);
   const attached = choices.find((c) => c.kind === 'attached');
   // server is already attached to server-net; the others are offered.
   assert.deepEqual(attached.candidates, ['client-net', 'admin-net']);
@@ -361,6 +361,7 @@ test('Tab offers the kinds that can be linked to the selection, with each way to
     'host: hosts → · user, hosts → · admin, ← hosts · user, ← hosts · admin',
     'application: hosts → · user, hosts → · admin',
     'service: hosts → · user, hosts → · admin',
+    'product: instance-of →',
     'account: ← grants · user, ← grants · admin, runs-as → · user, runs-as → · admin',
     'credential: stores → · user, stores → · admin',
     'data: holds → · user · decrypts=true, holds → · user · decrypts=false, holds → · admin · decrypts=true, holds → · admin · decrypts=false',
@@ -371,7 +372,7 @@ test('Tab offers the kinds that can be linked to the selection, with each way to
   assert.deepEqual(router, ['network: attached, administration', 'host: hosts·user, hosts·admin', 'application: hosts·admin', 'service: hosts·admin', 'account: grants·admin', 'access-control: controls-access']);
   // A hosted executable offers no second host; an application stores as user.
   const client = L.addChoices(doc, CATALOG, 'ssh-client').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
-  assert.deepEqual(client, ['network: delivers', 'service: flow', 'account: runs-as·user', 'credential: stores·user', 'person: operates', 'data: holds·user, holds·user, reads']);
+  assert.deepEqual(client, ['network: delivers', 'service: flow', 'product: instance-of', 'account: runs-as·user', 'credential: stores·user', 'person: operates', 'data: holds·user, holds·user, reads']);
   assert.deepEqual(L.addChoices(doc, CATALOG, 'absent'), []);
 });
 
@@ -422,7 +423,7 @@ test('each way to link reads as a few words from the selected component', () => 
 test('software is offered a flow to or from a new service', () => {
   const doc = lecture();
   const kinds = (id) => L.addChoices(doc, CATALOG, id).map((c) => c.kind + ': ' + c.options.map((o) => o.relation + ':' + o.direction).join(', '));
-  assert.deepEqual(kinds('ssh-client'), ['network: delivers:in', 'service: flow:out', 'account: runs-as:out', 'credential: stores:out', 'person: operates:in', 'data: holds:out, holds:out, reads:out']);
+  assert.deepEqual(kinds('ssh-client'), ['network: delivers:in', 'service: flow:out', 'product: instance-of:out', 'account: runs-as:out', 'credential: stores:out', 'person: operates:in', 'data: holds:out, holds:out, reads:out']);
   assert.deepEqual(kinds('sshd'), ['network: delivers:in', 'application: flow:in', 'service: flow:out, flow:in', 'account: authorizes:in, runs-as:out', 'data: holds:out, holds:out, reads:out'], 'it runs its product already');
   doc.entities.web = { kind: 'service', label: 'Web' };
   assert.deepEqual(kinds('web'), ['network: delivers:in', 'router: hosts:in', 'host: hosts:in, hosts:in', 'application: flow:in', 'service: flow:out, flow:in', 'product: instance-of:out', 'account: authorizes:in, runs-as:out', 'data: holds:out, holds:out, reads:out']);
@@ -462,7 +463,7 @@ test('an empty Link menu says what is missing', () => {
   assert.equal(L.emptyLink(doc, CATALOG, 'filter'), 'a firewall permits flows · set it in each flow that crosses its router');
   // A lone host in a new document: nothing to link to yet.
   const lone = { entities: { h: { kind: 'host', label: 'H' } }, associations: {}, flows: {} };
-  assert.equal(L.emptyLink(lone, CATALOG, 'h'), 'no network, router, host, application, service, account, credential, data or access control yet · Tab adds one linked');
+  assert.equal(L.emptyLink(lone, CATALOG, 'h'), 'no network, router, host, application, service, product, account, credential, data or access control yet · Tab adds one linked');
   assert.equal(L.emptyLink(doc, CATALOG, 'sshd'), null, 'there is something to link');
 });
 
@@ -528,10 +529,20 @@ test('deleting a person takes what they know and are reached by along', () => {
 test('a product is not offered a service that already runs a product', () => {
   const doc = lecture();
   doc.entities.p2 = { kind: 'product', label: 'P2' };
-  const runs = L.linkChoices(doc, CATALOG, 'p2').find((c) => c.kind === 'instance-of' && c.direction === 'in');
-  assert.deepEqual(runs.candidates, []);
+  const services = () => L.linkChoices(doc, CATALOG, 'p2').find((c) => c.kind === 'instance-of' && c.direction === 'in').candidates.filter((id) => doc.entities[id].kind === 'service');
+  assert.deepEqual(services(), []);
   doc.entities.web = { kind: 'service', label: 'Web' };
-  assert.deepEqual(L.linkChoices(doc, CATALOG, 'p2').find((c) => c.kind === 'instance-of').candidates, ['web']);
+  assert.deepEqual(services(), ['web']);
+});
+
+test('a host or an application may run a product: its operating system, its version', () => {
+  const doc = lecture();
+  doc.entities.ubuntu = { kind: 'product', label: 'Ubuntu Linux' };
+  const runs = L.linkChoices(doc, CATALOG, 'ubuntu').find((c) => c.kind === 'instance-of' && c.direction === 'in');
+  assert.deepEqual(runs.candidates, ['workstation', 'server', 'ssh-client']);
+  doc.associations['server-os'] = { kind: 'instance-of', from: 'server', to: 'ubuntu' };
+  const again = L.linkChoices(doc, CATALOG, 'ubuntu').find((c) => c.kind === 'instance-of' && c.direction === 'in');
+  assert.deepEqual(again.candidates, ['workstation', 'ssh-client'], 'one product per host');
 });
 
 test('software hosting has a contained setting that the Link menu does not multiply', () => {

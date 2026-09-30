@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 38] = [
+pub const RULES: [Rule; 42] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -218,7 +218,7 @@ pub const RULES: [Rule; 38] = [
         title: "An instance is reachable",
         version: 1,
         bindings: &["instance-of"],
-        prerequisites: "service.reachable, for any instance of the product",
+        prerequisites: "service.reachable, host.reachable or application.reachable, for any instance of the product",
         output: "product.reachable",
         duration: D::Logical,
         scope: "one per instance-of association",
@@ -255,6 +255,64 @@ pub const RULES: [Rule; 38] = [
         scope: "one per service",
         assumptions: &[
             "Deployment includes whatever bypass of detection or protection the author assumed in its note; there is no unreported extra success factor.",
+        ],
+    },
+    Rule {
+        id: "host-reachable",
+        title: "A connection reaches the host",
+        version: 1,
+        bindings: &["hosts"],
+        prerequisites: "service.reachable, for any service the host runs",
+        output: "host.reachable, for a host that is an instance of a product",
+        duration: D::Logical,
+        scope: "one per hosts association from a host with a product to a service",
+        assumptions: &[
+            "A host's operating system is reached through the services it runs; being in the same network reaches nothing.",
+        ],
+    },
+    Rule {
+        id: "application-reachable",
+        title: "Content reaches the application",
+        version: 1,
+        bindings: &["application"],
+        prerequisites: "application.contacted",
+        output: "application.reachable, for an application that is an instance of a product",
+        duration: D::Logical,
+        scope: "one per application with a product that reads content",
+        assumptions: &[
+            "Software that makes connections is reached through what it opens, not over the network.",
+        ],
+    },
+    Rule {
+        id: "host-deploy-exploit",
+        title: "Use the exploit against the host",
+        version: 1,
+        bindings: &["host"],
+        prerequisites: "product.exploit-ready and host.reachable",
+        output: "host.admin",
+        duration: D::Slot {
+            slot: Slot::DeployExploit,
+            replaced_by: None,
+        },
+        scope: "one per host with a product and a `deploy-exploit` time",
+        assumptions: &[
+            "An operating-system exploit gives administrative control; whatever bypass it needs is in its time's note.",
+        ],
+    },
+    Rule {
+        id: "application-deploy-exploit",
+        title: "Use the exploit against the application",
+        version: 1,
+        bindings: &["application"],
+        prerequisites: "product.exploit-ready and application.reachable",
+        output: "application.control",
+        duration: D::Slot {
+            slot: Slot::DeployExploit,
+            replaced_by: None,
+        },
+        scope: "one per application with a product and a `deploy-exploit` time",
+        assumptions: &[
+            "An exploit in what the application opens makes it do what the attacker says.",
         ],
     },
     Rule {
@@ -636,7 +694,9 @@ fn relation_description(kind: RelationKind) -> &'static str {
         RelationKind::Permits => {
             "A firewall's named permission for a flow: `allowed: true | false | unknown`."
         }
-        RelationKind::InstanceOf => "The software version a service runs: exactly one product.",
+        RelationKind::InstanceOf => {
+            "The software version a service runs (exactly one product), or a host's operating system, or an application's version (at most one)."
+        }
         RelationKind::RunsAs => {
             "The identity a workload runs as: a host at `privilege: user | admin`, software as `user`. Code in it can use the identity without credentials."
         }
@@ -760,8 +820,8 @@ fn slot_description(slot: Slot) -> (&'static str, &'static str) {
             "The same, once the product is patched; selected by `defenses.patched`.",
         ),
         Slot::DeployExploit => (
-            "service",
-            "Time to turn a found exploit into control of the service.",
+            "service, host or application",
+            "Time to turn a found exploit into control of the service or application, or admin control of the host. Optional on a host or an application: not drawn until given.",
         ),
         Slot::Login => (
             "service",

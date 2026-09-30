@@ -683,3 +683,119 @@ fn a_session_through_an_access_control_names_both_links() {
     );
     assert!(o.entities.iter().any(|e| e.as_str() == "server-login"));
 }
+
+/// The lecture with Ubuntu Linux on the server (extract Fig. 5.28, 5.35).
+fn with_os(deploy: &str) -> Architecture {
+    let text = LECTURE
+        .replacen(
+            "\nassociations:\n",
+            "  ubuntu:\n    kind: product\n    label: Ubuntu Linux\n    parameters:\n      find-exploit:\n        status: illustrative\n        ttc: \"Exponential(mean 20)\"\n        note: exercise\n      find-exploit-patched:\n        status: illustrative\n        ttc: \"Never\"\n        note: exercise\n    defenses: {patched: false}\n\nassociations:\n  server-os:\n    kind: instance-of\n    from: server\n    to: ubuntu\n",
+            1,
+        )
+        .replacen(
+            "  server:\n    kind: host\n    label: Server\n    parameters:\n",
+            &format!("  server:\n    kind: host\n    label: Server\n    parameters:\n{deploy}"),
+            1,
+        );
+    architecture(&text)
+}
+
+const DEPLOY_UNKNOWN: &str = "      deploy-exploit:\n        status: unknown\n";
+
+#[test]
+fn a_host_is_reachable_through_the_services_it_runs_and_not_by_being_near() {
+    let g = generate(&with_os(DEPLOY_UNKNOWN)).unwrap();
+    let s = shape(&g);
+    assert_eq!(
+        s["state/host/server/reachable"],
+        ["state/service/sshd/reachable"]
+    );
+    assert_eq!(
+        s["state/product/ubuntu/reachable"],
+        ["state/host/server/reachable"]
+    );
+    assert!(
+        !s.contains_key("state/host/workstation/reachable"),
+        "a host that is no instance of a product gets no reachability"
+    );
+}
+
+#[test]
+fn an_os_exploit_is_not_drawn_until_the_host_says_how_long_using_it_takes() {
+    let absent = shape(&generate(&with_os("")).unwrap());
+    assert!(!absent.contains_key("action/host-deploy-exploit/server"));
+    assert!(
+        absent.contains_key("action/product-find-exploit/ubuntu"),
+        "the product's step is drawn"
+    );
+    let g = generate(&with_os(DEPLOY_UNKNOWN)).unwrap();
+    let s = shape(&g);
+    assert_eq!(
+        s["action/host-deploy-exploit/server"],
+        [
+            "state/host/server/reachable",
+            "state/product/ubuntu/exploit-ready"
+        ]
+    );
+    assert!(s["state/host/server/admin"].contains(&"action/host-deploy-exploit/server".to_owned()));
+    let step = &g.nodes[index(&g, "action/host-deploy-exploit/server")];
+    assert!(step.origins.iter().any(|o| o.rule == "host-deploy-exploit"
+        && o.associations.iter().any(|a| a.as_str() == "server-os")));
+}
+
+#[test]
+fn a_product_shared_by_host_and_service_is_found_once() {
+    let mut m = with_os(DEPLOY_UNKNOWN);
+    // sshd from the distribution: an instance of Ubuntu Linux too.
+    m.associations
+        .get_mut(&id::<AssociationId>("sshd-instance"))
+        .unwrap()
+        .relation = Relation::InstanceOf {
+        from: id("sshd"),
+        to: id("ubuntu"),
+    };
+    let s = shape(&generate(&m).unwrap());
+    assert_eq!(
+        s.keys()
+            .filter(|k| k.starts_with("action/product-find-exploit/"))
+            .count(),
+        2,
+        "openssh keeps its step, ubuntu has one"
+    );
+    for step in [
+        "action/service-deploy-exploit/sshd",
+        "action/host-deploy-exploit/server",
+    ] {
+        assert!(
+            s[step].contains(&"state/product/ubuntu/exploit-ready".to_owned()),
+            "{step}"
+        );
+    }
+}
+
+#[test]
+fn an_application_is_reached_through_content_in_front_of_it() {
+    let text = LECTURE
+        .replacen(
+            "\nassociations:\n",
+            "  putty-product:\n    kind: product\n    label: putty\n    parameters:\n      find-exploit:\n        status: unknown\n      find-exploit-patched:\n        status: unknown\n    defenses: {patched: false}\n\nassociations:\n  putty-version:\n    kind: instance-of\n    from: ssh-client\n    to: putty-product\n  client-net-delivers:\n    kind: delivers\n    from: client-net\n    to: ssh-client\n",
+            1,
+        )
+        .replacen(
+            "  ssh-client:\n    kind: application\n    label: SSH client\n    parameters:\n",
+            "  ssh-client:\n    kind: application\n    label: SSH client\n    parameters:\n      deploy-exploit:\n        status: unknown\n",
+            1,
+        );
+    let s = shape(&generate(&architecture(&text)).unwrap());
+    assert_eq!(
+        s["state/application/ssh-client/reachable"],
+        ["state/application/ssh-client/contacted"]
+    );
+    assert_eq!(
+        s["action/application-deploy-exploit/ssh-client"],
+        [
+            "state/application/ssh-client/reachable",
+            "state/product/putty-product/exploit-ready"
+        ]
+    );
+}
