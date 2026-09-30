@@ -261,6 +261,8 @@ impl Cx<'_> {
         let mut instances_of: HashMap<&EntityId, Vec<&AssociationId>> = HashMap::new();
         let mut filters_from: HashMap<&EntityId, Vec<&AssociationId>> = HashMap::new();
         let mut filters_to: HashMap<&EntityId, Vec<&AssociationId>> = HashMap::new();
+        let mut controls_from: HashMap<&EntityId, Vec<&AssociationId>> = HashMap::new();
+        let mut controls_to: HashMap<&EntityId, Vec<&AssociationId>> = HashMap::new();
 
         for (id, association) in &m.associations {
             let at = format!("associations.{id}");
@@ -320,6 +322,10 @@ impl Cx<'_> {
                     filters_from.entry(from).or_default().push(id);
                     filters_to.entry(to).or_default().push(id);
                 }
+                Relation::ControlsAccess { from, to } => {
+                    controls_from.entry(from).or_default().push(id);
+                    controls_to.entry(to).or_default().push(id);
+                }
                 _ => {}
             }
         }
@@ -340,6 +346,16 @@ impl Cx<'_> {
                 "a service is an instance of one product",
                 &instances_of,
                 "instance-of",
+            ),
+            (
+                "a machine has one access control",
+                &controls_from,
+                "controls-access",
+            ),
+            (
+                "an access control belongs to one machine",
+                &controls_to,
+                "controls-access",
             ),
         ] {
             let mut by: Vec<_> = by.iter().filter(|(_, ids)| ids.len() > 1).collect();
@@ -741,11 +757,19 @@ impl Cx<'_> {
                 router_of.entry(to).or_insert(from);
             }
         }
+        // An access control's machine: the first `controls-access` that names it.
+        let mut machine_of_access: HashMap<&EntityId, &EntityId> = HashMap::new();
+        for a in m.associations.values() {
+            if let Relation::ControlsAccess { from, to } = &a.relation {
+                machine_of_access.entry(to).or_insert(from);
+            }
+        }
+        // What a grant is on: the machine, whether named or behind its access control.
         let granted: HashSet<&EntityId> = m
             .associations
             .values()
             .filter_map(|a| match &a.relation {
-                Relation::Grants { to, .. } => Some(to),
+                Relation::Grants { to, .. } => Some(*machine_of_access.get(to).unwrap_or(&to)),
                 _ => None,
             })
             .collect();
@@ -766,6 +790,29 @@ impl Cx<'_> {
                                 "\"{to}\" does not cross \"{router}\", so \"{from}\" never sees it: this permission changes nothing"
                             ),
                         );
+                    }
+                }
+                Relation::Grants { to, privilege, .. }
+                    if self.kind_of(to) == Some(EntityKind::AccessControl) =>
+                {
+                    match machine_of_access.get(to) {
+                        None => self.incomplete(
+                            at,
+                            format!(
+                                "nothing controls access through \"{to}\" yet: link a host or router to it"
+                            ),
+                        ),
+                        Some(machine)
+                            if *privilege == Privilege::User
+                                && self.kind_of(machine) == Some(EntityKind::Router) =>
+                        {
+                            self.error(
+                                Code::AssociationType,
+                                format!("{at}.privilege"),
+                                "a router has no user privilege; an account on a router's access control is granted `admin`",
+                            )
+                        }
+                        Some(_) => {}
                     }
                 }
                 Relation::Administration { from, to }

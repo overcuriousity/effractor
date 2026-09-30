@@ -106,10 +106,11 @@ pub enum EntityKind {
     Credential,
     Person,
     Data,
+    AccessControl,
 }
 
 impl EntityKind {
-    pub const ALL: [EntityKind; 11] = [
+    pub const ALL: [EntityKind; 12] = [
         Self::Network,
         Self::Router,
         Self::Firewall,
@@ -121,6 +122,7 @@ impl EntityKind {
         Self::Credential,
         Self::Person,
         Self::Data,
+        Self::AccessControl,
     ];
 
     /// The kebab-case spelling a document uses.
@@ -137,6 +139,7 @@ impl EntityKind {
             Self::Credential => "credential",
             Self::Person => "person",
             Self::Data => "data",
+            Self::AccessControl => "access-control",
         }
     }
 
@@ -147,7 +150,7 @@ impl EntityKind {
         match self {
             Self::Network => &[State::Access],
             Self::Router => &[State::Admin],
-            Self::Firewall | Self::Account | Self::Product => &[],
+            Self::Firewall | Self::Account | Self::Product | Self::AccessControl => &[],
             Self::Host => &[State::User, State::Admin],
             Self::Application | Self::Service => &[State::Control],
             Self::Credential => &[State::Possessed],
@@ -602,7 +605,9 @@ pub enum Relation {
     },
     /// account → service: the service accepts this account.
     Authorizes { from: EntityId, to: EntityId },
-    /// account → host/router at this privilege; a router only as admin.
+    /// account → host/router/access control at this privilege; a router, or
+    /// a router's access control, only as admin. A grant to an access
+    /// control is a grant on the machine it controls access to.
     Grants {
         from: EntityId,
         to: EntityId,
@@ -653,6 +658,9 @@ pub enum Relation {
     EncryptedWith { from: EntityId, to: EntityId },
     /// software → data: content it reads, e.g. a retrieval corpus.
     Reads { from: EntityId, to: EntityId },
+    /// host/router → access control: where accounts log in to the machine.
+    /// One each way.
+    ControlsAccess { from: EntityId, to: EntityId },
 }
 
 /// What an account may do with data.
@@ -710,10 +718,11 @@ pub enum RelationKind {
     Accesses,
     EncryptedWith,
     Reads,
+    ControlsAccess,
 }
 
 impl RelationKind {
-    pub const ALL: [RelationKind; 19] = [
+    pub const ALL: [RelationKind; 20] = [
         Self::Attached,
         Self::Hosts,
         Self::Filters,
@@ -733,6 +742,7 @@ impl RelationKind {
         Self::Accesses,
         Self::EncryptedWith,
         Self::Reads,
+        Self::ControlsAccess,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -756,6 +766,7 @@ impl RelationKind {
             Self::Accesses => "accesses",
             Self::EncryptedWith => "encrypted-with",
             Self::Reads => "reads",
+            Self::ControlsAccess => "controls-access",
         }
     }
 
@@ -763,7 +774,7 @@ impl RelationKind {
     pub fn from_kinds(self) -> &'static [EntityKind] {
         use EntityKind as K;
         match self {
-            Self::Attached | Self::Hosts => &[K::Host, K::Router],
+            Self::Attached | Self::Hosts | Self::ControlsAccess => &[K::Host, K::Router],
             Self::Filters => &[K::Router],
             Self::Stores => &[K::Host, K::Application],
             Self::Authenticates => &[K::Credential],
@@ -793,7 +804,9 @@ impl RelationKind {
             Self::Stores => &[K::Credential],
             Self::Authenticates => &[K::Account],
             Self::Authorizes => &[K::Service],
-            Self::Grants | Self::Administration => &[K::Host, K::Router],
+            Self::Grants => &[K::Host, K::Router, K::AccessControl],
+            Self::Administration => &[K::Host, K::Router],
+            Self::ControlsAccess => &[K::AccessControl],
             Self::Permits => &[],
             Self::InstanceOf => &[K::Product],
             Self::RunsAs | Self::Assumes => &[K::Account],
@@ -848,6 +861,7 @@ impl Relation {
             Self::Accesses { .. } => RelationKind::Accesses,
             Self::EncryptedWith { .. } => RelationKind::EncryptedWith,
             Self::Reads { .. } => RelationKind::Reads,
+            Self::ControlsAccess { .. } => RelationKind::ControlsAccess,
         }
     }
 
@@ -871,7 +885,8 @@ impl Relation {
             | Self::Holds { from, .. }
             | Self::Accesses { from, .. }
             | Self::EncryptedWith { from, .. }
-            | Self::Reads { from, .. } => from,
+            | Self::Reads { from, .. }
+            | Self::ControlsAccess { from, .. } => from,
         }
     }
 
@@ -895,7 +910,8 @@ impl Relation {
             | Self::Holds { to, .. }
             | Self::Accesses { to, .. }
             | Self::EncryptedWith { to, .. }
-            | Self::Reads { to, .. } => Some(to),
+            | Self::Reads { to, .. }
+            | Self::ControlsAccess { to, .. } => Some(to),
             Self::Permits { .. } => None,
         }
     }

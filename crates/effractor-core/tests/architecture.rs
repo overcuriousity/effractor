@@ -608,3 +608,26 @@ fn data_nothing_holds_is_complete() {
             .all(|d| d.path != "entities.d")
     );
 }
+
+#[test]
+fn an_access_control_is_a_kind_with_nothing_of_its_own() {
+    use effractor_core::architecture::{EntityKind, RelationKind};
+    assert_eq!(EntityKind::AccessControl.as_str(), "access-control");
+    assert!(EntityKind::AccessControl.states().is_empty());
+    assert!(EntityKind::AccessControl.slots().is_empty());
+    assert!(EntityKind::AccessControl.defense().is_none());
+    assert_eq!(
+        RelationKind::ControlsAccess.from_kinds(),
+        &[EntityKind::Host, EntityKind::Router]
+    );
+    assert_eq!(
+        RelationKind::ControlsAccess.to_kinds(),
+        &[EntityKind::AccessControl]
+    );
+    assert!(RelationKind::ControlsAccess.fields().is_empty());
+    assert!(
+        RelationKind::Grants
+            .to_kinds()
+            .contains(&EntityKind::AccessControl)
+    );
+}

@@ -2137,3 +2137,88 @@ fn what_changes_nothing_is_a_warning_where_it_is_said() {
         "{diagnostics:?}"
     );
 }
+
+/// The lecture with the router administrator granted through the router's
+/// access control (extract Fig. 5.19), not on the router itself.
+fn with_access_control() -> serde_json::Value {
+    let mut image = image(LECTURE);
+    image["entities"]["bridge-login"] =
+        serde_json::json!({"kind": "access-control", "label": "Router login"});
+    image["associations"]["bridge-access"] =
+        serde_json::json!({"kind": "controls-access", "from": "bridge", "to": "bridge-login"});
+    image["associations"]["router-grant"] = serde_json::json!({"kind": "grants", "from": "admin-account", "to": "bridge-login", "privilege": "admin"});
+    image
+}
+
+#[test]
+fn an_access_control_round_trips_and_is_complete() {
+    let text = from_document(&with_access_control()).unwrap();
+    assert!(text.contains("    kind: access-control\n"), "{text}");
+    assert!(text.contains("    kind: controls-access\n"), "{text}");
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    let (doc, diagnostics) = effractor_format::diagnose_document(&text);
+    assert_eq!(diagnostics, vec![], "nothing to say about it");
+    assert_eq!(effractor_format::save_document(&doc.unwrap()), text);
+}
+
+#[test]
+fn one_access_control_per_machine_and_one_machine_per_access_control() {
+    let mut image = with_access_control();
+    image["entities"]["second-login"] =
+        serde_json::json!({"kind": "access-control", "label": "Second"});
+    image["associations"]["bridge-access-2"] =
+        serde_json::json!({"kind": "controls-access", "from": "bridge", "to": "second-login"});
+    assert!(has(
+        &errors_of(&image),
+        "cardinality",
+        "associations.bridge-access-2"
+    ));
+    let mut image = with_access_control();
+    image["associations"]["server-access"] =
+        serde_json::json!({"kind": "controls-access", "from": "server", "to": "bridge-login"});
+    assert!(has(
+        &errors_of(&image),
+        "cardinality",
+        "associations.server-access"
+    ));
+}
+
+#[test]
+fn a_router_access_control_is_granted_admin_only() {
+    let mut image = with_access_control();
+    image["associations"]["router-grant"]["privilege"] = serde_json::json!("user");
+    assert!(has(
+        &errors_of(&image),
+        "association-type",
+        "associations.router-grant.privilege"
+    ));
+}
+
+#[test]
+fn a_grant_to_an_access_control_nothing_controls_is_incomplete() {
+    let mut image = with_access_control();
+    image["associations"]
+        .as_object_mut()
+        .unwrap()
+        .remove("bridge-access");
+    let (_, diagnostics) = effractor_format::diagnose_document(&from_document(&image).unwrap());
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.code.as_str() == "incomplete" && d.path == "associations.router-grant"),
+        "{diagnostics:?}"
+    );
+}
+
+#[test]
+fn management_access_counts_a_grant_through_the_access_control() {
+    let mut image = with_access_control();
+    image["associations"]["manage-bridge"] =
+        serde_json::json!({"kind": "administration", "from": "admin-net", "to": "bridge"});
+    let (_, diagnostics) = effractor_format::diagnose_document(&from_document(&image).unwrap());
+    assert_eq!(
+        diagnostics,
+        vec![],
+        "the router's administrator is granted, through its login"
+    );
+}
