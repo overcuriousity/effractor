@@ -214,8 +214,11 @@ from these inputs, held by a test; they are not the lecture's numbers.
 ### What it does not say
 
 No vulnerability database stands behind *Find an exploit*: the time is what
-its author writes. The library is small on purpose, and retries, account
-lockout, detection and response are outside it. The numbers are not expected
+its author writes. The library is small on purpose: a host or an application
+has no product of its own, so the lecture's operating systems (Windows 7,
+Ubuntu Linux) and *putty* are not drawn and have no exploit route; a host has
+no defence switch; retries, account lockout, detection and response are
+outside it. The numbers are not expected
 to match the lecture's screenshots, whose rules and inputs are not published
 with them. Existing securiCAD or MAL models are not read.
 

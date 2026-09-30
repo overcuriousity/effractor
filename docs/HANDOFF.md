@@ -2,42 +2,55 @@
 
 For the next session — whoever or whatever picks it up; everything needed is in
 the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md`, `ROADMAP.md` and the design still to be built
-(`docs/superpowers/specs/`) first — built designs are read from history, see
+(`docs/superpowers/specs/`, when there is one) first — built designs are read from history, see
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
-## Continuation — lecture acceptance, evidence in, walkthrough open (2026-09-29)
+## Continuation — the lecture milestone is closed (2026-09-29/30)
 
-Plan Task 8 (`lecture-workflow`), on branch `lecture-acceptance`. No code the
-page or the solver runs changed. **The milestone is not complete:** the
-owner's walkthrough (spec §11, five steps, listed in
-`docs/LECTURE-ACCEPTANCE.md`) is outstanding, so `lecture-workflow` stays on
-the roadmap and its spec and plan stay in `docs/superpowers/`.
+Plan Task 8 (`lecture-workflow`), branch `lecture-acceptance`, landed as
+`ac3705a` (#178, released `v0.1.0+ac3705a`), then closed by this
+documentation change. The spec
+`docs/superpowers/specs/2026-09-21-lecture-workflow-design.md` and the plan
+`docs/superpowers/plans/2026-09-21-lecture-workflow.md` are deleted with it;
+`git log --diff-filter=D --format=%h -1 -- <path>` names the deleting commit
+and `git show <that>^:<path>` prints either. Code comments cite them as
+"lecture spec §…" / "spec §…" in `crates/effractor-components`,
+`crates/effractor-solver` and the architecture JS. `docs/superpowers/` is
+empty now and gone; it comes back with the next design.
 
 - **Course files.** `docs/course/lecture-unknown.yaml` moved there from
   `crates/effractor-components/tests/fixtures/` (one copy; the tests, the
   agreement check and `graph-fixtures.js` read it from the course folder).
   `docs/course/lecture-partial-defenses.yaml` is new: patched discovery
-  `Exponential(mean 100)`, protected extraction `Exponential(mean 50)`, the
-  plan's `Exponential(0.01)` and `(0.02)` in the spelling files are written in.
+  `Exponential(mean 100)`, protected extraction `Exponential(mean 50)`.
 - **Course text.** `docs/course/README.md` has the exercise: what is drawn,
-  building it from empty, every time with its step, what to read from it,
-  what it does not say. Its table of numbers is held by
-  `crates/effractor-solver/tests/course_files.rs`
-  (`the_course_text_quotes_what_the_solver_says`): a change to the solver,
-  the library or a course file that moves one fails there, and the table is
-  then rewritten from the solver, not the test loosened. The course files
-  are compiled into that test (`include_str!`), because the solver's tests
-  also run under wasmtime, which sees no directory above the crate.
+  building it from empty (the defence switches start *Unknown* and must be
+  set *Off*; scenarios are made in Compare with +; the baseline comes back
+  by choosing *nothing · baseline only*, not by undo), every time with its
+  step, what to read from it, what it does not say. Its table of numbers is
+  held by `crates/effractor-solver/tests/course_files.rs`
+  (`the_course_text_quotes_what_the_solver_says`): a change that moves one
+  fails there, and the table is then rewritten from the solver, not the test
+  loosened. The two variant files are held to the exercise's exact text with
+  their replacements. The course files are compiled into that test
+  (`include_str!`), because the solver's tests also run under wasmtime, which
+  sees no directory above the crate.
 - **Performance.** `node scripts/check-graph-performance.js [file]
-  [scenario]` after `build-wasm.sh`; not in CI (timings on shared runners
-  say little). Measurements are in the acceptance record.
-- **To finish:** the owner walks the five steps; their answer goes into
-  `docs/LECTURE-ACCEPTANCE.md`; then one change removes `lecture-workflow`
-  (`scripts/dev/roadmap-done.py lecture-workflow`), deletes the spec and the
-  plan, and says here where they are in history. If the walkthrough finds
-  something, it is fixed test-first on a branch and the affected steps are
-  walked again.
+  [scenario]` after `build-wasm.sh`; not in CI. Measurements are in
+  `docs/LECTURE-ACCEPTANCE.md`.
+- **The owner's walkthrough (2026-09-30)** went along the extract itself,
+  not the spec's five steps, and found that 5.3.3 does not rebuild as
+  drawn. The acceptance record has the figure-by-figure comparison. Owner's
+  ruling: the differences are the small library the design chose; close as
+  scoped, record the gaps, open `host-products` (a host or an application as
+  an instance of a product; a host defence or two). The larger vocabulary
+  (IDS/IPS, escalation, ARP, physical access, views) is
+  `mal-securicad-compatibility`'s.
+- **Left as is:** the spec's "restore the baseline with undo" — a scenario
+  choice is workspace state (Task 7's design); the owner did not ask for a
+  change. A fresh review's one deferred minor: no `npm test` runs the
+  performance measurement against the real wasm module.
 
 ## Roadmap pruned (2026-09-29)
 
@@ -51,8 +64,9 @@ Owner, 2026-09-29: two items were dropped, not built.
   saying it (`nmap-changes.js`, *what is blocked with nothing drawn to say
   it on*).
 
-Left: `lecture-workflow` (plan Task 8), then `mal-securicad-compatibility`;
-`audit-log` and `api-tokens`, each needing a design first.
+Left after that day: `lecture-workflow` (closed 2026-09-30), then
+`mal-securicad-compatibility`; `audit-log` and `api-tokens`, each needing a
+design first.
 
 ## Continuation — scanners that build on each other (2026-09-29)
 
@@ -763,9 +777,8 @@ were all shipped examples (renewed the same day: *sample collection* above).
   `git show 9bbfa73:docs/superpowers/specs/2026-09-24-clustering-design.md`
   (`git show 9bbfa73 --stat -- docs/superpowers` lists them). The nmap spec's
   last amendment (the network row) is in `ec9dd1e`.
-- **Kept:** the lecture-workflow spec and plan: Task 8 (course docs,
-  `LECTURE-ACCEPTANCE.md`, `check-graph-performance.js`, the owner's
-  walkthrough) is not done and `lecture-workflow` is on the roadmap.
+- **Kept then:** the lecture-workflow spec and plan, until Task 8 closed
+  the milestone (2026-09-30, see the continuation of that date).
 - **Examples:** the old `assets/examples/` went (fault/attack trees 01–13,
   the catalog); the thirteen there now are the new collection. The five
   architectures 14–18 are test fixtures now,
@@ -1494,7 +1507,7 @@ pp. 112–134: model a client/router/SSH-server architecture, start from a
 compromised workstation, generate attack routes and compare defenses.
 
 The written successor design is now
-[`2026-09-21-lecture-workflow-design.md`](superpowers/specs/2026-09-21-lecture-workflow-design.md),
+`2026-09-21-lecture-workflow-design.md` (deleted 2026-09-30, in history),
 **approved by the owner on 2026-09-21**. It separates the architecture/generated graph from
 the existing tree model, specifies accumulated action durations and justified
 cycle entry, and defines a versioned transparent component library, explicit
@@ -1504,7 +1517,7 @@ reference pages were rendered and inspected, with detailed renders of figures
 
 `successor-design` is complete: the written spec is approved and `ROADMAP.md`
 contains the branch-sized implementation decomposition. The detailed
-[implementation plan](superpowers/plans/2026-09-21-lecture-workflow.md) is written
+implementation plan `2026-09-21-lecture-workflow.md` (deleted 2026-09-30, in history) is written
 and was reviewed on 2026-09-22; the owner chose native execution (see the
 architecture-documents continuation above). No product code has changed; `lecture-workflow` remains
 pending. The starting checkout was clean `master` at `c58d0cf`; the written-spec

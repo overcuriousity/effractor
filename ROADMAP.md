@@ -1,23 +1,13 @@
 # Roadmap
 
-Remaining work for effractor, as a DAG. The approved successor design is linked
-below; the specs of what is built were removed once built (2026-09-25) and are
-read from history (`docs/HANDOFF.md` says how). How work lands is in
-`CONTRIBUTING.md`.
+Remaining work for effractor, as a DAG. The specs of what is built are removed
+once built and read from history (`docs/HANDOFF.md` says how). How work lands
+is in `CONTRIBUTING.md`.
 
-Approved successor spec:
-[`2026-09-21-lecture-workflow-design.md`](docs/superpowers/specs/2026-09-21-lecture-workflow-design.md).
-The [implementation plan](docs/superpowers/plans/2026-09-21-lecture-workflow.md)
-was reviewed by the owner on 2026-09-22, who chose native in-session execution:
-one feature branch per task, a pause for the owner at each task boundary. The
-items below are its delivery decomposition. Plan tasks 1
-(`architecture-document`), 2 (`component-generation`), 3
-(`sequential-simulation`), 4 (`architecture-editor`), 5
-(`architecture-links`), 6 (`attack-graph-inspection`) and 7
-(`defense-comparison`, with an attacker speed per scenario) are done;
-lecture-workflow = 8 remains. `library-extension`, added by the owner on
-2026-09-23, is done, so comparisons cover its defenses from the start.
-"securiCAD parity" in the owner's words means `lecture-workflow`, not the later
+The lecture milestone (`lecture-workflow`, plan tasks 1–8) closed on
+2026-09-30; its spec and plan are read from history (`docs/HANDOFF.md` says
+how) and its acceptance is `docs/LECTURE-ACCEPTANCE.md`. "securiCAD parity"
+in the owner's words meant that milestone, not the later
 `mal-securicad-compatibility`.
 
 **Rules.** `needs` = item ids that must be gone first. `cost` / `benefit` are
@@ -51,32 +41,28 @@ routes to server compromise and compare defenses such as patching, credential
 protection and network permissions. Keep the exercise in course documentation
 and test fixtures; the app still opens an empty document for a new user.
 
-The lecture milestone is decomposed into branch-sized work by the approved design. The
-existing tree profiles, local-first operation and native/wasm determinism remain
-requirements. The v1 spec's assumption that generated attack graphs need no
-document-model changes is superseded: generated graphs use explicit
-prerequisite-dependent attack steps with accumulated durations.
+The existing tree profiles, local-first operation and native/wasm determinism
+remain requirements. Generated graphs use explicit prerequisite-dependent
+attack steps with accumulated durations.
 
-### lecture-workflow — Deliver the first successor milestone
-needs: —            cost: 2   benefit: 5
-Build the lecture's architecture → generated attack graph → simulation → defense
-comparison workflow using a small, transparent component library. Cover
-networks/zones, routers/firewalls, hosts, applications/services,
-accounts/credentials and data flows, with explicit hosting, communication,
-administration and privilege relationships. Generated steps expose their
-originating rules and editable assumptions. Done when the owner can build the
-reference scenario in the browser, choose the compromised workstation and
-server target, inspect generated routes and compromise probabilities over time,
-and see how defense changes affect results and remaining alternatives. Verify
-sequential timing and graph generation with automated fixtures, native/wasm
-agreement in CI, and the workflow by the owner's browser walkthrough. Numerical
-agreement with the lecture's screenshots is not an acceptance criterion without
-the underlying rules and calibrated inputs.
+### host-products — An operating system is a product too
+needs: —            cost: 2   benefit: 3
+Owner, 2026-09-30, from walking the lecture extract: securiCAD puts *Ubuntu
+Linux*, *Windows 7* and *putty* on hosts and clients as software products;
+effractor's `instance-of` goes only from a service to a product, so a host or
+an application has no version to find an exploit for, and the extract's OS
+routes cannot be drawn. Let a host and an application be an instance of a
+product, with the rules that follow (finding and using an exploit against a
+host reached over its network, an application reached through content), and
+consider one or two host defences the extract switches (a host firewall,
+hardening). Done when the extract's Fig. 5.28/5.35 products can be drawn, the
+generated routes name them, and the lecture fixture's numbers are unchanged
+where it draws none.
 
 ## Compatibility after the lecture milestone
 
 ### mal-securicad-compatibility — Reuse existing models and libraries
-needs: lecture-workflow            cost: 5   benefit: 4
+needs: —            cost: 5   benefit: 4
 Prioritize compatibility with existing securiCAD/MAL models and libraries after
 the first successor milestone. Start from representative files and document
 supported versions and constructs, distinguishing MAL language libraries,
