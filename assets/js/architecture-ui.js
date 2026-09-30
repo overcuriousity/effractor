@@ -771,8 +771,9 @@
     });
 
     // Shown where it matters: guarding software only where content reaches it.
-    window.effractorArchitectureView.shownDefenses(doc(), id).forEach(function (defense, i) {
-      var current = e.defenses[defense];
+    window.effractorArchitectureView.defenseRows(doc(), catalog, id).forEach(function (row, i) {
+      var defense = row.defense;
+      var current = row.value;
       var toggle = field(form, i ? "prop-defense-" + defense : "prop-defense", catalog ? W.defense(catalog, defense) : word(defense), window.effractorMenu.dropdown(SWITCH, String(current)));
       toggle.addEventListener("change", function () {
         var v = toggle.value === "true" ? true : toggle.value === "false" ? false : "unknown";

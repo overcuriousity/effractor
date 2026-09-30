@@ -13,7 +13,8 @@
       ],
       "parameters": [],
       "optional": [],
-      "defenses": []
+      "defenses": [],
+      "optional_defenses": []
     },
     {
       "kind": "router",
@@ -26,7 +27,8 @@
         "escape"
       ],
       "optional": [],
-      "defenses": []
+      "defenses": [],
+      "optional_defenses": []
     },
     {
       "kind": "firewall",
@@ -35,7 +37,8 @@
       "states": [],
       "parameters": [],
       "optional": [],
-      "defenses": []
+      "defenses": [],
+      "optional_defenses": []
     },
     {
       "kind": "host",
@@ -47,12 +50,23 @@
       ],
       "parameters": [
         "escape",
-        "deploy-exploit"
+        "deploy-exploit",
+        "deploy-exploit-aslr",
+        "deploy-exploit-dep"
       ],
       "optional": [
-        "deploy-exploit"
+        "deploy-exploit",
+        "deploy-exploit-aslr",
+        "deploy-exploit-dep"
       ],
-      "defenses": []
+      "defenses": [
+        "aslr",
+        "dep"
+      ],
+      "optional_defenses": [
+        "aslr",
+        "dep"
+      ]
     },
     {
       "kind": "application",
@@ -71,7 +85,8 @@
       ],
       "defenses": [
         "guarded"
-      ]
+      ],
+      "optional_defenses": []
     },
     {
       "kind": "service",
@@ -82,14 +97,20 @@
       ],
       "parameters": [
         "deploy-exploit",
+        "deploy-exploit-aslr",
+        "deploy-exploit-dep",
         "login",
         "take-over",
         "take-over-guarded"
       ],
-      "optional": [],
+      "optional": [
+        "deploy-exploit-aslr",
+        "deploy-exploit-dep"
+      ],
       "defenses": [
         "guarded"
-      ]
+      ],
+      "optional_defenses": []
     },
     {
       "kind": "product",
@@ -103,7 +124,8 @@
       "optional": [],
       "defenses": [
         "patched"
-      ]
+      ],
+      "optional_defenses": []
     },
     {
       "kind": "account",
@@ -117,7 +139,8 @@
       "optional": [],
       "defenses": [
         "mfa"
-      ]
+      ],
+      "optional_defenses": []
     },
     {
       "kind": "credential",
@@ -133,7 +156,8 @@
       "optional": [],
       "defenses": [
         "protected"
-      ]
+      ],
+      "optional_defenses": []
     },
     {
       "kind": "person",
@@ -150,7 +174,8 @@
       "optional": [],
       "defenses": [
         "trained"
-      ]
+      ],
+      "optional_defenses": []
     },
     {
       "kind": "data",
@@ -164,7 +189,8 @@
       "optional": [],
       "defenses": [
         "encrypted"
-      ]
+      ],
+      "optional_defenses": []
     },
     {
       "kind": "access-control",
@@ -173,7 +199,8 @@
       "states": [],
       "parameters": [],
       "optional": [],
-      "defenses": []
+      "defenses": [],
+      "optional_defenses": []
     }
   ],
   "associations": [
@@ -512,6 +539,16 @@
       "id": "encrypted",
       "word": "Encrypted",
       "description": "Encrypted at rest: a holder that does not decrypt gives up plaintext only with the key."
+    },
+    {
+      "id": "aslr",
+      "word": "ASLR",
+      "description": "Address-space layout randomization on a host: `deploy-exploit-aslr` stands in for `deploy-exploit` on the host and its services. Off unless said."
+    },
+    {
+      "id": "dep",
+      "word": "DEP",
+      "description": "Data-execution prevention on a host: `deploy-exploit-dep` stands in, unless ASLR is on. Off unless said."
     }
   ],
   "parameters": [
@@ -598,6 +635,18 @@
       "name": "Take over through content (guarded)",
       "owner": "application or service",
       "description": "The same, once the software is guarded; selected by `defenses.guarded`."
+    },
+    {
+      "slot": "deploy-exploit-aslr",
+      "name": "Use the exploit (ASLR)",
+      "owner": "host or service",
+      "description": "The same, while the host's ASLR is on; selected by `defenses.aslr` of the host the service runs on. Optional: while ASLR is on and this is not given, the time is unknown."
+    },
+    {
+      "slot": "deploy-exploit-dep",
+      "name": "Use the exploit (DEP)",
+      "owner": "host or service",
+      "description": "The same, while the host's DEP is on and its ASLR is not; selected by `defenses.dep`."
     }
   ],
   "rules": [

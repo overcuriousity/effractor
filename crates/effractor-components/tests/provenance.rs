@@ -799,3 +799,71 @@ fn an_application_is_reached_through_content_in_front_of_it() {
         ]
     );
 }
+
+/// The lecture with the server's ASLR and DEP said, and sshd's times for
+/// using its exploit under each (extract Fig. 5.37).
+fn hardened(aslr: &str, dep: &str) -> Architecture {
+    let text = LECTURE
+        .replacen(
+            "  server:\n    kind: host\n    label: Server\n",
+            &format!("  server:\n    kind: host\n    label: Server\n    defenses: {{aslr: {aslr}, dep: {dep}}}\n"),
+            1,
+        )
+        .replacen(
+            "  sshd:\n    kind: service\n    label: SSH server\n    parameters:\n",
+            "  sshd:\n    kind: service\n    label: SSH server\n    parameters:\n      deploy-exploit-aslr:\n        status: illustrative\n        ttc: \"Exponential(mean 20)\"\n        note: exercise\n      deploy-exploit-dep:\n        status: illustrative\n        ttc: \"Exponential(mean 8)\"\n        note: exercise\n",
+            1,
+        );
+    architecture(&text)
+}
+
+fn deploy_ttc(model: &Architecture) -> ResolvedTtc {
+    let g = generate(model).unwrap();
+    let r = resolve(model, &g, None).unwrap();
+    r.ttc[index(&g, "action/service-deploy-exploit/sshd")].clone()
+}
+
+#[test]
+fn aslr_and_dep_said_off_change_no_step_and_no_time() {
+    let before = generate(&architecture(LECTURE)).unwrap();
+    let after = generate(&hardened("false", "false")).unwrap();
+    assert_eq!(shape(&before), shape(&after));
+    assert_eq!(
+        deploy_ttc(&hardened("false", "false")),
+        deploy_ttc(&architecture(LECTURE))
+    );
+    assert_eq!(
+        deploy_ttc(&architecture(LECTURE)),
+        ResolvedTtc::Known(Distribution::ExponentialMean(2.0))
+    );
+}
+
+#[test]
+fn aslr_on_the_host_replaces_the_time_of_using_an_exploit_on_its_service() {
+    assert_eq!(
+        deploy_ttc(&hardened("true", "false")),
+        ResolvedTtc::Known(Distribution::ExponentialMean(20.0))
+    );
+    assert_eq!(
+        deploy_ttc(&hardened("false", "true")),
+        ResolvedTtc::Known(Distribution::ExponentialMean(8.0))
+    );
+    // With both on, ASLR's time is read.
+    assert_eq!(
+        deploy_ttc(&hardened("true", "true")),
+        ResolvedTtc::Known(Distribution::ExponentialMean(20.0))
+    );
+    match deploy_ttc(&hardened("unknown", "false")) {
+        ResolvedTtc::Unknown(paths) => {
+            assert_eq!(paths, ["entities.server.defenses.aslr"])
+        }
+        other => panic!("{other:?}"),
+    }
+    let g = generate(&hardened("true", "false")).unwrap();
+    let step = &g.nodes[index(&g, "action/service-deploy-exploit/sshd")];
+    let paths: Vec<&str> = step.origins[0].paths.iter().map(String::as_str).collect();
+    assert!(
+        paths.contains(&"entities.server.defenses.aslr"),
+        "{paths:?}"
+    );
+}

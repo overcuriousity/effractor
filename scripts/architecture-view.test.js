@@ -463,3 +463,11 @@ test('an absent optional slot is a row that says it is not drawn', () => {
   doc.entities.srv.parameters.escalate = { status: 'unknown' };
   assert.deepEqual(V.slotRows(doc, cat, 'srv'), [{ slot: 'escape' }, { slot: 'escalate' }]);
 });
+
+test('an optional switch that is not set is shown, as off', () => {
+  const doc = lecture();
+  const cat = { entities: [{ kind: 'host', defenses: ['aslr', 'dep'], optional_defenses: ['aslr', 'dep'] }] };
+  assert.deepEqual(V.defenseRows(doc, cat, 'srv'), [{ defense: 'aslr', value: false }, { defense: 'dep', value: false }]);
+  doc.entities.srv.defenses = { aslr: true };
+  assert.deepEqual(V.defenseRows(doc, cat, 'srv'), [{ defense: 'aslr', value: true }, { defense: 'dep', value: false }]);
+});

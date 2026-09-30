@@ -82,7 +82,7 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
     );
     assert_eq!(ids(&c["associations"], "kind").len(), 20);
     assert_eq!(ids(&c["states"], "id").len(), 9);
-    assert_eq!(ids(&c["parameters"], "slot").len(), 14);
+    assert_eq!(ids(&c["parameters"], "slot").len(), 16);
     let rules = ids(&c["rules"], "id");
     assert_eq!(rules, RULE_IDS);
     for rule in &RULES {
@@ -254,7 +254,13 @@ fn every_kind_lists_its_switches() {
 fn every_kind_says_which_of_its_slots_are_optional() {
     for e in catalog()["entities"].as_array().unwrap() {
         let want = match e["kind"].as_str().unwrap() {
-            "host" | "application" => serde_json::json!(["deploy-exploit"]),
+            "host" => serde_json::json!([
+                "deploy-exploit",
+                "deploy-exploit-aslr",
+                "deploy-exploit-dep"
+            ]),
+            "application" => serde_json::json!(["deploy-exploit"]),
+            "service" => serde_json::json!(["deploy-exploit-aslr", "deploy-exploit-dep"]),
             _ => serde_json::json!([]),
         };
         assert_eq!(e["optional"], want, "{}", e["kind"]);

@@ -81,6 +81,14 @@ pub enum Binding {
         base: Slot,
         replacement: Option<(Defense, Slot)>,
     },
+    /// Drawn from `base` on `owner`, or, while `host`'s ASLR is on, from
+    /// `deploy-exploit-aslr` on `owner`, else while its DEP is on from
+    /// `deploy-exploit-dep`. An absent switch is off.
+    Hardened {
+        owner: Owner,
+        base: Slot,
+        host: EntityId,
+    },
     /// Zero while the owner's defence is off, never while it is on: a
     /// defence that removes a way rather than slowing one.
     Policy { entity: EntityId, defense: Defense },

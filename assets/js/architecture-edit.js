@@ -72,7 +72,11 @@
         entity.parameters[slot] = { status: "unknown" };
       });
     }
-    var switches = (spec && spec.defenses) || [];
+    // A switch optional on the kind is off until set, and not written.
+    var optionalSwitches = (spec && spec.optional_defenses) || [];
+    var switches = ((spec && spec.defenses) || []).filter(function (defense) {
+      return optionalSwitches.indexOf(defense) < 0;
+    });
     if (switches.length) {
       entity.defenses = {};
       switches.forEach(function (defense) {

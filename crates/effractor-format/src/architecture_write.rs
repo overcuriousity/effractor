@@ -149,16 +149,21 @@ fn document(w: &mut Writer, m: &Architecture) {
             w.extension_lines(6, &extended);
         }
         let extended = format!("{path}.defenses");
-        if !entity.kind.defenses().is_empty() || w.has_extensions(&extended) {
-            let mut fields: Vec<String> = entity
-                .kind
-                .defenses()
-                .iter()
-                .map(|&defense| {
-                    let value = entity.defenses.get(defense).unwrap_or(Switch::Unknown);
-                    format!("{}: {}", defense.as_str(), value.as_str())
-                })
-                .collect();
+        // An optional switch the author has not set is left out.
+        let mut fields: Vec<String> = entity
+            .kind
+            .defenses()
+            .iter()
+            .filter_map(|&defense| {
+                let value = match entity.defenses.get(defense) {
+                    Some(v) => v,
+                    None if defense.optional(entity.kind) => return None,
+                    None => Switch::Unknown,
+                };
+                Some(format!("{}: {}", defense.as_str(), value.as_str()))
+            })
+            .collect();
+        if !fields.is_empty() || w.has_extensions(&extended) {
             w.extension_fields(&extended, &mut fields);
             w.line(4, "defenses", &format!("{{{}}}", fields.join(", ")));
         }

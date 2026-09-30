@@ -788,6 +788,8 @@ fn slot_name(slot: Slot) -> &'static str {
         Slot::PhishTrained => "Deceive (trained)",
         Slot::TakeOver => "Take over through content",
         Slot::TakeOverGuarded => "Take over through content (guarded)",
+        Slot::DeployExploitAslr => "Use the exploit (ASLR)",
+        Slot::DeployExploitDep => "Use the exploit (DEP)",
     }
 }
 
@@ -855,6 +857,14 @@ fn slot_description(slot: Slot) -> (&'static str, &'static str) {
             "application or service",
             "The same, once the software is guarded; selected by `defenses.guarded`.",
         ),
+        Slot::DeployExploitAslr => (
+            "host or service",
+            "The same, while the host's ASLR is on; selected by `defenses.aslr` of the host the service runs on. Optional: while ASLR is on and this is not given, the time is unknown.",
+        ),
+        Slot::DeployExploitDep => (
+            "host or service",
+            "The same, while the host's DEP is on and its ASLR is not; selected by `defenses.dep`.",
+        ),
         Slot::MfaBypass => (
             "account",
             "Time to get past the second factor once a first factor is held: push fatigue, a proxy, a SIM swap — the note says which.",
@@ -893,6 +903,14 @@ fn defense_word(defense: Defense) -> (&'static str, &'static str) {
             "Encrypted",
             "Encrypted at rest: a holder that does not decrypt gives up plaintext only with the key.",
         ),
+        Defense::Aslr => (
+            "ASLR",
+            "Address-space layout randomization on a host: `deploy-exploit-aslr` stands in for `deploy-exploit` on the host and its services. Off unless said.",
+        ),
+        Defense::Dep => (
+            "DEP",
+            "Data-execution prevention on a host: `deploy-exploit-dep` stands in, unless ASLR is on. Off unless said.",
+        ),
     }
 }
 
@@ -930,6 +948,12 @@ pub fn catalog() -> Value {
                     .map(|s| s.as_str())
                     .collect::<Vec<_>>(),
                 "defenses": kind.defenses().iter().map(|d| d.as_str()).collect::<Vec<_>>(),
+                "optional_defenses": kind
+                    .defenses()
+                    .iter()
+                    .filter(|d| d.optional(kind))
+                    .map(|d| d.as_str())
+                    .collect::<Vec<_>>(),
             })
         })
         .collect();

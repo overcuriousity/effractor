@@ -56,6 +56,24 @@
     return rows;
   }
 
+  // Every switch row of a component with its value: the switches it has
+  // worth showing, then each switch optional on its kind that it has not
+  // set, as off.
+  function defenseRows(doc, catalog, id) {
+    var e = doc.entities[id];
+    var spec = e ? ((catalog && catalog.entities) || []).filter(function (k) { return k.kind === e.kind; })[0] : null;
+    var rows = shownDefenses(doc, id).map(function (defense) {
+      return { defense: defense, value: e.defenses[defense] };
+    });
+    ((spec && spec.optional_defenses) || []).forEach(function (defense) {
+      if (!has(e.defenses || {}, defense)) rows.push({ defense: defense, value: false });
+    });
+    var order = (spec && spec.defenses) || [];
+    return rows.sort(function (a, b) {
+      return order.indexOf(a.defense) - order.indexOf(b.defense);
+    });
+  }
+
   // The defence switches worth showing: guarding software matters only
   // where content reaches it.
   function shownDefenses(doc, id) {
@@ -476,7 +494,7 @@
     return { rows: rows, empty: ids.length && !rows.length ? "no component named “" + String(query).trim() + "”" : null };
   }
 
-  var api = { outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, slotRows: slotRows, shownDefenses: shownDefenses, ringsIn: ringsIn };
+  var api = { outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, slotRows: slotRows, shownDefenses: shownDefenses, defenseRows: defenseRows, ringsIn: ringsIn };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureView = api;
 })();

@@ -165,6 +165,8 @@ impl EntityKind {
         match self {
             Self::Service => &[
                 Slot::DeployExploit,
+                Slot::DeployExploitAslr,
+                Slot::DeployExploitDep,
                 Slot::Login,
                 Slot::TakeOver,
                 Slot::TakeOverGuarded,
@@ -173,7 +175,12 @@ impl EntityKind {
             Self::Product => &[Slot::FindExploit, Slot::FindExploitPatched],
             Self::Credential => &[Slot::Extract, Slot::ExtractProtected],
             Self::Account => &[Slot::AdminLogin, Slot::MfaBypass],
-            Self::Host => &[Slot::Escape, Slot::DeployExploit],
+            Self::Host => &[
+                Slot::Escape,
+                Slot::DeployExploit,
+                Slot::DeployExploitAslr,
+                Slot::DeployExploitDep,
+            ],
             Self::Router => &[Slot::Escape],
             Self::Person => &[Slot::Phish, Slot::PhishTrained],
             _ => &[],
@@ -189,6 +196,7 @@ impl EntityKind {
             Self::Credential => &[Defense::Protected],
             Self::Application | Self::Service => &[Defense::Guarded],
             Self::Data => &[Defense::Encrypted],
+            Self::Host => &[Defense::Aslr, Defense::Dep],
             _ => &[],
         }
     }
@@ -336,6 +344,8 @@ pub enum Slot {
     PhishTrained,
     TakeOver,
     TakeOverGuarded,
+    DeployExploitAslr,
+    DeployExploitDep,
 }
 
 impl Slot {
@@ -349,11 +359,14 @@ impl Slot {
             (
                 Self::DeployExploit,
                 EntityKind::Host | EntityKind::Application
+            ) | (
+                Self::DeployExploitAslr | Self::DeployExploitDep,
+                EntityKind::Host | EntityKind::Service
             )
         )
     }
 
-    pub const ALL: [Slot; 14] = [
+    pub const ALL: [Slot; 16] = [
         Self::Connect,
         Self::FindExploit,
         Self::FindExploitPatched,
@@ -368,6 +381,8 @@ impl Slot {
         Self::PhishTrained,
         Self::TakeOver,
         Self::TakeOverGuarded,
+        Self::DeployExploitAslr,
+        Self::DeployExploitDep,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -386,6 +401,8 @@ impl Slot {
             Self::PhishTrained => "phish-trained",
             Self::TakeOver => "take-over",
             Self::TakeOverGuarded => "take-over-guarded",
+            Self::DeployExploitAslr => "deploy-exploit-aslr",
+            Self::DeployExploitDep => "deploy-exploit-dep",
         }
     }
 }
@@ -431,6 +448,11 @@ pub struct Defenses {
     /// Data: encrypted at rest; a holder that does not decrypt then gives up
     /// plaintext only with the key.
     pub encrypted: Option<Switch>,
+    /// A host: `deploy-exploit-aslr` stands in for `deploy-exploit` on it and
+    /// on its services. Absent is off.
+    pub aslr: Option<Switch>,
+    /// A host: `deploy-exploit-dep` stands in, unless ASLR is on. Absent is off.
+    pub dep: Option<Switch>,
 }
 
 impl Defenses {
@@ -442,6 +464,8 @@ impl Defenses {
             Defense::Trained => self.trained,
             Defense::Guarded => self.guarded,
             Defense::Encrypted => self.encrypted,
+            Defense::Aslr => self.aslr,
+            Defense::Dep => self.dep,
         }
     }
 
@@ -453,6 +477,8 @@ impl Defenses {
             Defense::Trained => self.trained = value,
             Defense::Guarded => self.guarded = value,
             Defense::Encrypted => self.encrypted = value,
+            Defense::Aslr => self.aslr = value,
+            Defense::Dep => self.dep = value,
         }
     }
 }
@@ -576,7 +602,7 @@ impl Entity {
             }
         }
         for &defense in self.kind.defenses() {
-            if self.defenses.get(defense).is_none() {
+            if !defense.optional(self.kind) && self.defenses.get(defense).is_none() {
                 self.defenses.set(defense, Some(Switch::Unknown));
             }
         }
@@ -980,16 +1006,28 @@ pub enum Defense {
     Trained,
     Guarded,
     Encrypted,
+    Aslr,
+    Dep,
 }
 
 impl Defense {
-    pub const ALL: [Defense; 6] = [
+    /// Whether this switch is optional on `kind`: absent from a file it is
+    /// off, and it is neither filled in nor written. Switches added to a kind
+    /// after files already existed are optional there, so those files keep
+    /// their graphs and numbers.
+    pub fn optional(self, kind: EntityKind) -> bool {
+        matches!((self, kind), (Self::Aslr | Self::Dep, EntityKind::Host))
+    }
+
+    pub const ALL: [Defense; 8] = [
         Self::Patched,
         Self::Protected,
         Self::Mfa,
         Self::Trained,
         Self::Guarded,
         Self::Encrypted,
+        Self::Aslr,
+        Self::Dep,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -1000,6 +1038,8 @@ impl Defense {
             Self::Trained => "trained",
             Self::Guarded => "guarded",
             Self::Encrypted => "encrypted",
+            Self::Aslr => "aslr",
+            Self::Dep => "dep",
         }
     }
 }

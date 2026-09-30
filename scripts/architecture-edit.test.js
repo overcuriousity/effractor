@@ -191,3 +191,8 @@ test('a new component leaves out the slots optional on its kind', () => {
   const r = E.addEntity(E.empty(), 'host', 'Server', { parameters: ['escape', 'escalate'], optional: ['escalate'], defenses: [] });
   assert.deepEqual(Object.keys(r.doc.entities[r.entity].parameters), ['escape']);
 });
+
+test('a new host leaves out the switches optional on its kind', () => {
+  const r = E.addEntity(E.empty(), 'host', 'Server', { parameters: [], defenses: ['aslr', 'dep'], optional_defenses: ['aslr', 'dep'] });
+  assert.equal('defenses' in r.doc.entities[r.entity], false, 'absent is off');
+});

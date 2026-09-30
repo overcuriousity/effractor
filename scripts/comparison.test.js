@@ -265,3 +265,9 @@ test("a scenario can switch each of a component's switches", () => {
   const s = C.switches(doc, cat);
   assert.deepEqual(s.map((x) => x.defense + ':' + x.baseline + ':' + x.word), ['aslr:unknown:ASLR', 'dep:true:DEP']);
 });
+
+test('an optional switch that is not set is off in the baseline', () => {
+  const doc = { entities: { srv: { kind: 'host', label: 'Server' } }, associations: {} };
+  const cat = { entities: [{ kind: 'host', defenses: ['aslr', 'dep'], optional_defenses: ['aslr', 'dep'] }], defenses: [] };
+  assert.deepEqual(C.switches(doc, cat).map((x) => x.defense + ':' + x.baseline), ['aslr:false', 'dep:false']);
+});

@@ -116,6 +116,52 @@ pub fn resolve(
                 }
                 (ResolvedTtc::Unknown(paths.clone()), Vec::new(), paths)
             }
+            Binding::Hardened { owner, base, host } => {
+                let setting = |defense: Defense| -> (Switch, String) {
+                    let path = format!("entities.{host}.defenses.{}", defense.as_str());
+                    match overlay.defenses.get(&(host, defense)) {
+                        Some((v, p)) => (*v, p.clone()),
+                        None => (
+                            model
+                                .entities
+                                .get(host)
+                                .and_then(|e| e.defenses.get(defense))
+                                .unwrap_or(Switch::Off),
+                            path,
+                        ),
+                    }
+                };
+                let (aslr, aslr_path) = setting(Defense::Aslr);
+                let (dep, dep_path) = setting(Defense::Dep);
+                let mut paths = vec![aslr_path.clone(), dep_path.clone()];
+                let slot = match (aslr, dep) {
+                    (Switch::On, _) => Some(Slot::DeployExploitAslr),
+                    (Switch::Unknown, _) => None,
+                    (Switch::Off, Switch::On) => Some(Slot::DeployExploitDep),
+                    (Switch::Off, Switch::Unknown) => None,
+                    (Switch::Off, Switch::Off) => Some(*base),
+                };
+                match slot {
+                    None => {
+                        let unknown = if aslr == Switch::Unknown {
+                            aslr_path
+                        } else {
+                            dep_path
+                        };
+                        (ResolvedTtc::Unknown(vec![unknown]), Vec::new(), paths)
+                    }
+                    Some(slot) => {
+                        let parameter = parameter(model, owner, slot);
+                        let path = owner.slot_path(slot);
+                        paths.insert(0, path.clone());
+                        let ttc = match (&parameter.status, &parameter.ttc) {
+                            (Evidence::Unknown, _) | (_, None) => ResolvedTtc::Unknown(vec![path]),
+                            (_, Some(d)) => ResolvedTtc::Known(d.clone()),
+                        };
+                        (ttc, vec![parameter], paths)
+                    }
+                }
+            }
             Binding::Parameter {
                 owner,
                 base,

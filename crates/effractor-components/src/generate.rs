@@ -255,6 +255,44 @@ impl<'a> Builder<'a> {
         !slot.optional(e.kind) || e.parameters.contains_key(&slot)
     }
 
+    /// How long using an exploit on `owner` takes: its `deploy-exploit`, or
+    /// — where `host` says ASLR or DEP — the replacement that switch selects.
+    /// A host that says neither keeps the plain binding, so existing files
+    /// generate exactly as before. Returns the binding and the paths it reads.
+    fn deploy_binding(&self, owner: &EntityId, host: Option<&EntityId>) -> (Binding, Vec<String>) {
+        let o = Owner::Entity(owner.clone());
+        let said = host.filter(|h| {
+            let e = &self.m.entities[*h];
+            e.kind == EntityKind::Host
+                && (e.defenses.get(Defense::Aslr).is_some()
+                    || e.defenses.get(Defense::Dep).is_some())
+        });
+        match said {
+            None => (
+                Binding::Parameter {
+                    owner: o.clone(),
+                    base: Slot::DeployExploit,
+                    replacement: None,
+                },
+                vec![o.slot_path(Slot::DeployExploit)],
+            ),
+            Some(host) => (
+                Binding::Hardened {
+                    owner: o.clone(),
+                    base: Slot::DeployExploit,
+                    host: host.clone(),
+                },
+                vec![
+                    o.slot_path(Slot::DeployExploit),
+                    o.slot_path(Slot::DeployExploitAslr),
+                    o.slot_path(Slot::DeployExploitDep),
+                    format!("entities.{host}.defenses.aslr"),
+                    format!("entities.{host}.defenses.dep"),
+                ],
+            ),
+        }
+    }
+
     fn kind(&self, id: &EntityId) -> EntityKind {
         self.m.entities[id].kind
     }
@@ -843,12 +881,13 @@ impl<'a> Builder<'a> {
                 ..origin("product-reachable")
             };
             self.produce(&reachable, &product_reachable, r);
-            let owner = Owner::Entity(sid.clone());
             // The step is the service's: the product's exploit, used on it.
+            let host = self.host_of.get(sid).map(|&(machine, _, _)| machine);
+            let (binding, paths) = self.deploy_binding(sid, host);
             let deploy = Origin {
                 entities: vec![pid.clone(), sid.clone()],
                 associations: vec![instance.clone()],
-                paths: vec![owner.slot_path(Slot::DeployExploit)],
+                paths,
                 ..origin("service-deploy-exploit")
             };
             let ready = self.state_id(pid, "exploit-ready");
@@ -856,11 +895,7 @@ impl<'a> Builder<'a> {
             self.action(
                 format!("action/service-deploy-exploit/{sid}"),
                 format!("Use the exploit · {}", entity.label),
-                Binding::Parameter {
-                    owner,
-                    base: Slot::DeployExploit,
-                    replacement: None,
-                },
+                binding,
                 &[ready, reachable],
                 &control,
                 deploy,
@@ -932,7 +967,8 @@ impl<'a> Builder<'a> {
             if !self.has_slot(eid, Slot::DeployExploit) {
                 continue;
             }
-            let owner = Owner::Entity(eid.clone());
+            let host = (entity.kind == EntityKind::Host).then_some(eid);
+            let (binding, paths) = self.deploy_binding(eid, host);
             let (rule, word, output) = if entity.kind == EntityKind::Host {
                 (
                     "host-deploy-exploit",
@@ -949,18 +985,14 @@ impl<'a> Builder<'a> {
             let deploy = Origin {
                 entities: vec![pid.clone(), eid.clone()],
                 associations: vec![instance.clone()],
-                paths: vec![owner.slot_path(Slot::DeployExploit)],
+                paths,
                 ..origin(rule)
             };
             let ready = self.state_id(pid, "exploit-ready");
             self.action(
                 format!("action/{rule}/{eid}"),
                 format!("{word} · {}", entity.label),
-                Binding::Parameter {
-                    owner,
-                    base: Slot::DeployExploit,
-                    replacement: None,
-                },
+                binding,
                 &[ready, reachable],
                 &output,
                 deploy,

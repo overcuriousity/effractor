@@ -132,8 +132,10 @@
   // defence (the kind's, from the catalog) and each firewall permission.
   function switches(doc, catalog) {
     var defensesOf = Object.create(null);
+    var optionalOf = Object.create(null);
     ((catalog && catalog.entities) || []).forEach(function (k) {
       defensesOf[k.kind] = k.defenses || [];
+      optionalOf[k.kind] = k.optional_defenses || [];
     });
     var words = Object.create(null);
     ((catalog && catalog.defenses) || []).forEach(function (d) {
@@ -143,7 +145,8 @@
     Object.keys(doc.entities || {}).forEach(function (id) {
       var e = doc.entities[id];
       (defensesOf[e.kind] || []).forEach(function (d) {
-        var v = e.defenses && has(e.defenses, d) ? e.defenses[d] : "unknown";
+        // An optional switch not set is off; any other one unsaid, unknown.
+        var v = e.defenses && has(e.defenses, d) ? e.defenses[d] : (optionalOf[e.kind] || []).indexOf(d) >= 0 ? false : "unknown";
         out.push({ key: keyOf({ entity: id, defense: d }), entity: id, defense: d, label: labelOf(doc, "entities", id), word: words[d] || d, baseline: v });
       });
     });

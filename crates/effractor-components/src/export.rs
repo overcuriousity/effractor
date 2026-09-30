@@ -82,7 +82,7 @@ pub fn timing_status(
             let on = matches!(d, effractor_core::Distribution::Infinity);
             ("defense", Some(if on { "on" } else { "off" }.to_owned()))
         }
-        (Binding::Parameter { .. }, ResolvedTtc::Known(d)) => (
+        (Binding::Parameter { .. } | Binding::Hardened { .. }, ResolvedTtc::Known(d)) => (
             resolved.evidence[i]
                 .first()
                 .map_or("unknown", |p| p.status.as_str()),
@@ -98,7 +98,7 @@ fn timing(binding: &Binding, resolved: &ResolvedGraph, i: usize) -> Value {
     let ttc = &resolved.ttc[i];
     let (status, expression) = timing_status(binding, resolved, i);
     let note = match (binding, ttc) {
-        (Binding::Parameter { .. }, ResolvedTtc::Known(_)) => {
+        (Binding::Parameter { .. } | Binding::Hardened { .. }, ResolvedTtc::Known(_)) => {
             resolved.evidence[i].first().and_then(|p| p.note.clone())
         }
         _ => None,

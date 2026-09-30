@@ -256,7 +256,12 @@ fn a_host_may_run_on_a_host_and_nest() {
 fn every_host_and_router_carries_an_escape_slot() {
     assert_eq!(
         EntityKind::Host.slots(),
-        &[Slot::Escape, Slot::DeployExploit]
+        &[
+            Slot::Escape,
+            Slot::DeployExploit,
+            Slot::DeployExploitAslr,
+            Slot::DeployExploitDep
+        ]
     );
     assert_eq!(EntityKind::Router.slots(), &[Slot::Escape]);
 }
@@ -355,6 +360,8 @@ fn patching_belongs_to_the_product() {
         EntityKind::Service.slots(),
         &[
             Slot::DeployExploit,
+            Slot::DeployExploitAslr,
+            Slot::DeployExploitDep,
             Slot::Login,
             Slot::TakeOver,
             Slot::TakeOverGuarded
@@ -640,7 +647,7 @@ fn a_kind_answers_the_switches_it_carries_as_a_list() {
     use effractor_core::architecture::{Defense, EntityKind};
     assert_eq!(EntityKind::Product.defenses(), &[Defense::Patched]);
     assert_eq!(EntityKind::Account.defenses(), &[Defense::Mfa]);
-    assert!(EntityKind::Host.defenses().is_empty());
+    assert!(EntityKind::Router.defenses().is_empty());
     assert!(EntityKind::AccessControl.defenses().is_empty());
 }
 
@@ -649,8 +656,10 @@ fn only_slots_added_to_an_existing_kind_are_optional() {
     use effractor_core::architecture::{EntityKind, Slot};
     for kind in EntityKind::ALL {
         for slot in kind.slots() {
-            let added = *slot == Slot::DeployExploit
-                && matches!(kind, EntityKind::Host | EntityKind::Application);
+            let added = (*slot == Slot::DeployExploit
+                && matches!(kind, EntityKind::Host | EntityKind::Application))
+                || (matches!(slot, Slot::DeployExploitAslr | Slot::DeployExploitDep)
+                    && matches!(kind, EntityKind::Host | EntityKind::Service));
             assert_eq!(
                 slot.optional(kind),
                 added,
@@ -660,4 +669,23 @@ fn only_slots_added_to_an_existing_kind_are_optional() {
             );
         }
     }
+}
+
+#[test]
+fn a_host_has_aslr_and_dep_and_neither_is_filled_in() {
+    use effractor_core::architecture::{Defense, Entity, EntityKind, Switch};
+    assert_eq!(EntityKind::Host.defenses(), &[Defense::Aslr, Defense::Dep]);
+    assert!(Defense::Aslr.optional(EntityKind::Host) && Defense::Dep.optional(EntityKind::Host));
+    assert!(!Defense::Patched.optional(EntityKind::Product));
+    let host = Entity::new(EntityKind::Host, "Server");
+    assert_eq!(
+        host.defenses.get(Defense::Aslr),
+        None,
+        "absent is off, not unknown"
+    );
+    let product = Entity::new(EntityKind::Product, "OS");
+    assert_eq!(
+        product.defenses.get(Defense::Patched),
+        Some(Switch::Unknown)
+    );
 }
