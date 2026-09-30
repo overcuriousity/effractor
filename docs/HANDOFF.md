@@ -6,6 +6,47 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — what the extract draws: operating systems, ASLR, DEP (2026-09-30)
+
+Branch B, `host-products` (plan tasks B1–B5), pushed, **not landed**: all
+checks green at its tip, a fresh review's 3 critical and 4 important
+findings fixed with tests, the owner's look deferred to the autonomous
+session that finishes the milestone. Ledger: `.superpowers/sdd/2026-09-30-securicad-extract/progress.md`
+(git-ignored, on this machine) has every ruling and deferred minor.
+
+- **Several switches per kind:** `EntityKind::defenses() -> &[Defense]`;
+  catalog `entities[].defenses: [...]` (was `defense`).
+- **Optional slots and switches** (spec §5.1, widened): `Slot::optional(kind)`
+  and `Defense::optional(kind)`. Absent from a file: an optional slot's step
+  is not drawn; an optional switch is off. Neither is filled in on read nor
+  written on save, so existing files keep text, graph and numbers (verified
+  on all 33 fixtures and examples). Catalog: `entities[].optional`,
+  `entities[].optional_defenses`. The page (`architecture-edit`
+  `setParameter/setDefense(…, spec)`, `architecture-view.slotRows/defenseRows`)
+  and the assistant take the kind's spec; rows show only where they can
+  change something and say what absence means there.
+- **Products on hosts and applications** (§3.3): `instance-of` from host or
+  application; `host.reachable` from the services it runs,
+  `application.reachable` from content in front of it (the spec's "own flow
+  connected" is circular), both only for an instance of a product; rules
+  `host-reachable`, `application-reachable`, `host-deploy-exploit`,
+  `application-deploy-exploit` (optional `deploy-exploit` gates them).
+  Fixture `crates/effractor-components/tests/fixtures/architectures/extract-products.yaml`.
+- **ASLR and DEP** (§4): optional host switches; `Binding::Hardened {owner,
+  base, host}` reads `deploy-exploit-aslr` (ASLR on) else `deploy-exploit-dep`
+  (DEP on), used only where the file or a scenario says ASLR or DEP of that
+  host — elsewhere the plain binding, so frozen images are byte-identical.
+- The lecture's graph and three solves are frozen in
+  `crates/effractor-solver/tests/snapshots/lecture-graph.json`; Branch E
+  must keep the old lecture file as a test fixture when it rebuilds the
+  course file.
+- Deferred minors: a host with ASLR on and only `deploy-exploit-aslr` draws
+  no host step; Compare's "as written" treats an unset optional switch as
+  unknown; nmap's OS guess does not yet become an `instance-of`.
+
+Next: land Branch B, then Branch C `sensors` (plan C1–C4), then plan and
+build D2 onward and E (the plan stops after Task D1).
+
 ## Continuation — what the extract draws: access control (2026-09-30)
 
 Roadmap `securicad-extract`, spec
