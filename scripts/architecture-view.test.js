@@ -435,3 +435,11 @@ test('the outline finds components by name, id or kind, grouped under their clus
   // No components at all is not a search's business.
   assert.deepEqual(V.outlineRows({ profile: 'architecture', entities: {} }, 'x'), { rows: [], empty: null });
 });
+
+test('an access control line reads in words along its arrow', () => {
+  const doc = lecture();
+  doc.entities['srv-login'] = { kind: 'access-control', label: 'Server login' };
+  doc.associations['srv-access'] = { kind: 'controls-access', from: 'srv', to: 'srv-login' };
+  const edge = V.describe(doc).edges.find((e) => e.id === 'association/srv-access');
+  assert.equal(edge.label, 'logs in through');
+});

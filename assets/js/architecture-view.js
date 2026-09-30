@@ -86,6 +86,9 @@
     filters: function () {
       return "filtered by";
     },
+    "controls-access": function () {
+      return "logs in through";
+    },
     authenticates: function (a) {
       return a.factor === "second" ? "second factor for" : "authenticates";
     },

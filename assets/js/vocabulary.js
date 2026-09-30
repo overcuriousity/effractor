@@ -20,6 +20,11 @@
       return hit && hit.meaning ? hit.meaning : "";
     },
     status: function (id) { return STATUS[id] || id; },
+    // A kind as a word: "Access control", never the id.
+    kind: function (kind) {
+      var words = String(kind).replace(/-/g, " ");
+      return words.charAt(0).toUpperCase() + words.slice(1);
+    },
     // A source path as the page names it: the component or flow by its
     // label, then what of it. A path it cannot name is shown as it is.
     path: function (doc, catalog, path) {

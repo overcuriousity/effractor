@@ -36,7 +36,7 @@
     return id ? doc().entities[id] : null;
   }
   function word(kind) {
-    return kind.charAt(0).toUpperCase() + kind.slice(1);
+    return window.effractorWords.kind(kind);
   }
   // A kind's icon, as the canvas draws it, for a menu or the legend.
   function icon(kind) {

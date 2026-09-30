@@ -706,7 +706,7 @@ test('removing an access control takes its link and its grants along', () => {
 
 test('the words for an access control read from either side', () => {
   assert.equal(L.phrase('controls-access', 'out'), 'its access control');
-  assert.equal(L.phrase('controls-access', 'in'), 'controls access to');
+  assert.equal(L.phrase('controls-access', 'in'), 'its machine');
 });
 
 test('an account granted on a machine is not offered its access control too', () => {

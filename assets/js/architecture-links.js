@@ -473,7 +473,7 @@
     attached: { out: "connected to", in: "connected here" },
     hosts: { out: "runs here", in: "runs this" },
     filters: { out: "its firewall", in: "its router" },
-    "controls-access": { out: "its access control", in: "controls access to" },
+    "controls-access": { out: "its access control", in: "its machine" },
     stores: { out: "kept here", in: "keeps this" },
     authenticates: { out: "unlocks", in: "unlocks this" },
     authorizes: { out: "accepts this account", in: "may log in" },

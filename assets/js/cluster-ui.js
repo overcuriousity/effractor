@@ -30,7 +30,7 @@
     name.className = "name";
     name.textContent = e.label;
     item.appendChild(name);
-    item.title = e.label + " · " + e.kind;
+    item.title = e.label + " · " + window.effractorWords.kind(e.kind).toLowerCase();
     item.addEventListener("click", function (ev) {
       if (ev.target.closest("button")) return;
       app.select("entity/" + id);

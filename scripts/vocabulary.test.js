@@ -45,3 +45,8 @@ test('a source path in plain words: the component, then what of it', () => {
   assert.equal(path('attacker.target'), 'attacker.target');
   assert.equal(W.path(null, catalog, 'flows.ssh.parameters.connect'), 'flows.ssh.parameters.connect');
 });
+
+test('a kind is named in words, a hyphen as a space', () => {
+  assert.equal(W.kind('access-control'), 'Access control');
+  assert.equal(W.kind('host'), 'Host');
+});

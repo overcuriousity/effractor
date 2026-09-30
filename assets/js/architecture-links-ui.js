@@ -111,7 +111,7 @@
       });
       if (!items.length) return [[L.emptyLink(doc(), c, id) || "nothing here to link “" + name(id) + "” to", "", null]];
       L.notes(doc(), id).forEach(function (n) {
-        items.push([n.kind.charAt(0).toUpperCase() + n.kind.slice(1), "", null, { hint: n.hint }]);
+        items.push([window.effractorWords.kind(n.kind), "", null, { hint: n.hint }]);
       });
       return items;
     }, function () {
