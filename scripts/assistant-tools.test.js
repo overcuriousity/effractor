@@ -142,3 +142,10 @@ test('set_entity sets and clears a host\'s names', () => {
   d = T.edit('add_entity', { kind: 'service', label: 'ssh' }, arch(d)).doc;
   assert.equal(T.edit('set_entity', { id: 'ssh', names: ['a.example'] }, arch(d)).refused, 'only hosts have names');
 });
+
+test('the assistant may add every kind and every link the component library has', () => {
+  const library = require('./fixtures/catalog.json');
+  const tool = (name) => catalog.find((t) => t.name === name && t.profiles.includes('architecture')).schema.properties.kind.enum;
+  assert.deepEqual(tool('add_entity').slice().sort(), library.entities.map((e) => e.kind).sort());
+  assert.deepEqual(tool('link').slice().sort(), library.associations.map((a) => a.kind).sort());
+});
