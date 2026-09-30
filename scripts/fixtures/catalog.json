@@ -12,6 +12,7 @@
         "access"
       ],
       "parameters": [],
+      "optional": [],
       "defenses": []
     },
     {
@@ -24,6 +25,7 @@
       "parameters": [
         "escape"
       ],
+      "optional": [],
       "defenses": []
     },
     {
@@ -32,6 +34,7 @@
       "meaning": "A router's filter: which flows it lets through.",
       "states": [],
       "parameters": [],
+      "optional": [],
       "defenses": []
     },
     {
@@ -45,6 +48,7 @@
       "parameters": [
         "escape"
       ],
+      "optional": [],
       "defenses": []
     },
     {
@@ -58,6 +62,7 @@
         "take-over",
         "take-over-guarded"
       ],
+      "optional": [],
       "defenses": [
         "guarded"
       ]
@@ -75,6 +80,7 @@
         "take-over",
         "take-over-guarded"
       ],
+      "optional": [],
       "defenses": [
         "guarded"
       ]
@@ -88,6 +94,7 @@
         "find-exploit",
         "find-exploit-patched"
       ],
+      "optional": [],
       "defenses": [
         "patched"
       ]
@@ -101,6 +108,7 @@
         "admin-login",
         "mfa-bypass"
       ],
+      "optional": [],
       "defenses": [
         "mfa"
       ]
@@ -116,6 +124,7 @@
         "extract",
         "extract-protected"
       ],
+      "optional": [],
       "defenses": [
         "protected"
       ]
@@ -132,6 +141,7 @@
         "phish",
         "phish-trained"
       ],
+      "optional": [],
       "defenses": [
         "trained"
       ]
@@ -145,6 +155,7 @@
         "modified"
       ],
       "parameters": [],
+      "optional": [],
       "defenses": [
         "encrypted"
       ]
@@ -155,6 +166,7 @@
       "meaning": "Where accounts log in to a machine: its user database, its login.",
       "states": [],
       "parameters": [],
+      "optional": [],
       "defenses": []
     }
   ],

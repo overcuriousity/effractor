@@ -61,7 +61,11 @@
     var next = clone(doc);
     var id = entityId(next, name);
     var entity = { kind: kind, label: name };
-    var slots = (spec && spec.parameters) || [];
+    // A slot optional on the kind is written only once it is given.
+    var optional = (spec && spec.optional) || [];
+    var slots = ((spec && spec.parameters) || []).filter(function (slot) {
+      return optional.indexOf(slot) < 0;
+    });
     if (slots.length) {
       entity.parameters = {};
       slots.forEach(function (slot) {

@@ -640,3 +640,18 @@ fn a_kind_answers_the_switches_it_carries_as_a_list() {
     assert!(EntityKind::Host.defenses().is_empty());
     assert!(EntityKind::AccessControl.defenses().is_empty());
 }
+
+#[test]
+fn no_existing_slot_is_optional() {
+    use effractor_core::architecture::EntityKind;
+    for kind in EntityKind::ALL {
+        for slot in kind.slots() {
+            assert!(
+                !slot.optional(kind),
+                "{} on {}",
+                slot.as_str(),
+                kind.as_str()
+            );
+        }
+    }
+}

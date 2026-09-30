@@ -245,3 +245,10 @@ fn every_kind_lists_its_switches() {
         .unwrap();
     assert_eq!(product["defenses"], serde_json::json!(["patched"]));
 }
+
+#[test]
+fn every_kind_says_which_of_its_slots_are_optional() {
+    for e in catalog()["entities"].as_array().unwrap() {
+        assert_eq!(e["optional"], serde_json::json!([]), "{}", e["kind"]);
+    }
+}

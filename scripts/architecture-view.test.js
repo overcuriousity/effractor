@@ -450,3 +450,16 @@ test('every switch a component carries is shown, guarding only where content rea
   assert.deepEqual(V.shownDefenses(doc, 'srv'), ['aslr', 'dep']);
   assert.deepEqual(V.shownDefenses(doc, 'cli'), [], 'a client nothing delivers to is not worth guarding');
 });
+
+test('an absent optional slot is a row that says it is not drawn', () => {
+  const doc = lecture();
+  doc.entities.srv.parameters = { escape: { status: 'unknown' } };
+  doc.associations.vm = { kind: 'hosts', from: 'ws', to: 'srv', privilege: 'admin' };
+  const cat = { entities: [{ kind: 'host', parameters: ['escape', 'escalate'], optional: ['escalate'] }] };
+  assert.deepEqual(V.slotRows(doc, cat, 'srv'), [
+    { slot: 'escape' },
+    { slot: 'escalate', absent: true, note: 'not drawn until a time is given' },
+  ]);
+  doc.entities.srv.parameters.escalate = { status: 'unknown' };
+  assert.deepEqual(V.slotRows(doc, cat, 'srv'), [{ slot: 'escape' }, { slot: 'escalate' }]);
+});

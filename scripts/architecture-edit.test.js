@@ -186,3 +186,8 @@ test('a new component carries every switch of its kind, each unknown', () => {
   const none = E.addEntity(E.empty(), 'network', 'LAN', { parameters: [], defenses: [] });
   assert.equal('defenses' in none.doc.entities[none.entity], false);
 });
+
+test('a new component leaves out the slots optional on its kind', () => {
+  const r = E.addEntity(E.empty(), 'host', 'Server', { parameters: ['escape', 'escalate'], optional: ['escalate'], defenses: [] });
+  assert.deepEqual(Object.keys(r.doc.entities[r.entity].parameters), ['escape']);
+});

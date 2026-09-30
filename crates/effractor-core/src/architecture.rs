@@ -338,6 +338,15 @@ pub enum Slot {
 }
 
 impl Slot {
+    /// Whether this slot is optional on `kind`: absent from a file, its step
+    /// is not drawn (unknown would draw it and withhold the number). Slots
+    /// added to a kind after files already existed are optional there, so
+    /// those files keep their graphs.
+    pub fn optional(self, kind: EntityKind) -> bool {
+        let _ = kind;
+        false
+    }
+
     pub const ALL: [Slot; 14] = [
         Self::Connect,
         Self::FindExploit,
@@ -556,7 +565,9 @@ impl Entity {
     /// Fill in what the kind carries and the author left out, as unknown.
     pub fn materialize(&mut self) {
         for slot in self.kind.slots() {
-            self.parameters.entry(*slot).or_default();
+            if !slot.optional(self.kind) {
+                self.parameters.entry(*slot).or_default();
+            }
         }
         for &defense in self.kind.defenses() {
             if self.defenses.get(defense).is_none() {

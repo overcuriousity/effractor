@@ -863,6 +863,12 @@ pub fn catalog() -> Value {
                 "meaning": kind_meaning(kind),
                 "states": kind.states().iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                 "parameters": kind.slots().iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                "optional": kind
+                    .slots()
+                    .iter()
+                    .filter(|s| s.optional(kind))
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>(),
                 "defenses": kind.defenses().iter().map(|d| d.as_str()).collect::<Vec<_>>(),
             })
         })

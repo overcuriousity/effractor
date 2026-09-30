@@ -247,6 +247,14 @@ impl<'a> Builder<'a> {
         b
     }
 
+    /// Whether `entity` has `slot` to draw a step from: a required slot always
+    /// (unknown when unsaid), an optional one only once the file gives it.
+    #[allow(dead_code)] // the first optional slot arrives with plan task B3
+    fn has_slot(&self, entity: &EntityId, slot: Slot) -> bool {
+        let e = &self.m.entities[entity];
+        !slot.optional(e.kind) || e.parameters.contains_key(&slot)
+    }
+
     fn kind(&self, id: &EntityId) -> EntityKind {
         self.m.entities[id].kind
     }

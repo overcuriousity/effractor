@@ -137,7 +137,12 @@ fn document(w: &mut Writer, m: &Architecture) {
             w.open(4, "parameters");
             for slot in slots {
                 let unknown = Parameter::unknown();
-                let p = entity.parameters.get(slot).unwrap_or(&unknown);
+                // An optional slot the author has not given is left out.
+                let p = match entity.parameters.get(slot) {
+                    Some(p) => p,
+                    None if slot.optional(entity.kind) => continue,
+                    None => &unknown,
+                };
                 let at = format!("{path}.parameters.{}", slot.as_str());
                 parameter(w, 6, slot.as_str(), p, &at);
             }

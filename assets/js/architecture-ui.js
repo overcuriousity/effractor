@@ -628,14 +628,16 @@
   // An entity's slots as the view shows them (an escape only where hosted);
   // a flow's all.
   function parameters(form, owner, e) {
-    var slots = owner.entity ? window.effractorArchitectureView.shownSlots(doc(), owner.entity) : Object.keys(e.parameters || {});
-    if (!slots.length) return;
+    var rows = owner.entity ? window.effractorArchitectureView.slotRows(doc(), catalog, owner.entity) : Object.keys(e.parameters || {}).map(function (slot) { return { slot: slot }; });
+    if (!rows.length) return;
     var R = window.effractorGraphResults;
     var rests = R && R.isGraphResults(app.state.results) ? R.restsOn(app.state.results) : Object.create(null);
     var list = document.createElement("ul");
     list.className = "parameters";
-    slots.forEach(function (slot) {
-      var p = e.parameters[slot];
+    rows.forEach(function (row) {
+      var slot = row.slot;
+      // An optional slot not given yet: filling it draws its step.
+      var p = row.absent ? { status: "unknown" } : e.parameters[slot];
       var key = slotKey(owner, slot);
       var item = document.createElement("li");
       var head = document.createElement("button");
@@ -650,7 +652,7 @@
       name.textContent = W.slot(catalog, slot);
       var value = document.createElement("span");
       value.className = "given" + (p.status === "unknown" ? " is-unknown" : "");
-      value.textContent = drafts[key] ? "draft" : given(p);
+      value.textContent = drafts[key] ? "draft" : row.absent ? row.note : given(p);
       head.appendChild(name);
       head.appendChild(value);
       // The target's number rests on it: a dot, said in the tooltip.

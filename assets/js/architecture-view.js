@@ -41,6 +41,21 @@
     });
   }
 
+  // The parameter rows of a component: the slots it has worth showing, then
+  // each slot optional on its kind that it does not have yet, as a row that
+  // says so.
+  function slotRows(doc, catalog, id) {
+    var e = doc.entities[id];
+    var spec = e ? ((catalog && catalog.entities) || []).filter(function (k) { return k.kind === e.kind; })[0] : null;
+    var rows = shownSlots(doc, id).map(function (slot) {
+      return { slot: slot };
+    });
+    ((spec && spec.optional) || []).forEach(function (slot) {
+      if (!has(e.parameters || {}, slot)) rows.push({ slot: slot, absent: true, note: "not drawn until a time is given" });
+    });
+    return rows;
+  }
+
   // The defence switches worth showing: guarding software matters only
   // where content reaches it.
   function shownDefenses(doc, id) {
@@ -461,7 +476,7 @@
     return { rows: rows, empty: ids.length && !rows.length ? "no component named “" + String(query).trim() + "”" : null };
   }
 
-  var api = { outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, shownDefenses: shownDefenses, ringsIn: ringsIn };
+  var api = { outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, slotRows: slotRows, shownDefenses: shownDefenses, ringsIn: ringsIn };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureView = api;
 })();
