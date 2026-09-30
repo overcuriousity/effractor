@@ -100,6 +100,26 @@ struct Draft {
     origins: Vec<Origin>,
 }
 
+/// A grant on a machine, named directly or through its access control.
+#[derive(Clone, Copy)]
+struct Grant<'a> {
+    privilege: Privilege,
+    grants: &'a AssociationId,
+    /// The access control and its `controls-access`, when the grant names it.
+    via: Option<(&'a EntityId, &'a AssociationId)>,
+}
+
+impl Grant<'_> {
+    fn associations(&self) -> Vec<AssociationId> {
+        let mut out = vec![self.grants.clone()];
+        out.extend(self.via.map(|(_, a)| a.clone()));
+        out
+    }
+    fn entities(&self) -> Vec<EntityId> {
+        self.via.map(|(e, _)| e.clone()).into_iter().collect()
+    }
+}
+
 struct Builder<'a> {
     m: &'a Architecture,
     nodes: BTreeMap<String, Draft>,
@@ -115,10 +135,10 @@ struct Builder<'a> {
     firewall_of: HashMap<&'a EntityId, &'a EntityId>,
     /// (firewall, flow) → permits association
     permit: HashMap<(&'a EntityId, &'a FlowId), &'a AssociationId>,
-    /// (account, machine) → (privilege, grants association)
-    grant: HashMap<(&'a EntityId, &'a EntityId), (Privilege, &'a AssociationId)>,
-    /// machine → [(account, privilege, grants association)], in document order
-    grants_on: HashMap<&'a EntityId, Vec<(&'a EntityId, Privilege, &'a AssociationId)>>,
+    /// (account, machine) → the grant; the first way of saying it counts
+    grant: HashMap<(&'a EntityId, &'a EntityId), Grant<'a>>,
+    /// machine → [(account, grant)], in document order
+    grants_on: HashMap<&'a EntityId, Vec<(&'a EntityId, Grant<'a>)>>,
     /// service → (product, instance-of association)
     product_of: HashMap<&'a EntityId, (&'a EntityId, &'a AssociationId)>,
     /// flow source → its flows, in document order
@@ -157,6 +177,13 @@ impl<'a> Builder<'a> {
         };
         for (fid, flow) in &m.flows {
             b.flows_from.entry(&flow.source).or_default().push(fid);
+        }
+        // An access control's machine, so a grant on it lands on the machine.
+        let mut machine_of_access: HashMap<&EntityId, (&EntityId, &AssociationId)> = HashMap::new();
+        for (id, a) in &m.associations {
+            if let Relation::ControlsAccess { from, to } = &a.relation {
+                machine_of_access.entry(to).or_insert((from, id));
+            }
         }
         for (id, a) in &m.associations {
             match &a.relation {
@@ -198,11 +225,21 @@ impl<'a> Builder<'a> {
                     to,
                     privilege,
                 } => {
-                    b.grant.insert((from, to), (*privilege, id));
-                    b.grants_on
-                        .entry(to)
-                        .or_default()
-                        .push((from, *privilege, id));
+                    let (machine, via) = match machine_of_access.get(to) {
+                        Some(&(machine, controls)) => (machine, Some((to, controls))),
+                        None => (to, None),
+                    };
+                    let grant = Grant {
+                        privilege: *privilege,
+                        grants: id,
+                        via,
+                    };
+                    if let std::collections::hash_map::Entry::Vacant(e) =
+                        b.grant.entry((from, machine))
+                    {
+                        e.insert(grant);
+                        b.grants_on.entry(machine).or_default().push((from, grant));
+                    }
                 }
                 _ => {}
             }
@@ -1012,13 +1049,18 @@ impl<'a> Builder<'a> {
                 o,
             );
             let (machine, _, hosts) = self.host_of[to];
-            if let Some(&(privilege, grant)) = self.grant.get(&(from, machine)) {
+            if let Some(&grant) = self.grant.get(&(from, machine)) {
+                let mut entities = vec![from.clone(), to.clone(), machine.clone()];
+                entities.extend(grant.entities());
+                let mut associations = vec![aid.clone()];
+                associations.extend(grant.associations());
+                associations.push(hosts.clone());
                 let g = Origin {
-                    entities: vec![from.clone(), to.clone(), machine.clone()],
-                    associations: vec![aid.clone(), grant.clone(), hosts.clone()],
+                    entities,
+                    associations,
                     ..origin("session-grant")
                 };
-                let granted = self.machine_id(machine, privilege);
+                let granted = self.machine_id(machine, grant.privilege);
                 self.produce(&session, &granted, g);
             }
         }
@@ -1032,14 +1074,18 @@ impl<'a> Builder<'a> {
             let Some(grants) = self.grants_on.get(to).cloned() else {
                 continue;
             };
-            for (account, privilege, grant) in grants {
+            for (account, grant) in grants {
                 if self.full() {
                     return;
                 }
                 let owner = Owner::Entity(account.clone());
+                let mut entities = vec![from.clone(), account.clone(), to.clone()];
+                entities.extend(grant.entities());
+                let mut associations = vec![aid.clone()];
+                associations.extend(grant.associations());
                 let o = Origin {
-                    entities: vec![from.clone(), account.clone(), to.clone()],
-                    associations: vec![aid.clone(), grant.clone()],
+                    entities,
+                    associations,
                     paths: vec![owner.slot_path(Slot::AdminLogin)],
                     ..origin("administration-login")
                 };
@@ -1047,7 +1093,7 @@ impl<'a> Builder<'a> {
                     self.state_id(from, State::Access.as_str()),
                     self.state_id(account, "authenticated"),
                 ];
-                let granted = self.machine_id(to, privilege);
+                let granted = self.machine_id(to, grant.privilege);
                 self.action(
                     format!("action/administration-login/{from}/{account}/{to}"),
                     format!(

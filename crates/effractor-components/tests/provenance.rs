@@ -586,3 +586,76 @@ fn operator_switches_never_change_the_graph() {
     assert!(baseline.contains_key("action/phish/ada"));
     assert!(baseline.contains_key("action/take-over/ssh-client"));
 }
+
+/// The lecture with the router administrator granted through the router's
+/// access control (extract Fig. 5.19) instead of on the router.
+fn through_access_control() -> Architecture {
+    let text = LECTURE
+        .replacen(
+            "\nassociations:\n",
+            "  bridge-login:\n    kind: access-control\n    label: Router login\n\nassociations:\n  bridge-access:\n    kind: controls-access\n    from: bridge\n    to: bridge-login\n",
+            1,
+        )
+        .replacen(
+            "  router-grant:\n    kind: grants\n    from: admin-account\n    to: bridge\n",
+            "  router-grant:\n    kind: grants\n    from: admin-account\n    to: bridge-login\n",
+            1,
+        );
+    assert_ne!(text, LECTURE);
+    architecture(&text)
+}
+
+#[test]
+fn a_grant_through_an_access_control_generates_the_same_graph() {
+    let direct = generate(&architecture(LECTURE)).unwrap();
+    let through = generate(&through_access_control()).unwrap();
+    assert_eq!(shape(&direct), shape(&through));
+}
+
+#[test]
+fn a_login_through_an_access_control_names_both_links() {
+    let g = generate(&through_access_control()).unwrap();
+    let step = &g.nodes[index(
+        &g,
+        "action/administration-login/admin-net/admin-account/bridge",
+    )];
+    let o = step
+        .origins
+        .iter()
+        .find(|o| o.rule == "administration-login")
+        .unwrap();
+    let names: Vec<&str> = o.associations.iter().map(|a| a.as_str()).collect();
+    assert!(names.contains(&"router-grant"), "{names:?}");
+    assert!(names.contains(&"bridge-access"), "{names:?}");
+    assert!(o.entities.iter().any(|e| e.as_str() == "bridge-login"));
+}
+
+#[test]
+fn a_grant_through_access_control_and_on_the_machine_is_one_grant() {
+    let mut m = through_access_control();
+    m.associations.insert(
+        id("router-grant-direct"),
+        effractor_core::architecture::Association {
+            relation: Relation::Grants {
+                from: id("admin-account"),
+                to: id("bridge"),
+                privilege: Privilege::Admin,
+            },
+            ..m.associations[&id::<AssociationId>("router-grant")].clone()
+        },
+    );
+    let g = generate(&m).unwrap();
+    let logins = g
+        .nodes
+        .iter()
+        .filter(|n| {
+            n.id.starts_with("action/administration-login/admin-net/admin-account/")
+        })
+        .count();
+    assert_eq!(logins, 1, "one login, not one per way of saying the grant");
+    let step = &g.nodes[index(
+        &g,
+        "action/administration-login/admin-net/admin-account/bridge",
+    )];
+    assert_eq!(step.origins.len(), 1, "{:?}", step.origins);
+}
