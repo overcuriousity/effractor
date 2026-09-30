@@ -72,10 +72,11 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
             "account",
             "credential",
             "person",
-            "data"
+            "data",
+            "access-control"
         ]
     );
-    assert_eq!(ids(&c["associations"], "kind").len(), 19);
+    assert_eq!(ids(&c["associations"], "kind").len(), 20);
     assert_eq!(ids(&c["states"], "id").len(), 9);
     assert_eq!(ids(&c["parameters"], "slot").len(), 14);
     let rules = ids(&c["rules"], "id");
@@ -181,4 +182,46 @@ fn every_kind_state_parameter_and_rule_has_plain_words() {
     };
     assert_eq!(word("admin"), "admin control");
     assert_eq!(word("possessed"), "held");
+}
+
+#[test]
+fn the_catalog_describes_access_control() {
+    let c = catalog();
+    let e = c["entities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["kind"] == "access-control")
+        .expect("the kind");
+    assert_eq!(
+        e["meaning"],
+        "Where accounts log in to a machine: its user database, its login."
+    );
+    assert_eq!(e["states"], serde_json::json!([]));
+    assert_eq!(e["parameters"], serde_json::json!([]));
+    assert!(e["defense"].is_null());
+    let a = c["associations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["kind"] == "controls-access")
+        .expect("the link");
+    assert_eq!(a["from"], serde_json::json!(["host", "router"]));
+    assert_eq!(a["to"], serde_json::json!(["access-control"]));
+    let grants = c["associations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["kind"] == "grants")
+        .unwrap();
+    assert_eq!(
+        grants["to"],
+        serde_json::json!(["host", "router", "access-control"])
+    );
+    assert!(
+        grants["description"]
+            .as_str()
+            .unwrap()
+            .contains("access control")
+    );
 }

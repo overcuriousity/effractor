@@ -600,6 +600,9 @@ fn kind_description(kind: EntityKind) -> &'static str {
         EntityKind::Credential => {
             "A description of authentication material; `possessed` is the attacker holding it. Never the secret itself."
         }
+        EntityKind::AccessControl => {
+            "Where accounts log in to a machine: its user database, its login (extract: AccessControl). Accounts are granted on it; that is a grant on the machine."
+        }
         EntityKind::Data => {
             "Information worth protecting: a database, a bucket, a vault, a file share, model weights. `read` is confidentiality, `modified` integrity; either can be the target."
         }
@@ -625,7 +628,7 @@ fn relation_description(kind: RelationKind) -> &'static str {
         }
         RelationKind::Authorizes => "A service that accepts this account for login.",
         RelationKind::Grants => {
-            "What an account gets on a host (`user | admin`) or router (`admin` only)."
+            "What an account gets on a host (`user | admin`) or router (`admin` only), named directly or through the machine's access control, which means the same."
         }
         RelationKind::Administration => {
             "Management access to a machine from a network, independent of ordinary forwarding."
@@ -654,6 +657,9 @@ fn relation_description(kind: RelationKind) -> &'static str {
         RelationKind::EncryptedWith => "The key the data is encrypted with.",
         RelationKind::Reads => {
             "Content software reads, e.g. a retrieval corpus; changing it reaches the software."
+        }
+        RelationKind::ControlsAccess => {
+            "The access control of a host or router: where its accounts log in. One per machine."
         }
     }
 }
@@ -684,6 +690,9 @@ fn kind_meaning(kind: EntityKind) -> &'static str {
             "What proves an account, e.g. a password or key. Must be extracted from where it is kept."
         }
         EntityKind::Data => "Information an attacker wants to read or change.",
+        EntityKind::AccessControl => {
+            "Where accounts log in to a machine: its user database, its login."
+        }
     }
 }
 

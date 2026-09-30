@@ -258,7 +258,7 @@ test('the link menu offers the kinds a component can stand in, with eligible end
   const doc = lecture();
   const choices = L.linkChoices(doc, CATALOG, 'server');
   const kinds = choices.map((c) => c.kind + ':' + c.direction);
-  assert.deepEqual(kinds, ['attached:out', 'hosts:out', 'hosts:in', 'stores:out', 'grants:in', 'administration:in', 'runs-as:out', 'holds:out']);
+  assert.deepEqual(kinds, ['attached:out', 'hosts:out', 'hosts:in', 'stores:out', 'grants:in', 'administration:in', 'runs-as:out', 'holds:out', 'controls-access:out']);
   const attached = choices.find((c) => c.kind === 'attached');
   // server is already attached to server-net; the others are offered.
   assert.deepEqual(attached.candidates, ['client-net', 'admin-net']);

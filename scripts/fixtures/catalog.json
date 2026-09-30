@@ -134,6 +134,14 @@
       ],
       "parameters": [],
       "defense": "encrypted"
+    },
+    {
+      "kind": "access-control",
+      "description": "Where accounts log in to a machine: its user database, its login (extract: AccessControl). Accounts are granted on it; that is a grant on the machine.",
+      "meaning": "Where accounts log in to a machine: its user database, its login.",
+      "states": [],
+      "parameters": [],
+      "defense": null
     }
   ],
   "associations": [
@@ -223,12 +231,13 @@
       ],
       "to": [
         "host",
-        "router"
+        "router",
+        "access-control"
       ],
       "fields": [
         "privilege"
       ],
-      "description": "What an account gets on a host (`user | admin`) or router (`admin` only)."
+      "description": "What an account gets on a host (`user | admin`) or router (`admin` only), named directly or through the machine's access control, which means the same."
     },
     {
       "kind": "administration",
@@ -378,6 +387,18 @@
       ],
       "fields": [],
       "description": "Content software reads, e.g. a retrieval corpus; changing it reaches the software."
+    },
+    {
+      "kind": "controls-access",
+      "from": [
+        "host",
+        "router"
+      ],
+      "to": [
+        "access-control"
+      ],
+      "fields": [],
+      "description": "The access control of a host or router: where its accounts log in. One per machine."
     }
   ],
   "states": [
