@@ -42,6 +42,40 @@
     });
     return p;
   }
+  // A chart's crosshair and its tooltip, which it returns for the caller to
+  // place: a line down at the row inspected, and one across at `level(row)`
+  // when given; the tooltip says `words(row)`. The pointer picks the nearest
+  // row, Left/Right step through them, and the row is kept under `place` for
+  // the next drawing.
+  function crosshair(plot, rows, max, place, words, level) {
+    var cross = svg('g', { class: 'chart-cross', visibility: 'hidden' });
+    var vertical = svg('line', { y1: 32, y2: 204 }), horizontal = level ? svg('line', { x1: 48, x2: 344 }) : null;
+    cross.append(vertical); if (horizontal) cross.append(horizontal); plot.appendChild(cross);
+    var tooltip = el('p', 'Left/Right: values', 'chart-tooltip num'); tooltip.setAttribute('aria-live', 'polite');
+    var active = positions[place] || 0;
+    function inspect(index) {
+      active = Math.max(0, Math.min(rows.length - 1, index));
+      positions[place] = active;
+      var row = rows[active];
+      cross.setAttribute('visibility', 'visible');
+      vertical.setAttribute('x1', data.x(row[0], max)); vertical.setAttribute('x2', data.x(row[0], max));
+      if (horizontal) { var y = data.y(level(row)); horizontal.setAttribute('y1', y); horizontal.setAttribute('y2', y); }
+      tooltip.textContent = words(row);
+    }
+    plot.addEventListener('pointermove', function (e) {
+      var point = plot.createSVGPoint(); point.x = e.clientX; point.y = e.clientY;
+      var matrix = plot.getScreenCTM(); if (!matrix) return;
+      var local = point.matrixTransform(matrix.inverse());
+      inspect(data.nearest(rows, Math.max(0, Math.min(1, (local.x - 48) / 296)) * max));
+    });
+    plot.addEventListener('pointerleave', function () { cross.setAttribute('visibility', 'hidden'); });
+    plot.addEventListener('focus', function () { inspect(active); });
+    plot.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault(); e.stopPropagation(); inspect(active + (e.key === 'ArrowRight' ? 1 : -1));
+    });
+    return tooltip;
+  }
   function draw(kind, result) {
     var root = document.getElementById(kind + '-chart');
     var focused = root.contains(document.activeElement) ? document.activeElement.tagName.toLowerCase() : null;
@@ -97,33 +131,10 @@
       // A degenerate all-zero loss curve has one point, not a visible segment.
       if (rows.length === 1) plot.appendChild(svg('circle', { cx: data.x(rows[0][0], max), cy: data.y(rows[0][1]), r: 3, class: 'chart-dot' }));
     }
-    var cross = svg('g', { class: 'chart-cross', visibility: 'hidden' });
-    var vertical = svg('line', { y1: 32, y2: 204 }), horizontal = svg('line', { x1: 48, x2: 344 });
-    cross.append(vertical, horizontal); plot.appendChild(cross);
-    var tooltip = el('p', 'Left/Right: values', 'chart-tooltip num'); tooltip.setAttribute('aria-live', 'polite');
-    var active = positions[kind] || 0;
-    function inspect(index) {
-      active = Math.max(0, Math.min(rows.length - 1, index));
-      positions[kind] = active;
-      var row = rows[active], value = cdf ? (row[1] === null ? row[2] : row[1]) : row[1];
-      cross.setAttribute('visibility', 'visible');
-      vertical.setAttribute('x1', data.x(row[0], max)); vertical.setAttribute('x2', data.x(row[0], max));
-      horizontal.setAttribute('y1', data.y(value)); horizontal.setAttribute('y2', data.y(value));
+    var tooltip = crosshair(plot, rows, max, kind, function (row) {
       var interval = row[3] === null ? '' : ' [' + probability(row[3]) + ', ' + probability(row[4]) + ']';
-      tooltip.textContent = number(row[0]) + (unit ? ' ' + unit : '') + (graph ? ' · P ' + probability(row[2] === null ? row[1] : row[2]) + interval : cdf ? ' · exact ' + probability(row[1]) + ' · sampled ' + probability(row[2]) + interval : ' · P ≥ ' + probability(row[1]));
-    }
-    plot.addEventListener('pointermove', function (e) {
-      var point = plot.createSVGPoint(); point.x = e.clientX; point.y = e.clientY;
-      var matrix = plot.getScreenCTM(); if (!matrix) return;
-      var local = point.matrixTransform(matrix.inverse());
-      inspect(data.nearest(rows, Math.max(0, Math.min(1, (local.x - 48) / 296)) * max));
-    });
-    plot.addEventListener('pointerleave', function () { cross.setAttribute('visibility', 'hidden'); });
-    plot.addEventListener('focus', function () { inspect(active); });
-    plot.addEventListener('keydown', function (e) {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      e.preventDefault(); e.stopPropagation(); inspect(active + (e.key === 'ArrowRight' ? 1 : -1));
-    });
+      return number(row[0]) + (unit ? ' ' + unit : '') + (graph ? ' · P ' + probability(row[2] === null ? row[1] : row[2]) + interval : cdf ? ' · exact ' + probability(row[1]) + ' · sampled ' + probability(row[2]) + interval : ' · P ≥ ' + probability(row[1]));
+    }, function (row) { return cdf ? (row[1] === null ? row[2] : row[1]) : row[1]; });
     root.append(plot, tooltip);
     if (!cdf) {
       var stats = el('dl', null, 'chart-quantiles');
@@ -176,30 +187,9 @@
       plot.appendChild(svg('path', { d: data.line(known.map(function (r) { return [r[0], r[c]]; }), max), class: side.line }));
       keyParts.push([side.line, side.name]);
     });
-    var cross = svg('g', { class: 'chart-cross', visibility: 'hidden' });
-    var vertical = svg('line', { y1: 32, y2: 204 });
-    cross.append(vertical); plot.appendChild(cross);
-    var tooltip = el('p', 'Left/Right: values', 'chart-tooltip num'); tooltip.setAttribute('aria-live', 'polite');
-    var active = positions.compare || 0;
     function said(p, lo, hi) { return p === null ? '—' : probability(p) + (lo === hi ? '' : ' [' + probability(lo) + ', ' + probability(hi) + ']'); }
-    function inspect(index) {
-      active = Math.max(0, Math.min(rows.length - 1, index)); positions.compare = active;
-      var r = rows[active];
-      cross.setAttribute('visibility', 'visible');
-      vertical.setAttribute('x1', data.x(r[0], max)); vertical.setAttribute('x2', data.x(r[0], max));
-      tooltip.textContent = number(r[0]) + ' ' + unit + ' · baseline ' + said(r[1], r[2], r[3]) + ' · ' + name + ' ' + said(r[4], r[5], r[6]);
-    }
-    plot.addEventListener('pointermove', function (e) {
-      var point = plot.createSVGPoint(); point.x = e.clientX; point.y = e.clientY;
-      var matrix = plot.getScreenCTM(); if (!matrix) return;
-      var local = point.matrixTransform(matrix.inverse());
-      inspect(data.nearest(rows, Math.max(0, Math.min(1, (local.x - 48) / 296)) * max));
-    });
-    plot.addEventListener('pointerleave', function () { cross.setAttribute('visibility', 'hidden'); });
-    plot.addEventListener('focus', function () { inspect(active); });
-    plot.addEventListener('keydown', function (e) {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      e.preventDefault(); e.stopPropagation(); inspect(active + (e.key === 'ArrowRight' ? 1 : -1));
+    var tooltip = crosshair(plot, rows, max, 'compare', function (r) {
+      return number(r[0]) + ' ' + unit + ' · baseline ' + said(r[1], r[2], r[3]) + ' · ' + name + ' ' + said(r[4], r[5], r[6]);
     });
     root.append(plot, tooltip, key(keyParts.concat(banded ? [['', Math.round(result.confidence * 100) + '% pointwise bands']] : [])));
     var equivalent = table(['Time · ' + unit, 'Baseline', 'Lower', 'Upper', name, 'Lower', 'Upper'], rows);
