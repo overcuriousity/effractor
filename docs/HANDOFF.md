@@ -6,6 +6,40 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — a whole-application review, fixed (2026-10-01)
+
+Branch `claude/magical-davinci-gz88mz`, **not landed**: a review of every
+crate and the page found no XSS, SQL injection or authorization gap between
+users, and about fifty smaller bugs; each is fixed with a test, one commit
+each. All checks green at the tip, the solver's tests under wasmtime too.
+Owner rulings of 2026-10-01 in the code:
+
+- **Moved numbers:** `uniform()` draws `((x>>12)+0.5)·2⁻⁵²`, strictly
+  inside (0, 1); every sampled fingerprint and `webserver.json` /
+  `lecture-graph.json` were regenerated (`UPDATE_SNAPSHOTS=1`); the course
+  table did not move. `expected_max` integrates heavy tails (tanh-sinh,
+  exp-sinh); Birnbaum is one pass each way over the BDD (last-bit moves).
+- **Server:** `--share-quota` (1 GiB, 507 past it), `--assistant-address`,
+  `__Host-` session cookie under https (everyone logs in once again), new
+  user names `[A-Za-z0-9._-]`, Argon2 one per core, role checks in the
+  writing transaction (`api::with_role`), a 30 s header-read timeout
+  (`effractor_server::serve`), only the last `X-Forwarded-For` entry counts.
+- **Accounts:** a restored folder too deep comes back at the root; shares
+  go with what they name by trigger (003).
+- **Format:** characters YAML does not allow are refused where they are; a
+  leading BOM is skipped; JSON duplicate keys are `duplicate-key`
+  (`effractor_format::from_json`); a repeated consequence is the warning
+  `overlapping-consequences` (the largest fraction counts).
+- **Page:** an undo never crosses a server document's binding; autosave
+  retries a failed request; positions go by server id when bound, else by
+  name; scan imports copy the document once (200 hosts: 24 s → 0.1 s).
+
+Open for the owner: a pinned key alone fixes the first saved address until
+a restart with `--assistant-address`; link-local is refused only as a
+literal IP; per-control `value_ci` keeps its normal approximation;
+`--excludefile` hosts may still be "did not answer"; a bound document with
+no positions of its own reads its name's.
+
 ## Continuation — what the extract draws: operating systems, ASLR, DEP (2026-09-30)
 
 Branch B, `host-products` (plan tasks B1–B5), pushed, **not landed**: all
@@ -524,7 +558,8 @@ edits land on the canvas as it makes them.
   the OpenAI-compatible endpoint.
 - **The key:** stored in `settings` in plain text like documents, or pinned by
   the operator (`--assistant-key-file`, `EFFRACTOR_ASSISTANT_KEY`), which wins
-  and cannot be changed in the tab. No route returns it; provider errors are
+  and cannot be changed in the tab; `--assistant-address` pins the address too,
+  and with the key pinned alone the first address saved stays. No route returns it; provider errors are
   scrubbed of it (`tests/assistant_leak.rs` sends a known key through every
   route and error path). **Changing the address keeps the key** (owner,
   2026-09-27; saving needs a fresh login); listing models at an edited address
@@ -766,13 +801,15 @@ fast-forward of master. PR #113 (the installer's systemd question,
   the shell has no trace of them; the static export skips `js/accounts/` and
   `css/70-accounts.css` (`static_site.rs`).
 - **`crates/effractor-accounts`** — SQLite (WAL, `fallible_uint` for u64
-  timestamps), `migrations/001.sql` is the whole schema, `PRAGMA user_version`
-  counts migrations (the DB is the one place with versioning; YAML stays
+  timestamps), `migrations/` holds the schema (001 tables, 002 the chat, 003
+  share triggers, 004 the chat's author role and estimated tokens), `PRAGMA
+  user_version` counts migrations (the DB is the one place with versioning; YAML stays
   unversioned). Synchronous; the server calls it through
   `Accounts::blocking`. `perms.rs` is the permission rule (owner, else the
   strongest share on the item or a folder above it, for the user or a group;
   recursive CTEs capped at 32); no role = 404, too little = 403.
 - **Server** — `accounts.rs` (state), `auth/` (cookie `effractor_session`,
+  `__Host-effractor_session` under https,
   `guard.rs` same-Origin for every non-GET, password login limited per
   address, `passkey.rs` webauthn-rs with discoverable login and mediation
   cleared, `oidc.rs` PKCE/state/nonce plus an `effractor_oidc` cookie binding
