@@ -181,15 +181,31 @@
         return no(shape(app.state.blockers || "no attack graph: call problems for why"));
       });
     },
+    // Not shown is said, with why: the attack graph may not generate.
     set_view: function (app, i) {
-      return app.setMode(i.view).then(function () { return done("showing the " + (i.view === "attack" ? "attack graph" : "architecture")); });
+      var attack = i.view === "attack";
+      return app.setMode(i.view).then(function (changed) {
+        if (changed === false) return no(attack ? shape(app.state.blockers || "no attack graph: call problems for why") : "the view did not change");
+        return done("showing the " + (attack ? "attack graph" : "architecture"));
+      });
     },
     set_scenario: function (app, i) {
       return app.setScenario(i.scenario || "") ? done(i.scenario ? "comparing “" + i.scenario + "”" : "no scenario") : no("no scenario “" + i.scenario + "”");
     },
+    // A route of the results on the page, by its place in their list.
     show_route: function (app, i) {
-      app.showRoute(i.index === undefined ? null : i.index, i.side);
-      return done(i.index == null ? "no route shown" : "route " + (i.index + 1) + " shown");
+      if (i.index == null) {
+        app.showRoute(null, i.side);
+        return done("no route shown");
+      }
+      var results = app.state.results, side = i.side || "baseline";
+      var shown = results && results["effractor-graph-results"] === 1 ? results[side] : null;
+      var n = (shown && shown.routes || []).length;
+      if (!Number.isInteger(i.index) || i.index < 0 || i.index >= n) {
+        return no("no route " + JSON.stringify(i.index) + ": the " + side + " has " + n + (n === 1 ? " route" : " routes") + ", from 0");
+      }
+      app.showRoute(i.index, i.side);
+      return done("route " + (i.index + 1) + " shown");
     },
     show_all_steps: function (app, i) {
       app.setAllSteps(!!i.on);

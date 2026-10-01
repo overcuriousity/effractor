@@ -152,3 +152,33 @@ test("the agent's catalog carries each kind's switches and what is optional", ()
   assert.ok(host.optional.includes('deploy-exploit'));
   assert.deepEqual(P.forAgent(library).entities.find((e) => e.kind === 'product').defenses, ['patched']);
 });
+
+test('a view that could not be shown is refused with the reason, not reported shown', async () => {
+  const blockers = [{ severity: 'error', code: 'no-target', path: 'attacker', message: 'no target' }];
+  const app = { state: { blockers }, setMode: () => Promise.resolve(false) };
+  const x = P.createExecutor({ app, tools: {}, catalog, profile: 'architecture' });
+  const r = await x.run({ id: '1', name: 'set_view', input: { view: 'attack' } }, 'read');
+  assert.equal(r.ok, false);
+  assert.deepEqual(JSON.parse(r.output), blockers);
+  app.setMode = () => Promise.resolve(true);
+  const shown = await x.run({ id: '2', name: 'set_view', input: { view: 'attack' } }, 'read');
+  assert.deepEqual([shown.ok, shown.output], [true, 'showing the attack graph']);
+});
+
+test('only a route that exists is drawn', async () => {
+  const drawn = [];
+  const routes = [{ witness: [] }, { witness: [] }];
+  const app = {
+    state: { results: { 'effractor-graph-results': 1, baseline: { routes }, scenario: { routes: [routes[0]] } } },
+    showRoute: (i, side) => drawn.push([i, side]),
+  };
+  const x = P.createExecutor({ app, tools: {}, catalog, profile: 'architecture' });
+  const run = (input) => x.run({ id: '1', name: 'show_route', input }, 'read');
+  for (const index of [2, -1, 1.5, '0', true]) {
+    assert.equal((await run({ index })).ok, false, String(index));
+  }
+  assert.equal((await run({ index: 1, side: 'scenario' })).ok, false, 'the scenario has one route');
+  assert.deepEqual(drawn, [], 'nothing drawn for a refused index');
+  assert.deepEqual([(await run({ index: 1 })).output, (await run({ index: null })).output], ['route 2 shown', 'no route shown']);
+  assert.deepEqual(drawn, [[1, undefined], [null, undefined]]);
+});
