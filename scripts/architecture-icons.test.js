@@ -15,7 +15,7 @@ test('every kind of component has an icon of plain line parts', () => {
 });
 
 test('kinds fall in three families, each drawn in its own colour', () => {
-  assert.deepEqual(A.KINDS.map(I.family), ['network', 'network', 'network', 'compute', 'compute', 'compute', 'compute', 'identity', 'identity', 'identity', 'data', 'identity']);
+  assert.deepEqual(A.KINDS.map(I.family), ['network', 'network', 'network', 'compute', 'compute', 'compute', 'compute', 'identity', 'identity', 'identity', 'data', 'identity', 'network', 'network']);
 });
 
 test('an unknown kind still draws: a plain dot, in no family', () => {
@@ -32,4 +32,12 @@ test('an access control is identity, drawn as a lock, not as an account', () => 
   assert.equal(I.family('access-control'), 'identity');
   assert.notDeepEqual(I.parts('access-control'), I.parts('account'));
   assert.notDeepEqual(I.parts('access-control'), I.parts('credential'));
+});
+
+test('an IDS and an IPS are network, drawn apart from each other and the router', () => {
+  assert.equal(I.family('ids'), 'network');
+  assert.equal(I.family('ips'), 'network');
+  assert.notDeepEqual(I.parts('ids'), I.parts('ips'));
+  assert.notDeepEqual(I.parts('ids'), I.parts('router'));
+  assert.ok(I.parts('ids').length > 1, 'not the unknown dot');
 });

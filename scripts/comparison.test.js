@@ -277,3 +277,9 @@ test('Compare offers ASLR and DEP only on a host they can change', () => {
   const cat = { entities: [{ kind: 'host', defenses: ['aslr', 'dep'], optional_defenses: ['aslr', 'dep'] }, { kind: 'service', defenses: [] }], defenses: [] };
   assert.deepEqual(C.switches(doc, cat).map((x) => x.entity + ':' + x.defense), ['srv:aslr', 'srv:dep']);
 });
+
+test('Compare offers anti-malware only on a host that runs a service', () => {
+  const doc = { entities: { srv: { kind: 'host', label: 'Server' }, ws: { kind: 'host', label: 'Workstation' }, sshd: { kind: 'service', label: 'SSH' }, os: { kind: 'product', label: 'OS' } }, associations: { h: { kind: 'hosts', from: 'srv', to: 'sshd', privilege: 'admin' }, o: { kind: 'instance-of', from: 'ws', to: 'os' } } };
+  const cat = { entities: [{ kind: 'host', defenses: ['anti-malware'], optional_defenses: ['anti-malware'] }, { kind: 'service', defenses: [] }, { kind: 'product', defenses: [] }], defenses: [] };
+  assert.deepEqual(C.switches(doc, cat).map((x) => x.entity + ':' + x.defense + ':' + x.baseline), ['srv:anti-malware:false']);
+});

@@ -57,6 +57,17 @@
       ["rect", { x: 5, y: 10.5, width: 14, height: 10, rx: 1.5 }],
       ["path", { d: "M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2.5" }],
     ],
+    // An eye: a sensor that watches traffic and reports.
+    ids: [
+      ["path", { d: "M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z" }],
+      ["circle", { cx: 12, cy: 12, r: 2.5 }],
+    ],
+    // An eye with a bar: a sensor that watches and stops.
+    ips: [
+      ["path", { d: "M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z" }],
+      ["circle", { cx: 12, cy: 12, r: 2.5 }],
+      ["path", { d: "M4 20 20 4" }],
+    ],
     // A cylinder: stored records.
     data: [
       ["path", { d: "M5 6c0-1.66 3.13-3 7-3s7 1.34 7 3-3.13 3-7 3-7-1.34-7-3z" }],
@@ -65,7 +76,7 @@
     ],
   };
   var FAMILY = {
-    network: "network", router: "network", firewall: "network",
+    network: "network", router: "network", firewall: "network", ids: "network", ips: "network",
     host: "compute", application: "compute", service: "compute", product: "compute",
     account: "identity", credential: "identity", person: "identity", "access-control": "identity",
     data: "data",

@@ -258,7 +258,7 @@ test('the link menu offers the kinds a component can stand in, with eligible end
   const doc = lecture();
   const choices = L.linkChoices(doc, CATALOG, 'server');
   const kinds = choices.map((c) => c.kind + ':' + c.direction);
-  assert.deepEqual(kinds, ['attached:out', 'hosts:out', 'hosts:in', 'stores:out', 'grants:in', 'administration:in', 'instance-of:out', 'runs-as:out', 'holds:out', 'controls-access:out']);
+  assert.deepEqual(kinds, ['attached:out', 'hosts:out', 'hosts:in', 'stores:out', 'grants:in', 'administration:in', 'instance-of:out', 'runs-as:out', 'holds:out', 'controls-access:out', 'watches:out']);
   const attached = choices.find((c) => c.kind === 'attached');
   // server is already attached to server-net; the others are offered.
   assert.deepEqual(attached.candidates, ['client-net', 'admin-net']);
@@ -366,10 +366,12 @@ test('Tab offers the kinds that can be linked to the selection, with each way to
     'credential: stores → · user, stores → · admin',
     'data: holds → · user · decrypts=true, holds → · user · decrypts=false, holds → · admin · decrypts=true, holds → · admin · decrypts=false',
     'access-control: controls-access →',
+    'ids: watches →',
+    'ips: watches →',
   ]);
   // A router hosts and is granted only as admin; it has its firewall already.
   const router = L.addChoices(doc, CATALOG, 'bridge').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
-  assert.deepEqual(router, ['network: attached, administration', 'host: hosts·user, hosts·admin', 'application: hosts·admin', 'service: hosts·admin', 'account: grants·admin', 'access-control: controls-access']);
+  assert.deepEqual(router, ['network: attached, administration', 'host: hosts·user, hosts·admin', 'application: hosts·admin', 'service: hosts·admin', 'account: grants·admin', 'access-control: controls-access', 'ids: watches', 'ips: watches']);
   // A hosted executable offers no second host; an application stores as user.
   const client = L.addChoices(doc, CATALOG, 'ssh-client').map((c) => c.kind + ': ' + c.options.map((o) => o.relation + (o.privilege ? '·' + o.privilege : '')).join(', '));
   assert.deepEqual(client, ['network: delivers', 'service: flow', 'product: instance-of', 'account: runs-as·user', 'credential: stores·user', 'person: operates', 'data: holds·user, holds·user, reads']);
@@ -463,7 +465,7 @@ test('an empty Link menu says what is missing', () => {
   assert.equal(L.emptyLink(doc, CATALOG, 'filter'), 'a firewall permits flows · set it in each flow that crosses its router');
   // A lone host in a new document: nothing to link to yet.
   const lone = { entities: { h: { kind: 'host', label: 'H' } }, associations: {}, flows: {} };
-  assert.equal(L.emptyLink(lone, CATALOG, 'h'), 'no network, router, host, application, service, product, account, credential, data or access control yet · Tab adds one linked');
+  assert.equal(L.emptyLink(lone, CATALOG, 'h'), 'no network, router, host, application, service, product, account, credential, data, access control, IDS or IPS yet · Tab adds one linked');
   assert.equal(L.emptyLink(doc, CATALOG, 'sshd'), null, 'there is something to link');
 });
 
@@ -730,4 +732,9 @@ test('an account granted on a machine is not offered its access control too', ()
   const into = L.linkChoices(doc, CATALOG, 'server-login').find((c) => c.kind === 'grants' && c.direction === 'in');
   assert.ok(!into.candidates.includes('server-account'));
   assert.ok(into.candidates.includes('admin-account'), 'an account not granted there is offered');
+});
+
+test('the words for a sensor read from either side', () => {
+  assert.equal(L.phrase('watches', 'out'), 'watched by');
+  assert.equal(L.phrase('watches', 'in'), 'watches');
 });
