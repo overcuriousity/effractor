@@ -47,6 +47,21 @@
       "seen": "2026-09-24",
       "vendor": "AVM GmbH"
     },
+    "avm-fritz-box-fritzos-6-x": {
+      "kind": "product",
+      "label": "AVM FRITZ!Box (FritzOS 6.X)",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
     "fritz-box-router": {
       "kind": "router",
       "label": "fritz.box router",
@@ -145,6 +160,21 @@
       ],
       "seen": "2026-09-24"
     },
+    "pfsense-2-4-freebsd-11-2": {
+      "kind": "product",
+      "label": "pfSense 2.4 (FreeBSD 11.2)",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
     "opnsense-lab-router": {
       "kind": "router",
       "label": "opnsense.lab router",
@@ -211,6 +241,21 @@
       ],
       "seen": "2026-09-24"
     },
+    "hp-laserjet-printer": {
+      "kind": "product",
+      "label": "HP LaserJet printer",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
     "ipp": {
       "kind": "service",
       "label": "ipp",
@@ -255,6 +300,11 @@
       "to": "nmap",
       "privilege": "admin"
     },
+    "fritz-box-instance-of-avm-fritz-box-fritzos-6-x": {
+      "kind": "instance-of",
+      "from": "fritz-box",
+      "to": "avm-fritz-box-fritzos-6-x"
+    },
     "fritz-box-attached-192-168-2-0-24": {
       "kind": "attached",
       "from": "fritz-box",
@@ -293,6 +343,11 @@
       "from": "domain",
       "to": "dnsmasq-2-90"
     },
+    "opnsense-lab-instance-of-pfsense-2-4-freebsd-11-2": {
+      "kind": "instance-of",
+      "from": "opnsense-lab",
+      "to": "pfsense-2-4-freebsd-11-2"
+    },
     "opnsense-lab-attached-192-168-2-0-24": {
       "kind": "attached",
       "from": "opnsense-lab",
@@ -324,6 +379,11 @@
       "kind": "instance-of",
       "from": "https",
       "to": "lighttpd"
+    },
+    "printer-fritz-box-instance-of-hp-laserjet-printer": {
+      "kind": "instance-of",
+      "from": "printer-fritz-box",
+      "to": "hp-laserjet-printer"
     },
     "printer-fritz-box-attached-192-168-2-0-24": {
       "kind": "attached",

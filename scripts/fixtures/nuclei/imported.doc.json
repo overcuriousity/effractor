@@ -49,6 +49,21 @@
       "kind": "product",
       "label": "OpenSSH 9.6p1"
     },
+    "linux-5-0-5-4": {
+      "kind": "product",
+      "label": "Linux 5.0 - 5.4",
+      "parameters": {
+        "find-exploit": {
+          "status": "unknown"
+        },
+        "find-exploit-patched": {
+          "status": "unknown"
+        }
+      },
+      "defenses": {
+        "patched": "unknown"
+      }
+    },
     "tcp-8443": {
       "kind": "service",
       "label": "tcp/8443",
@@ -290,6 +305,11 @@
       "kind": "instance-of",
       "from": "sshd",
       "to": "openssh"
+    },
+    "srv-instance-of-linux-5-0-5-4": {
+      "kind": "instance-of",
+      "from": "srv",
+      "to": "linux-5-0-5-4"
     },
     "srv-hosts-tcp-8443": {
       "kind": "hosts",

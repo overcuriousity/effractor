@@ -211,17 +211,18 @@ test('the summary counts what ticking adds and refuses to pass the limits', () =
   const limits = { entities: 500, relationships: 2000 };
   const s = N.summary(d, p, t, limits);
   // New: host 10.0.1.7; services tcp/8443, domain, ssh(10.0.1.7); products
-  // unidentified-8443, dnsmasq (OpenSSH reused). Flows: three.
-  assert.deepEqual([s.hosts, s.networks, s.services, s.products, s.flows], [1, 0, 3, 2, 3]);
-  assert.equal(s.entities, Object.keys(d.entities).length + 6);
-  // attached 1 + hosts 3 + instance-of 3 + flows 3
-  assert.equal(s.relationships, Object.keys(d.associations).length + Object.keys(d.flows).length + 10);
+  // unidentified-8443, dnsmasq (OpenSSH reused), and the server's OS guess
+  // Linux 5.0 - 5.4. Flows: three.
+  assert.deepEqual([s.hosts, s.networks, s.services, s.products, s.flows], [1, 0, 3, 3, 3]);
+  assert.equal(s.entities, Object.keys(d.entities).length + 7);
+  // attached 1 + hosts 3 + instance-of 3 + the server's OS 1 + flows 3
+  assert.equal(s.relationships, Object.keys(d.associations).length + Object.keys(d.flows).length + 11);
   assert.equal(s.tooMany, null);
   t.hosts.h1 = false;
   assert.deepEqual([N.summary(d, p, t, limits).hosts, N.summary(d, p, t, limits).services], [0, 2], 'an unticked host takes its ports along');
   const tight = N.summary(d, p, N.defaults(p), { entities: 10, relationships: 2000 });
-  assert.match(tight.tooMany, /13 components; the limit is 10/);
-  assert.match(N.summary(d, p, N.defaults(p), { entities: 500, relationships: 12 }).tooMany, /16 links and flows; the limit is 12/);
+  assert.match(tight.tooMany, /14 components; the limit is 10/);
+  assert.match(N.summary(d, p, N.defaults(p), { entities: 500, relationships: 12 }).tooMany, /17 links and flows; the limit is 12/);
 });
 
 test('unidentified software is never shared, not even in the count', () => {

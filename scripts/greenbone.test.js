@@ -123,8 +123,9 @@ test('after nmap: findings land on the ports and products nmap drew; no host twi
 
   const t = N.defaults(p);
   const s = N.summary(doc, p, t, { entities: 500, relationships: 2000 });
-  assert.deepEqual([s.hosts, s.networks, s.attached, s.services, s.products, s.flows, s.unpatched], [1, 0, 0, 1, 1, 1, 3]);
-  assert.equal(N.said(s), 'Adds 1 host, 1 service, 1 product, 1 flow, marks 3 products unpatched.');
+  // The products: the new service's, and db-01's OS guess.
+  assert.deepEqual([s.hosts, s.networks, s.attached, s.services, s.products, s.flows, s.unpatched], [1, 0, 0, 1, 2, 1, 3]);
+  assert.equal(N.said(s), 'Adds 1 host, 1 service, 2 products, 1 flow, marks 3 products unpatched.');
   assert.deepEqual(p.changes.list, [], 'Greenbone names products its own way: no version change offered');
 
   const out = N.apply(doc, p, t, specOf, S.stampFor('greenbone', report(), '', '2026-09-27')).doc;

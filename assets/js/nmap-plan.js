@@ -416,6 +416,9 @@
         // The addresses of its interfaces the host is not drawn with.
         gains: r.interfaces.map(function (i) { return i.address; }).filter(function (a) { return drawnAt.indexOf(addressKey(a)) < 0 && h.addresses.map(addressKey).indexOf(addressKey(a)) < 0; }),
         os: h.os ? osLine(scan.tool, h.os) : null,
+        // nmap's best OS guess by name: the product the host becomes an
+        // instance of, unless it already says one.
+        osName: h.os ? h.os.name : null,
         known: r.known,
         merged: r.merged,
         guessed: r.guessed,
@@ -848,6 +851,16 @@
     var proposed = p.network ? p.network.merged || "new" : null;
     if (network && p.network.merged) s.filledNetworks = 1;
     var ticked = 0, proposedMade = false;
+    // Drawn hosts that say their operating system, and drawn products by
+    // name: what an OS guess links to or makes.
+    var withOs = Object.create(null), drawnProducts = Object.create(null);
+    Object.keys(doc.associations || {}).forEach(function (k) {
+      var a = doc.associations[k];
+      if (a.kind === "instance-of") withOs[a.from] = true;
+    });
+    Object.keys(doc.entities || {}).forEach(function (id) {
+      if (doc.entities[id].kind === "product") drawnProducts[P.key(doc.entities[id].label)] = true;
+    });
     // The networks of interfaces that no drawn one holds, each once.
     var own = Object.create(null);
     p.hosts.forEach(function (h) {
@@ -862,6 +875,15 @@
       if (does.rename) s.renamed++;
       if (!added && does.seen) s.seen++;
       if (!added && does.asked.length) s.asked++;
+      // The OS guess: an instance-of, and its product unless drawn or made.
+      if (h.osName && !withOs[h.known || h.merged]) {
+        rel++;
+        var os = P.key(h.osName);
+        if (!drawnProducts[os] && !newProducts[os]) {
+          newProducts[os] = true;
+          s.products++;
+        }
+      }
       // A merge writes the scanned addresses into the drawn host; so do
       // the interfaces a drawn host lists.
       if ((h.merged && h.addresses.length) || (!added && !h.merged && h.gains.length)) s.filled++;
@@ -1134,6 +1156,9 @@
       }
       if (h.vendor && !next.entities[host].vendor) next.entities[host].vendor = h.vendor;
       hostOf[h.key] = host;
+      if (h.osName && !links(next, "instance-of").some(function (a) { return a.from === host; })) {
+        link("instance-of", host, productFor(h.osName));
+      }
       if (h.merged && h.addresses.length) {
         // Added to what it had, each address once.
         var had = next.entities[host].addresses || [];

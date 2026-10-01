@@ -555,12 +555,15 @@ const sha = x => require('node:crypto').createHash('sha256').update(JSON.stringi
 test('an import edits one copy of the drawing: the same result as a copy per step made', () => {
   // What the import made when every step copied the whole document
   // (before review 2026-10-01): a fingerprint that moves changes imports.
+  // Moved 2026-10-01 when nmap's OS guess became an instance-of: without
+  // the hosts' operating-system links and products (and the plan's
+  // osName), each hash is the one pinned before.
   const seen = [];
   const doc = labImported(60, s => seen.push(s));
-  assert.equal(sha(seen[0].doc), 'debfcb58f6c7ce10009aa879095b24af8d466463e22aa3b4677f4af855235a1c', 'the first import');
+  assert.equal(sha(seen[0].doc), '30dab5663e3b3e96c792f1ff3e24c80b15d04452c62f2b5aadb0ab842a5dc25a', 'the first import');
   assert.deepEqual([...new Set(seen[1].p.changes.list.map(c => c.kind))].sort(), ['closed', 'route', 'version'], 'the rescan changes things');
-  assert.equal(sha(seen[1].p), 'e9deca645f27b0643863696621907980e1ec600f3b37711bbcb292b4ec450090', 'the rescan\'s plan');
-  assert.equal(sha(doc), '9daec45f827fb13b0787f8774f6c3347e95f73e7a2b72823dc87086e3df2f9ae', 'the rescan');
+  assert.equal(sha(seen[1].p), '3a8052319e8401804b77f7ddfcc0453627411246b87380fb81573e93cda33b94', 'the rescan\'s plan');
+  assert.equal(sha(doc), 'a6f9843b7d9c6bed202f68869a7cc19474e27a8cc59488e32c6c5f9b8ff26508', 'the rescan');
 });
 
 test('an import never changes the drawing it was given', () => {
@@ -582,4 +585,43 @@ test('hundreds of hosts import and rescan in well under a second each', () => {
   labImported(400, s => {
     if (s.later) assert.ok(s.planned < 2000, 'planning a rescan of 400 hosts took ' + s.planned + ' ms');
   });
+});
+
+// An import that may find nothing to change (null): the drawing as it was.
+function again(doc, name) {
+  const scan = N.read(fixture(name)).scan;
+  const p = N.plan(doc, 'nmap', scan, '', {});
+  const edit = N.apply(doc, p, N.defaults(p), specOf, N.stampFor(scan, '', scan.date));
+  return edit ? edit.doc : doc;
+}
+
+test("nmap's OS guess becomes the host's operating system, a product made once and reused", () => {
+  const products = (doc) => Object.keys(doc.entities).filter((id) => doc.entities[id].kind === 'product' && doc.entities[id].label === 'Linux 5.0 - 5.4');
+  const osOf = (doc, host) => Object.values(doc.associations).filter((a) => a.kind === 'instance-of' && a.from === host).map((a) => doc.entities[a.to].label);
+  let doc = imported(empty(), 'deep-lab.xml');
+  const scan = N.read(fixture('deep-lab.xml')).scan;
+  const guessed = scan.hosts.filter((h) => h.os);
+  assert.ok(guessed.length >= 1);
+  for (const h of guessed) {
+    const host = hostBy(doc, h.addresses[0]);
+    assert.deepEqual(osOf(doc, host), [h.os.name], h.addresses[0]);
+  }
+  assert.equal(products(doc).length, 1);
+  // Imported again: the same product, one link.
+  doc = again(doc, 'deep-lab.xml');
+  assert.equal(products(doc).length, 1);
+  const host = hostBy(doc, guessed[0].addresses[0]);
+  assert.deepEqual(osOf(doc, host), ['Linux 5.0 - 5.4']);
+});
+
+test("a host that already says its operating system keeps it over nmap's guess", () => {
+  let doc = imported(empty(), 'deep-lab.xml');
+  const h = N.read(fixture('deep-lab.xml')).scan.hosts.filter((x) => x.os)[0];
+  const host = hostBy(doc, h.addresses[0]);
+  const link = Object.keys(doc.associations).find((k) => doc.associations[k].kind === 'instance-of' && doc.associations[k].from === host);
+  doc.entities.mine = { kind: 'product', label: 'Ubuntu 20.04', defenses: { patched: 'unknown' }, parameters: { 'find-exploit': { status: 'unknown' }, 'find-exploit-patched': { status: 'unknown' } } };
+  doc.associations[link].to = 'mine';
+  doc = again(doc, 'deep-lab.xml');
+  const said = Object.values(doc.associations).filter((a) => a.kind === 'instance-of' && a.from === host).map((a) => a.to);
+  assert.deepEqual(said, ['mine']);
 });
