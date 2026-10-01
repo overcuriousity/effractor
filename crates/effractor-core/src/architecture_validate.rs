@@ -18,7 +18,10 @@ pub fn validate_architecture(model: &Architecture) -> Vec<Diagnostic> {
         out: Vec::new(),
     };
     cx.header();
-    cx.limits();
+    // Past a limit, what the rest would find is not worth its time.
+    if !cx.limits() {
+        return cx.out;
+    }
     cx.entities();
     cx.associations();
     cx.flows();
@@ -174,8 +177,10 @@ impl Cx<'_> {
         }
     }
 
-    fn limits(&mut self) {
+    /// Whether the architecture is within them.
+    fn limits(&mut self) -> bool {
         let m = self.m;
+        let before = self.out.len();
         if m.entities.len() > MAX_ENTITIES {
             self.error(
                 Code::Limit,
@@ -203,6 +208,7 @@ impl Cx<'_> {
                 ),
             );
         }
+        self.out.len() == before
     }
 
     fn parameter(&mut self, p: &Parameter, path: &str) {
@@ -526,33 +532,42 @@ impl Cx<'_> {
                 up.entry(to).or_insert((from, id));
             }
         }
-        let mut guests: Vec<&EntityId> = up.keys().copied().collect();
-        guests.sort();
-        let mut reported: HashSet<&EntityId> = HashSet::new();
-        for start in guests {
-            if reported.contains(start) {
-                continue;
-            }
-            let mut chain = vec![start];
+        // Each guest has one host, so each walk ends at a top host, at a
+        // machine an earlier walk has been through, or in a circle of its own.
+        // `walked` says which walk passed a machine, and where in it.
+        let mut walked: HashMap<&EntityId, (usize, usize)> = HashMap::new();
+        let mut circles: Vec<Vec<&EntityId>> = Vec::new();
+        for (walk, &start) in up.keys().enumerate() {
+            let mut path: Vec<&EntityId> = Vec::new();
             let mut at = start;
-            while let Some(&(host, _)) = up.get(at) {
-                if host == start {
-                    let names: Vec<&str> = chain.iter().map(|e| e.as_str()).collect();
-                    let association = up[start].1;
-                    self.error(
-                        Code::Cycle,
-                        format!("associations.{association}"),
-                        format!("hosting runs in a circle: {} → {start}", names.join(" → ")),
-                    );
-                    reported.extend(chain.iter().copied());
+            loop {
+                if let Some(&(by, i)) = walked.get(at) {
+                    if by == walk {
+                        circles.push(path.split_off(i));
+                    }
                     break;
                 }
-                if chain.contains(&host) {
-                    break;
-                }
-                chain.push(host);
+                let Some(&(host, _)) = up.get(at) else { break };
+                walked.insert(at, (walk, path.len()));
+                path.push(at);
                 at = host;
             }
+        }
+        // Said from its first member, the circles in the order of those.
+        for circle in &mut circles {
+            let first = (0..circle.len()).min_by_key(|&i| circle[i]).unwrap_or(0);
+            circle.rotate_left(first);
+        }
+        circles.sort_by_key(|circle| circle[0]);
+        for circle in circles {
+            let start = circle[0];
+            let names: Vec<&str> = circle.iter().map(|e| e.as_str()).collect();
+            let association = up[start].1;
+            self.error(
+                Code::Cycle,
+                format!("associations.{association}"),
+                format!("hosting runs in a circle: {} → {start}", names.join(" → ")),
+            );
         }
     }
 

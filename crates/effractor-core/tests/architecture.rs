@@ -693,3 +693,94 @@ fn a_host_has_aslr_and_dep_and_neither_is_filled_in() {
         Some(Switch::Unknown)
     );
 }
+
+fn runs_on(host: &str, guest: &str) -> Association {
+    Association {
+        relation: Relation::Hosts {
+            from: id(host),
+            to: id(guest),
+            privilege: Privilege::User,
+            contained: false,
+        },
+        description: None,
+    }
+}
+
+/// `n` hosts, each running on the one before it: `h1` on `h0`, `h2` on `h1`, …
+fn guest_chain(n: usize) -> Architecture {
+    let mut m = Architecture::new("Nested");
+    for i in 0..n {
+        let host = format!("h{i}");
+        m.entities
+            .insert(id(&host), Entity::new(EntityKind::Host, &host));
+    }
+    for i in 1..n {
+        m.associations.insert(
+            format!("a{i}").parse().unwrap(),
+            runs_on(&format!("h{}", i - 1), &format!("h{i}")),
+        );
+    }
+    m
+}
+
+fn cycles(m: &Architecture) -> Vec<(String, String)> {
+    validate_architecture(m)
+        .into_iter()
+        .filter(|d| d.code == Code::Cycle)
+        .map(|d| (d.path, d.message))
+        .collect()
+}
+
+#[test]
+fn hosting_cycles_are_each_reported_once_from_their_first_member() {
+    let mut m = guest_chain(4);
+    m.associations
+        .insert("back".parse().unwrap(), runs_on("h3", "h0"));
+    // A second circle, and a guest that leads into the first.
+    for e in ["x", "y", "t"] {
+        m.entities.insert(id(e), Entity::new(EntityKind::Host, e));
+    }
+    m.associations
+        .insert("xy".parse().unwrap(), runs_on("x", "y"));
+    m.associations
+        .insert("yx".parse().unwrap(), runs_on("y", "x"));
+    m.associations
+        .insert("th".parse().unwrap(), runs_on("h2", "t"));
+    let circle = |at: &str, message: &str| (format!("associations.{at}"), message.to_owned());
+    assert_eq!(
+        cycles(&m),
+        [
+            circle("back", "hosting runs in a circle: h0 → h3 → h2 → h1 → h0"),
+            circle("yx", "hosting runs in a circle: x → y → x"),
+        ]
+    );
+}
+
+#[test]
+fn a_long_chain_of_guests_is_validated_in_one_pass() {
+    let started = std::time::Instant::now();
+    // At the entity limit, every guest above a circle.
+    let mut m = guest_chain(498);
+    for e in ["x", "y"] {
+        m.entities.insert(id(e), Entity::new(EntityKind::Host, e));
+    }
+    m.associations
+        .insert("xy".parse().unwrap(), runs_on("x", "y"));
+    m.associations
+        .insert("yx".parse().unwrap(), runs_on("y", "x"));
+    m.associations
+        .insert("x0".parse().unwrap(), runs_on("x", "h0"));
+    assert_eq!(
+        cycles(&m),
+        [(
+            "associations.yx".to_owned(),
+            "hosting runs in a circle: x → y → x".to_owned()
+        )]
+    );
+    // Past it: said, and nothing else is worked out.
+    let d = validate_architecture(&guest_chain(5000));
+    assert!(d.iter().any(|d| d.code == Code::Limit), "{d:?}");
+    assert!(d.iter().all(|d| d.code == Code::Limit), "{d:?}");
+    let elapsed = started.elapsed();
+    assert!(elapsed.as_secs_f64() < 1.0, "{elapsed:?}");
+}
