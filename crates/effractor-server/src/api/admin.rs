@@ -12,6 +12,7 @@ use serde_json::{Value, json};
 
 use crate::accounts::Accounts;
 use crate::api::{ApiError, checked};
+use crate::auth::password::hash_turn;
 use crate::auth::session::CurrentUser;
 
 pub fn routes() -> Router<Accounts> {
@@ -124,7 +125,10 @@ async fn create_user(
     CurrentUser(user, _): CurrentUser,
     Json(body): Json<NewUserBody>,
 ) -> Result<(StatusCode, Json<Value>), ApiError> {
+    // The password is hashed: in its turn.
+    let turn = hash_turn().await;
     let id = checked(&accounts, move |t, now| {
+        let _turn = turn;
         // A group's admin, into a group that allows it: read where the
         // write is, so neither can change in between.
         if !user.admin {
@@ -172,8 +176,14 @@ async fn change_user(
     Json(body): Json<ChangeUser>,
 ) -> Result<StatusCode, ApiError> {
     admin_only(&user)?;
+    // A new password is hashed: in its turn.
+    let turn = match body.password {
+        Some(_) => Some(hash_turn().await),
+        None => None,
+    };
     accounts
         .blocking(move |db| {
+            let _turn = turn;
             db.write(|t| {
                 users::get(t, id)?.ok_or(Error::NotFound)?;
                 if let Some(n) = &body.display_name {

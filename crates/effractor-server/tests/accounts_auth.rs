@@ -461,6 +461,32 @@ async fn guessing_the_current_password_is_limited_like_logins() {
     );
 }
 
+/// Argon2 takes 19 MiB a time: however many logins arrive, no more are
+/// checked at once than the server has turns for, and an unknown name
+/// waits for one as a known one does.
+#[tokio::test]
+async fn a_password_is_checked_only_in_its_turn() {
+    let h = harness();
+    h.add_user("alice");
+    let turns = effractor_server::auth::password::hashing();
+    let cores = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
+    for name in ["alice", "nobody"] {
+        let all = turns.acquire_many(cores as u32).await.unwrap();
+        let login = h.call(
+            "POST",
+            "/api/auth/password",
+            None,
+            Some(json!({"name": name, "password": PW})),
+        );
+        tokio::pin!(login);
+        let waited = tokio::time::timeout(std::time::Duration::from_millis(300), &mut login).await;
+        assert!(waited.is_err(), "{name} waits for a turn");
+        drop(all);
+        let expected = if name == "alice" { 204 } else { 401 };
+        assert_eq!(login.await.status(), expected, "{name}");
+    }
+}
+
 /// Behind a TLS proxy every peer is the proxy; with --trusted-proxy the
 /// address it forwards is the one counted (review I4).
 #[tokio::test]

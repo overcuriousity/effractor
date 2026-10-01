@@ -157,21 +157,38 @@ pub fn all(c: &Connection) -> Result<Vec<User>> {
 /// None for an unknown name, a wrong password, no password and a disabled
 /// user alike, and the hash is checked in every case.
 pub fn login(c: &Connection, name: &str, password: &str) -> Result<Option<User>> {
-    let found: Option<(User, Option<String>)> = c
-        .query_row(
+    Ok(login_candidate(c, name)?.verify(password))
+}
+
+/// Who a login names and their hash, read without checking it: the server
+/// gives the connection back before the slow part (see `verify`).
+pub struct LoginCandidate(Option<(User, Option<String>)>);
+
+pub fn login_candidate(c: &Connection, name: &str) -> Result<LoginCandidate> {
+    Ok(LoginCandidate(
+        c.query_row(
             &format!("SELECT {COLUMNS}, password_hash FROM users WHERE name_key = ?1"),
             [crate::fold(name)],
             |r| Ok((row(r)?, r.get(7)?)),
         )
-        .optional()?;
-    let stored = found
-        .as_ref()
-        .and_then(|(_, h)| h.as_deref())
-        .unwrap_or(dummy());
-    let matches = verify(password, stored);
-    Ok(found
-        .filter(|(u, h)| matches && h.is_some() && !u.disabled)
-        .map(|(u, _)| u))
+        .optional()?,
+    ))
+}
+
+impl LoginCandidate {
+    /// As `login`: None for an unknown name, a wrong password, no password
+    /// and a disabled user alike, and a hash is checked in every case.
+    pub fn verify(self, password: &str) -> Option<User> {
+        let found = self.0;
+        let stored = found
+            .as_ref()
+            .and_then(|(_, h)| h.as_deref())
+            .unwrap_or(dummy());
+        let matches = verify(password, stored);
+        found
+            .filter(|(u, h)| matches && h.is_some() && !u.disabled)
+            .map(|(u, _)| u)
+    }
 }
 
 pub fn set_password(t: &Transaction, id: Id, pw: Option<&str>) -> Result<()> {

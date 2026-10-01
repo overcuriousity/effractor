@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 
 use crate::accounts::Accounts;
 use crate::api::ApiError;
-use crate::auth::password::peer;
+use crate::auth::password::{check, hash_turn, peer};
 use crate::auth::session::{self, CurrentUser, MaybeUser};
 
 pub fn routes() -> Router<Accounts> {
@@ -86,9 +86,8 @@ async fn update(
         let ip = peer(&accounts, &extensions, &headers);
         let now = accounts.db().now();
         accounts.logins().take(ip, now).map_err(ApiError::TooMany)?;
-        let (name, current) = (user.name.clone(), body.current_password.unwrap_or_default());
-        let ok = accounts
-            .blocking(move |db| db.read(|c| users::login(c, &name, &current)))
+        let current = body.current_password.unwrap_or_default();
+        let ok = check(&accounts, user.name.clone(), current)
             .await?
             .is_some();
         if !ok {
@@ -100,8 +99,14 @@ async fn update(
         // session must not plant it.
         session::fresh(&accounts, &token).await?;
     }
+    // A new password is hashed: in its turn.
+    let turn = match password {
+        Some(Some(_)) => Some(hash_turn().await),
+        _ => None,
+    };
     accounts
         .blocking(move |db| {
+            let _turn = turn;
             db.write(|t| {
                 if let Some(name) = &display_name {
                     users::set_display_name(t, user.id, name)?;

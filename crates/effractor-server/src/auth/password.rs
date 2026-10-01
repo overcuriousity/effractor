@@ -1,4 +1,5 @@
 use std::net::IpAddr;
+use std::sync::OnceLock;
 
 use axum::Json;
 use axum::extract::State;
@@ -6,6 +7,7 @@ use axum::http::{Extensions, HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use effractor_accounts::{sessions, users};
 use serde::Deserialize;
+use tokio::sync::{Semaphore, SemaphorePermit};
 
 use super::session::{CurrentUser, MaybeUser, clear_cookie, set_cookie};
 use crate::accounts::Accounts;
@@ -22,6 +24,43 @@ pub(crate) fn peer(accounts: &Accounts, extensions: &Extensions, headers: &Heade
     crate::client_ip(accounts.trusts_proxy(), extensions, headers)
 }
 
+/// Who may hash or check a password now. Argon2 takes 19 MiB and a core
+/// for a moment; without a bound, a few hundred logins at once would take
+/// gigabytes. One at a time per core, all requests together; the rest wait.
+pub fn hashing() -> &'static Semaphore {
+    static PERMITS: OnceLock<Semaphore> = OnceLock::new();
+    PERMITS.get_or_init(|| {
+        Semaphore::new(std::thread::available_parallelism().map_or(1, std::num::NonZero::get))
+    })
+}
+
+/// A turn at Argon2: moved into the blocking closure that hashes, so it is
+/// held for as long as the hashing runs, even if the request goes away.
+pub(crate) async fn hash_turn() -> SemaphorePermit<'static> {
+    hashing()
+        .acquire()
+        .await
+        .expect("the semaphore is never closed")
+}
+
+/// Checks `name`'s password in its turn, after giving the database
+/// connection back (see `users::LoginCandidate`).
+pub(crate) async fn check(
+    accounts: &Accounts,
+    name: String,
+    password: String,
+) -> Result<Option<users::User>, ApiError> {
+    let turn = hash_turn().await;
+    accounts
+        .blocking(move |db| {
+            let candidate = db.read(|c| users::login_candidate(c, &name))?;
+            let user = candidate.verify(&password);
+            drop(turn);
+            Ok(user)
+        })
+        .await
+}
+
 /// A token is taken per attempt and given back on success, so only failures count.
 pub async fn login(
     State(accounts): State<Accounts>,
@@ -32,9 +71,7 @@ pub async fn login(
     let ip = peer(&accounts, &extensions, &headers);
     let now = accounts.db().now();
     accounts.logins().take(ip, now).map_err(ApiError::TooMany)?;
-    let user = accounts
-        .blocking(move |db| db.read(|c| users::login(c, &body.name, &body.password)))
-        .await?;
+    let user = check(&accounts, body.name, body.password).await?;
     let Some(user) = user else {
         return Err(ApiError::Unauthorized);
     };
