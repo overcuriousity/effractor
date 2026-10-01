@@ -1812,6 +1812,10 @@ to try. What worked today:
 - Page scripts: `assets/js/`, one IIFE module each, in the load order of
   `crates/effractor-server/templates/shell.html` — the one list; `app.js`
   holds state, solving, undo and the file menu.
+- `dom.js` loads first: `$`, `el`, `svg` and `download` as
+  `window.effractorDom`, taken by every page script instead of a copy of its
+  own. A test runs a page script after it with `runPage`
+  (`scripts/fixtures/fake-dom.js`).
 - `window.effractor` is how they talk: `state`, `select`, `applyEdit`,
   `adoptSource`, `solve`, `undo`/`redo`, `say`, `format`, `onChange`.
 - Every edit goes document → `serialize` → `parse` in wasm; JS never judges a
