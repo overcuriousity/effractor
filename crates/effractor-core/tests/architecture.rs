@@ -839,7 +839,10 @@ fn an_ids_and_an_ips_are_sensors_a_machine_watches_with() {
         assert!(kind.states().is_empty());
         assert_eq!(kind.slots(), &[Slot::Bypass]);
         assert_eq!(kind.defenses(), &[Defense::Enabled]);
-        assert!(!Slot::Bypass.optional(kind), "a new kind's slot is required");
+        assert!(
+            !Slot::Bypass.optional(kind),
+            "a new kind's slot is required"
+        );
         let sensor = Entity::new(kind, "Sensor");
         assert_eq!(sensor.defenses.get(Defense::Enabled), Some(Switch::Unknown));
         assert!(sensor.parameters.contains_key(&Slot::Bypass));
