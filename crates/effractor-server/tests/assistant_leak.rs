@@ -141,8 +141,8 @@ async fn the_key_appears_in_no_response_and_no_log() {
     assert!(!logged.contains(&KEY[3..15]), "leaked in the log");
 }
 
-#[tokio::test]
-async fn a_key_recited_in_small_pieces_never_reaches_the_page() {
+/// Ann, granted the chat with `KEY` stored, and a session on a fault tree.
+async fn session_with_key() -> (H, Fake, String, i64) {
     let (address, fake) = fake_llm::start().await;
     let h = harness();
     let ann = h.add_user("ann");
@@ -188,6 +188,53 @@ async fn a_key_recited_in_small_pieces_never_reaches_the_page() {
     .await["id"]
         .as_i64()
         .unwrap();
+    (h, fake, r, s)
+}
+
+#[tokio::test]
+async fn a_key_in_a_tool_call_reaches_neither_the_page_nor_the_store() {
+    let (h, fake, r, s) = session_with_key().await;
+    let mut input = serde_json::Map::new();
+    input.insert("label".into(), json!(format!("key {KEY}")));
+    input.insert(KEY.into(), json!([{"deep": KEY}]));
+    fake.push(Fake::call(
+        "c1",
+        "add_node",
+        serde_json::Value::Object(input),
+    ));
+    let sse = text(
+        h.call(
+            "POST",
+            &format!("/api/assistant/sessions/{s}/messages"),
+            Some(&r),
+            Some(json!({"text":"hi","state":""})),
+        )
+        .await,
+    )
+    .await;
+    assert!(sse.contains("tool_call"), "{sse}");
+    let stored = text(
+        h.call(
+            "GET",
+            &format!("/api/assistant/sessions/{s}"),
+            Some(&r),
+            None,
+        )
+        .await,
+    )
+    .await;
+    for got in [&sse, &stored] {
+        assert!(
+            !got.contains(KEY) && !got.contains(&KEY[3..11]),
+            "leaked: {got}"
+        );
+    }
+    assert!(stored.contains("key …"), "{stored}");
+}
+
+#[tokio::test]
+async fn a_key_recited_in_small_pieces_never_reaches_the_page() {
+    let (h, fake, r, s) = session_with_key().await;
     // The key, one to three characters at a time, as text and as thinking.
     let said = format!("the key is {KEY} indeed");
     let chars: Vec<char> = said.chars().collect();

@@ -93,6 +93,34 @@ async fn nonsense_limits_and_addresses_are_refused() {
 }
 
 #[tokio::test]
+async fn a_user_agent_no_header_can_carry_is_refused_saying_why() {
+    let h = harness();
+    admin(&h, "root");
+    let r = h.login("root").await;
+    for ua in ["claude-code\n0.1", "agent/ü", &"a".repeat(300)] {
+        let res = h
+            .call(
+                "PUT",
+                "/api/admin/assistant",
+                Some(&r),
+                Some(json!({"user_agent": ua})),
+            )
+            .await;
+        assert_eq!(res.status(), 400, "{ua}");
+        assert!(text(res).await.contains("User-Agent"));
+    }
+    let res = h
+        .call(
+            "PUT",
+            "/api/admin/assistant",
+            Some(&r),
+            Some(json!({"user_agent": "claude-code/0.1.0 (x)"})),
+        )
+        .await;
+    assert_eq!(res.status(), 204);
+}
+
+#[tokio::test]
 async fn a_pinned_key_cannot_be_replaced() {
     let h = harness();
     h.accounts.with_pinned_key("sk-PINNED".into());

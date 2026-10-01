@@ -96,6 +96,12 @@ fn within(name: &str, v: Option<u64>, lo: u64, hi: u64) -> Result<Option<String>
 
 const NOT_AN_ADDRESS: &str = "address: an http or https address, not a link-local one";
 
+/// What any header carries as it is: printable ASCII. A User-Agent that
+/// cannot be sent would fail every request.
+fn user_agent_ok(ua: &str) -> bool {
+    ua.len() <= 256 && ua.bytes().all(|b| (0x20..0x7f).contains(&b))
+}
+
 async fn change(
     State(accounts): State<Accounts>,
     CurrentUser(user, token): CurrentUser,
@@ -115,6 +121,13 @@ async fn change(
         Some(a) => Some(a.trim().trim_end_matches('/').to_owned()),
         None => None,
     };
+    if let Some(ua) = &b.user_agent
+        && !user_agent_ok(ua.trim())
+    {
+        return Err(ApiError::Bad(
+            "User-Agent: printable ASCII only, at most 256 characters".into(),
+        ));
+    }
     if matches!(b.key, Some(Some(_))) && accounts.assistant().pinned().is_some() {
         return Err(ApiError::Refused("the key is set by the operator".into()));
     }
@@ -274,6 +287,11 @@ async fn models(
     let key = b.key.filter(|k| !k.is_empty()).or_else(|| cfg.key.clone());
     let http = provider::admin_client(cfg.timeout_seconds.min(30));
     let ua = b.user_agent.unwrap_or(cfg.user_agent.clone());
+    if !user_agent_ok(ua.trim()) {
+        return Ok(Json(
+            json!({"models": [], "reason": "the User-Agent is not printable ASCII"}),
+        ));
+    }
     Ok(Json(
         match provider::models(p, &address, key.as_deref(), ua.trim(), &http).await {
             Ok(list) => json!({ "models": list }),

@@ -46,8 +46,9 @@ pub const REPLY_TOKENS: u32 = 8_192;
 pub const MESSAGE_BYTES: u32 = 262_144;
 pub const TIMEOUT_SECONDS: u64 = 120;
 
-/// What the admin configured, with the key resolved but never serialised.
-#[derive(Clone, Debug, Serialize)]
+/// What the admin configured, with the key resolved but never serialised
+/// nor printed.
+#[derive(Clone, Serialize)]
 pub struct Config {
     pub provider: Provider,
     pub address: String,
@@ -71,6 +72,28 @@ pub struct Config {
     /// Not to be changed in the tab: pinned, or the address the operator's
     /// key was first saved with — that key goes nowhere else.
     pub address_fixed: bool,
+}
+
+impl std::fmt::Debug for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Config")
+            .field("provider", &self.provider)
+            .field("address", &self.address)
+            .field("model", &self.model)
+            .field("steps", &self.steps)
+            .field("context", &self.context)
+            .field("reply_tokens", &self.reply_tokens)
+            .field("message_bytes", &self.message_bytes)
+            .field("daily_tokens", &self.daily_tokens)
+            .field("timeout_seconds", &self.timeout_seconds)
+            .field("user_agent", &self.user_agent)
+            .field("key", &self.key.as_ref().map(|_| "…"))
+            .field("key_set", &self.key_set)
+            .field("key_pinned", &self.key_pinned)
+            .field("address_pinned", &self.address_pinned)
+            .field("address_fixed", &self.address_fixed)
+            .finish()
+    }
 }
 
 impl Config {
@@ -258,6 +281,21 @@ mod tests {
         );
         assert!(!scrub("key: abcdefghij…", Some("sk-abcdefghijkl")).contains("abcdefgh"));
         assert_eq!(scrub("nothing", None), "nothing");
+    }
+
+    #[test]
+    fn a_config_printed_for_debugging_leaves_the_key_out() {
+        let c = effractor_accounts::Connection::open_in_memory().unwrap();
+        c.execute_batch("CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            .unwrap();
+        let pins = Pins {
+            key: Some("sk-SECRET-KEY-1234".into()),
+            address: None,
+        };
+        let cfg = load(&c, &pins).unwrap();
+        let printed = format!("{cfg:?}");
+        assert!(!printed.contains("sk-SECRET"), "{printed}");
+        assert!(printed.contains("key_set: true"), "{printed}");
     }
 }
 

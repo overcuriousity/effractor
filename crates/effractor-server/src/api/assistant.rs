@@ -688,6 +688,30 @@ impl<'a> Held<'a> {
     }
 }
 
+/// Every string of a tool call's input, and every field name, scrubbed of
+/// the key as text is: the page and the store see the call as scrubbed.
+fn scrub_value(v: &mut Value, key: Option<&str>) {
+    if key.is_none() {
+        return;
+    }
+    // A loop, not recursion: the input is the model's.
+    let mut todo = vec![v];
+    while let Some(v) = todo.pop() {
+        match v {
+            Value::String(s) => *s = scrub(s, key),
+            Value::Array(items) => todo.extend(items.iter_mut()),
+            Value::Object(fields) => {
+                *fields = std::mem::take(fields)
+                    .into_iter()
+                    .map(|(k, v)| (scrub(&k, key), v))
+                    .collect();
+                todo.extend(fields.values_mut());
+            }
+            _ => {}
+        }
+    }
+}
+
 async fn send_held(
     tx: &mpsc::Sender<SseEvent>,
     event: &str,
@@ -818,7 +842,9 @@ async fn drive_inner(
                             thinking.push_str(&t);
                             send_held(tx, "thinking", live_thinking.push(&t)).await
                         }
-                        Some(Ok(Event::ToolCall { id, name, input })) => {
+                        Some(Ok(Event::ToolCall { id, name, mut input })) => {
+                            scrub_value(&mut input, key);
+                            let (id, name) = (scrub(&id, key), scrub(&name, key));
                             let r = flush_held(tx, &mut live_thinking, &mut live_text).await;
                             let r = match r {
                                 Ok(()) => tx.send(sse("tool_call", json!({"id": id, "name": name, "input": input}))).await,
