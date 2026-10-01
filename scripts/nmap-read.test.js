@@ -94,6 +94,38 @@ test('a script\'s tables nested twenty thousand deep are read, not a stack overf
   assert.deepEqual(data.tables[0].tables.map(x => x.key), ['a1', 'a2']);
 });
 
+test('an address that is none and a port without a number or protocol are skipped, and said', () => {
+  const S = require('../assets/js/scanners.js');
+  const head = '<?xml version="1.0"?><nmaprun scanner="nmap" args="nmap -sV -oX - 10.0.0.0/24" start="1790000000"><scaninfo type="connect" protocol="tcp" services="1-1000"/>';
+  const host = (address, ports) => '<host><status state="up"/>' + address + '<ports>' + ports + '</ports></host>';
+  const port = attrs => '<port ' + attrs + '><state state="open"/><service name="ssh"/></port>';
+  const xml = head
+    + host('<address addrtype="ipv4"/>', port('protocol="tcp" portid="22"'))
+    + host('<address addr="zzz" addrtype="ipv4"/>', port('protocol="tcp" portid="22"'))
+    + host('<address addr="10.0.0.7" addrtype="ipv4"/><address addr="10.0.0.300" addrtype="ipv4"/>', port('protocol="tcp"') + port('portid="22"') + port('protocol="tcp" portid="70000"') + port('protocol="tcp" portid="x22"') + port('protocol="tcp" portid="443"'))
+    + '<runstats><finished exit="success"/></runstats></nmaprun>';
+  const { scan } = R.read(xml);
+  assert.deepEqual(scan.hosts.map(h => h.addresses), [['10.0.0.7']]);
+  assert.deepEqual(scan.hosts[0].ports.map(p => p.protocol + '/' + p.port), ['tcp/443']);
+  assert.deepEqual(scan.skipped, { addresses: 3, ports: 4 });
+  assert.deepEqual(S.notes('nmap', scan), ['3 addresses that are no IP address and 4 ports without a number or protocol were skipped.']);
+  assert.deepEqual(R.readNotes({ skipped: { addresses: 1, ports: 0 } }), ['1 address that is no IP address was skipped.']);
+  assert.deepEqual(R.readNotes({ skipped: { addresses: 0, ports: 1 } }), ['1 port without a number or protocol was skipped.']);
+  assert.deepEqual(R.readNotes(R.read(fixture('lan-arp.xml')).scan), []);
+  // Only what is left is imported.
+  const N = require('../assets/js/nmap.js');
+  const E = require('../assets/js/architecture-edit.js');
+  const catalog = JSON.parse(fs.readFileSync('scripts/fixtures/catalog.json', 'utf8'));
+  const specOf = kind => catalog.entities.filter(e => e.kind === kind)[0];
+  const doc = N.addNmap(E.empty(), null, 'nmap', specOf).doc;
+  const p = N.plan(doc, 'nmap', scan, '', {});
+  const out = N.apply(doc, p, N.defaults(p), specOf, N.stampFor(scan, '', scan.date)).doc;
+  assert.deepEqual(Object.values(out.entities).filter(e => e.kind === 'host').map(e => e.addresses), [['10.0.0.7']]);
+  assert.deepEqual(Object.values(out.entities).filter(e => e.kind === 'service').map(e => e.label), ['ssh']);
+  // A result with no host left says why.
+  assert.deepEqual(R.read(head + host('<address addr="zzz" addrtype="ipv4"/>', '') + '<runstats><finished exit="success"/></runstats></nmaprun>').problem, { code: 'no-address', message: 'No host here has an IP address that can be read.' });
+});
+
 test('a reader that fails says why, never nothing', () => {
   const S = require('../assets/js/scanners.js');
   const nmap = S.TOOLS.filter(t => t.id === 'nmap')[0];

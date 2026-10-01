@@ -92,6 +92,7 @@
     "not-nmap": "This is not an nmap result.",
     "truncated": "The result is cut off; copy the whole output, from <?xml to </nmaprun>.",
     "no-host-up": "No host answered. Check the range, or try from another host.",
+    "no-address": "No host here has an IP address that can be read.",
   };
   function problem(code, detail) {
     var message = code === "nmap-error" ? "nmap stopped: " + detail : code === "other-scanner" ? detail : PROBLEMS[code];
@@ -241,21 +242,35 @@
     return { identities: ids, names: names };
   }
 
-  function hostOf(h) {
+  // A port nmap can list: a protocol word and a number up to 65535.
+  function portOk(p) {
+    return /^[a-z][a-z0-9]*$/.test(p.attrs.protocol || "") && /^\d{1,5}$/.test(p.attrs.portid || "") && Number(p.attrs.portid) <= 65535;
+  }
+  // `skipped` counts what is left out: an address that is no IP address, a
+  // port without a number or protocol (review 2026-10-01: they became a
+  // host "zzz" and a service "tcp/NaN", or lost the whole import).
+  function hostOf(h, skipped) {
     var names = kids(kid(h, "hostnames"), "hostname");
     var match = kids(kid(h, "os"), "osmatch")[0];
     var macEl = kids(h, "address").filter(function (a) { return a.attrs.addrtype === "mac"; })[0] || null;
+    var ips = kids(h, "address").filter(function (a) {
+      return a.attrs.addrtype === "ipv4" || a.attrs.addrtype === "ipv6";
+    });
+    var listed = kids(kid(h, "ports"), "port");
+    // An IPv6 address may carry its zone: fe80::1%eth0.
+    var addresses = ips.filter(function (a) { return !!Ad.bytes(String(a.attrs.addr).replace(/%[^%]*$/, "")); }).map(function (a) { return a.attrs.addr; });
+    var ports = listed.filter(portOk);
+    skipped.addresses += ips.length - addresses.length;
+    skipped.ports += listed.length - ports.length;
     var out = {
-      addresses: kids(h, "address").filter(function (a) {
-        return a.attrs.addrtype === "ipv4" || a.attrs.addrtype === "ipv6";
-      }).map(function (a) { return a.attrs.addr; }),
+      addresses: addresses,
       hostname: names.length ? names[0].attrs.name || null : null,
       // A root scan marks nmap's own addresses.
       self: !!kid(h, "status") && kid(h, "status").attrs.reason === "localhost-response",
       os: match ? { name: match.attrs.name, accuracy: Number(match.attrs.accuracy) } : null,
       // nmap's device classes for its best match: "WAP", "broadband router"…
       device: kids(match, "osclass").map(function (c) { return c.attrs.type; }).filter(Boolean),
-      ports: kids(kid(h, "ports"), "port").map(function (p) {
+      ports: ports.map(function (p) {
         var state = kid(p, "state");
         return { protocol: p.attrs.protocol, port: Number(p.attrs.portid), state: state ? state.attrs.state : "", reason: state ? state.attrs.reason || null : null, service: serviceOf(p), scripts: kids(p, "script").map(scriptOf) };
       }),
@@ -368,7 +383,7 @@
     if (!runs.length) return problem("not-nmap");
     var by = runs[0].attrs.scanner || "nmap";
     if (by !== want) return otherScanner(by, want);
-    var hosts = [], pre = [];
+    var hosts = [], pre = [], skipped = { addresses: 0, ports: 0 };
     for (var r = 0; r < runs.length; r++) {
       // What nmap's scripts said before the scan (scan workflow spec §6.1).
       pre = pre.concat(kids(kid(runs[r], "prescript"), "script").map(scriptOf));
@@ -379,7 +394,7 @@
       hosts = hosts.concat(kids(runs[r], "host").filter(function (h) {
         var s = kid(h, "status");
         return !s || s.attrs.state === "up";
-      }).map(hostOf).filter(function (h) { return h.addresses.length; }));
+      }).map(function (h) { return hostOf(h, skipped); }).filter(function (h) { return h.addresses.length; }));
     }
     // One MAC behind several IPv4 addresses (proxy ARP, a router answering
     // for a subnet) identifies none of them: they stay apart. An IPv4 and
@@ -405,7 +420,7 @@
       });
     }
     hosts = fold(hosts);
-    if (!hosts.length) return problem("no-host-up");
+    if (!hosts.length) return problem(skipped.addresses ? "no-address" : "no-host-up");
     var silentUdp = 0;
     hosts.forEach(function (h) {
       h.ports.forEach(function (p) { if (p.protocol === "udp" && p.state === "open|filtered") silentUdp++; });
@@ -431,7 +446,19 @@
     var args = argsOf(runs);
     // Different scans pasted together: none asked the others' hosts.
     var asks = runs.length > 1 && !args ? [] : asksOf(args, types, probedPorts);
-    return { scan: { tool: want, args: args, hosts: hosts, silentUdp: silentUdp, date: date, probed: probedPorts, types: types, sharedMacs: shared.length, asks: asks, pre: pre } };
+    return { scan: { tool: want, args: args, hosts: hosts, silentUdp: silentUdp, date: date, probed: probedPorts, types: types, sharedMacs: shared.length, asks: asks, pre: pre, skipped: skipped } };
+  }
+
+  // What the reader left out, in words for the preview's notes.
+  function readNotes(scan) {
+    var s = (scan && scan.skipped) || {};
+    function n(k, one, many) {
+      return k + " " + (k === 1 ? one : many);
+    }
+    var parts = [];
+    if (s.addresses) parts.push(n(s.addresses, "address that is no IP address", "addresses that are no IP address"));
+    if (s.ports) parts.push(n(s.ports, "port without a number or protocol", "ports without a number or protocol"));
+    return parts.length ? [parts.join(" and ") + (s.addresses + s.ports === 1 ? " was" : " were") + " skipped."] : [];
   }
 
   // What a scan asked of every host it lists (scan workflow spec §3), from
@@ -506,7 +533,7 @@
     return new TextDecoder(enc).decode(b);
   }
 
-  var api = { asksOf: asksOf, passing: passing, probed: probed, portState: portState, cleanName: cleanName, read: read, decodeFile: decodeFile, oneHost: oneHost, has: has, parseXml: parseXml, kids: kids, kid: kid, portName: portName, otherScanner: otherScanner, macOf: macOf };
+  var api = { readNotes: readNotes, asksOf: asksOf, passing: passing, probed: probed, portState: portState, cleanName: cleanName, read: read, decodeFile: decodeFile, oneHost: oneHost, has: has, parseXml: parseXml, kids: kids, kid: kid, portName: portName, otherScanner: otherScanner, macOf: macOf };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapRead = api;
 })();
