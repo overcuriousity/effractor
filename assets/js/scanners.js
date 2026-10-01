@@ -25,9 +25,16 @@
   function addScanner(doc, id, hostId, label, specOf) {
     return byId(id) ? N.addScanner(doc, id, hostId, label, specOf) : null;
   }
-  // A result pasted into another tool's dialog says where it goes.
+  // A result pasted into another tool's dialog says where it goes. One a
+  // reader fails on says why, never nothing.
   function read(id, text) {
-    var r = byId(id).read(text);
+    var r;
+    try {
+      r = byId(id).read(text);
+    } catch (e) {
+      if (typeof console !== "undefined") console.error(e);
+      return { problem: { code: "unreadable", message: "This result could not be read: " + String((e && e.message) || e).replace(/\.$/, "") + "." } };
+    }
     if (!r.problem || r.problem.code === "empty") return r;
     var other = TOOLS.filter(function (t) { return t.id !== id && t.looks.test(String(text || "")); })[0];
     if (other) r.problem = { code: "other-scanner", message: "This result is from " + other.name + ", not " + byId(id).name + "; add " + other.name + " and paste it there." };

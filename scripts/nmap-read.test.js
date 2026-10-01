@@ -74,6 +74,42 @@ test('a trace keeps its hops in order, a hop that did not answer as a missing tt
   assert.deepEqual(srv.trace, [{ ttl: 1, address: '10.0.1.1', name: 'gw.lab' }, { ttl: 3, address: '10.0.1.5', name: null }]);
 });
 
+test('a script\'s tables nested twenty thousand deep are read, not a stack overflow', () => {
+  const deep = 20000;
+  const xml = fixture('lan-arp.xml').replace('<hostnames>\n<hostname name="gw.lab" type="PTR"/>', '<hostnames>\n<hostname name="gw.lab" type="PTR"/>\n</hostnames>\n<hostscript><script id="deep" output="x">' + '<table key="t">'.repeat(deep) + '<elem key="leaf">end</elem>' + '</table>'.repeat(deep) + '</script></hostscript>\n<hostnames>');
+  const r = R.read(xml);
+  assert.equal(r.problem, undefined);
+  const gw = r.scan.hosts[0];
+  let t = gw.scripts.filter(s => s.id === 'deep')[0].data, depth = 0;
+  while (t.tables.length) {
+    t = t.tables[0];
+    depth++;
+  }
+  assert.equal(depth, deep);
+  assert.deepEqual(t.elems, { leaf: 'end' });
+  // A table's tables keep their order.
+  const two = R.read(fixture('lan-arp.xml').replace('<hostnames>\n<hostname name="gw.lab" type="PTR"/>', '<hostnames>\n<hostname name="gw.lab" type="PTR"/>\n</hostnames>\n<hostscript><script id="two" output="x"><table key="a"><table key="a1"/><table key="a2"/></table><table key="b"/></script></hostscript>\n<hostnames>'));
+  const data = two.scan.hosts[0].scripts.filter(s => s.id === 'two')[0].data;
+  assert.deepEqual(data.tables.map(x => x.key), ['a', 'b']);
+  assert.deepEqual(data.tables[0].tables.map(x => x.key), ['a1', 'a2']);
+});
+
+test('a reader that fails says why, never nothing', () => {
+  const S = require('../assets/js/scanners.js');
+  const nmap = S.TOOLS.filter(t => t.id === 'nmap')[0];
+  const was = nmap.read, error = console.error;
+  nmap.read = () => { throw new RangeError('Maximum call stack size exceeded'); };
+  console.error = () => {};
+  try {
+    const r = S.read('nmap', '<nmaprun/>');
+    assert.equal(r.problem.code, 'unreadable');
+    assert.equal(r.problem.message, 'This result could not be read: Maximum call stack size exceeded.');
+  } finally {
+    nmap.read = was;
+    console.error = error;
+  }
+});
+
 test('private space: RFC 1918, shared, link-local, loopback, ULA', () => {
   for (const ip of ['10.1.2.3', '172.16.0.1', '172.31.255.1', '192.168.1.1', '100.64.0.1', '169.254.1.1', '127.0.0.1', 'fd00::1', 'fe80::1', '::1']) assert.equal(Ad.isPrivate(ip), true, ip);
   for (const ip of ['172.32.0.1', '8.8.8.8', '100.128.0.1', '2001:db8::1', 'srv.lab']) assert.equal(Ad.isPrivate(ip), false, ip);

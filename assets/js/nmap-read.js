@@ -133,14 +133,27 @@
     return e ? e.text.trim() : null;
   }
   // A script's structure as nmap writes it: keyed and unkeyed <elem>s and
-  // nested <table>s (nmap recipes spec §3.2).
+  // nested <table>s (nmap recipes spec §3.2). Gone through with a list,
+  // not by recursion: a result nested thousands deep is user input, and a
+  // stack overflow is no reason (review 2026-10-01).
   function tableOf(el) {
-    var elems = {}, items = [];
-    kids(el, "elem").forEach(function (e) {
-      if (e.attrs.key) elems[e.attrs.key] = e.text.trim();
-      else items.push(e.text.trim());
-    });
-    return { key: el.attrs.key || null, elems: elems, items: items, tables: kids(el, "table").map(tableOf) };
+    function shell(e) {
+      return { key: e.attrs.key || null, elems: {}, items: [], tables: [] };
+    }
+    var top = shell(el), work = [[el, top]];
+    while (work.length) {
+      var w = work.pop(), t = w[1];
+      kids(w[0], "elem").forEach(function (e) {
+        if (e.attrs.key) t.elems[e.attrs.key] = e.text.trim();
+        else t.items.push(e.text.trim());
+      });
+      kids(w[0], "table").forEach(function (c) {
+        var inner = shell(c);
+        t.tables.push(inner);
+        work.push([c, inner]);
+      });
+    }
+    return top;
   }
   function scriptOf(el) {
     return {

@@ -389,8 +389,17 @@
 
   function preview() {
     var old = at.ticks;
-    if (at.tool === "nuclei") Nu.asking(at.scan, asked.nuclei.recipes, $("nmap-range").value);
-    at.plan = N.plan(doc(), at.app, at.scan, $("nmap-range").value, at.merges, new Date().toISOString().slice(0, 10));
+    // A result the plan fails on says why, back where it was pasted.
+    try {
+      if (at.tool === "nuclei") Nu.asking(at.scan, asked.nuclei.recipes, $("nmap-range").value);
+      at.plan = N.plan(doc(), at.app, at.scan, $("nmap-range").value, at.merges, new Date().toISOString().slice(0, 10));
+    } catch (e) {
+      console.error(e);
+      $("nmap-read-problem").textContent = "This result could not be planned: " + String((e && e.message) || e).replace(/\.$/, "") + ".";
+      $("nmap-ask").hidden = false;
+      $("nmap-preview").hidden = true;
+      return;
+    }
     var fresh = N.defaults(at.plan);
     // What was ticked stays ticked over a new plan; what is new takes its default.
     if (old) {
