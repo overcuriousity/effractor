@@ -66,6 +66,11 @@ pub struct Config {
     pub key: Option<String>,
     pub key_set: bool,
     pub key_pinned: bool,
+    /// Set by the operator (`--assistant-address`).
+    pub address_pinned: bool,
+    /// Not to be changed in the tab: pinned, or the address the operator's
+    /// key was first saved with — that key goes nowhere else.
+    pub address_fixed: bool,
 }
 
 impl Config {
@@ -85,15 +90,26 @@ fn number<T: std::str::FromStr>(
         .unwrap_or(default))
 }
 
-/// The configuration as stored; a pinned key wins over a stored one.
-pub fn load(c: &Connection, pinned: Option<&str>) -> effractor_accounts::Result<Config> {
+/// What the operator set at startup, which wins over what is stored.
+#[derive(Clone, Default)]
+pub struct Pins {
+    pub key: Option<String>,
+    pub address: Option<String>,
+}
+
+/// The configuration as stored; what the operator pinned wins.
+pub fn load(c: &Connection, pins: &Pins) -> effractor_accounts::Result<Config> {
     let stored_key = setting(c, "assistant.key")?;
-    let key = pinned.map(str::to_owned).or(stored_key);
+    let key = pins.key.clone().or(stored_key);
+    let stored_address = setting(c, "assistant.address")?;
+    let address_fixed = pins.address.is_some() || (pins.key.is_some() && stored_address.is_some());
     Ok(Config {
         provider: setting(c, "assistant.provider")?
             .and_then(|p| Provider::parse(&p))
             .unwrap_or(Provider::Openai),
-        address: setting(c, "assistant.address")?.unwrap_or_default(),
+        address: pins.address.clone().or(stored_address).unwrap_or_default(),
+        address_pinned: pins.address.is_some(),
+        address_fixed,
         model: setting(c, "assistant.model")?.unwrap_or_default(),
         steps: number(c, "assistant.steps", STEPS)?,
         context: number(c, "assistant.context", CONTEXT)?,
@@ -103,9 +119,34 @@ pub fn load(c: &Connection, pinned: Option<&str>) -> effractor_accounts::Result<
         timeout_seconds: number(c, "assistant.timeout_seconds", TIMEOUT_SECONDS)?,
         user_agent: setting(c, "assistant.user_agent")?.unwrap_or_default(),
         key_set: key.is_some(),
-        key_pinned: pinned.is_some(),
+        key_pinned: pins.key.is_some(),
         key,
     })
+}
+
+/// An http or https address of a host that is not link-local: those carry
+/// a cloud's metadata service (169.254.169.254), never a model. Loopback
+/// stays: a local model listens there.
+pub fn is_address(a: &str) -> bool {
+    use std::net::IpAddr;
+    let Ok(u) = reqwest::Url::parse(a) else {
+        return false;
+    };
+    let Some(host) = u.host_str() else {
+        return false;
+    };
+    if !matches!(u.scheme(), "http" | "https") {
+        return false;
+    }
+    let ip = host.trim_start_matches('[').trim_end_matches(']');
+    match ip.parse::<IpAddr>() {
+        Ok(IpAddr::V4(v4)) => !v4.is_link_local(),
+        Ok(IpAddr::V6(v6)) => {
+            v6.segments()[0] & 0xffc0 != 0xfe80
+                && !v6.to_ipv4_mapped().is_some_and(|v4| v4.is_link_local())
+        }
+        Err(_) => true,
+    }
 }
 
 /// Kimi's and Moonshot's endpoints, which want thinking replayed with tool
@@ -137,11 +178,12 @@ pub fn scrub(text: &str, key: Option<&str>) -> String {
     out
 }
 
-/// The chat's process state: the operator's key, and a stop signal per
-/// session whose turn is streaming.
+/// The chat's process state: the operator's key and address, and a stop
+/// signal per session whose turn is streaming.
 #[derive(Default)]
 pub struct Assistant {
     pinned: OnceLock<String>,
+    pinned_address: OnceLock<String>,
     stops: Mutex<HashMap<Id, tokio::sync::watch::Sender<bool>>>,
 }
 
@@ -152,6 +194,21 @@ impl Assistant {
 
     pub(crate) fn pin(&self, key: String) -> bool {
         self.pinned.set(key).is_ok()
+    }
+
+    pub fn pinned_address(&self) -> Option<&str> {
+        self.pinned_address.get().map(String::as_str)
+    }
+
+    pub(crate) fn pin_address(&self, address: String) -> bool {
+        self.pinned_address.set(address).is_ok()
+    }
+
+    pub fn pins(&self) -> Pins {
+        Pins {
+            key: self.pinned().map(str::to_owned),
+            address: self.pinned_address().map(str::to_owned),
+        }
     }
 
     /// A fresh signal for the step now starting in `session`.
@@ -201,6 +258,34 @@ mod tests {
         );
         assert!(!scrub("key: abcdefghij…", Some("sk-abcdefghijkl")).contains("abcdefgh"));
         assert_eq!(scrub("nothing", None), "nothing");
+    }
+}
+
+#[cfg(test)]
+mod address_tests {
+    use super::is_address;
+
+    #[test]
+    fn link_local_hosts_are_no_address_and_loopback_is() {
+        for a in [
+            "http://169.254.169.254/latest",
+            "http://[fe80::1]:8080/v1",
+            "http://[febf::1]/v1",
+            "http://[::ffff:169.254.169.254]/",
+            "ftp://example.com",
+            "not a url",
+        ] {
+            assert!(!is_address(a), "{a}");
+        }
+        for a in [
+            "http://127.0.0.1:11434/v1",
+            "http://[::1]:8080/v1",
+            "http://localhost:11434/v1",
+            "https://api.anthropic.com",
+            "http://169.253.0.1/",
+        ] {
+            assert!(is_address(a), "{a}");
+        }
     }
 }
 

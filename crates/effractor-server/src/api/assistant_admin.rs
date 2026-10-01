@@ -14,7 +14,7 @@ use serde_json::{Value, json};
 use crate::accounts::Accounts;
 use crate::api::ApiError;
 use crate::assistant::message::{Block, Event, Message, ProviderError, Request, Role};
-use crate::assistant::{Provider, load, provider, scrub};
+use crate::assistant::{Provider, is_address, load, provider, scrub};
 use crate::auth::session::{self, CurrentUser};
 
 const DAY: u64 = 86_400;
@@ -40,13 +40,13 @@ async fn show(
     CurrentUser(user, _): CurrentUser,
 ) -> Result<Json<Value>, ApiError> {
     admin_only(&user)?;
-    let pinned = accounts.assistant().pinned().map(str::to_owned);
+    let pins = accounts.assistant().pins();
     let since = accounts.db().now().saturating_sub(DAY);
     let (config, grants, usage) = accounts
         .blocking(move |db| {
             db.read(|c| {
                 Ok((
-                    load(c, pinned.as_deref())?,
+                    load(c, &pins)?,
                     assistant::grants(c)?,
                     assistant::usage(c, since)?,
                 ))
@@ -94,10 +94,7 @@ fn within(name: &str, v: Option<u64>, lo: u64, hi: u64) -> Result<Option<String>
     }
 }
 
-fn is_address(a: &str) -> bool {
-    reqwest::Url::parse(a)
-        .is_ok_and(|u| matches!(u.scheme(), "http" | "https") && u.host().is_some())
-}
+const NOT_AN_ADDRESS: &str = "address: an http or https address, not a link-local one";
 
 async fn change(
     State(accounts): State<Accounts>,
@@ -113,7 +110,7 @@ async fn change(
     }
     let address = match &b.address {
         Some(a) if !a.trim().is_empty() && !is_address(a.trim()) => {
-            return Err(ApiError::Bad("address: an http or https address".into()));
+            return Err(ApiError::Bad(NOT_AN_ADDRESS.into()));
         }
         Some(a) => Some(a.trim().trim_end_matches('/').to_owned()),
         None => None,
@@ -145,15 +142,33 @@ async fn change(
         other => other,
     };
     let by = user.id;
+    let pins = accounts.assistant().pins();
     accounts
         .blocking(move |db| {
             let now = db.now();
             db.write(|t| {
+                // The operator's key goes only to the operator's address, or
+                // to the first one saved with it; checked where it is saved.
+                if let Some(a) = &address {
+                    let stored = assistant::setting(t, "assistant.address")?;
+                    let fixed = match (&pins.address, &pins.key, &stored) {
+                        (Some(p), _, _) => Some((p, "the address is set by the operator")),
+                        (None, Some(_), Some(s)) => {
+                            Some((s, "the address stays: the operator's key goes only there"))
+                        }
+                        _ => None,
+                    };
+                    if let Some((at, why)) = fixed
+                        && a != at
+                    {
+                        return Ok(Err(ApiError::Refused(why.into())));
+                    }
+                }
                 let set = |k: &str, v: Option<&str>| assistant::set_setting(t, k, v, by, now);
                 if let Some(p) = &b.provider {
                     set("assistant.provider", Some(p))?;
                 }
-                if let Some(a) = &address {
+                if let Some(a) = address.as_ref().filter(|_| pins.address.is_none()) {
                     set(
                         "assistant.address",
                         Some(a).filter(|a| !a.is_empty()).map(String::as_str),
@@ -182,10 +197,10 @@ async fn change(
                         d.map(|d| d.to_string()).as_deref(),
                     )?;
                 }
-                Ok(())
+                Ok(Ok(()))
             })
         })
-        .await?;
+        .await??;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -227,37 +242,36 @@ struct ListModels {
     user_agent: Option<String>,
 }
 
-/// Always answers: the models, or none and why. A typed key goes where it
-/// was typed for; the stored one to its own address, or anywhere for a
-/// recent login.
+/// The models, or none and why, for a recent login: like saving, it sends
+/// a key out. A typed key goes where it was typed for; the stored one goes
+/// to the address listed, which the admin could save as well.
 async fn models(
     State(accounts): State<Accounts>,
     CurrentUser(user, token): CurrentUser,
     Json(b): Json<ListModels>,
 ) -> Result<Json<Value>, ApiError> {
     admin_only(&user)?;
+    session::fresh(&accounts, &token).await?;
     let Some(p) = Provider::parse(&b.provider) else {
         return Err(ApiError::Bad("provider: openai or anthropic".into()));
     };
     let address = b.address.trim().trim_end_matches('/').to_owned();
     if !is_address(&address) {
         return Ok(Json(
-            json!({"models": [], "reason": "not an http or https address"}),
+            json!({"models": [], "reason": "not an http or https address, or a link-local one"}),
         ));
     }
-    let pinned = accounts.assistant().pinned().map(str::to_owned);
+    let pins = accounts.assistant().pins();
     let cfg = accounts
-        .blocking(move |db| db.read(|c| load(c, pinned.as_deref())))
+        .blocking(move |db| db.read(|c| load(c, &pins)))
         .await?;
-    let key = match b.key.filter(|k| !k.is_empty()) {
-        Some(typed) => Some(typed),
-        // The stored key goes to another address only for a recent login,
-        // which could save that address as well.
-        None if address == cfg.address || session::fresh(&accounts, &token).await.is_ok() => {
-            cfg.key.clone()
-        }
-        None => None,
-    };
+    // A fixed address is the only one: the operator's key goes nowhere else.
+    if cfg.address_fixed && address != cfg.address {
+        return Ok(Json(
+            json!({"models": [], "reason": "the address is fixed by the operator"}),
+        ));
+    }
+    let key = b.key.filter(|k| !k.is_empty()).or_else(|| cfg.key.clone());
     let http = provider::admin_client(cfg.timeout_seconds.min(30));
     let ua = b.user_agent.unwrap_or(cfg.user_agent.clone());
     Ok(Json(
@@ -274,9 +288,10 @@ async fn test(
     CurrentUser(user, _): CurrentUser,
 ) -> Result<Json<Value>, ApiError> {
     admin_only(&user)?;
-    let pinned = accounts.assistant().pinned().map(str::to_owned);
+    // The saved address, or the operator's: never one only typed.
+    let pins = accounts.assistant().pins();
     let cfg = accounts
-        .blocking(move |db| db.read(|c| load(c, pinned.as_deref())))
+        .blocking(move |db| db.read(|c| load(c, &pins)))
         .await?;
     if !cfg.configured() {
         return Ok(Json(

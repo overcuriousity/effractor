@@ -86,6 +86,12 @@ sudo -u effractor effractor user add alice --accounts /var/lib/effractor/effract
   secret in `--oidc-secret-file FILE` or `EFFRACTOR_OIDC_SECRET`. Register
   `<public url>/api/auth/oidc/callback` as the redirect URI at the issuer. A
   first login makes an account in no group; an admin assigns groups.
+- The agent chat is set up by a site admin in Admin › Chat. The operator may
+  pin its key instead, in `--assistant-key-file FILE` or
+  `EFFRACTOR_ASSISTANT_KEY`, and its provider address with
+  `--assistant-address URL`; the admin then cannot change either. With only
+  the key pinned, the first address saved stays, so the key goes to no
+  other host. Link-local addresses (169.254.0.0/16, fe80::/10) are refused.
 - Documents are stored readable in SQLite (WAL). Protect the file as you
   would any database; the YAML download is every user's own backup.
 - Public share links stay end-to-end encrypted, as without accounts.

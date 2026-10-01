@@ -74,6 +74,28 @@ struct Args {
     /// Wins over a key an admin stores, and the admin can then not change it.
     #[arg(long, value_name = "FILE")]
     assistant_key_file: Option<PathBuf>,
+
+    /// The agent chat's provider address, fixed: the admin can then not
+    /// change it, and the operator's key goes to no other.
+    #[arg(long, value_name = "URL")]
+    assistant_address: Option<String>,
+}
+
+/// The operator's chat address, or why it is not usable.
+fn assistant_address(args: &Args) -> anyhow::Result<Option<String>> {
+    let Some(address) = &args.assistant_address else {
+        return Ok(None);
+    };
+    anyhow::ensure!(
+        args.accounts.is_some(),
+        "--assistant-address needs --accounts"
+    );
+    let address = address.trim().trim_end_matches('/');
+    anyhow::ensure!(
+        effractor_server::assistant::is_address(address),
+        "--assistant-address: an http or https address, not a link-local one"
+    );
+    Ok(Some(address.to_owned()))
 }
 
 /// The operator's chat key, or why it is not usable.
@@ -201,6 +223,7 @@ async fn main() -> anyhow::Result<()> {
     // Before anything starts: a half-configured OIDC is refused, not ignored.
     let oidc = oidc_config(&args)?;
     let assistant_key = assistant_key(&args)?;
+    let assistant_address = assistant_address(&args)?;
     let limits = Limits {
         max_ttl: args.max_ttl,
         ..Limits::default()
@@ -231,6 +254,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(key) = assistant_key {
                 accounts.with_pinned_key(key);
+            }
+            if let Some(address) = assistant_address {
+                accounts.with_pinned_address(address);
             }
             Some(accounts)
         }

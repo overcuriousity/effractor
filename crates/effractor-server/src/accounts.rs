@@ -180,6 +180,12 @@ impl Accounts {
         self.0.assistant.pin(key)
     }
 
+    /// The operator's chat address (`--assistant-address`), set once at
+    /// startup like the key; the admin can then not change it.
+    pub fn with_pinned_address(&self, address: String) -> bool {
+        self.0.assistant.pin_address(address)
+    }
+
     pub fn assistant(&self) -> &crate::assistant::Assistant {
         &self.0.assistant
     }

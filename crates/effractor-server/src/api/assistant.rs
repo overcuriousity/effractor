@@ -52,9 +52,9 @@ pub fn routes() -> Router<Accounts> {
 }
 
 async fn config(accounts: &Accounts) -> Result<Config, ApiError> {
-    let pinned = accounts.assistant().pinned().map(str::to_owned);
+    let pins = accounts.assistant().pins();
     accounts
-        .blocking(move |db| db.read(|c| load(c, pinned.as_deref())))
+        .blocking(move |db| db.read(|c| load(c, &pins)))
         .await
 }
 

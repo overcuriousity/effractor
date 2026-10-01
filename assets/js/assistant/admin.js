@@ -71,6 +71,16 @@
     var address = row(grid, "Address", el("input"));
     address.value = cfg.address;
     address.placeholder = cfg.provider === "anthropic" ? "https://api.anthropic.com" : "http://localhost:11434/v1";
+    // Fixed as the pinned key is: set by the operator, or the one the
+    // operator's key was first saved with, which it goes to alone.
+    var addressNote = el("p", null, "hint");
+    grid.appendChild(addressNote);
+    function fixAddress() {
+      address.disabled = !!cfg.address_fixed;
+      addressNote.textContent = cfg.address_pinned ? "address set by the operator" : cfg.address_fixed ? "address fixed: the operator's key goes only here" : "";
+      addressNote.hidden = !cfg.address_fixed;
+    }
+    fixAddress();
     var key = row(grid, "Key", el("input"));
     key.type = "password";
     key.autocomplete = "off";
@@ -114,7 +124,8 @@
           if (mine !== asked) return;
           var list = res.ok ? res.data.models : [];
           modelField(list);
-          reason.textContent = res.ok && res.data.reason ? "models: " + res.data.reason : "";
+          // Listing needs a recent login, as saving does: an old one is told.
+          reason.textContent = !res.ok ? "models: " + refused(res) : res.data.reason ? "models: " + res.data.reason : "";
         });
       }, 400);
     }
@@ -193,6 +204,8 @@
             cfg = fresh.data.config;
             key.value = "";
             key.placeholder = cfg.key_pinned ? "set by the operator" : cfg.key_set ? "stored · type to replace" : "not set";
+            address.value = cfg.address;
+            fixAddress();
           }
           return true;
         });
