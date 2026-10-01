@@ -1,5 +1,6 @@
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
 use async_trait::async_trait;
@@ -18,15 +19,20 @@ use super::{ShareId, ShareMeta, Storage, StorageError, Timestamp};
 /// enough not to be a `put` that is still in progress.
 pub struct FsStorage {
     root: PathBuf,
+    /// The bytes of the blobs whose metadata is there: counted once when
+    /// opened, then kept up to date by `put` and `delete` (and so `sweep`).
+    used: AtomicU64,
 }
 
 /// A `put` takes milliseconds; anything unfinished for this long is debris.
 const DEBRIS_AGE: Duration = Duration::from_secs(600);
 
 impl FsStorage {
-    /// Nothing is created until there is something to keep.
+    /// Nothing is created until there is something to keep. What is kept
+    /// already is counted, once, here: call it at startup.
     pub fn new(root: PathBuf) -> Self {
-        Self { root }
+        let used = AtomicU64::new(kept_bytes(&root));
+        Self { root, used }
     }
 
     fn dir(&self, id: &ShareId) -> PathBuf {
@@ -52,6 +58,25 @@ async fn write_atomically(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     file.sync_all().await?;
     drop(file);
     fs::rename(&tmp, path).await
+}
+
+/// The bytes of the shares under `root`: each blob whose metadata is there.
+/// What cannot be read counts as nothing.
+fn kept_bytes(root: &Path) -> u64 {
+    let Ok(dirs) = std::fs::read_dir(root) else {
+        return 0;
+    };
+    dirs.flatten()
+        .filter(|d| d.file_name().to_str().is_some_and(is_prefix))
+        .filter_map(|d| std::fs::read_dir(d.path()).ok())
+        .flat_map(|files| files.flatten())
+        .filter_map(|f| {
+            let name = f.file_name();
+            let id = name.to_str()?.strip_suffix(".meta.json")?;
+            let blob = f.path().with_file_name(format!("{id}.bin"));
+            Some(std::fs::metadata(blob).ok()?.len())
+        })
+        .sum()
 }
 
 /// `Ok(None)` if there is no such file.
@@ -90,6 +115,7 @@ impl Storage for FsStorage {
         }
         write_atomically(&self.blob_path(id), &blob).await?;
         write_atomically(&self.meta_path(id), &serde_json::to_vec(&meta)?).await?;
+        self.used.fetch_add(blob.len() as u64, Ordering::Relaxed);
         Ok(())
     }
 
@@ -111,8 +137,17 @@ impl Storage for FsStorage {
     }
 
     async fn delete(&self, id: &ShareId) -> Result<bool, StorageError> {
+        // Measured before the metadata goes: only one delete finds it there.
+        let size = fs::metadata(self.blob_path(id))
+            .await
+            .map_or(0, |m| m.len());
         let existed = remove(&self.meta_path(id)).await?;
         if existed {
+            let _ = self
+                .used
+                .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |u| {
+                    Some(u.saturating_sub(size))
+                });
             remove(&self.blob_path(id)).await?;
         }
         Ok(existed)
@@ -151,6 +186,10 @@ impl Storage for FsStorage {
             }
         }
         Ok(swept)
+    }
+
+    fn used(&self) -> u64 {
+        self.used.load(Ordering::Relaxed)
     }
 }
 

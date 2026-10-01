@@ -372,6 +372,32 @@ async fn behind_a_trusted_proxy_only_the_last_forwarded_entry_counts() {
     );
 }
 
+/// All shares together take at most the operator's quota: one that would
+/// not fit is refused as 507 and costs no allowance; room comes back when
+/// a share goes.
+#[tokio::test]
+async fn shares_fit_in_the_quota_or_are_refused() {
+    let h = harness(Limits {
+        quota: 10,
+        creates_per_hour: 3,
+        ..Limits::default()
+    });
+    let first = h.create("", vec![1; 6]).await;
+    assert_eq!(first.status(), StatusCode::CREATED);
+    let first = json(first).await;
+    let res = h.create("", vec![2; 5]).await;
+    assert_eq!(res.status(), StatusCode::INSUFFICIENT_STORAGE);
+    assert_eq!(h.storage.used(), 6);
+    assert_eq!(h.create("", vec![3; 4]).await.status(), StatusCode::CREATED);
+    let id = first["id"].as_str().unwrap();
+    let token = first["delete_token"].as_str().unwrap();
+    assert_eq!(
+        h.delete(id, Some(token)).await.status(),
+        StatusCode::NO_CONTENT
+    );
+    assert_eq!(h.create("", vec![4; 5]).await.status(), StatusCode::CREATED);
+}
+
 /// Memory storage whose writes fail while `broken` is set, and which counts
 /// the blobs read.
 #[derive(Default)]
@@ -401,6 +427,9 @@ impl Storage for Flaky {
     }
     async fn sweep(&self, now: Timestamp) -> Result<u64, StorageError> {
         self.inner.sweep(now).await
+    }
+    fn used(&self) -> u64 {
+        self.inner.used()
     }
 }
 

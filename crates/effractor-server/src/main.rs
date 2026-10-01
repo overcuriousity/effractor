@@ -7,7 +7,7 @@ use anyhow::Context;
 use clap::Parser;
 use effractor_accounts::{documents, sessions};
 use effractor_server::accounts::{Accounts, AccountsConfig, OidcConfig};
-use effractor_server::share::{FsStorage, Limits, Shares, Ttl};
+use effractor_server::share::{DEFAULT_QUOTA, FsStorage, Limits, Shares, Ttl};
 
 /// Security architecture analysis, served locally. Models are solved in the
 /// browser and never reach this process unless shared.
@@ -34,6 +34,11 @@ struct Args {
     /// The longest a share may be kept: 1d, 30d, 90d, 1y, or never.
     #[arg(long, default_value = "1y")]
     max_ttl: Ttl,
+
+    /// The room all shares together may take, in bytes (1073741824 is
+    /// 1 GiB). A share that would not fit is refused.
+    #[arg(long, value_name = "BYTES", default_value_t = DEFAULT_QUOTA)]
+    share_quota: u64,
 
     /// Turn accounts on: the SQLite database of users and documents.
     /// Created on first start. Without it, there are no accounts.
@@ -226,6 +231,7 @@ async fn main() -> anyhow::Result<()> {
     let assistant_address = assistant_address(&args)?;
     let limits = Limits {
         max_ttl: args.max_ttl,
+        quota: args.share_quota,
         ..Limits::default()
     };
     let data = data_dir(args.data.clone())?;

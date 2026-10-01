@@ -19,6 +19,9 @@ use sha2::{Digest, Sha256};
 use super::{MemoryStorage, ShareId, ShareMeta, Storage, StorageError, Timestamp, Ttl};
 use crate::limiter::Limiter;
 
+/// 1 GiB.
+pub const DEFAULT_QUOTA: u64 = 1 << 30;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Limits {
     /// The longest a share may be asked to live. `Ttl::Never` allows `never`.
@@ -26,6 +29,8 @@ pub struct Limits {
     pub max_bytes: usize,
     /// Per address; see [`Limiter`].
     pub creates_per_hour: u32,
+    /// The bytes all shares together may take (`--share-quota`).
+    pub quota: u64,
 }
 
 impl Default for Limits {
@@ -34,6 +39,7 @@ impl Default for Limits {
             max_ttl: Ttl::Year1,
             max_bytes: 1024 * 1024,
             creates_per_hour: 30,
+            quota: DEFAULT_QUOTA,
         }
     }
 }
@@ -46,6 +52,9 @@ pub struct Shares {
     clock: Arc<dyn Fn() -> Timestamp + Send + Sync>,
     /// A reverse proxy on this host: count shares per X-Forwarded-For.
     trust_proxy: bool,
+    /// The bytes of shares being written: counted against the quota
+    /// before the write, so that concurrent requests cannot all pass it.
+    writing: Arc<Mutex<u64>>,
 }
 
 impl Shares {
@@ -60,6 +69,7 @@ impl Shares {
                     .map_or(0, |d| d.as_secs())
             }),
             trust_proxy: false,
+            writing: Arc::new(Mutex::new(0)),
         }
     }
 
@@ -178,6 +188,19 @@ async fn create(
         return (StatusCode::TOO_MANY_REQUESTS, retry).into_response();
     }
 
+    let size = blob.len() as u64;
+    let writing = || shares.writing.lock().unwrap_or_else(|e| e.into_inner());
+    {
+        let mut w = writing();
+        if shares.storage.used() + *w + size > limits.quota {
+            drop(w);
+            limiter().give_back(ip);
+            let message = "this server has no room for more shares";
+            return (StatusCode::INSUFFICIENT_STORAGE, message).into_response();
+        }
+        *w += size;
+    }
+
     let id = ShareId::random();
     let delete_token = effractor_accounts::token();
     let expires_at = ttl.seconds().map(|s| now + s);
@@ -186,7 +209,9 @@ async fn create(
         delete_token_hash: hash(&delete_token),
         size: blob.len() as u64,
     };
-    if let Err(err) = shares.storage.put(&id, blob, meta).await {
+    let put = shares.storage.put(&id, blob, meta).await;
+    *writing() -= size;
+    if let Err(err) = put {
         limiter().give_back(ip);
         return failed(&err);
     }

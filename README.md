@@ -45,7 +45,9 @@ effractor --bind 0.0.0.0:9000
 ```
 
 Encrypted shares are kept in `--data` (default
-`~/.local/share/effractor/shares`, or under `$XDG_DATA_HOME`). Behind a
+`~/.local/share/effractor/shares`, or under `$XDG_DATA_HOME`), at most
+`--share-quota` bytes of them together (default 1073741824, 1 GiB); a share
+that would not fit is refused. Behind a
 reverse proxy, `--public-url` is the address people use, and may carry a path
 (`https://example.org/effractor`) when the proxy strips it before passing
 requests on; the page then links everything under that path. With the proxy

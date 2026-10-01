@@ -18,7 +18,7 @@ use axum::body::Bytes;
 use effractor_accounts::ALPHABET;
 use serde::{Deserialize, Serialize};
 
-pub use api::{Limits, Shares, routes};
+pub use api::{DEFAULT_QUOTA, Limits, Shares, routes};
 pub use fs::FsStorage;
 pub use memory::MemoryStorage;
 
@@ -103,6 +103,9 @@ pub trait Storage: Send + Sync + 'static {
     async fn delete(&self, id: &ShareId) -> Result<bool, StorageError>;
     /// Remove everything expired at `now`; how many shares that was.
     async fn sweep(&self, now: Timestamp) -> Result<u64, StorageError>;
+    /// The bytes of the blobs kept, expired or not until a sweep takes
+    /// them: what the operator's quota caps. Kept as a count, not measured.
+    fn used(&self) -> u64;
 }
 
 /// How long a share may live. Ordered by length.

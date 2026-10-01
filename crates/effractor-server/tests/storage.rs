@@ -46,9 +46,13 @@ async fn contract<S: Storage, F: Future<Output = S>>(make: impl Fn() -> F) {
     assert!(matches!(again, Err(StorageError::Exists)), "{again:?}");
     assert_eq!(s.get(&id).await.unwrap().unwrap().0, blob);
 
+    // What is kept is counted: the blobs' bytes, a refused put not among them.
+    assert_eq!(s.used(), blob.len() as u64);
+
     // Delete says whether there was something to delete.
     assert!(s.delete(&id).await.unwrap());
     assert!(!s.delete(&id).await.unwrap());
+    assert_eq!(s.used(), 0);
     assert_eq!(s.get(&id).await.unwrap(), None);
     assert_eq!(s.meta(&id).await.unwrap(), None);
 
@@ -72,7 +76,9 @@ async fn contract<S: Storage, F: Future<Output = S>>(make: impl Fn() -> F) {
             .unwrap();
     }
     assert!(s.get(&past).await.unwrap().is_some());
+    assert_eq!(s.used(), 4);
     assert_eq!(s.sweep(100).await.unwrap(), 2);
+    assert_eq!(s.used(), 2, "what a sweep takes is no longer counted");
     assert_eq!(s.get(&past).await.unwrap(), None);
     assert_eq!(s.get(&edge).await.unwrap(), None);
     assert!(s.get(&future).await.unwrap().is_some());
@@ -132,12 +138,13 @@ async fn the_filesystem_layout_is_the_documented_one() {
         .collect();
     assert_eq!(names.len(), 2, "{names:?}");
 
-    // Another process — a restart — sees the same store.
+    // Another process — a restart — sees the same store, and counts it.
     let reopened = FsStorage::new(root.path().join("data"));
     assert_eq!(
         reopened.get(&id).await.unwrap().unwrap().0,
         Bytes::from_static(b"blob")
     );
+    assert_eq!(reopened.used(), 4);
 }
 
 #[tokio::test]
@@ -156,6 +163,9 @@ async fn a_blob_without_its_metadata_is_not_a_share() {
 
     assert_eq!(s.get(&id).await.unwrap(), None);
     assert!(!s.delete(&id).await.unwrap());
+    // Not a share, so not counted, now or when the store is opened again.
+    assert_eq!(s.used(), 0);
+    assert_eq!(FsStorage::new(root.path().to_owned()).used(), 0);
 
     // Fresh, it may be a `put` between its two renames: it is left alone.
     s.sweep(0).await.unwrap();
