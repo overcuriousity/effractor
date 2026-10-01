@@ -207,3 +207,9 @@ test('an optional slot or switch the kind carries is written when it is given', 
   assert.equal(E.setParameter(doc, { entity: 'server' }, 'login', { status: 'unknown' }, spec), null, 'not a slot of the kind');
   assert.equal(E.setDefense(doc, 'server', 'patched', true, spec), null, 'not a switch of the kind');
 });
+
+test('the Add menu offers an IDS and an IPS among the network kinds', () => {
+  assert.ok(E.GROUPS[0][1].includes('ids') && E.GROUPS[0][1].includes('ips'));
+  const library = require('./fixtures/catalog.json');
+  assert.deepEqual(E.KINDS.slice().sort(), library.entities.map((e) => e.kind).sort());
+});

@@ -474,6 +474,7 @@
     hosts: { out: "runs here", in: "runs this" },
     filters: { out: "its firewall", in: "its router" },
     "controls-access": { out: "its access control", in: "its machine" },
+    watches: { out: "watched by", in: "watches" },
     stores: { out: "kept here", in: "keeps this" },
     authenticates: { out: "unlocks", in: "unlocks this" },
     authorizes: { out: "accepts this account", in: "may log in" },
@@ -735,7 +736,8 @@
     if (choices.some(function (c) { return c.candidates.length; })) return null;
     if (kind === "firewall" && hasFilters(doc, "to", id)) return "a firewall permits flows · set it in each flow that crosses its router";
     var kinds = addChoices(doc, catalog, id).map(function (c) {
-      return c.kind.replace(/-/g, " ");
+      // A kind named by letters is said as letters.
+      return c.kind === "ids" || c.kind === "ips" ? c.kind.toUpperCase() : c.kind.replace(/-/g, " ");
     });
     return "no " + list(kinds) + " yet · Tab adds one linked";
   }

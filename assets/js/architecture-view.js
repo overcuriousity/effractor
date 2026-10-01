@@ -86,15 +86,25 @@
       var on = !!d && has(d, REPLACED[slot][0]) && d[REPLACED[slot][0]] !== false;
       return on ? "used while " + REPLACED[slot][1] + " is on · unknown until given" : null;
     }
+    if (slot === "bypass-antimalware") {
+      var am = doc.entities[id].defenses;
+      var guarding = !!am && has(am, "anti-malware") && am["anti-malware"] !== false && runsService(doc, id);
+      return guarding ? "used while anti-malware is on · unknown until given" : null;
+    }
     if (slot === "deploy-exploit" && !hasProduct(doc, id)) return null;
     return "not drawn until a time is given";
   }
-  // Whether a host runs anything ASLR and DEP could change.
-  function hardens(doc, id) {
-    return hasProduct(doc, id) || Object.keys(doc.associations || {}).some(function (k) {
+  // Whether a host runs a service: what its anti-malware guards, and what
+  // its own reachability rests on.
+  function runsService(doc, id) {
+    return Object.keys(doc.associations || {}).some(function (k) {
       var a = doc.associations[k];
       return a.kind === "hosts" && a.from === id && has(doc.entities, a.to) && doc.entities[a.to].kind === "service";
     });
+  }
+  // Whether a host runs anything ASLR and DEP could change.
+  function hardens(doc, id) {
+    return hasProduct(doc, id) || runsService(doc, id);
   }
 
   // Every switch row of a component with its value: the switches it has
@@ -109,6 +119,7 @@
     ((spec && spec.optional_defenses) || []).forEach(function (defense) {
       if (has(e.defenses || {}, defense)) return;
       if ((defense === "aslr" || defense === "dep") && !hardens(doc, id)) return;
+      if (defense === "anti-malware" && !runsService(doc, id)) return;
       rows.push({ defense: defense, value: false });
     });
     var order = (spec && spec.defenses) || [];
@@ -164,6 +175,9 @@
     },
     "controls-access": function () {
       return "logs in through";
+    },
+    watches: function () {
+      return "watched by";
     },
     authenticates: function (a) {
       return a.factor === "second" ? "second factor for" : "authenticates";

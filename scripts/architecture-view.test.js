@@ -489,7 +489,7 @@ test('ASLR and DEP are shown only on a host they can change, and say so', () => 
   // ws runs cli, an application: nothing there reads ASLR.
   assert.deepEqual(V.defenseRows(doc, REAL, 'ws'), []);
   // srv runs sshd, a service.
-  assert.deepEqual(V.defenseRows(doc, REAL, 'srv').map((r) => r.defense), ['aslr', 'dep']);
+  assert.deepEqual(V.defenseRows(doc, REAL, 'srv').map((r) => r.defense), ['aslr', 'anti-malware', 'dep']);
   // sshd's replacement times are shown only while their switch is not off.
   const slots = () => V.slotRows(doc, REAL, 'sshd').filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
   assert.deepEqual(slots(), []);
@@ -504,4 +504,22 @@ test("a host's own exploit time is offered only once it runs a product", () => {
   doc.entities.os = { kind: 'product', label: 'OS' };
   doc.associations['srv-os'] = { kind: 'instance-of', from: 'srv', to: 'os' };
   assert.deepEqual(absent('srv'), ['deploy-exploit: not drawn until a time is given']);
+});
+
+test('a sensor line reads in words along its arrow', () => {
+  const doc = lecture();
+  doc.entities.ids = { kind: 'ids', label: 'IDS' };
+  doc.associations['srv-watch'] = { kind: 'watches', from: 'srv', to: 'ids' };
+  const edge = V.describe(doc).edges.find((e) => e.id === 'association/srv-watch');
+  assert.equal(edge.label, 'watched by');
+});
+
+test("a host's anti-malware time is offered once its anti-malware is on", () => {
+  const doc = lecture();
+  const absent = (id) => V.slotRows(doc, REAL, id).filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
+  assert.deepEqual(absent('srv'), []);
+  doc.entities.srv.defenses = { 'anti-malware': true };
+  assert.deepEqual(absent('srv'), ['bypass-antimalware: used while anti-malware is on · unknown until given']);
+  // On a host that runs nothing, anti-malware guards nothing: no row at all.
+  assert.deepEqual(V.defenseRows(doc, REAL, 'ws').map((r) => r.defense), []);
 });

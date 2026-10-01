@@ -10,6 +10,8 @@
     return hit && hit[field] ? hit[field] : id;
   }
   var STATUS = { unknown: "Unknown", illustrative: "Illustrative", assumed: "Assumed", calibrated: "Calibrated", policy: "Firewall rule", defense: "Defence switch", attacker: "Attacker speed" };
+  // Kinds named by letters: said as people say them.
+  var ACRONYMS = { ids: "IDS", ips: "IPS" };
   var api = {
     state: function (catalog, id) { return pick(catalog, "states", "id", id, "word"); },
     slot: function (catalog, slot) { return pick(catalog, "parameters", "slot", slot, "name"); },
@@ -22,6 +24,7 @@
     status: function (id) { return STATUS[id] || id; },
     // A kind as a word: "Access control", never the id.
     kind: function (kind) {
+      if (ACRONYMS[kind]) return ACRONYMS[kind];
       var words = String(kind).replace(/-/g, " ");
       return words.charAt(0).toUpperCase() + words.slice(1);
     },

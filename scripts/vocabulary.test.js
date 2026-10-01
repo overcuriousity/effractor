@@ -50,3 +50,8 @@ test('a kind is named in words, a hyphen as a space', () => {
   assert.equal(W.kind('access-control'), 'Access control');
   assert.equal(W.kind('host'), 'Host');
 });
+
+test('an IDS and an IPS are named as people say them', () => {
+  assert.equal(W.kind('ids'), 'IDS');
+  assert.equal(W.kind('ips'), 'IPS');
+});
