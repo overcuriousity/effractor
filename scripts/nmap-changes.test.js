@@ -258,6 +258,18 @@ test('a host the scan was told to leave out is not one that did not answer', () 
   assert.deepEqual(lines(byName), []);
 });
 
+test('a scan told to leave out what a file lists says the file was not read', () => {
+  const first = imported(N.addNmap(E.empty(), null, 'nmap', specOf).doc, scanOf('nmap -sT -oX - 10.0.0.0/24', ['10.0.0.1', '10.0.0.5'], 1790000000));
+  const said = p => p.changes.notes.filter(n => /excludefile/.test(n));
+  for (const args of ['nmap --excludefile skip.txt -sT -oX - 10.0.0.0/24', 'nmap -sT -oX - 10.0.0.0/24 --excludefile=skip.txt', 'nmap -sT -oX - 10.0.0.0/24 -excludefile skip.txt']) {
+    const p = N.plan(first, 'nmap', scanOf(args, ['10.0.0.1'], 1790100000), '', {});
+    assert.equal(said(p).length, 1, args);
+    // The file is not a target: a host it does not cover is still one the scan looked at.
+    assert.deepEqual(lines(p), ['“10.0.0.5” did not answer (seen 2026-09-21)'], args);
+  }
+  assert.deepEqual(said(N.plan(first, 'nmap', scanOf('nmap -sT -oX - 10.0.0.0/24', ['10.0.0.1'], 1790100000), '', {})), []);
+});
+
 test('an address left out of the scan is not one a moved host left', () => {
   const macs = { '10.0.0.5': '52:54:00:00:00:05', '10.0.0.9': '52:54:00:00:00:05' };
   const first = imported(N.addNmap(E.empty(), null, 'nmap', specOf).doc, scanOf('nmap -sT -oX - 10.0.0.0/24', ['10.0.0.5'], 1790000000, macs));

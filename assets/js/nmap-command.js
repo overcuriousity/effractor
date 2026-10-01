@@ -472,11 +472,19 @@
     return at >= 0 ? excluding(args.slice(at + 7).trim().split(/\s+/)).rest.join(" ") : "";
   }
   // nmap's --exclude: "--exclude a,b", "--exclude=a,b", or with one dash
-  // as nmap takes any long option. --excludefile is a file, not read.
+  // as nmap takes any long option. --excludefile names a file, which is
+  // not read: only that there was one is known.
   var EXCLUDE = /^--?exclude(?:=(.*))?$/;
+  var EXCLUDEFILE = /^--?excludefile(?:=(.*))?$/;
   function excluding(words) {
-    var out = { left: [], rest: [] };
+    var out = { left: [], rest: [], file: false };
     for (var i = 0; i < words.length; i++) {
+      var f = EXCLUDEFILE.exec(words[i]);
+      if (f) {
+        if (f[1] == null) i++;
+        out.file = true;
+        continue;
+      }
       var m = EXCLUDE.exec(words[i]);
       if (!m) {
         if (words[i]) out.rest.push(words[i]);
@@ -487,9 +495,16 @@
     }
     return out;
   }
+  function argsOf(scan) {
+    return String((scan && scan.args) || "").split(/\s+/);
+  }
   // What nmap was told to leave out, as words `covers` reads: "" if nothing.
   function excludedOf(scan) {
-    return excluding(String((scan && scan.args) || "").split(/\s+/)).left.join(" ");
+    return excluding(argsOf(scan)).left.join(" ");
+  }
+  // Whether nmap was also told to leave out what a file lists.
+  function excludesFile(scan) {
+    return excluding(argsOf(scan)).file;
   }
 
   // ---- the stamp ----
@@ -536,7 +551,7 @@
     return "Last nmap import: " + stamp.date + ", scan" + (stamp.range ? " of " + stamp.range : "") + (names.length ? " · " + names.join(", ") : "") + ".";
   }
 
-  var api = { GROUPS: GROUPS, BLOCKS: BLOCKS, RECIPES: RECIPES, DEFAULTS: DEFAULTS, combine: combine, command: command, portsOf: portsOf, recipesOf: recipesOf, targetsOf: targetsOf, excludedOf: excludedOf, STAMP: STAMP, stampLine: stampLine, stampFor: stampFor };
+  var api = { GROUPS: GROUPS, BLOCKS: BLOCKS, RECIPES: RECIPES, DEFAULTS: DEFAULTS, combine: combine, command: command, portsOf: portsOf, recipesOf: recipesOf, targetsOf: targetsOf, excludedOf: excludedOf, excludesFile: excludesFile, STAMP: STAMP, stampLine: stampLine, stampFor: stampFor };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapCommand = api;
 })();

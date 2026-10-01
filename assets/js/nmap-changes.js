@@ -263,6 +263,7 @@
       item({ key: "missed:" + id, kind: "missed", host: id, line: name(doc, id) + " did not answer" + (e.seen ? " (seen " + e.seen + ")" : ""), action: "mark it as not seen since " + date });
     });
     out.since = latest;
+    if (C.excludesFile(scan) && out.list.some(function (c) { return c.kind === "missed"; })) out.notes.push("nmap was also told to leave out what a file lists (--excludefile), which is not read here: a host it left out may be listed as one that did not answer.");
     if (out.elsewhere) out.notes.push(out.elsewhere + (out.elsewhere === 1 ? " flow" : " flows") + " through a firewall " + (out.elsewhere === 1 ? "starts" : "start") + " elsewhere; from where nmap stands the scan cannot tell about " + (out.elsewhere === 1 ? "it" : "them") + ".");
     delete out.elsewhere;
     return out;
