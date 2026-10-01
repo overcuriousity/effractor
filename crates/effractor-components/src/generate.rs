@@ -804,8 +804,8 @@ impl<'a> Builder<'a> {
                 // Said on or unsaid in the file with no permission: the flow
                 // is unfinished (validator), its connection unknown, as at a
                 // router's firewall — not denied.
-                && !(!self.permit.contains_key(&(host, fid))
-                    && matches!(
+                && (self.permit.contains_key(&(host, fid))
+                    || !matches!(
                         self.m.entities[host].defenses.get(Defense::HostFirewall),
                         Some(Switch::On | Switch::Unknown)
                     ))
