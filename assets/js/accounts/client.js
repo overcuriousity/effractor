@@ -22,8 +22,12 @@
           if (res.status === 204) return { ok: res.ok, status: res.status, data: null };
           var type = (res.headers.get("content-type") || "");
           var read = type.indexOf("application/json") === 0 ? res.json() : res.text();
+          // A body that does not read (a proxy's page where JSON was said, a
+          // connection cut midway) is no answer: failed, with its status.
           return read.then(function (data) {
             return { ok: res.ok, status: res.status, data: data === "" ? null : data };
+          }, function () {
+            return { ok: false, status: res.status, data: null };
           });
         }, function () {
           return { ok: false, status: 0, data: "offline" };

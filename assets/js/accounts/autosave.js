@@ -26,15 +26,29 @@
       if (timer) timers.clear(timer);
       timer = timers.set(run, ms);
     }
+    function retry() {
+      set("retrying");
+      schedule(WAITS[Math.min(tries++, WAITS.length - 1)]);
+    }
     function run() {
       timer = null;
       if (stopped || pending === null || pending === saved) return Promise.resolve();
       if (inflight) return inflight.then(run);
       var body = pending, base = version;
       set("saving");
-      inflight = o.put(name, body, base).then(function (res) {
+      // Asked at once, not a tick later: a save as the page closes must
+      // leave before it does.
+      var asked;
+      try {
+        asked = Promise.resolve(o.put(name, body, base));
+      } catch (e) {
+        asked = Promise.reject(e);
+      }
+      inflight = asked.then(function (res) {
         inflight = null;
-        if (res.ok) {
+        // A save is an answer with the version it made; anything else (a
+        // proxy's page with a 200) is not known to have saved.
+        if (res && res.ok && res.data && typeof res.data.version === "number") {
           tries = 0;
           version = res.data.version;
           saved = body;
@@ -71,8 +85,12 @@
           if (o.onLost) o.onLost(res.status);
           return;
         }
-        set("retrying");
-        schedule(WAITS[Math.min(tries++, WAITS.length - 1)]);
+        retry();
+      }, function () {
+        // The request itself failed: tried again, never left in the way of
+        // every later save.
+        inflight = null;
+        retry();
       });
       return inflight;
     }

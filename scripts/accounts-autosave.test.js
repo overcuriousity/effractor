@@ -195,3 +195,40 @@ test("the page's own timers are called as functions, not as methods of another o
   }
   assert.deepEqual(calls, ["set", "clear", "set"]);
 });
+
+test("a save whose request fails is retried, never wedged behind it", async () => {
+  const timers = fakeTimers();
+  let calls = 0;
+  const put = (name, body, base) => {
+    calls++;
+    return calls === 1 ? Promise.reject(new Error("broken")) : Promise.resolve({ ok: true, status: 200, data: { version: base + 1 } });
+  };
+  const a = createAutosave({ put, delay: 800, timers });
+  a.bind({ version: 1, saved: "a" });
+  a.change("b", "N");
+  await timers.advance(800);
+  assert.equal(a.state(), "retrying");
+  a.change("c", "N");
+  await timers.advance(2000);
+  assert.equal(calls, 2);
+  assert.equal(a.saved(), "c");
+  assert.equal(a.state(), "saved");
+  a.change("d", "N");
+  await a.flush();
+  assert.equal(a.saved(), "d", "and later saves go too");
+});
+
+test("a 200 without a version is not taken for a save: retried", async () => {
+  const timers = fakeTimers();
+  const put = server([{ ok: true, status: 200, data: "<html>proxy</html>" }]);
+  const a = createAutosave({ put, delay: 800, timers });
+  a.bind({ version: 1, saved: "a" });
+  a.change("b", "N");
+  await timers.advance(800);
+  assert.equal(a.state(), "retrying");
+  assert.equal(a.version(), 1);
+  await timers.advance(2000);
+  assert.equal(put.calls.length, 2);
+  assert.equal(put.calls[1].base, 1);
+  assert.equal(a.state(), "saved");
+});

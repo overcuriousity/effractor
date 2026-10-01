@@ -779,3 +779,25 @@ test("a failed open says no, so a caller never loops on it", async () => {
   assert.equal(await t.core.open(4242), false);
   assert.ok(t.said.some((s) => s.text === "not opened"));
 });
+
+test("a save answered 200 without a version is tried again, and saving goes on", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const real = server.request;
+  let odd = 1;
+  const t = tab(Object.assign({}, server, {
+    request: (method, path, body) => (method === "PUT" && odd-- > 0 ? Promise.resolve({ ok: true, status: 200, data: null }) : real(method, path, body)),
+  }));
+  await t.core.login(USER);
+  await t.core.open(F);
+  t.edit(doc("fault-tree", "F", "f1"));
+  await t.timers.advance(1000);
+  assert.equal(t.states[t.states.length - 1], "retrying");
+  assert.equal(JSON.parse(t.store.map.get("fault-tree")).base, 1, "nothing taken for saved");
+  await t.timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "f1"));
+  t.edit(doc("fault-tree", "F", "f2"));
+  await t.timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "f2"));
+  assert.equal(t.states[t.states.length - 1], "saved");
+});

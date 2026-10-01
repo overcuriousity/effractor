@@ -55,3 +55,14 @@ test("a save as the page closes can outlive it", async () => {
   assert.equal(f.calls[0].init.keepalive, true);
   assert.equal(f.calls[1].init.keepalive, undefined);
 });
+
+test("a body that does not read is a failed answer, not a throw", async () => {
+  const bad = (type) => async () => ({
+    ok: true, status: 200,
+    headers: { get: () => type },
+    json: () => Promise.reject(new SyntaxError("Unexpected token <")),
+    text: () => Promise.reject(new TypeError("network error")),
+  });
+  assert.deepEqual(await createClient(bad("application/json")).request("PUT", "/x", {}), { ok: false, status: 200, data: null });
+  assert.deepEqual(await createClient(bad("text/html")).request("GET", "/x"), { ok: false, status: 200, data: null });
+});

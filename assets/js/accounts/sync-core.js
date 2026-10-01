@@ -56,6 +56,8 @@
         put: function (name, body, base) {
           var fields = { name: name, body: body, base: base };
           return o.request("PUT", "/api/documents/" + id, fields, unloading ? { keepalive: true } : undefined).then(function (res) {
+            // Saved only with the version it made; else the queue tries again.
+            if (res.ok && !(res.data && typeof res.data.version === "number")) return { ok: false, status: res.status, data: null };
             if (res.ok) {
               adopt(id, res.data.version, body);
               o.onSaved(id, { name: name, version: res.data.version, updated_at: res.data.updated_at });
