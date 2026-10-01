@@ -302,12 +302,16 @@ test('Compare offers static ARP tables only on an end of a plain flow that carri
       lan: { kind: 'network', label: 'LAN', parameters: { poison: { status: 'unknown' } } },
       srv: { kind: 'host', label: 'Server' }, ws: { kind: 'host', label: 'Workstation' }, other: { kind: 'host', label: 'Other' },
       cli: { kind: 'application', label: 'Client' }, sshd: { kind: 'service', label: 'SSH' }, key: { kind: 'credential', label: 'Key' },
+      acct: { kind: 'account', label: 'Account' },
     },
-    associations: { h1: { kind: 'hosts', from: 'ws', to: 'cli', privilege: 'user' }, h2: { kind: 'hosts', from: 'srv', to: 'sshd', privilege: 'admin' } },
+    associations: { h1: { kind: 'hosts', from: 'ws', to: 'cli', privilege: 'user' }, h2: { kind: 'hosts', from: 'srv', to: 'sshd', privilege: 'admin' },
+      k1: { kind: 'authenticates', from: 'key', to: 'acct' } },
     flows: { ssh: { label: 'SSH', source: 'cli', target: 'sshd', route: ['lan'], carries: ['key'] } },
   };
   const cat = { entities: [{ kind: 'host', defenses: ['static-arp'], optional_defenses: ['static-arp'] }], defenses: [] };
   const offered = () => C.switches(doc, cat).map((x) => x.entity + ':' + x.defense);
+  assert.deepEqual(offered(), [], 'the key proves nothing the flow\'s target accepts');
+  doc.associations.k2 = { kind: 'authorizes', from: 'acct', to: 'sshd' };
   assert.deepEqual(offered(), ['srv:static-arp', 'ws:static-arp']);
   doc.flows.ssh.encrypted = true;
   assert.deepEqual(offered(), []);
@@ -336,6 +340,9 @@ test('Compare offers a sensor\'s switch only where it guards something', () => {
   const cat = { entities: [{ kind: 'ids', defenses: ['enabled'] }, { kind: 'ips', defenses: ['enabled'] }], defenses: [] };
   // The workstation runs no service: its sensor guards nothing there.
   assert.deepEqual(C.switches(doc, cat).map((x) => x.entity), ['onroute', 'onhost']);
+  // One a scenario already sets stays, so that change can still be shown.
+  doc.scenarios = { s: { label: 'S', changes: [{ entity: 'idle', defense: 'enabled', value: false }] } };
+  assert.deepEqual(C.switches(doc, cat).map((x) => x.entity), ['onroute', 'onhost', 'idle']);
 });
 
 test('a scenario turning an optional switch off on a component that never said it is as written', () => {
@@ -348,4 +355,32 @@ test('a scenario turning an optional switch off on a component that never said i
   assert.deepEqual(C.settings(doc, 'off', cat).asWritten, ['entities.srv.defenses.aslr'], 'absent is off');
   assert.deepEqual(C.settings(doc, 'on', cat).asWritten, []);
   assert.deepEqual(C.changedSteps({ nodes: [] }, doc, 'off', cat), { steps: [], speed: null });
+});
+
+test('every page call of settings, changedSteps and routes passes the catalog', () => {
+  // Without it an unset optional switch reads as unknown, not off: the
+  // canvas and Compare would disagree on what a scenario changes.
+  const fs = require('node:fs');
+  const dir = require('node:path').join(__dirname, '../assets/js');
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.js')).map((f) => 'assets/js/' + f)
+    .concat(fs.readdirSync(dir + '/assistant').filter((f) => f.endsWith('.js')).map((f) => 'assets/js/assistant/' + f));
+  const calls = [];
+  for (const file of files) {
+    const text = fs.readFileSync(require('node:path').join(__dirname, '..', file), 'utf8');
+    for (const m of text.matchAll(/(?:\bC|effractorComparison)\.(settings|changedSteps|routes)\(/g)) {
+      // The arguments up to the matching parenthesis.
+      let depth = 1, i = m.index + m[0].length;
+      const start = i;
+      for (; depth && i < text.length; i++) { if (text[i] === '(') depth++; else if (text[i] === ')') depth--; }
+      calls.push([file, m[1], text.slice(start, i - 1)]);
+    }
+  }
+  assert.ok(calls.length >= 5, JSON.stringify(calls));
+  const wants = { settings: 3, changedSteps: 4, routes: 5 };
+  for (const [file, name, args] of calls) {
+    // Top-level commas only.
+    let depth = 0, count = 1;
+    for (const ch of args) { if ('([{'.includes(ch)) depth++; else if (')]}'.includes(ch)) depth--; else if (ch === ',' && !depth) count++; }
+    assert.equal(count, wants[name], `${file}: ${name}(${args})`);
+  }
 });

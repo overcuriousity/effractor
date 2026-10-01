@@ -256,7 +256,7 @@
     var hops = i.route || [];
     for (var h = 0; h < hops.length; h++) if (!has(ctx.doc.entities, hops[h])) return no("network or router", hops[h]);
     var carried = i.carries || [];
-    for (var c = 0; c < carried.length; c++) if (!has(ctx.doc.entities, carried[c])) return no("credential", carried[c]);
+    for (var c = 0; c < carried.length; c++) if (!has(ctx.doc.entities, carried[c]) || ctx.doc.entities[carried[c]].kind !== "credential") return no("credential", carried[c]);
     // Unsaid, whether it is encrypted and what it carries stay as they are.
     var old = i.id !== undefined && has(ctx.doc.flows, i.id) ? ctx.doc.flows[i.id] : null;
     if (old) i = Object.assign({ encrypted: old.encrypted, carries: old.carries }, i);

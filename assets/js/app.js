@@ -301,7 +301,7 @@
     compareWasOpen = compareOpen();
     var compared = compareWasOpen && routeGraph && GR.isGraphResults(state.results) && state.results.scenario && window.effractorComparison &&
       window.effractorComparison.state(state.results, state.results.scenario.id, state.solvedRevision, state.revision) === "current"
-      ? window.effractorComparison.routes(routeGraph, state.results, state.doc, state.results.scenario.id) : null;
+      ? window.effractorComparison.routes(routeGraph, state.results, state.doc, state.results.scenario.id, window.effractorArchitectureUi ? window.effractorArchitectureUi.catalog() : null) : null;
     if (compared && attackShown()) {
       renderer.highlight(compared.blocked.map(function (s) { return "step/" + s; }), "blocked");
       renderer.highlight(compared.blocked.concat(compared.changed, compared.remaining, [state.results.target]).map(function (s) { return "step/" + s; }), "open");

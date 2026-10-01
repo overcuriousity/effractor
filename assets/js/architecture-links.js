@@ -93,8 +93,9 @@
     var protocol = String(value.protocol == null ? "" : value.protocol).trim();
     if (protocol) f.protocol = protocol;
     if (value.encrypted === true) f.encrypted = true;
+    // Credentials there are, each once.
     var carries = (value.carries || []).map(String).filter(function (c, i, all) {
-      return c && all.indexOf(c) === i;
+      return kindOf(next, c) === "credential" && all.indexOf(c) === i;
     });
     if (carries.length) f.carries = carries;
     f.parameters = old && old.parameters ? old.parameters : { connect: { status: "unknown" } };

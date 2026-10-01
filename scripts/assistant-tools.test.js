@@ -175,6 +175,7 @@ test('put_flow says whether a flow is encrypted and what it carries, and keeps b
   r = T.edit('put_flow', Object.assign({ encrypted: false, carries: [] }, flow), ctx(r.doc));
   assert.ok(!('encrypted' in r.doc.flows.ssh) && !('carries' in r.doc.flows.ssh));
   assert.match(T.edit('put_flow', Object.assign({ carries: ['ghost'] }, flow), ctx(LECTURE)).refused, /ghost/);
+  assert.match(T.edit('put_flow', Object.assign({ carries: ['server-account'] }, flow), ctx(LECTURE)).refused, /credential “server-account”/, 'an account is no credential');
   const schema = catalog.find((t) => t.name === 'put_flow').schema.properties;
   assert.deepEqual([schema.encrypted.type, schema.carries.type], ['boolean', 'array']);
 });

@@ -130,6 +130,15 @@
     return e && e.label != null ? e.label : id;
   }
 
+  // Whether any scenario sets this switch of `entity`.
+  function setBySome(doc, entity, defense) {
+    return Object.keys(doc.scenarios || {}).some(function (k) {
+      return (doc.scenarios[k].changes || []).some(function (c) {
+        return c.entity === entity && c.defense === defense;
+      });
+    });
+  }
+
   // Everything a scenario can switch, in document order: each component's
   // defence (the kind's, from the catalog) and each firewall permission.
   function switches(doc, catalog) {
@@ -162,7 +171,8 @@
         // Hardening only where the host can escalate.
         if (d === "hardened" && !(e.parameters && has(e.parameters, "escalate")) && !(e.defenses && has(e.defenses, d))) return;
         // A sensor's switch only where it guards something.
-        if (d === "enabled" && !view.guards(doc, id)) return;
+        // One a scenario already sets stays, so that change can be shown.
+        if (d === "enabled" && !view.guards(doc, id) && !setBySome(doc, id, d)) return;
         // Static ARP tables only where ARP cache poisoning can take something.
         if (d === "static-arp" && !view.interceptable(doc, id) && !(e.defenses && has(e.defenses, d))) return;
         // An optional switch not set is off; any other one unsaid, unknown.

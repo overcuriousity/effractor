@@ -584,6 +584,10 @@ test('ARP poisoning and static ARP tables are offered only where a plain flow ca
   assert.ok(!arp('srv') && !arp('ws'));
   doc.entities.key = { kind: 'credential', label: 'Key' };
   doc.flows.ssh.carries = ['key'];
+  assert.deepEqual(poison(), [], 'a key that logs in nowhere the flow ends gives nothing away');
+  doc.entities.acct = { kind: 'account', label: 'Account' };
+  doc.associations.k1 = { kind: 'authenticates', from: 'key', to: 'acct' };
+  doc.associations.k2 = { kind: 'authorizes', from: 'acct', to: 'sshd' };
   assert.deepEqual(poison(), ['poison: not drawn until a time is given']);
   assert.ok(!arp('srv'), 'no poisoning time yet: static tables change nothing');
   doc.entities.lan.parameters = { poison: { status: 'unknown' } };

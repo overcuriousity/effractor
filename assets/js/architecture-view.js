@@ -103,12 +103,24 @@
     return "not drawn until a time is given";
   }
   // Flows ARP cache poisoning could take something off: not encrypted, and
-  // carrying a credential.
+  // carrying a credential that proves an account the flow's target accepts.
   function plainFlows(doc) {
+    var links = Object.keys(doc.associations || {}).map(function (k) {
+      return doc.associations[k];
+    });
+    var proves = function (credential, service) {
+      return links.some(function (a) {
+        return a.kind === "authenticates" && a.from === credential && links.some(function (b) {
+          return b.kind === "authorizes" && b.from === a.to && b.to === service;
+        });
+      });
+    };
     return Object.keys(doc.flows || {}).map(function (k) {
       return doc.flows[k];
     }).filter(function (f) {
-      return !f.encrypted && (f.carries || []).length > 0 && Array.isArray(f.route);
+      return !f.encrypted && Array.isArray(f.route) && (f.carries || []).some(function (c) {
+        return proves(c, f.target);
+      });
     });
   }
   // Whether a host's static ARP tables could change something: it is an end

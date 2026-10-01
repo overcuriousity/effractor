@@ -855,3 +855,10 @@ test('the course text\'s Link-menu table is what the menu offers on the course f
     }
   }
 });
+
+test('a flow carries only credentials there are', () => {
+  let doc = lecture();
+  const f = doc.flows.ssh;
+  doc = L.putFlow(doc, 'ssh', Object.assign({}, f, { carries: ['server-key', 'server-account', 'ghost'] })).doc;
+  assert.deepEqual(doc.flows.ssh.carries, ['server-key']);
+});
