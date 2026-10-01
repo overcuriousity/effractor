@@ -86,6 +86,9 @@ pub struct Loss {
     /// Expected loss over the horizon.
     pub mean: f64,
     pub mean_ci: Interval,
+    /// Why `mean_ci` is not to be trusted, if so: it needs two samples or more
+    /// and a finite variance.
+    pub mean_ci_unreliable: Option<String>,
     pub p50: f64,
     pub p90: f64,
     pub p95: f64,
@@ -293,6 +296,10 @@ impl Sampler {
                     lo: (mean - half).max(0.0),
                     hi: mean + half,
                 },
+                mean_ci_unreliable: mean_ci_unreliable(
+                    n,
+                    self.magnitudes.iter().map(|(_, _, d)| d),
+                ),
                 p50: quantile(0.5),
                 p90: quantile(0.9),
                 p95: quantile(0.95),
@@ -336,6 +343,29 @@ pub fn paired_difference(a: &[Chunk], b: &[Chunk], confidence: f64) -> (f64, Int
             hi: mean + half,
         },
     )
+}
+
+/// The interval of a mean loss is the normal approximation, mean ± z·s/√n.
+/// It needs a sample's spread, so two samples at least, and a population
+/// whose variance is finite: a Pareto with α ≤ 2 has none, its sample
+/// variance never settles, and the interval comes out narrower than the
+/// mean's real uncertainty. Either way it is still given, with this reason.
+fn mean_ci_unreliable<'a>(
+    samples: u64,
+    mut magnitudes: impl Iterator<Item = &'a Distribution>,
+) -> Option<String> {
+    if samples < 2 {
+        Some("one sample has no spread to draw an interval from".to_owned())
+    } else if magnitudes.any(|d| matches!(d, Distribution::Pareto { alpha, .. } if *alpha <= 2.0)) {
+        Some(
+            "a loss distribution has so heavy a tail that its variance is infinite (a Pareto \
+             with α ≤ 2): the interval assumes a finite one and is narrower than the \
+             uncertainty of the mean"
+                .to_owned(),
+        )
+    } else {
+        None
+    }
 }
 
 /// The Wilson score interval: honest near 0 and 1, where a fault tree lives

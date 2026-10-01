@@ -168,6 +168,10 @@ pub struct LossResult {
     /// consequence per horizon is modelled; frequency is not.
     pub mean: f64,
     pub mean_ci: Band,
+    /// Why `mean_ci` is not to be trusted, when it is not: it is a normal
+    /// approximation, which needs two samples or more and a finite variance.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mean_ci_unreliable: Option<String>,
     pub p50: f64,
     pub p90: f64,
     pub p95: f64,
@@ -599,6 +603,7 @@ impl Solve {
                 loss: s.loss.as_ref().filter(|l| finite(l)).map(|l| LossResult {
                     mean: l.mean,
                     mean_ci: band(&l.mean_ci),
+                    mean_ci_unreliable: l.mean_ci_unreliable.clone(),
                     p50: l.p50,
                     p90: l.p90,
                     p95: l.p95,

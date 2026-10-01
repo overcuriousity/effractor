@@ -115,6 +115,9 @@
     if (results.sampled && results.sampled.unavailable) out.push("Sampled results: " + results.sampled.unavailable.reason);
     else if (results.sampled && results.sampled.available && results.sampled.available.loss_unavailable) {
       out.push("Expected loss: " + results.sampled.available.loss_unavailable);
+    } else if (results.sampled && results.sampled.available && results.sampled.available.loss && results.sampled.available.loss.mean_ci_unreliable) {
+      // The interval is still given; it is its assumption that fails.
+      out.push("Expected loss interval: " + results.sampled.available.loss.mean_ci_unreliable);
     }
     if (results.attacker && results.attacker.unavailable) out.push("Attacker: " + results.attacker.unavailable.reason);
     return out;

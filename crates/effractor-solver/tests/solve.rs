@@ -229,6 +229,41 @@ fn an_infinite_expected_loss_is_explained_and_not_ranked() {
     assert_eq!(wall.unavailable.as_deref(), Some(reason));
 }
 
+/// The interval of the expected loss is a normal approximation: it needs a
+/// finite variance, which a Pareto with α ≤ 2 does not have, and more than
+/// one sample. Where it has neither it is still given, and said to be unsure.
+#[test]
+fn an_expected_loss_interval_without_its_assumptions_says_so() {
+    let loss = |m: &Model, samples: u64| {
+        let r = solve(m, &Config { samples, ..cfg(m) }).unwrap();
+        r.sampled.available().unwrap().loss.clone().unwrap()
+    };
+    let m = webserver();
+    assert_eq!(loss(&m, 2000).mean_ci_unreliable, None);
+    let one = loss(&m, 1).mean_ci_unreliable.unwrap();
+    assert!(one.contains("one sample"), "{one}");
+
+    let mut m = webserver();
+    m.assets[&id::<AssetId>("web")].loss.a = Some(D::Pareto {
+        xm: 1e5,
+        alpha: 1.5,
+    });
+    let heavy = loss(&m, 2000);
+    assert!(
+        heavy.mean.is_finite(),
+        "a finite mean, an infinite variance"
+    );
+    let reason = heavy.mean_ci_unreliable.unwrap();
+    assert!(reason.contains("variance"), "{reason}");
+
+    let mut m = webserver();
+    m.assets[&id::<AssetId>("web")].loss.a = Some(D::Pareto {
+        xm: 1e5,
+        alpha: 2.5,
+    });
+    assert_eq!(loss(&m, 2000).mean_ci_unreliable, None);
+}
+
 #[test]
 fn a_huge_horizon_keeps_its_time_axis() {
     let mut m = webserver();

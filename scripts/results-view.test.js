@@ -75,6 +75,12 @@ test("losses that add up to no finite amount say why", () => {
   assert.deepEqual(reasons(results), ["Expected loss: a loss distribution has so heavy a tail"]);
 });
 
+test("an expected loss whose interval cannot be trusted says why", () => {
+  const loss = { mean: 10, mean_ci: { lo: 2, hi: 18 }, mean_ci_unreliable: "a loss distribution has so heavy a tail that its variance is infinite" };
+  assert.deepEqual(reasons({ sampled: { available: { loss } } }), ["Expected loss interval: a loss distribution has so heavy a tail that its variance is infinite"]);
+  assert.deepEqual(reasons({ sampled: { available: { loss: { mean: 10, mean_ci: { lo: 2, hi: 18 } } } } }), []);
+});
+
 test("a control whose flip has no numbers carries the solver's reason", () => {
   const doc = { controls: { mfa: { enabled: true, effects: [{}] } } };
   const results = { controls: { available: { controls: [
