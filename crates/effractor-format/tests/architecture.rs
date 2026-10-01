@@ -2238,3 +2238,27 @@ fn a_grant_through_the_access_control_and_one_on_the_machine_is_said_twice() {
         "associations.admin-through-login"
     ));
 }
+
+#[test]
+fn long_lists_of_identities_and_names_are_checked_for_repeats_in_one_pass() {
+    let n = 60_000;
+    let mut image = image(LECTURE);
+    let server = &mut image["entities"]["server"];
+    let mut identities: Vec<String> = (0..n).map(|i| format!("ssh-ed25519:{i:x}")).collect();
+    identities.push("ssh-ed25519:7".into());
+    let mut names: Vec<String> = (0..n).map(|i| format!("h{i}.corp.example")).collect();
+    names.push("h7.corp.example".into());
+    server["identities"] = serde_json::json!(identities);
+    server["names"] = serde_json::json!(names);
+    let started = std::time::Instant::now();
+    let errors = errors_of(&image);
+    let elapsed = started.elapsed();
+    assert_eq!(
+        errors,
+        [
+            ("wrong-type", format!("entities.server.names[{n}]")),
+            ("wrong-type", format!("entities.server.identities[{n}]")),
+        ]
+    );
+    assert!(elapsed.as_secs_f64() < 10.0, "{elapsed:?}");
+}

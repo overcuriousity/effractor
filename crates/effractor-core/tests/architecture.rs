@@ -784,3 +784,44 @@ fn a_long_chain_of_guests_is_validated_in_one_pass() {
     let elapsed = started.elapsed();
     assert!(elapsed.as_secs_f64() < 1.0, "{elapsed:?}");
 }
+
+#[test]
+fn a_long_cluster_is_checked_in_one_pass() {
+    let n = 60_000;
+    let members: Vec<EntityId> = (0..n).map(|i| id(&format!("e{i}"))).collect();
+    let mut shown = members.clone();
+    shown.push(id("e7"));
+    shown.push(id("stranger"));
+    let mut m = Architecture::new("Crowd");
+    m.clusters.insert(
+        "crowd".parse().unwrap(),
+        effractor_core::architecture::Cluster {
+            label: None,
+            members,
+            shown,
+            closed: true,
+        },
+    );
+    let started = std::time::Instant::now();
+    let d = validate_architecture(&m);
+    let elapsed = started.elapsed();
+    let shown: Vec<_> = d
+        .iter()
+        .filter(|d| d.path.contains(".shown["))
+        .map(|d| (d.path.clone(), d.message.clone()))
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            (
+                format!("clusters.crowd.shown[{n}]"),
+                "\"e7\" is listed twice".to_owned()
+            ),
+            (
+                format!("clusters.crowd.shown[{}]", n + 1),
+                "\"stranger\" is not a member of this cluster".to_owned()
+            ),
+        ]
+    );
+    assert!(elapsed.as_secs_f64() < 10.0, "{elapsed:?}");
+}

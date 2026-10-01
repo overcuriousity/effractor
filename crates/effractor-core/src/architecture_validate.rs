@@ -940,10 +940,11 @@ impl Cx<'_> {
                     self.error(Code::Cardinality, path, message);
                 }
             }
+            let members: HashSet<&EntityId> = cluster.members.iter().collect();
             let mut seen = HashSet::new();
             for (i, member) in cluster.shown.iter().enumerate() {
                 let path = format!("{at}.shown[{i}]");
-                if !cluster.members.contains(member) {
+                if !members.contains(member) {
                     self.error(
                         Code::Cardinality,
                         path,

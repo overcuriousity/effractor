@@ -10,6 +10,7 @@ use effractor_core::architecture::{
     Relation, RelationKind, Scenario, Slot, State, StateRef, Switch, Tool,
 };
 use effractor_core::{Code, EntityId, Pos, article};
+use std::collections::HashSet;
 use std::sync::LazyLock;
 
 use indexmap::IndexMap;
@@ -316,6 +317,7 @@ fn host_only(cx: &mut Cx, f: &Fields, key: &str, kind: EntityKind) -> bool {
 fn identities(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Vec<String>> {
     let items = cx.list(&entry.value, path)?;
     let mut out: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
     let mut ok = true;
     for (i, item) in items.iter().enumerate() {
         let at = format!("{path}[{i}]");
@@ -330,7 +332,7 @@ fn identities(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Vec<String>> {
                 format!("expected type:value such as mac:00:1a:2b:3c:4d:5e, found {text:?}");
             cx.error(Code::WrongType, at, item.pos, message);
             ok = false;
-        } else if out.contains(&text) {
+        } else if !seen.insert(text.clone()) {
             cx.error(
                 Code::WrongType,
                 at,
@@ -364,6 +366,7 @@ fn is_name(text: &str) -> bool {
 fn names(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Vec<String>> {
     let items = cx.list(&entry.value, path)?;
     let mut out: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
     let mut ok = true;
     for (i, item) in items.iter().enumerate() {
         let at = format!("{path}[{i}]");
@@ -377,7 +380,7 @@ fn names(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Vec<String>> {
             );
             cx.error(Code::WrongType, at, item.pos, message);
             ok = false;
-        } else if out.contains(&text) {
+        } else if !seen.insert(text.clone()) {
             cx.error(
                 Code::WrongType,
                 at,
