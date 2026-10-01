@@ -3,7 +3,7 @@
 use effractor_components::{RULES, catalog};
 use serde_json::Value;
 
-const RULE_IDS: [&str; 53] = [
+const RULE_IDS: [&str; 54] = [
     "foothold",
     "admin-implies-user",
     "host-execution",
@@ -30,6 +30,7 @@ const RULE_IDS: [&str; 53] = [
     "antimalware-off",
     "antimalware-bypass",
     "escalate",
+    "host-firewall-off",
     "physical-access",
     "usb-access",
     "deny-service",
@@ -314,7 +315,7 @@ fn the_catalog_describes_the_sensors_and_anti_malware() {
     assert_eq!(ids["defenses"], serde_json::json!(["enabled"]));
     assert_eq!(
         entity("host")["optional_defenses"],
-        serde_json::json!(["aslr", "anti-malware", "dep", "hardened"])
+        serde_json::json!(["aslr", "anti-malware", "dep", "hardened", "host-firewall"])
     );
     let watches = c["associations"]
         .as_array()

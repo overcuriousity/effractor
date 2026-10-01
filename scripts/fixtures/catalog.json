@@ -86,13 +86,15 @@
         "aslr",
         "anti-malware",
         "dep",
-        "hardened"
+        "hardened",
+        "host-firewall"
       ],
       "optional_defenses": [
         "aslr",
         "anti-malware",
         "dep",
-        "hardened"
+        "hardened",
+        "host-firewall"
       ]
     },
     {
@@ -387,7 +389,8 @@
     {
       "kind": "permits",
       "from": [
-        "firewall"
+        "firewall",
+        "host"
       ],
       "to": [
         "flow"
@@ -395,7 +398,7 @@
       "fields": [
         "allowed"
       ],
-      "description": "A firewall's named permission for a flow: `allowed: true | false | unknown`."
+      "description": "A firewall's named permission for a flow: `allowed: true | false | unknown`. From a host: its host firewall's, for a flow into a service it runs."
     },
     {
       "kind": "instance-of",
@@ -697,6 +700,11 @@
       "id": "hardened",
       "word": "Hardened",
       "description": "The host is hardened against privilege escalation: `escalate-hardened` stands in for `escalate`. Off unless said."
+    },
+    {
+      "id": "host-firewall",
+      "word": "Host firewall",
+      "description": "The host filters what comes in: a flow into a service it runs needs the host's permission too, as at a router's firewall. Off unless said."
     }
   ],
   "parameters": [
@@ -1313,6 +1321,23 @@
       "scope": "one per host with an `escalate` time",
       "assumptions": [
         "A local privilege escalation from user to administrator; which flaw it uses is in its time's note."
+      ]
+    },
+    {
+      "id": "host-firewall-off",
+      "title": "The host firewall is off",
+      "version": 1,
+      "bindings": [
+        "host"
+      ],
+      "prerequisites": "the host's `host-firewall` switch is off",
+      "output": "the host's permission for each flow into a service it runs",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per host whose host firewall is said or that permits a flow",
+      "assumptions": [
+        "Absent from a file, a host's firewall is off."
       ]
     },
     {

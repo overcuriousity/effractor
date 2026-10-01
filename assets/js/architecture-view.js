@@ -132,7 +132,7 @@
     ((spec && spec.optional_defenses) || []).forEach(function (defense) {
       if (has(e.defenses || {}, defense)) return;
       if ((defense === "aslr" || defense === "dep") && !hardens(doc, id)) return;
-      if (defense === "anti-malware" && !runsService(doc, id)) return;
+      if ((defense === "anti-malware" || defense === "host-firewall") && !runsService(doc, id)) return;
       if (defense === "hardened" && !has(e.parameters || {}, "escalate")) return;
       rows.push({ defense: defense, value: false });
     });

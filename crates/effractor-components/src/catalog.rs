@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 53] = [
+pub const RULES: [Rule; 54] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -407,6 +407,17 @@ pub const RULES: [Rule; 53] = [
         assumptions: &[
             "A local privilege escalation from user to administrator; which flaw it uses is in its time's note.",
         ],
+    },
+    Rule {
+        id: "host-firewall-off",
+        title: "The host firewall is off",
+        version: 1,
+        bindings: &["host"],
+        prerequisites: "the host's `host-firewall` switch is off",
+        output: "the host's permission for each flow into a service it runs",
+        duration: D::Logical,
+        scope: "one per host whose host firewall is said or that permits a flow",
+        assumptions: &["Absent from a file, a host's firewall is off."],
     },
     Rule {
         id: "physical-access",
@@ -850,7 +861,7 @@ fn relation_description(kind: RelationKind) -> &'static str {
             "Management access to a machine from a network, independent of ordinary forwarding."
         }
         RelationKind::Permits => {
-            "A firewall's named permission for a flow: `allowed: true | false | unknown`."
+            "A firewall's named permission for a flow: `allowed: true | false | unknown`. From a host: its host firewall's, for a flow into a service it runs."
         }
         RelationKind::InstanceOf => {
             "The software version a service runs (exactly one product), or a host's operating system, or an application's version (at most one)."
@@ -1120,6 +1131,10 @@ fn defense_word(defense: Defense) -> (&'static str, &'static str) {
         Defense::AntiMalware => (
             "Anti-malware",
             "Anti-malware on a host: an exploit used there, or on a service it runs, first gets past it (`bypass-antimalware`). Off unless said.",
+        ),
+        Defense::HostFirewall => (
+            "Host firewall",
+            "The host filters what comes in: a flow into a service it runs needs the host's permission too, as at a router's firewall. Off unless said.",
         ),
         Defense::Hardened => (
             "Hardened",

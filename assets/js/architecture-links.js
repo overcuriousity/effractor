@@ -702,6 +702,21 @@
       })[0] : null;
       out.push({ router: router, firewall: firewall, association: permit || null, allowed: permit ? doc.associations[permit].allowed : null });
     }
+    // The target's host, last, where its host firewall is said or it permits.
+    var target = doc.flows[flowId].target;
+    var hosting = Object.keys(doc.associations || {}).filter(function (k) {
+      var a = doc.associations[k];
+      return a.kind === "hosts" && a.to === target && has(doc.entities, a.from) && doc.entities[a.from].kind === "host";
+    })[0];
+    var host = hosting ? doc.associations[hosting].from : null;
+    if (host) {
+      var own = Object.keys(doc.associations).filter(function (k) {
+        var a = doc.associations[k];
+        return a.kind === "permits" && a.from === host && a.to === flowId;
+      })[0];
+      var said = has(doc.entities[host].defenses || {}, "host-firewall");
+      if (said || own) out.push({ router: host, firewall: host, host: true, association: own || null, allowed: own ? doc.associations[own].allowed : null });
+    }
     return out;
   }
 

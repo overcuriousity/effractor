@@ -223,6 +223,7 @@ impl EntityKind {
                 Defense::AntiMalware,
                 Defense::Dep,
                 Defense::Hardened,
+                Defense::HostFirewall,
             ],
             Self::Ids | Self::Ips => &[Defense::Enabled],
             _ => &[],
@@ -554,6 +555,9 @@ pub struct Defenses {
     pub enabled: Option<Switch>,
     /// A host: `escalate-hardened` stands in for `escalate`. Absent is off.
     pub hardened: Option<Switch>,
+    /// A host: a flow into a service it runs needs its permission too.
+    /// Absent is off.
+    pub host_firewall: Option<Switch>,
 }
 
 impl Defenses {
@@ -570,6 +574,7 @@ impl Defenses {
             Defense::AntiMalware => self.anti_malware,
             Defense::Enabled => self.enabled,
             Defense::Hardened => self.hardened,
+            Defense::HostFirewall => self.host_firewall,
         }
     }
 
@@ -586,6 +591,7 @@ impl Defenses {
             Defense::AntiMalware => self.anti_malware = value,
             Defense::Enabled => self.enabled = value,
             Defense::Hardened => self.hardened = value,
+            Defense::HostFirewall => self.host_firewall = value,
         }
     }
 }
@@ -765,7 +771,8 @@ pub enum Relation {
     },
     /// network → host/router: management access from that zone.
     Administration { from: EntityId, to: EntityId },
-    /// firewall → flow: a named permission.
+    /// firewall or host → flow: a named permission; a host's, for a flow
+    /// into a service it runs, read while its host firewall is on.
     Permits {
         from: EntityId,
         to: FlowId,
@@ -940,7 +947,7 @@ impl RelationKind {
             Self::Authenticates => &[K::Credential],
             Self::Authorizes | Self::Grants => &[K::Account],
             Self::Administration => &[K::Network],
-            Self::Permits => &[K::Firewall],
+            Self::Permits => &[K::Firewall, K::Host],
             Self::InstanceOf => &[K::Service, K::Host, K::Application],
             Self::RunsAs => &[K::Host, K::Application, K::Service],
             Self::Assumes => &[K::Account],
@@ -1130,6 +1137,7 @@ pub enum Defense {
     AntiMalware,
     Enabled,
     Hardened,
+    HostFirewall,
 }
 
 impl Defense {
@@ -1141,13 +1149,13 @@ impl Defense {
         matches!(
             (self, kind),
             (
-                Self::Aslr | Self::Dep | Self::AntiMalware | Self::Hardened,
+                Self::Aslr | Self::Dep | Self::AntiMalware | Self::Hardened | Self::HostFirewall,
                 EntityKind::Host
             )
         )
     }
 
-    pub const ALL: [Defense; 11] = [
+    pub const ALL: [Defense; 12] = [
         Self::Patched,
         Self::Protected,
         Self::Mfa,
@@ -1159,6 +1167,7 @@ impl Defense {
         Self::AntiMalware,
         Self::Enabled,
         Self::Hardened,
+        Self::HostFirewall,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -1174,6 +1183,7 @@ impl Defense {
             Self::AntiMalware => "anti-malware",
             Self::Enabled => "enabled",
             Self::Hardened => "hardened",
+            Self::HostFirewall => "host-firewall",
         }
     }
 }

@@ -712,7 +712,8 @@ fn a_host_has_aslr_and_dep_and_neither_is_filled_in() {
             Defense::Aslr,
             Defense::AntiMalware,
             Defense::Dep,
-            Defense::Hardened
+            Defense::Hardened,
+            Defense::HostFirewall
         ]
     );
     assert!(Defense::Aslr.optional(EntityKind::Host) && Defense::Dep.optional(EntityKind::Host));

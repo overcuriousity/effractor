@@ -6,8 +6,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::architecture::{
-    Architecture, Change, Entity, EntityKind, Evidence, Flow, MAX_ENTITIES, MAX_RELATIONSHIPS,
-    MAX_SAMPLES, MAX_SCENARIOS, Parameter, Privilege, Relation, RelationKind, State, StateRef,
+    Architecture, Change, Defense, Entity, EntityKind, Evidence, Flow, MAX_ENTITIES,
+    MAX_RELATIONSHIPS, MAX_SAMPLES, MAX_SCENARIOS, Parameter, Privilege, Relation, RelationKind,
+    State, StateRef, Switch,
 };
 use crate::{AssociationId, ClusterId, Code, Diagnostic, EntityId, FlowId, article};
 
@@ -742,6 +743,25 @@ impl Cx<'_> {
                 _ => {}
             }
         }
+        // The target's host, read last: its own firewall, where the file
+        // says it is on or does not say, needs a permission as a router's does.
+        if target_ok
+            && let Some(host) = self.host_of(&flow.target)
+            && let Some(e) = self.m.entities.get(host)
+            && e.kind == EntityKind::Host
+            && matches!(
+                e.defenses.get(Defense::HostFirewall),
+                Some(Switch::On | Switch::Unknown)
+            )
+            && !self.permits(host, id)
+        {
+            self.unfinished(
+                path,
+                format!(
+                    "\"{host}\" has its host firewall on or unsaid and no `permits` association for this flow; it is neither allowed nor denied"
+                ),
+            );
+        }
     }
 
     /// What is said but changes nothing in the attack graph: warned, never
@@ -819,7 +839,17 @@ impl Cx<'_> {
                     let Some(flow) = m.flows.get(to) else {
                         continue;
                     };
-                    if let Some(router) = router_of.get(from)
+                    if self.kind_of(from) == Some(EntityKind::Host)
+                        && self.host_of(&flow.target) != Some(from)
+                    {
+                        self.warning(
+                            Code::Ineffective,
+                            at,
+                            format!(
+                                "\"{to}\" does not end at a service \"{from}\" runs, so its host firewall never sees it: this permission changes nothing"
+                            ),
+                        );
+                    } else if let Some(router) = router_of.get(from)
                         && !flow.route.contains(router)
                     {
                         self.warning(

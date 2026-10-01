@@ -289,3 +289,9 @@ test('Compare offers hardening only on a host that can escalate', () => {
   const cat = { entities: [{ kind: 'host', defenses: ['hardened'], optional_defenses: ['hardened'] }], defenses: [] };
   assert.deepEqual(C.switches(doc, cat).map((x) => x.entity + ':' + x.defense), ['srv:hardened']);
 });
+
+test('Compare offers a host firewall only on a host that runs a service', () => {
+  const doc = { entities: { srv: { kind: 'host', label: 'Server' }, ws: { kind: 'host', label: 'Workstation' }, sshd: { kind: 'service', label: 'SSH' } }, associations: { h: { kind: 'hosts', from: 'srv', to: 'sshd', privilege: 'admin' } } };
+  const cat = { entities: [{ kind: 'host', defenses: ['host-firewall'], optional_defenses: ['host-firewall'] }, { kind: 'service', defenses: [] }], defenses: [] };
+  assert.deepEqual(C.switches(doc, cat).map((x) => x.entity + ':' + x.defense), ['srv:host-firewall']);
+});

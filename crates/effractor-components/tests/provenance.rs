@@ -1379,3 +1379,48 @@ fn a_held_account_gives_what_logs_it_in_fig_5_33() {
     let lecture = shape(&generate(&architecture(LECTURE)).unwrap());
     assert!(!lecture.contains_key("state/account/server-account/held"));
 }
+
+fn host_firewall(switch: &str) -> Architecture {
+    edited(
+        LECTURE,
+        &[
+            (
+                "  server:\n    kind: host\n    label: Server\n",
+                &format!(
+                    "  server:\n    kind: host\n    label: Server\n    defenses: {{host-firewall: {switch}}}\n"
+                ),
+            ),
+            (
+                "\nflows:\n",
+                "  server-allows-ssh:\n    kind: permits\n    from: server\n    to: ssh\n    allowed: true\n\nflows:\n",
+            ),
+        ],
+    )
+}
+
+#[test]
+fn a_host_firewall_lets_a_flow_in_only_with_its_permission_fig_5_37() {
+    let m = host_firewall("true");
+    let g = generate(&m).unwrap();
+    let s = shape(&g);
+    assert!(s["action/flow-connect/ssh"].contains(&"state/permission/server/ssh".to_owned()));
+    assert_eq!(
+        s["state/permission/server/ssh"],
+        strings(&[
+            "input/flow-permission/server/ssh",
+            "input/host-firewall-off/server"
+        ])
+    );
+    let r = resolve(&m, &g, None).unwrap();
+    assert_eq!(
+        r.ttc[index(&g, "input/host-firewall-off/server")],
+        ResolvedTtc::Known(Distribution::Infinity)
+    );
+    let off = host_firewall("false");
+    let g = generate(&off).unwrap();
+    assert_eq!(
+        resolve(&off, &g, None).unwrap().ttc[index(&g, "input/host-firewall-off/server")],
+        ResolvedTtc::Known(Distribution::Zero),
+        "off: the flow passes whatever the permission says"
+    );
+}

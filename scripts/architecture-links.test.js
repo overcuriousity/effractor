@@ -738,3 +738,13 @@ test('the words for a sensor read from either side', () => {
   assert.equal(L.phrase('watches', 'out'), 'watched by');
   assert.equal(L.phrase('watches', 'in'), 'watches');
 });
+
+test("a flow into a host with its firewall said asks for the host's permission last", () => {
+  const doc = lecture();
+  assert.deepEqual(L.flowPermissions(doc, 'ssh').map((p) => p.firewall), ['filter']);
+  doc.entities.server.defenses = { 'host-firewall': true };
+  const last = L.flowPermissions(doc, 'ssh').slice(-1)[0];
+  assert.deepEqual([last.firewall, last.host, last.association], ['server', true, null]);
+  doc.associations['server-ssh'] = { kind: 'permits', from: 'server', to: 'ssh', allowed: true };
+  assert.equal(L.flowPermissions(doc, 'ssh').slice(-1)[0].association, 'server-ssh');
+});

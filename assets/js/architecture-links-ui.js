@@ -478,7 +478,7 @@
       }
       var options = [["none", "? not said"], ["true", "Allowed"], ["false", "Denied"], ["unknown", "Unknown"]];
       var permit = U.field(form, fieldId, name(p.firewall), M.dropdown(options, p.association ? String(p.allowed) : "none"));
-      permit.title = "Permission of “" + name(p.firewall) + "” on “" + name(p.router) + "”";
+      permit.title = p.host ? "Host firewall of “" + name(p.firewall) + "”" : "Permission of “" + name(p.firewall) + "” on “" + name(p.router) + "”";
       permit.addEventListener("change", function () {
         U.apply(function () {
           var edit = permit.value === "none"

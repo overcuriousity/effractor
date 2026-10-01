@@ -491,7 +491,7 @@ test('ASLR and DEP are shown only on a host they can change, and say so', () => 
   // ws runs cli, an application: nothing there reads ASLR.
   assert.deepEqual(V.defenseRows(doc, REAL, 'ws'), []);
   // srv runs sshd, a service.
-  assert.deepEqual(V.defenseRows(doc, REAL, 'srv').map((r) => r.defense), ['aslr', 'anti-malware', 'dep']);
+  assert.deepEqual(V.defenseRows(doc, REAL, 'srv').map((r) => r.defense), ['aslr', 'anti-malware', 'dep', 'host-firewall']);
   // sshd's replacement times are shown only while their switch is not off.
   const slots = () => V.slotRows(doc, REAL, 'sshd').filter((r) => r.absent && !HOST_STEPS.includes(r.slot)).map((r) => r.slot + ': ' + r.note);
   assert.deepEqual(slots(), []);
@@ -561,4 +561,10 @@ test('a pin offers the states its role may take', () => {
   assert.deepEqual(V.pinStates(REAL, 'account', 'target'), []);
   assert.deepEqual(V.pinStates(REAL, 'firewall', 'target'), []);
   assert.deepEqual(V.pinStates(null, 'host', 'target'), []);
+});
+
+test('a host firewall is offered only where a flow can end', () => {
+  const doc = lecture();
+  assert.ok(V.defenseRows(doc, REAL, 'srv').some((r) => r.defense === 'host-firewall'));
+  assert.ok(!V.defenseRows(doc, REAL, 'ws').some((r) => r.defense === 'host-firewall'));
 });

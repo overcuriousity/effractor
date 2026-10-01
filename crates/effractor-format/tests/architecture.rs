@@ -2383,3 +2383,48 @@ fn attacker_inputs_are_footholds_and_denial_is_a_target_fig_5_33() {
         "attacker.footholds[0].state"
     ));
 }
+
+/// The lecture with the server's own firewall on (extract Fig. 5.37) and,
+/// unless `permit` is empty, its permission for the SSH flow.
+fn with_host_firewall(switch: &str, permit: bool) -> serde_json::Value {
+    let mut image = image(LECTURE);
+    image["entities"]["server"]["defenses"] = serde_json::json!({"host-firewall": switch});
+    if permit {
+        image["associations"]["server-allows-ssh"] =
+            serde_json::json!({"kind": "permits", "from": "server", "to": "ssh", "allowed": true});
+    }
+    image
+}
+
+#[test]
+fn a_host_firewall_permits_flows_into_its_host() {
+    let text = from_document(&with_host_firewall("true", true)).unwrap();
+    assert!(text.contains("    from: server\n    to: ssh\n"), "{text}");
+    let (_, diagnostics) = effractor_format::diagnose_document(&text);
+    assert_eq!(diagnostics, vec![]);
+    // On, or not said either way, without a permission: the flow is not
+    // finished, as at a router's firewall.
+    for switch in ["true", "unknown"] {
+        let text = from_document(&with_host_firewall(switch, false)).unwrap();
+        let (_, diagnostics) = effractor_format::diagnose_document(&text);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.code.as_str() == "unfinished" && d.path == "flows.ssh.route"),
+            "{switch}: {diagnostics:?}"
+        );
+    }
+    let text = from_document(&with_host_firewall("false", false)).unwrap();
+    assert_eq!(effractor_format::diagnose_document(&text).1, vec![]);
+    // A host's permission for a flow that does not end there changes nothing.
+    let mut image = with_host_firewall("true", true);
+    image["associations"]["server-allows-ssh"]["from"] = serde_json::json!("workstation");
+    let text = from_document(&image).unwrap();
+    assert!(
+        effractor_format::diagnose_document(&text)
+            .1
+            .iter()
+            .any(|d| d.code.as_str() == "ineffective"
+                && d.path == "associations.server-allows-ssh")
+    );
+}

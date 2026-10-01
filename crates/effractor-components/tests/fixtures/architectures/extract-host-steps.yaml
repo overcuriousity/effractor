@@ -34,7 +34,7 @@ entities:
   server:
     kind: host
     label: Server
-    defenses: {anti-malware: true}
+    defenses: {anti-malware: true, host-firewall: true}
     parameters:
       bypass-antimalware:
         status: illustrative
@@ -293,6 +293,11 @@ associations:
   allow-ssh:
     kind: permits
     from: filter
+    to: ssh
+    allowed: true
+  server-allows-ssh:
+    kind: permits
+    from: server
     to: ssh
     allowed: true
 

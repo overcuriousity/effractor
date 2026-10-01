@@ -371,6 +371,19 @@ impl<'a> Builder<'a> {
             })
     }
 
+    /// Whether a host's firewall is said: in the file or by a scenario.
+    fn host_firewall_said(&self, host: &EntityId) -> bool {
+        self.m.entities[host]
+            .defenses
+            .get(Defense::HostFirewall)
+            .is_some()
+            || self.m.scenarios.values().any(|s| {
+                s.changes.iter().any(|c| {
+                    matches!(c, Change::EntityDefense { entity, defense: Defense::HostFirewall, .. } if entity == host)
+                })
+            })
+    }
+
     fn kind(&self, id: &EntityId) -> EntityKind {
         self.m.entities[id].kind
     }
@@ -781,6 +794,46 @@ impl<'a> Builder<'a> {
                 prerequisites.push(Self::permission_id(firewall, fid));
                 entities.extend([router.clone(), firewall.clone()]);
                 associations.push(permit.clone());
+            }
+            // The target's host, last: its firewall's permission where its
+            // host firewall is said, in the file or a scenario, or it permits.
+            if let Some(&(host, _, _)) = self.host_of.get(&flow.target)
+                && self.kind(host) == EntityKind::Host
+                && (self.host_firewall_said(host) || self.permit.contains_key(&(host, fid)))
+            {
+                let fact = Self::permission_id(host, fid);
+                self.fact(
+                    fact.clone(),
+                    format!("Let through · {} · {}", self.label(host), flow.label),
+                );
+                let input = format!("input/host-firewall-off/{host}");
+                let policy = Origin {
+                    entities: vec![host.clone()],
+                    paths: vec![format!("entities.{host}.defenses.host-firewall")],
+                    ..origin("host-firewall-off")
+                };
+                self.insert(
+                    input.clone(),
+                    format!("Host firewall off · {}", self.label(host)),
+                    DraftKind::Input(Binding::Policy {
+                        entity: host.clone(),
+                        defense: Defense::HostFirewall,
+                    }),
+                );
+                self.originate(&input, policy.clone());
+                self.produce(
+                    &input,
+                    &fact,
+                    Origin {
+                        flows: vec![fid.clone()],
+                        ..policy
+                    },
+                );
+                prerequisites.push(fact);
+                entities.push(host.clone());
+                if let Some(&permit) = self.permit.get(&(host, fid)) {
+                    associations.push(permit.clone());
+                }
             }
             let owner = Owner::Flow(fid.clone());
             let duration = match self.unfinished.get(fid) {
