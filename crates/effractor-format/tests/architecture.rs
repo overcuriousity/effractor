@@ -2238,3 +2238,45 @@ fn a_grant_through_the_access_control_and_one_on_the_machine_is_said_twice() {
         "associations.admin-through-login"
     ));
 }
+
+/// The lecture with an IDS on the router and an IPS on the server (extract
+/// Fig. 5.18), the server's anti-malware on.
+fn with_sensors() -> serde_json::Value {
+    let mut image = image(LECTURE);
+    image["entities"]["bridge-ids"] = serde_json::json!({"kind": "ids", "label": "Router IDS",
+        "parameters": {"bypass": {"status": "illustrative", "ttc": "Exponential(mean 2)", "note": "exercise"}},
+        "defenses": {"enabled": true}});
+    image["entities"]["server-ips"] = serde_json::json!({"kind": "ips", "label": "Server IPS",
+        "parameters": {"bypass": {"status": "unknown"}}, "defenses": {"enabled": "unknown"}});
+    image["associations"]["bridge-watch"] =
+        serde_json::json!({"kind": "watches", "from": "bridge", "to": "bridge-ids"});
+    image["associations"]["server-watch"] =
+        serde_json::json!({"kind": "watches", "from": "server", "to": "server-ips"});
+    image["entities"]["server"]["defenses"] = serde_json::json!({"anti-malware": true});
+    image["entities"]["server"]["parameters"]["bypass-antimalware"] = serde_json::json!({"status": "unknown"});
+    image
+}
+
+#[test]
+fn sensors_and_anti_malware_round_trip_and_are_complete() {
+    let text = from_document(&with_sensors()).unwrap();
+    assert!(text.contains("    kind: ids\n"), "{text}");
+    assert!(text.contains("    kind: watches\n"), "{text}");
+    assert!(text.contains("      anti-malware: true\n"), "{text}");
+    assert!(text.contains("      bypass-antimalware:\n"), "{text}");
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    let (doc, diagnostics) = effractor_format::diagnose_document(&text);
+    assert_eq!(diagnostics, vec![], "nothing to say about it");
+    assert_eq!(effractor_format::save_document(&doc.unwrap()), text);
+}
+
+#[test]
+fn a_sensor_is_watched_by_a_machine_only() {
+    let mut image = with_sensors();
+    image["associations"]["bridge-watch"]["from"] = serde_json::json!("admin-net");
+    assert!(has(
+        &errors_of(&image),
+        "association-type",
+        "associations.bridge-watch"
+    ));
+}

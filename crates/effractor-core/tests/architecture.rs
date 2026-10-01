@@ -260,7 +260,8 @@ fn every_host_and_router_carries_an_escape_slot() {
             Slot::Escape,
             Slot::DeployExploit,
             Slot::DeployExploitAslr,
-            Slot::DeployExploitDep
+            Slot::DeployExploitDep,
+            Slot::BypassAntimalware
         ]
     );
     assert_eq!(EntityKind::Router.slots(), &[Slot::Escape]);
@@ -668,6 +669,7 @@ fn only_slots_added_to_an_existing_kind_are_optional() {
             "deploy-exploit on host",
             "deploy-exploit-aslr on host",
             "deploy-exploit-dep on host",
+            "bypass-antimalware on host",
             "deploy-exploit on application",
             "deploy-exploit-aslr on service",
             "deploy-exploit-dep on service",
@@ -678,7 +680,10 @@ fn only_slots_added_to_an_existing_kind_are_optional() {
 #[test]
 fn a_host_has_aslr_and_dep_and_neither_is_filled_in() {
     use effractor_core::architecture::{Defense, Entity, EntityKind, Switch};
-    assert_eq!(EntityKind::Host.defenses(), &[Defense::Aslr, Defense::Dep]);
+    assert_eq!(
+        EntityKind::Host.defenses(),
+        &[Defense::Aslr, Defense::AntiMalware, Defense::Dep]
+    );
     assert!(Defense::Aslr.optional(EntityKind::Host) && Defense::Dep.optional(EntityKind::Host));
     assert!(!Defense::Patched.optional(EntityKind::Product));
     let host = Entity::new(EntityKind::Host, "Server");
@@ -692,4 +697,41 @@ fn a_host_has_aslr_and_dep_and_neither_is_filled_in() {
         product.defenses.get(Defense::Patched),
         Some(Switch::Unknown)
     );
+}
+
+#[test]
+fn an_ids_and_an_ips_are_sensors_a_machine_watches_with() {
+    use effractor_core::architecture::{Defense, Entity, EntityKind, RelationKind, Slot, Switch};
+    // Extract Fig. 5.18: IDS and IPS on the router.
+    for (kind, word) in [(EntityKind::Ids, "ids"), (EntityKind::Ips, "ips")] {
+        assert_eq!(kind.as_str(), word);
+        assert!(kind.states().is_empty());
+        assert_eq!(kind.slots(), &[Slot::Bypass]);
+        assert_eq!(kind.defenses(), &[Defense::Enabled]);
+        assert!(!Slot::Bypass.optional(kind), "a new kind's slot is required");
+        let sensor = Entity::new(kind, "Sensor");
+        assert_eq!(sensor.defenses.get(Defense::Enabled), Some(Switch::Unknown));
+        assert!(sensor.parameters.contains_key(&Slot::Bypass));
+    }
+    assert_eq!(
+        RelationKind::Watches.from_kinds(),
+        &[EntityKind::Host, EntityKind::Router]
+    );
+    assert_eq!(
+        RelationKind::Watches.to_kinds(),
+        &[EntityKind::Ids, EntityKind::Ips]
+    );
+    assert!(RelationKind::Watches.fields().is_empty());
+}
+
+#[test]
+fn a_host_has_anti_malware_off_unless_said() {
+    use effractor_core::architecture::{Defense, Entity, EntityKind, Slot};
+    assert!(EntityKind::Host.defenses().contains(&Defense::AntiMalware));
+    assert!(Defense::AntiMalware.optional(EntityKind::Host));
+    assert!(EntityKind::Host.slots().contains(&Slot::BypassAntimalware));
+    assert!(Slot::BypassAntimalware.optional(EntityKind::Host));
+    let host = Entity::new(EntityKind::Host, "Server");
+    assert_eq!(host.defenses.get(Defense::AntiMalware), None);
+    assert!(!host.parameters.contains_key(&Slot::BypassAntimalware));
 }

@@ -3,7 +3,7 @@
 use effractor_components::{RULES, catalog};
 use serde_json::Value;
 
-const RULE_IDS: [&str; 42] = [
+const RULE_IDS: [&str; 48] = [
     "foothold",
     "admin-implies-user",
     "host-execution",
@@ -23,6 +23,12 @@ const RULE_IDS: [&str; 42] = [
     "application-reachable",
     "host-deploy-exploit",
     "application-deploy-exploit",
+    "sensor-reached",
+    "sensor-off",
+    "sensor-bypass",
+    "watched-flow",
+    "antimalware-off",
+    "antimalware-bypass",
     "credential-extract",
     "account-material",
     "mfa-policy",
@@ -77,12 +83,14 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
             "credential",
             "person",
             "data",
-            "access-control"
+            "access-control",
+            "ids",
+            "ips"
         ]
     );
-    assert_eq!(ids(&c["associations"], "kind").len(), 20);
+    assert_eq!(ids(&c["associations"], "kind").len(), 21);
     assert_eq!(ids(&c["states"], "id").len(), 9);
-    assert_eq!(ids(&c["parameters"], "slot").len(), 16);
+    assert_eq!(ids(&c["parameters"], "slot").len(), 18);
     let rules = ids(&c["rules"], "id");
     assert_eq!(rules, RULE_IDS);
     for rule in &RULES {
@@ -257,7 +265,8 @@ fn every_kind_says_which_of_its_slots_are_optional() {
             "host" => serde_json::json!([
                 "deploy-exploit",
                 "deploy-exploit-aslr",
-                "deploy-exploit-dep"
+                "deploy-exploit-dep",
+                "bypass-antimalware"
             ]),
             "application" => serde_json::json!(["deploy-exploit"]),
             "service" => serde_json::json!(["deploy-exploit-aslr", "deploy-exploit-dep"]),
@@ -265,4 +274,64 @@ fn every_kind_says_which_of_its_slots_are_optional() {
         };
         assert_eq!(e["optional"], want, "{}", e["kind"]);
     }
+}
+
+#[test]
+fn the_catalog_describes_the_sensors_and_anti_malware() {
+    let c = catalog();
+    let entity = |kind: &str| {
+        c["entities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["kind"] == kind)
+            .cloned()
+            .expect("the kind")
+    };
+    let ids = entity("ids");
+    assert_eq!(
+        ids["meaning"],
+        "Watches traffic and reports what it recognizes."
+    );
+    assert_eq!(
+        entity("ips")["meaning"],
+        "Watches traffic and stops what it recognizes."
+    );
+    assert_eq!(ids["parameters"], serde_json::json!(["bypass"]));
+    assert_eq!(ids["optional"], serde_json::json!([]));
+    assert_eq!(ids["defenses"], serde_json::json!(["enabled"]));
+    assert_eq!(
+        entity("host")["optional_defenses"],
+        serde_json::json!(["aslr", "anti-malware", "dep"])
+    );
+    let watches = c["associations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["kind"] == "watches")
+        .expect("the link");
+    assert_eq!(watches["from"], serde_json::json!(["host", "router"]));
+    assert_eq!(watches["to"], serde_json::json!(["ids", "ips"]));
+    let word = |id: &str| {
+        c["defenses"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|d| d["id"] == id)
+            .unwrap()["word"]
+            .clone()
+    };
+    assert_eq!(word("enabled"), "Enabled");
+    assert_eq!(word("anti-malware"), "Anti-malware");
+    let name = |slot: &str| {
+        c["parameters"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["slot"] == slot)
+            .unwrap()["name"]
+            .clone()
+    };
+    assert_eq!(name("bypass"), "Get past it");
+    assert_eq!(name("bypass-antimalware"), "Get past the anti-malware");
 }
