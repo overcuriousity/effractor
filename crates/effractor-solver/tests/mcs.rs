@@ -133,6 +133,46 @@ fn wide(n: usize) -> Model {
     model("top", nodes)
 }
 
+/// What the subtraction remembers is bounded by the node limit, and
+/// forgetting it changes no set.
+#[test]
+fn the_cut_set_cache_is_bounded_and_forgetting_changes_nothing() {
+    let m = voting_pairs(24);
+    let bdd = Bdd::compile(&m, LIMIT).unwrap();
+    let roomy = CutSets::of(&bdd, bdd.root(), LIMIT).unwrap();
+    let limit = roomy.size().max(bdd.size());
+    assert!(roomy.cache_peak() > limit, "the fixture must be busy");
+    let tight = CutSets::of(&bdd, bdd.root(), limit).unwrap();
+    assert!(tight.cache_peak() <= limit, "{}", tight.cache_peak());
+    assert_eq!(tight.size(), roomy.size());
+    assert_eq!(
+        tight.enumerate(None, usize::MAX),
+        roomy.enumerate(None, usize::MAX)
+    );
+}
+
+/// Fussell–Vesely asks `ite` for a function per leaf, mostly of nodes that
+/// are there already: what it remembers is bounded by the node limit, and
+/// forgetting it changes no node and no bit.
+#[test]
+fn the_ite_cache_is_bounded_and_forgetting_changes_nothing() {
+    let m = voting_pairs(24);
+    let run = |limit: usize| {
+        let mut bdd = Bdd::compile(&m, limit).unwrap();
+        let z = CutSets::of(&bdd, bdd.root(), limit).unwrap();
+        let p = leaf_p(&m, &bdd);
+        let top = bdd.root();
+        let fv = fussell_vesely(&mut bdd, top, &z, &p).unwrap();
+        let bits: Vec<u64> = fv.iter().map(|f| f.to_bits()).collect();
+        (bdd.size(), bdd.cache_entries(), bits)
+    };
+    let (size, entries, roomy) = run(LIMIT);
+    assert!(entries > size, "the fixture must be busy: {entries}");
+    let (tight_size, tight_entries, tight) = run(size);
+    assert!(tight_entries <= size, "{tight_entries} for {size}");
+    assert_eq!((tight_size, tight), (size, roomy));
+}
+
 #[test]
 fn counting_does_not_need_listing() {
     let (_, z) = cut_sets(&wide(100));

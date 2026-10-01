@@ -35,6 +35,8 @@ pub struct CutSets {
     unique: HashMap<(u32, Fam, Fam), Fam>,
     limit: usize,
     root: Fam,
+    /// The most results of `without` remembered at once while building.
+    cache_peak: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -79,6 +81,7 @@ impl CutSets {
             unique: HashMap::new(),
             limit: node_limit.max(2),
             root: EMPTY,
+            cache_peak: 0,
         };
         let mut without_cache = HashMap::new();
 
@@ -124,6 +127,17 @@ impl CutSets {
         self.nodes.push(Node { var, lo, hi });
         self.unique.insert((var, lo, hi), f);
         Ok(f)
+    }
+
+    /// Remember a result of [`CutSets::without`]. The cache is forgotten all
+    /// at once when it holds as many as the node limit: a result is only a
+    /// shortcut, so forgetting changes no set, and memory stays bounded.
+    fn remember(&mut self, cache: &mut HashMap<(Fam, Fam), Fam>, key: (Fam, Fam), f: Fam) {
+        if cache.len() >= self.limit {
+            cache.clear();
+        }
+        cache.insert(key, f);
+        self.cache_peak = self.cache_peak.max(cache.len());
     }
 
     /// `a`, minus every set that is a superset of (or equal to) a set in `b`.
@@ -174,11 +188,11 @@ impl CutSets {
                     let hi = done.pop().expect("hi branch");
                     let lo = done.pop().expect("lo branch");
                     let f = self.make(var, lo, hi)?;
-                    cache.insert(key, f);
+                    self.remember(cache, key, f);
                     done.push(f);
                 }
                 Frame::Memo(key) => {
-                    cache.insert(key, *done.last().expect("result"));
+                    self.remember(cache, key, *done.last().expect("result"));
                 }
             }
         }
@@ -187,6 +201,12 @@ impl CutSets {
 
     pub fn size(&self) -> usize {
         self.nodes.len()
+    }
+
+    /// The most results of the subtraction that built the family that were
+    /// remembered at once: never more than the node limit.
+    pub fn cache_peak(&self) -> usize {
+        self.cache_peak
     }
 
     /// Per node: how many sets, and the smallest and largest set size.

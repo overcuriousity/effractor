@@ -75,6 +75,10 @@ struct Builder {
     /// than their parent, which is what makes bottom-up passes a plain loop.
     nodes: Vec<Decision>,
     unique: HashMap<(u32, Ref, Ref), Ref>,
+    /// Remembered results of `ite`, forgotten all at once when there are as
+    /// many as the node limit: a result is only ever a shortcut, the diagram
+    /// being canonical, so forgetting changes no node and no bit — and
+    /// without it the cache outgrew the limit it sits beside.
     ite_cache: HashMap<(Ref, Ref, Ref), Ref>,
     limit: usize,
 }
@@ -145,6 +149,9 @@ impl Builder {
                     let hi = done.pop().expect("hi branch");
                     let lo = done.pop().expect("lo branch");
                     let r = self.make(var, lo, hi)?;
+                    if self.ite_cache.len() >= self.limit {
+                        self.ite_cache.clear();
+                    }
                     self.ite_cache.insert(key, r);
                     done.push(r);
                 }
@@ -296,6 +303,12 @@ impl Bdd {
 
     pub fn size(&self) -> usize {
         self.b.nodes.len()
+    }
+
+    /// How many results of `ite` are remembered now: never more than the
+    /// node limit.
+    pub fn cache_entries(&self) -> usize {
+        self.b.ite_cache.len()
     }
 
     /// P(f), given independent leaf probabilities in `vars()` order: Shannon
