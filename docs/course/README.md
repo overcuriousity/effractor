@@ -69,11 +69,17 @@ network and runs an SSH client as a user. The server is in the server network
 and runs the SSH server (OpenSSH) as admin. One flow, SSH over tcp/22, goes
 from the client through the router to the server, and the firewall permits it.
 
+As the extract draws them: the router and the server each have an access
+control, where their accounts log in; the server runs Ubuntu Linux, the
+workstation Windows 7, and the SSH client is putty — each a product. The
+server has an IDS watching its traffic and anti-malware, both on: an exploit
+used against its SSH server gets past both first.
+
 The workstation keeps two keys. The server account's key is readable by a
-user; it logs in to the SSH server, and that account has admin control of the
-server. The router administrator's key is readable by an admin only; that
-account has admin control of the router, which is managed from the
-Administration network. Nothing is attached to the Administration network.
+user; it logs in to the SSH server, and that account is granted admin on the
+server's access control. The router administrator's key is readable by an
+admin only; that account is granted admin on the router's access control,
+and the router is managed from the Administration network. Nothing is attached to the Administration network.
 
 The attacker starts with admin control of the workstation. The target is
 admin control of the server.
@@ -83,8 +89,9 @@ admin control of the server.
 1. Choose the Architecture mode (3) and *New* in the menu under the
    document's name. **A** adds a component; add the three networks, the
    router, its firewall, the two hosts, the SSH client (an application), the
-   SSH server (a service), OpenSSH (a product), the two accounts and the two
-   keys (credentials).
+   SSH server (a service), OpenSSH, Ubuntu Linux, Windows 7 and putty
+   (products), the two access controls, the server's IDS, the two accounts
+   and the two keys (credentials).
 2. Link them with **L**, or add a component already linked to the selected
    one with **Tab**. The table below lists every relationship. Add the flow
    from the SSH client to the SSH server and select it: in its form, lead
@@ -93,11 +100,12 @@ admin control of the server.
 3. Drag *Foothold* onto the workstation and *Target* onto the server, both
    with admin control.
 4. Open *Attack graph* (G). Two ways lead to the target: finding and using an
-   exploit for the SSH server, and extracting the server account's key and
-   logging in. Select a step to see the rule that made it and where in the
+   exploit for the SSH server — after getting past the server's IDS and its
+   anti-malware —, and extracting the server account's key and logging in. Select a step to see the rule that made it and where in the
    drawing its time is set.
-5. Set the switches to *Off*: *Patched* on OpenSSH, *Protected* on both
-   keys, *Multi-factor login* on both accounts. A new component has its
+5. Set the switches to *Off*: *Patched* on the four products, *Protected* on
+   both keys, *Multi-factor login* on both accounts; and to *On*: *Enabled*
+   on the IDS, *Anti-malware* on the server. A new component has its
    switch at *Unknown*, and the target has no number while one that matters
    is. Fill in the times from the table further down, each with Confidence
    *Illustrative* and its note as Reason. Or open the file, which has all of
@@ -120,6 +128,12 @@ admin control of the server.
 | Workstation | runs here as user | SSH client |
 | Server | runs here as admin | SSH server |
 | SSH server | is a version of | OpenSSH |
+| Server | is a version of | Ubuntu Linux |
+| Workstation | is a version of | Windows 7 |
+| SSH client | is a version of | putty |
+| Router | its access control | Router login |
+| Server | its access control | Server login |
+| Server | watched by | Server IDS |
 | Router | its firewall | Firewall |
 | Administration network | managed from here | Router |
 | Workstation | kept here, user-readable | Server account key |
@@ -127,8 +141,8 @@ admin control of the server.
 | Server account key | unlocks | Server account |
 | Router administrator key | unlocks | Router administrator |
 | Server account | accepts this account | SSH server |
-| Server account | grants it admin | Server |
-| Router administrator | grants it admin | Router |
+| Server account | grants it admin | Server login |
+| Router administrator | grants it admin | Router login |
 
 Selected from the other end, the menu words the same relationship from
 there: *runs this as user* on the SSH client, then the workstation. What the
@@ -147,14 +161,19 @@ time that averages 10 days; `Never` is a step that cannot be taken.
 | OpenSSH | Find an exploit | `Exponential(mean 10)` | the same | Find an exploit |
 | OpenSSH | Find an exploit (patched) | `Never` | `Exponential(mean 100)` | Find an exploit, while *Patched* is on |
 | SSH server | Use the exploit | `Exponential(mean 2)` | the same | Use the exploit |
+| Server IDS | Get past it | `Exponential(mean 1)` | the same | Get past the IDS |
+| Server | Get past the anti-malware | `Exponential(mean 1)` | the same | Get past the anti-malware |
 | SSH server | Log in | `Exponential(mean 1)` | the same | Log in to a service |
 | Both keys | Extract | `Exponential(mean 5)` | the same | Extract a credential |
 | Both keys | Extract (protected) | `Never` | `Exponential(mean 50)` | Extract a credential, while *Protected* is on |
 | Router administrator | Admin login | `Exponential(mean 1)` | the same | Admin login from a network |
 
-Using the exploit includes getting past whatever detection the server has;
-that is not modelled as a step of its own. Times left *unknown* in the files
-cost no number. Escaping to a host, taking software over through content and
+Getting past the IDS and getting past the anti-malware are steps of their
+own, each once, before the exploit is used; a login is not watched for.
+The products' own times to find an exploit are left *unknown*: no step in
+the exercise uses an exploit against Ubuntu Linux, Windows 7 or putty (the
+server's and the client's own *Use the exploit* are not given, so not drawn).
+Times left *unknown* in the files cost no number. Escaping to a host, taking software over through content and
 the server account's admin login belong to steps this drawing does not have.
 Getting past multi-factor login is a step on the login path, and is not
 needed: multi-factor login is off, so a key alone logs in.
@@ -166,14 +185,14 @@ control of the server by that day:
 
 | File | Scenario | 12.5 d | 25 d | 50 d | 100 d |
 |---|---|---|---|---|---|
-| `lecture-architecture.yaml` | `baseline` | 0.9633 | 0.999 | 1 | 1 |
-| `lecture-architecture.yaml` | `patch` | 0.904 | 0.9918 | 1 | 1 |
-| `lecture-architecture.yaml` | `protect` | 0.625 | 0.8927 | 0.992 | 0.9998 |
+| `lecture-architecture.yaml` | `baseline` | 0.9594 | 0.9994 | 1 | 1 |
+| `lecture-architecture.yaml` | `patch` | 0.8991 | 0.9936 | 0.9998 | 1 |
+| `lecture-architecture.yaml` | `protect` | 0.617 | 0.8921 | 0.9928 | 0.9999 |
 | `lecture-architecture.yaml` | `both` | 0 | 0 | 0 | 0 |
-| `lecture-partial-defenses.yaml` | `baseline` | 0.9633 | 0.999 | 1 | 1 |
-| `lecture-partial-defenses.yaml` | `patch` | 0.9119 | 0.9932 | 1 | 1 |
-| `lecture-partial-defenses.yaml` | `protect` | 0.707 | 0.9338 | 0.9965 | 1 |
-| `lecture-partial-defenses.yaml` | `both` | 0.2907 | 0.5147 | 0.7711 | 0.9512 |
+| `lecture-partial-defenses.yaml` | `baseline` | 0.9594 | 0.9994 | 1 | 1 |
+| `lecture-partial-defenses.yaml` | `patch` | 0.9094 | 0.9943 | 0.9999 | 1 |
+| `lecture-partial-defenses.yaml` | `protect` | 0.6933 | 0.9344 | 0.9979 | 1 |
+| `lecture-partial-defenses.yaml` | `both` | 0.2755 | 0.499 | 0.7621 | 0.9464 |
 
 `deny` is 0 throughout in both files. These are what this release computes
 from these inputs, held by a test; they are not the lecture's numbers.
@@ -214,11 +233,9 @@ from these inputs, held by a test; they are not the lecture's numbers.
 ### What it does not say
 
 No vulnerability database stands behind *Find an exploit*: the time is what
-its author writes. The library is small on purpose: a host or an application
-has no product of its own, so the lecture's operating systems (Windows 7,
-Ubuntu Linux) and *putty* are not drawn and have no exploit route; a host has
-no defence switch; retries, account lockout, detection and response are
-outside it. The numbers are not expected
+its author writes. The library is small on purpose: retries, account lockout,
+response to what an IDS reports, and interception of traffic on a network
+are outside it. The numbers are not expected
 to match the lecture's screenshots, whose rules and inputs are not published
 with them. Existing securiCAD or MAL models are not read.
 
