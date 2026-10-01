@@ -1008,8 +1008,8 @@ fn an_ids_on_the_route_is_got_past_before_the_exploit_is_used_fig_5_18() {
 
 #[test]
 fn a_sensor_off_the_route_guards_nothing() {
-    // The workstation is the flow's source, not its end: its sensor
-    // watches nothing the exploit on sshd crosses.
+    // The workstation runs no service: nothing reaches its sensor, and an
+    // exploit on sshd never ends there.
     let lecture = shape(&generate(&architecture(LECTURE)).unwrap());
     let s = shape(&generate(&with_ids("workstation", "true", "2")).unwrap());
     assert_eq!(
@@ -1020,6 +1020,30 @@ fn a_sensor_off_the_route_guards_nothing() {
     for (id, inputs) in &lecture {
         assert_eq!(&s[id], inputs, "{id}");
     }
+}
+
+#[test]
+fn a_sensor_on_a_router_off_the_route_guards_nothing() {
+    // A second router between the administration and server networks: no
+    // flow is routed through it, so its IDS watches nothing.
+    let text = LECTURE.replacen(
+        "\nassociations:\n",
+        "  r2:\n    kind: router\n    label: Second router\n    parameters:\n      escape:\n        status: unknown\n  sensor:\n    kind: ids\n    label: IDS\n    parameters:\n      bypass:\n        status: unknown\n    defenses: {enabled: true}\n\nassociations:\n  r2-admin:\n    kind: attached\n    from: r2\n    to: admin-net\n  r2-server:\n    kind: attached\n    from: r2\n    to: server-net\n  sensor-watch:\n    kind: watches\n    from: r2\n    to: sensor\n",
+        1,
+    );
+    let lecture = shape(&generate(&architecture(LECTURE)).unwrap());
+    let s = shape(&generate(&architecture(&text)).unwrap());
+    assert!(
+        s.keys().all(|k| !k.contains("/sensor/")),
+        "no sensor step: {:?}",
+        s.keys()
+            .filter(|k| k.contains("sensor"))
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        s["action/service-deploy-exploit/sshd"],
+        lecture["action/service-deploy-exploit/sshd"]
+    );
 }
 
 #[test]
@@ -1143,5 +1167,34 @@ fn a_scenario_turning_anti_malware_on_guards_a_host_that_never_said_it() {
     assert_eq!(
         resolve(&m, &g, Some(&id("am"))).unwrap().ttc[off],
         ResolvedTtc::Known(Distribution::Infinity)
+    );
+}
+
+#[test]
+fn an_ids_on_the_route_guards_the_exploit_against_the_host_too() {
+    // Fig. 5.18 with Ubuntu Linux on the server: the OS exploit travels the
+    // same watched flow as the one against sshd.
+    let m = with_os(DEPLOY_UNKNOWN);
+    let text = effractor_format::save_document(&Document::Architecture(m)).replacen(
+        "\nassociations:\n",
+        "  sensor:\n    kind: ids\n    label: IDS\n    parameters:\n      bypass:\n        status: unknown\n    defenses: {enabled: true}\n\nassociations:\n  sensor-watch:\n    kind: watches\n    from: bridge\n    to: sensor\n",
+        1,
+    );
+    let s = shape(&generate(&architecture(&text)).unwrap());
+    assert_eq!(
+        s["action/host-deploy-exploit/server"],
+        strings(&[
+            "state/host/server/unseen",
+            "state/product/ubuntu/exploit-ready"
+        ])
+    );
+    assert_eq!(
+        s["state/host/server/unseen"],
+        strings(&["state/service/sshd/unseen"])
+    );
+    // The host stays reachable as before: what finds its exploit is not watched.
+    assert_eq!(
+        s["state/product/ubuntu/reachable"],
+        strings(&["state/host/server/reachable"])
     );
 }

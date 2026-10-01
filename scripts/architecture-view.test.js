@@ -523,3 +523,10 @@ test("a host's anti-malware time is offered once its anti-malware is on", () => 
   // On a host that runs nothing, anti-malware guards nothing: no row at all.
   assert.deepEqual(V.defenseRows(doc, REAL, 'ws').map((r) => r.defense), []);
 });
+
+test('a scenario turning anti-malware on offers its time too', () => {
+  const doc = lecture();
+  doc.scenarios = { am: { label: 'AM', changes: [{ entity: 'srv', defense: 'anti-malware', value: true }] } };
+  const absent = V.slotRows(doc, REAL, 'srv').filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
+  assert.deepEqual(absent, ['bypass-antimalware: used while anti-malware is on · unknown until given']);
+});
