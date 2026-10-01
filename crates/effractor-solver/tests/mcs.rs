@@ -233,6 +233,51 @@ fn importance_on_the_reference_tree() {
     );
 }
 
+/// Birnbaum by its definition: top's probability with the leaf forced to
+/// hold, less with it forced not to — two passes over the diagram per leaf.
+fn birnbaum_by_forcing(bdd: &Bdd, p: &[f64]) -> Vec<f64> {
+    (0..p.len())
+        .map(|v| bdd.prob_given(bdd.root(), p, v, true) - bdd.prob_given(bdd.root(), p, v, false))
+        .collect()
+}
+
+#[test]
+fn birnbaum_is_what_forcing_each_leaf_gives() {
+    for m in [webserver(), wide(12), voting_pairs(40)] {
+        let (bdd, _) = cut_sets(&m);
+        let p = leaf_p(&m, &bdd);
+        let got = birnbaum(&bdd, bdd.root(), &p);
+        let want = birnbaum_by_forcing(&bdd, &p);
+        for (g, w) in got.iter().zip(&want) {
+            assert!((g - w).abs() < 1e-14, "{g} vs {w}");
+        }
+    }
+}
+
+/// A vote over pairs of leaves: a diagram whose size grows with the leaves,
+/// as forcing each one costs a pass over it.
+fn voting_pairs(pairs: usize) -> Model {
+    let names: Vec<String> = (0..pairs).map(|i| format!("pair{i}")).collect();
+    let mut nodes: Vec<(String, Node)> = Vec::new();
+    for (i, name) in names.iter().enumerate() {
+        nodes.push((
+            name.clone(),
+            gate(Gate::And, &[&format!("a{i}"), &format!("b{i}")]),
+        ));
+        nodes.push((format!("a{i}"), leaf(0.1 + 0.8 * (i % 7) as f64 / 7.0)));
+        nodes.push((format!("b{i}"), leaf(0.2 + 0.7 * (i % 5) as f64 / 5.0)));
+    }
+    let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+    nodes.push(("top".into(), gate(Gate::Vote { k: pairs / 4 }, &refs)));
+    model(
+        "top",
+        nodes
+            .iter()
+            .map(|(n, node)| (n.as_str(), node.clone()))
+            .collect(),
+    )
+}
+
 #[test]
 fn fussell_vesely_is_the_definition_not_the_rare_event_shortcut() {
     // Cut sets {a, b} and {a, c} overlap heavily and nothing is rare.
@@ -304,6 +349,7 @@ proptest! {
         for v in 0..n {
             let force = |on: bool| { let mut q = p.clone(); q[v] = if on { 1.0 } else { 0.0 }; brute_force(&m, &leaves, &q) };
             prop_assert!((b[v] - (force(true) - force(false))).abs() < 1e-12);
+            prop_assert!((b[v] - birnbaum_by_forcing(&bdd, &p)[v]).abs() < 1e-14);
             let through_v: f64 = (0u32..1 << n)
                 .filter(|bits| sets.iter().any(|s| s.contains(&v) && s.iter().all(|i| bits >> i & 1 == 1)))
                 .map(weight)

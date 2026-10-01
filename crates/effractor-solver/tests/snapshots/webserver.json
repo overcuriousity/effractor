@@ -28,21 +28,21 @@
     {
       "id": "hardware",
       "p": 0.011323402173878587,
-      "birnbaum": 0.9664619979672872,
+      "birnbaum": 0.966461997967287,
       "fussell_vesely": 0.25456350516460974,
       "spof": true
     },
     {
       "id": "software",
       "p": 0.0020127716529465696,
-      "birnbaum": 0.9574454791983056,
+      "birnbaum": 0.9574454791983054,
       "fussell_vesely": 0.0452494929705866,
       "spof": true
     },
     {
       "id": "malware",
       "p": 0.001,
-      "birnbaum": 0.9564748349134468,
+      "birnbaum": 0.9564748349134466,
       "fussell_vesely": 0.02248118553554956,
       "spof": true
     }

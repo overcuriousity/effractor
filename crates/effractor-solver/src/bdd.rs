@@ -271,6 +271,29 @@ impl Bdd {
         self.prob(f, &p)
     }
 
+    /// ∂P(f)/∂pᵥ for every variable v at once, which for a diagram — P(f)
+    /// is linear in each pᵥ — is P(f | v holds) − P(f | v does not). Every
+    /// path from `f` tests v at most once, so it is Σ over the nodes n that
+    /// test v of P(reaching n) · (P(n.hi) − P(n.lo)). Two passes, O(nodes):
+    /// bottom-up for the nodes' own probabilities, top-down — parents sit at
+    /// higher indices — for the probability of reaching each.
+    pub fn derivatives(&self, f: Ref, leaf_p: &[f64]) -> Vec<f64> {
+        let upto = f.0 as usize;
+        let value = self.probs_upto(upto, leaf_p);
+        let mut reach = vec![0.0; upto + 1];
+        reach[upto] = 1.0;
+        let mut out = vec![0.0; leaf_p.len()];
+        for i in (2..=upto).rev() {
+            let n = self.b.nodes[i];
+            let (lo, hi) = (n.lo.0 as usize, n.hi.0 as usize);
+            let p = leaf_p[n.var as usize];
+            reach[lo] += reach[i] * (1.0 - p);
+            reach[hi] += reach[i] * p;
+            out[n.var as usize] += reach[i] * (value[hi] - value[lo]);
+        }
+        out
+    }
+
     pub fn size(&self) -> usize {
         self.b.nodes.len()
     }

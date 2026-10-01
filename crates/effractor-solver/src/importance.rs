@@ -5,11 +5,10 @@ use crate::mcs::CutSets;
 
 /// Birnbaum, one per variable: P(top | leaf holds) − P(top | leaf does not).
 /// How much top's probability moves with this leaf's — independent of the
-/// leaf's own. Needs nothing but the diagram.
+/// leaf's own. Needs nothing but the diagram, and one pass each way over it
+/// for all the leaves together ([`Bdd::derivatives`]), not two per leaf.
 pub fn birnbaum(bdd: &Bdd, top: Ref, leaf_p: &[f64]) -> Vec<f64> {
-    (0..leaf_p.len())
-        .map(|v| bdd.prob_given(top, leaf_p, v, true) - bdd.prob_given(top, leaf_p, v, false))
-        .collect()
+    bdd.derivatives(top, leaf_p)
 }
 
 /// Fussell–Vesely, one per variable, by its definition: the probability that
