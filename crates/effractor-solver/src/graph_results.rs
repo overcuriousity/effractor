@@ -16,7 +16,7 @@ use effractor_core::{Code, Diagnostic, Distribution, ScenarioId, TimeUnit};
 use libm::sqrt;
 use serde::Serialize;
 
-use crate::graph_mc::{Draw, GraphChunk, GraphSampler, Merged, Route, merge, route_key};
+use crate::graph_mc::{Draw, GraphChunk, GraphSampler, Merged, Route, merge};
 
 /// How many of the routes taken most are reported.
 const ROUTES: usize = 3;
@@ -461,7 +461,7 @@ impl GraphSolve {
                 .filter_map(|(key, tally)| {
                     let route = self.sampler.replay(s, tally.first)?;
                     // The replay is the sample that was counted.
-                    debug_assert_eq!(route_key(&route.witness.nodes), *key);
+                    debug_assert_eq!(&route.witness.nodes, key);
                     Some(RouteReport {
                         count: tally.count,
                         share: tally.count as f64 / reached as f64,

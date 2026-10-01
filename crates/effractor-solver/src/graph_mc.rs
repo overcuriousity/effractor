@@ -8,8 +8,9 @@
 //! every iteration, and their difference is the defence rather than noise.
 //! A chunk keeps counters and, per side, how often each route was taken —
 //! a route being the set of steps in a successful sample's derivation, kept
-//! as a fixed 64-bit hash with its count and first sample — never a
-//! samples × nodes table; chunks merge in index order. A route's steps and
+//! whole as the key of its count and first sample (a hash of it would count
+//! two routes that collide as one) — never a samples × nodes table; chunks
+//! merge in index order. A route's steps and
 //! times are had again by replaying its first sample: draws are addressed
 //! by sample, so one sample recomputes exactly.
 
@@ -62,18 +63,8 @@ pub(crate) struct Tally {
     pub(crate) first: u64,
 }
 
-/// A route's key: FNV-1a over its steps' indices, ascending. Fixed, so the
-/// same on every platform and run (never a `RandomState`).
-pub(crate) fn route_key(nodes: &[usize]) -> u64 {
-    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-    for &i in nodes {
-        for b in (i as u64).to_le_bytes() {
-            h ^= u64::from(b);
-            h = h.wrapping_mul(0x0100_0000_01b3);
-        }
-    }
-    h
-}
+/// A route: its steps' indices, ascending.
+pub(crate) type RouteKey = Vec<usize>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct SideCounts {
@@ -84,7 +75,7 @@ pub(crate) struct SideCounts {
     pub(crate) target_by: Vec<u64>,
     /// Per route taken to the target within the horizon: how often, and
     /// first when.
-    pub(crate) routes: BTreeMap<u64, Tally>,
+    pub(crate) routes: BTreeMap<RouteKey, Tally>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -166,14 +157,10 @@ impl GraphSampler {
                     counts.target_by[at] += 1;
                     if let Some(witness) = self.plan.derivation(&scratch, self.target) {
                         // Iterations ascend, so the first seen is the first.
-                        let tally =
-                            counts
-                                .routes
-                                .entry(route_key(&witness.nodes))
-                                .or_insert(Tally {
-                                    count: 0,
-                                    first: chunk * CHUNK as u64 + iteration,
-                                });
+                        let tally = counts.routes.entry(witness.nodes).or_insert(Tally {
+                            count: 0,
+                            first: chunk * CHUNK as u64 + iteration,
+                        });
                         tally.count += 1;
                     }
                 }
@@ -234,7 +221,7 @@ pub(crate) struct Merged {
     pub(crate) target_by: Vec<u64>,
     /// Every route taken, by key: most taken first; ties by the earlier
     /// first sample.
-    pub(crate) routes: Vec<(u64, Tally)>,
+    pub(crate) routes: Vec<(RouteKey, Tally)>,
 }
 
 /// `chunks` in index order, all of them.
@@ -245,7 +232,7 @@ pub(crate) fn merge(chunks: &[GraphChunk], side: usize, nodes: usize) -> Merged 
         target_by: vec![0; GRID],
         routes: Vec::new(),
     };
-    let mut routes: BTreeMap<u64, Tally> = BTreeMap::new();
+    let mut routes: BTreeMap<RouteKey, Tally> = BTreeMap::new();
     for chunk in chunks {
         let counts = &chunk.sides[side];
         merged.n += chunk.n;
@@ -262,7 +249,7 @@ pub(crate) fn merge(chunks: &[GraphChunk], side: usize, nodes: usize) -> Merged 
                     into.first = into.first.min(tally.first);
                 }
                 None => {
-                    routes.insert(*key, *tally);
+                    routes.insert(key.clone(), *tally);
                 }
             }
         }
@@ -333,7 +320,7 @@ mod tests {
                 let route = s
                     .replay(side, tally.first)
                     .expect("its first sample reached the target");
-                assert_eq!(route_key(&route.witness.nodes), *key);
+                assert_eq!(&route.witness.nodes, key);
                 assert_eq!(route.sample, tally.first);
                 let target = route.witness.nodes.binary_search(&3).unwrap();
                 assert!(route.times[target] <= s.horizon);
@@ -357,11 +344,16 @@ mod tests {
         assert!(share(1, 2) < share(0, 2));
     }
 
+    /// A route is counted under itself: two routes are one only if they
+    /// are the same steps, never because a hash of them agrees.
     #[test]
-    fn a_route_key_is_fixed() {
-        assert_eq!(route_key(&[]), 0xcbf2_9ce4_8422_2325);
-        assert_ne!(route_key(&[0, 1, 3]), route_key(&[0, 2, 3]));
-        assert_eq!(route_key(&[0, 1, 3]), route_key(&[0, 1, 3]));
+    fn a_route_is_its_own_key() {
+        let s = sampler(CHUNK as u64);
+        let chunk = s.run_chunk(0);
+        for (key, tally) in &chunk.sides[0].routes {
+            let route = s.replay(0, tally.first).unwrap();
+            assert_eq!(&route.witness.nodes, key);
+        }
     }
 
     #[test]
