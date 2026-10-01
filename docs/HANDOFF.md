@@ -105,6 +105,11 @@ this machine) has every ruling with its cost if wrong.
 - Housekeeping: the worktree `../SecGraph-extract` (branch
   `extract-fixture`, merged) is the owner's to remove
   (`git worktree remove ../SecGraph-extract`).
+- **The machine was not powered off.** The owner's instruction was to power
+  off only once everything was finished and master's `ci` and `release`
+  were green for the pushed commit. They are green for `f9a91f8` (ci
+  36907949342, release 36908702835), but plan task D4 is not built, so the
+  milestone is not finished as planned; the session stopped here instead.
 
 ## Continuation — what the extract draws: operating systems, ASLR, DEP (2026-09-30)
 
