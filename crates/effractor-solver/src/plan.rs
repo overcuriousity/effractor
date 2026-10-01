@@ -108,12 +108,18 @@ impl Plan {
     /// When does each step complete, given when each leaf does? A leaf is its
     /// own time; `or` is the first of its inputs, `and` the last, `vote` the
     /// k-th. `INFINITY` is "never" and needs no special case: min, max and
-    /// ordering already treat it correctly. `out` is reused across iterations.
+    /// ordering already treat it correctly. A leaf time that is not a number
+    /// is never too, as the graph evaluator has it — taken as one at the leaf,
+    /// so no gate sees a NaN, which `max` and `min` would skip and a sort
+    /// could put first. `out` is reused across iterations.
     pub fn times(&self, leaf_times: &[f64], out: &mut Vec<f64>, scratch: &mut Vec<f64>) {
         out.clear();
         for step in &self.steps {
             let t = match step {
-                Step::Leaf(leaf) => leaf_times[*leaf],
+                Step::Leaf(leaf) => match leaf_times[*leaf] {
+                    t if t.is_nan() => f64::INFINITY,
+                    t => t,
+                },
                 Step::Gate { gate, inputs } => match gate {
                     Gate::Or => inputs.iter().map(|i| out[*i]).fold(f64::INFINITY, f64::min),
                     Gate::And => inputs.iter().map(|i| out[*i]).fold(0.0, f64::max),

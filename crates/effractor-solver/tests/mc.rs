@@ -92,6 +92,23 @@ fn completion_times_follow_the_gates() {
         (out[at("any")], out[at("all")], out[at("top")]),
         (inf, inf, inf)
     );
+    // A time that is not a number is never, as the graph evaluator has it:
+    // `max` and `min` would skip it, so `and` counted it as done, and `vote`
+    // sorted a negative NaN first.
+    for nan in [f64::NAN, -f64::NAN] {
+        plan.times(&[nan, 7.0, 5.0], &mut out, &mut scratch);
+        assert_eq!(
+            (out[at("a")], out[at("any")], out[at("all")], out[at("top")]),
+            (inf, 7.0, inf, 7.0),
+            "{nan}"
+        );
+        plan.times(&[nan, nan, 5.0], &mut out, &mut scratch);
+        assert_eq!(
+            (out[at("any")], out[at("all")], out[at("top")]),
+            (inf, inf, inf),
+            "{nan}"
+        );
+    }
 }
 
 #[test]
