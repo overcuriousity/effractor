@@ -65,6 +65,7 @@ fn text() -> BoxedStrategy<String> {
         "a\u{2028}b",
         "\u{0}",
         "\u{7f}",
+        "a\u{fffe}\u{ffff}",
         "x-a",
         "ü",
         "日本語",

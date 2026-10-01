@@ -296,8 +296,13 @@ pub(crate) fn looks_typed(text: &str) -> bool {
         || WORDS.iter().any(|w| text.eq_ignore_ascii_case(w))
 }
 
+/// Line breaks, a byte order mark, and what YAML does not allow written.
 fn needs_escape(c: char) -> bool {
-    c.is_control() || matches!(c, '\u{85}' | '\u{2028}' | '\u{2029}' | '\u{feff}')
+    c.is_control()
+        || matches!(
+            c,
+            '\u{85}' | '\u{2028}' | '\u{2029}' | '\u{feff}' | '\u{fffe}' | '\u{ffff}'
+        )
 }
 
 /// How many characters `c` takes in [`quoted`] text.

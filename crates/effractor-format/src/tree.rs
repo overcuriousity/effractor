@@ -109,7 +109,51 @@ fn at(code: Code, pos: Pos, message: impl Into<String>) -> Diagnostic {
     }
 }
 
+/// May `c` be written in a YAML text (YAML 1.2 `c-printable`)? A byte order
+/// mark only opens one.
+fn printable(c: char) -> bool {
+    matches!(c,
+        '\t' | '\n' | '\r' | ' '..='~' | '\u{85}' | '\u{a0}'..='\u{d7ff}'
+        | '\u{e000}'..='\u{fffd}' | '\u{10000}'..)
+        && c != '\u{feff}'
+}
+
+/// The first character YAML does not allow, where it is. Not left to the
+/// parser: it reads a NUL as the end of the text and drops what follows.
+fn unprintable(text: &str) -> Option<Diagnostic> {
+    let (mut line, mut col) = (1, 1);
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if !printable(c) {
+            let name = format!("U+{:04X}", c as u32);
+            let message = if c == '\u{feff}' {
+                format!("{name}, a byte order mark, may only open the text")
+            } else {
+                format!("{name} cannot be written in YAML")
+            };
+            return Some(at(
+                Code::Syntax,
+                Pos { line, col },
+                format!("{message}; in quotes, write it as \\u{:04x}", c as u32),
+            ));
+        }
+        // A line break is CR LF, CR or LF.
+        if c == '\n' || (c == '\r' && chars.peek() != Some(&'\n')) {
+            (line, col) = (line + 1, 1);
+        } else {
+            col += 1;
+        }
+    }
+    None
+}
+
 pub fn parse(text: &str) -> Result<Node, Vec<Diagnostic>> {
+    // One byte order mark may open a stream; it is not part of the text, and
+    // positions are counted after it.
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
+    if let Some(d) = unprintable(text) {
+        return Err(vec![d]);
+    }
     let mut out = Vec::new();
     let mut stack: Vec<Frame> = Vec::new();
     let mut root: Option<Node> = None;

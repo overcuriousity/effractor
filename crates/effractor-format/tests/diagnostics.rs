@@ -2,7 +2,7 @@
 //! column that path has in the text.
 
 use effractor_core::{Diagnostic, Severity};
-use effractor_format::{diagnose, load};
+use effractor_format::{canonicalize, diagnose, load};
 
 const HEAD: &str = "effractor: 1\nprofile: fault-tree\nname: T\ntop: t\n";
 
@@ -429,4 +429,63 @@ fn an_architecture_without_its_profile_is_told_only_that() {
         message.contains("`architectur`") && message.contains("`profile: architecture`"),
         "{message}"
     );
+}
+
+#[test]
+fn a_character_yaml_cannot_hold_is_a_syntax_error_where_it_is() {
+    let good = doc("  t: {label: T, leaf: basic}\n");
+    // The YAML parser takes a NUL for the end of the text: what follows it
+    // would be dropped without a word.
+    let text = format!("{good}\0\nbogus: [unclosed\n");
+    assert_eq!(one(&text), ("syntax", String::new(), 7, 1));
+    assert!(canonicalize(&text).is_err());
+    let message = diagnose(&text).1.remove(0).message;
+    assert!(message.contains("U+0000"), "{message}");
+    // Columns count characters, as everywhere.
+    for c in ['\u{1}', '\u{7f}', '\u{9f}', '\u{fffe}'] {
+        let text = doc(&format!("  t: {{label: \"é{c}\", leaf: basic}}\n"));
+        assert_eq!(one(&text), ("syntax", String::new(), 6, 16), "{c:?}");
+    }
+    // Every break counts as one line: CR LF, CR, LF.
+    let text = format!("{}\r\n\r\n\rx-a: \u{ffff}\n", good.trim_end());
+    assert_eq!(one(&text), ("syntax", String::new(), 9, 6));
+    // A byte order mark only opens a text.
+    let text = format!("{good}x-a: \"\u{feff}\"\n");
+    assert_eq!(one(&text), ("syntax", String::new(), 7, 7));
+    // What YAML allows is read as before.
+    for c in [
+        '\t',
+        '\u{85}',
+        '\u{a0}',
+        '\u{d7ff}',
+        '\u{e000}',
+        '\u{fffd}',
+        '\u{10000}',
+        '\u{10ffff}',
+    ] {
+        let text = doc(&format!("  t: {{label: \"a{c}\", leaf: basic}}\n"));
+        assert_eq!(report(&text), vec![], "{c:?}");
+    }
+}
+
+#[test]
+fn a_byte_order_mark_may_open_a_text() {
+    let good = doc("  t: {label: T, leaf: basic}\n");
+    assert_eq!(report(&format!("\u{feff}{good}")), vec![]);
+    assert_eq!(
+        canonicalize(&format!("\u{feff}{good}")).unwrap(),
+        canonicalize(&good).unwrap()
+    );
+    // Positions are those of the text after it.
+    assert_eq!(
+        one(&format!("\u{feff}effractor: 3\n{}", &good[13..])),
+        ("version", "effractor".into(), 1, 12)
+    );
+    let text = doc("  t:\n    label: T\n    leaf: basic\n    consequence: []\n");
+    assert_eq!(
+        one(&format!("\u{feff}{text}")),
+        ("unknown-key", "nodes.t.consequence".into(), 9, 5)
+    );
+    // Once.
+    assert_eq!(one(&format!("\u{feff}\u{feff}{good}")).0, "syntax");
 }

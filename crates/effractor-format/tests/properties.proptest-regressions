@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc b6df879338bfebe16a6789ed7cca2d10e0c5a9dd25c2819823ccffac36aac8c5 # shrinks to m = Model { name: "", profile: FaultTree, time_unit: Hours, horizon: 1e-12, top: NodeId("n-0"), nodes: {NodeId("n-0"): Node { label: "", description: None, kind: Gate { gate: Or, children: [NodeId("n-1")] }, consequences: [] }, NodeId("n-1"): Node { label: "", description: None, kind: Leaf(Leaf { leaf: Basic, ttc: None, cost: None, detection: None }), consequences: [] }}, assets: {}, controls: {ControlId("control-0"): Control { label: "`🕴\"Ww𛅒", description: Some("a\u{fffe}\u{ffff}"), cost: 4586983.970056465, enabled: false, effects: [Effect { node: NodeId("n-1"), ttc: Pareto { xm: 1.0, alpha: 91802574469.65532 } }, Effect { node: NodeId("n-1"), ttc: Bernoulli(0.1138041502933941) }] }}, analysis: Analysis { seed: 4654629099164438359, samples: 65118, confidence: 0.7084297290851931 } }
