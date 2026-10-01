@@ -209,6 +209,7 @@ pub fn resolve(
 }
 
 /// A defence switch's value under the scenario, and the path that set it.
+/// An optional switch the file leaves out is off; any other, unknown.
 fn switch(model: &Architecture, overlay: &Overlay, entity: &EntityId, defense: Defense) -> Setting {
     match overlay.defenses.get(&(entity, defense)) {
         Some((v, p)) => (*v, p.clone()),
@@ -216,7 +217,10 @@ fn switch(model: &Architecture, overlay: &Overlay, entity: &EntityId, defense: D
             model
                 .entities
                 .get(entity)
-                .and_then(|e| e.defenses.get(defense))
+                .and_then(|e| match e.defenses.get(defense) {
+                    None if defense.optional(e.kind) => Some(Switch::Off),
+                    said => said,
+                })
                 .unwrap_or(Switch::Unknown),
             format!("entities.{entity}.defenses.{}", defense.as_str()),
         ),

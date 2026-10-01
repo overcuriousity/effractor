@@ -598,3 +598,42 @@ fn an_attacker_at_speed_one_changes_nothing() {
     let (lo, hi) = (ci["lo"].as_f64().unwrap(), ci["hi"].as_f64().unwrap());
     assert!(lo < 0.0 && hi > 0.0 && hi < 0.001, "{ci}");
 }
+
+#[test]
+fn a_disabled_ids_costs_nothing_and_one_never_got_past_blocks_like_a_patch() {
+    // Extract Fig. 5.18: an IDS on the router, off as written; a scenario
+    // turns it on and nothing gets past it.
+    let text = with_scenario(
+        &LECTURE.replacen(
+            "\nassociations:\n",
+            "  sensor:\n    kind: ids\n    label: IDS\n    parameters:\n      bypass:\n        status: illustrative\n        ttc: \"Never\"\n        note: exercise\n    defenses: {enabled: false}\n\nassociations:\n  sensor-watch:\n    kind: watches\n    from: bridge\n    to: sensor\n",
+            1,
+        ),
+        "  ids-on:\n    label: IDS on\n    changes:\n      - {entity: sensor, defense: enabled, value: true}",
+    );
+    let with_ids = solve(&text, Some("ids-on"), 10_000);
+    let lecture = solve(LECTURE, Some("patch"), 10_000);
+    let close = |a: f64, b: f64| (a - b).abs() < 0.02;
+    let (off, base) = (
+        p_target(&with_ids["baseline"]),
+        p_target(&lecture["baseline"]),
+    );
+    assert!(close(off, base), "{off} vs {base}");
+    let (on, patched) = (
+        p_target(&with_ids["scenario"]),
+        p_target(&lecture["scenario"]),
+    );
+    assert!(close(on, patched), "{on} vs {patched}");
+    let deploy = "action/service-deploy-exploit/sshd";
+    assert_eq!(node(&with_ids["baseline"], deploy)["status"], "possible");
+    assert_eq!(
+        node(&with_ids["scenario"], "action/sensor-bypass/sensor")["status"],
+        "blocked"
+    );
+    assert_eq!(node(&with_ids["scenario"], deploy)["status"], "unreachable");
+    assert_eq!(
+        node(&with_ids["scenario"], "state/session/server-account/sshd")["status"],
+        "possible",
+        "a login is not watched for"
+    );
+}
