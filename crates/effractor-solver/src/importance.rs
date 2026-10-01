@@ -16,6 +16,12 @@ pub fn birnbaum(bdd: &Bdd, top: Ref, leaf_p: &[f64]) -> Vec<f64> {
 /// does. Not the rare-event shortcut 1 − P(top | leaf = 0) / P(top), which
 /// differs as soon as cut sets overlap with any weight. It adds a function per
 /// leaf to the diagram, which is what can run into its node limit.
+///
+/// Unlike Birnbaum this has no single pass: the event is a union of cut sets
+/// that overlap each other and every other leaf's, and P of a union needs its
+/// own diagram. P(top | leaf = 0) is one pass for all leaves, but it is the
+/// shortcut above. So the cost stays a function per leaf, bounded by the
+/// node limit — what `ite` remembers on the way is bounded by it too.
 pub fn fussell_vesely(
     bdd: &mut Bdd,
     top: Ref,
