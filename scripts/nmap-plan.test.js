@@ -469,3 +469,81 @@ test('what was asked, in words', () => {
   assert.equal(N.askedWords(['nope']), '');
   assert.equal(N.askedWords(null), '');
 });
+
+// A lab of `count` hosts in nmap's shape: two networks behind routers,
+// shared products, an SMB finding on some, a MAC and a trace on every one.
+// `later`: the rescan, where some moved, closed a port or changed version.
+function lab(count, later) {
+  const xml = ['<?xml version="1.0"?><nmaprun scanner="nmap" args="nmap -sS -sV -O --traceroute --script ssh-hostkey,smb-vuln-ms17-010 -p 22,80,443,445,3306 -oX - 10.0.0.0/16" start="' + (later ? 1790467200 : 1790000000) + '"><scaninfo type="syn" protocol="tcp" numservices="5" services="22,80,443,445,3306"/>'];
+  for (let i = 0; i < count; i++) {
+    const moved = later && i % 7 === 3;
+    const addr = '10.0.' + (1 + (i % 2)) + '.' + (10 + (moved ? i + 100 : i) % 240);
+    const mac = '52:54:00:00:' + (i >> 8).toString(16).padStart(2, '0') + ':' + (i & 255).toString(16).padStart(2, '0');
+    xml.push('<host><status state="up" reason="syn-ack"/><address addr="' + addr + '" addrtype="ipv4"/><address addr="' + mac + '" addrtype="mac" vendor="QEMU virtual NIC"/>');
+    xml.push(i % 3 ? '<hostnames><hostname name="h' + i + '.lab" type="PTR"/></hostnames>' : '<hostnames/>');
+    xml.push('<ports>');
+    const port = (id, name, product, version) => '<port protocol="tcp" portid="' + id + '"><state state="' + (later && i % 5 === 1 && id === 3306 ? 'closed' : 'open') + '" reason="syn-ack"/><service name="' + name + '"' + (product ? ' product="' + product + '"' : '') + (version ? ' version="' + version + '"' : '') + '/></port>';
+    xml.push(port(22, 'ssh', 'OpenSSH', later && i % 4 === 0 ? '9.7p1' : '9.6p1'));
+    if (i % 2) xml.push(port(80, 'http', i % 4 === 1 ? 'nginx' : 'Apache httpd', i % 4 === 1 ? '1.24.0' : '2.4.58'));
+    if (i % 3 === 0) xml.push(port(443, 'https', null, null));
+    if (i % 4 === 2) xml.push(port(445, 'microsoft-ds', 'Microsoft Windows 7 - 10 microsoft-ds', null));
+    if (i % 5 < 2) xml.push(port(3306, 'mysql', 'MySQL', '8.0.' + (i % 3)));
+    xml.push('</ports>');
+    if (i % 4 === 2) xml.push('<hostscript><script id="smb-vuln-ms17-010" output="VULNERABLE"><table key="CVE-2017-0143"><elem key="title">Remote Code Execution vulnerability in Microsoft SMBv1 servers (ms17-010)</elem><elem key="state">VULNERABLE</elem><table key="ids"><elem>CVE:CVE-2017-0143</elem></table></table></script></hostscript>');
+    if (i % 6 === 0) xml.push('<os><osmatch name="Linux 5.0 - 5.4" accuracy="96"/></os>');
+    xml.push('<trace port="22" proto="tcp"><hop ttl="1" ipaddr="10.0.0.1" host="gw.lab"/>' + (i % 2 ? '<hop ttl="2" ipaddr="10.0.' + (1 + (i % 2)) + '.1"/><hop ttl="3" ipaddr="' + addr + '"/>' : '<hop ttl="2" ipaddr="' + addr + '"/>') + '</trace>');
+    xml.push('</host>');
+  }
+  xml.push('<runstats><finished time="' + (later ? 1790467260 : 1790000060) + '" exit="success"/></runstats></nmaprun>');
+  return xml.join('');
+}
+// The lab imported, then rescanned with every change ticked; `step` sees
+// each plan and result, and how long they took.
+function labImported(count, step) {
+  let doc = empty();
+  [false, true].forEach(later => {
+    const scan = N.read(lab(count, later)).scan;
+    let t = Date.now();
+    const p = N.plan(doc, 'nmap', scan, '', {});
+    const planned = Date.now() - t;
+    const ticks = N.defaults(p);
+    Object.keys(ticks.changes).forEach(k => { ticks.changes[k] = true; });
+    t = Date.now();
+    doc = N.apply(doc, p, ticks, specOf, N.stampFor(scan, '', scan.date)).doc;
+    if (step) step({ later, p, doc, planned, applied: Date.now() - t });
+  });
+  return doc;
+}
+const sha = x => require('node:crypto').createHash('sha256').update(JSON.stringify(x)).digest('hex');
+
+test('an import edits one copy of the drawing: the same result as a copy per step made', () => {
+  // What the import made when every step copied the whole document
+  // (before review 2026-10-01): a fingerprint that moves changes imports.
+  const seen = [];
+  const doc = labImported(60, s => seen.push(s));
+  assert.equal(sha(seen[0].doc), 'debfcb58f6c7ce10009aa879095b24af8d466463e22aa3b4677f4af855235a1c', 'the first import');
+  assert.deepEqual([...new Set(seen[1].p.changes.list.map(c => c.kind))].sort(), ['closed', 'route', 'version'], 'the rescan changes things');
+  assert.equal(sha(seen[1].p), 'e9deca645f27b0643863696621907980e1ec600f3b37711bbcb292b4ec450090', 'the rescan\'s plan');
+  assert.equal(sha(doc), '9daec45f827fb13b0787f8774f6c3347e95f73e7a2b72823dc87086e3df2f9ae', 'the rescan');
+});
+
+test('an import never changes the drawing it was given', () => {
+  const doc = afterDay1();
+  const before = JSON.stringify(doc);
+  const scan = day10();
+  const p = N.plan(doc, 'nmap', scan, '', {});
+  const t = N.defaults(p);
+  Object.keys(t.changes).forEach(k => { t.changes[k] = true; });
+  assert.notEqual(N.apply(doc, p, t, specOf, N.stampFor(scan, '', scan.date)), null);
+  assert.equal(JSON.stringify(doc), before);
+});
+
+test('hundreds of hosts import and rescan in well under a second each', () => {
+  // A copy of the document per step took 24 s for 200 hosts; asking every
+  // link per host took a rescan's plan 1.6 s (review 2026-10-01). The
+  // bounds are loose for a slow machine.
+  labImported(200, s => assert.ok(s.applied < 2000, (s.later ? 'the rescan' : 'the import') + ' of 200 hosts took ' + s.applied + ' ms'));
+  labImported(400, s => {
+    if (s.later) assert.ok(s.planned < 2000, 'planning a rescan of 400 hosts took ' + s.planned + ' ms');
+  });
+});

@@ -11,10 +11,11 @@
   var P = node ? require("./nmap-products.js") : window.effractorNmapProducts;
   var C = node ? require("./nmap-command.js") : window.effractorNmapCommand;
 
+  // Of one kind, or of all when `kind` is null.
   function links(doc, kind) {
     return Object.keys(doc.associations || {}).map(function (k) {
       return { id: k, from: doc.associations[k].from, to: doc.associations[k].to, kind: doc.associations[k].kind, allowed: doc.associations[k].allowed };
-    }).filter(function (a) { return a.kind === kind; });
+    }).filter(function (a) { return kind == null || a.kind === kind; });
   }
   function flows(doc) {
     return Object.keys(doc.flows || {}).map(function (k) { return Object.assign({ id: k }, doc.flows[k]); });
@@ -23,21 +24,38 @@
     var e = doc.entities[id];
     return "“" + (e && e.label != null ? e.label : id) + "”";
   }
-  function hostOf(doc, software) {
-    var a = links(doc, "hosts").filter(function (x) { return x.to === software; })[0];
+  // A document's associations by kind and end, each list in the file's
+  // order, as `links` gives them: built once for what is asked of a
+  // document that does not change meanwhile (a plan asked the whole list
+  // for every host, review 2026-10-01). `ix.doc` is the document.
+  function associations(doc) {
+    var from = Object.create(null), to = Object.create(null);
+    links(doc, null).forEach(function (a) {
+      (from[a.kind + " " + a.from] = from[a.kind + " " + a.from] || []).push(a);
+      (to[a.kind + " " + a.to] = to[a.kind + " " + a.to] || []).push(a);
+    });
+    return {
+      doc: doc,
+      from: function (kind, id) { return from[kind + " " + id] || []; },
+      to: function (kind, id) { return to[kind + " " + id] || []; },
+    };
+  }
+  function hostOf(ix, software) {
+    var a = ix.to("hosts", software)[0];
     return a ? a.from : null;
   }
-  function attachedTo(doc, machine) {
-    return links(doc, "attached").filter(function (a) { return a.from === machine; }).map(function (a) { return a.to; });
+  function attachedTo(ix, machine) {
+    return ix.from("attached", machine).map(function (a) { return a.to; });
   }
-  function firewallOf(doc, router) {
-    var a = links(doc, "filters").filter(function (x) { return x.from === router; })[0];
-    return a && doc.entities[a.to] ? a.to : null;
+  function firewallOf(ix, router) {
+    var a = ix.from("filters", router)[0];
+    return a && ix.doc.entities[a.to] ? a.to : null;
   }
   // The firewalls a route crosses, each with its router, in order.
-  function firewallsOn(doc, route) {
+  function firewallsOn(ix, route) {
+    var doc = ix.doc;
     return (route || []).map(function (id) {
-      var fw = doc.entities[id] && doc.entities[id].kind === "router" ? firewallOf(doc, id) : null;
+      var fw = doc.entities[id] && doc.entities[id].kind === "router" ? firewallOf(ix, id) : null;
       return fw ? { router: id, firewall: fw } : null;
     }).filter(Boolean);
   }
@@ -52,10 +70,10 @@
   // Spec §2.3: the ports of the flows drawn through a firewall to a host
   // in the range, for the firewall recipe to test.
   function drawnPorts(doc, appId, range) {
-    var out = [];
+    var out = [], ix = associations(doc);
     flows(doc).forEach(function (f) {
-      var host = hostOf(doc, f.target);
-      if (!portOf(f.protocol) || !host || !firewallsOn(doc, f.route).length || !covered(doc, host, range)) return;
+      var host = hostOf(ix, f.target);
+      if (!portOf(f.protocol) || !host || !firewallsOn(ix, f.route).length || !covered(doc, host, range)) return;
       if (out.indexOf(f.protocol) < 0) out.push(f.protocol);
     });
     return out;
@@ -63,12 +81,12 @@
 
   // Whether a flow starts where nmap stands: from software on nmap's host,
   // or on a host that is on the flow's first network with nmap's host.
-  function fromHere(doc, flow, appHost) {
-    var src = hostOf(doc, flow.source);
+  function fromHere(ix, flow, appHost) {
+    var src = hostOf(ix, flow.source);
     if (!appHost || !src) return false;
     if (src === appHost) return true;
     var first = (flow.route || [])[0];
-    return !!first && attachedTo(doc, src).indexOf(first) >= 0 && attachedTo(doc, appHost).indexOf(first) >= 0;
+    return !!first && attachedTo(ix, src).indexOf(first) >= 0 && attachedTo(ix, appHost).indexOf(first) >= 0;
   }
   // Author's work on a product: a note of its own, a time, a switch set.
   function untouched(e) {
@@ -100,7 +118,10 @@
     var firewallRan = C.recipesOf(args).indexOf("firewall") >= 0 || ackOnly;
     var routerAt = Object.create(null);
     (way.routers || []).forEach(function (r) { routerAt[r.key] = r; });
-    var all = flows(doc);
+    var all = flows(doc), ix = associations(doc);
+    // The flows to each target, in the file's order.
+    var toTarget = Object.create(null);
+    all.forEach(function (f) { (toTarget[f.target] = toTarget[f.target] || []).push(f); });
     function item(x) {
       out.list.push(x);
       return x;
@@ -117,16 +138,17 @@
       var target = h.known || h.merged;
       var s = scanOf[h.key];
       if (!target || !s) return;
-      var mine = links(doc, "hosts").filter(function (a) { return a.from === target && doc.entities[a.to] && doc.entities[a.to].kind === "service"; }).map(function (a) { return a.to; });
+      var mine = ix.from("hosts", target).filter(function (a) { return doc.entities[a.to] && doc.entities[a.to].kind === "service"; }).map(function (a) { return a.to; });
       var path = (way.paths || {})[h.key] || null;
 
       // ---- the firewalls' permissions (spec §5.3) ----
       if (firewallRan) {
         all.forEach(function (f) {
+          if (mine.indexOf(f.target) < 0) return;
           var at = portOf(f.protocol);
-          var walls = firewallsOn(doc, f.route);
-          if (mine.indexOf(f.target) < 0 || !at || !walls.length || !R.probed(scan, at.proto, at.port)) return;
-          if (!fromHere(doc, f, appHost)) {
+          var walls = firewallsOn(ix, f.route);
+          if (!at || !walls.length || !R.probed(scan, at.proto, at.port)) return;
+          if (!fromHere(ix, f, appHost)) {
             out.elsewhere = (out.elsewhere || 0) + 1;
             return;
           }
@@ -148,7 +170,7 @@
             return;
           }
           walls.forEach(function (w) {
-            var permit = links(doc, "permits").filter(function (a) { return a.from === w.firewall && a.to === f.id; })[0] || null;
+            var permit = ix.from("permits", w.firewall).filter(function (a) { return a.to === f.id; })[0] || null;
             var allowed = permit ? permit.allowed : null;
             var on = "the firewall on " + name(doc, w.router);
             var base = { key: "permit:" + w.firewall + ":" + f.id, kind: "permit", host: target, firewall: w.firewall, flow: f.id, association: permit ? permit.id : null, allowed: through };
@@ -162,16 +184,16 @@
 
       // ---- a drawn service whose port is closed now (spec §5.2) ----
       mine.forEach(function (service) {
-        var seen = [];
-        all.forEach(function (f) {
+        var seen = [], to = toTarget[service] || [];
+        to.forEach(function (f) {
           var at = portOf(f.protocol);
-          if (f.target !== service || !at || seen.indexOf(f.protocol) >= 0) return;
+          if (!at || seen.indexOf(f.protocol) >= 0) return;
           seen.push(f.protocol);
           if (!R.probed(scan, at.proto, at.port)) return;
           var state = R.portState(s, scan, at.proto, at.port);
           if (state !== "closed" && state !== "filtered") return;
           // A port a firewall on the way blocks is said by the firewall.
-          if (state === "filtered" && all.some(function (x) { return x.target === service && firewallLines[x.id]; })) return;
+          if (state === "filtered" && to.some(function (x) { return firewallLines[x.id]; })) return;
           item({ key: "closed:" + service + ":" + f.protocol, kind: "closed", host: target, service: service, line: f.protocol + " on " + name(doc, target) + " is " + state + " now (" + name(doc, service) + ")", action: "remove the service" });
         });
       });
@@ -180,7 +202,7 @@
       // Only nmap names products the way the drawing's came to be named.
       if ((scan.tool || "nmap") === "nmap") h.ports.forEach(function (r) {
         if (!r.known || !r.product.identified) return;
-        var of = links(doc, "instance-of").filter(function (a) { return a.from === r.known; })[0];
+        var of = ix.from("instance-of", r.known)[0];
         if (!of || !doc.entities[of.to] || P.same(doc.entities[of.to].label, r.product.label)) return;
         item({ key: "version:" + r.known, kind: "version", host: target, service: r.known, association: of.id, from: of.to, to: r.product.label, existing: r.product.existing, line: r.label + " on " + name(doc, target) + ": " + doc.entities[of.to].label + " → " + r.product.label, action: "make it the product of the service" });
       });
@@ -204,7 +226,7 @@
       if (firewallRan) {
         var drawnProtos = all.filter(function (f) { return mine.indexOf(f.target) >= 0; }).map(function (f) { return f.protocol; });
         var shut = s.ports.filter(function (p) { return p.state === "filtered" && drawnProtos.indexOf(p.protocol + "/" + p.port) < 0; }).map(function (p) { return p.protocol + "/" + p.port; });
-        var crossed = path ? path.hops.filter(function (k) { return routerAt[k].router && firewallOf(doc, routerAt[k].router); }) : [];
+        var crossed = path ? path.hops.filter(function (k) { return routerAt[k].router && firewallOf(ix, routerAt[k].router); }) : [];
         if (shut.length && crossed.length) item({ key: "shut:" + h.key, kind: "said", host: target, line: "blocked on the way to " + name(doc, target) + ": " + listed(shut, 6) + " · nothing drawn to say it on" });
         else if (shut.length && path && !path.hops.length && !path.cut) item({ key: "shut:" + h.key, kind: "said", host: target, line: "filtered by " + name(doc, target) + " itself: " + listed(shut, 6) });
       }
@@ -215,12 +237,12 @@
       rows.forEach(function (h) {
         var path = (way.paths || {})[h.key];
         if (!path || path.cut) return;
-        var walls = path.hops.map(function (k) { return routerAt[k].router; }).filter(function (id) { return id && firewallOf(doc, id); });
+        var walls = path.hops.map(function (k) { return routerAt[k].router; }).filter(function (id) { return id && firewallOf(ix, id); });
         if (!walls.length) return;
         h.ports.forEach(function (r) {
           if (!r.addsFlow) return;
           var label = h.known || h.merged ? name(doc, h.known || h.merged) : "“" + h.label + "”";
-          item({ key: "opening:" + r.key, kind: "opening", host: h.known || h.merged || null, row: h.key, port: r.key, proto: r.proto, firewalls: walls.map(function (id) { return firewallOf(doc, id); }), line: "unplanned opening: " + r.proto + " on " + label + " through " + walls.map(function (id) { return name(doc, id); }).join(", "), action: "allow the flow it adds on " + (walls.length === 1 ? "that firewall" : "those firewalls") });
+          item({ key: "opening:" + r.key, kind: "opening", host: h.known || h.merged || null, row: h.key, port: r.key, proto: r.proto, firewalls: walls.map(function (id) { return firewallOf(ix, id); }), line: "unplanned opening: " + r.proto + " on " + label + " through " + walls.map(function (id) { return name(doc, id); }).join(", "), action: "allow the flow it adds on " + (walls.length === 1 ? "that firewall" : "those firewalls") });
         });
       });
     }
@@ -252,10 +274,11 @@
 
   // Before the hosts are gone through: what is removed, marked, or made
   // another product. `env`: {doc(), step(edit), soft(edit), add(kind,
-  // label) → id, products: {label: id} made by this import}.
+  // label) → id, products: {label: id} made by this import}; doc() is the
+  // import's own copy, edited in place.
   function applyBefore(p, ticks, env) {
     ticked(p, ticks, ["closed"]).forEach(function (c) {
-      if (env.doc().entities[c.service]) env.step(L.remove(env.doc(), "entities", c.service));
+      if (env.doc().entities[c.service]) env.step(L.remove(env.doc(), "entities", c.service, true));
     });
     ticked(p, ticks, ["missed"]).forEach(function (c) {
       if (env.doc().entities[c.host] && p.date) env.doc().entities[c.host].missed = p.date;
@@ -265,12 +288,12 @@
       if (!doc.entities[c.service] || !doc.associations[c.association]) return;
       var product = (c.existing && doc.entities[c.existing] ? c.existing : null) || env.products[c.to];
       if (!product) product = env.products[c.to] = env.add("product", c.to);
-      env.step(L.putAssociation(env.doc(), c.association, { kind: "instance-of", from: c.service, to: product }));
+      env.step(L.putAssociation(env.doc(), c.association, { kind: "instance-of", from: c.service, to: product }, true));
       // The old one goes when nothing is an instance of it and its author
       // set nothing on it.
       var old = env.doc().entities[c.from];
       var used = links(env.doc(), "instance-of").some(function (a) { return a.to === c.from; });
-      if (old && !used && untouched(old)) env.step(L.remove(env.doc(), "entities", c.from));
+      if (old && !used && untouched(old)) env.step(L.remove(env.doc(), "entities", c.from, true));
     });
   }
 
@@ -282,14 +305,14 @@
       if (!route || !ends(c.row, route)) return;
       c.flows.forEach(function (id) {
         var f = env.doc().flows[id];
-        if (f) env.soft(L.putFlow(env.doc(), id, { label: f.label, source: f.source, target: f.target, route: route, protocol: f.protocol }));
+        if (f) env.soft(L.putFlow(env.doc(), id, { label: f.label, source: f.source, target: f.target, route: route, protocol: f.protocol }, true));
       });
     });
     ticked(p, ticks, ["permit"]).forEach(function (c) {
       var doc = env.doc();
       if (!doc.flows[c.flow] || !doc.entities[c.firewall]) return;
       var id = c.association && doc.associations[c.association] ? c.association : null;
-      env.soft(L.putAssociation(doc, id, { kind: "permits", from: c.firewall, to: c.flow, allowed: c.allowed }));
+      env.soft(L.putAssociation(doc, id, { kind: "permits", from: c.firewall, to: c.flow, allowed: c.allowed }, true));
     });
     ticked(p, ticks, ["opening"]).forEach(function (c) {
       var flow = flowOf[c.port];
@@ -297,13 +320,13 @@
       if (!f) return;
       c.firewalls.forEach(function (fw) {
         // Only where the flow was given the way through that firewall.
-        if (!firewallsOn(env.doc(), f.route).some(function (w) { return w.firewall === fw; })) return;
-        env.soft(L.putAssociation(env.doc(), null, { kind: "permits", from: fw, to: flow, allowed: true }));
+        if (!firewallsOn(associations(env.doc()), f.route).some(function (w) { return w.firewall === fw; })) return;
+        env.soft(L.putAssociation(env.doc(), null, { kind: "permits", from: fw, to: flow, allowed: true }, true));
       });
     });
   }
 
-  var api = { drawnPorts: drawnPorts, changes: changes, changesTicked: counted, applyChangesBefore: applyBefore, applyChangesAfter: applyAfter };
+  var api = { associations: associations, drawnPorts: drawnPorts, changes: changes, changesTicked: counted, applyChangesBefore: applyBefore, applyChangesAfter: applyAfter };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapChanges = api;
 })();

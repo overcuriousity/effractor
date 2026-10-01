@@ -39,13 +39,15 @@
   function links(doc, kind) {
     return Object.keys(doc.associations || {}).map(function (k) { return doc.associations[k]; }).filter(function (a) { return a.kind === kind; });
   }
-  function hostingOf(doc, executable) {
-    var a = links(doc, "hosts").filter(function (x) { return x.to === executable; })[0];
+  // `ix`: the document's associations by end (Ch.associations), built once
+  // for all that is asked of a document that does not change meanwhile.
+  function hostingOf(ix, executable) {
+    var a = ix.to("hosts", executable)[0];
     return a ? a.from : null;
   }
-  function attachedNetworks(doc, machine) {
-    var mine = links(doc, "attached").filter(function (a) { return a.from === machine; }).map(function (a) { return a.to; });
-    return ids(doc, "network").filter(function (n) { return mine.indexOf(n) >= 0; });
+  function attachedNetworks(ix, machine) {
+    var mine = ix.from("attached", machine).map(function (a) { return a.to; });
+    return ids(ix.doc, "network").filter(function (n) { return mine.indexOf(n) >= 0; });
   }
   function onlyCidr(range) {
     var words = String(range == null ? "" : range).trim().split(/\s+/).filter(Boolean);
@@ -60,8 +62,8 @@
     if (r) return { role: "router", device: r };
     return { role: "host", device: classes[0] || null };
   }
-  function runsRouter(doc, host) {
-    return links(doc, "hosts").some(function (a) { return a.from === host && doc.entities[a.to] && doc.entities[a.to].kind === "router"; });
+  function runsRouter(ix, host) {
+    return ix.from("hosts", host).some(function (a) { return ix.doc.entities[a.to] && ix.doc.entities[a.to].kind === "router"; });
   }
 
   // The drawn host nmap runs on, named by the scan: "altiera.fritz.box" or
@@ -93,6 +95,7 @@
   // `today`: the day of the import, for a scan that does not say when it ran.
   function plan(doc, appId, scan, range, merges, today) {
     merges = merges || {};
+    var ix = Ch.associations(doc);
     var hosts = ids(doc, "host");
     var byAddress = Object.create(null);
     hosts.forEach(function (h) {
@@ -186,7 +189,7 @@
     });
     var candidates = hosts.filter(function (h) { return !seenHosts[h]; });
     var networks = ids(doc, "network");
-    var appHost = hostingOf(doc, appId);
+    var appHost = hostingOf(ix, appId);
     // The network the scan covered, as nmap says it ran; the range field only
     // when the scan does not name one (an old scan pasted needs no range).
     var cidr = onlyCidr(targetsOf(scan)) || onlyCidr(range);
@@ -201,7 +204,7 @@
     if (proposed && has(merges, "network")) {
       if (netCandidates.indexOf(merges.network) >= 0) proposed.merged = merges.network;
     } else if (proposed && appHost) {
-      var onIt = attachedNetworks(doc, appHost).filter(function (n) { return netCandidates.indexOf(n) >= 0; });
+      var onIt = attachedNetworks(ix, appHost).filter(function (n) { return netCandidates.indexOf(n) >= 0; });
       if (onIt.length === 1) {
         proposed.merged = onIt[0];
         proposed.guessed = true;
@@ -324,7 +327,7 @@
     var into = proposed ? proposed.merged || "new" : null;
     rows.forEach(function (r) {
       var target = r.known || r.merged;
-      var have = target ? attachedNetworks(doc, target) : [];
+      var have = target ? attachedNetworks(ix, target) : [];
       var nets = networks.filter(function (n) {
         return (doc.entities[n].addresses || []).some(function (c) {
           return r.scan.addresses.some(function (a) { return inCidr(a, c); });
@@ -349,7 +352,7 @@
       r.on = have.concat(r.networks);
       if (r.networks.indexOf("new") >= 0) usedNew = true;
     });
-    var appNets = appHost ? attachedNetworks(doc, appHost) : [];
+    var appNets = appHost ? attachedNetworks(ix, appHost) : [];
     rows.forEach(function (r) {
       if (appHost && (r.known || r.merged) === appHost) appNets = appNets.concat(r.networks);
     });
@@ -373,7 +376,7 @@
       var called = namesOf(h);
       var kept = target ? doc.entities[target].names || [] : [];
       var shared = appNets.filter(function (n) { return r.on.indexOf(n) >= 0; });
-      var offered = !(target && runsRouter(doc, target));
+      var offered = !(target && runsRouter(ix, target));
       var suggested = roleOf(h.device);
       // A host others were reached through routes, whatever nmap called it.
       if (onTheWay[r.key] && suggested.role === "host") suggested = { role: "router", device: "on the way to others" };
@@ -387,11 +390,11 @@
       // A reader's own findings on the host (Greenbone's general/tcp) have
       // no port to go to.
       var hostOwn = neutral(h.findings);
-      var seen = reached(doc, appId, target);
+      var seen = reached(ix, appId, target);
       // A scan of filters calls no port open that is (scan workflow spec §5.1).
       var ports = (R.passing(scan) ? [] : h.ports).filter(function (p) { return p.state === "open" && !wrapped(p); }).map(function (p) {
         var row = portRow(seen, r.key, label, p, products);
-        told(doc, scan, target, row, p, products);
+        told(ix, scan, target, row, p, products);
         var own = readScripts(p.scripts);
         row.found = own.found.concat(neutral(p.findings));
         row.unread = own.unread;
@@ -399,10 +402,10 @@
       });
       var smb = SMB_PORTS.map(function (proto) { return ports.filter(function (x) { return x.proto === proto; })[0]; }).filter(Boolean)[0];
       var unplaced = [];
-      if (smb && !(smb.known && !productOfService(doc, smb.known))) smb.found = smb.found.concat(hostChecks.found);
+      if (smb && !(smb.known && !productOfService(ix, smb.known))) smb.found = smb.found.concat(hostChecks.found);
       else unplaced = hostChecks.found;
       ports.forEach(function (row) {
-        row.findings = findingsFor(doc, row, row.found);
+        row.findings = findingsFor(ix, row, row.found);
         delete row.found;
       });
       return {
@@ -538,14 +541,14 @@
     var p = e && e.parameters && e.parameters["find-exploit"];
     return p && p.note ? p.note.split("\n") : [];
   }
-  function productOfService(doc, service) {
-    var a = links(doc, "instance-of").filter(function (x) { return x.from === service; })[0];
-    return a && doc.entities[a.to] ? a.to : null;
+  function productOfService(ix, service) {
+    var a = ix.from("instance-of", service)[0];
+    return a && ix.doc.entities[a.to] ? a.to : null;
   }
   // A port's findings, against the product they would mark.
-  function findingsFor(doc, row, found) {
-    var product = row.known ? productOfService(doc, row.known) : row.product.existing;
-    var e = product ? doc.entities[product] : null;
+  function findingsFor(ix, row, found) {
+    var product = row.known ? productOfService(ix, row.known) : row.product.existing;
+    var e = product ? ix.doc.entities[product] : null;
     return found.map(function (f) {
       var line = findingLine(f.source, f.vuln);
       return {
@@ -574,22 +577,22 @@
   // this scanner already reaches, or another scanner on its host does
   // (roadmap scanner-readers: never drawn twice). Built once per host, not
   // once per port.
-  function reached(doc, appId, target) {
+  function reached(ix, appId, target) {
     var out = { service: Object.create(null), fromApp: Object.create(null) };
     if (!target) return out;
-    var hosted = Object.create(null);
-    links(doc, "hosts").forEach(function (a) {
-      if (a.from === target && doc.entities[a.to] && doc.entities[a.to].kind === "service") hosted[a.to] = true;
+    var doc = ix.doc, hosted = Object.create(null);
+    ix.from("hosts", target).forEach(function (a) {
+      if (doc.entities[a.to] && doc.entities[a.to].kind === "service") hosted[a.to] = true;
     });
     var flows = Object.keys(doc.flows || {}).map(function (k) { return doc.flows[k]; });
     flows.forEach(function (f) {
       if (hosted[f.target] === true && !has(out.service, f.protocol)) out.service[f.protocol] = f.target;
     });
-    var here = hostingOf(doc, appId);
+    var here = hostingOf(ix, appId);
     function sameReach(source) {
       if (source === appId) return true;
       var e = doc.entities[source];
-      return !!here && !!e && e.kind === "application" && !!e.tool && hostingOf(doc, source) === here;
+      return !!here && !!e && e.kind === "application" && !!e.tool && hostingOf(ix, source) === here;
     }
     flows.forEach(function (f) {
       if (sameReach(f.source) && has(out.service, f.protocol) && out.service[f.protocol] === f.target) out.fromApp[f.protocol] = true;
@@ -614,14 +617,14 @@
   // §5.4): of the services on the same host that a flow from it reaches,
   // the one whose product is the application's, else the one reached by
   // http, as the import draws it. A database the server talks to is none.
-  function passesTo(doc, host, service, label) {
-    var reached = [];
+  function passesTo(ix, host, service, label) {
+    var doc = ix.doc, reached = [];
     Object.keys(doc.flows || {}).forEach(function (k) {
       var f = doc.flows[k];
-      if (f.source === service && doc.entities[f.target] && doc.entities[f.target].kind === "service" && hostingOf(doc, f.target) === host) reached.push({ service: f.target, http: f.protocol === "http" });
+      if (f.source === service && doc.entities[f.target] && doc.entities[f.target].kind === "service" && hostingOf(ix, f.target) === host) reached.push({ service: f.target, http: f.protocol === "http" });
     });
     function isIt(x) {
-      var has = productOfService(doc, x.service);
+      var has = productOfService(ix, x.service);
       return !!has && (P.same(doc.entities[has].label, label) || P.lacks(doc.entities[has].label, label));
     }
     return (reached.filter(isIt)[0] || reached.filter(function (x) { return x.http; })[0] || {}).service || null;
@@ -629,11 +632,12 @@
   // What nuclei's own templates say of a port beyond its being open
   // (spec §5, §7): the product a drawn service lacks, a product that
   // differs, and the application behind the server.
-  function told(doc, scan, target, row, p, products) {
+  function told(ix, scan, target, row, p, products) {
     row.login = null;
     row.manages = false;
     if (scan.tool !== "nuclei") return;
-    var drawn = row.known ? productOfService(doc, row.known) : null;
+    var doc = ix.doc;
+    var drawn = row.known ? productOfService(ix, row.known) : null;
     if (drawn && row.product.identified) {
       var was = doc.entities[drawn].label;
       if (P.lacks(was, row.product.label)) row.identifies = { product: drawn, from: was, to: row.product.label, existing: row.product.existing };
@@ -643,8 +647,8 @@
     row.manages = !!p.manages;
     if (!p.application) return;
     var label = p.application.product + (p.application.version ? " " + p.application.version : "");
-    var app = { label: p.application.label, product: { label: label, existing: products[P.key(label)] || null }, known: row.known ? passesTo(doc, target, row.known, label) : null, differs: null };
-    var has = app.known ? productOfService(doc, app.known) : null;
+    var app = { label: p.application.label, product: { label: label, existing: products[P.key(label)] || null }, known: row.known ? passesTo(ix, target, row.known, label) : null, differs: null };
+    var has = app.known ? productOfService(ix, app.known) : null;
     if (has && !P.same(doc.entities[has].label, label) && !P.lacks(doc.entities[has].label, label)) app.differs = "drawn: " + doc.entities[has].label + " · nuclei: " + label;
     row.application = app;
   }
@@ -990,18 +994,43 @@
     var merging = p.hosts.some(function (h) { return ticks.hosts[h.key] && ((h.merged && h.addresses.length) || h.gains.length); });
     var stripping = p.hosts.some(function (h) { return ticks.hosts[h.key] && doing(h, ticks, p).strip; });
     if (!s.hosts && !s.services && !s.flows && !s.networks && !s.filledNetworks && !s.attached && !s.routers && !s.unpatched && !merging && !s.identified && !s.named && !s.told && !(s.connected.accounts + s.connected.hosts + s.connected.links) && !s.moved && !s.renamed && !s.seen && !s.asked && !stripping && !s.changes) return null;
-    var next = JSON.parse(JSON.stringify(doc));
+    // One copy, edited in place: a copy per edit made an import of a few
+    // hundred hosts take seconds (review 2026-10-01).
+    var next = A.clone(doc);
+    // The drawn products by name and version, and the attachments, kept
+    // while the import adds to them; forgotten by any other edit.
+    var productsByKey = null, attachments = null;
     function step(edit) {
       if (!edit) throw new Error("the nmap import could not be applied");
       next = edit.doc;
       return edit;
     }
+    function forget(edit) {
+      productsByKey = attachments = null;
+      return edit;
+    }
+    function add(kind, label) {
+      var id = step(A.addEntity(next, kind, label, specOf(kind), true)).entity;
+      if (kind === "product" && productsByKey) (productsByKey[P.key(label)] = productsByKey[P.key(label)] || []).push(id);
+      return id;
+    }
     function link(kind, from, to, extra) {
-      step(L.putAssociation(next, null, Object.assign({ kind: kind, from: from, to: to }, extra || {})));
+      step(L.putAssociation(next, null, Object.assign({ kind: kind, from: from, to: to }, extra || {}), true));
+      if (kind === "attached" && attachments) attachments[from + " " + to] = true;
+    }
+    function flow(value) {
+      return step(L.putFlow(next, null, value, true));
+    }
+    function attachedHere(machine, net) {
+      if (!attachments) {
+        attachments = Object.create(null);
+        links(next, "attached").forEach(function (a) { attachments[a.from + " " + a.to] = true; });
+      }
+      return attachments[machine + " " + net] === true;
     }
     var network = null;
     if (s.proposed) {
-      network = step(A.addEntity(next, "network", p.network.label, specOf("network"))).entity;
+      network = add("network", p.network.label);
       next.entities[network].addresses = p.network.addresses.slice();
     } else if (s.filledNetworks) {
       network = p.network.merged;
@@ -1012,7 +1041,7 @@
     var ownNetworks = Object.create(null);
     function ownNetwork(cidr) {
       if (!ownNetworks[cidr]) {
-        ownNetworks[cidr] = step(A.addEntity(next, "network", cidr, specOf("network"))).entity;
+        ownNetworks[cidr] = add("network", cidr);
         next.entities[ownNetworks[cidr]].addresses = [cidr];
       }
       return ownNetworks[cidr];
@@ -1021,15 +1050,23 @@
     var flows = [], marks = [], hostOf = {}, passes = [], serviceOf = {}, appOf = {};
     // A product by its name and version, drawn or made by this import.
     function productFor(label, existing) {
-      var id = existing || madeProducts[P.key(label)] || ids(next, "product").filter(function (x) { return P.key(next.entities[x].label) === P.key(label); })[0];
-      if (!id) id = madeProducts[P.key(label)] = step(A.addEntity(next, "product", label, specOf("product"))).entity;
+      if (!productsByKey) {
+        productsByKey = Object.create(null);
+        ids(next, "product").forEach(function (x) {
+          var k = P.key(next.entities[x].label);
+          (productsByKey[k] = productsByKey[k] || []).push(x);
+        });
+      }
+      var id = existing || madeProducts[P.key(label)] || (productsByKey[P.key(label)] || [])[0];
+      if (!id) id = madeProducts[P.key(label)] = add("product", label);
       return id;
     }
+    // What the changes do may remove or rename anything.
     var env = {
       doc: function () { return next; },
-      step: step,
-      soft: function (edit) { if (edit) next = edit.doc; },
-      add: function (kind, label) { return step(A.addEntity(next, kind, label, specOf(kind))).entity; },
+      step: function (edit) { return forget(step(edit)); },
+      soft: function (edit) { if (edit) next = forget(edit).doc; },
+      add: add,
       products: madeProducts,
     };
     Ch.applyChangesBefore(p, ticks, env);
@@ -1039,7 +1076,7 @@
     names.list.forEach(function (n) {
       if (!next.entities[n.row.known] || !next.entities[n.product]) return;
       if (n.how === "rename") {
-        step(A.renameEntity(next, n.product, n.to));
+        forget(step(A.renameEntity(next, n.product, n.to, true)));
         madeProducts[n.key] = n.product;
       } else if (n.how === "use") {
         var to = productFor(n.to, n.existing);
@@ -1050,10 +1087,10 @@
       }
     });
     names.gone.forEach(function (g) {
-      var left = next.entities[g.product], taken = next.entities[g.row.known] ? productOfService(next, g.row.known) : null;
+      var left = next.entities[g.product], taken = next.entities[g.row.known] ? productOfService(Ch.associations(next), g.row.known) : null;
       if (!left || !taken || taken === g.product || links(next, "instance-of").some(function (a) { return a.to === g.product; })) return;
       carry(left, next.entities[taken]);
-      env.soft(L.remove(next, "entities", g.product));
+      env.soft(L.remove(next, "entities", g.product, true));
     });
     p.hosts.forEach(function (h) {
       if (!ticks.hosts[h.key]) return;
@@ -1068,7 +1105,7 @@
       // Another machine on a drawn host's address: the address is its own now.
       if (!host && h.conflict) without(h.conflict.host, h.addresses);
       if (!host) {
-        host = step(A.addEntity(next, "host", h.label, specOf("host"))).entity;
+        host = add("host", h.label);
         next.entities[host].addresses = h.addresses.slice();
         if (h.os) next.entities[host].description = h.os;
         if (h.identities.length) next.entities[host].identities = h.identities.slice();
@@ -1113,13 +1150,13 @@
       var role = roleChosen(h, ticks);
       if (role !== "host") {
         // The router on its box (an appliance), on every network the box is on.
-        var router = step(A.addEntity(next, "router", h.label + " router", specOf("router"))).entity;
+        var router = add("router", h.label + " router");
         link("hosts", host, router, { privilege: "admin" });
         links(next, "attached").filter(function (a) { return a.from === host; }).forEach(function (a) {
           link("attached", router, a.to);
         });
         if (role === "firewall") {
-          var firewall = step(A.addEntity(next, "firewall", h.label + " firewall", specOf("firewall"))).entity;
+          var firewall = add("firewall", h.label + " firewall");
           link("filters", router, firewall);
         }
       }
@@ -1131,22 +1168,22 @@
         // A known port with nothing to add is unticked, and its product still
         // takes the finding.
         if (!ticks.ports[r.key]) {
-          if (r.known) marking(r, ticks).forEach(function (f) { marks.push({ product: productOfService(next, r.known), line: f.line }); });
+          if (r.known) marking(r, ticks).forEach(function (f) { marks.push({ product: productOfService(Ch.associations(next), r.known), line: f.line }); });
           return;
         }
         // A service this import removed (its port is closed now) is gone.
         var service = r.known && next.entities[r.known] ? r.known : null;
         if (r.known && !service) return;
         if (!service) {
-          service = step(A.addEntity(next, "service", r.label, specOf("service"))).entity;
+          service = add("service", r.label);
           // nmap cannot see the account it runs as: unknown, not a guess.
           link("hosts", host, service, { privilege: "unknown" });
-          var product = r.product.identified ? productFor(r.product.label, r.product.existing) : step(A.addEntity(next, "product", r.product.label, specOf("product"))).entity;
+          var product = r.product.identified ? productFor(r.product.label, r.product.existing) : add("product", r.product.label);
           link("instance-of", service, product);
           if (tells.application) passes.push({ row: r, host: host, label: h.label, server: service });
           serviceOf[r.key] = service;
         }
-        marking(r, ticks).forEach(function (f) { marks.push({ product: productOfService(next, service), line: f.line }); });
+        marking(r, ticks).forEach(function (f) { marks.push({ product: productOfService(Ch.associations(next), service), line: f.line }); });
         if (r.addsFlow) flows.push({ label: r.label + " on " + h.label, target: service, host: host, row: h.key, port: r.key, route: h.route, protocol: r.proto });
       });
     });
@@ -1160,7 +1197,7 @@
     }
     var way = Rt.applyRoutes(p, {
       doc: function () { return next; },
-      add: function (kind, label) { return step(A.addEntity(next, kind, label, specOf(kind))).entity; },
+      add: add,
       link: link,
       net: netOf,
       hostOf: hostOf,
@@ -1169,33 +1206,33 @@
     });
     // A way is one for a host when nmap's host and that host are at its ends.
     function ends(rowKey, route) {
-      return !!p.appHost && !!hostOf[rowKey] && isAttached(next, p.appHost, route[0]) && isAttached(next, hostOf[rowKey], route[route.length - 1]);
+      return !!p.appHost && !!hostOf[rowKey] && attachedHere(p.appHost, route[0]) && attachedHere(hostOf[rowKey], route[route.length - 1]);
     }
     var flowOf = {};
     flows.forEach(function (f) {
       var route = way.routes[f.row];
       if (!(route && ends(f.row, route))) {
         var net = f.route[0] === "new" ? network : f.route[0];
-        var ok = net && p.appHost && isAttached(next, p.appHost, net) && isAttached(next, f.host, net);
+        var ok = net && p.appHost && attachedHere(p.appHost, net) && attachedHere(f.host, net);
         route = ok ? [net] : [];
       }
-      flowOf[f.port] = step(L.putFlow(next, null, { label: f.label, source: p.app, target: f.target, route: route, protocol: f.protocol })).select.slice(5);
+      flowOf[f.port] = flow({ label: f.label, source: p.app, target: f.target, route: route, protocol: f.protocol }).select.slice(5);
     });
     // The application behind a server (nuclei templates spec §5.4): a
     // service of its own on the same host, which the server passes on to
     // over the first network the host is on.
     passes.forEach(function (x) {
-      var made = appOf[x.row.key] = step(A.addEntity(next, "service", x.row.application.label, specOf("service"))).entity;
+      var made = appOf[x.row.key] = add("service", x.row.application.label);
       link("hosts", x.host, made, { privilege: "unknown" });
       link("instance-of", made, productFor(x.row.application.product.label, x.row.application.product.existing));
-      var on = attachedNetworks(next, x.host);
-      step(L.putFlow(next, null, { label: x.row.application.label + " behind " + x.row.label + " on " + x.label, source: x.server, target: made, route: on.length ? [on[0]] : [], protocol: "http" }));
+      var on = attachedNetworks(Ch.associations(next), x.host);
+      flow({ label: x.row.application.label + " behind " + x.row.label + " on " + x.label, source: x.server, target: made, route: on.length ? [on[0]] : [], protocol: "http" });
     });
     Cn.apply(p.connections, ticks.connections, {
       doc: function () { return next; },
       add: env.add,
       link: link,
-      flow: function (value) { step(L.putFlow(next, null, value)); },
+      flow: flow,
       product: function (label) { return productFor(label, null); },
       hostOf: hostOf,
       serviceOf: serviceOf,
@@ -1221,14 +1258,11 @@
     var old = next.entities[p.app].description || "";
     var line = stamp.line || stampLine(stamp);
     var pattern = stamp.pattern || STAMP;
-    var described = A.setDescription(next, p.app, pattern.test(old) ? old.replace(pattern, line) : (old ? old + "\n" : "") + line);
+    var described = A.setDescription(next, p.app, pattern.test(old) ? old.replace(pattern, line) : (old ? old + "\n" : "") + line, true);
     if (described) next = described.doc;
     return { doc: next, select: "entity/" + p.app };
   }
 
-  function isAttached(doc, machine, net) {
-    return links(doc, "attached").some(function (a) { return a.from === machine && a.to === net; });
-  }
   // The hosts an import notes as asked, new ones too: the preview's row.
   function askedCount(p, ticks) {
     return alsoAsked(p, ticks).length + p.hosts.filter(function (h) {

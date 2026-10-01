@@ -23,6 +23,9 @@
     return !!o && Object.prototype.hasOwnProperty.call(o, k);
   }
 
+  // An edit given `inPlace` changes `doc` itself instead of a clone, for a
+  // caller that made its own copy and edits it many times (a scan's import:
+  // a clone per edit made it quadratic, review 2026-10-01).
   function clone(doc) {
     return JSON.parse(JSON.stringify(doc));
   }
@@ -55,10 +58,10 @@
   }
 
   // `spec`: the kind's catalog entry — its parameter slots and its switch.
-  function addEntity(doc, kind, label, spec) {
+  function addEntity(doc, kind, label, spec, inPlace) {
     var name = String(label == null ? "" : label).trim();
     if (!name || KINDS.indexOf(kind) < 0) return null;
-    var next = clone(doc);
+    var next = inPlace ? doc : clone(doc);
     var id = entityId(next, name);
     var entity = { kind: kind, label: name };
     // A slot optional on the kind is written only once it is given.
@@ -87,19 +90,19 @@
     return { doc: next, select: "entity/" + id, entity: id };
   }
 
-  function renameEntity(doc, id, label) {
+  function renameEntity(doc, id, label, inPlace) {
     var name = String(label == null ? "" : label).trim();
     if (!has(doc.entities, id) || !name || doc.entities[id].label === name) return null;
-    var next = clone(doc);
+    var next = inPlace ? doc : clone(doc);
     next.entities[id].label = name;
     return { doc: next, select: "entity/" + id };
   }
 
-  function setDescription(doc, id, text) {
+  function setDescription(doc, id, text, inPlace) {
     if (!has(doc.entities, id)) return null;
     var value = String(text == null ? "" : text).trim();
     if ((doc.entities[id].description || "") === value) return null;
-    var next = clone(doc);
+    var next = inPlace ? doc : clone(doc);
     if (value) next.entities[id].description = value;
     else delete next.entities[id].description;
     return { doc: next, select: "entity/" + id };

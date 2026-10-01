@@ -98,12 +98,21 @@
       if (!out.list.some(function (o) { return o.key === x.key; })) out.list.push(Object.assign({ ticked: false, can: true }, x));
     }
     var nets = appHost ? attached(doc, appHost) : [];
+    // routerOn for every host at once: asked per host, it went through
+    // every link per host (review 2026-10-01).
+    var routerAt = Object.create(null);
+    links(doc, "hosts").forEach(function (a) {
+      if (!has(routerAt, a.from) && doc.entities[a.to] && doc.entities[a.to].kind === "router") routerAt[a.from] = a.to;
+    });
+    function routerOf(host) {
+      return has(routerAt, host) ? routerAt[host] : null;
+    }
     // nmap sees no page, only the port: a router with a management port
     // open to the scanner is offered as administered from its network.
     if (scan.tool === "nmap") {
       hosts.forEach(function (h) {
         var target = h.known || h.merged;
-        var router = target ? routerOn(doc, target) : null;
+        var router = target ? routerOf(target) : null;
         if (h.role === "host" && !router) return;
         var open = h.ports.filter(function (r) { return MANAGED.indexOf(r.proto) >= 0; });
         if (!open.length) return;
@@ -155,7 +164,7 @@
         if (page) {
           if (!administered) {
             administered = true;
-            var machine = target ? routerOn(doc, target) || target : null;
+            var machine = target ? routerOf(target) || target : null;
             var from = nets.filter(function (n) {
               return (doc.entities[n].addresses || []).some(function (c) { return h.addresses.some(function (a) { return Ad.inCidr(a, c); }); });
             })[0] || nets[0] || null;

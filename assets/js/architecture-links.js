@@ -35,10 +35,10 @@
 
   // `value`: {kind, from, to, privilege?, allowed?, factor?, description?}. Written in
   // canonical key order with only the fields its kind carries; `id` null
-  // makes a new one named after its ends.
-  function putAssociation(doc, id, value) {
+  // makes a new one named after its ends. `inPlace`: as in architecture-edit.js.
+  function putAssociation(doc, id, value, inPlace) {
     if (!value || ASSOCIATION_KINDS.indexOf(value.kind) < 0) return null;
-    var next = clone(doc);
+    var next = inPlace ? doc : clone(doc);
     next.associations = next.associations || {};
     if (id == null) id = freeId(next.associations, value.from + "-" + value.kind + "-" + value.to);
     else if (!has(next.associations, id) && !goodId(id)) return null;
@@ -59,10 +59,11 @@
 
   // `value`: {label, source, target, route, protocol?}. The connect
   // parameter is edited as a parameter; a new flow's is unknown.
-  function putFlow(doc, id, value) {
+  // `inPlace`: as in architecture-edit.js.
+  function putFlow(doc, id, value, inPlace) {
     var label = String((value && value.label) == null ? "" : value.label).trim();
     if (!label) return null;
-    var next = clone(doc);
+    var next = inPlace ? doc : clone(doc);
     next.flows = next.flows || {};
     if (id == null) id = freeId(next.flows, label);
     else if (!has(next.flows, id) && !goodId(id)) return null;
@@ -78,10 +79,17 @@
     f.parameters = old && old.parameters ? old.parameters : { connect: { status: "unknown" } };
     Object.assign(f, extensions(old));
     if (old && JSON.stringify(old) === JSON.stringify(f)) return null;
+    // A router off the route takes its firewall's permission along: those
+    // its old route filtered and the new one does not. A new flow has none.
+    var was = old ? Object.keys(next.associations || {}).filter(function (k) {
+      var a = next.associations[k];
+      return a.kind === "permits" && a.to === id && filtered(next, a);
+    }) : [];
     next.flows[id] = f;
     var edit = { doc: next, select: "flow/" + id };
-    // A router off the route takes its firewall's permission along.
-    var dropped = strayPermits(doc, next, id);
+    var dropped = was.filter(function (k) {
+      return !filtered(next, next.associations[k]);
+    });
     if (dropped.length) {
       var firewalls = dropped.map(function (k) {
         return "“" + labelOf(next, next.associations[k].from) + "”";
@@ -100,14 +108,23 @@
     });
   }
 
-  // The permissions (of flow `only`, when given) that `before` filtered and
-  // `after` no longer does. One the file had without its router is left for
-  // the validator to name.
-  function strayPermits(before, after, only) {
+  // The permissions a document's firewalls filter, by id.
+  function filteredPermits(doc) {
+    var out = Object.create(null);
+    Object.keys(doc.associations || {}).forEach(function (k) {
+      var a = doc.associations[k];
+      if (a.kind === "permits" && filtered(doc, a)) out[k] = true;
+    });
+    return out;
+  }
+
+  // The permissions that were filtered before (`before`: filteredPermits)
+  // and `after` no longer does. One the file had without its router is left
+  // for the validator to name.
+  function strayPermits(before, after) {
     return Object.keys(after.associations || {}).filter(function (k) {
       var a = after.associations[k];
-      if (a.kind !== "permits" || (only != null && a.to !== only) || !has(before.associations, k)) return false;
-      return filtered(before, before.associations[k]) && !filtered(after, a);
+      return a.kind === "permits" && before[k] === true && !filtered(after, a);
     });
   }
 
@@ -252,9 +269,12 @@
   // flows from, to or over it, the permissions of those flows, attacker
   // states on it and scenario changes on any of these. Software left without
   // a host stays, unhosted — an `incomplete`, never a guessed new host.
-  function remove(doc, collection, id) {
+  // `inPlace`: as in architecture-edit.js.
+  function remove(doc, collection, id, inPlace) {
     if (COLLECTIONS.indexOf(collection) < 0 || !has(doc[collection], id)) return null;
-    var next = clone(doc);
+    var named = title(doc, collection, id);
+    var permitted = filteredPermits(doc);
+    var next = inPlace ? doc : clone(doc);
     var gone = { entities: {}, associations: {}, flows: {} };
     gone[collection][id] = true;
     var links = 0;
@@ -284,7 +304,7 @@
     });
     if (collection !== "entities") links--;
     // A firewall that no longer filters a flow's router loses its permission.
-    strayPermits(doc, next).forEach(function (k) {
+    strayPermits(permitted, next).forEach(function (k) {
       gone.associations[k] = true;
       delete next.associations[k];
       links++;
@@ -310,7 +330,7 @@
     });
     // A cluster left with fewer than two members goes with them.
     C.forget(next, gone.entities);
-    var notice = "deleted “" + title(doc, collection, id) + "”";
+    var notice = "deleted “" + named + "”";
     if (links) notice += " and " + links + (links === 1 ? " link" : " links");
     notice += attackerWords(footholds, target);
     return { doc: next, select: null, notice: notice + " · Ctrl+Z undoes", links: links, footholds: footholds, target: target };
@@ -325,12 +345,12 @@
   }
 
   // Several components in one edit (clustering spec §3): each with what
-  // named it.
+  // named it. One copy, each removed from it in place.
   function removeAll(doc, entityIds) {
-    var next = doc, n = 0, links = 0, footholds = 0, target = false, single = null;
+    var next = clone(doc), n = 0, links = 0, footholds = 0, target = false, single = null;
     entityIds.forEach(function (id) {
       if (!has(next.entities, id)) return;
-      var r = remove(next, "entities", id);
+      var r = remove(next, "entities", id, true);
       next = r.doc;
       n++;
       links += r.links;
