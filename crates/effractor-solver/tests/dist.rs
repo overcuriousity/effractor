@@ -1,5 +1,5 @@
 use effractor_core::{Distribution as D, Shorthand};
-use effractor_solver::dist::{CHUNK, cdf, chunk_rng, sample};
+use effractor_solver::dist::{CHUNK, cdf, chunk_rng, sample, unit};
 use proptest::prelude::*;
 
 fn close(got: f64, want: f64, tol: f64) {
@@ -179,6 +179,16 @@ fn a_normal_truncated_far_into_its_tail_is_still_a_distribution() {
         1.0 - (-30.0f64 * 0.02 - 0.02 * 0.02 / 2.0).exp() * 0.999_55,
         2e-4,
     );
+}
+
+/// The extreme draws are where an open interval is closed by rounding. The
+/// largest once came out as exactly 1: a normal quantile of NaN, a log-normal
+/// of NaN, a truncated normal of 0, and Bernoulli(1) as "never".
+#[test]
+fn a_uniform_never_reaches_either_end() {
+    let (lo, hi) = (unit(0), unit(u64::MAX));
+    assert!(lo > 0.0 && hi < 1.0, "{lo} {hi}");
+    assert_eq!((lo, hi), (0.5 / 4_503_599_627_370_496.0, 1.0 - lo));
 }
 
 #[test]

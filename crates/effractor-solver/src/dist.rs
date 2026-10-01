@@ -29,10 +29,18 @@ pub fn chunk_rng(seed: u64, chunk: u64) -> ChaCha8Rng {
     rng
 }
 
-/// Uniform on the open interval (0, 1): 53 bits, centred in their cell, so
-/// neither `log(0)` nor a quantile of exactly 1 can happen.
+/// Uniform on the open interval (0, 1); see [`unit`].
 fn uniform(rng: &mut ChaCha8Rng) -> f64 {
-    ((rng.next_u64() >> 11) as f64 + 0.5) * (1.0 / 9_007_199_254_740_992.0)
+    unit(rng.next_u64())
+}
+
+/// The uniform a 64-bit draw stands for: its top 52 bits, centred in their
+/// cell. (k + ½)·2⁻⁵² is exact for every k < 2⁵², so the result lies strictly
+/// inside (0, 1) — from 2⁻⁵³ to 1 − 2⁻⁵³ — and neither `log(0)` nor a
+/// quantile of exactly 1 can happen. With 53 bits the top cell's centre
+/// rounded up to exactly 1.
+pub fn unit(bits: u64) -> f64 {
+    ((bits >> 12) as f64 + 0.5) * (1.0 / 4_503_599_627_370_496.0)
 }
 
 fn normal(rng: &mut ChaCha8Rng) -> f64 {
