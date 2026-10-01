@@ -289,6 +289,17 @@ fn the_javascript_architecture_fixture_is_the_real_image() {
     assert_eq!(from_document(&fixture).unwrap(), text);
 }
 
+/// The same for the course file, whose Link-menu table in the course text a
+/// JavaScript test holds to the menu.
+#[test]
+fn the_javascript_course_fixture_is_the_real_image() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let text = std::fs::read_to_string(root.join("docs/course/lecture-architecture.yaml")).unwrap();
+    let fixture = std::fs::read_to_string(root.join("scripts/fixtures/course.doc.json")).unwrap();
+    let fixture: Value = serde_json::from_str(&fixture).unwrap();
+    assert_eq!(doc(&text).to_string(), fixture.to_string());
+}
+
 /// What the nmap import produces for the lab scan saves, and says nothing
 /// worse than `incomplete` (the lab has no target yet).
 #[test]

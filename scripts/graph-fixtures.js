@@ -5,7 +5,8 @@
 //
 //   node scripts/graph-fixtures.js --write    after scripts/build-wasm.sh
 //
-// --write also rewrites the component catalog and the lecture's JSON image in
+// --write also rewrites the component catalog, the lecture's and the course
+// file's JSON images in
 // scripts/fixtures/, which Rust tests pin to the real module the same way.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -14,6 +15,9 @@ const { loadWasm } = require('./wasm.js');
 const root = path.resolve(__dirname, '..');
 const DIR = path.join(root, 'scripts/fixtures/graph');
 const lecture = fs.readFileSync(path.join(root, 'crates/effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml'), 'utf8');
+// The course file as it is, for the test that holds the course text's
+// Link-menu table to it.
+const course = fs.readFileSync(path.join(root, 'docs/course/lecture-architecture.yaml'), 'utf8');
 const unknown = fs.readFileSync(
   path.join(root, 'crates/effractor-components/tests/fixtures/architectures/lecture-unknown-before-extract.yaml'),
   'utf8',
@@ -93,7 +97,8 @@ if (require.main === module) {
     const fixtures = path.join(root, 'scripts/fixtures');
     fs.writeFileSync(path.join(fixtures, 'catalog.json'), JSON.stringify(answer(api.component_catalog()), null, 2) + '\n');
     fs.writeFileSync(path.join(fixtures, 'architecture.doc.json'), JSON.stringify(answer(api.parse(lecture)), null, 2) + '\n');
-    console.log('wrote catalog.json and architecture.doc.json to ' + path.relative(root, fixtures));
+    fs.writeFileSync(path.join(fixtures, 'course.doc.json'), JSON.stringify(answer(api.parse(course)), null, 2) + '\n');
+    console.log('wrote catalog.json, architecture.doc.json and course.doc.json to ' + path.relative(root, fixtures));
   } else {
     const names = stale(api);
     names.forEach(function (name) {

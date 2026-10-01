@@ -821,3 +821,37 @@ test("a host's permission goes when its flow no longer ends at a service it runs
   assert.ok('server-allows-ssh' in same.doc.associations);
   assert.equal(same.notice, undefined);
 });
+
+// The course text's Link-menu table, held to the rebuilt course file: each
+// row is offered from its "Select" side, in its words, with its "Choose".
+test('the course text\'s Link-menu table is what the menu offers on the course file', () => {
+  const fs = require('node:fs');
+  const COURSE = require('./fixtures/course.doc.json');
+  const readme = fs.readFileSync(require('node:path').join(__dirname, '../docs/course/README.md'), 'utf8');
+  const head = readme.indexOf('| Select | In the Link menu | Choose |');
+  assert.ok(head >= 0, 'the table is there');
+  const lines = readme.slice(head).split('\n').slice(2);
+  const rows = lines.slice(0, lines.findIndex((l) => !l.startsWith('|')))
+    .map((l) => l.split('|').slice(1, -1).map((c) => c.trim()));
+  assert.equal(rows.length, 20);
+  const byLabel = (label) => {
+    const ids = Object.keys(COURSE.entities).filter((id) => COURSE.entities[id].label === label);
+    assert.equal(ids.length, 1, label);
+    return ids[0];
+  };
+  for (const [select, words, choose] of rows) {
+    const other = byLabel(choose);
+    for (const subject of select.split(', then ').map(byLabel)) {
+      // The relationship as yet unlinked: the menu offers only what is not there.
+      const doc = JSON.parse(JSON.stringify(COURSE));
+      Object.keys(doc.associations).forEach((k) => {
+        const a = doc.associations[k];
+        if ((a.from === subject && a.to === other) || (a.from === other && a.to === subject)) delete doc.associations[k];
+      });
+      const offered = L.linkChoices(doc, CATALOG, subject).some((choice) => choice.candidates.includes(other) &&
+        L.variants(doc, choice.kind, ...(choice.direction === 'out' ? [subject, other] : [other, subject]))
+          .some((v) => L.phrase(choice.kind, choice.direction, v.privilege || null, v) === words));
+      assert.ok(offered, `${COURSE.entities[subject].label}: “${words}” → ${choose}`);
+    }
+  }
+});
