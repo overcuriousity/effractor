@@ -119,7 +119,7 @@ async fn start(h: &H, cookie: Option<&str>, link: bool) -> (String, String) {
         .header(header::ORIGIN, PUBLIC)
         .header(header::CONTENT_TYPE, "application/json");
     if let Some(c) = cookie {
-        req = req.header(header::COOKIE, format!("effractor_session={c}"));
+        req = req.header(header::COOKIE, format!("__Host-effractor_session={c}"));
     }
     let res = h
         .send(
@@ -161,7 +161,7 @@ async fn public(
         .header(header::ORIGIN, PUBLIC)
         .header(header::CONTENT_TYPE, "application/json");
     if let Some(c) = cookie {
-        req = req.header(header::COOKIE, format!("effractor_session={c}"));
+        req = req.header(header::COOKIE, format!("__Host-effractor_session={c}"));
     }
     h.send(req.body(Body::from(body.to_string())).unwrap())
         .await
@@ -209,7 +209,7 @@ async fn a_first_login_through_the_issuer_makes_an_account_and_logs_in() {
         .filter_map(|v| {
             v.to_str()
                 .ok()?
-                .strip_prefix("effractor_session=")?
+                .strip_prefix("__Host-effractor_session=")?
                 .split(';')
                 .next()
                 .map(str::to_owned)
@@ -286,7 +286,7 @@ async fn a_logged_in_user_links_the_issuer_and_logs_in_with_it_later() {
         &h,
         "c1",
         &query(&url, "state"),
-        &format!("{bind}; effractor_session={b}"),
+        &format!("{bind}; __Host-effractor_session={b}"),
     )
     .await;
     assert_eq!(
@@ -338,7 +338,7 @@ async fn linking_an_identity_that_is_taken_or_fails_says_so() {
         &h,
         "c2",
         &query(&url, "state"),
-        &format!("{bind}; effractor_session={b}"),
+        &format!("{bind}; __Host-effractor_session={b}"),
     )
     .await;
     assert_eq!(
@@ -359,7 +359,7 @@ async fn linking_an_identity_that_is_taken_or_fails_says_so() {
         &h,
         "c3",
         &query(&url, "state"),
-        &format!("{bind}; effractor_session={b}"),
+        &format!("{bind}; __Host-effractor_session={b}"),
     )
     .await;
     assert_eq!(
@@ -494,7 +494,7 @@ async fn adding_a_password_needs_a_fresh_login() {
         .filter_map(|v| {
             v.to_str()
                 .ok()?
-                .strip_prefix("effractor_session=")?
+                .strip_prefix("__Host-effractor_session=")?
                 .split(';')
                 .next()
                 .map(str::to_owned)
@@ -531,7 +531,7 @@ async fn adding_a_password_needs_a_fresh_login() {
         .filter_map(|v| {
             v.to_str()
                 .ok()?
-                .strip_prefix("effractor_session=")?
+                .strip_prefix("__Host-effractor_session=")?
                 .split(';')
                 .next()
                 .map(str::to_owned)
@@ -601,7 +601,7 @@ async fn first_login_without_a_name_in_the_id_token(
         .filter_map(|v| {
             v.to_str()
                 .ok()?
-                .strip_prefix("effractor_session=")?
+                .strip_prefix("__Host-effractor_session=")?
                 .split(';')
                 .next()
                 .map(str::to_owned)

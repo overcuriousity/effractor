@@ -43,7 +43,7 @@ async fn post(h: &H, path: &str, cookie: Option<&str>, body: Value) -> axum::res
         .header(header::ORIGIN, PUBLIC)
         .header(header::CONTENT_TYPE, "application/json");
     if let Some(c) = cookie {
-        req = req.header(header::COOKIE, format!("effractor_session={c}"));
+        req = req.header(header::COOKIE, format!("__Host-effractor_session={c}"));
     }
     h.send(req.body(Body::from(body.to_string())).unwrap())
         .await

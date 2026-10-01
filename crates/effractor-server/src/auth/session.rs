@@ -2,7 +2,7 @@
 
 use axum::extract::{FromRef, FromRequestParts};
 use axum::http::request::Parts;
-use axum::http::{HeaderValue, header};
+use axum::http::{HeaderMap, HeaderValue, header};
 use effractor_accounts::sessions;
 use effractor_accounts::users::User;
 
@@ -10,15 +10,30 @@ use crate::accounts::Accounts;
 use crate::api::ApiError;
 
 pub const COOKIE: &str = "effractor_session";
+/// The name over https. A browser keeps a `__Host-` cookie only from a secure
+/// origin, Secure, with Path=/ and no Domain: a sibling subdomain or a plain
+/// http page cannot set one, so cannot plant a session of its choosing.
+pub const HOST_COOKIE: &str = "__Host-effractor_session";
 
-fn token(parts: &Parts) -> Option<String> {
-    parts
-        .headers
+/// The session cookie's name on this server.
+pub fn cookie_name(accounts: &Accounts) -> &'static str {
+    if accounts.secure_cookie() {
+        HOST_COOKIE
+    } else {
+        COOKIE
+    }
+}
+
+/// The value of the cookie named exactly `name`. Over https that is only the
+/// `__Host-` one: a plain `effractor_session` beside it, which anyone who can
+/// set cookies for the domain could have put there, is not looked at.
+pub(crate) fn cookie(headers: &HeaderMap, name: &str) -> Option<String> {
+    headers
         .get_all(header::COOKIE)
         .iter()
         .filter_map(|v| v.to_str().ok())
         .flat_map(|v| v.split(';'))
-        .filter_map(|c| c.trim().strip_prefix(COOKIE)?.strip_prefix('='))
+        .filter_map(|c| c.trim().strip_prefix(name)?.strip_prefix('='))
         .map(str::to_owned)
         .next()
 }
@@ -30,14 +45,21 @@ pub fn set_cookie(accounts: &Accounts, token: &str) -> HeaderValue {
         ""
     };
     HeaderValue::from_str(&format!(
-        "{COOKIE}={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{secure}",
+        "{}={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{secure}",
+        cookie_name(accounts),
         sessions::LIFETIME
     ))
     .expect("a token is base64url")
 }
 
-pub fn clear_cookie() -> HeaderValue {
-    HeaderValue::from_static("effractor_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0")
+pub fn clear_cookie(accounts: &Accounts) -> HeaderValue {
+    if accounts.secure_cookie() {
+        HeaderValue::from_static(
+            "__Host-effractor_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure",
+        )
+    } else {
+        HeaderValue::from_static("effractor_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0")
+    }
 }
 
 /// Adding a way to log in (a passkey, an OIDC identity) needs a login from
@@ -68,7 +90,7 @@ where
     type Rejection = ApiError;
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, ApiError> {
         let accounts = Accounts::from_ref(state);
-        let Some(token) = token(parts) else {
+        let Some(token) = cookie(&parts.headers, cookie_name(&accounts)) else {
             return Ok(MaybeUser(None));
         };
         let t = token.clone();

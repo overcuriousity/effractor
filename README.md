@@ -82,8 +82,9 @@ sudo -u effractor effractor user add alice --accounts /var/lib/effractor/effract
   shell; admins manage users and groups in the page. There is no public sign-up.
   A new user's name is 1–64 ASCII letters, digits, `.`, `_` or `-`, unique
   whatever its case.
-- `--public-url` (see above) is also what passkeys need, and it makes the
-  session cookie `Secure` when it is `https`. Put a TLS proxy in front.
+- `--public-url` (see above) is also what passkeys need, and when it is
+  `https` the session cookie is `Secure` and named `__Host-effractor_session`,
+  which no other site on the domain can set. Put a TLS proxy in front.
 - OIDC: `--oidc-issuer URL --oidc-client-id ID --oidc-name Nextcloud` and the
   secret in `--oidc-secret-file FILE` or `EFFRACTOR_OIDC_SECRET`. Register
   `<public url>/api/auth/oidc/callback` as the redirect URI at the issuer. A

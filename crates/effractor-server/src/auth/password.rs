@@ -60,7 +60,7 @@ pub async fn logout(
     }
     Ok((
         StatusCode::NO_CONTENT,
-        [(header::SET_COOKIE, clear_cookie())],
+        [(header::SET_COOKIE, clear_cookie(&accounts))],
     )
         .into_response())
 }

@@ -167,6 +167,73 @@ async fn with_an_https_public_url_the_cookie_is_secure_and_the_origin_must_match
     );
 }
 
+/// Over https the session cookie is `__Host-`: a sibling subdomain cannot
+/// plant one. A plain `effractor_session` beside it is not looked at, and
+/// logging out clears the name that is set.
+#[tokio::test]
+async fn over_https_the_session_cookie_is_a_host_cookie_and_only_it_counts() {
+    let h = harness_with(Some("https://effractor.example"));
+    h.add_user("alice");
+    h.add_user("mallory");
+    let login = |name: &str| {
+        Request::post("/api/auth/password")
+            .header(header::HOST, "internal:8080")
+            .header(header::ORIGIN, "https://effractor.example")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                json!({"name": name, "password": PW}).to_string(),
+            ))
+            .unwrap()
+    };
+    let res = h.send(login("alice")).await;
+    let set = res.headers()[header::SET_COOKIE]
+        .to_str()
+        .unwrap()
+        .to_owned();
+    assert!(set.starts_with("__Host-effractor_session="), "{set}");
+    assert!(set.contains("; Path=/;") && set.contains("Secure"), "{set}");
+    assert!(!set.contains("Domain"), "{set}");
+    let alice = cookie_of(&res).unwrap();
+    let mallory = cookie_of(&h.send(login("mallory")).await).unwrap();
+
+    let me = |cookies: String| {
+        let req = Request::get("/api/me")
+            .header(header::COOKIE, cookies)
+            .body(Body::empty())
+            .unwrap();
+        async { json(h.send(req).await).await["user"]["name"].clone() }
+    };
+    assert_eq!(
+        me(format!("__Host-effractor_session={alice}")).await,
+        "alice"
+    );
+    for planted in [
+        format!("effractor_session={mallory}; __Host-effractor_session={alice}"),
+        format!("__Host-effractor_session={alice}; effractor_session={mallory}"),
+    ] {
+        assert_eq!(me(planted).await, "alice");
+    }
+    assert_eq!(
+        me(format!("effractor_session={mallory}")).await,
+        serde_json::Value::Null,
+        "the plain name is not a session over https"
+    );
+
+    let req = Request::post("/api/auth/logout")
+        .header(header::HOST, "internal:8080")
+        .header(header::ORIGIN, "https://effractor.example")
+        .header(header::COOKIE, format!("__Host-effractor_session={alice}"))
+        .body(Body::empty())
+        .unwrap();
+    let res = h.send(req).await;
+    let cleared = res.headers()[header::SET_COOKIE].to_str().unwrap();
+    assert!(
+        cleared.starts_with("__Host-effractor_session=;") && cleared.contains("Max-Age=0"),
+        "{cleared}"
+    );
+    assert!(cleared.contains("Secure"), "{cleared}");
+}
+
 /// The public url as typed need not be as the browser spells its origin.
 #[tokio::test]
 async fn a_public_url_typed_in_capitals_or_with_its_default_port_still_matches() {

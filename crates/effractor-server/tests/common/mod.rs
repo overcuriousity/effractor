@@ -104,7 +104,8 @@ impl H {
             .header(header::HOST, "effractor.test")
             .header(header::ORIGIN, ORIGIN);
         if let Some(c) = cookie {
-            req = req.header(header::COOKIE, format!("effractor_session={c}"));
+            let name = effractor_server::auth::session::cookie_name(&self.accounts);
+            req = req.header(header::COOKIE, format!("{name}={c}"));
         }
         let body = match body {
             Some(v) => {
@@ -133,6 +134,7 @@ impl H {
 
 pub fn cookie_of(res: &Response) -> Option<String> {
     let set = res.headers().get(header::SET_COOKIE)?.to_str().ok()?;
+    let set = set.strip_prefix("__Host-").unwrap_or(set);
     let value = set.strip_prefix("effractor_session=")?.split(';').next()?;
     (!value.is_empty()).then(|| value.to_owned())
 }

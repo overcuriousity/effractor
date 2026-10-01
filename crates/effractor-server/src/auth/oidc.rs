@@ -243,14 +243,7 @@ fn go(to: &str, cookies: Vec<HeaderValue>) -> Response {
 }
 
 fn bound_state(headers: &HeaderMap) -> Option<String> {
-    headers
-        .get_all(header::COOKIE)
-        .iter()
-        .filter_map(|v| v.to_str().ok())
-        .flat_map(|v| v.split(';'))
-        .filter_map(|c| c.trim().strip_prefix(COOKIE)?.strip_prefix('='))
-        .map(str::to_owned)
-        .next()
+    super::session::cookie(headers, COOKIE)
 }
 
 async fn callback(
