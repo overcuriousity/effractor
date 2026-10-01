@@ -657,7 +657,8 @@ fn an_ids_whose_switch_is_unknown_withholds_the_number() {
 
 #[test]
 fn a_held_account_behind_mfa_without_a_second_factor_stays_out() {
-    // Review Focus 5 (extract Fig. 5.33): the attacker holds the server
+    // Review Focus 5 (extract Fig. 5.33), with its bypass pinned to Never so
+    // nothing unknown is in the way: the attacker holds the server
     // account, whose multi-factor login is on and cannot be got past.
     let text = LECTURE
         .replacen(

@@ -91,7 +91,7 @@
     }
     if (slot === "deny" && doc.entities[id].kind === "host" && !runsService(doc, id)) return null;
     if (slot === "escalate-hardened") {
-      return switchedOn(doc, id, "hardened") ? "used while hardened · unknown until given" : null;
+      return switchedOn(doc, id, "hardened") && has(doc.entities[id].parameters || {}, "escalate") ? "used while hardened · unknown until given" : null;
     }
     if (slot === "deploy-exploit" && !hasProduct(doc, id)) return null;
     return "not drawn until a time is given";

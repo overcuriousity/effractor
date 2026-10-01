@@ -14,6 +14,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use effractor_core::architecture::{
     Architecture, Change, Defense, EntityKind, Factor, Mode, Privilege, Relation, Slot, State,
+    Switch,
 };
 use effractor_core::{
     AssociationId, Code, Diagnostic, EntityId, FlowId, Severity, validate_architecture,
@@ -800,6 +801,14 @@ impl<'a> Builder<'a> {
             if let Some(&(host, _, _)) = self.host_of.get(&flow.target)
                 && self.kind(host) == EntityKind::Host
                 && (self.host_firewall_said(host) || self.permit.contains_key(&(host, fid)))
+                // Said on or unsaid in the file with no permission: the flow
+                // is unfinished (validator), its connection unknown, as at a
+                // router's firewall — not denied.
+                && !(!self.permit.contains_key(&(host, fid))
+                    && matches!(
+                        self.m.entities[host].defenses.get(Defense::HostFirewall),
+                        Some(Switch::On | Switch::Unknown)
+                    ))
             {
                 let fact = Self::permission_id(host, fid);
                 self.fact(

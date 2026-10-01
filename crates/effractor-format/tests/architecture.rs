@@ -2428,3 +2428,26 @@ fn a_host_firewall_permits_flows_into_its_host() {
                 && d.path == "associations.server-allows-ssh")
     );
 }
+
+#[test]
+fn a_state_refused_for_its_role_says_which_role_it_has() {
+    let mut image = image(LECTURE);
+    image["attacker"]["target"] = serde_json::json!({"entity": "server", "state": "physical"});
+    let d = from_document(&image).unwrap_err();
+    let m = &d
+        .iter()
+        .find(|d| d.path == "attacker.target.state")
+        .unwrap()
+        .message;
+    assert!(m.contains("a starting point only"), "{m}");
+    let mut image = self::image(LECTURE);
+    image["attacker"]["footholds"] =
+        serde_json::json!([{"entity": "sshd", "state": "unavailable"}]);
+    let d = from_document(&image).unwrap_err();
+    let m = &d
+        .iter()
+        .find(|d| d.path == "attacker.footholds[0].state")
+        .unwrap()
+        .message;
+    assert!(m.contains("a goal only"), "{m}");
+}

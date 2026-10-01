@@ -928,7 +928,22 @@ impl Cx<'_> {
             .copied()
             .filter(|s| if foothold { s.may_start() } else { s.may_aim() })
             .collect();
-        if !allowed.contains(&r.state) {
+        if !allowed.contains(&r.state) && kind.states().contains(&r.state) {
+            let (only, not) = if foothold {
+                ("a goal only", "a starting point")
+            } else {
+                ("a starting point only", "a goal")
+            };
+            self.error(
+                Code::UnknownState,
+                format!("{path}.state"),
+                format!(
+                    "`{}` of \"{}\" is {only}, not {not}",
+                    r.state.as_str(),
+                    r.entity
+                ),
+            );
+        } else if !allowed.contains(&r.state) {
             let names: Vec<&str> = allowed.iter().map(|s| s.as_str()).collect();
             let expected = if names.is_empty() {
                 "it has no state an attacker holds".to_owned()

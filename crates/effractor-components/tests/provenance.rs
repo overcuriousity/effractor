@@ -545,6 +545,12 @@ fn assert_switch_values_keep_the_graph(model: &Architecture) {
         for e in m.entities.values_mut() {
             let kind = e.kind;
             for &defense in kind.defenses() {
+                // Said on in a file without a permission, a host firewall
+                // leaves its flows unfinished (spec §4), as drawing a
+                // firewall on a router does: the file's own property.
+                if defense == Defense::HostFirewall {
+                    continue;
+                }
                 if defense.optional(kind) == optional {
                     e.defenses.set(defense, Some(value));
                 }
@@ -1423,4 +1429,32 @@ fn a_host_firewall_lets_a_flow_in_only_with_its_permission_fig_5_37() {
         ResolvedTtc::Known(Distribution::Zero),
         "off: the flow passes whatever the permission says"
     );
+}
+
+#[test]
+fn a_host_firewall_said_on_without_a_permission_leaves_the_flow_unfinished() {
+    // Spec §4: as at a router's firewall — unfinished, not denied.
+    for switch in ["true", "unknown"] {
+        let m = edited(
+            LECTURE,
+            &[(
+                "  server:\n    kind: host\n    label: Server\n",
+                &format!(
+                    "  server:\n    kind: host\n    label: Server\n    defenses: {{host-firewall: {switch}}}\n"
+                ),
+            )],
+        );
+        let g = generate(&m).unwrap();
+        let s = shape(&g);
+        assert!(
+            !s["action/flow-connect/ssh"].contains(&"state/permission/server/ssh".to_owned()),
+            "{switch}"
+        );
+        match &resolve(&m, &g, None).unwrap().ttc[index(&g, "action/flow-connect/ssh")] {
+            ResolvedTtc::Unknown(paths) => {
+                assert!(paths.iter().any(|p| p == "flows.ssh.route"), "{paths:?}")
+            }
+            other => panic!("{switch}: {other:?}"),
+        }
+    }
 }

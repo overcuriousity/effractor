@@ -748,3 +748,9 @@ test("a flow into a host with its firewall said asks for the host's permission l
   doc.associations['server-ssh'] = { kind: 'permits', from: 'server', to: 'ssh', allowed: true };
   assert.equal(L.flowPermissions(doc, 'ssh').slice(-1)[0].association, 'server-ssh');
 });
+
+test("a scenario turning a host firewall on asks for the host's permission too", () => {
+  const doc = lecture();
+  doc.scenarios = { hf: { label: 'HF', changes: [{ entity: 'server', defense: 'host-firewall', value: true }] } };
+  assert.equal(L.flowPermissions(doc, 'ssh').slice(-1)[0].firewall, 'server');
+});

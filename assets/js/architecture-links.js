@@ -714,7 +714,11 @@
         var a = doc.associations[k];
         return a.kind === "permits" && a.from === host && a.to === flowId;
       })[0];
-      var said = has(doc.entities[host].defenses || {}, "host-firewall");
+      var said = has(doc.entities[host].defenses || {}, "host-firewall") || Object.keys(doc.scenarios || {}).some(function (k) {
+        return (doc.scenarios[k].changes || []).some(function (c) {
+          return c.entity === host && c.defense === "host-firewall";
+        });
+      });
       if (said || own) out.push({ router: host, firewall: host, host: true, association: own || null, allowed: own ? doc.associations[own].allowed : null });
     }
     return out;

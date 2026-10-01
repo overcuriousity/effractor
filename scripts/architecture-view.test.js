@@ -568,3 +568,10 @@ test('a host firewall is offered only where a flow can end', () => {
   assert.ok(V.defenseRows(doc, REAL, 'srv').some((r) => r.defense === 'host-firewall'));
   assert.ok(!V.defenseRows(doc, REAL, 'ws').some((r) => r.defense === 'host-firewall'));
 });
+
+test('the hardened escalation time is offered only where there is an escalation', () => {
+  const doc = lecture();
+  doc.entities.ws.defenses = { hardened: true };
+  const absent = () => V.slotRows(doc, REAL, 'ws').filter((r) => r.absent).map((r) => r.slot);
+  assert.ok(!absent().includes('escalate-hardened'));
+});
