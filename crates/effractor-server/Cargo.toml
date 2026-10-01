@@ -32,6 +32,10 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 # The chat reads model replies as they stream (chat spec §4.5).
 futures-util = "0.3"
 tokio-stream = "0.1"
+# Serving by hand rather than with axum::serve, for a header read timeout.
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["server", "http1", "server-graceful", "service", "tokio"] }
+tower = { version = "0.5", features = ["util"] }
 # Asks for a password on the terminal without echoing it (`effractor user`).
 rpassword = "7"
 # The whole app ships inside the binary: no asset directory to deploy, and no

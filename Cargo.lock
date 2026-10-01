@@ -879,6 +879,8 @@ dependencies = [
  "effractor-accounts",
  "futures-util",
  "http-body-util",
+ "hyper",
+ "hyper-util",
  "mime_guess",
  "openidconnect",
  "openssl",

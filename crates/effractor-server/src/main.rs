@@ -312,10 +312,7 @@ async fn main() -> anyhow::Result<()> {
         })?;
     tracing::info!("listening on http://{}", listener.local_addr()?);
     let base = effractor_server::base_path(args.public_url.as_deref());
-    let app = effractor_server::app_at(&base, shares, accounts)
-        .into_make_service_with_connect_info::<SocketAddr>();
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown())
-        .await?;
+    let app = effractor_server::app_at(&base, shares, accounts);
+    effractor_server::serve(listener, app, effractor_server::HEADER_TIMEOUT, shutdown()).await;
     Ok(())
 }

@@ -20,11 +20,17 @@ pub use static_site::export_static;
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::Router;
 use axum::extract::ConnectInfo;
 use axum::http::{Extensions, HeaderMap};
 use axum::routing::get;
+use hyper::server::conn::http1;
+use hyper_util::rt::{TokioIo, TokioTimer};
+use hyper_util::server::graceful::GracefulShutdown;
+use hyper_util::service::TowerToHyperService;
+use tower::ServiceExt;
 
 /// The release workflow stamps `<Cargo version>+<short sha>`, since every
 /// commit to master is a release and the Cargo version alone would not tell
@@ -75,9 +81,9 @@ pub fn base_path(public_url: Option<&str>) -> String {
     format!("{}/", path.trim_end_matches('/'))
 }
 
-/// Serve it with `into_make_service_with_connect_info::<SocketAddr>()`: the
-/// share API limits creation per peer address, and without the address every
-/// client is the same client.
+/// Serve it with [`serve`], or `into_make_service_with_connect_info::<SocketAddr>()`:
+/// the share API limits creation per peer address, and without the address
+/// every client is the same client.
 pub fn app(shares: share::Shares) -> Router {
     app_with(shares, None)
 }
@@ -112,6 +118,58 @@ pub fn app_at(base: &str, shares: share::Shares, accounts: Option<accounts::Acco
         router = router.merge(api);
     }
     router.layer(axum::middleware::from_fn(headers::security_headers))
+}
+
+/// How long a connection may take to send a request's headers.
+pub const HEADER_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Serves `app` on `listener` until `shutdown`, then finishes what is in
+/// flight, as `axum::serve` with a graceful shutdown does, giving each request
+/// its peer's address. And: a connection that has not sent a request's
+/// headers within `header_timeout` is closed, so that a client trickling them
+/// in (slowloris) cannot hold connections open for ever. Only the headers are
+/// timed; a response, the chat's event stream say, takes as long as it takes.
+pub async fn serve(
+    listener: tokio::net::TcpListener,
+    app: Router,
+    header_timeout: Duration,
+    shutdown: impl std::future::Future<Output = ()>,
+) {
+    let graceful = GracefulShutdown::new();
+    let mut shutdown = std::pin::pin!(shutdown);
+    loop {
+        let (stream, peer) = tokio::select! {
+            accepted = listener.accept() => match accepted {
+                Ok(accepted) => accepted,
+                // Out of file descriptors, say: wait a moment, as axum does.
+                Err(err) => {
+                    tracing::warn!(%err, "accepting a connection failed");
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    continue;
+                }
+            },
+            () = &mut shutdown => break,
+        };
+        let service =
+            app.clone()
+                .map_request(move |mut req: axum::http::Request<hyper::body::Incoming>| {
+                    req.extensions_mut().insert(ConnectInfo(peer));
+                    req.map(axum::body::Body::new)
+                });
+        // HTTP/1 only, as axum::serve speaks by default.
+        let conn = http1::Builder::new()
+            .timer(TokioTimer::new())
+            .header_read_timeout(header_timeout)
+            .serve_connection(TokioIo::new(stream), TowerToHyperService::new(service));
+        let watched = graceful.watch(conn);
+        tokio::spawn(async move {
+            if let Err(err) = watched.await {
+                tracing::debug!(%err, "a connection ended in an error");
+            }
+        });
+    }
+    drop(listener);
+    graceful.shutdown().await;
 }
 
 #[cfg(test)]
