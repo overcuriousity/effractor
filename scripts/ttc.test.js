@@ -99,6 +99,16 @@ test('a comma reads as a point, and what does not read is not written', () => {
   assert.equal(f.chance['aria-invalid'], true);
 });
 
+test('a tiny chance typed is written without an exponent, which a chance may not have', () => {
+  const f = form('50% * Exponential(mean 10)');
+  f.type(f.chance, '0.0000001');
+  assert.equal(f.input.value, '0.0000001% * Exponential(mean 10)');
+  f.type(f.chance, '2.5e-8');
+  assert.equal(f.input.value, '0.000000025% * Exponential(mean 10)');
+  f.type(f.mean, '12');
+  assert.equal(f.chance.value, '0.000000025', 'nor is one shown with an exponent');
+});
+
 test('the preset and the parts have ids from the field, so a redrawn form keeps the focus', () => {
   const f = form('50% * Exponential(mean 10)');
   assert.equal(f.chance.id, 'ttc-chance');

@@ -47,13 +47,16 @@
     var time = p.mean == null ? 'at once' : 'about ' + p.mean + ' ' + unitName(unit, p.mean) + ' on average';
     return (chance ? chance + ', then ' : 'Succeeds, ') + time + (p.chance == null || p.chance === 100 ? '' : '; otherwise never') + '.';
   }
-  // Never an exponent: the file's grammar has none in a chance.
-  function showChance(p) {
-    var x = Number((p * 100).toPrecision(12));
+  // A percentage's digits, never an exponent: the file's grammar has none
+  // in a chance.
+  function plain(x) {
     var s = String(x);
     var m = /^(\d)(?:\.(\d+))?e-(\d+)$/.exec(s); // "2.5e-10": move the point
     if (m) s = '0.' + new Array(Number(m[3])).join('0') + m[1] + (m[2] || '');
-    return s + '%';
+    return s;
+  }
+  function showChance(p) {
+    return plain(Number((p * 100).toPrecision(12))) + '%';
   }
   // What the solver is handed for a sketch: the whole mean, not a rounded
   // one, so the sketch is of this rate and not a neighbour's.
@@ -111,7 +114,7 @@
       var split_ = text ? split(text) : { chance: null, mean: null };
       parts.hidden = !split_;
       if (split_) {
-        if (typing !== chance.field) chance.field.value = split_.chance == null ? '' : split_.chance;
+        if (typing !== chance.field) chance.field.value = split_.chance == null ? '' : plain(split_.chance);
         if (typing !== mean.field) mean.field.value = split_.mean == null ? '' : String(convert(split_.mean, unit, per.value));
       }
       hint.textContent = describe(text, unit);
@@ -128,7 +131,7 @@
         x[0].field.toggleAttribute('aria-invalid', !!r.error);
         if (r.error && !out.problem) out.problem = x[2] + ': ' + r.error;
         var v = r.value === undefined ? null : x[0] === mean ? convert(r.value, per.value, unit) : r.value;
-        out[x[0] === chance ? 'chance' : 'mean'] = v === null ? null : String(v);
+        out[x[0] === chance ? 'chance' : 'mean'] = v === null ? null : x[0] === chance ? plain(v) : String(v);
       });
       return out;
     }
