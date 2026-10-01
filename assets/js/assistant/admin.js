@@ -15,12 +15,7 @@
     ["timeout_seconds", "Timeout (s)", 5, 3600],
   ];
 
-  function el(tag, text, cls) {
-    var e = document.createElement(tag);
-    if (text != null) e.textContent = text;
-    if (cls) e.className = cls;
-    return e;
-  }
+  var el = window.effractorDom.el;
   function button(text, fn, cls) {
     var b = el("button", text, cls || "btn btn-ghost");
     b.type = "button";
