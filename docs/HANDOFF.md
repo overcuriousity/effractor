@@ -42,6 +42,70 @@ address until a restart is accepted; link-local is refused only as a
 literal IP, and resolving names is not needed; nuclei keeps refusing
 `::ffff:a.b.c.d` targets.
 
+## Continuation — what the extract draws: built, the owner's walk outstanding (2026-10-01)
+
+An autonomous session (owner's authorization of 2026-09-30: land every
+branch, no looks, power off at the end) finished `securicad-extract`.
+Released in order: B `host-products` (`871734d`, PR #180), C `sensors`
+(`52b1ac3`, PR #183 — rebased onto master after another session's review
+landed ~50 commits there; #181 closed), D `host-steps` (`637b2d2`, PR #184),
+E `extract-fixture` (this release). Each branch: test-first, every required
+check, one fresh review on the most capable model, its critical and
+important findings fixed test-first. The ledger
+(`.superpowers/sdd/2026-09-30-securicad-extract/progress.md`, git-ignored,
+this machine) has every ruling with its cost if wrong.
+
+- **Sensors** (§3.2): kinds `ids`, `ips` (switch `enabled`, slot `bypass`),
+  link `watches` from a host or router. An exploit over a flow routed
+  through a watching router reaches its service *unseen* only past each
+  sensor (per flow: an unwatched flow to the same service stays open); a
+  router's sensor also guards the exploit against the host's OS over that
+  flow (`host.unseen`, a review finding). A sensor on a host guards its
+  services' exploits and its own. Each guard is one bypass step beside a
+  policy input (`input/sensor-off/…`), so every scenario shares one graph.
+  A login is not watched for.
+- **Anti-malware** (§4): optional host switch and `bypass-antimalware`;
+  drawn where the file or a scenario says it and the host runs a service.
+  `resolve::switch` reads an optional switch absent from a file as off.
+- **Host steps** (§5.1–5.4): `escalate` / `escalate-hardened` with
+  *Hardened*; states `physical`, `usb` (footholds only), `unavailable`
+  (a goal only) on a host or service, `held` on an account (foothold only)
+  — **optional states**: drawn only where a foothold or the target names
+  them or their step is drawn; `State::may_start/may_aim`, catalog
+  `states[].foothold/target`, `entities[].optional_states`; the pins and
+  the inspector offer only the states a role may take (`pinStates`).
+- **Host firewall** (§4): optional switch; `permits` may come from a host
+  for a flow into a service it runs, read last; said on or unsaid without a
+  permission, the flow is unfinished (as at a router); a scenario turning it
+  on without a permission blocks the flow (ruling).
+- **Course file** (§8): rebuilt with the access controls, Ubuntu Linux,
+  Windows 7, putty, the server's IDS and anti-malware; unknown and partial
+  files follow; the course text's numbers are the solver's (test). The old
+  lecture and unknown files are frozen as
+  `crates/effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml`
+  and `lecture-unknown-before-extract.yaml`; every library test, the solver
+  snapshot and the page's graph fixtures read those.
+- **Not built: plan task D4** (ARP cache poisoning, static ARP tables, a
+  flow's `encrypted` / `carries`, the flow form's fields). The session
+  stopped short of it; it waits for the owner's word. The course file's SSH
+  flow has no `encrypted` flag for that reason.
+- **Outstanding:** the owner's walk along the extract (5.3–5.5, figure by
+  figure) on a preview; the roadmap item says only that now. Nothing of the
+  page since Branch A has been looked at by the owner — the new rows
+  (physical / USB / escalate on every host, IDS and anti-malware rows,
+  pins with more states) are worth a first look against the Reactor rule.
+- **Deferred minors:** Compare offers *Enabled* for an IDS that watches
+  nothing a flow crosses; Compare's "as written" treats an unset optional
+  switch as unknown; a host with ASLR on and only `deploy-exploit-aslr`
+  draws no host step; a goal or foothold that can never matter (no `deny`,
+  `physical` or `usb` time) shows no "ineffective" explanation; a host's
+  `permits` stays when its flow's target or hosting changes (validator
+  warns); no test holds the course text's Link-menu table for the rebuilt
+  file; nmap's OS guess does not yet become an `instance-of`.
+- Housekeeping: the worktree `../SecGraph-extract` (branch
+  `extract-fixture`, merged) is the owner's to remove
+  (`git worktree remove ../SecGraph-extract`).
+
 ## Continuation — what the extract draws: operating systems, ASLR, DEP (2026-09-30)
 
 Branch B, `host-products` (plan tasks B1–B5), pushed, **not landed**: all
@@ -80,8 +144,7 @@ session that finishes the milestone. Ledger: `.superpowers/sdd/2026-09-30-securi
   no host step; Compare's "as written" treats an unset optional switch as
   unknown; nmap's OS guess does not yet become an `instance-of`.
 
-Next: land Branch B, then Branch C `sensors` (plan C1–C4), then plan and
-build D2 onward and E (the plan stops after Task D1).
+Next (done 2026-10-01, see above): land Branch B, then C, D and E.
 
 ## Continuation — what the extract draws: access control (2026-09-30)
 

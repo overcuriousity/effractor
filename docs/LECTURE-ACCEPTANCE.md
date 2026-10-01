@@ -93,7 +93,7 @@ verified against the catalog and every figure of the extract:
 | Router — *Authorization* — AccessControl; AccessControl — *Root Authorization* — UserAccount (5.19) | no access-control object; the account *grants it admin* → Router | same meaning, one object fewer |
 | Elements hidden inside the router (5.20, 5.21) | a cluster (K) opens and closes | similar; a cluster is a way of looking, not containment |
 | IDS, IPS on the router (5.18) | none; getting past detection is inside *Use the exploit* by assumption | gap |
-| *Ubuntu Linux*, *Windows 7*, *RHEL 7.2*, *putty* as software products on hosts and clients (5.28, 5.35) | `instance-of` only from a service; a host or application has no product | **gap** → `host-products` |
+| *Ubuntu Linux*, *Windows 7*, *RHEL 7.2*, *putty* as software products on hosts and clients (5.28, 5.35) | `instance-of` only from a service; a host or application has no product | **gap** → `host-products`, since built (below) |
 | Host defences ASLR, AntiMalware, DEP, Hardened, HostFirewall, StaticARPTables (5.37) | a host has no defence switch; only a product is patched | gap; HostFirewall is half of the dropped `firewall-denies` |
 | Attack steps ARPCachePoisoning, BypassAntiMalware, BypassIDS, DenialOfService, PhysicalAccess, PrivilegeEscalation, USBAccess (5.33, 5.34) | none; no user-to-admin escalation step on a host | gap, securiCAD's breadth |
 | An attacker object with a chosen entry step (5.33, 5.35) | the foothold pin with a state (host: user / admin; network: access) | same for *Compromise*; fewer entry states |
@@ -111,6 +111,42 @@ a choice of the workspace, not an edit, so undo does not take it back;
 *nothing · baseline only* in Compare does. The page was left so; the owner
 did not ask for a change.
 
+## What the extract draws (securicad-extract, 2026-09-30/10-01)
+
+The gaps of the table above, closed in five branches (spec
+`docs/superpowers/specs/2026-09-30-securicad-extract-design.md`, plan beside
+it), each with a fresh review and released: access control (`baddf24`),
+products on hosts and applications with ASLR and DEP (`871734d`), IDS, IPS
+and anti-malware (`52b1ac3`), the host steps — escalate privilege with
+*Hardened*, physical and USB access, denial of service, a foothold on an
+account, the host firewall (`637b2d2`) —, and the course file rebuilt as the
+extract draws it (this branch). Existing files generate the same graphs and
+numbers: the lecture as it was is a frozen fixture
+(`crates/effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml`)
+whose graph and three solves the solver's snapshot holds, natively and under
+wasmtime.
+
+| The extract | Now |
+|---|---|
+| AccessControl, accounts with root on it (5.19) | `access-control`, `controls-access`; a grant on it is a grant on its machine |
+| Elements inside the router (5.20, 5.21) | dragging onto a component clusters them; the cluster lists its members |
+| IDS, IPS on the router (5.18); BypassIDS | `ids`, `ips`, `watches`; an exploit over a watched flow or on a watched host gets past the sensor first |
+| Ubuntu Linux, Windows 7, putty (5.28, 5.35) | `instance-of` from a host or an application |
+| ASLR, AntiMalware, DEP, Hardened, HostFirewall (5.37) | host switches, off unless said |
+| BypassAntiMalware, PrivilegeEscalation, PhysicalAccess, USBAccess, DenialOfService (5.33, 5.34) | rules, each drawn once its time is given |
+| An entry to an account (5.33) | the foothold *held* on an account |
+| StaticARPTables, ARPCachePoisoning | **not built** (plan task D4), waiting for the owner's word |
+
+The course file (`course/lecture-architecture.yaml`) now has the access
+controls, the three products and the server's IDS and anti-malware; the
+course text's table of numbers is the solver's for it (a test holds it).
+The SSH flow has no `encrypted` flag: that field belongs to D4.
+
+**Outstanding: the owner's walk** along the extract, sections 5.3–5.5,
+figure by figure, on a preview of the release that carries this record. It
+is what the roadmap item `securicad-extract` still waits for; the page's
+look of every branch since access control is unseen by the owner.
+
 ## Known limits
 
 - The numbers are this library's, from illustrative inputs; agreement with
@@ -118,8 +154,7 @@ did not ask for a change.
   criterion.
 - Perfect blocking (`Never`) is an assumption of the exercise. The partial
   file shows finite replacements.
-- A host or an application has no product, so no operating-system route; a
-  host has no defence switch (`host-products` on the roadmap).
+- ARP cache poisoning and static ARP tables are not drawn (plan task D4).
 - Compare sets the baseline against one scenario; two scenarios are not
   compared with each other.
 - Existing securiCAD and MAL models are not read: `mal-securicad-compatibility`

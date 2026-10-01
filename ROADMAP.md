@@ -47,16 +47,12 @@ attack steps with accumulated durations.
 
 ### securicad-extract — What the lecture extract draws that the library lacks
 needs: —            cost: 4   benefit: 5
-Owner, 2026-09-30: the extract (5.3–5.5) does not rebuild in the page as
-securiCAD draws it. Close that gap — what the extract shows, not securiCAD's
-whole vocabulary. Design:
-[`2026-09-30-securicad-extract-design.md`](docs/superpowers/specs/2026-09-30-securicad-extract-design.md):
-an access-control object, IDS and IPS, products on hosts and applications,
-the host defences of Fig. 5.37, the host attack steps of Fig. 5.33/5.34, a
-foothold on an account, containment through clusters. Five branches in the
-spec's §9 order. Done when the owner rebuilds 5.3–5.5 figure by figure on a
-preview and the acceptance record has that walk; existing files generate the
-same graphs and numbers throughout.
+Built and released (2026-10-01; `docs/HANDOFF.md`, design
+[`2026-09-30-securicad-extract-design.md`](docs/superpowers/specs/2026-09-30-securicad-extract-design.md)).
+Outstanding: the owner's walk along the extract, 5.3–5.5 figure by figure, on
+a preview, recorded in `docs/LECTURE-ACCEPTANCE.md`. Plan task D4 (ARP cache
+poisoning, static ARP tables, a flow's `encrypted`/`carries`) was not built
+and waits for the owner's word.
 
 ## Compatibility after the lecture milestone
 
