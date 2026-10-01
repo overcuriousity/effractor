@@ -792,3 +792,32 @@ test('a flow is offered the credentials it does not carry yet, those its target 
   delete doc.flows.ssh.carries;
   assert.match(L.emptyCarry(doc, 'ssh'), /no credentials yet/);
 });
+
+test("a host's permission goes when its flow no longer ends at a service it runs", () => {
+  const firewalled = () => {
+    const doc = lecture();
+    doc.entities.server.defenses = { 'host-firewall': true };
+    doc.associations['server-allows-ssh'] = { kind: 'permits', from: 'server', to: 'ssh', allowed: true };
+    doc.scenarios.closed = { label: 'Closed', changes: [{ association: 'server-allows-ssh', value: false }] };
+    doc.entities.web = { kind: 'service', label: 'Web', parameters: { login: { status: 'unknown' } } };
+    doc.associations['web-hosting'] = { kind: 'hosts', from: 'workstation', to: 'web', privilege: 'user' };
+    return doc;
+  };
+  // The flow's target changed to a service elsewhere.
+  const f = firewalled().flows.ssh;
+  const moved = L.putFlow(firewalled(), 'ssh', Object.assign({}, f, { target: 'web' }));
+  assert.equal('server-allows-ssh' in moved.doc.associations, false);
+  assert.deepEqual(moved.doc.scenarios.closed.changes, []);
+  assert.match(moved.notice, /^permission of “Server” removed · Ctrl\+Z undoes$/);
+  // The service moved to another host.
+  const rehosted = L.putAssociation(firewalled(), 'service-hosting', { kind: 'hosts', from: 'workstation', to: 'sshd', privilege: 'admin' });
+  assert.equal('server-allows-ssh' in rehosted.doc.associations, false);
+  assert.match(rehosted.notice, /^permission of “Server” removed · Ctrl\+Z undoes$/);
+  // The hosting link deleted.
+  const unhosted = L.remove(firewalled(), 'associations', 'service-hosting');
+  assert.equal('server-allows-ssh' in unhosted.doc.associations, false);
+  // An edit that leaves the flow ending there keeps it, and says nothing.
+  const same = L.putFlow(firewalled(), 'ssh', Object.assign({}, f, { protocol: 'tcp/2222' }));
+  assert.ok('server-allows-ssh' in same.doc.associations);
+  assert.equal(same.notice, undefined);
+});

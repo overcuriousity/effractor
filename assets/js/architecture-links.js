@@ -38,6 +38,7 @@
   // makes a new one named after its ends. `inPlace`: as in architecture-edit.js.
   function putAssociation(doc, id, value, inPlace) {
     if (!value || ASSOCIATION_KINDS.indexOf(value.kind) < 0) return null;
+    var permitted = filteredPermits(doc);
     var next = inPlace ? doc : clone(doc);
     next.associations = next.associations || {};
     if (id == null) id = freeId(next.associations, value.from + "-" + value.kind + "-" + value.to);
@@ -54,7 +55,20 @@
     Object.assign(a, extensions(has(next.associations, id) ? next.associations[id] : null));
     if (has(next.associations, id) && JSON.stringify(next.associations[id]) === JSON.stringify(a)) return null;
     next.associations[id] = a;
-    return { doc: next, select: "association/" + id };
+    var edit = { doc: next, select: "association/" + id };
+    // A permission whose firewall or host no longer sees its flow goes.
+    var stray = strayPermits(permitted, next);
+    if (stray.length) edit.notice = dropPermits(next, stray);
+    return edit;
+  }
+
+  // Deletes permissions and says whose went.
+  function dropPermits(next, ids) {
+    var whose = ids.map(function (k) {
+      return "“" + labelOf(next, next.associations[k].from) + "”";
+    });
+    dropAssociations(next, ids);
+    return (ids.length === 1 ? "permission of " : "permissions of ") + whose.join(", ") + " removed · Ctrl+Z undoes";
   }
 
   // `value`: {label, source, target, route, protocol?, encrypted?,
@@ -97,20 +111,17 @@
     var dropped = was.filter(function (k) {
       return !filtered(next, next.associations[k]);
     });
-    if (dropped.length) {
-      var firewalls = dropped.map(function (k) {
-        return "“" + labelOf(next, next.associations[k].from) + "”";
-      });
-      dropAssociations(next, dropped);
-      edit.notice = (dropped.length === 1 ? "permission of " : "permissions of ") + firewalls.join(", ") + " removed · Ctrl+Z undoes";
-    }
+    if (dropped.length) edit.notice = dropPermits(next, dropped);
     return edit;
   }
 
-  // Does a permission's firewall filter a router on its flow's route?
+  // Does a permission's firewall filter a router on its flow's route — or,
+  // a host's, does the host run the service the flow ends at?
   function filtered(doc, permit) {
     var flow = has(doc.flows, permit.to) ? doc.flows[permit.to] : null;
-    return !!flow && (flow.route || []).some(function (router) {
+    if (!flow) return false;
+    if (kindOf(doc, permit.from) === "host") return linked(doc, "hosts", permit.from, flow.target);
+    return (flow.route || []).some(function (router) {
       return linked(doc, "filters", router, permit.from);
     });
   }

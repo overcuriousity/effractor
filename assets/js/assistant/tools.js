@@ -247,7 +247,7 @@
     var miss = needEntity(ctx.doc, i.from) || (i.kind === "permits" ? (has(ctx.doc.flows, i.to) ? null : no("flow", i.to)) : needEntity(ctx.doc, i.to));
     if (miss) return miss;
     var r = L.putAssociation(ctx.doc, i.id === undefined ? null : i.id, i);
-    return r ? { doc: r.doc, select: r.select, said: "Linked “" + i.from + "” " + i.kind + " “" + i.to + "”" } : { refused: NOTHING + ", or not a relationship kind" };
+    return r ? { doc: r.doc, select: r.select, said: "Linked “" + i.from + "” " + i.kind + " “" + i.to + "”" + (r.notice ? " (" + r.notice.replace(" · Ctrl+Z undoes", "") + ")" : "") } : { refused: NOTHING + ", or not a relationship kind" };
   }
 
   function putFlow(ctx, i) {

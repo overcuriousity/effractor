@@ -178,3 +178,12 @@ test('put_flow says whether a flow is encrypted and what it carries, and keeps b
   const schema = catalog.find((t) => t.name === 'put_flow').schema.properties;
   assert.deepEqual([schema.encrypted.type, schema.carries.type], ['boolean', 'array']);
 });
+
+test('link says which permission went with a hosting change', () => {
+  const doc = JSON.parse(JSON.stringify(require('./fixtures/architecture.doc.json')));
+  doc.entities.server.defenses = { 'host-firewall': true };
+  doc.associations['server-allows-ssh'] = { kind: 'permits', from: 'server', to: 'ssh', allowed: true };
+  const r = T.edit('link', { id: 'service-hosting', kind: 'hosts', from: 'workstation', to: 'sshd', privilege: 'admin' }, { doc, profile: 'architecture', catalog: CAT });
+  assert.ok(r.doc, JSON.stringify(r));
+  assert.match(r.said, /permission of “Server” removed\)$/);
+});
