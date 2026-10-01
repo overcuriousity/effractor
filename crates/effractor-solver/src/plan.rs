@@ -83,26 +83,97 @@ impl Plan {
     /// Test each leaf alone, with every other leaf false. In this coherent
     /// model (no constants or negation), top being true makes that leaf a
     /// singleton minimal cut set. This stays exact without a BDD or a cut-set
-    /// listing. O(leaves * (steps + edges)) time, O(steps) scratch space.
+    /// listing.
+    ///
+    /// Only what a leaf makes true is looked at: from the leaf up, a gate is
+    /// visited when an input of it turns true and turns true itself once
+    /// enough have, and the walk stops at a step from which `or`s alone lead
+    /// to top — that step true, top is. A tree, or a chain of `or`s or of
+    /// `and`s, costs O(steps + edges) in all. Evaluating the whole model
+    /// again for every leaf cost O(leaves × (steps + edges)): half a minute
+    /// for a chain of 40,000. What remains is a leaf that turns long stretches
+    /// of the model true without reaching such a step, in a model that
+    /// shares it under many `and`s; no method is linear there in general (it
+    /// is intersecting reachable sets), and a limit would need an answer
+    /// besides yes and no. Gates without inputs are refused by validation.
     pub(crate) fn single_points_of_failure(&self) -> Vec<bool> {
-        let mut values = vec![false; self.steps.len()];
-        (0..self.leaves.len())
-            .map(|single| {
-                for (i, step) in self.steps.iter().enumerate() {
-                    values[i] = match step {
-                        Step::Leaf(leaf) => *leaf == single,
-                        Step::Gate { gate, inputs } => match gate {
-                            Gate::Or => inputs.iter().any(|j| values[*j]),
-                            Gate::And => inputs.iter().all(|j| values[*j]),
-                            Gate::Vote { k } => {
-                                inputs.iter().filter(|j| values[**j]).take(*k).count() == *k
-                            }
-                        },
-                    };
+        let n = self.steps.len();
+        // Who reads each step, as one flat list.
+        let mut offsets = vec![0usize; n + 1];
+        for step in &self.steps {
+            if let Step::Gate { inputs, .. } = step {
+                for &j in inputs {
+                    offsets[j + 1] += 1;
                 }
-                values[self.top()]
-            })
-            .collect()
+            }
+        }
+        for i in 0..n {
+            offsets[i + 1] += offsets[i];
+        }
+        let mut readers = vec![0usize; offsets[n]];
+        let mut fill = offsets.clone();
+        for (i, step) in self.steps.iter().enumerate() {
+            if let Step::Gate { inputs, .. } = step {
+                for &j in inputs {
+                    readers[fill[j]] = i;
+                    fill[j] += 1;
+                }
+            }
+        }
+        // Enough for top: top, and the inputs of an `or` (or a vote of one)
+        // that is. Readers sit at higher indices, so one pass down.
+        let mut enough = vec![false; n];
+        enough[self.top()] = true;
+        for i in (0..n).rev() {
+            if let Step::Gate { gate, inputs } = &self.steps[i]
+                && enough[i]
+                && matches!(gate, Gate::Or | Gate::Vote { k: 1 })
+            {
+                for &j in inputs {
+                    enough[j] = true;
+                }
+            }
+        }
+        let need = |i: usize| match &self.steps[i] {
+            Step::Leaf(_) => 1,
+            Step::Gate { gate, inputs } => match gate {
+                Gate::Or => 1,
+                Gate::And => inputs.len(),
+                Gate::Vote { k } => *k,
+            },
+        };
+
+        let mut true_inputs = vec![0usize; n];
+        let mut on = vec![false; n];
+        let mut touched: Vec<usize> = Vec::new();
+        let mut queue: Vec<usize> = Vec::new();
+        let mut out = vec![false; self.leaves.len()];
+        for (i, step) in self.steps.iter().enumerate() {
+            let Step::Leaf(leaf) = step else { continue };
+            queue.push(i);
+            on[i] = true;
+            touched.push(i);
+            while let Some(u) = queue.pop() {
+                if enough[u] {
+                    out[*leaf] = true;
+                    break;
+                }
+                for &r in &readers[offsets[u]..offsets[u + 1]] {
+                    true_inputs[r] += 1;
+                    touched.push(r);
+                    if !on[r] && true_inputs[r] >= need(r) {
+                        on[r] = true;
+                        queue.push(r);
+                    }
+                }
+            }
+            queue.clear();
+            for t in touched.drain(..) {
+                true_inputs[t] = 0;
+                on[t] = false;
+            }
+        }
+        out
     }
 
     /// When does each step complete, given when each leaf does? A leaf is its
@@ -141,5 +212,115 @@ impl Plan {
     /// The last step is top: it is finished last.
     pub fn top(&self) -> usize {
         self.steps.len() - 1
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use effractor_core::{LeafKind, Model, Node, Profile, Ttc};
+
+    use super::*;
+
+    /// The definition: every leaf alone, every step evaluated.
+    fn naive(plan: &Plan) -> Vec<bool> {
+        let mut values = vec![false; plan.steps.len()];
+        (0..plan.leaves.len())
+            .map(|single| {
+                for (i, step) in plan.steps.iter().enumerate() {
+                    values[i] = match step {
+                        Step::Leaf(leaf) => *leaf == single,
+                        Step::Gate { gate, inputs } => match gate {
+                            Gate::Or => inputs.iter().any(|j| values[*j]),
+                            Gate::And => inputs.iter().all(|j| values[*j]),
+                            Gate::Vote { k } => {
+                                inputs.iter().filter(|j| values[**j]).take(*k).count() == *k
+                            }
+                        },
+                    };
+                }
+                values[plan.top()]
+            })
+            .collect()
+    }
+
+    fn build(top: &str, gates: Vec<(String, Gate, Vec<String>)>, leaves: &[String]) -> Plan {
+        let mut m = Model::new("t", Profile::FaultTree, top.parse().unwrap());
+        for (id, gate, children) in gates {
+            let children = children.iter().map(|c| c.parse().unwrap()).collect();
+            m.nodes
+                .insert(id.parse().unwrap(), Node::gate("g", gate, children));
+        }
+        for id in leaves {
+            m.nodes.insert(
+                id.parse().unwrap(),
+                Node::leaf("l", LeafKind::Basic, Some(Ttc::P(0.5))),
+            );
+        }
+        Plan::build(&m).unwrap()
+    }
+
+    /// Small DAGs from a fixed generator: shared leaves and shared gates, every
+    /// gate kind, held to the definition.
+    #[test]
+    fn single_points_of_failure_are_the_definition() {
+        let mut state: u64 = 0x2545_f491_4f6c_dd1d;
+        let mut next = |n: usize| {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            (state >> 33) as usize % n
+        };
+        for _ in 0..500 {
+            let n_leaves = 2 + next(7);
+            let n_gates = 1 + next(7);
+            let leaves: Vec<String> = (0..n_leaves).map(|i| format!("l{i}")).collect();
+            let mut pool = leaves.clone();
+            let mut gates = Vec::new();
+            for g in 0..n_gates {
+                let mut children: Vec<String> = Vec::new();
+                for _ in 0..1 + next(4) {
+                    let c = pool[next(pool.len())].clone();
+                    if !children.contains(&c) {
+                        children.push(c);
+                    }
+                }
+                let gate = match next(3) {
+                    0 => Gate::Or,
+                    1 => Gate::And,
+                    _ => Gate::Vote {
+                        k: 1 + next(children.len()),
+                    },
+                };
+                let id = format!("g{g}");
+                gates.push((id.clone(), gate, children));
+                pool.push(id);
+            }
+            let top = format!("g{}", n_gates - 1);
+            let plan = build(&top, gates, &leaves);
+            assert_eq!(plan.single_points_of_failure(), naive(&plan));
+        }
+    }
+
+    /// Chains as long as a model can be: each leaf's answer is found near
+    /// it, not by evaluating the whole model again for every leaf.
+    #[test]
+    fn single_points_of_failure_of_long_chains_come_at_once() {
+        let n = 40_000;
+        let leaves: Vec<String> = (0..n).map(|i| format!("l{i}")).collect();
+        for gate in [Gate::Or, Gate::And] {
+            // g0 = l0, gᵢ = gate(lᵢ, gᵢ₋₁); top is the last.
+            let mut gates = vec![("g0".to_owned(), Gate::Or, vec!["l0".to_owned()])];
+            for i in 1..n {
+                gates.push((
+                    format!("g{i}"),
+                    gate,
+                    vec![format!("l{i}"), format!("g{}", i - 1)],
+                ));
+            }
+            let plan = build(&format!("g{}", n - 1), gates, &leaves);
+            let spof = plan.single_points_of_failure();
+            let want = if gate == Gate::Or { n } else { 0 };
+            assert_eq!(spof.iter().filter(|s| **s).count(), want);
+        }
     }
 }
