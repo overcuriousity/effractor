@@ -37,6 +37,11 @@ entities:
     parameters:
       escape:
         status: unknown
+      bypass-antimalware:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: Exercise assumption; not calibrated to the lecture
+    defenses: {anti-malware: true}
   ssh-client:
     kind: application
     label: SSH client
@@ -53,7 +58,7 @@ entities:
       deploy-exploit:
         status: illustrative
         ttc: "Exponential(mean 2)"
-        note: Exercise assumption; includes any IDS or antimalware bypass on the server, which is not modelled separately
+        note: Exercise assumption; not calibrated to the lecture. The server's IDS and anti-malware are steps of their own
       login:
         status: illustrative
         ttc: "Exponential(mean 1)"
@@ -123,6 +128,51 @@ entities:
         ttc: "Exponential(mean 50)"
         note: "Exercise assumption: a protected store gives the key up to patience, ten times slower"
     defenses: {protected: false}
+  bridge-login:
+    kind: access-control
+    label: Router login
+  server-login:
+    kind: access-control
+    label: Server login
+  server-ids:
+    kind: ids
+    label: Server IDS
+    parameters:
+      bypass:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: Exercise assumption; not calibrated to the lecture
+    defenses: {enabled: true}
+  ubuntu:
+    kind: product
+    label: Ubuntu Linux
+    description: The server's operating system; no exploit of it is used in the exercise
+    parameters:
+      find-exploit:
+        status: unknown
+      find-exploit-patched:
+        status: unknown
+    defenses: {patched: false}
+  windows-7:
+    kind: product
+    label: Windows 7
+    description: The workstation's operating system; the attacker already holds the workstation
+    parameters:
+      find-exploit:
+        status: unknown
+      find-exploit-patched:
+        status: unknown
+    defenses: {patched: false}
+  putty:
+    kind: product
+    label: putty
+    description: The SSH client's version
+    parameters:
+      find-exploit:
+        status: unknown
+      find-exploit-patched:
+        status: unknown
+    defenses: {patched: false}
 
 associations:
   workstation-net:
@@ -188,13 +238,37 @@ associations:
   server-grant:
     kind: grants
     from: server-account
-    to: server
+    to: server-login
     privilege: admin
   router-grant:
     kind: grants
     from: admin-account
-    to: bridge
+    to: bridge-login
     privilege: admin
+  bridge-access:
+    kind: controls-access
+    from: bridge
+    to: bridge-login
+  server-access:
+    kind: controls-access
+    from: server
+    to: server-login
+  server-watch:
+    kind: watches
+    from: server
+    to: server-ids
+  server-os:
+    kind: instance-of
+    from: server
+    to: ubuntu
+  workstation-os:
+    kind: instance-of
+    from: workstation
+    to: windows-7
+  client-version:
+    kind: instance-of
+    from: ssh-client
+    to: putty
   allow-ssh:
     kind: permits
     from: filter

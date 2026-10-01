@@ -233,3 +233,57 @@ fn the_course_text_quotes_what_the_solver_says() {
         }
     }
 }
+
+/// Spec §8: the course file draws what the extract draws — access controls
+/// on the router and the server, the operating systems and putty as
+/// products, the server's IDS and anti-malware got past before its software
+/// is exploited, root on the router through its access control.
+#[test]
+fn the_course_file_draws_the_extract() {
+    let model = architecture(course("lecture-architecture.yaml"));
+    let graph = generate(&model).unwrap();
+    let inputs = |id: &str| -> Vec<String> {
+        let n = graph
+            .nodes
+            .iter()
+            .find(|n| n.id == id)
+            .unwrap_or_else(|| panic!("no node {id}"));
+        match &n.kind {
+            effractor_components::GeneratedKind::Any { inputs }
+            | effractor_components::GeneratedKind::All { inputs } => {
+                inputs.iter().map(|&i| graph.nodes[i].id.clone()).collect()
+            }
+            effractor_components::GeneratedKind::Input => Vec::new(),
+        }
+    };
+    let deploy = inputs("action/service-deploy-exploit/sshd");
+    assert!(
+        deploy.contains(&"state/ids/server-ids/passed".to_owned()),
+        "{deploy:?}"
+    );
+    assert!(
+        deploy.contains(&"state/host/server/malware-cleared".to_owned()),
+        "{deploy:?}"
+    );
+    let login = graph
+        .nodes
+        .iter()
+        .find(|n| n.id == "action/administration-login/admin-net/admin-account/bridge")
+        .expect("the router's administration login");
+    assert!(
+        login.origins[0]
+            .associations
+            .iter()
+            .any(|a| a.as_str() == "bridge-access"),
+        "through the router's access control"
+    );
+    for product in ["ubuntu", "windows-7", "putty"] {
+        assert!(
+            graph
+                .nodes
+                .iter()
+                .any(|n| n.id == format!("state/product/{product}/reachable")),
+            "{product}"
+        );
+    }
+}
