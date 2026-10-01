@@ -1634,6 +1634,46 @@ fn identity_fields_are_refused_off_hosts_and_in_the_wrong_shape() {
 }
 
 #[test]
+fn a_day_is_one_the_calendar_has() {
+    for (day, real) in [
+        ("2026-01-31", true),
+        ("2026-02-28", true),
+        ("2026-02-29", false),
+        ("2026-02-31", false),
+        ("2024-02-29", true),
+        ("2000-02-29", true),
+        ("1900-02-29", false),
+        ("2026-04-30", true),
+        ("2026-04-31", false),
+        ("2026-12-31", true),
+        ("2026-12-32", false),
+        ("2026-06-00", false),
+    ] {
+        let mut image = image(LECTURE);
+        image["entities"]["server"]["seen"] = serde_json::json!(day);
+        image["entities"]["server"]["asked"] = serde_json::json!({ "ports": day });
+        match from_document(&image) {
+            Ok(_) => assert!(real, "{day} was taken"),
+            Err(d) => {
+                let errors: Vec<_> = d
+                    .iter()
+                    .map(|d| (d.code.as_str(), d.path.as_str()))
+                    .collect();
+                assert!(!real, "{day}: {errors:?}");
+                assert_eq!(
+                    errors,
+                    [
+                        ("wrong-type", "entities.server.seen"),
+                        ("wrong-type", "entities.server.asked.ports")
+                    ],
+                    "{day}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn a_host_keeps_what_it_was_asked() {
     let mut image = image(LECTURE);
     let asked = serde_json::json!({"ports": "2026-09-28", "products": "2026-09-28", "route": "2026-09-27", "connections": "2026-09-29"});

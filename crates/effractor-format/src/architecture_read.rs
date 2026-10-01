@@ -422,8 +422,18 @@ fn day(cx: &mut Cx, f: &Fields, key: &str) -> Option<Option<String>> {
         && digits(0, 4)
         && digits(5, 7)
         && digits(8, 10)
-        && (1..=12).contains(&text[5..7].parse::<u32>().unwrap_or(0))
-        && (1..=31).contains(&text[8..10].parse::<u32>().unwrap_or(0));
+        && {
+            let number = |from: usize, to: usize| text[from..to].parse::<u32>().unwrap_or(0);
+            let (year, month, day) = (number(0, 4), number(5, 7), number(8, 10));
+            let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+            let days = match month {
+                2 if leap => 29,
+                2 => 28,
+                4 | 6 | 9 | 11 => 30,
+                _ => 31,
+            };
+            (1..=12).contains(&month) && (1..=days).contains(&day)
+        };
     if valid {
         return Some(Some(text));
     }
