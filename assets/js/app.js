@@ -1741,16 +1741,7 @@
     if (state.text === null) return;
     var source = $("source");
     var text = !state.sourceValid && source ? source.value : state.text;
-    var url = URL.createObjectURL(new Blob([text], { type: "text/yaml" }));
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = window.effractorStore.fileName(state.doc.name);
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(function () {
-      URL.revokeObjectURL(url);
-    }, 1000);
+    window.effractorDom.download(window.effractorStore.fileName(state.doc.name), text, "text/yaml");
   }
 
   // Logged in, what the server keeps starts afresh (accounts). Without the

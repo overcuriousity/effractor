@@ -48,6 +48,28 @@ test("svg makes an SVG element with its attributes set as attributes, and text w
   assert.deepEqual([...new Set(made)], ["http://www.w3.org/2000/svg"]);
 });
 
+test("download hands a text over as a named file, clicked once, and frees it a second later", () => {
+  const blobs = [], freed = [], timers = [];
+  const body = element("body");
+  const link = Object.assign(element("a"), { clicks: 0, click() { link.clicks++; assert.equal(link.parent, body, "on the page when clicked"); } });
+  const document = { body, createElement: (tag) => (assert.equal(tag, "a"), link) };
+  const URL = { createObjectURL: (blob) => (blobs.push(blob), "blob:1"), revokeObjectURL: (url) => freed.push(url) };
+  const Blob = function (parts, options) { this.text = parts.join(""); this.type = options.type; };
+  const window = {};
+  runPage("dom.js", { window, document, URL, Blob, setTimeout: (f, ms) => timers.push([f, ms]) });
+  window.effractorDom.download("model.yaml", "a: 1\n", "text/yaml");
+  assert.deepEqual(blobs.map((b) => [b.text, b.type]), [["a: 1\n", "text/yaml"]]);
+  assert.equal(link.href, "blob:1");
+  assert.equal(link.download, "model.yaml");
+  assert.equal(link.clicks, 1);
+  assert.equal(link.parent, null, "and gone after");
+  assert.deepEqual(freed, []);
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0][1], 1000);
+  timers[0][0]();
+  assert.deepEqual(freed, ["blob:1"]);
+});
+
 test("dom.js loads before every page script that uses it", () => {
   const dir = path.join(__dirname, "../assets/js");
   const shell = fs.readFileSync(path.join(__dirname, "../crates/effractor-server/templates/shell.html"), "utf8");

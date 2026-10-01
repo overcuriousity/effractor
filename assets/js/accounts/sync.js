@@ -145,14 +145,7 @@
       : client.request("GET", "/api/documents/" + id);
     here.then(function (res) {
       if (!res.ok) return app.say("not downloaded");
-      var url = URL.createObjectURL(new Blob([res.data.body], { type: "text/yaml" }));
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = window.effractorStore.fileName(res.data.name);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      window.effractorDom.download(window.effractorStore.fileName(res.data.name), res.data.body, "text/yaml");
     });
   }
 

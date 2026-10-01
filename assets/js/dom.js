@@ -1,5 +1,6 @@
 // The page's few DOM helpers, written once: an element by its id, a new
-// element with its text and class, a new SVG element with its attributes.
+// element with its text and class, a new SVG element with its attributes,
+// a text saved as a file.
 // Loaded before every page script that uses them (shell.html).
 (function () {
   var NS = "http://www.w3.org/2000/svg";
@@ -26,5 +27,20 @@
     return e;
   }
 
-  window.effractorDom = { $: $, el: el, svg: svg };
+  // A text handed to the visitor as a file named `name`: a link to it,
+  // clicked and gone, its address freed a second later.
+  function download(name, text, type) {
+    var url = URL.createObjectURL(new Blob([text], { type: type }));
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 1000);
+  }
+
+  window.effractorDom = { $: $, el: el, svg: svg, download: download };
 })();
