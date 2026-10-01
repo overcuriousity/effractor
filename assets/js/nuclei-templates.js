@@ -336,11 +336,12 @@
     return k + " " + one + (k === 1 ? "" : "s");
   }
   // An address as nuclei reads one. What it cannot read (an octet with a
-  // leading zero, a zone) it would look up as a name.
+  // leading zero, a zone) it would look up as a name. IPv6 ending in IPv4
+  // (::ffff:10.0.0.1) is not offered to it either.
   function address(text) {
     var s = String(text);
     if (!Ad.bytes(s)) return false;
-    return s.indexOf(":") >= 0 || /^(?:0|[1-9][0-9]{0,2})(?:[.](?:0|[1-9][0-9]{0,2})){3}$/.test(s);
+    return (s.indexOf(":") >= 0 && s.indexOf(".") < 0) || /^(?:0|[1-9][0-9]{0,2})(?:[.](?:0|[1-9][0-9]{0,2})){3}$/.test(s);
   }
   // Whether a word of the range names a port, as C.target reads one.
   function portTyped(word) {

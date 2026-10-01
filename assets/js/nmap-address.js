@@ -11,6 +11,13 @@
       var four = s.split(".").map(Number);
       return four.every(function (n) { return n <= 255; }) ? four : null;
     }
+    // IPv6 may end in four bytes written as IPv4: ::ffff:10.0.0.1.
+    var dotted = /^(.*:)(\d{1,3}(\.\d{1,3}){3})$/.exec(s);
+    if (dotted) {
+      var tail = bytes(dotted[2]);
+      if (!tail) return null;
+      s = dotted[1] + ((tail[0] << 8) | tail[1]).toString(16) + ":" + ((tail[2] << 8) | tail[3]).toString(16);
+    }
     if (!/^[0-9A-Fa-f:]+$/.test(s) || s.indexOf(":") < 0) return null;
     var halves = s.split("::");
     if (halves.length > 2) return null;
@@ -30,9 +37,19 @@
     return out;
   }
 
-  // One spelling per address, so fd00::5 and fd00:0::5 are the same host.
+  // The IPv4 address an IPv4-mapped IPv6 one (::ffff:10.0.0.1) is, as
+  // bytes; any other as it is. Where who a host is, or where, matters, the
+  // mapped address is its IPv4 one (review 2026-10-01).
+  function plain(b) {
+    if (!b || b.length !== 16) return b;
+    for (var i = 0; i < 10; i++) if (b[i]) return b;
+    return b[10] === 255 && b[11] === 255 ? b.slice(12) : b;
+  }
+
+  // One spelling per address, so fd00::5 and fd00:0::5 are the same host,
+  // and ::ffff:10.0.0.1 is 10.0.0.1.
   function addressKey(ip) {
-    var b = bytes(ip);
+    var b = plain(bytes(ip));
     return b ? b.join(".") : String(ip);
   }
 
@@ -40,6 +57,7 @@
     var parts = String(cidr).split("/");
     if (parts.length !== 2 || !/^\d{1,3}$/.test(parts[1])) return false;
     var a = bytes(ip), net = bytes(parts[0]), bits = Number(parts[1]);
+    if (net && net.length === 4) a = plain(a);
     if (!a || !net || a.length !== net.length || bits > a.length * 8) return false;
     for (var i = 0; i < a.length; i++) {
       var take = Math.max(0, Math.min(8, bits - i * 8));
@@ -83,21 +101,26 @@
   // Whether a scan of `targets` (nmap's own words: addresses, CIDR, octet
   // ranges such as 10.0.1-5.1-254) looked at `ip` (nmap recipes spec §5.1).
   // A name covers nothing here: which address it meant is not known.
+  // An octet's range may leave out an end, as nmap's may: "-50" is 0-50,
+  // "100-" is 100-255, "-" and "*" are 0-255.
+  var RANGE = "(\\*|\\d{1,3}|\\d{0,3}-\\d{0,3})";
+  var OCTET = new RegExp("^" + RANGE + "(," + RANGE + ")*$");
   function octets(word) {
     var parts = String(word).split(".");
     if (parts.length !== 4) return null;
     var out = [];
     for (var i = 0; i < 4; i++) {
-      if (!/^\d{1,3}(-\d{1,3})?(,\d{1,3}(-\d{1,3})?)*$/.test(parts[i])) return null;
+      if (!OCTET.test(parts[i])) return null;
       out.push(parts[i].split(",").map(function (r) {
-        var b = r.split("-").map(Number);
-        return [b[0], b.length > 1 ? b[1] : b[0]];
+        if (r === "*") return [0, 255];
+        var b = r.split("-");
+        return [b[0] === "" ? 0 : Number(b[0]), b.length < 2 ? Number(b[0]) : b[1] === "" ? 255 : Number(b[1])];
       }));
     }
     return out;
   }
   function covers(targets, ip) {
-    var b = bytes(ip);
+    var b = plain(bytes(ip));
     if (!b) return false;
     return String(targets == null ? "" : targets).trim().split(/\s+/).filter(Boolean).some(function (word) {
       var w = word.indexOf(":") >= 0 ? word.replace(/%[^\/]*/, "") : word;

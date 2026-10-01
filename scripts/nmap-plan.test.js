@@ -212,6 +212,42 @@ test('what a scan covered: addresses, CIDR, octet ranges; never a name', () => {
   assert.equal(covers('fd00::/120', 'fd00:0::5'), true);
   assert.equal(covers('fe80::1%eth0', 'fe80::1'), true);
   assert.equal(covers('', '10.0.2.7'), false);
+  // nmap's open ends: "-" alone and "*" are 0-255, "-50" is 0-50, "100-" is 100-255.
+  assert.equal(covers('10.0.2.-', '10.0.2.0'), true);
+  assert.equal(covers('10.0.2.*', '10.0.2.255'), true);
+  assert.equal(covers('10.0.*.1', '10.0.7.1'), true);
+  assert.equal(covers('10.0.*.1', '10.0.7.2'), false);
+  assert.equal(covers('10.0.2.-50', '10.0.2.50'), true);
+  assert.equal(covers('10.0.2.-50', '10.0.2.51'), false);
+  assert.equal(covers('10.0.2.100-', '10.0.2.255'), true);
+  assert.equal(covers('10.0.2.100-', '10.0.2.99'), false);
+  assert.equal(covers('10.0.2.1,100-', '10.0.2.1'), true);
+  assert.equal(covers('10.0.2.256-', '10.0.2.1'), false);
+  assert.equal(covers('10.0.2.**', '10.0.2.1'), false);
+  assert.equal(covers('10.0.2.', '10.0.2.1'), false);
+});
+
+test('an IPv4-mapped IPv6 address is its IPv4 address', () => {
+  assert.deepEqual(N.bytes('::ffff:10.0.0.1'), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 10, 0, 0, 1]);
+  assert.deepEqual(N.bytes('::FFFF:0a00:0001'), N.bytes('::ffff:10.0.0.1'));
+  assert.equal(N.bytes('::ffff:10.0.0.256'), null);
+  assert.equal(N.bytes('1:2:3:4:5:6:7:10.0.0.1'), null, 'eight groups and four bytes are too many');
+  assert.equal(N.addressKey('::ffff:10.0.0.1'), N.addressKey('10.0.0.1'));
+  assert.notEqual(N.addressKey('::10.0.0.1'), N.addressKey('10.0.0.1'), 'only the mapped form');
+  assert.equal(N.isPrivate('::ffff:10.0.0.1'), true);
+  assert.equal(N.isPrivate('::ffff:8.8.8.8'), false);
+  assert.equal(N.inCidr('::ffff:10.0.0.1', '10.0.0.0/24'), true);
+  assert.equal(N.inCidr('::ffff:10.0.1.1', '10.0.0.0/24'), false);
+  assert.equal(N.inCidr('::ffff:10.0.0.1', '::ffff:10.0.0.0/120'), true);
+  assert.equal(N.covers('10.0.0.0/24', '::ffff:10.0.0.9'), true);
+  assert.equal(N.covers('10.0.0.1-20', '::ffff:10.0.0.9'), true);
+  assert.equal(N.covers('10.0.0.9', '::ffff:10.0.0.9'), true);
+  // A host drawn at 10.0.0.1 is the one listed at ::ffff:10.0.0.1.
+  const doc = empty();
+  doc.entities.web = { kind: 'host', label: 'web', addresses: ['10.0.0.1'] };
+  const scan = N.read('<?xml version="1.0"?><nmaprun scanner="nmap" args="nmap -6 -sT -oX - ::ffff:10.0.0.1" start="1790000000"><scaninfo type="connect" protocol="tcp" services="1-1000"/><host><status state="up"/><address addr="::ffff:10.0.0.1" addrtype="ipv6"/><ports><port protocol="tcp" portid="22"><state state="open"/><service name="ssh"/></port></ports></host><runstats><finished exit="success"/></runstats></nmaprun>').scan;
+  const p = N.plan(doc, 'nmap', scan, '', {});
+  assert.equal(p.hosts[0].known, 'web');
 });
 
 test('all hosts at once leaves out another machine on a drawn host\'s address', () => {
