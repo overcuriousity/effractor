@@ -1,6 +1,6 @@
 //! Shares of documents and folders with users and groups (spec §5).
-//! No foreign keys (a target is one of two tables): whoever deletes a user,
-//! group, document or folder deletes the shares naming it.
+//! No foreign keys (a target is one of two tables): triggers (schema 3)
+//! delete the shares naming a user, group, document or folder that goes.
 
 use rusqlite::{Connection, OptionalExtension, Row, Transaction, params};
 use serde::Serialize;

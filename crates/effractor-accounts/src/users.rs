@@ -231,17 +231,11 @@ pub fn set_disabled(t: &Transaction, id: Id, disabled: bool) -> Result<()> {
 }
 
 /// The user, what they own (folders and documents cascade), and every share
-/// to them or to what they owned.
+/// to them or to what they owned (the schema's triggers).
 pub fn delete(t: &Transaction, id: Id) -> Result<()> {
     if last_admin(t, id)? {
         return Err(Error::Refused(LAST_ADMIN));
     }
-    t.execute(
-        "DELETE FROM shares WHERE (grantee_kind = 'user' AND grantee_id = ?1)
-            OR (target_kind = 'document' AND target_id IN (SELECT id FROM documents WHERE owner_id = ?1))
-            OR (target_kind = 'folder' AND target_id IN (SELECT id FROM folders WHERE owner_id = ?1))",
-        [id],
-    )?;
     let n = t.execute("DELETE FROM users WHERE id = ?1", [id])?;
     if n == 0 { Err(Error::NotFound) } else { Ok(()) }
 }

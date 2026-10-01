@@ -281,6 +281,90 @@ fn deleted_items_are_purged_after_seven_days_with_their_shares() {
     assert!(db.write(|t| documents::restore(t, alice, d)).is_err());
 }
 
+fn shares_left(db: &effractor_accounts::Db) -> i64 {
+    db.read(|c| Ok(c.query_row("SELECT count(*) FROM shares", [], |r| r.get(0))?))
+        .unwrap()
+}
+
+/// However a row goes — a cascade, a purge, a hand at the database — the
+/// shares naming it go with it.
+#[test]
+fn a_share_goes_with_what_it_names_however_that_goes() {
+    let (_d, db) = db();
+    let (alice, bob) = (user(&db, "alice"), user(&db, "bob"));
+    let red = group(&db, "red", &[bob]);
+    let a = db.write(|t| folders::create(t, alice, None, "A")).unwrap();
+    let b = db
+        .write(|t| folders::create(t, alice, Some(a), "B"))
+        .unwrap();
+    let d = db
+        .write(|t| documents::create(t, alice, Some(b), "D", "fault-tree", "x", 0))
+        .unwrap();
+    for target in [Target::Folder(a), Target::Folder(b), Target::Document(d)] {
+        db.write(|t| shares::grant(t, target, Grantee::User(bob), Role::Viewer, 0))
+            .unwrap();
+        db.write(|t| shares::grant(t, target, Grantee::Group(red), Role::Viewer, 0))
+            .unwrap();
+    }
+    // The folder's row goes; its subfolder and document cascade.
+    db.write(|t| Ok(t.execute("DELETE FROM folders WHERE id = ?1", [a])?))
+        .unwrap();
+    assert_eq!(shares_left(&db), 0);
+
+    let e = db
+        .write(|t| documents::create(t, alice, None, "E", "fault-tree", "x", 0))
+        .unwrap();
+    db.write(|t| shares::grant(t, Target::Document(e), Grantee::User(bob), Role::Viewer, 0))
+        .unwrap();
+    db.write(|t| shares::grant(t, Target::Document(e), Grantee::Group(red), Role::Viewer, 0))
+        .unwrap();
+    db.write(|t| Ok(t.execute("DELETE FROM groups WHERE id = ?1", [red])?))
+        .unwrap();
+    assert_eq!(shares_left(&db), 1, "the group's went");
+    db.write(|t| Ok(t.execute("DELETE FROM users WHERE id = ?1", [bob])?))
+        .unwrap();
+    assert_eq!(shares_left(&db), 0, "and bob's");
+}
+
+/// SQLite hands the highest id out again once its row is gone: a new user
+/// must not find the shares of the one deleted before them.
+#[test]
+fn a_new_user_with_a_freed_id_inherits_no_share() {
+    let (_d, db) = db();
+    let alice = user(&db, "alice");
+    let root = user(&db, "root");
+    db.write(|t| effractor_accounts::users::set_admin(t, root, true))
+        .unwrap();
+    let bob = user(&db, "bob");
+    let d = db
+        .write(|t| documents::create(t, alice, None, "D", "fault-tree", "x", 0))
+        .unwrap();
+    db.write(|t| shares::grant(t, Target::Document(d), Grantee::User(bob), Role::Editor, 0))
+        .unwrap();
+    db.write(|t| effractor_accounts::users::delete(t, bob))
+        .unwrap();
+    let carol = user(&db, "carol");
+    assert_eq!(carol, bob, "the id is handed out again");
+    assert_eq!(
+        db.read(|c| perms::document_role(c, carol, d)).unwrap(),
+        None
+    );
+    // What a deleted user owned goes, and the shares of it too.
+    db.write(|t| {
+        shares::grant(
+            t,
+            Target::Document(d),
+            Grantee::User(carol),
+            Role::Viewer,
+            0,
+        )
+    })
+    .unwrap();
+    db.write(|t| effractor_accounts::users::delete(t, alice))
+        .unwrap();
+    assert_eq!(shares_left(&db), 0);
+}
+
 #[test]
 fn recent_keeps_the_last_five_opened() {
     let (_d, db) = db();

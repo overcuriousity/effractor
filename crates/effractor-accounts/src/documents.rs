@@ -164,15 +164,10 @@ pub fn restore(t: &Transaction, owner: Id, id: Id) -> Result<()> {
     Ok(())
 }
 
-/// What was deleted PURGE_AFTER ago or longer, and the shares naming it.
+/// What was deleted PURGE_AFTER ago or longer, and the shares naming it
+/// (the schema's triggers).
 pub fn purge(t: &Transaction, now: Timestamp) -> Result<u64> {
     let cutoff = now.saturating_sub(PURGE_AFTER);
-    t.execute(
-        "DELETE FROM shares WHERE
-           (target_kind = 'document' AND target_id IN (SELECT id FROM documents WHERE deleted_at <= ?1))
-        OR (target_kind = 'folder' AND target_id IN (SELECT id FROM folders WHERE deleted_at <= ?1))",
-        [cutoff],
-    )?;
     let docs = t.execute("DELETE FROM documents WHERE deleted_at <= ?1", [cutoff])?;
     let dirs = t.execute("DELETE FROM folders WHERE deleted_at <= ?1", [cutoff])?;
     Ok((docs + dirs) as u64)

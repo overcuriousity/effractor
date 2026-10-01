@@ -47,11 +47,8 @@ pub fn rename(t: &Transaction, id: Id, name: &str) -> Result<()> {
     )
 }
 
+/// The group, and its shares with it (the schema's triggers).
 pub fn delete(t: &Transaction, id: Id) -> Result<()> {
-    t.execute(
-        "DELETE FROM shares WHERE grantee_kind = 'group' AND grantee_id = ?1",
-        [id],
-    )?;
     changed(t.execute("DELETE FROM groups WHERE id = ?1", [id])?)
 }
 

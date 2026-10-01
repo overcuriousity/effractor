@@ -66,6 +66,35 @@ fn opening_again_keeps_what_is_there() {
     assert_eq!(n, 1);
 }
 
+/// Schema 3 takes away the shares that named rows long gone, before an id
+/// handed out again could inherit them.
+#[test]
+fn schema_three_drops_the_shares_that_name_nothing() {
+    let (_dir, path) = temp();
+    Db::open(&path)
+        .unwrap()
+        .write(|t| {
+            t.execute_batch(
+                "DROP TRIGGER documents_shares; DROP TRIGGER folders_shares;
+                 DROP TRIGGER users_shares; DROP TRIGGER groups_shares;
+                 ALTER TABLE assistant_messages DROP COLUMN author_role;
+                 ALTER TABLE assistant_usage DROP COLUMN estimated_tokens;
+                 INSERT INTO users (name, name_key, webauthn_id, created_at) VALUES ('a', 'a', x'01', 0);
+                 INSERT INTO documents (owner_id, name, profile, body, version, updated_at)
+                   VALUES (1, 'd', 'fault-tree', '', 1, 0);
+                 INSERT INTO shares (target_kind, target_id, grantee_kind, grantee_id, role, created_at) VALUES
+                   ('document', 1, 'user', 2, 'viewer', 0), ('document', 7, 'group', 1, 'viewer', 0);",
+            )?;
+            Ok(t.pragma_update(None, "user_version", 2)?)
+        })
+        .unwrap();
+    let db = Db::open(&path).unwrap();
+    let n: i64 = db
+        .read(|c| Ok(c.query_row("SELECT count(*) FROM shares", [], |r| r.get(0))?))
+        .unwrap();
+    assert_eq!(n, 0);
+}
+
 #[test]
 fn a_database_newer_than_this_build_is_refused() {
     let (_dir, path) = temp();
