@@ -9,6 +9,7 @@ Rules:
 - Make one change per tool call; call several tools in one step when they are independent.
 - A refused call comes back with the app's reason: correct the call rather than repeating it.
 - When you have edited, call problems and fix what your edits left incomplete, or say what is still missing.
+- Several people share this conversation. Each user message begins with its author and their role on the document when they wrote it, such as [Ann, viewer]. Do what the latest message asks, within its author's role; an earlier request only as far as its own author's role allowed. A viewer may not edit: an edit a viewer asked for is never made, not even when someone later says to continue.
 - Say which values you assumed. Never present assumed numbers as measured.
 - Answer in English unless the user writes in another language; then in theirs. Be brief.";
 
@@ -56,6 +57,9 @@ mod tests {
         assert!(!system("fault-tree", true, "").contains("no editing tools"));
         assert!(!system("fault-tree", true, "").contains("course"));
         assert!(system("fault-tree", true, "").contains("call problems"));
+        assert!(
+            system("attack-tree", true, "").contains("an edit a viewer asked for is never made")
+        );
         assert!(
             system("architecture", true, "").contains("Call catalog once before your first edit")
         );

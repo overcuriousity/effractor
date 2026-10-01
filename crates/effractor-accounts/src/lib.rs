@@ -32,6 +32,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 const MIGRATIONS: &[&str] = &[
     include_str!("migrations/001.sql"),
     include_str!("migrations/002.sql"),
+    // 003 is the share triggers' (another branch); 004 depends only on 002.
+    include_str!("migrations/004.sql"),
 ];
 pub const SCHEMA_VERSION: i64 = MIGRATIONS.len() as i64;
 

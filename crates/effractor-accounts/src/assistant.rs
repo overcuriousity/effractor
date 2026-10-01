@@ -196,19 +196,23 @@ pub struct MessageRow {
     pub turn: i64,
     pub role: String,
     pub author: Option<String>,
+    /// The author's role on the document when they wrote it: viewer,
+    /// editor or owner (none for messages stored before it was kept).
+    pub author_role: Option<String>,
     pub content: String,
     pub input_tokens: Option<i64>,
     pub output_tokens: Option<i64>,
     pub created_at: Timestamp,
 }
 
+/// `author`: who wrote it, and their role on the document then.
 #[allow(clippy::too_many_arguments)]
 pub fn append(
     t: &Transaction,
     session: Id,
     turn: i64,
     role: &str,
-    author: Option<Id>,
+    author: Option<(Id, &str)>,
     content: &str,
     tokens: Option<(i64, i64)>,
     now: Timestamp,
@@ -220,9 +224,21 @@ pub fn append(
     )?;
     t.execute(
         "INSERT INTO assistant_messages
-           (session_id, seq, turn, role, author_id, content, input_tokens, output_tokens, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        params![session, seq, turn, role, author, content, tokens.map(|t| t.0), tokens.map(|t| t.1), now],
+           (session_id, seq, turn, role, author_id, author_role, content, input_tokens,
+            output_tokens, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        params![
+            session,
+            seq,
+            turn,
+            role,
+            author.map(|a| a.0),
+            author.map(|a| a.1),
+            content,
+            tokens.map(|t| t.0),
+            tokens.map(|t| t.1),
+            now
+        ],
     )?;
     t.execute(
         "UPDATE assistant_sessions SET updated_at = ?2 WHERE id = ?1",
@@ -233,7 +249,8 @@ pub fn append(
 
 pub fn messages(c: &Connection, session: Id) -> Result<Vec<MessageRow>> {
     let mut s = c.prepare(
-        "SELECT m.id, m.seq, m.turn, m.role, u.name, m.content, m.input_tokens, m.output_tokens, m.created_at
+        "SELECT m.id, m.seq, m.turn, m.role, u.name, m.author_role, m.content, m.input_tokens,
+                m.output_tokens, m.created_at
          FROM assistant_messages m LEFT JOIN users u ON u.id = m.author_id
          WHERE m.session_id = ?1 ORDER BY m.seq",
     )?;
@@ -245,10 +262,11 @@ pub fn messages(c: &Connection, session: Id) -> Result<Vec<MessageRow>> {
                 turn: r.get(2)?,
                 role: r.get(3)?,
                 author: r.get(4)?,
-                content: r.get(5)?,
-                input_tokens: r.get(6)?,
-                output_tokens: r.get(7)?,
-                created_at: r.get(8)?,
+                author_role: r.get(5)?,
+                content: r.get(6)?,
+                input_tokens: r.get(7)?,
+                output_tokens: r.get(8)?,
+                created_at: r.get(9)?,
             })
         })?
         .collect::<rusqlite::Result<_>>()?;
@@ -330,36 +348,56 @@ pub fn claim(
     })
 }
 
-/// The running turn counts as alive from now.
-pub fn touch(t: &Transaction, session: Id, now: Timestamp) -> Result<()> {
+// Every write a step makes names its turn: a step whose turn was taken over
+// (it went stale) writes nothing into the turn after it.
+
+/// Whether `turn` is still the session's latest turn.
+pub fn holds(c: &Connection, session: Id, turn: i64) -> Result<bool> {
+    Ok(c.query_row(
+        "SELECT turn_no = ?2 FROM assistant_sessions WHERE id = ?1",
+        params![session, turn],
+        |r| r.get(0),
+    )
+    .optional()?
+    .unwrap_or(false))
+}
+
+/// `turn`, still running, counts as alive from now; false when it is not
+/// running any more.
+pub fn touch(t: &Transaction, session: Id, turn: i64, now: Timestamp) -> Result<bool> {
+    Ok(t.execute(
+        "UPDATE assistant_sessions SET turn_since = ?3
+         WHERE id = ?1 AND turn_no = ?2 AND turn_since IS NOT NULL",
+        params![session, turn, now],
+    )? > 0)
+}
+
+/// Ends `turn`; a later one stays.
+pub fn release(t: &Transaction, session: Id, turn: i64) -> Result<()> {
     t.execute(
-        "UPDATE assistant_sessions SET turn_since = ?2 WHERE id = ?1 AND turn_since IS NOT NULL",
-        params![session, now],
+        "UPDATE assistant_sessions SET turn_by = NULL, turn_since = NULL, turn_access = NULL
+         WHERE id = ?1 AND turn_no = ?2",
+        params![session, turn],
     )?;
     Ok(())
 }
 
-pub fn release(t: &Transaction, session: Id) -> Result<()> {
-    t.execute(
-        "UPDATE assistant_sessions SET turn_by = NULL, turn_since = NULL, turn_access = NULL WHERE id = ?1",
-        [session],
-    )?;
-    Ok(())
-}
-
-/// One more model request in this turn; returns how many there have been.
-/// The turn counts as alive from now.
-pub fn bump_steps(t: &Transaction, session: Id, now: Timestamp) -> Result<i64> {
-    t.execute(
-        "UPDATE assistant_sessions SET turn_steps = turn_steps + 1, turn_since = ?2
-         WHERE id = ?1 AND turn_since IS NOT NULL",
-        params![session, now],
-    )?;
-    Ok(t.query_row(
+/// One more model request in `turn`; returns how many there have been, or
+/// `None` when the turn is not running any more. It counts as alive from now.
+pub fn bump_steps(t: &Transaction, session: Id, turn: i64, now: Timestamp) -> Result<Option<i64>> {
+    if t.execute(
+        "UPDATE assistant_sessions SET turn_steps = turn_steps + 1, turn_since = ?3
+         WHERE id = ?1 AND turn_no = ?2 AND turn_since IS NOT NULL",
+        params![session, turn, now],
+    )? == 0
+    {
+        return Ok(None);
+    }
+    Ok(Some(t.query_row(
         "SELECT turn_steps FROM assistant_sessions WHERE id = ?1",
         [session],
         |r| r.get(0),
-    )?)
+    )?))
 }
 
 /// Tokens as the provider reported them; `None` when it reported nothing.
@@ -379,9 +417,28 @@ pub fn record_usage(
     Ok(())
 }
 
+/// A request the endpoint reported no tokens for, counted by its size so
+/// the daily budget holds anyway; the admin's view still says unreported.
+pub fn record_estimate(
+    t: &Transaction,
+    user: Id,
+    session: Option<Id>,
+    estimated: i64,
+    now: Timestamp,
+) -> Result<()> {
+    t.execute(
+        "INSERT INTO assistant_usage (user_id, session_id, at, estimated_tokens)
+         VALUES (?1, ?2, ?3, ?4)",
+        params![user, session, now, estimated],
+    )?;
+    Ok(())
+}
+
+/// Reported tokens, and estimated ones where none were reported.
 pub fn used_since(c: &Connection, user: Id, since: Timestamp) -> Result<i64> {
     Ok(c.query_row(
-        "SELECT ifnull(sum(ifnull(input_tokens, 0) + ifnull(output_tokens, 0)), 0)
+        "SELECT ifnull(sum(ifnull(input_tokens, 0) + ifnull(output_tokens, 0)
+                           + ifnull(estimated_tokens, 0)), 0)
          FROM assistant_usage WHERE user_id = ?1 AND at >= ?2",
         params![user, since],
         |r| r.get(0),

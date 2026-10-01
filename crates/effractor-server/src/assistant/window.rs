@@ -44,6 +44,11 @@ fn size(m: &Message) -> usize {
         + 8
 }
 
+/// How long messages are, in characters as `fit` counts them.
+pub fn chars(msgs: &[Message]) -> usize {
+    msgs.iter().map(size).sum()
+}
+
 /// The messages to send, and how many whole turns were left out. Whole
 /// turns go from the middle first; only when the task's turn and the latest
 /// one do not fit together are their texts cut.

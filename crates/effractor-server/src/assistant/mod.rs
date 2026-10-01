@@ -11,6 +11,7 @@ pub mod provider;
 pub mod window;
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use effractor_accounts::assistant::setting;
@@ -207,7 +208,9 @@ pub fn scrub(text: &str, key: Option<&str>) -> String {
 pub struct Assistant {
     pinned: OnceLock<String>,
     pinned_address: OnceLock<String>,
-    stops: Mutex<HashMap<Id, tokio::sync::watch::Sender<bool>>>,
+    /// Each with the step it belongs to: a step that ends removes its own.
+    stops: Mutex<HashMap<Id, (u64, tokio::sync::watch::Sender<bool>)>>,
+    steps: AtomicU64,
 }
 
 impl Assistant {
@@ -234,14 +237,16 @@ impl Assistant {
         }
     }
 
-    /// A fresh signal for the step now starting in `session`.
-    pub fn stop_signal(&self, session: Id) -> tokio::sync::watch::Receiver<bool> {
+    /// A fresh signal for the step now starting in `session`, and the step's
+    /// number for `done`.
+    pub fn stop_signal(&self, session: Id) -> (u64, tokio::sync::watch::Receiver<bool>) {
         let (tx, rx) = tokio::sync::watch::channel(false);
+        let step = self.steps.fetch_add(1, Ordering::Relaxed);
         self.stops
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .insert(session, tx);
-        rx
+            .insert(session, (step, tx));
+        (step, rx)
     }
 
     /// Whether a step of `session` is streaming in this process.
@@ -256,16 +261,17 @@ impl Assistant {
     pub fn stop(&self, session: Id) -> bool {
         let stops = self.stops.lock().unwrap_or_else(|e| e.into_inner());
         match stops.get(&session) {
-            Some(tx) => tx.send(true).is_ok(),
+            Some((_, tx)) => tx.send(true).is_ok(),
             None => false,
         }
     }
 
-    pub fn done(&self, session: Id) {
-        self.stops
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .remove(&session);
+    /// `step` of `session` ended; a later step's signal stays.
+    pub fn done(&self, session: Id, step: u64) {
+        let mut stops = self.stops.lock().unwrap_or_else(|e| e.into_inner());
+        if stops.get(&session).is_some_and(|(s, _)| *s == step) {
+            stops.remove(&session);
+        }
     }
 }
 
@@ -296,6 +302,19 @@ mod tests {
         let printed = format!("{cfg:?}");
         assert!(!printed.contains("sk-SECRET"), "{printed}");
         assert!(printed.contains("key_set: true"), "{printed}");
+    }
+
+    #[test]
+    fn a_step_that_ends_removes_only_its_own_stop_signal() {
+        let a = Assistant::default();
+        let (old, _rx) = a.stop_signal(7);
+        let (new, mut rx) = a.stop_signal(7);
+        a.done(7, old);
+        assert!(a.streaming(7), "the later step's signal stays");
+        assert!(a.stop(7));
+        assert!(*rx.borrow_and_update());
+        a.done(7, new);
+        assert!(!a.streaming(7));
     }
 }
 

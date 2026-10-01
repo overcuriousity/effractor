@@ -120,9 +120,42 @@ fn one_turn_at_a_time_and_a_stale_turn_is_released() {
         (turn.by, turn.access.as_str(), turn.steps),
         (bob, "read", 0)
     );
-    assert_eq!(db.write(|t| assistant::bump_steps(t, s, 250)).unwrap(), 1);
-    db.write(|t| assistant::release(t, s)).unwrap();
+    assert_eq!(
+        db.write(|t| assistant::bump_steps(t, s, 2, 250)).unwrap(),
+        Some(1)
+    );
+    db.write(|t| assistant::release(t, s, 2)).unwrap();
     assert!(db.read(|c| assistant::turn(c, s)).unwrap().is_none());
+}
+
+#[test]
+fn a_step_of_a_turn_taken_over_writes_nothing_into_the_next() {
+    let (_d, db) = db();
+    let (ann, bob) = (user(&db, "ann"), user(&db, "bob"));
+    let d = doc(&db, ann, None, "Lab");
+    let s = db
+        .write(|t| assistant::create_session(t, d, "architecture", ann, 10))
+        .unwrap();
+    db.write(|t| assistant::claim(t, s, ann, "edit", 10, 100, false))
+        .unwrap();
+    // Ann's turn 1 went stale; Bob's turn 2 runs.
+    db.write(|t| assistant::claim(t, s, bob, "read", 200, 100, false))
+        .unwrap();
+    assert!(!db.read(|c| assistant::holds(c, s, 1)).unwrap());
+    assert!(db.read(|c| assistant::holds(c, s, 2)).unwrap());
+    assert_eq!(
+        db.write(|t| assistant::bump_steps(t, s, 1, 210)).unwrap(),
+        None
+    );
+    assert!(!db.write(|t| assistant::touch(t, s, 1, 220)).unwrap());
+    db.write(|t| assistant::release(t, s, 1)).unwrap();
+    let turn = db.read(|c| assistant::turn(c, s)).unwrap().unwrap();
+    assert_eq!(
+        (turn.by, turn.turn, turn.since, turn.steps),
+        (bob, 2, 200, 0),
+        "Bob's turn is untouched"
+    );
+    assert!(db.write(|t| assistant::touch(t, s, 2, 230)).unwrap());
 }
 
 #[test]
@@ -135,12 +168,12 @@ fn each_step_refreshes_the_turn_and_its_asker_may_take_it_over() {
         .unwrap();
     db.write(|t| assistant::claim(t, s, ann, "edit", 10, 100, false))
         .unwrap();
-    db.write(|t| assistant::bump_steps(t, s, 90)).unwrap();
+    db.write(|t| assistant::bump_steps(t, s, 1, 90)).unwrap();
     assert_eq!(
         db.read(|c| assistant::turn(c, s)).unwrap().unwrap().since,
         90
     );
-    db.write(|t| assistant::touch(t, s, 95)).unwrap();
+    db.write(|t| assistant::touch(t, s, 1, 95)).unwrap();
     assert_eq!(
         db.read(|c| assistant::turn(c, s)).unwrap().unwrap().since,
         95
@@ -171,7 +204,7 @@ fn messages_keep_their_order_author_and_reported_tokens() {
             s,
             1,
             "user",
-            Some(ann),
+            Some((ann, "viewer")),
             r#"[{"type":"text","text":"hi"}]"#,
             None,
             1,
@@ -191,9 +224,15 @@ fn messages_keep_their_order_author_and_reported_tokens() {
     let m = db.read(|c| assistant::messages(c, s)).unwrap();
     assert_eq!(m.len(), 2);
     assert_eq!(
-        (m[0].seq, m[0].author.as_deref(), m[0].input_tokens),
-        (1, Some("ann"), None)
+        (
+            m[0].seq,
+            m[0].author.as_deref(),
+            m[0].author_role.as_deref(),
+            m[0].input_tokens
+        ),
+        (1, Some("ann"), Some("viewer"), None)
     );
+    assert_eq!(m[1].author_role, None);
     assert_eq!(
         (m[1].seq, m[1].role.as_str(), m[1].output_tokens),
         (2, "assistant", Some(3))
@@ -239,5 +278,22 @@ fn usage_sums_what_was_reported_and_counts_what_was_not() {
             rows[0].unreported
         ),
         (2, 100, 20, 1)
+    );
+}
+
+#[test]
+fn an_estimate_counts_toward_the_budget_and_stays_unreported() {
+    let (_d, db) = db();
+    let ann = user(&db, "ann");
+    db.write(|t| {
+        assistant::record_usage(t, ann, None, Some(100), Some(20), 10)?;
+        assistant::record_estimate(t, ann, None, 300, 11)
+    })
+    .unwrap();
+    assert_eq!(db.read(|c| assistant::used_since(c, ann, 8)).unwrap(), 420);
+    let rows = db.read(|c| assistant::usage(c, 0)).unwrap();
+    assert_eq!(
+        (rows[0].requests, rows[0].input, rows[0].unreported),
+        (2, 100, 1)
     );
 }

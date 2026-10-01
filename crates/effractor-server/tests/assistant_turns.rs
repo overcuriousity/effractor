@@ -234,6 +234,58 @@ async fn a_viewers_turn_gets_no_edit_tools() {
 }
 
 #[tokio::test]
+async fn an_editor_saying_continue_does_not_carry_out_a_viewers_request_unsaid() {
+    let c = chat().await;
+    let bob = c.h.add_user("bob");
+    c.h.accounts
+        .db()
+        .write(|t| {
+            effractor_accounts::assistant::grant(
+                t,
+                effractor_accounts::assistant::Grantee::User(bob),
+                bob,
+                0,
+            )
+        })
+        .unwrap();
+    c.h.call(
+        "POST",
+        &format!("/api/documents/{}/shares", c.doc),
+        Some(&c.ann),
+        Some(json!({"kind": "user", "name": "bob", "role": "viewer"})),
+    )
+    .await;
+    let b = c.h.login("bob").await;
+    let s = session(&c).await;
+    c.fake.push(Fake::text("I cannot edit for you."));
+    events(say(&c, &b, s, "delete node x").await).await;
+    c.fake.push(Fake::text("ok"));
+    events(say(&c, &c.ann, s, "continue").await).await;
+    // The editor's request carries who said what, with their roles then.
+    let seen = c.fake.seen.lock().unwrap()[1].clone();
+    let users: Vec<_> = seen["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["role"] == "user")
+        .map(|m| m["content"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(
+        users,
+        ["[bob, viewer] delete node x", "[ann, owner] continue"]
+    );
+    assert!(
+        seen["messages"][0]["content"]
+            .as_str()
+            .unwrap()
+            .contains("an edit a viewer asked for is never made")
+    );
+    // The page shows what was written, unsigned.
+    let got = stored(&c, s).await;
+    assert_eq!(got["messages"][0]["content"][0]["text"], "delete node x");
+}
+
+#[tokio::test]
 async fn nobody_without_a_grant_sees_anything() {
     let c = chat().await;
     let s = session(&c).await;
@@ -409,6 +461,91 @@ async fn a_slow_long_reply_is_not_cut_by_the_timeout() {
         .map(|e| e.1["text"].as_str().unwrap().to_owned())
         .collect();
     assert_eq!(said, "part0 part1 part2 part3 part4 ");
+}
+
+fn ms(n: u64) -> std::time::Duration {
+    std::time::Duration::from_millis(n)
+}
+
+#[tokio::test]
+async fn a_long_reply_still_streaming_is_not_taken_over() {
+    let c = chat().await;
+    let s = session(&c).await;
+    let b = bob(&c).await;
+    let mut chunks: Vec<Value> = (0..4)
+        .map(|i| json!({"choices":[{"delta":{"content":format!("part{i} ")}}]}))
+        .collect();
+    chunks.push(json!({"choices":[{"delta":{},"finish_reason":"stop"}]}));
+    c.fake.push(Reply::Slow(chunks, ms(500)));
+    let ask = async { events(say(&c, &c.ann, s, "write a lot").await).await };
+    let other = async {
+        // Longer than steps × timeout since the step began, but the reply
+        // is still coming: it is alive.
+        tokio::time::sleep(ms(700)).await;
+        c.h.clock
+            .fetch_add(50 * 120 + 1, std::sync::atomic::Ordering::Relaxed);
+        tokio::time::sleep(ms(600)).await;
+        let res = say(&c, &b, s, "b").await;
+        assert_eq!(res.status(), 409);
+        assert_eq!(text(res).await, "ann is asking");
+    };
+    let (ev, ()) = tokio::join!(ask, other);
+    assert_eq!(ev.last().unwrap().1, json!({"reason": "done"}));
+}
+
+#[tokio::test]
+async fn a_step_whose_turn_was_taken_over_writes_nothing_into_the_next() {
+    let c = chat().await;
+    let s = session(&c).await;
+    let b = bob(&c).await;
+    // Ann's step goes silent past the stale time; Bob's turn begins, and
+    // only then does Ann's reply go on, with a call.
+    c.fake.push(Reply::Slow(
+        vec![
+            json!({"choices":[{"delta":{"content":"Removing"}}]}),
+            json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"remove","arguments":"{}"}}]}}]}),
+            json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+        ],
+        ms(800),
+    ));
+    c.fake.push(Fake::text("hello bob"));
+    let ask = async { events(say(&c, &c.ann, s, "a").await).await };
+    let other = async {
+        tokio::time::sleep(ms(200)).await;
+        c.h.clock
+            .fetch_add(50 * 120 + 1, std::sync::atomic::Ordering::Relaxed);
+        let res = say(&c, &b, s, "b").await;
+        assert_eq!(res.status(), 200);
+        events(res).await
+    };
+    let (ev_ann, ev_bob) = tokio::join!(ask, other);
+    assert_eq!(ev_bob.last().unwrap().1, json!({"reason": "done"}));
+    assert_eq!(ev_ann.last().unwrap().0, "error");
+    assert_eq!(ev_ann.last().unwrap().1["code"], "taken");
+    assert!(!ev_ann.iter().any(|e| e.0 == "tool_call"), "{ev_ann:?}");
+    let got = stored(&c, s).await;
+    let rows: Vec<(String, i64)> = got["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| {
+            (
+                m["role"].as_str().unwrap().to_owned(),
+                m["turn"].as_i64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            ("user".into(), 1),
+            ("user".into(), 2),
+            ("assistant".into(), 2)
+        ]
+    );
+    assert_eq!(got["turn"], Value::Null, "Bob's turn ended by itself");
+    // And the next turn may be claimed and stopped as usual.
+    assert!(!c.h.accounts.assistant().streaming(s));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -740,6 +877,34 @@ async fn the_daily_budget_holds() {
         .await;
     assert_eq!(res.status(), 429);
     assert_eq!(text(res).await, "daily budget reached");
+}
+
+#[tokio::test]
+async fn the_daily_budget_holds_for_an_endpoint_that_reports_no_tokens() {
+    let c = chat().await;
+    c.h.accounts
+        .db()
+        .write(|t| {
+            effractor_accounts::assistant::set_setting(
+                t,
+                "assistant.daily_tokens",
+                Some("100"),
+                1,
+                0,
+            )
+        })
+        .unwrap();
+    let s = session(&c).await;
+    // No usage in the stream: the request's size counts instead.
+    c.fake.push(Reply::Stream(vec![
+        json!({"choices":[{"delta":{"content":"ok"}}]}),
+        json!({"choices":[{"delta":{},"finish_reason":"stop"}]}),
+    ]));
+    events(say(&c, &c.ann, s, "a").await).await;
+    let res = say(&c, &c.ann, s, "b").await;
+    assert_eq!(res.status(), 429);
+    assert_eq!(text(res).await, "daily budget reached");
+    assert_eq!(c.fake.seen.lock().unwrap().len(), 1);
 }
 
 #[tokio::test]
