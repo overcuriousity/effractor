@@ -1,5 +1,5 @@
 use effractor_core::{Distribution as D, Shorthand};
-use effractor_solver::dist::{CHUNK, cdf, chunk_rng, sample, unit};
+use effractor_solver::dist::{CHUNK, cdf, chunk_rng, sample, tail, unit};
 use proptest::prelude::*;
 
 fn close(got: f64, want: f64, tol: f64) {
@@ -151,6 +151,26 @@ fn cdfs_match_closed_forms() {
         10.0 * x.powi(3) - 15.0 * x.powi(4) + 6.0 * x.powi(5),
         1e-13,
     );
+}
+
+/// Far out, a tail keeps the digits `1 - cdf` loses.
+#[test]
+fn a_heavy_tail_keeps_its_digits() {
+    let pareto = D::Pareto {
+        xm: 1.0,
+        alpha: 1.05,
+    };
+    assert_eq!(cdf(&pareto, 1e20), 1.0);
+    close(tail(&pareto, 1e20), 1e-21, 1e-33);
+    let lognormal = D::LogNormal {
+        mu: 0.0,
+        sigma: 3.0,
+    };
+    assert_eq!(cdf(&lognormal, 1e20), 1.0);
+    assert!(tail(&lognormal, 1e20) > 1e-60);
+    close(tail(&product(0.25, pareto), 1e20), 0.25e-21, 1e-33);
+    assert_eq!(tail(&D::Bernoulli(0.3), 0.0), 0.0);
+    assert_eq!(tail(&D::Const(5.0), 4.0), 1.0);
 }
 
 /// Found by proptest on CI: with the mean far below zero, `1 - Φ(-mean/sd)`
@@ -411,6 +431,13 @@ proptest! {
         let (f_lo, f_hi) = (cdf(&d, lo), cdf(&d, hi));
         prop_assert!((0.0..=1.0).contains(&f_lo) && (0.0..=1.0).contains(&f_hi), "{f_lo} {f_hi}");
         prop_assert!(f_lo <= f_hi + 1e-12, "not monotone: F({lo}) = {f_lo} > F({hi}) = {f_hi}");
+    }
+
+    #[test]
+    fn a_tail_is_what_the_cdf_has_left(d in ttc(), t in 0.0..1e4f64) {
+        let left = cdf(&d, f64::INFINITY) - cdf(&d, t);
+        let got = tail(&d, t);
+        prop_assert!((got - left).abs() <= 1e-12, "{:?} at {}: {} vs {}", d, t, got, left);
     }
 
     #[test]

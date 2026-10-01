@@ -205,3 +205,51 @@ pub fn cdf(d: &Distribution, t: f64) -> f64 {
         }
     }
 }
+
+/// P(t < X < ∞): what [`cdf`] has still to gain after `t`. Where the
+/// distribution has a closed-form tail it is computed from that, so that it
+/// keeps its digits after `1 - cdf` would have rounded to 0 — far out, where
+/// a heavy tail's mean lies.
+pub fn tail(d: &Distribution, t: f64) -> f64 {
+    use Distribution as D;
+    if t.is_nan() {
+        return 0.0;
+    }
+    if t < 0.0 {
+        return cdf(d, f64::INFINITY);
+    }
+    match d {
+        D::Exponential(rate) => exponential_tail(*rate, t),
+        D::ExponentialMean(mean) => exponential_tail(1.0 / mean, t),
+        D::LogNormal { mu, sigma } => {
+            if t == 0.0 {
+                1.0
+            } else {
+                upper((log(t) - mu) / sigma)
+            }
+        }
+        D::Pareto { xm, alpha } => {
+            if t < *xm {
+                1.0
+            } else {
+                pow(xm / t, *alpha)
+            }
+        }
+        D::TruncatedNormal { mean, sd } => match truncation(*mean, *sd) {
+            Truncation::Tail(q_a) => (upper((t - mean) / sd) / q_a).clamp(0.0, 1.0),
+            Truncation::Exponential(rate) => exponential_tail(rate, t),
+        },
+        D::Product(p, inner) => p * tail(inner, t),
+        D::Named(s) => tail(&s.expand(), t),
+        _ => cdf(d, f64::INFINITY) - cdf(d, t),
+    }
+}
+
+/// 1 − [`exponential`], without the subtraction.
+fn exponential_tail(rate: f64, t: f64) -> f64 {
+    if rate == f64::INFINITY || rate == 0.0 {
+        0.0
+    } else {
+        exp(-rate * t)
+    }
+}

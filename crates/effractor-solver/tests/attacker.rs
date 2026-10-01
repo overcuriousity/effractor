@@ -49,6 +49,75 @@ fn expected_time_of_the_slowest_step() {
     );
 }
 
+/// A tail that falls like a power is most of the mean far out: the
+/// integral has to reach it and keep its digits there.
+#[test]
+fn heavy_tails_are_integrated_to_the_end() {
+    for alpha in [1.05, 1.1, 1.25, 1.5] {
+        rel(
+            expected_max(&[&D::Pareto { xm: 1.0, alpha }]),
+            alpha / (alpha - 1.0),
+            1e-6,
+        );
+    }
+    // Barely a mean at all: most of it lies past the largest float.
+    rel(
+        expected_max(&[&D::Pareto {
+            xm: 1.0,
+            alpha: 1.001,
+        }]),
+        1001.0,
+        1e-2,
+    );
+    for sigma in [2.0f64, 3.0] {
+        rel(
+            expected_max(&[&D::LogNormal { mu: 0.0, sigma }]),
+            (sigma * sigma / 2.0).exp(),
+            1e-6,
+        );
+    }
+    // A mean past the largest float is none.
+    assert_eq!(
+        expected_max(&[&D::LogNormal {
+            mu: 0.0,
+            sigma: 40.0
+        }]),
+        f64::INFINITY
+    );
+}
+
+/// Where a time jumps or bends — a constant, a Pareto's minimum, a Pert's
+/// ends — the integral is split, and stays exact.
+#[test]
+fn kinks_and_jumps_are_integrated_exactly() {
+    rel(
+        expected_max(&[&D::Const(5.0), &D::Exponential(1.0)]),
+        5.0 + (-5.0f64).exp(),
+        1e-9,
+    );
+    rel(
+        expected_max(&[&D::Pert {
+            min: 10.0,
+            mode: 12.0,
+            max: 40.0,
+        }]),
+        (10.0 + 4.0 * 12.0 + 40.0) / 6.0,
+        1e-9,
+    );
+    // max(Pareto(2, 3), Const(3)): 3 + ∫₃^∞ (2/t)³ dt = 3 + 8 / (2 · 9).
+    rel(
+        expected_max(&[
+            &D::Pareto {
+                xm: 2.0,
+                alpha: 3.0,
+            },
+            &D::Const(3.0),
+        ]),
+        3.0 + 8.0 / 18.0,
+        1e-9,
+    );
+}
+
 #[test]
 fn time_is_conditional_on_succeeding_at_all() {
     // "Half the time never" does not make the successful half slower.
