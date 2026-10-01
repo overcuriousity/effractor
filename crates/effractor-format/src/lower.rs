@@ -630,11 +630,20 @@ impl Cx {
                 gate
             }
             None => {
-                let k = self.required(f, "k")?;
-                let k = self.integer(&k.value, &f.path("k"))?;
-                Gate::Vote {
-                    k: usize::try_from(k).unwrap_or(usize::MAX),
-                }
+                let entry = self.required(f, "k")?;
+                let k = self.integer(&entry.value, &f.path("k"))?;
+                // Past what a 32-bit build counts — the browser's — and so past
+                // any gate's children: said here, as written, wherever it runs.
+                let Some(k) = u32::try_from(k).ok().and_then(|k| usize::try_from(k).ok()) else {
+                    let of = match children.as_ref().map(Vec::len) {
+                        Some(n) if n > 0 => n.to_string(),
+                        _ => "the number of children".into(),
+                    };
+                    let message = format!("k must be between 1 and {of}, got {k}");
+                    self.error(Code::VoteRange, f.path("k"), entry.value.pos, message);
+                    return None;
+                };
+                Gate::Vote { k }
             }
         };
         (!misplaced).then_some(NodeKind::Gate {

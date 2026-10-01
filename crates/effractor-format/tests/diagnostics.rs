@@ -253,6 +253,28 @@ fn structural_findings_get_positions_too() {
 }
 
 #[test]
+fn a_vote_past_what_a_32_bit_build_counts_is_reported_as_written() {
+    let text = doc(concat!(
+        "  t:\n",
+        "    label: T\n",
+        "    gate: vote\n",
+        "    k: 4294967297\n",
+        "    children: [a, b]\n",
+        "  a: {label: A, leaf: basic}\n",
+        "  b: {label: B, leaf: basic}\n",
+        "  lonely: {label: L, leaf: basic}\n",
+    ));
+    // The same in the browser as here: said by the reader, and alone.
+    let (_, diagnostics) = diagnose(&text);
+    let got: Vec<_> = diagnostics.iter().map(summary).collect();
+    assert_eq!(got, [("vote-range", "nodes.t.k".into(), 9, 8)]);
+    assert_eq!(
+        diagnostics[0].message,
+        "k must be between 1 and 2, got 4294967297"
+    );
+}
+
+#[test]
 fn warnings_do_not_stop_a_load() {
     let text = doc("  t: {label: T, leaf: basic}\n  spare: {label: S, leaf: basic}\n");
     let (model, diagnostics) = diagnose(&text);
