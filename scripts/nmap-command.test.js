@@ -111,6 +111,21 @@ test('the recipes a command holds are read back from what nmap says it ran', () 
   assert.deepEqual(C.recipesOf('nmap -sn -oX - 10.0.1.0/24'), []);
 });
 
+test('what nmap was told to leave out is read back, and is no target', () => {
+  const args = a => ({ args: a });
+  assert.equal(C.excludedOf(args(one({ exclude: 'typed' }, { exclude: '10.0.1.1 10.0.1.16/28,printer.lab' }).text)), '10.0.1.1 10.0.1.16/28 printer.lab');
+  // nmap takes --exclude=…, and a long option with one dash.
+  assert.equal(C.excludedOf(args('nmap --exclude=10.0.1.5,10.0.1.6 -oX - 10.0.1.0/24')), '10.0.1.5 10.0.1.6');
+  assert.equal(C.excludedOf(args('nmap -exclude 10.0.1.5 -oX - 10.0.1.0/24')), '10.0.1.5');
+  assert.equal(C.excludedOf(args('nmap --excludefile skip.txt -oX - 10.0.1.0/24')), '', 'a file is not read');
+  assert.equal(C.excludedOf(args('nmap -sT -oX - 10.0.1.0/24')), '');
+  assert.equal(C.excludedOf(null), '');
+  // After the targets, in a command of the user's own.
+  const late = args('nmap -sT -oX - 10.0.1.0/24 --exclude 10.0.1.5 10.0.2.0/24 --exclude=10.0.2.9');
+  assert.equal(C.targetsOf(late), '10.0.1.0/24 10.0.2.0/24');
+  assert.equal(C.excludedOf(late), '10.0.1.5 10.0.2.9');
+});
+
 // ---- the library of options (scan workflow spec §5) ----
 
 const one = (adjust, extra, recipes) => C.command(recipes || ['services'], adjust, r, extra || {});

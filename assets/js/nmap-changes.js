@@ -63,8 +63,13 @@
     var m = /^(tcp|udp|sctp)\/(\d{1,5})$/.exec(String(protocol || ""));
     return m ? { proto: m[1], port: Number(m[2]) } : null;
   }
-  function covered(doc, host, targets) {
-    return ((doc.entities[host] || {}).addresses || []).some(function (a) { return Ad.covers(targets, a); });
+  // `excluded`: what nmap was told to leave out (C.excludedOf), by address
+  // or by a name the host keeps.
+  function covered(doc, host, targets, excluded) {
+    var e = doc.entities[host] || {};
+    var left = String(excluded || "").toLowerCase().split(/\s+/);
+    if ((e.names || []).some(function (n) { return left.indexOf(n) >= 0; })) return false;
+    return (e.addresses || []).some(function (a) { return Ad.covers(targets, a) && !Ad.covers(excluded, a); });
   }
 
   // Spec §2.3: the ports of the flows drawn through a firewall to a host
@@ -113,7 +118,7 @@
     // What a scan of filters sent (scan workflow spec §5.1), or null.
     var probe = R.passing(scan);
     var ackOnly = !!probe;
-    var targets = C.targetsOf(scan);
+    var targets = C.targetsOf(scan), excluded = C.excludedOf(scan);
     var date = scan.date || null;
     var firewallRan = C.recipesOf(args).indexOf("firewall") >= 0 || ackOnly;
     var routerAt = Object.create(null);
@@ -252,7 +257,7 @@
     var latest = null;
     Object.keys(doc.entities || {}).forEach(function (id) {
       var e = doc.entities[id];
-      if (e.kind !== "host" || !covered(doc, id, targets)) return;
+      if (e.kind !== "host" || !covered(doc, id, targets, excluded)) return;
       if (e.seen && (!latest || e.seen > latest)) latest = e.seen;
       if (matched[id] || id === appHost || e.missed || !date) return;
       item({ key: "missed:" + id, kind: "missed", host: id, line: name(doc, id) + " did not answer" + (e.seen ? " (seen " + e.seen + ")" : ""), action: "mark it as not seen since " + date });

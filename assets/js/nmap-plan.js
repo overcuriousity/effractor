@@ -154,13 +154,13 @@
     }
     // A known machine at addresses it was not drawn with: those it leaves
     // are the ones the scan looked at and did not find it at.
-    var targets = targetsOf(scan) || String(range == null ? "" : range);
+    var targets = targetsOf(scan) || String(range == null ? "" : range), excluded = C.excludedOf(scan);
     function movedOf(target, h) {
       var had = doc.entities[target].addresses || [];
       var hadKeys = had.map(addressKey), nowKeys = h.addresses.map(addressKey);
       var to = h.addresses.filter(function (a) { return hadKeys.indexOf(addressKey(a)) < 0; });
       if (!to.length) return null;
-      var from = had.filter(function (a) { return nowKeys.indexOf(addressKey(a)) < 0 && Ad.covers(targets, a); });
+      var from = had.filter(function (a) { return nowKeys.indexOf(addressKey(a)) < 0 && Ad.covers(targets, a) && !Ad.covers(excluded, a); });
       var others = [];
       to.forEach(function (a) {
         var o = byAddress[addressKey(a)];

@@ -465,10 +465,31 @@
 
   // What nmap says it scanned: the words after "-oX -" in its own args, or
   // "" when it does not say (a command of the user's own, trimmed XML).
+  // What it was told to leave out there is no target.
   function targetsOf(scan) {
     var args = String((scan && scan.args) || "");
     var at = args.indexOf(" -oX - ");
-    return at >= 0 ? args.slice(at + 7).trim() : "";
+    return at >= 0 ? excluding(args.slice(at + 7).trim().split(/\s+/)).rest.join(" ") : "";
+  }
+  // nmap's --exclude: "--exclude a,b", "--exclude=a,b", or with one dash
+  // as nmap takes any long option. --excludefile is a file, not read.
+  var EXCLUDE = /^--?exclude(?:=(.*))?$/;
+  function excluding(words) {
+    var out = { left: [], rest: [] };
+    for (var i = 0; i < words.length; i++) {
+      var m = EXCLUDE.exec(words[i]);
+      if (!m) {
+        if (words[i]) out.rest.push(words[i]);
+        continue;
+      }
+      var list = m[1] != null ? m[1] : words[++i] || "";
+      out.left = out.left.concat(list.split(",").filter(Boolean));
+    }
+    return out;
+  }
+  // What nmap was told to leave out, as words `covers` reads: "" if nothing.
+  function excludedOf(scan) {
+    return excluding(String((scan && scan.args) || "").split(/\s+/)).left.join(" ");
   }
 
   // ---- the stamp ----
@@ -515,7 +536,7 @@
     return "Last nmap import: " + stamp.date + ", scan" + (stamp.range ? " of " + stamp.range : "") + (names.length ? " · " + names.join(", ") : "") + ".";
   }
 
-  var api = { GROUPS: GROUPS, BLOCKS: BLOCKS, RECIPES: RECIPES, DEFAULTS: DEFAULTS, combine: combine, command: command, portsOf: portsOf, recipesOf: recipesOf, targetsOf: targetsOf, STAMP: STAMP, stampLine: stampLine, stampFor: stampFor };
+  var api = { GROUPS: GROUPS, BLOCKS: BLOCKS, RECIPES: RECIPES, DEFAULTS: DEFAULTS, combine: combine, command: command, portsOf: portsOf, recipesOf: recipesOf, targetsOf: targetsOf, excludedOf: excludedOf, STAMP: STAMP, stampLine: stampLine, stampFor: stampFor };
   if (node) module.exports = api;
   if (typeof window !== "undefined") window.effractorNmapCommand = api;
 })();

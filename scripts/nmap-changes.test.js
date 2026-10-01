@@ -234,6 +234,38 @@ test('a window, FIN, NULL or Xmas scan says what a filter passes, and draws no p
   assert.equal(N.passing({ types: ['ack', 'fin'] }), 'an ACK');
 });
 
+// A scan in nmap's shape of `addresses`, each with SSH open and its MAC
+// when given ({address: mac}).
+function scanOf(args, addresses, start, macs) {
+  return N.read('<?xml version="1.0"?><nmaprun scanner="nmap" args="' + args + '" start="' + start + '"><scaninfo type="connect" protocol="tcp" services="1-1000"/>' + addresses.map(a => '<host><status state="up"/><address addr="' + a + '" addrtype="ipv4"/>' + ((macs || {})[a] ? '<address addr="' + macs[a] + '" addrtype="mac"/>' : '') + '<ports><port protocol="tcp" portid="22"><state state="open"/><service name="ssh"/></port></ports></host>').join('') + '<runstats><finished exit="success"/></runstats></nmaprun>').scan;
+}
+
+test('a host the scan was told to leave out is not one that did not answer', () => {
+  const first = imported(N.addNmap(E.empty(), null, 'nmap', specOf).doc, scanOf('nmap -sT -oX - 10.0.0.0/24', ['10.0.0.1', '10.0.0.5', '10.0.0.6'], 1790000000));
+  const rescan = N.command(['services'], { exclude: 'typed' }, '10.0.0.0/24', { exclude: '10.0.0.5' }).text;
+  assert.equal(rescan, 'nmap --exclude 10.0.0.5 -sT -sV -oX - 10.0.0.0/24');
+  const p = N.plan(first, 'nmap', scanOf(rescan, ['10.0.0.1'], 1790100000), '', {});
+  assert.deepEqual(lines(p), ['“10.0.0.6” did not answer (seen 2026-09-21)']);
+  // So too written --exclude=…, after the targets, or as a range.
+  for (const args of ['nmap -sT -oX - 10.0.0.0/24 --exclude=10.0.0.5', 'nmap --exclude 10.0.0.4-5 -sT -oX - 10.0.0.0/24', 'nmap --exclude 10.0.0.5,10.0.0.6 -sT -oX - 10.0.0.0/24']) {
+    const q = N.plan(first, 'nmap', scanOf(args, ['10.0.0.1'], 1790100000), '', {});
+    assert.ok(!lines(q).some(l => l.startsWith('“10.0.0.5”')), args);
+  }
+  // Or by a name the host keeps.
+  const named = clone(first);
+  named.entities[hostBy(named, '10.0.0.6')].names = ['printer.lab'];
+  const byName = N.plan(named, 'nmap', scanOf('nmap --exclude 10.0.0.5,printer.lab -sT -oX - 10.0.0.0/24', ['10.0.0.1'], 1790100000), '', {});
+  assert.deepEqual(lines(byName), []);
+});
+
+test('an address left out of the scan is not one a moved host left', () => {
+  const macs = { '10.0.0.5': '52:54:00:00:00:05', '10.0.0.9': '52:54:00:00:00:05' };
+  const first = imported(N.addNmap(E.empty(), null, 'nmap', specOf).doc, scanOf('nmap -sT -oX - 10.0.0.0/24', ['10.0.0.5'], 1790000000, macs));
+  const row = args => N.plan(first, 'nmap', scanOf(args, ['10.0.0.9'], 1790100000, macs), '', {}).hosts[0];
+  assert.deepEqual(row('nmap -sT -oX - 10.0.0.0/24').moved.from, ['10.0.0.5']);
+  assert.deepEqual(row('nmap --exclude 10.0.0.5 -sT -oX - 10.0.0.0/24').moved, { from: [], to: ['10.0.0.9'], others: [] });
+});
+
 test('another way to a host is offered for nmap\'s flows to it', () => {
   const doc = walled();
   doc.flows['to-ssh'].route = [];
