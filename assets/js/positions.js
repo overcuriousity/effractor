@@ -6,6 +6,9 @@
 // two components side by side. Pure but for the storage handed in.
 (function () {
   var PREFIX = "effractor.positions:";
+  // A server document's: by its id, so two of one name are two documents.
+  // The point after "positions" is never the colon a name's key has.
+  var SERVER = "effractor.positions.server:";
   var SPREAD = 20; // px between links that share their two ends
 
   function has(o, k) {
@@ -203,38 +206,63 @@
   // Every call survives a storage that refuses (private windows, blocked
   // site data): the positions are a convenience, never a requirement. What
   // the storage refused stays for this page, so nothing snaps back.
+  // Where a document's places are kept: `doc` is its name, or {name, id}
+  // with the server document's id when the server keeps it.
+  function slot(doc) {
+    return doc && typeof doc === "object" ? (doc.id != null ? SERVER + doc.id : PREFIX + doc.name) : PREFIX + doc;
+  }
+  // A server document's places from before they went by id (or from while
+  // it was local) are found under its name until it has its own.
+  function legacy(doc) {
+    return doc && typeof doc === "object" && doc.id != null ? PREFIX + doc.name : null;
+  }
+
   function createStore(storage) {
     var unkept = Object.create(null);
-    function load(name) {
-      if (unkept[name]) return JSON.parse(JSON.stringify(unkept[name]));
+    function read(key) {
+      if (unkept[key]) return JSON.parse(JSON.stringify(unkept[key]));
       try {
-        var text = storage ? storage.getItem(PREFIX + name) : null;
-        var value = text ? JSON.parse(text) : null;
+        var text = storage ? storage.getItem(key) : null;
+        if (text === null || text === undefined) return null;
+        var value = JSON.parse(text);
         return value && typeof value === "object" && !Array.isArray(value) ? value : {};
       } catch (e) {
         return {};
       }
     }
+    function write(key, all) {
+      try {
+        if (!storage) throw new Error("no storage");
+        storage.setItem(key, JSON.stringify(all));
+        delete unkept[key];
+      } catch (e) {
+        unkept[key] = all;
+      }
+    }
+    function load(doc) {
+      var own = read(slot(doc));
+      if (own) return own;
+      var old = legacy(doc);
+      return (old && read(old)) || {};
+    }
     // Several at once, one write: {id: {x, y}}, or null to forget one.
-    function moveAll(name, places) {
-      var all = load(name);
+    function moveAll(doc, places) {
+      var all = load(doc);
       Object.keys(places).forEach(function (id) {
         var p = places[id];
         if (p) all[id] = { x: Math.round(p.x), y: Math.round(p.y) };
         else delete all[id];
       });
-      try {
-        if (!storage) throw new Error("no storage");
-        storage.setItem(PREFIX + name, JSON.stringify(all));
-        delete unkept[name];
-      } catch (e) {
-        unkept[name] = all;
-      }
+      write(slot(doc), all);
     }
-    function clear(name) {
-      delete unkept[name];
+    // A server document keeps an empty record, so its name's places are
+    // not found again.
+    function clear(doc) {
+      var key = slot(doc);
+      delete unkept[key];
+      if (legacy(doc)) return write(key, {});
       try {
-        if (storage) storage.removeItem(PREFIX + name);
+        if (storage) storage.removeItem(key);
       } catch (e) {
         /* nothing to clear */
       }
@@ -242,7 +270,7 @@
     return { load: load, moveAll: moveAll, clear: clear };
   }
 
-  var api = { place: place, route: route, attach: attach, along: along, outline: outline, createStore: createStore };
+  var api = { place: place, route: route, attach: attach, along: along, outline: outline, createStore: createStore, slot: slot };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorPositions = api;
 })();

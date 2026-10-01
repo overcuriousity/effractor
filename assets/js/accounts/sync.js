@@ -83,7 +83,7 @@
   });
 
   app.onText(core.text);
-  app.setServerHolds(core.holds);
+  app.setServerDocument(core.documentIn);
   core.init();
   A.session.onChange(function (user) {
     // Only a login in this page offers local work, not a page load.

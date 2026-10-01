@@ -177,6 +177,32 @@ test('cluster outlines can be switched off', () => {
   assert.equal(off.x0, 0, 'nothing drawn, nothing measured');
 });
 
+test('a server document keeps its positions by its id, a local one by its name', () => {
+  assert.equal(Pos.slot('Lab'), 'effractor.positions:Lab');
+  assert.equal(Pos.slot({ name: 'Lab', id: null }), 'effractor.positions:Lab');
+  assert.equal(Pos.slot({ name: 'Lab', id: 7 }), 'effractor.positions.server:7');
+  assert.notEqual(Pos.slot({ name: 'Lab', id: 7 }), Pos.slot({ name: 'Lab', id: 8 }), 'two of one name are two documents');
+  assert.notEqual(Pos.slot({ name: 'Lab', id: 7 }), Pos.slot('.server:7'), 'no name spells an id');
+});
+
+test('two server documents of one name keep their own places; one kept before by name still finds them', () => {
+  const data = new Map();
+  const storage = { getItem: (k) => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, v), removeItem: (k) => data.delete(k) };
+  const store = Pos.createStore(storage);
+  // Dragged while local (or before positions went by id).
+  store.moveAll('Lab', { 'entity/a': { x: 1, y: 2 } });
+  const seven = { name: 'Lab', id: 7 }, eight = { name: 'Lab', id: 8 };
+  assert.deepEqual(store.load(seven), { 'entity/a': { x: 1, y: 2 } }, 'what was kept by name is found');
+  store.moveAll(seven, { 'entity/b': { x: 3, y: 4 } });
+  assert.deepEqual(store.load(seven), { 'entity/a': { x: 1, y: 2 }, 'entity/b': { x: 3, y: 4 } });
+  store.moveAll(eight, { 'entity/a': { x: 9, y: 9 } });
+  assert.deepEqual(store.load(seven), { 'entity/a': { x: 1, y: 2 }, 'entity/b': { x: 3, y: 4 } }, 'the other one moved nothing here');
+  assert.deepEqual(store.load('Lab'), { 'entity/a': { x: 1, y: 2 } }, 'nor in the local one');
+  store.clear(seven);
+  assert.deepEqual(store.load(seven), {}, 'arranged anew, the name\'s places do not come back');
+  assert.deepEqual(store.load('Lab'), { 'entity/a': { x: 1, y: 2 } });
+});
+
 test('review: many positions are written, and forgotten, in one go', () => {
   const saved = [];
   const storage = { data: {}, getItem(k) { return this.data[k] || null; }, setItem(k, v) { saved.push(k); this.data[k] = v; }, removeItem(k) { delete this.data[k]; } };

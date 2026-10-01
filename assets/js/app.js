@@ -476,8 +476,12 @@
   }
 
   // An architecture's components stay where the author dragged them, in this
-  // browser, per document name; the rest is placed automatically.
+  // browser, per document: the server's by its id, a local one by its name;
+  // the rest is placed automatically.
   var positions = window.effractorPositions.createStore(browserStorage());
+  function placesOf() {
+    return { name: state.doc.name, id: serverDocument(state.doc.profile) };
+  }
   function browserStorage() {
     try {
       return window.localStorage || null;
@@ -486,7 +490,7 @@
     }
   }
   renderer.on("move", function (e) {
-    if (P.isArchitecture(state.doc)) positions.moveAll(state.doc.name, e.places);
+    if (P.isArchitecture(state.doc)) positions.moveAll(placesOf(), e.places);
   });
   renderer.on("pick", function (e) {
     pick(e.ids, e.add);
@@ -494,7 +498,7 @@
 
   // {id: {x, y}}, or null to forget one; one write.
   function putPositions(map) {
-    positions.moveAll(state.doc.name, map);
+    positions.moveAll(placesOf(), map);
   }
   // A canvas switch this browser remembers (`key` in localStorage, "hidden"
   // when off; on unless said), with its bottom-bar button `button`, if the
@@ -540,7 +544,7 @@
   var outlines = rememberedSwitch("effractor.outlines", "outlines", "Outlines of open clusters");
 
   function arrange() {
-    positions.clear(state.doc.name);
+    positions.clear(placesOf());
     paint();
     renderer.fit();
   }
@@ -567,7 +571,7 @@
       // the same name — just appears.
       var motion = painted && painted.document === state.laidDocument ? C.transitions(painted.hidden, state.hidden) : null;
       painted = { document: state.laidDocument, hidden: state.hidden };
-      var stored = positions.load(state.doc.name);
+      var stored = positions.load(placesOf());
       var kept = {};
       var keep = function (places) {
         Object.keys(places).forEach(function (id) {
@@ -593,7 +597,7 @@
       // A cluster that just opened pushes what it now covers out of its way,
       // and those places are kept.
       if (opened.length) keep(C.spread(Pos.place(state.laid, stored, { permits: false, outlines: true }), opened, SPREAD_GAP));
-      if (Object.keys(kept).length) positions.moveAll(state.doc.name, kept);
+      if (Object.keys(kept).length) positions.moveAll(placesOf(), kept);
       state.placed = Pos.place(state.laid, stored, options);
       return renderer.render(state.placed, {}, motion);
     }
@@ -1164,10 +1168,14 @@
     historyOf(into).push(before);
     return true;
   }
-  // A document the server keeps is in mode `profile` (accounts: sync.js
-  // answers). An undo never crosses from one such document into another
-  // text, nor from another text into it: the mode's history starts anew.
-  var serverHolds = function () { return false; };
+  // The id of the document the server keeps in mode `profile`, or null
+  // (accounts: sync.js answers). An undo never crosses from one such
+  // document into another text, nor from another text into it: the mode's
+  // history starts anew.
+  var serverDocument = function () { return null; };
+  function serverHolds(profile) {
+    return serverDocument(profile) != null;
+  }
   var GOES_BACK = " · Ctrl+Z goes back";
   function freshHistory(profile) {
     histories[profile] = window.effractorEdit.createHistory();
@@ -1640,7 +1648,7 @@
     handPlaced = places || null;
   };
   window.effractor.storedPositions = function () {
-    return positions.load(state.doc.name);
+    return positions.load(placesOf());
   };
   window.effractor.arrange = arrange;
   window.effractor.permits = function () {
@@ -1907,8 +1915,8 @@
 
   window.effractor.replaceDocument = replaceDocument;
   window.effractor.freshHistory = freshHistory;
-  window.effractor.setServerHolds = function (f) {
-    serverHolds = f;
+  window.effractor.setServerDocument = function (f) {
+    serverDocument = f;
   };
   window.effractor.markSourceDirty = markSourceDirty;
   // Architecture or attack graph (setView); `generate` asks for the graph

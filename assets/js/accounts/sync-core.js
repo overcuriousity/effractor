@@ -529,9 +529,9 @@
       },
       openId: function () { return current && recs[current] ? recs[current].id : null; },
       isOpen: isOpen,
-      // Whether mode p holds a server document (app.js: its undo history
-      // never crosses into another text).
-      holds: function (p) { return !!recs[p]; },
+      // The server document mode p holds, or null (app.js: its undo
+      // history never crosses into another text; its places go by the id).
+      documentIn: function (p) { return recs[p] ? recs[p].id : null; },
       // The documents with a save queue, for the tests.
       queued: function () { return Array.from(queues.keys()); },
     };

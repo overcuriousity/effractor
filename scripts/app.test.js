@@ -1164,7 +1164,7 @@ async function syncedPage(kept = 'original') {
     onState() {}, onSaved() {}, onLoggedOut() {},
   });
   app.onText(core.text);
-  app.setServerHolds(core.holds);
+  app.setServerDocument(core.documentIn);
   await core.login({ id: 1, name: 'alice' }, { fresh: false });
   return Object.assign(h, {
     core, docs,
@@ -1210,6 +1210,20 @@ test('review: source of another mode pasted over a server document there starts 
   h.app.markSourceDirty();
   assert.deepEqual(await h.app.adoptSource('arch pasted'), []);
   assert.equal(h.app.canUndo(), false);
+});
+
+test('an architecture the server keeps has its places by its id, a local one by its name', async () => {
+  const keys = [];
+  const h = racePage('arch', null, { positions: { createStore: () => ({ load: (k) => (keys.push(k), {}), moveAll: (k) => keys.push(k), clear() {} }), place: (laid) => laid } });
+  await h.app.ready; await h.settle();
+  keys.length = 0;
+  h.app.putPositions({ 'entity/web': { x: 1, y: 2 } });
+  assert.deepEqual(keys, [{ name: 'arch', id: null }]);
+  h.app.setServerDocument((p) => (p === 'architecture' ? 7 : null));
+  keys.length = 0;
+  h.app.putPositions({ 'entity/web': { x: 1, y: 2 } });
+  h.app.storedPositions();
+  assert.deepEqual(keys, [{ name: 'arch', id: 7 }, { name: 'arch', id: 7 }]);
 });
 
 test('local work replaced by a local file is still a Ctrl+Z away, and said so', async () => {
