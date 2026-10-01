@@ -78,6 +78,7 @@ function racePage(kept = 'original', legacy = null, opts = {}) {
   const handlers = {};
   const replaced = [];
   const slow = new Set();
+  const failing = new Set(); // texts whose parse fails as a crashed worker's would
   const generated = [];
   let holdLayout = false;
   let holdGenerate = false;
@@ -95,6 +96,7 @@ function racePage(kept = 'original', legacy = null, opts = {}) {
       const answer = text.startsWith('old')
         ? { diagnostics: [{ severity: 'error', code: 'expression', message: 'write Never instead of Infinity', path: 'a', line: 3 }, { severity: 'error', code: 'expression', message: 'write Immediate instead of Zero', path: 'b', line: 9 }] }
         : { ok: docOf(text), diagnostics: [] };
+      if (failing.has(text)) return Promise.reject(new Error('the worker crashed'));
       return slow.has(text) ? later('parse ' + text, answer) : Promise.resolve(answer);
     },
     async serialize(value) { return { ok: value.src || value.name }; },
@@ -157,7 +159,7 @@ function racePage(kept = 'original', legacy = null, opts = {}) {
   const settle = () => new Promise(setImmediate);
   return {
     kept: kept_, replaced, files, legacy: () => legacy, app: window.effractor, writes,
-    key(e) { keys.forEach(f => f(Object.assign({ key: '', target: element('div'), preventDefault() {} }, e))); }, renders, runs, slow, nodes, settle, docOf, generated, reveals, layouts,
+    key(e) { keys.forEach(f => f(Object.assign({ key: '', target: element('div'), preventDefault() {} }, e))); }, renders, runs, slow, failing, nodes, settle, docOf, generated, reveals, layouts,
     emit(name, e) { (handlers[name] || []).forEach(f => f(e)); },
     holdLayout(on) { holdLayout = on; },
     holdGenerate(on) { holdGenerate = on; },
@@ -832,6 +834,29 @@ test('undo pressed again while one is on its way is not lost from the history', 
   h.app.undo(); await h.settle(); await h.settle();
   h.app.undo(); await h.settle(); await h.settle();
   assert.equal(h.app.state.text, 'original');
+});
+
+test('an undo or redo that fails keeps its step in the history, and says why', async () => {
+  const h = racePage();
+  await h.app.ready;
+  await h.app.applyEdit({ doc: h.docOf('a') });
+  h.failing.add('original');
+  h.app.undo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'a');
+  assert.match(h.nodes.get('note').textContent, /not undone · the worker crashed/);
+  assert.equal(h.app.canRedo(), false, 'the text on the page is not a step ahead of itself');
+  h.failing.delete('original');
+  h.app.undo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'original', 'the step is still there');
+  h.failing.add('a');
+  h.app.redo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'original');
+  assert.match(h.nodes.get('note').textContent, /not redone/);
+  h.failing.delete('a');
+  h.app.redo(); await h.settle(); await h.settle();
+  assert.equal(h.app.state.text, 'a');
+  assert.equal(h.app.canUndo(), true);
+  assert.equal(h.app.canRedo(), false);
 });
 
 test('a tree selection is gone the moment an architecture is committed, before its layout', async () => {

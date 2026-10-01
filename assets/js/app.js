@@ -1186,16 +1186,22 @@
   var travelling = false;
   function timeTravel(direction) {
     if (travelling) return;
-    var text = undoStack[direction](state.text);
+    var stack = undoStack;
+    var text = stack[direction](state.text);
     if (text === null) return;
     travelling = true;
+    // The opposite step with the text that did not arrive restores both lists.
+    function putBack() {
+      stack[direction === "undo" ? "redo" : "undo"](text);
+    }
     adopt(text, state.selected, state.parent).then(function (applied) {
       travelling = false;
-      // The opposite step with the text that did not arrive restores both lists.
-      if (!applied) undoStack[direction === "undo" ? "redo" : "undo"](text);
+      if (!applied) putBack();
     }, function (e) {
       travelling = false;
+      putBack();
       console.error(e);
+      say((direction === "undo" ? "not undone · " : "not redone · ") + e.message);
     });
   }
 
