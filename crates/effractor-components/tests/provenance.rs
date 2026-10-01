@@ -1681,3 +1681,59 @@ fn a_scenario_may_keep_static_arp_tables_where_the_file_says_none() {
         ResolvedTtc::Known(Distribution::Infinity)
     );
 }
+
+/// The lecture with Ubuntu Linux on the server, the server's switches
+/// `defenses` and only the host times `times` given (a deferred minor).
+fn host_os(defenses: &str, times: &[&str]) -> Architecture {
+    let mut parameters = String::new();
+    for t in times {
+        parameters.push_str(&format!(
+            "      {t}:\n        status: illustrative\n        ttc: \"Exponential(mean 30)\"\n        note: exercise\n"
+        ));
+    }
+    edited(
+        LECTURE,
+        &[
+            (
+                "\nassociations:\n",
+                "  ubuntu:\n    kind: product\n    label: Ubuntu Linux\n    parameters:\n      find-exploit:\n        status: illustrative\n        ttc: \"Exponential(mean 20)\"\n        note: exercise\n      find-exploit-patched:\n        status: illustrative\n        ttc: \"Never\"\n        note: exercise\n    defenses: {patched: false}\n\nassociations:\n  server-os:\n    kind: instance-of\n    from: server\n    to: ubuntu\n",
+            ),
+            (
+                SERVER,
+                &format!(
+                    "  server:\n    kind: host\n    label: Server\n    defenses: {{{defenses}}}\n    parameters:\n{parameters}"
+                ),
+            ),
+        ],
+    )
+}
+
+#[test]
+fn a_host_step_is_drawn_from_the_one_replacement_time_that_applies() {
+    // ASLR on and only its time given: drawn, with that time.
+    let m = host_os("aslr: true", &["deploy-exploit-aslr"]);
+    let g = generate(&m).unwrap();
+    let r = resolve(&m, &g, None).unwrap();
+    assert_eq!(
+        r.ttc[index(&g, "action/host-deploy-exploit/server")],
+        ResolvedTtc::Known(Distribution::ExponentialMean(30.0))
+    );
+    // DEP on and only its time given: drawn too.
+    let m = host_os("dep: true", &["deploy-exploit-dep"]);
+    let g = generate(&m).unwrap();
+    let r = resolve(&m, &g, None).unwrap();
+    assert_eq!(
+        r.ttc[index(&g, "action/host-deploy-exploit/server")],
+        ResolvedTtc::Known(Distribution::ExponentialMean(30.0))
+    );
+    // A replacement time whose switch is never said, or said off with no
+    // scenario turning it on, cannot apply: not drawn.
+    for defenses in ["hardened: false", "aslr: false"] {
+        let m = host_os(defenses, &["deploy-exploit-aslr"]);
+        let s = shape(&generate(&m).unwrap());
+        assert!(
+            !s.contains_key("action/host-deploy-exploit/server"),
+            "{defenses}"
+        );
+    }
+}

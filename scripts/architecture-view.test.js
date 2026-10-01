@@ -593,3 +593,15 @@ test('ARP poisoning and static ARP tables are offered only where a plain flow ca
   delete doc.entities.lan.parameters;
   assert.deepEqual(poison(), []);
 });
+
+test("a host's plain exploit time says when it is used once a replacement time draws the step", () => {
+  const doc = lecture();
+  doc.entities.os = { kind: 'product', label: 'OS' };
+  doc.associations['srv-os'] = { kind: 'instance-of', from: 'srv', to: 'os' };
+  doc.entities.srv.defenses = { aslr: true };
+  doc.entities.srv.parameters = { 'deploy-exploit-aslr': { status: 'unknown' } };
+  const note = () => V.slotRows(doc, REAL, 'srv').filter((r) => r.absent && r.slot === 'deploy-exploit').map((r) => r.note);
+  assert.deepEqual(note(), ['used while ASLR and DEP are off · unknown until given']);
+  delete doc.entities.srv.parameters;
+  assert.deepEqual(note(), ['not drawn until a time is given']);
+});

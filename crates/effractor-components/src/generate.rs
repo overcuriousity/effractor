@@ -373,19 +373,6 @@ impl<'a> Builder<'a> {
             })
     }
 
-    /// Whether a host's firewall is said: in the file or by a scenario.
-    fn host_firewall_said(&self, host: &EntityId) -> bool {
-        self.m.entities[host]
-            .defenses
-            .get(Defense::HostFirewall)
-            .is_some()
-            || self.m.scenarios.values().any(|s| {
-                s.changes.iter().any(|c| {
-                    matches!(c, Change::EntityDefense { entity, defense: Defense::HostFirewall, .. } if entity == host)
-                })
-            })
-    }
-
     fn kind(&self, id: &EntityId) -> EntityKind {
         self.m.entities[id].kind
     }
@@ -801,7 +788,7 @@ impl<'a> Builder<'a> {
             // host firewall is said, in the file or a scenario, or it permits.
             if let Some(&(host, _, _)) = self.host_of.get(&flow.target)
                 && self.kind(host) == EntityKind::Host
-                && (self.host_firewall_said(host) || self.permit.contains_key(&(host, fid)))
+                && (self.defense_said(host, Defense::HostFirewall) || self.permit.contains_key(&(host, fid)))
                 // Said on or unsaid in the file with no permission: the flow
                 // is unfinished (validator), its connection unknown, as at a
                 // router's firewall — not denied.
@@ -884,13 +871,25 @@ impl<'a> Builder<'a> {
         }
     }
 
-    /// Whether a host's static ARP tables are said: in the file or by a
-    /// scenario.
-    fn static_arp_said(&self, host: &EntityId) -> bool {
-        self.m.entities[host].defenses.get(Defense::StaticArp).is_some()
+    /// Whether a switch of `entity` is on or unknown somewhere: in the file
+    /// or in a scenario.
+    fn may_be_on(&self, entity: &EntityId, defense: Defense) -> bool {
+        matches!(
+            self.m.entities[entity].defenses.get(defense),
+            Some(Switch::On | Switch::Unknown)
+        ) || self.m.scenarios.values().any(|s| {
+            s.changes.iter().any(|c| {
+                matches!(c, Change::EntityDefense { entity: e, defense: d, value } if e == entity && *d == defense && *value != Switch::Off)
+            })
+        })
+    }
+
+    /// Whether a switch of `entity` is said: in the file or by a scenario.
+    fn defense_said(&self, entity: &EntityId, defense: Defense) -> bool {
+        self.m.entities[entity].defenses.get(defense).is_some()
             || self.m.scenarios.values().any(|s| {
                 s.changes.iter().any(|c| {
-                    matches!(c, Change::EntityDefense { entity, defense: Defense::StaticArp, .. } if entity == host)
+                    matches!(c, Change::EntityDefense { entity: e, defense: d, .. } if e == entity && *d == defense)
                 })
             })
     }
@@ -991,7 +990,9 @@ impl<'a> Builder<'a> {
                 .collect();
             if ends.len() == 2
                 && ends.iter().all(|h| self.kind(h) == EntityKind::Host)
-                && ends.iter().any(|h| self.static_arp_said(h))
+                && ends
+                    .iter()
+                    .any(|h| self.defense_said(h, Defense::StaticArp))
             {
                 let exposed = format!("state/flow/{fid}/exposed");
                 self.fact(exposed.clone(), format!("{} · exposed", flow.label));
@@ -1666,7 +1667,19 @@ impl<'a> Builder<'a> {
                 ..origin("product-reachable")
             };
             self.produce(&reachable, &product_reachable, r);
-            if !self.has_slot(eid, Slot::DeployExploit) {
+            // Drawn where a time that can apply is given: the plain one, or
+            // on a host the replacement of a switch it says (file or scenario).
+            let applies = self.has_slot(eid, Slot::DeployExploit)
+                || (entity.kind == EntityKind::Host
+                    && [
+                        (Slot::DeployExploitAslr, Defense::Aslr),
+                        (Slot::DeployExploitDep, Defense::Dep),
+                    ]
+                    .into_iter()
+                    .any(|(slot, defense)| {
+                        entity.parameters.contains_key(&slot) && self.may_be_on(eid, defense)
+                    }));
+            if !applies {
                 continue;
             }
             let host = (entity.kind == EntityKind::Host).then_some(eid);

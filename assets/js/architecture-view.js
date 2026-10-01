@@ -94,6 +94,11 @@
       return switchedOn(doc, id, "hardened") && has(doc.entities[id].parameters || {}, "escalate") ? "used while hardened · unknown until given" : null;
     }
     if (slot === "deploy-exploit" && !hasProduct(doc, id)) return null;
+    // A host whose step a replacement time already draws: the plain time is
+    // what it reads while neither switch is on.
+    if (slot === "deploy-exploit" && doc.entities[id].kind === "host" && Object.keys(REPLACED).some(function (r) {
+      return has(doc.entities[id].parameters || {}, r) && mayBeOn(doc, id, REPLACED[r][0]);
+    })) return "used while ASLR and DEP are off · unknown until given";
     if (slot === "poison" && !plainFlows(doc).some(function (f) { return f.route.indexOf(id) >= 0; })) return null;
     return "not drawn until a time is given";
   }
@@ -136,6 +141,16 @@
       return a.kind === "hosts" && a.to === id;
     });
     return k ? doc.associations[k].from : null;
+  }
+  // Whether a switch of `id` is on or unknown: in the file, or in a scenario.
+  function mayBeOn(doc, id, defense) {
+    var d = doc.entities[id].defenses;
+    if (!!d && has(d, defense) && d[defense] !== false) return true;
+    return Object.keys(doc.scenarios || {}).some(function (k) {
+      return (doc.scenarios[k].changes || []).some(function (c) {
+        return c.entity === id && c.defense === defense && c.value !== false;
+      });
+    });
   }
   // Whether a switch of `id` is not off: in the file, or turned on by a
   // scenario.
