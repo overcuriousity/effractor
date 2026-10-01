@@ -107,7 +107,15 @@
     document.querySelector('[data-file="new"]').click();
   }
 
+  // A text that does not read, or a worker that fails, is said, not lost.
   function rename(id, name) {
+    return renameIn(id, name).catch(function (e) {
+      console.error(e);
+      app.say("not renamed · " + e.message);
+    });
+  }
+
+  function renameIn(id, name) {
     // Open in another mode: renamed there, where its text is.
     if (core.modeOf(id) && !core.isOpen(id)) {
       return open(id).then(function (ok) {

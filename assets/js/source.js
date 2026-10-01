@@ -165,6 +165,9 @@
       timer = null;
       app.adoptSource(area.value).then(function (list) {
         if (list) problems(list); // null: more typing overtook this text
+      }, function (e) {
+        console.error(e);
+        app.say("the source was not read: " + e.message);
       });
     }, PAUSE_MS);
   });

@@ -49,6 +49,9 @@
       if (!applied) return;
       if (edit.notice) app.say(edit.notice);
       app.setScenario(edit.scenario === undefined ? app.state.scenario : edit.scenario);
+    }, function (e) {
+      console.error(e);
+      app.say("the edit failed: " + e.message);
     });
   }
 
