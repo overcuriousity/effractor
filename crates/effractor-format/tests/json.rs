@@ -2,7 +2,7 @@
 //! tree, not of the `Model`, so an `x-` key rides along without anyone having
 //! to know it is there.
 
-use effractor_format::{canonicalize, document, from_document};
+use effractor_format::{canonicalize, document, from_document, from_json};
 use serde_json::{Value, json};
 
 const OFFICE: &str = include_str!("fixtures/canonical/office.yaml");
@@ -142,6 +142,44 @@ fn a_number_written_another_way_is_still_a_number_in_the_image() {
     assert_eq!(from_document(&d).unwrap(), WEBSERVER);
 }
 
+/// As a text, JSON may say a key twice; a `Value` would keep the last.
+#[test]
+fn a_key_said_twice_in_json_text_is_reported_as_in_yaml() {
+    let d = doc(WEBSERVER);
+    let text = d.to_string();
+    assert_eq!(from_json(&text), from_document(&d));
+    assert_eq!(from_json(&text).unwrap(), WEBSERVER);
+    let twice = text
+        .replacen(r#""malware":{"#, r#""malware":{"label":"Again","#, 1)
+        .replacen(
+            r#""nodes":{"#,
+            r#""nodes":{"hardware":{"label":"H","leaf":"basic"},"#,
+            1,
+        );
+    let got: Vec<_> = from_json(&twice)
+        .unwrap_err()
+        .into_iter()
+        .map(|d| (d.code.as_str(), d.path, d.pos))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            ("duplicate-key", "nodes.hardware".to_owned(), None),
+            ("duplicate-key", "nodes.malware.label".to_owned(), None),
+        ]
+    );
+    // What is not JSON, and what the format cannot hold, as before.
+    let syntax = from_json("{not json").unwrap_err();
+    assert_eq!((syntax.len(), syntax[0].code.as_str()), (1, "syntax"));
+    assert!(syntax[0].message.starts_with("not JSON: "), "{syntax:?}");
+    assert!(from_json(&format!("{text} []")).is_err());
+    assert_eq!(from_json("[1, 2]"), from_document(&json!([1, 2])));
+    assert_eq!(from_json("null"), from_document(&json!(null)));
+    let mut numbers = d.clone();
+    numbers["x-numbers"] = json!([0, -0.0, -7, 1.5, 1e300, u64::MAX, i64::MIN, "1", true, null]);
+    assert_eq!(from_json(&numbers.to_string()), from_document(&numbers));
+}
+
 #[test]
 fn an_invalid_text_has_no_image() {
     let (d, diagnostics) = document("effractor: 1\nprofile: fault-tree\n");
@@ -176,6 +214,7 @@ fn json_and_text_share_one_key_limit() {
     ] {
         let mut d = doc(WEBSERVER);
         d["analysis"][&key] = json!(1);
+        assert_eq!(from_json(&d.to_string()), from_document(&d), "{key:?}");
         match from_document(&d) {
             Ok(text) => {
                 assert!(fits, "{key:?} was taken");
@@ -202,6 +241,7 @@ fn json_and_text_share_one_depth_limit() {
         let mut d = doc(WEBSERVER);
         // The document is one map; `x-deep` adds `lists` more.
         d["x-deep"] = deep;
+        assert_eq!(from_json(&d.to_string()), from_document(&d), "{lists}");
         match from_document(&d) {
             Ok(text) => {
                 assert!(fits, "{lists} lists were taken");

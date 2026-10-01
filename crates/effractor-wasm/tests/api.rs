@@ -54,6 +54,13 @@ fn serialize_refuses_what_it_cannot_read() {
     assert!(out["diagnostics"][0]["line"].is_null());
     let out = call(api::serialize(r#"{"effractor": 1}"#));
     assert_eq!(out["diagnostics"][0]["code"], "missing-key");
+    // A key said twice is not quietly the last of them.
+    let parsed = call(api::parse(WEBSERVER))["ok"].to_string();
+    let twice = parsed.replacen(r#""name":"#, r#""name":"Twice","name":"#, 1);
+    let out = call(api::serialize(&twice));
+    assert!(out.get("ok").is_none(), "{out}");
+    assert_eq!(out["diagnostics"][0]["code"], "duplicate-key");
+    assert_eq!(out["diagnostics"][0]["path"], "name");
 }
 
 #[test]

@@ -182,7 +182,18 @@ pub fn document(text: &str) -> (Option<serde_json::Value>, Vec<Diagnostic>) {
 /// would be, so whatever an edit broke comes back as diagnostics — with paths,
 /// and without positions, since there is no text for them to be in.
 pub fn from_document(document: &serde_json::Value) -> Result<String, Vec<Diagnostic>> {
-    let root = json::tree(document).map_err(|d| vec![d])?;
+    from_tree(json::tree(document).map_err(|d| vec![d])?)
+}
+
+/// [`from_document`] of the document's JSON text, which may say a key twice:
+/// that is a `duplicate-key`, as in a YAML text, where a parsed
+/// `serde_json::Value` would have kept the last without a word. Text that is
+/// not JSON is a `syntax` error.
+pub fn from_json(text: &str) -> Result<String, Vec<Diagnostic>> {
+    from_tree(json::read(text).map_err(|d| vec![d])?)
+}
+
+fn from_tree(root: tree::Node) -> Result<String, Vec<Diagnostic>> {
     match read_tree(root, false) {
         (Some(r), _) => Ok(write::write_document(
             &r.lowered.document,

@@ -67,14 +67,7 @@ pub fn parse(text: &str) -> String {
 
 /// The canonical text of a document's JSON.
 pub fn serialize(document: &str) -> String {
-    let document: Value = match serde_json::from_str(document) {
-        Ok(v) => v,
-        Err(e) => {
-            let d = Diagnostic::error(effractor_core::Code::Syntax, "", format!("not JSON: {e}"));
-            return answer(None, &[d]);
-        }
-    };
-    match effractor_format::from_document(&document) {
+    match effractor_format::from_json(document) {
         Ok(text) => answer(Some(Value::String(text)), &[]),
         Err(diagnostics) => answer(None, &diagnostics),
     }

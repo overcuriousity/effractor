@@ -854,6 +854,7 @@ dependencies = [
  "indexmap 2.14.2",
  "proptest",
  "saphyr-parser",
+ "serde",
  "serde_json",
 ]
 
