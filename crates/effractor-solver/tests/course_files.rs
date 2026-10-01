@@ -279,7 +279,11 @@ fn the_course_file_draws_the_extract() {
     );
     // The SSH flow is encrypted (spec §8): ARP cache poisoning on its way
     // would take nothing off it.
-    let ssh = model.flows.values().find(|f| f.label.starts_with("SSH")).unwrap();
+    let ssh = model
+        .flows
+        .values()
+        .find(|f| f.label.starts_with("SSH"))
+        .unwrap();
     assert!(ssh.encrypted, "the SSH flow is encrypted");
     for product in ["ubuntu", "windows-7", "putty"] {
         assert!(
