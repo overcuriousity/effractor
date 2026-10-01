@@ -536,19 +536,34 @@ fn mfa_resolves_as_a_policy_on_its_switch() {
     );
 }
 
+/// No switch value changes the graph. An optional switch the file leaves out
+/// is not said at all — saying it (anti-malware) may draw what it guards —
+/// so its three values are compared with each other.
+fn assert_switch_values_keep_the_graph(model: &Architecture) {
+    let set = |optional: bool, value: Switch| {
+        let mut m = model.clone();
+        for e in m.entities.values_mut() {
+            let kind = e.kind;
+            for &defense in kind.defenses() {
+                if defense.optional(kind) == optional {
+                    e.defenses.set(defense, Some(value));
+                }
+            }
+        }
+        shape(&generate(&m).unwrap())
+    };
+    let baseline = shape(&generate(model).unwrap());
+    let said = set(true, Switch::Off);
+    for value in [Switch::On, Switch::Off, Switch::Unknown] {
+        assert_eq!(set(false, value), baseline, "{value:?}");
+        assert_eq!(set(true, value), said, "optional {value:?}");
+    }
+}
+
 #[test]
 fn switches_never_change_the_graph() {
     let model = architecture(LECTURE);
-    let baseline = shape(&generate(&model).unwrap());
-    for value in [Switch::On, Switch::Off, Switch::Unknown] {
-        let mut m = model.clone();
-        for e in m.entities.values_mut() {
-            for &defense in e.kind.defenses() {
-                e.defenses.set(defense, Some(value));
-            }
-        }
-        assert_eq!(shape(&generate(&m).unwrap()), baseline, "{value:?}");
-    }
+    assert_switch_values_keep_the_graph(&model);
 }
 
 #[test]
@@ -573,16 +588,8 @@ fn operator_switches_never_change_the_graph() {
             },
         );
     }
+    assert_switch_values_keep_the_graph(&model);
     let baseline = shape(&generate(&model).unwrap());
-    for value in [Switch::On, Switch::Off, Switch::Unknown] {
-        let mut m = model.clone();
-        for e in m.entities.values_mut() {
-            for &defense in e.kind.defenses() {
-                e.defenses.set(defense, Some(value));
-            }
-        }
-        assert_eq!(shape(&generate(&m).unwrap()), baseline, "{value:?}");
-    }
     assert!(baseline.contains_key("action/phish/ada"));
     assert!(baseline.contains_key("action/take-over/ssh-client"));
 }
@@ -931,5 +938,210 @@ fn an_unknown_dep_is_named_first_and_the_host_step_reads_aslr_too() {
     assert_eq!(
         r.ttc[h],
         ResolvedTtc::Known(Distribution::ExponentialMean(30.0))
+    );
+}
+
+/// The lecture with an IDS a machine watches with (extract Fig. 5.18): its
+/// switch said `enabled`, its bypass time Exponential(mean `bypass`).
+fn with_ids(machine: &str, enabled: &str, bypass: &str) -> Architecture {
+    let text = LECTURE
+        .replacen(
+            "\nassociations:\n",
+            &format!("  sensor:\n    kind: ids\n    label: IDS\n    parameters:\n      bypass:\n        status: illustrative\n        ttc: \"Exponential(mean {bypass})\"\n        note: exercise\n    defenses: {{enabled: {enabled}}}\n\nassociations:\n  sensor-watch:\n    kind: watches\n    from: {machine}\n    to: sensor\n"),
+            1,
+        );
+    architecture(&text)
+}
+
+fn strings(v: &[&str]) -> Vec<String> {
+    v.iter().map(|s| s.to_string()).collect()
+}
+
+#[test]
+fn an_ids_on_the_route_is_got_past_before_the_exploit_is_used_fig_5_18() {
+    let g = generate(&with_ids("bridge", "true", "2")).unwrap();
+    let s = shape(&g);
+    assert_eq!(
+        s["action/service-deploy-exploit/sshd"],
+        strings(&[
+            "state/product/openssh/exploit-ready",
+            "state/service/sshd/unseen"
+        ])
+    );
+    assert_eq!(
+        s["state/service/sshd/unseen"],
+        strings(&["action/watched-flow/ssh"])
+    );
+    assert_eq!(
+        s["action/watched-flow/ssh"],
+        strings(&["state/flow/ssh/connected", "state/ids/sensor/passed"])
+    );
+    assert_eq!(
+        s["state/ids/sensor/passed"],
+        strings(&["action/sensor-bypass/sensor", "input/sensor-off/sensor"])
+    );
+    assert_eq!(
+        s["action/sensor-bypass/sensor"],
+        strings(&["state/ids/sensor/reached"])
+    );
+    assert_eq!(
+        s["state/ids/sensor/reached"],
+        strings(&["state/flow/ssh/connected"])
+    );
+    // A login over the same flow is not watched for.
+    assert_eq!(
+        s["action/service-login/server-account/sshd"],
+        strings(&[
+            "state/account/server-account/authenticated",
+            "state/service/sshd/reachable"
+        ])
+    );
+    let step = &g.nodes[index(&g, "action/watched-flow/ssh")];
+    let o = &step.origins[0];
+    assert_eq!(o.rule, "watched-flow");
+    assert!(o.associations.iter().any(|a| a.as_str() == "sensor-watch"));
+    assert!(o.entities.iter().any(|e| e.as_str() == "bridge"));
+    let reached = &g.nodes[index(&g, "state/ids/sensor/reached")].origins[0];
+    assert_eq!(reached.rule, "sensor-reached");
+    assert_eq!(reached.flows[0].as_str(), "ssh");
+}
+
+#[test]
+fn a_sensor_off_the_route_guards_nothing() {
+    // The workstation is the flow's source, not its end: its sensor
+    // watches nothing the exploit on sshd crosses.
+    let lecture = shape(&generate(&architecture(LECTURE)).unwrap());
+    let s = shape(&generate(&with_ids("workstation", "true", "2")).unwrap());
+    assert_eq!(
+        s["action/service-deploy-exploit/sshd"],
+        lecture["action/service-deploy-exploit/sshd"]
+    );
+    assert!(!s.contains_key("state/service/sshd/unseen"));
+    for (id, inputs) in &lecture {
+        assert_eq!(&s[id], inputs, "{id}");
+    }
+}
+
+#[test]
+fn a_sensor_on_the_server_guards_its_service() {
+    let s = shape(&generate(&with_ids("server", "true", "2")).unwrap());
+    assert_eq!(
+        s["action/service-deploy-exploit/sshd"],
+        strings(&[
+            "state/ids/sensor/passed",
+            "state/product/openssh/exploit-ready",
+            "state/service/sshd/reachable"
+        ])
+    );
+    assert_eq!(
+        s["state/ids/sensor/reached"],
+        strings(&["state/host/server/reachable"])
+    );
+    assert_eq!(
+        s["state/host/server/reachable"],
+        strings(&["state/service/sshd/reachable"])
+    );
+}
+
+#[test]
+fn a_sensor_resolves_on_its_switch() {
+    let ttc = |enabled: &str| {
+        let m = with_ids("bridge", enabled, "2");
+        let g = generate(&m).unwrap();
+        let r = resolve(&m, &g, None).unwrap();
+        r.ttc[index(&g, "input/sensor-off/sensor")].clone()
+    };
+    assert_eq!(ttc("false"), ResolvedTtc::Known(Distribution::Zero));
+    assert_eq!(ttc("true"), ResolvedTtc::Known(Distribution::Infinity));
+    assert_eq!(
+        ttc("unknown"),
+        ResolvedTtc::Unknown(vec!["entities.sensor.defenses.enabled".to_owned()])
+    );
+}
+
+/// The lecture with Ubuntu Linux on the server and its anti-malware said.
+fn with_antimalware(switch: &str, bypass: &str) -> Architecture {
+    let deploy = format!("{DEPLOY_UNKNOWN}{bypass}");
+    let m = with_os(&deploy);
+    let text = effractor_format::save_document(&Document::Architecture(m)).replacen(
+        "  server:\n    kind: host\n    label: Server\n",
+        &format!("  server:\n    kind: host\n    label: Server\n    defenses: {{anti-malware: {switch}}}\n"),
+        1,
+    );
+    architecture(&text)
+}
+
+const BYPASS_AM: &str = "      bypass-antimalware:\n        status: illustrative\n        ttc: \"Exponential(mean 4)\"\n        note: exercise\n";
+
+#[test]
+fn anti_malware_on_the_server_guards_sshd_and_the_os() {
+    let m = with_antimalware("true", BYPASS_AM);
+    let s = shape(&generate(&m).unwrap());
+    for step in [
+        "action/service-deploy-exploit/sshd",
+        "action/host-deploy-exploit/server",
+    ] {
+        assert!(
+            s[step].contains(&"state/host/server/malware-cleared".to_owned()),
+            "{step}: {:?}",
+            s[step]
+        );
+    }
+    assert_eq!(
+        s["state/host/server/malware-cleared"],
+        strings(&[
+            "action/antimalware-bypass/server",
+            "input/antimalware-off/server"
+        ])
+    );
+    assert_eq!(
+        s["action/antimalware-bypass/server"],
+        strings(&["state/host/server/reachable"])
+    );
+}
+
+#[test]
+fn an_unknown_switch_with_nothing_to_guard_costs_nothing() {
+    let text = LECTURE.replacen(
+        "  workstation:\n    kind: host\n    label: Workstation\n",
+        "  workstation:\n    kind: host\n    label: Workstation\n    defenses: {anti-malware: unknown}\n",
+        1,
+    );
+    let lecture = shape(&generate(&architecture(LECTURE)).unwrap());
+    assert_eq!(shape(&generate(&architecture(&text)).unwrap()), lecture);
+}
+
+#[test]
+fn anti_malware_on_without_a_time_withholds_and_names_the_slot() {
+    let m = with_antimalware("true", "");
+    let g = generate(&m).unwrap();
+    let r = resolve(&m, &g, None).unwrap();
+    assert_eq!(
+        r.ttc[index(&g, "action/antimalware-bypass/server")],
+        ResolvedTtc::Unknown(vec![
+            "entities.server.parameters.bypass-antimalware".to_owned()
+        ])
+    );
+}
+
+#[test]
+fn a_scenario_turning_anti_malware_on_guards_a_host_that_never_said_it() {
+    let m = with_os(&format!("{DEPLOY_UNKNOWN}{BYPASS_AM}"));
+    let text = effractor_format::save_document(&Document::Architecture(m)).replacen(
+        "\nanalysis:\n",
+        "  am:\n    label: Anti-malware on the server\n    changes:\n      - {entity: server, defense: anti-malware, value: true}\n\nanalysis:\n",
+        1,
+    );
+    let m = architecture(&text);
+    let g = generate(&m).unwrap();
+    let off = index(&g, "input/antimalware-off/server");
+    assert_eq!(
+        resolve(&m, &g, None).unwrap().ttc[off],
+        ResolvedTtc::Known(Distribution::Zero),
+        "absent is off"
+    );
+    assert_eq!(
+        resolve(&m, &g, Some(&id("am"))).unwrap().ttc[off],
+        ResolvedTtc::Known(Distribution::Infinity)
     );
 }

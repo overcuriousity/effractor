@@ -72,6 +72,7 @@ fn generate_within(
     b.permissions();
     b.flows();
     b.operators();
+    b.guards();
     b.products();
     b.services();
     b.instances();
@@ -100,6 +101,9 @@ struct Draft {
     inputs: BTreeSet<String>,
     origins: Vec<Origin>,
 }
+
+/// A sensor on a flow's route: (router, sensor, watches association).
+type Watch<'a> = (&'a EntityId, &'a EntityId, &'a AssociationId);
 
 /// A grant on a machine, named directly or through its access control.
 #[derive(Clone, Copy)]
@@ -152,6 +156,13 @@ struct Builder<'a> {
     holdings: HashMap<(&'a EntityId, &'a EntityId), (bool, &'a AssociationId)>,
     /// account → [(service, authorizes association)], in document order
     authorized: HashMap<&'a EntityId, Vec<(&'a EntityId, &'a AssociationId)>>,
+    /// machine → [(sensor, watches association)], in document order
+    sensors_on: HashMap<&'a EntityId, Vec<(&'a EntityId, &'a AssociationId)>>,
+    /// host → the facts an exploit used there or on its services needs
+    /// first: each of its sensors got past, its anti-malware got past
+    host_guards: HashMap<&'a EntityId, Vec<String>>,
+    /// Services some watched flow reaches: their exploit reads `unseen`.
+    unseen: BTreeSet<&'a EntityId>,
 }
 
 impl<'a> Builder<'a> {
@@ -175,6 +186,9 @@ impl<'a> Builder<'a> {
             readers: BTreeSet::new(),
             holdings: HashMap::new(),
             authorized: HashMap::new(),
+            sensors_on: HashMap::new(),
+            host_guards: HashMap::new(),
+            unseen: BTreeSet::new(),
         };
         for (fid, flow) in &m.flows {
             b.flows_from.entry(&flow.source).or_default().push(fid);
@@ -213,6 +227,9 @@ impl<'a> Builder<'a> {
                 }
                 Relation::Authorizes { from, to } => {
                     b.authorized.entry(from).or_default().push((to, id));
+                }
+                Relation::Watches { from, to } => {
+                    b.sensors_on.entry(from).or_default().push((to, id));
                 }
                 Relation::Filters { from, to } => {
                     b.router_of.insert(to, (from, id));
@@ -299,6 +316,55 @@ impl<'a> Builder<'a> {
                 ],
             ),
         }
+    }
+
+    /// `host.reachable` from each service the host runs (rule
+    /// `host-reachable`); false, and no fact, for a host that runs none.
+    fn host_reachable(&mut self, host: &'a EntityId) -> bool {
+        let served: Vec<(&'a EntityId, &'a AssociationId)> = self
+            .m
+            .associations
+            .iter()
+            .filter_map(|(aid, a)| match &a.relation {
+                Relation::Hosts { from, to, .. }
+                    if from == host && self.kind(to) == EntityKind::Service =>
+                {
+                    Some((to, aid))
+                }
+                _ => None,
+            })
+            .collect();
+        if served.is_empty() {
+            return false;
+        }
+        let reachable = self.state_id(host, "reachable");
+        self.fact(
+            reachable.clone(),
+            format!("Reachable · {}", self.label(host)),
+        );
+        for (sid, hosts) in served {
+            let o = Origin {
+                entities: vec![sid.clone(), host.clone()],
+                associations: vec![hosts.clone()],
+                ..origin("host-reachable")
+            };
+            let service_reachable = self.state_id(sid, "reachable");
+            self.produce(&service_reachable, &reachable, o);
+        }
+        true
+    }
+
+    /// Whether a host's anti-malware is said: in the file (the switch or its
+    /// time) or by a scenario. Absent everywhere, it is off and not drawn.
+    fn antimalware_said(&self, host: &EntityId) -> bool {
+        let e = &self.m.entities[host];
+        e.defenses.get(Defense::AntiMalware).is_some()
+            || e.parameters.contains_key(&Slot::BypassAntimalware)
+            || self.m.scenarios.values().any(|s| {
+                s.changes.iter().any(|c| {
+                    matches!(c, Change::EntityDefense { entity, defense: Defense::AntiMalware, .. } if entity == host)
+                })
+            })
     }
 
     fn kind(&self, id: &EntityId) -> EntityKind {
@@ -840,6 +906,223 @@ impl<'a> Builder<'a> {
         }
     }
 
+    /// What an exploit gets past first (extract Fig. 5.18, 5.36): the IDS or
+    /// IPS a router on its route or its host watches with, and its host's
+    /// anti-malware. Each is one step however many exploits it guards, beside
+    /// a policy input that lets the exploit through while the guard is off —
+    /// so every scenario shares the graph. Nothing guarded, nothing drawn.
+    fn guards(&mut self) {
+        let mut passed_of: HashMap<&'a EntityId, String> = HashMap::new();
+        let mut machines: Vec<&'a EntityId> = self.sensors_on.keys().copied().collect();
+        machines.sort();
+        for machine in machines {
+            let watched = self.sensors_on[machine].clone();
+            // What reaches a sensor on this machine: on a router the flows
+            // routed through it, on a host the host itself.
+            let reach: Vec<(String, Option<&'a FlowId>)> =
+                if self.kind(machine) == EntityKind::Router {
+                    self.m
+                        .flows
+                        .iter()
+                        .filter(|(_, f)| f.route.iter().skip(1).step_by(2).any(|r| r == machine))
+                        .map(|(fid, _)| (format!("state/flow/{fid}/connected"), Some(fid)))
+                        .collect()
+                } else if self.host_reachable(machine) {
+                    vec![(self.state_id(machine, "reachable"), None)]
+                } else {
+                    Vec::new()
+                };
+            if reach.is_empty() {
+                continue;
+            }
+            for (sensor, watches) in watched {
+                let passed = self.sensor(sensor);
+                let reached = self.state_id(sensor, "reached");
+                for (from, flow) in &reach {
+                    let o = Origin {
+                        entities: vec![machine.clone(), sensor.clone()],
+                        associations: vec![watches.clone()],
+                        flows: flow.iter().map(|&f| f.clone()).collect(),
+                        ..origin("sensor-reached")
+                    };
+                    self.produce(from, &reached, o);
+                }
+                if self.kind(machine) == EntityKind::Host {
+                    self.host_guards
+                        .entry(machine)
+                        .or_default()
+                        .push(passed.clone());
+                }
+                passed_of.insert(sensor, passed);
+            }
+        }
+        // A flow through a watched router: the exploit over it reaches its
+        // service unseen only past each of those sensors.
+        let mut watched_into: BTreeMap<&'a EntityId, Vec<(&'a FlowId, Vec<Watch<'a>>)>> =
+            BTreeMap::new();
+        for (fid, flow) in &self.m.flows {
+            let mut on_route = Vec::new();
+            for router in flow.route.iter().skip(1).step_by(2) {
+                for &(sensor, watches) in self
+                    .sensors_on
+                    .get(router)
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[])
+                {
+                    on_route.push((router, sensor, watches));
+                }
+            }
+            watched_into
+                .entry(&flow.target)
+                .or_default()
+                .push((fid, on_route));
+        }
+        for (service, flows) in watched_into {
+            if flows.iter().all(|(_, on)| on.is_empty())
+                || self.kind(service) != EntityKind::Service
+            {
+                continue;
+            }
+            self.unseen.insert(service);
+            let unseen = self.state_id(service, "unseen");
+            self.fact(
+                unseen.clone(),
+                format!("{} · reached unseen", self.label(service)),
+            );
+            for (fid, on_route) in flows {
+                let connected = format!("state/flow/{fid}/connected");
+                let mut o = Origin {
+                    entities: vec![service.clone()],
+                    flows: vec![fid.clone()],
+                    ..origin("watched-flow")
+                };
+                if on_route.is_empty() {
+                    self.produce(&connected, &unseen, o);
+                    continue;
+                }
+                let mut prerequisites = vec![connected];
+                for (router, sensor, watches) in on_route {
+                    o.entities.extend([router.clone(), sensor.clone()]);
+                    o.associations.push(watches.clone());
+                    prerequisites.push(passed_of[sensor].clone());
+                }
+                self.action(
+                    format!("action/watched-flow/{fid}"),
+                    format!("Past the sensors · {}", self.m.flows[fid].label),
+                    Binding::Logical,
+                    &prerequisites,
+                    &unseen,
+                    o,
+                );
+            }
+        }
+        // Anti-malware, where a host says it and runs something to guard.
+        let hosts: Vec<&'a EntityId> = self
+            .m
+            .entities
+            .iter()
+            .filter(|(id, e)| e.kind == EntityKind::Host && self.antimalware_said(id))
+            .map(|(id, _)| id)
+            .collect();
+        for host in hosts {
+            if !self.host_reachable(host) {
+                continue;
+            }
+            let cleared = self.state_id(host, "malware-cleared");
+            self.fact(
+                cleared.clone(),
+                format!("{} · past the anti-malware", self.label(host)),
+            );
+            let input = format!("input/antimalware-off/{host}");
+            let policy = Origin {
+                entities: vec![host.clone()],
+                paths: vec![format!("entities.{host}.defenses.anti-malware")],
+                ..origin("antimalware-off")
+            };
+            self.insert(
+                input.clone(),
+                format!("Anti-malware off · {}", self.label(host)),
+                DraftKind::Input(Binding::Policy {
+                    entity: host.clone(),
+                    defense: Defense::AntiMalware,
+                }),
+            );
+            self.originate(&input, policy.clone());
+            self.produce(&input, &cleared, policy);
+            let owner = Owner::Entity(host.clone());
+            let o = Origin {
+                entities: vec![host.clone()],
+                paths: vec![owner.slot_path(Slot::BypassAntimalware)],
+                ..origin("antimalware-bypass")
+            };
+            let reachable = self.state_id(host, "reachable");
+            self.action(
+                format!("action/antimalware-bypass/{host}"),
+                format!("Get past the anti-malware · {}", self.label(host)),
+                Binding::Parameter {
+                    owner,
+                    base: Slot::BypassAntimalware,
+                    replacement: None,
+                },
+                &[reachable],
+                &cleared,
+                o,
+            );
+            self.host_guards.entry(host).or_default().push(cleared);
+        }
+    }
+
+    /// A sensor's `passed` fact, its bypass and its off input, once.
+    fn sensor(&mut self, sensor: &'a EntityId) -> String {
+        let passed = self.state_id(sensor, "passed");
+        if self.nodes.contains_key(&passed) {
+            return passed;
+        }
+        let word = match self.kind(sensor) {
+            EntityKind::Ips => "IPS",
+            _ => "IDS",
+        };
+        let label = self.label(sensor);
+        self.fact(passed.clone(), format!("{label} · got past"));
+        let reached = self.state_id(sensor, "reached");
+        self.fact(reached.clone(), format!("{label} · reached"));
+        let input = format!("input/sensor-off/{sensor}");
+        let policy = Origin {
+            entities: vec![sensor.clone()],
+            paths: vec![format!("entities.{sensor}.defenses.enabled")],
+            ..origin("sensor-off")
+        };
+        self.insert(
+            input.clone(),
+            format!("{word} off · {label}"),
+            DraftKind::Input(Binding::Policy {
+                entity: sensor.clone(),
+                defense: Defense::Enabled,
+            }),
+        );
+        self.originate(&input, policy.clone());
+        self.produce(&input, &passed, policy);
+        let owner = Owner::Entity(sensor.clone());
+        let o = Origin {
+            entities: vec![sensor.clone()],
+            paths: vec![owner.slot_path(Slot::Bypass)],
+            ..origin("sensor-bypass")
+        };
+        self.action(
+            format!("action/sensor-bypass/{sensor}"),
+            format!("Get past the {word} · {label}"),
+            Binding::Parameter {
+                owner,
+                base: Slot::Bypass,
+                replacement: None,
+            },
+            &[reached],
+            &passed,
+            o,
+        );
+        passed
+    }
+
     fn products(&mut self) {
         for (pid, entity) in &self.m.entities {
             if entity.kind != EntityKind::Product {
@@ -900,11 +1183,20 @@ impl<'a> Builder<'a> {
             };
             let ready = self.state_id(pid, "exploit-ready");
             let control = self.state_id(sid, State::Control.as_str());
+            let reached = if self.unseen.contains(sid) {
+                self.state_id(sid, "unseen")
+            } else {
+                reachable
+            };
+            let mut prerequisites = vec![ready, reached];
+            if let Some(host) = host {
+                prerequisites.extend(self.host_guards.get(host).cloned().unwrap_or_default());
+            }
             self.action(
                 format!("action/service-deploy-exploit/{sid}"),
                 format!("Use the exploit · {}", entity.label),
                 binding,
-                &[ready, reachable],
+                &prerequisites,
                 &control,
                 deploy,
             );
@@ -926,32 +1218,7 @@ impl<'a> Builder<'a> {
             let reachable = self.state_id(eid, "reachable");
             let mut reached = false;
             if entity.kind == EntityKind::Host {
-                let served: Vec<(&EntityId, &AssociationId)> = self
-                    .m
-                    .associations
-                    .iter()
-                    .filter_map(|(aid, a)| match &a.relation {
-                        Relation::Hosts { from, to, .. }
-                            if from == eid && self.kind(to) == EntityKind::Service =>
-                        {
-                            Some((to, aid))
-                        }
-                        _ => None,
-                    })
-                    .collect();
-                if !served.is_empty() {
-                    self.fact(reachable.clone(), format!("Reachable · {}", entity.label));
-                }
-                for (sid, hosts) in served {
-                    let o = Origin {
-                        entities: vec![sid.clone(), eid.clone()],
-                        associations: vec![hosts.clone()],
-                        ..origin("host-reachable")
-                    };
-                    let service_reachable = self.state_id(sid, "reachable");
-                    self.produce(&service_reachable, &reachable, o);
-                    reached = true;
-                }
+                reached = self.host_reachable(eid);
             } else if self.readers.contains(eid) {
                 self.fact(reachable.clone(), format!("Reachable · {}", entity.label));
                 let o = Origin {
@@ -997,11 +1264,15 @@ impl<'a> Builder<'a> {
                 ..origin(rule)
             };
             let ready = self.state_id(pid, "exploit-ready");
+            let mut prerequisites = vec![ready, reachable];
+            if entity.kind == EntityKind::Host {
+                prerequisites.extend(self.host_guards.get(eid).cloned().unwrap_or_default());
+            }
             self.action(
                 format!("action/{rule}/{eid}"),
                 format!("{word} · {}", entity.label),
                 binding,
-                &[ready, reachable],
+                &prerequisites,
                 &output,
                 deploy,
             );

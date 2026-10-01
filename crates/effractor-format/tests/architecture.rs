@@ -2316,7 +2316,8 @@ fn with_sensors() -> serde_json::Value {
     image["associations"]["server-watch"] =
         serde_json::json!({"kind": "watches", "from": "server", "to": "server-ips"});
     image["entities"]["server"]["defenses"] = serde_json::json!({"anti-malware": true});
-    image["entities"]["server"]["parameters"]["bypass-antimalware"] = serde_json::json!({"status": "unknown"});
+    image["entities"]["server"]["parameters"]["bypass-antimalware"] =
+        serde_json::json!({"status": "unknown"});
     image
 }
 
@@ -2325,7 +2326,10 @@ fn sensors_and_anti_malware_round_trip_and_are_complete() {
     let text = from_document(&with_sensors()).unwrap();
     assert!(text.contains("    kind: ids\n"), "{text}");
     assert!(text.contains("    kind: watches\n"), "{text}");
-    assert!(text.contains("      anti-malware: true\n"), "{text}");
+    assert!(
+        text.contains("    defenses: {anti-malware: true}\n"),
+        "{text}"
+    );
     assert!(text.contains("      bypass-antimalware:\n"), "{text}");
     assert_eq!(canonicalize(&text).unwrap(), text);
     let (doc, diagnostics) = effractor_format::diagnose_document(&text);
@@ -2340,6 +2344,6 @@ fn a_sensor_is_watched_by_a_machine_only() {
     assert!(has(
         &errors_of(&image),
         "association-type",
-        "associations.bridge-watch"
+        "associations.bridge-watch.from"
     ));
 }
