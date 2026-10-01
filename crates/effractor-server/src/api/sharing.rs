@@ -10,7 +10,7 @@ use effractor_accounts::{Error, Id, groups, users};
 use serde::Deserialize;
 
 use crate::accounts::Accounts;
-use crate::api::ApiError;
+use crate::api::{ApiError, with_role};
 use crate::auth::session::CurrentUser;
 
 pub fn routes() -> Router<Accounts> {
@@ -83,12 +83,13 @@ async fn grant(
     target: Target,
     g: Grant,
 ) -> Result<(StatusCode, Json<Share>), ApiError> {
-    owner_only(&accounts, user, target).await?;
-    let role = Role::parse(&g.role)?;
-    let share = accounts
-        .blocking(move |db| {
-            let now = db.now();
-            db.write(|t| {
+    let share = with_role(
+        &accounts,
+        Role::Owner,
+        move |c| role_of(c, user, target),
+        move |t, now| {
+            let role = Role::parse(&g.role)?;
+            let share = || {
                 let grantee = match g.kind.as_str() {
                     "user" => {
                         let u = users::by_name(t, &g.name)?
@@ -101,13 +102,14 @@ async fn grant(
                 };
                 let id = shares::grant(t, target, grantee, role, now)?;
                 shares::get(t, id)?.ok_or(Error::NotFound)
+            };
+            share().map_err(|e| match e {
+                Error::NotFound => Error::Invalid("no such user or group".into()),
+                other => other,
             })
-        })
-        .await
-        .map_err(|e| match e {
-            ApiError::NotFound => ApiError::Bad("no such user or group".into()),
-            other => other,
-        })?;
+        },
+    )
+    .await?;
     Ok((StatusCode::CREATED, Json(share)))
 }
 
@@ -133,22 +135,26 @@ async fn revoke(
     CurrentUser(user, _): CurrentUser,
     Path(id): Path<Id>,
 ) -> Result<StatusCode, ApiError> {
-    let share = accounts
-        .blocking(move |db| db.read(|c| shares::get(c, id)))
-        .await?
-        .ok_or(ApiError::NotFound)?;
-    let target = if share.target_kind == "document" {
-        Target::Document(share.target_id)
-    } else {
-        Target::Folder(share.target_id)
+    let role = move |c: &effractor_accounts::Connection| {
+        let Some(share) = shares::get(c, id)? else {
+            return Ok(None);
+        };
+        let target = if share.target_kind == "document" {
+            Target::Document(share.target_id)
+        } else {
+            Target::Folder(share.target_id)
+        };
+        role_of(c, user.id, target)
     };
+    with_role(&accounts, Role::Owner, role, move |t, _| {
+        shares::revoke(t, id)
+    })
+    .await
     // Somebody who is not the owner learns nothing about a share id.
-    owner_only(&accounts, user.id, target)
-        .await
-        .map_err(|_| ApiError::NotFound)?;
-    accounts
-        .blocking(move |db| db.write(|t| shares::revoke(t, id)))
-        .await?;
+    .map_err(|e| match e {
+        ApiError::Forbidden => ApiError::NotFound,
+        other => other,
+    })?;
     Ok(StatusCode::NO_CONTENT)
 }
 

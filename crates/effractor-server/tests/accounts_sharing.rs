@@ -113,6 +113,64 @@ async fn only_the_owner_sees_and_changes_shares() {
     );
 }
 
+/// The role is read in the transaction that writes. A share taken back
+/// while a save waits for the writer ends the save, rather than letting it
+/// through on a role read before.
+#[tokio::test]
+async fn a_share_taken_back_while_a_save_waits_stops_the_save() {
+    let h = harness();
+    h.add_user("alice");
+    h.add_user("bob");
+    let (a, b) = (h.login("alice").await, h.login("bob").await);
+    let d = doc(&h, &a).await;
+    let res = h
+        .call(
+            "POST",
+            &format!("/api/documents/{d}/shares"),
+            Some(&a),
+            Some(json!({"kind": "user", "name": "bob", "role": "editor"})),
+        )
+        .await;
+    assert_eq!(res.status(), 201);
+
+    // Another writer takes the share back and holds the writer meanwhile.
+    let (held, is_held) = std::sync::mpsc::channel();
+    let (release, released) = std::sync::mpsc::channel::<()>();
+    let accounts = h.accounts.clone();
+    let writer = std::thread::spawn(move || {
+        accounts
+            .db()
+            .write(|t| {
+                t.execute("DELETE FROM shares", [])?;
+                held.send(()).unwrap();
+                released.recv().unwrap();
+                Ok(())
+            })
+            .unwrap();
+    });
+    is_held.recv().unwrap();
+    let path = format!("/api/documents/{d}");
+    let save = h.call(
+        "PUT",
+        &path,
+        Some(&b),
+        Some(json!({"name": "D", "body": "bob's", "base": 1})),
+    );
+    let later = async {
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        release.send(()).unwrap();
+    };
+    let (res, ()) = tokio::join!(save, later);
+    writer.join().unwrap();
+    assert_eq!(res.status(), 404);
+    let body = json(
+        h.call("GET", &format!("/api/documents/{d}"), Some(&a), None)
+            .await,
+    )
+    .await;
+    assert_eq!(body["body"], "x");
+}
+
 #[tokio::test]
 async fn a_folder_shared_with_a_group_reaches_its_members() {
     let h = harness();

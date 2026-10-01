@@ -52,6 +52,50 @@ pub(crate) fn need(
     }
 }
 
+/// Checks and writes in one transaction, so that what was checked cannot
+/// change before the write: `f` answers `Ok(Err(..))` to refuse, and then
+/// writes nothing; an `Err` rolls back as any failed write does.
+pub(crate) async fn checked<T: Send + 'static>(
+    accounts: &crate::accounts::Accounts,
+    f: impl FnOnce(
+        &effractor_accounts::Transaction,
+        effractor_accounts::Timestamp,
+    ) -> effractor_accounts::Result<Result<T, ApiError>>
+    + Send
+    + 'static,
+) -> Result<T, ApiError> {
+    accounts
+        .blocking(move |db| {
+            let now = db.now();
+            db.write(|t| f(t, now))
+        })
+        .await?
+}
+
+/// As [`checked`], with the caller's role as the check: `role` reads it,
+/// and it must be at least `at_least` (see [`need`]) for `write` to run.
+pub(crate) async fn with_role<T: Send + 'static>(
+    accounts: &crate::accounts::Accounts,
+    at_least: effractor_accounts::perms::Role,
+    role: impl FnOnce(
+        &effractor_accounts::Connection,
+    ) -> effractor_accounts::Result<Option<effractor_accounts::perms::Role>>
+    + Send
+    + 'static,
+    write: impl FnOnce(
+        &effractor_accounts::Transaction,
+        effractor_accounts::Timestamp,
+    ) -> effractor_accounts::Result<T>
+    + Send
+    + 'static,
+) -> Result<T, ApiError> {
+    checked(accounts, move |t, now| match need(role(t)?, at_least) {
+        Ok(_) => write(t, now).map(Ok),
+        Err(refused) => Ok(Err(refused)),
+    })
+    .await
+}
+
 impl From<Error> for ApiError {
     fn from(e: Error) -> Self {
         match e {

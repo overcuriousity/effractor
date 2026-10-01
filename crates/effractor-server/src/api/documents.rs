@@ -5,12 +5,12 @@ use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use effractor_accounts::perms::{self, Role};
-use effractor_accounts::{Id, documents, folders};
+use effractor_accounts::{Error, Id, documents, folders};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::accounts::Accounts;
-use crate::api::{ApiError, need};
+use crate::api::{ApiError, with_role};
 use crate::auth::session::CurrentUser;
 
 const BODY_LIMIT: usize = 2 << 20;
@@ -34,14 +34,16 @@ pub fn routes() -> Router<Accounts> {
 }
 
 /// `Some(null)` and `Some(id)` are both a destination; absent is "no change".
-fn destination(v: &Value) -> Result<Option<Id>, ApiError> {
+/// Read where the write is, after the role: whoever may not move it learns
+/// that first.
+fn destination(v: &Value) -> effractor_accounts::Result<Option<Id>> {
     match v {
         Value::Null => Ok(None),
         Value::Number(n) => n
             .as_i64()
             .map(Some)
-            .ok_or_else(|| ApiError::Bad("not a folder".into())),
-        _ => Err(ApiError::Bad("not a folder".into())),
+            .ok_or_else(|| Error::Invalid("not a folder".into())),
+        _ => Err(Error::Invalid("not a folder".into())),
     }
 }
 
@@ -139,16 +141,13 @@ async fn opened(
     CurrentUser(user, _): CurrentUser,
     Path(id): Path<Id>,
 ) -> Result<StatusCode, ApiError> {
-    let role = accounts
-        .blocking(move |db| db.read(|c| perms::document_role(c, user.id, id)))
-        .await?;
-    need(role, Role::Viewer)?;
-    accounts
-        .blocking(move |db| {
-            let now = db.now();
-            db.write(|t| documents::opened(t, user.id, id, now))
-        })
-        .await?;
+    with_role(
+        &accounts,
+        Role::Viewer,
+        move |c| perms::document_role(c, user.id, id),
+        move |t, now| documents::opened(t, user.id, id, now),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -165,17 +164,16 @@ async fn save(
     Path(id): Path<Id>,
     Json(s): Json<Save>,
 ) -> Result<Json<Value>, ApiError> {
-    let role = accounts
-        .blocking(move |db| db.read(|c| perms::document_role(c, user.id, id)))
-        .await?;
-    need(role, Role::Editor)?;
-    let (version, at) = accounts
-        .blocking(move |db| {
-            let now = db.now();
-            let v = db.write(|t| documents::save(t, id, user.id, s.base, &s.name, &s.body, now))?;
+    let (version, at) = with_role(
+        &accounts,
+        Role::Editor,
+        move |c| perms::document_role(c, user.id, id),
+        move |t, now| {
+            let v = documents::save(t, id, user.id, s.base, &s.name, &s.body, now)?;
             Ok((v, now))
-        })
-        .await?;
+        },
+    )
+    .await?;
     Ok(Json(json!({ "version": version, "updated_at": at })))
 }
 
@@ -185,17 +183,18 @@ async fn move_doc(
     Path(id): Path<Id>,
     Json(body): Json<Value>,
 ) -> Result<StatusCode, ApiError> {
-    let role = accounts
-        .blocking(move |db| db.read(|c| perms::document_role(c, user.id, id)))
-        .await?;
-    need(role, Role::Owner)?;
-    let to = destination(
-        body.get("folder")
-            .ok_or_else(|| ApiError::Bad("folder?".into()))?,
-    )?;
-    accounts
-        .blocking(move |db| db.write(|t| documents::move_to(t, user.id, id, to)))
-        .await?;
+    with_role(
+        &accounts,
+        Role::Owner,
+        move |c| perms::document_role(c, user.id, id),
+        move |t, _| {
+            let to = body
+                .get("folder")
+                .ok_or_else(|| Error::Invalid("folder?".into()))?;
+            documents::move_to(t, user.id, id, destination(to)?)
+        },
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -204,16 +203,13 @@ async fn delete(
     CurrentUser(user, _): CurrentUser,
     Path(id): Path<Id>,
 ) -> Result<StatusCode, ApiError> {
-    let role = accounts
-        .blocking(move |db| db.read(|c| perms::document_role(c, user.id, id)))
-        .await?;
-    need(role, Role::Owner)?;
-    accounts
-        .blocking(move |db| {
-            let now = db.now();
-            db.write(|t| documents::delete(t, user.id, id, now))
-        })
-        .await?;
+    with_role(
+        &accounts,
+        Role::Owner,
+        move |c| perms::document_role(c, user.id, id),
+        move |t, now| documents::delete(t, user.id, id, now),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -251,25 +247,22 @@ async fn change_folder(
     Path(id): Path<Id>,
     Json(body): Json<Value>,
 ) -> Result<StatusCode, ApiError> {
-    let role = accounts
-        .blocking(move |db| db.read(|c| perms::folder_role(c, user.id, id)))
-        .await?;
-    need(role, Role::Owner)?;
-    let name = body.get("name").and_then(Value::as_str).map(str::to_owned);
-    let parent = body.get("parent").map(destination).transpose()?;
-    accounts
-        .blocking(move |db| {
-            db.write(|t| {
-                if let Some(n) = &name {
-                    folders::rename(t, user.id, id, n)?;
-                }
-                if let Some(p) = parent {
-                    folders::move_to(t, user.id, id, p)?;
-                }
-                Ok(())
-            })
-        })
-        .await?;
+    with_role(
+        &accounts,
+        Role::Owner,
+        move |c| perms::folder_role(c, user.id, id),
+        move |t, _| {
+            let parent = body.get("parent").map(destination).transpose()?;
+            if let Some(n) = body.get("name").and_then(Value::as_str) {
+                folders::rename(t, user.id, id, n)?;
+            }
+            if let Some(p) = parent {
+                folders::move_to(t, user.id, id, p)?;
+            }
+            Ok(())
+        },
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -278,16 +271,13 @@ async fn delete_folder(
     CurrentUser(user, _): CurrentUser,
     Path(id): Path<Id>,
 ) -> Result<StatusCode, ApiError> {
-    let role = accounts
-        .blocking(move |db| db.read(|c| perms::folder_role(c, user.id, id)))
-        .await?;
-    need(role, Role::Owner)?;
-    accounts
-        .blocking(move |db| {
-            let now = db.now();
-            db.write(|t| folders::delete(t, user.id, id, now))
-        })
-        .await?;
+    with_role(
+        &accounts,
+        Role::Owner,
+        move |c| perms::folder_role(c, user.id, id),
+        move |t, now| folders::delete(t, user.id, id, now),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 

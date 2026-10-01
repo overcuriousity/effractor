@@ -6,12 +6,12 @@ use axum::http::StatusCode;
 use axum::routing::{get, patch, put};
 use axum::{Json, Router};
 use effractor_accounts::users::{self, NewUser, User};
-use effractor_accounts::{Error, Id, documents, groups, sessions};
+use effractor_accounts::{Connection, Error, Id, documents, groups, sessions};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::accounts::Accounts;
-use crate::api::ApiError;
+use crate::api::{ApiError, checked};
 use crate::auth::session::CurrentUser;
 
 pub fn routes() -> Router<Accounts> {
@@ -124,40 +124,36 @@ async fn create_user(
     CurrentUser(user, _): CurrentUser,
     Json(body): Json<NewUserBody>,
 ) -> Result<(StatusCode, Json<Value>), ApiError> {
-    match scope(&accounts, &user).await? {
-        Scope::All => {}
-        Scope::Groups(gs) => {
-            let Some(g) = body.group.filter(|g| gs.contains(g)) else {
-                return Err(ApiError::Forbidden);
+    let id = checked(&accounts, move |t, now| {
+        // A group's admin, into a group that allows it: read where the
+        // write is, so neither can change in between.
+        if !user.admin {
+            let allowed = match body.group {
+                Some(g) => {
+                    groups::role_in(t, g, user.id)?.as_deref() == Some("admin")
+                        && groups::flag(t, g)?
+                }
+                None => false,
             };
-            if !accounts
-                .blocking(move |db| db.read(|c| groups::flag(c, g)))
-                .await?
-            {
-                return Err(ApiError::Forbidden);
+            if !allowed {
+                return Ok(Err(ApiError::Forbidden));
             }
         }
-    }
-    let id = accounts
-        .blocking(move |db| {
-            let now = db.now();
-            db.write(|t| {
-                let id = users::create(
-                    t,
-                    &NewUser {
-                        name: &body.name,
-                        display_name: &body.display_name,
-                        password: Some(&body.password),
-                    },
-                    now,
-                )?;
-                if let Some(g) = body.group {
-                    groups::set_member(t, g, id, "member")?;
-                }
-                Ok(id)
-            })
-        })
-        .await?;
+        let id = users::create(
+            t,
+            &NewUser {
+                name: &body.name,
+                display_name: &body.display_name,
+                password: Some(&body.password),
+            },
+            now,
+        )?;
+        if let Some(g) = body.group {
+            groups::set_member(t, g, id, "member")?;
+        }
+        Ok(Ok(id))
+    })
+    .await?;
     Ok((StatusCode::CREATED, Json(json!({ "id": id }))))
 }
 
@@ -290,31 +286,23 @@ struct MemberRole {
     role: String,
 }
 
-/// For a group admin: only this group, only plain members.
-async fn may_manage(
-    accounts: &Accounts,
+/// For a group admin: only this group, only plain members. Read in the
+/// transaction that writes, so neither role can change in between.
+fn may_manage(
+    c: &Connection,
     actor: &User,
     group: Id,
     member: Id,
-) -> Result<(), ApiError> {
+) -> effractor_accounts::Result<Result<(), ApiError>> {
     if actor.admin {
-        return Ok(());
+        return Ok(Ok(()));
     }
-    let actor_id = actor.id;
-    let (mine, theirs) = accounts
-        .blocking(move |db| {
-            db.read(|c| {
-                Ok((
-                    groups::role_in(c, group, actor_id)?,
-                    groups::role_in(c, group, member)?,
-                ))
-            })
-        })
-        .await?;
+    let mine = groups::role_in(c, group, actor.id)?;
+    let theirs = groups::role_in(c, group, member)?;
     if mine.as_deref() != Some("admin") || theirs.as_deref() == Some("admin") {
-        return Err(ApiError::Forbidden);
+        return Ok(Err(ApiError::Forbidden));
     }
-    Ok(())
+    Ok(Ok(()))
 }
 
 async fn set_member(
@@ -323,13 +311,16 @@ async fn set_member(
     Path((group, member)): Path<(Id, Id)>,
     Json(b): Json<MemberRole>,
 ) -> Result<StatusCode, ApiError> {
-    may_manage(&accounts, &user, group, member).await?;
-    if !user.admin && b.role != "member" {
-        return Err(ApiError::Forbidden);
-    }
-    accounts
-        .blocking(move |db| db.write(|t| groups::set_member(t, group, member, &b.role)))
-        .await?;
+    checked(&accounts, move |t, _| {
+        if let Err(refused) = may_manage(t, &user, group, member)? {
+            return Ok(Err(refused));
+        }
+        if !user.admin && b.role != "member" {
+            return Ok(Err(ApiError::Forbidden));
+        }
+        groups::set_member(t, group, member, &b.role).map(Ok)
+    })
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -338,9 +329,12 @@ async fn remove_member(
     CurrentUser(user, _): CurrentUser,
     Path((group, member)): Path<(Id, Id)>,
 ) -> Result<StatusCode, ApiError> {
-    may_manage(&accounts, &user, group, member).await?;
-    accounts
-        .blocking(move |db| db.write(|t| groups::remove_member(t, group, member)))
-        .await?;
+    checked(&accounts, move |t, _| {
+        if let Err(refused) = may_manage(t, &user, group, member)? {
+            return Ok(Err(refused));
+        }
+        groups::remove_member(t, group, member).map(Ok)
+    })
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
