@@ -2025,7 +2025,7 @@ mod tests {
     use effractor_core::Document;
 
     fn lecture() -> Architecture {
-        let text = include_str!("../../../docs/course/lecture-architecture.yaml");
+        let text = include_str!("../tests/fixtures/architectures/lecture-before-extract.yaml");
         match effractor_format::load_document(text) {
             Ok(Document::Architecture(m)) => m,
             other => panic!("{other:?}"),

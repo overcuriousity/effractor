@@ -8,7 +8,7 @@ use effractor_core::architecture::Architecture;
 use effractor_solver::graph_results::{GraphConfig, GraphSolve};
 use serde_json::json;
 
-const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
+const LECTURE: &str = include_str!("../../effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml");
 
 /// The lecture with finite, slower defences and a horizon the attack does not
 /// always reach by: a comparison whose paired interval has width.

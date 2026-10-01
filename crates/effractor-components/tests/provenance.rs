@@ -16,8 +16,8 @@ use effractor_core::architecture::{
 use effractor_core::{AssociationId, Code, Distribution, Document, EntityId, FlowId, ScenarioId};
 use serde_json::Value;
 
-const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
-const UNKNOWN: &str = include_str!("../../../docs/course/lecture-unknown.yaml");
+const LECTURE: &str = include_str!("../../effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml");
+const UNKNOWN: &str = include_str!("../../effractor-components/tests/fixtures/architectures/lecture-unknown-before-extract.yaml");
 
 fn architecture(text: &str) -> Architecture {
     match effractor_format::load_document(text) {

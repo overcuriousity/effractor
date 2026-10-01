@@ -13,9 +13,9 @@ const { loadWasm } = require('./wasm.js');
 
 const root = path.resolve(__dirname, '..');
 const DIR = path.join(root, 'scripts/fixtures/graph');
-const lecture = fs.readFileSync(path.join(root, 'docs/course/lecture-architecture.yaml'), 'utf8');
+const lecture = fs.readFileSync(path.join(root, 'crates/effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml'), 'utf8');
 const unknown = fs.readFileSync(
-  path.join(root, 'docs/course/lecture-unknown.yaml'),
+  path.join(root, 'crates/effractor-components/tests/fixtures/architectures/lecture-unknown-before-extract.yaml'),
   'utf8',
 );
 

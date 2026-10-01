@@ -6,7 +6,7 @@ use effractor_core::Document;
 use effractor_core::architecture::Architecture;
 use effractor_solver::graph_results::{GraphConfig, GraphSolve};
 
-const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
+const LECTURE: &str = include_str!("../../effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml");
 
 fn architecture(text: &str) -> Architecture {
     match effractor_format::load_document(text) {

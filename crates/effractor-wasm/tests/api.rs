@@ -197,7 +197,7 @@ fn the_component_catalog_is_an_ok_answer() {
     assert_eq!(out["ok"]["entities"][5]["kind"], "service");
 }
 
-const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
+const LECTURE: &str = include_str!("../../effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml");
 
 #[test]
 fn an_architecture_generates_its_graph_with_the_source_it_describes() {
@@ -318,7 +318,7 @@ fn generation_says_what_can_happen_before_any_number() {
 
     // An unknown input on the route: the target is still possible, and
     // says which source fields its number waits for.
-    let unknown = include_str!("../../../docs/course/lecture-unknown.yaml");
+    let unknown = include_str!("../../effractor-components/tests/fixtures/architectures/lecture-unknown-before-extract.yaml");
     let (graph, support) = support_of(unknown);
     let target = status(&graph, &support, "state/host/server/admin");
     assert_eq!(target["status"], "possible");

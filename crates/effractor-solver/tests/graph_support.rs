@@ -8,8 +8,8 @@ use effractor_core::architecture::Architecture;
 use effractor_core::{Distribution, Document, ScenarioId, Shorthand};
 use effractor_solver::graph_support::{GraphSupport, Status, analyze, never};
 
-const LECTURE: &str = include_str!("../../../docs/course/lecture-architecture.yaml");
-const UNKNOWN: &str = include_str!("../../../docs/course/lecture-unknown.yaml");
+const LECTURE: &str = include_str!("../../effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml");
+const UNKNOWN: &str = include_str!("../../effractor-components/tests/fixtures/architectures/lecture-unknown-before-extract.yaml");
 const TARGET: &str = "state/host/server/admin";
 const FIND: &str = "entities.openssh.parameters.find-exploit";
 

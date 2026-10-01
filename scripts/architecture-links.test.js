@@ -77,7 +77,7 @@ test('a pin dragged off the components is removed', () => {
 
 // The lecture architecture, built only through the editor's functions,
 // comes out as the documentation fixture — which a Rust test holds to be
-// what the format reads from docs/course/lecture-architecture.yaml.
+// what the format reads from the lecture before the extract (frozen fixture).
 test('the lecture architecture is built through links, flows and attacker states', () => {
   const want = lecture();
   let doc = E.empty();
