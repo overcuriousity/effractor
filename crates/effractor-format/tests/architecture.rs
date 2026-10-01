@@ -2301,6 +2301,7 @@ fn long_lists_of_identities_and_names_are_checked_for_repeats_in_one_pass() {
         ]
     );
     assert!(elapsed.as_secs_f64() < 10.0, "{elapsed:?}");
+}
 
 /// The lecture with an IDS on the router and an IPS on the server (extract
 /// Fig. 5.18), the server's anti-malware on.

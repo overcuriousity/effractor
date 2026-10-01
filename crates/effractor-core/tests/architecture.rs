@@ -829,6 +829,7 @@ fn a_long_cluster_is_checked_in_one_pass() {
         ]
     );
     assert!(elapsed.as_secs_f64() < 10.0, "{elapsed:?}");
+}
 
 #[test]
 fn an_ids_and_an_ips_are_sensors_a_machine_watches_with() {
