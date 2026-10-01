@@ -67,7 +67,7 @@
         },
         delay: o.delay,
         timers: o.timers,
-        onState: function () { showState(); },
+        onState: function () { prune(); showState(); },
         onConflict: function (c) { conflict(id, q, c); },
         onLost: function () {
           o.page.say("no longer yours to save · kept in this browser");
@@ -86,6 +86,18 @@
       return q;
     }
 
+    // A queue whose document no longer has a record goes once it has nothing
+    // left to send: a save on its way or waiting to retry still reaches its
+    // document, and a 409 being looked into still says so.
+    function prune() {
+      queues.forEach(function (q, id) {
+        var s = q.autosave.state();
+        if (recordsOf(id).length || q.checking || s === "saving" || s === "retrying") return;
+        q.autosave.stop();
+        queues.delete(id);
+      });
+    }
+
     function stopAll() {
       queues.forEach(function (q) { q.autosave.stop(); });
       queues.clear();
@@ -102,6 +114,7 @@
       }
       delete recs[p];
       persist(p);
+      prune();
       showState();
     }
 
@@ -109,6 +122,7 @@
       bump(p);
       recs[p] = rec;
       persist(p);
+      prune();
       // A new queue starts on the record; one already there starts again.
       var had = queues.has(rec.id);
       var q = queueFor(rec, p);
@@ -161,7 +175,9 @@
     // closed while it was on its way): the server then has exactly the text
     // sent, which is saved, not a conflict.
     function conflict(id, q, c) {
+      q.checking = true;
       return o.request("GET", "/api/documents/" + id).then(function (res) {
+        q.checking = false;
         if (queues.get(id) !== q) return;
         if (!res.ok || res.data.body !== c.mine) {
           conflicts.set(id, { q: q, c: c });
@@ -451,6 +467,8 @@
       },
       openId: function () { return current && recs[current] ? recs[current].id : null; },
       isOpen: isOpen,
+      // The documents with a save queue, for the tests.
+      queued: function () { return Array.from(queues.keys()); },
     };
   }
 

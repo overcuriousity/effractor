@@ -611,6 +611,25 @@ test("keep mine as copy keeps what was typed after the conflict too", async () =
   assert.equal(copy[1].body, doc("fault-tree", "F", "mine2"), "with the later edit");
   assert.equal(t.core.openId(), copy[0], "and is what the page holds");
   assert.equal(server.body(F), doc("fault-tree", "F", "theirs"), "theirs stands");
+  assert.deepEqual(t.core.queued(), [copy[0]], "the stopped queue of the old one is let go of");
+});
+
+test("a document no longer on the page keeps its queue only until its last edit is saved", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const G = server.add("fault-tree", "G", "g0");
+  const t = tab(server);
+  await t.core.login(USER);
+  await t.core.open(F);
+  t.edit(doc("fault-tree", "F", "f1"));
+  server.down();
+  await t.timers.advance(1000);
+  server.up();
+  await t.core.open(G);
+  assert.ok(t.core.queued().includes(F), "still retrying its edit");
+  await t.timers.advance(60000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "f1"));
+  assert.deepEqual(t.core.queued(), [G]);
 });
 
 test("opening the document that is open never loads theirs over what is typed", async () => {
