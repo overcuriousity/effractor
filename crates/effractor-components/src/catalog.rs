@@ -365,9 +365,7 @@ pub const RULES: [Rule; 48] = [
         output: "service.unseen, for a service some watched flow reaches",
         duration: D::Logical,
         scope: "one per flow into such a service",
-        assumptions: &[
-            "Only an exploit is watched for: a login over the same flow is not.",
-        ],
+        assumptions: &["Only an exploit is watched for: a login over the same flow is not."],
     },
     Rule {
         id: "antimalware-off",
@@ -392,9 +390,7 @@ pub const RULES: [Rule; 48] = [
             replaced_by: None,
         },
         scope: "one per host whose anti-malware is said",
-        assumptions: &[
-            "Getting past a host's anti-malware once serves every exploit used there.",
-        ],
+        assumptions: &["Getting past a host's anti-malware once serves every exploit used there."],
     },
     Rule {
         id: "credential-extract",
