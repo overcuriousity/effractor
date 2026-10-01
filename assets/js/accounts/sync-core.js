@@ -366,10 +366,10 @@
             persist(p);
           }
         });
-        var p = current, r = p && recs[p], pageText = o.page.text();
+        var p = current, r = p && recs[p];
         if (!p) return;
         if (!r) {
-          if (pageText && fresh) offer(p);
+          if (o.page.text() && fresh) offer(p);
           return showState();
         }
         return o.request("GET", "/api/documents/" + r.id).then(function (res) {
@@ -386,7 +386,10 @@
             persist(p);
             return showState();
           }
-          if (pageText !== null && pageText !== r.text) r.text = pageText;
+          // What the page has now, an edit typed during the request included;
+          // a mode switched to meanwhile has not touched this mode's text.
+          var pageText = o.page.profile() === p ? o.page.text() : lastText[p];
+          if (pageText != null && pageText !== r.text) r.text = pageText;
           // The server has what is here (a save whose answer the last page
           // never saw): saved, on the server's version.
           if (d.body === r.text) {

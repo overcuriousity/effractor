@@ -440,6 +440,37 @@ test("work logged out survives a reload before logging in", async () => {
   assert.equal(server.body(F), doc("fault-tree", "F", "offline work"));
 });
 
+test("an edit typed while the login checks the document is saved, not rolled back", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const real = server.request;
+  let hold = null;
+  const t = tab(Object.assign({}, server, {
+    request: (method, path, body) => {
+      if (method === "GET" && hold) {
+        const go = hold;
+        hold = null;
+        return go.then(() => real(method, path, body));
+      }
+      return real(method, path, body);
+    },
+  }));
+  await t.core.login(USER);
+  await t.core.open(F);
+  t.edit(doc("fault-tree", "F", "f1"));
+  await t.core.logout();
+  let release;
+  hold = new Promise((r) => { release = r; });
+  const login = t.core.login(USER);
+  await settle();
+  t.edit(doc("fault-tree", "F", "typed meanwhile"));
+  release();
+  await login;
+  await t.timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "typed meanwhile"));
+  assert.equal(JSON.parse(t.store.map.get("fault-tree")).text, doc("fault-tree", "F", "typed meanwhile"));
+});
+
 test("a file or link opened while logged out is not replaced at login", async () => {
   for (const origin of ["file", "link"]) {
     const server = fakeServer();
