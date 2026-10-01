@@ -185,21 +185,21 @@ test('a server document keeps its positions by its id, a local one by its name',
   assert.notEqual(Pos.slot({ name: 'Lab', id: 7 }), Pos.slot('.server:7'), 'no name spells an id');
 });
 
-test('two server documents of one name keep their own places; one kept before by name still finds them', () => {
+test('two server documents of one name keep their own places, and neither takes the name\'s', () => {
   const data = new Map();
   const storage = { getItem: (k) => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, v), removeItem: (k) => data.delete(k) };
   const store = Pos.createStore(storage);
-  // Dragged while local (or before positions went by id).
+  // Dragged while local, or before positions went by id.
   store.moveAll('Lab', { 'entity/a': { x: 1, y: 2 } });
   const seven = { name: 'Lab', id: 7 }, eight = { name: 'Lab', id: 8 };
-  assert.deepEqual(store.load(seven), { 'entity/a': { x: 1, y: 2 } }, 'what was kept by name is found');
+  assert.deepEqual(store.load(seven), {}, 'a server document starts with none');
   store.moveAll(seven, { 'entity/b': { x: 3, y: 4 } });
-  assert.deepEqual(store.load(seven), { 'entity/a': { x: 1, y: 2 }, 'entity/b': { x: 3, y: 4 } });
+  assert.deepEqual(store.load(seven), { 'entity/b': { x: 3, y: 4 } });
   store.moveAll(eight, { 'entity/a': { x: 9, y: 9 } });
-  assert.deepEqual(store.load(seven), { 'entity/a': { x: 1, y: 2 }, 'entity/b': { x: 3, y: 4 } }, 'the other one moved nothing here');
+  assert.deepEqual(store.load(seven), { 'entity/b': { x: 3, y: 4 } }, 'the other one moved nothing here');
   assert.deepEqual(store.load('Lab'), { 'entity/a': { x: 1, y: 2 } }, 'nor in the local one');
   store.clear(seven);
-  assert.deepEqual(store.load(seven), {}, 'arranged anew, the name\'s places do not come back');
+  assert.deepEqual(store.load(seven), {});
   assert.deepEqual(store.load('Lab'), { 'entity/a': { x: 1, y: 2 } });
 });
 

@@ -211,12 +211,6 @@
   function slot(doc) {
     return doc && typeof doc === "object" ? (doc.id != null ? SERVER + doc.id : PREFIX + doc.name) : PREFIX + doc;
   }
-  // A server document's places from before they went by id (or from while
-  // it was local) are found under its name until it has its own.
-  function legacy(doc) {
-    return doc && typeof doc === "object" && doc.id != null ? PREFIX + doc.name : null;
-  }
-
   function createStore(storage) {
     var unkept = Object.create(null);
     function read(key) {
@@ -239,11 +233,10 @@
         unkept[key] = all;
       }
     }
+    // A server document starts with none of its own: places kept under a
+    // name are that name's, not every server document's that shares it.
     function load(doc) {
-      var own = read(slot(doc));
-      if (own) return own;
-      var old = legacy(doc);
-      return (old && read(old)) || {};
+      return read(slot(doc)) || {};
     }
     // Several at once, one write: {id: {x, y}}, or null to forget one.
     function moveAll(doc, places) {
@@ -255,12 +248,9 @@
       });
       write(slot(doc), all);
     }
-    // A server document keeps an empty record, so its name's places are
-    // not found again.
     function clear(doc) {
       var key = slot(doc);
       delete unkept[key];
-      if (legacy(doc)) return write(key, {});
       try {
         if (storage) storage.removeItem(key);
       } catch (e) {
