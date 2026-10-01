@@ -42,7 +42,9 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
 
 /// Who is asking, for the limits. Behind a trusted proxy on this host, the
 /// address it appended last to X-Forwarded-For; a request from anywhere else
-/// cannot choose its address that way.
+/// cannot choose its address that way. Only that very last entry counts:
+/// everything before it is what the client sent, so if the last one is not
+/// an address, the proxy's own is used rather than one the client chose.
 pub(crate) fn client_ip(trust_proxy: bool, extensions: &Extensions, headers: &HeaderMap) -> IpAddr {
     let ip = extensions
         .get::<ConnectInfo<SocketAddr>>()
@@ -53,10 +55,10 @@ pub(crate) fn client_ip(trust_proxy: bool, extensions: &Extensions, headers: &He
     headers
         .get_all("x-forwarded-for")
         .iter()
-        .filter_map(|v| v.to_str().ok())
-        .flat_map(|v| v.split(','))
-        .filter_map(|a| a.trim().parse::<IpAddr>().ok())
         .next_back()
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.rsplit(',').next())
+        .and_then(|a| a.trim().parse::<IpAddr>().ok())
         .unwrap_or(ip)
 }
 

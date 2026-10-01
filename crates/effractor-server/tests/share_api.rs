@@ -326,6 +326,52 @@ async fn behind_a_trusted_proxy_the_limit_is_per_client() {
     }
 }
 
+/// Only the entry the proxy appended last counts. When that is not an
+/// address, an earlier one — which the client wrote — is not taken instead:
+/// the proxy's own address is, and every such client shares its limit.
+#[tokio::test]
+async fn behind_a_trusted_proxy_only_the_last_forwarded_entry_counts() {
+    let shares = Shares::new(
+        Arc::new(MemoryStorage::default()),
+        Limits {
+            creates_per_hour: 1,
+            ..Limits::default()
+        },
+    )
+    .trusting_proxy();
+    let app = effractor_server::app(shares);
+    let post = |lines: &[&str]| {
+        let mut req = Request::post("/api/share");
+        for line in lines {
+            req = req.header("x-forwarded-for", *line);
+        }
+        let mut req = req.body(Body::from("x")).unwrap();
+        req.extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 40000))));
+        app.clone().oneshot(req)
+    };
+    let status = |res: Result<Response, _>| res.unwrap().status();
+    assert_eq!(
+        status(post(&["203.0.113.1, unknown"]).await),
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        status(post(&["203.0.113.2, unknown"]).await),
+        StatusCode::TOO_MANY_REQUESTS,
+        "a forged earlier entry is no new client"
+    );
+    assert_eq!(
+        status(post(&["203.0.113.3", "unknown"]).await),
+        StatusCode::TOO_MANY_REQUESTS,
+        "nor is one on an earlier header line"
+    );
+    assert_eq!(
+        status(post(&["unknown", "198.51.100.7"]).await),
+        StatusCode::CREATED,
+        "the last line's last entry is the client"
+    );
+}
+
 /// Memory storage whose writes fail while `broken` is set, and which counts
 /// the blobs read.
 #[derive(Default)]
