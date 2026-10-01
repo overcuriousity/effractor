@@ -31,14 +31,16 @@ Owner rulings of 2026-10-01 in the code:
   (`effractor_format::from_json`); a repeated consequence is the warning
   `overlapping-consequences` (the largest fraction counts).
 - **Page:** an undo never crosses a server document's binding; autosave
-  retries a failed request; positions go by server id when bound, else by
-  name; scan imports copy the document once (200 hosts: 24 s → 0.1 s).
+  retries a failed request; positions go by server id when bound (starting
+  empty), else by name; scan imports copy the document once (200 hosts:
+  24 s → 0.1 s); a rescan with `--excludefile` says the file was not read.
+- **Solver:** `value_ci_unreliable` on a control, as `mean_ci_unreliable`
+  on the loss.
 
-Open for the owner: a pinned key alone fixes the first saved address until
-a restart with `--assistant-address`; link-local is refused only as a
-literal IP; per-control `value_ci` keeps its normal approximation;
-`--excludefile` hosts may still be "did not answer"; a bound document with
-no positions of its own reads its name's.
+Owner's answers, same day: a pinned key alone fixing the first saved
+address until a restart is accepted; link-local is refused only as a
+literal IP, and resolving names is not needed; nuclei keeps refusing
+`::ffff:a.b.c.d` targets.
 
 ## Continuation — what the extract draws: operating systems, ASLR, DEP (2026-09-30)
 
