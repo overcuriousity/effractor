@@ -2523,3 +2523,42 @@ fn a_network_may_say_how_long_poisoning_its_arp_caches_takes() {
     assert!(text.contains("{static-arp: true}"), "{text}");
     assert_eq!(canonicalize(&text).unwrap(), text);
 }
+
+#[test]
+fn a_goal_or_foothold_whose_step_has_no_time_says_it_never_matters() {
+    let warnings = |image: &serde_json::Value| -> Vec<(String, String)> {
+        let text = from_document(image).unwrap();
+        effractor_format::diagnose_document(&text)
+            .1
+            .into_iter()
+            .filter(|d| d.code.as_str() == "ineffective" && d.path.starts_with("attacker"))
+            .map(|d| (d.path, d.message))
+            .collect()
+    };
+    let mut image = image(LECTURE);
+    image["attacker"]["footholds"] = serde_json::json!([
+        {"entity": "workstation", "state": "admin"},
+        {"entity": "server", "state": "physical"},
+        {"entity": "workstation", "state": "usb"}
+    ]);
+    image["attacker"]["target"] = serde_json::json!({"entity": "sshd", "state": "unavailable"});
+    let said = warnings(&image);
+    let paths: Vec<&str> = said.iter().map(|(p, _)| p.as_str()).collect();
+    assert_eq!(
+        paths,
+        [
+            "attacker.footholds[1]",
+            "attacker.footholds[2]",
+            "attacker.target"
+        ]
+    );
+    assert!(said[0].1.contains("`physical`"), "{}", said[0].1);
+    assert!(said[1].1.contains("`usb`"), "{}", said[1].1);
+    assert!(said[2].1.contains("`deny`"), "{}", said[2].1);
+    // With their times given, each matters.
+    let given = serde_json::json!({"status": "unknown"});
+    image["entities"]["server"]["parameters"]["physical"] = given.clone();
+    image["entities"]["workstation"]["parameters"]["usb"] = given.clone();
+    image["entities"]["sshd"]["parameters"]["deny"] = given;
+    assert_eq!(warnings(&image), vec![]);
+}

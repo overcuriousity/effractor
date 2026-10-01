@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use crate::architecture::{
     Architecture, Change, Defense, Entity, EntityKind, Evidence, Flow, MAX_ENTITIES,
     MAX_RELATIONSHIPS, MAX_SAMPLES, MAX_SCENARIOS, Parameter, Privilege, Relation, RelationKind,
-    State, StateRef, Switch,
+    Slot, State, StateRef, Switch,
 };
 use crate::{AssociationId, ClusterId, Code, Diagnostic, EntityId, FlowId, article};
 
@@ -1055,6 +1055,38 @@ impl Cx<'_> {
         }
     }
 
+    /// A state only a step with an optional time leads from or to — being at
+    /// a host, plugged into it, a denial — never matters while that time is
+    /// not given: warned, naming the time.
+    fn needs_time(&mut self, r: &StateRef, path: &str) {
+        let Some(e) = self.m.entities.get(&r.entity) else {
+            return;
+        };
+        let slot = match (r.state, e.kind) {
+            (State::Physical, EntityKind::Host) => Slot::Physical,
+            (State::Usb, EntityKind::Host) => Slot::Usb,
+            (State::Unavailable, EntityKind::Host | EntityKind::Service) => Slot::Deny,
+            _ => return,
+        };
+        if e.parameters.contains_key(&slot) {
+            return;
+        }
+        let (role, what) = if path == "attacker.target" {
+            ("goal", "nothing can reach it")
+        } else {
+            ("foothold", "nothing follows from it")
+        };
+        self.warning(
+            Code::Ineffective,
+            path,
+            format!(
+                "\"{}\" has no `{}` time, so {what}: this {role} changes nothing until one is given",
+                r.entity,
+                slot.as_str()
+            ),
+        );
+    }
+
     fn attacker(&mut self) {
         let m = self.m;
         let mut seen = HashSet::new();
@@ -1072,6 +1104,12 @@ impl Cx<'_> {
                     ),
                 );
             }
+        }
+        for (i, foothold) in m.attacker.footholds.iter().enumerate() {
+            self.needs_time(foothold, &format!("attacker.footholds[{i}]"));
+        }
+        if let Some(target) = &m.attacker.target {
+            self.needs_time(target, "attacker.target");
         }
         match &m.attacker.target {
             Some(target) => self.state_ref(target, "attacker.target", false),
