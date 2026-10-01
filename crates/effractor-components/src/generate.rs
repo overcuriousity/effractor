@@ -72,6 +72,7 @@ fn generate_within(
     b.zone_access();
     b.permissions();
     b.flows();
+    b.interception();
     b.operators();
     b.guards();
     b.escalations();
@@ -880,6 +881,164 @@ impl<'a> Builder<'a> {
                 ..origin("service-reachable")
             };
             self.produce(&connected, &reachable, r);
+        }
+    }
+
+    /// Whether a host's static ARP tables are said: in the file or by a
+    /// scenario.
+    fn static_arp_said(&self, host: &EntityId) -> bool {
+        self.m.entities[host].defenses.get(Defense::StaticArp).is_some()
+            || self.m.scenarios.values().any(|s| {
+                s.changes.iter().any(|c| {
+                    matches!(c, Change::EntityDefense { entity, defense: Defense::StaticArp, .. } if entity == host)
+                })
+            })
+    }
+
+    /// ARP cache poisoning (extract Fig. 5.33): a network that says how long
+    /// it takes is poisoned from inside it; a flow across it that is not
+    /// encrypted gives up the credentials it carries, unless both of its
+    /// ends keep static ARP tables.
+    fn interception(&mut self) {
+        let mut poisoned: HashMap<&'a EntityId, String> = HashMap::new();
+        for (nid, entity) in &self.m.entities {
+            if entity.kind != EntityKind::Network || !self.has_slot(nid, Slot::Poison) {
+                continue;
+            }
+            let fact = self.state_id(nid, "poisoned");
+            self.fact(
+                fact.clone(),
+                format!("{} · ARP caches poisoned", entity.label),
+            );
+            let owner = Owner::Entity(nid.clone());
+            let o = Origin {
+                entities: vec![nid.clone()],
+                paths: vec![owner.slot_path(Slot::Poison)],
+                ..origin("arp-poison")
+            };
+            let access = self.state_id(nid, State::Access.as_str());
+            self.action(
+                format!("action/arp-poison/{nid}"),
+                format!("ARP cache poisoning · {}", entity.label),
+                Binding::Parameter {
+                    owner,
+                    base: Slot::Poison,
+                    replacement: None,
+                },
+                &[access],
+                &fact,
+                o,
+            );
+            poisoned.insert(nid, fact);
+        }
+        if poisoned.is_empty() {
+            return;
+        }
+        // credential → the accounts it proves
+        let mut proves: HashMap<&'a EntityId, Vec<&'a EntityId>> = HashMap::new();
+        for a in self.m.associations.values() {
+            if let Relation::Authenticates { from, to, .. } = &a.relation {
+                proves.entry(from).or_default().push(to);
+            }
+        }
+        for (fid, flow) in &self.m.flows {
+            if flow.encrypted {
+                continue;
+            }
+            // Only what logs in where the flow ends is worth taking.
+            let taken: Vec<(usize, &'a EntityId)> = flow
+                .carries
+                .iter()
+                .enumerate()
+                .filter(|(_, c)| {
+                    proves.get(c).is_some_and(|accounts| {
+                        accounts.iter().any(|a| {
+                            self.authorized
+                                .get(a)
+                                .is_some_and(|s| s.iter().any(|(sid, _)| *sid == &flow.target))
+                        })
+                    })
+                })
+                .collect();
+            let across: Vec<&'a EntityId> = flow
+                .route
+                .iter()
+                .step_by(2)
+                .filter(|n| poisoned.contains_key(n))
+                .collect();
+            if taken.is_empty() || across.is_empty() {
+                continue;
+            }
+            let o = |rule| Origin {
+                entities: vec![flow.source.clone(), flow.target.clone()],
+                flows: vec![fid.clone()],
+                ..origin(rule)
+            };
+            let overheard = format!("state/flow/{fid}/overheard");
+            self.fact(overheard.clone(), format!("{} · overheard", flow.label));
+            for n in across {
+                let from = poisoned[n].clone();
+                let mut heard = o("flow-intercept");
+                heard.entities.push(n.clone());
+                self.produce(&from, &overheard, heard);
+            }
+            let mut prerequisites = vec![overheard];
+            // Closed only where both ends keep static tables: drawn where an
+            // end says so; an end that is not a host never closes it.
+            let ends: Vec<&'a EntityId> = [&flow.source, &flow.target]
+                .into_iter()
+                .filter_map(|e| self.host_of.get(e).map(|&(machine, _, _)| machine))
+                .collect();
+            if ends.len() == 2
+                && ends.iter().all(|h| self.kind(h) == EntityKind::Host)
+                && ends.iter().any(|h| self.static_arp_said(h))
+            {
+                let exposed = format!("state/flow/{fid}/exposed");
+                self.fact(exposed.clone(), format!("{} · exposed", flow.label));
+                for host in ends {
+                    let input = format!("input/static-arp-off/{host}");
+                    let policy = Origin {
+                        entities: vec![host.clone()],
+                        paths: vec![format!("entities.{host}.defenses.static-arp")],
+                        ..origin("static-arp-off")
+                    };
+                    self.insert(
+                        input.clone(),
+                        format!("No static ARP tables · {}", self.label(host)),
+                        DraftKind::Input(Binding::Policy {
+                            entity: host.clone(),
+                            defense: Defense::StaticArp,
+                        }),
+                    );
+                    self.originate(&input, policy.clone());
+                    self.produce(
+                        &input,
+                        &exposed,
+                        Origin {
+                            flows: vec![fid.clone()],
+                            ..policy
+                        },
+                    );
+                }
+                prerequisites.push(exposed);
+            }
+            let intercepted = format!("state/flow/{fid}/intercepted");
+            self.fact(intercepted.clone(), format!("{} · intercepted", flow.label));
+            self.action(
+                format!("action/flow-intercept/{fid}"),
+                format!("Intercept · {}", flow.label),
+                Binding::Logical,
+                &prerequisites,
+                &intercepted,
+                o("flow-intercept"),
+            );
+            for (i, credential) in taken {
+                let possessed = self.state_id(credential, State::Possessed.as_str());
+                let mut t = o("intercepted-credential");
+                t.entities.push(credential.clone());
+                t.paths = vec![format!("flows.{fid}.carries[{i}]")];
+                self.produce(&intercepted, &possessed, t);
+            }
         }
     }
 

@@ -203,6 +203,7 @@ impl EntityKind {
                 Slot::Deny,
             ],
             Self::Router => &[Slot::Escape],
+            Self::Network => &[Slot::Poison],
             Self::Ids | Self::Ips => &[Slot::Bypass],
             Self::Person => &[Slot::Phish, Slot::PhishTrained],
             _ => &[],
@@ -224,6 +225,7 @@ impl EntityKind {
                 Defense::Dep,
                 Defense::Hardened,
                 Defense::HostFirewall,
+                Defense::StaticArp,
             ],
             Self::Ids | Self::Ips => &[Defense::Enabled],
             _ => &[],
@@ -419,6 +421,7 @@ pub enum Slot {
     Physical,
     Usb,
     Deny,
+    Poison,
 }
 
 impl Slot {
@@ -444,10 +447,11 @@ impl Slot {
                     | Self::Deny,
                 EntityKind::Host
             ) | (Self::Deny, EntityKind::Service)
+                | (Self::Poison, EntityKind::Network)
         )
     }
 
-    pub const ALL: [Slot; 23] = [
+    pub const ALL: [Slot; 24] = [
         Self::Connect,
         Self::FindExploit,
         Self::FindExploitPatched,
@@ -471,6 +475,7 @@ impl Slot {
         Self::Physical,
         Self::Usb,
         Self::Deny,
+        Self::Poison,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -498,6 +503,7 @@ impl Slot {
             Self::Physical => "physical",
             Self::Usb => "usb",
             Self::Deny => "deny",
+            Self::Poison => "poison",
         }
     }
 }
@@ -558,6 +564,9 @@ pub struct Defenses {
     /// A host: a flow into a service it runs needs its permission too.
     /// Absent is off.
     pub host_firewall: Option<Switch>,
+    /// A host: ARP cache poisoning does not reach a flow both of whose ends
+    /// keep static tables. Absent is off.
+    pub static_arp: Option<Switch>,
 }
 
 impl Defenses {
@@ -575,6 +584,7 @@ impl Defenses {
             Defense::Enabled => self.enabled,
             Defense::Hardened => self.hardened,
             Defense::HostFirewall => self.host_firewall,
+            Defense::StaticArp => self.static_arp,
         }
     }
 
@@ -592,6 +602,7 @@ impl Defenses {
             Defense::Enabled => self.enabled = value,
             Defense::Hardened => self.hardened = value,
             Defense::HostFirewall => self.host_firewall = value,
+            Defense::StaticArp => self.static_arp = value,
         }
     }
 }
@@ -1110,6 +1121,12 @@ pub struct Flow {
     pub route: Vec<EntityId>,
     /// Descriptive only, such as `tcp/22`: it infers nothing.
     pub protocol: Option<String>,
+    /// Encrypted on the wire: interception gives nothing away. False unless
+    /// said; written only when true.
+    pub encrypted: bool,
+    /// Credentials the flow carries, which ARP cache poisoning on its route
+    /// can take; empty unless said, and then not written.
+    pub carries: Vec<EntityId>,
     pub connect: Parameter,
 }
 
@@ -1138,6 +1155,7 @@ pub enum Defense {
     Enabled,
     Hardened,
     HostFirewall,
+    StaticArp,
 }
 
 impl Defense {
@@ -1149,13 +1167,18 @@ impl Defense {
         matches!(
             (self, kind),
             (
-                Self::Aslr | Self::Dep | Self::AntiMalware | Self::Hardened | Self::HostFirewall,
+                Self::Aslr
+                    | Self::Dep
+                    | Self::AntiMalware
+                    | Self::Hardened
+                    | Self::HostFirewall
+                    | Self::StaticArp,
                 EntityKind::Host
             )
         )
     }
 
-    pub const ALL: [Defense; 12] = [
+    pub const ALL: [Defense; 13] = [
         Self::Patched,
         Self::Protected,
         Self::Mfa,
@@ -1168,6 +1191,7 @@ impl Defense {
         Self::Enabled,
         Self::Hardened,
         Self::HostFirewall,
+        Self::StaticArp,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -1184,6 +1208,7 @@ impl Defense {
             Self::Enabled => "enabled",
             Self::Hardened => "hardened",
             Self::HostFirewall => "host-firewall",
+            Self::StaticArp => "static-arp",
         }
     }
 }

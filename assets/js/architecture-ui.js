@@ -899,7 +899,7 @@
         if (row) row.focus();
         return;
       }
-      var control = $({ foothold: "prop-foothold", target: "prop-target", allowed: "prop-allowed", privilege: "prop-privilege", factor: "prop-factor", contained: "prop-contained", decrypts: "prop-decrypts", mode: "prop-mode", route: "prop-route-add" }[field] || "");
+      var control = $({ foothold: "prop-foothold", target: "prop-target", allowed: "prop-allowed", privilege: "prop-privilege", factor: "prop-factor", contained: "prop-contained", decrypts: "prop-decrypts", mode: "prop-mode", route: "prop-route-add", carries: "prop-carries-add" }[field] || "");
       if (control) control.focus();
     },
     // For architecture-links-ui.js: the same edit queue, form parts and hooks.

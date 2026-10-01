@@ -295,3 +295,20 @@ test('Compare offers a host firewall only on a host that runs a service', () => 
   const cat = { entities: [{ kind: 'host', defenses: ['host-firewall'], optional_defenses: ['host-firewall'] }, { kind: 'service', defenses: [] }], defenses: [] };
   assert.deepEqual(C.switches(doc, cat).map((x) => x.entity + ':' + x.defense), ['srv:host-firewall']);
 });
+
+test('Compare offers static ARP tables only on an end of a plain flow that carries something across a poisonable network', () => {
+  const doc = {
+    entities: {
+      lan: { kind: 'network', label: 'LAN', parameters: { poison: { status: 'unknown' } } },
+      srv: { kind: 'host', label: 'Server' }, ws: { kind: 'host', label: 'Workstation' }, other: { kind: 'host', label: 'Other' },
+      cli: { kind: 'application', label: 'Client' }, sshd: { kind: 'service', label: 'SSH' }, key: { kind: 'credential', label: 'Key' },
+    },
+    associations: { h1: { kind: 'hosts', from: 'ws', to: 'cli', privilege: 'user' }, h2: { kind: 'hosts', from: 'srv', to: 'sshd', privilege: 'admin' } },
+    flows: { ssh: { label: 'SSH', source: 'cli', target: 'sshd', route: ['lan'], carries: ['key'] } },
+  };
+  const cat = { entities: [{ kind: 'host', defenses: ['static-arp'], optional_defenses: ['static-arp'] }], defenses: [] };
+  const offered = () => C.switches(doc, cat).map((x) => x.entity + ':' + x.defense);
+  assert.deepEqual(offered(), ['srv:static-arp', 'ws:static-arp']);
+  doc.flows.ssh.encrypted = true;
+  assert.deepEqual(offered(), []);
+});

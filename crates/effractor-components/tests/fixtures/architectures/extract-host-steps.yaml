@@ -9,6 +9,11 @@ entities:
   client-net:
     kind: network
     label: Client network
+    parameters:
+      poison:
+        status: illustrative
+        ttc: "Exponential(mean 1)"
+        note: Exercise assumption; not calibrated to the lecture
   server-net:
     kind: network
     label: Server network
@@ -34,7 +39,7 @@ entities:
   server:
     kind: host
     label: Server
-    defenses: {anti-malware: true, host-firewall: true}
+    defenses: {anti-malware: true, host-firewall: true, static-arp: true}
     parameters:
       bypass-antimalware:
         status: illustrative
@@ -308,6 +313,7 @@ flows:
     target: sshd
     route: [client-net, bridge, server-net]
     protocol: tcp/22
+    carries: [server-key]
     parameters:
       connect:
         status: illustrative

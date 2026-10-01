@@ -575,3 +575,21 @@ test('the hardened escalation time is offered only where there is an escalation'
   const absent = () => V.slotRows(doc, REAL, 'ws').filter((r) => r.absent).map((r) => r.slot);
   assert.ok(!absent().includes('escalate-hardened'));
 });
+
+test('ARP poisoning and static ARP tables are offered only where a plain flow carries something across', () => {
+  const doc = lecture();
+  const poison = () => V.slotRows(doc, REAL, 'lan').filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
+  const arp = (id) => V.defenseRows(doc, REAL, id).some((r) => r.defense === 'static-arp');
+  assert.deepEqual(poison(), [], 'nothing to take off the network');
+  assert.ok(!arp('srv') && !arp('ws'));
+  doc.entities.key = { kind: 'credential', label: 'Key' };
+  doc.flows.ssh.carries = ['key'];
+  assert.deepEqual(poison(), ['poison: not drawn until a time is given']);
+  assert.ok(!arp('srv'), 'no poisoning time yet: static tables change nothing');
+  doc.entities.lan.parameters = { poison: { status: 'unknown' } };
+  assert.ok(arp('srv') && arp('ws'), 'both ends of the flow');
+  doc.flows.ssh.encrypted = true;
+  assert.ok(!arp('srv') && !arp('ws'), 'an encrypted flow gives nothing away');
+  delete doc.entities.lan.parameters;
+  assert.deepEqual(poison(), []);
+});

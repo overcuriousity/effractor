@@ -3,7 +3,7 @@
 use effractor_components::{RULES, catalog};
 use serde_json::Value;
 
-const RULE_IDS: [&str; 54] = [
+const RULE_IDS: [&str; 58] = [
     "foothold",
     "admin-implies-user",
     "host-execution",
@@ -34,6 +34,10 @@ const RULE_IDS: [&str; 54] = [
     "physical-access",
     "usb-access",
     "deny-service",
+    "arp-poison",
+    "static-arp-off",
+    "flow-intercept",
+    "intercepted-credential",
     "account-held",
     "credential-extract",
     "account-material",
@@ -96,7 +100,7 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
     );
     assert_eq!(ids(&c["associations"], "kind").len(), 21);
     assert_eq!(ids(&c["states"], "id").len(), 13);
-    assert_eq!(ids(&c["parameters"], "slot").len(), 23);
+    assert_eq!(ids(&c["parameters"], "slot").len(), 24);
     let rules = ids(&c["rules"], "id");
     assert_eq!(rules, RULE_IDS);
     for rule in &RULES {
@@ -280,6 +284,7 @@ fn every_kind_says_which_of_its_slots_are_optional() {
                 "deny"
             ]),
             "application" => serde_json::json!(["deploy-exploit"]),
+            "network" => serde_json::json!(["poison"]),
             "service" => {
                 serde_json::json!(["deploy-exploit-aslr", "deploy-exploit-dep", "deny"])
             }
@@ -315,7 +320,14 @@ fn the_catalog_describes_the_sensors_and_anti_malware() {
     assert_eq!(ids["defenses"], serde_json::json!(["enabled"]));
     assert_eq!(
         entity("host")["optional_defenses"],
-        serde_json::json!(["aslr", "anti-malware", "dep", "hardened", "host-firewall"])
+        serde_json::json!([
+            "aslr",
+            "anti-malware",
+            "dep",
+            "hardened",
+            "host-firewall",
+            "static-arp"
+        ])
     );
     let watches = c["associations"]
         .as_array()
@@ -381,4 +393,48 @@ fn states_added_to_existing_kinds_are_optional_and_say_their_role() {
     assert_eq!(state("held")["target"], false);
     assert_eq!(state("admin")["foothold"], true);
     assert_eq!(state("admin")["target"], true);
+}
+
+#[test]
+fn the_catalog_describes_arp_poisoning_and_what_a_flow_carries() {
+    let c = catalog();
+    let entity = |kind: &str| {
+        c["entities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["kind"] == kind)
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(
+        entity("network")["parameters"],
+        serde_json::json!(["poison"])
+    );
+    assert_eq!(entity("network")["optional"], serde_json::json!(["poison"]));
+    let word = |list: &str, key: &str, id: &str| {
+        c[list]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e[key] == id)
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(
+        word("defenses", "id", "static-arp")["word"],
+        "Static ARP tables"
+    );
+    assert_eq!(
+        word("parameters", "slot", "poison")["name"],
+        "Poison the ARP caches"
+    );
+    assert_eq!(
+        word("rules", "id", "arp-poison")["title"],
+        "ARP cache poisoning"
+    );
+    // The flow's own fields, in words for its form.
+    assert_eq!(ids(&c["flow_fields"], "id"), ["encrypted", "carries"]);
+    assert_eq!(c["flow_fields"][0]["word"], "Encrypted");
+    assert_eq!(c["flow_fields"][1]["word"], "Carries");
 }

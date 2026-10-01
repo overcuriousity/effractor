@@ -8,6 +8,8 @@
   var slug = (typeof module !== "undefined" ? require("./edit.js") : window.effractorEdit).slug;
   // Probabilities as the rest of the page says them.
   var digits = (typeof module !== "undefined" ? require("./results-view.js") : window.effractorResults).probability;
+  // What a switch can change, as the inspector judges it.
+  var view = typeof module !== "undefined" ? require("./architecture-view.js") : window.effractorArchitectureView;
 
   function has(map, key) {
     return !!map && Object.prototype.hasOwnProperty.call(map, key);
@@ -159,6 +161,8 @@
         if ((d === "anti-malware" || d === "host-firewall") && !runsService && !(e.defenses && has(e.defenses, d))) return;
         // Hardening only where the host can escalate.
         if (d === "hardened" && !(e.parameters && has(e.parameters, "escalate")) && !(e.defenses && has(e.defenses, d))) return;
+        // Static ARP tables only where ARP cache poisoning can take something.
+        if (d === "static-arp" && !view.interceptable(doc, id) && !(e.defenses && has(e.defenses, d))) return;
         // An optional switch not set is off; any other one unsaid, unknown.
         var v = e.defenses && has(e.defenses, d) ? e.defenses[d] : (optionalOf[e.kind] || []).indexOf(d) >= 0 ? false : "unknown";
         out.push({ key: keyOf({ entity: id, defense: d }), entity: id, defense: d, label: labelOf(doc, "entities", id), word: words[d] || d, baseline: v });

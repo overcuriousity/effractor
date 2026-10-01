@@ -255,6 +255,11 @@
     if (miss) return miss;
     var hops = i.route || [];
     for (var h = 0; h < hops.length; h++) if (!has(ctx.doc.entities, hops[h])) return no("network or router", hops[h]);
+    var carried = i.carries || [];
+    for (var c = 0; c < carried.length; c++) if (!has(ctx.doc.entities, carried[c])) return no("credential", carried[c]);
+    // Unsaid, whether it is encrypted and what it carries stay as they are.
+    var old = i.id !== undefined && has(ctx.doc.flows, i.id) ? ctx.doc.flows[i.id] : null;
+    if (old) i = Object.assign({ encrypted: old.encrypted, carries: old.carries }, i);
     var r = L.putFlow(ctx.doc, i.id === undefined ? null : i.id, i);
     return r ? { doc: r.doc, select: r.select, said: "Flow “" + str(i.label) + "”" + (r.notice ? " (" + r.notice.replace(" · Ctrl+Z undoes", "") + ")" : "") } : { refused: "a flow needs a label, or " + NOTHING };
   }
@@ -349,7 +354,7 @@
   // The lists each tool takes (tools.json). Anything else in their place is
   // refused before the tool reads it: an object there once cleared the list.
   var LISTS = { put_control: ["effects"], set_node: ["consequences"], add_entity: ["addresses"], set_entity: ["addresses", "identities", "names"],
-    put_flow: ["route"], set_attacker: ["footholds"], cluster: ["members"] };
+    put_flow: ["route", "carries"], set_attacker: ["footholds"], cluster: ["members"] };
   // Where the tool reads null as none.
   var NULLABLE = { consequences: true, addresses: true, identities: true, names: true, route: true, members: true };
 
@@ -410,7 +415,7 @@
       "rateFrom", "meanTime", "usesOfAsset", "effectTargets", "walk", "createHistory"],
     "architecture-edit.js": ["KINDS", "GROUPS", "STATUSES", "has", "clone", "extensions", "empty", "isName"],
     "architecture-links.js": ["notes", "emptyLink", "emptyFlow", "emptyHop", "phrase", "fieldsOf", "variants", "fieldWord", "fieldValue",
-      "addChoices", "linkChoices", "nextHops", "nearHops", "flowPermissions", "linksOf", "flowsOf"],
+      "addChoices", "linkChoices", "nextHops", "nearHops", "flowPermissions", "linksOf", "flowsOf", "carriable", "emptyCarry"],
     "clusters.js": ["SPECIFIC", "opened", "inPlace", "held", "spread", "pickable", "drawnLine", "transitions", "clusterOf", "label", "lead",
       "entitiesOf", "together", "forget", "gather", "lit", "segments", "arc", "within", "closeAt", "reopen"],
     "comparison.js": ["probability", "speedText", "signed", "interval", "state", "ids", "newLabel", "switches", "settings", "rows",

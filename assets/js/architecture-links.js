@@ -57,7 +57,9 @@
     return { doc: next, select: "association/" + id };
   }
 
-  // `value`: {label, source, target, route, protocol?}. The connect
+  // `value`: {label, source, target, route, protocol?, encrypted?,
+  // carries?}; `encrypted` is written only when true, `carries` only when it
+  // names something. The connect
   // parameter is edited as a parameter; a new flow's is unknown.
   // `inPlace`: as in architecture-edit.js.
   function putFlow(doc, id, value, inPlace) {
@@ -76,6 +78,11 @@
     };
     var protocol = String(value.protocol == null ? "" : value.protocol).trim();
     if (protocol) f.protocol = protocol;
+    if (value.encrypted === true) f.encrypted = true;
+    var carries = (value.carries || []).map(String).filter(function (c, i, all) {
+      return c && all.indexOf(c) === i;
+    });
+    if (carries.length) f.carries = carries;
     f.parameters = old && old.parameters ? old.parameters : { connect: { status: "unknown" } };
     Object.assign(f, extensions(old));
     if (old && JSON.stringify(old) === JSON.stringify(f)) return null;
@@ -282,6 +289,17 @@
       Object.keys(next.flows || {}).forEach(function (k) {
         var f = next.flows[k];
         if (f.source === id || f.target === id || (f.route || []).indexOf(id) >= 0) gone.flows[k] = true;
+      });
+    }
+    // A credential leaves what flows carry; the flows stay.
+    if (collection === "entities") {
+      Object.keys(next.flows || {}).forEach(function (k) {
+        var f = next.flows[k];
+        if (!f.carries || f.carries.indexOf(id) < 0) return;
+        f.carries = f.carries.filter(function (c) {
+          return c !== id;
+        });
+        if (!f.carries.length) delete f.carries;
       });
     }
     var link = collection === "associations" ? next.associations[id] : null;
@@ -683,6 +701,41 @@
     };
   }
 
+  // The credentials a flow could be said to carry: those it does not yet,
+  // the ones that prove an account its target accepts first, each group in
+  // document order.
+  function carriable(doc, flowId) {
+    var flow = has(doc.flows, flowId) ? doc.flows[flowId] : null;
+    if (!flow) return [];
+    var carried = flow.carries || [];
+    var associations = doc.associations || {};
+    var accepted = Object.keys(associations).filter(function (k) {
+      return associations[k].kind === "authorizes" && associations[k].to === flow.target;
+    }).map(function (k) {
+      return associations[k].from;
+    });
+    var useful = function (c) {
+      return Object.keys(associations).some(function (k) {
+        var a = associations[k];
+        return a.kind === "authenticates" && a.from === c && accepted.indexOf(a.to) >= 0;
+      });
+    };
+    var free = Object.keys(doc.entities || {}).filter(function (id) {
+      return doc.entities[id].kind === "credential" && carried.indexOf(id) < 0;
+    });
+    return free.filter(useful).concat(free.filter(function (c) {
+      return !useful(c);
+    }));
+  }
+
+  // Why a flow is offered no credential to carry.
+  function emptyCarry(doc, flowId) {
+    var any = Object.keys(doc.entities || {}).some(function (id) {
+      return doc.entities[id].kind === "credential";
+    });
+    return any ? "it carries every credential there is" : "no credentials yet · A adds one";
+  }
+
   // For each router on the flow's route: its firewall and that firewall's
   // permission for the flow — or null where there is none yet.
   function flowPermissions(doc, flowId) {
@@ -800,7 +853,7 @@
     return want === "router" ? "no router yet · add one with A, then connect it to both networks" : "no network yet · add one with A";
   }
 
-  var api = { notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, fieldsOf: fieldsOf, variants: variants, fieldWord: fieldWord, fieldValue: fieldValue, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, remove: remove, removeAll: removeAll };
+  var api = { carriable: carriable, emptyCarry: emptyCarry, notes: notes, emptyLink: emptyLink, emptyFlow: emptyFlow, emptyHop: emptyHop, phrase: phrase, fieldsOf: fieldsOf, variants: variants, fieldWord: fieldWord, fieldValue: fieldValue, addChoices: addChoices, addLinked: addLinked, linkChoices: linkChoices, nextHops: nextHops, nearHops: nearHops, flowPermissions: flowPermissions, linksOf: linksOf, flowsOf: flowsOf, putAssociation: putAssociation, putFlow: putFlow, setFoothold: setFoothold, setTarget: setTarget, placePin: placePin, removePin: removePin, remove: remove, removeAll: removeAll };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureLinks = api;
 })();

@@ -2115,9 +2115,9 @@ fn every_problem_in_one_association_is_reported_at_once() {
 #[test]
 fn a_kind_without_parameters_or_defence_says_so() {
     let mut image = image(LECTURE);
-    image["entities"]["client-net"]["parameters"] =
+    image["entities"]["bridge-fw"]["parameters"] =
         serde_json::json!({"login": {"status": "unknown"}});
-    image["entities"]["client-net"]["defenses"] = serde_json::json!({"patched": true});
+    image["entities"]["bridge-fw"]["defenses"] = serde_json::json!({"patched": true});
     let errors = from_document(&image).unwrap_err();
     let message = |path: &str| {
         errors
@@ -2127,12 +2127,12 @@ fn a_kind_without_parameters_or_defence_says_so() {
             .unwrap_or_else(|| panic!("{path}: {errors:?}"))
     };
     assert_eq!(
-        message("entities.client-net.parameters.login"),
-        "`login` is not a key here; a network has no parameters"
+        message("entities.bridge-fw.parameters.login"),
+        "`login` is not a key here; a firewall has no parameters"
     );
     assert_eq!(
-        message("entities.client-net.defenses.patched"),
-        "`patched` is not a key here; a network has no defence"
+        message("entities.bridge-fw.defenses.patched"),
+        "`patched` is not a key here; a firewall has no defence"
     );
 }
 
@@ -2450,4 +2450,76 @@ fn a_state_refused_for_its_role_says_which_role_it_has() {
         .unwrap()
         .message;
     assert!(m.contains("a goal only"), "{m}");
+}
+
+#[test]
+fn a_flow_says_it_is_encrypted_and_what_it_carries_fig_5_33() {
+    let mut image = image(LECTURE);
+    image["flows"]["ssh"]["encrypted"] = serde_json::json!(true);
+    image["flows"]["ssh"]["carries"] = serde_json::json!(["server-credential"]);
+    let text = from_document(&image).unwrap();
+    assert!(
+        text.contains(
+            "    protocol: tcp/22\n    encrypted: true\n    carries: [server-credential]\n"
+        ),
+        "{text}"
+    );
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    assert_eq!(effractor_format::diagnose_document(&text).1, vec![]);
+    // Not encrypted and nothing carried is what a file without them says:
+    // neither is written.
+    let mut plain = image.clone();
+    plain["flows"]["ssh"]["encrypted"] = serde_json::json!(false);
+    plain["flows"]["ssh"]["carries"] = serde_json::json!([]);
+    let text = from_document(&plain).unwrap();
+    assert!(
+        !text.contains("encrypted") && !text.contains("carries"),
+        "{text}"
+    );
+    assert_eq!(text, from_document(&self::image(LECTURE)).unwrap());
+    // What a flow carries is a credential, and one that is there.
+    let mut account = image.clone();
+    account["flows"]["ssh"]["carries"] = serde_json::json!(["server-account"]);
+    assert!(has(
+        &errors_of(&account),
+        "association-type",
+        "flows.ssh.carries[0]"
+    ));
+    let mut missing = image.clone();
+    missing["flows"]["ssh"]["carries"] = serde_json::json!(["nothing"]);
+    assert!(has(
+        &errors_of(&missing),
+        "unknown-reference",
+        "flows.ssh.carries[0]"
+    ));
+    let mut twice = image.clone();
+    twice["flows"]["ssh"]["carries"] =
+        serde_json::json!(["server-credential", "server-credential"]);
+    assert!(from_document(&twice).is_err(), "a credential carried twice");
+    // A credential that logs in nowhere the flow ends gives nothing away.
+    let mut elsewhere = image.clone();
+    elsewhere["flows"]["ssh"]["carries"] = serde_json::json!(["admin-credential"]);
+    let text = from_document(&elsewhere).unwrap();
+    assert!(
+        effractor_format::diagnose_document(&text)
+            .1
+            .iter()
+            .any(|d| d.code.as_str() == "ineffective" && d.path == "flows.ssh.carries[0]"),
+        "{text}"
+    );
+}
+
+#[test]
+fn a_network_may_say_how_long_poisoning_its_arp_caches_takes() {
+    let mut image = image(LECTURE);
+    image["entities"]["client-net"]["parameters"] =
+        serde_json::json!({"poison": {"status": "unknown"}});
+    image["entities"]["server"]["defenses"] = serde_json::json!({"static-arp": true});
+    let text = from_document(&image).unwrap();
+    assert!(
+        text.contains("      poison:\n        status: unknown\n"),
+        "{text}"
+    );
+    assert!(text.contains("{static-arp: true}"), "{text}");
+    assert_eq!(canonicalize(&text).unwrap(), text);
 }

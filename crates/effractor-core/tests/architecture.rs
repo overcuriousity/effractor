@@ -686,6 +686,7 @@ fn only_slots_added_to_an_existing_kind_are_optional() {
     assert_eq!(
         optional,
         [
+            "poison on network",
             "deploy-exploit on host",
             "deploy-exploit-aslr on host",
             "deploy-exploit-dep on host",
@@ -713,7 +714,8 @@ fn a_host_has_aslr_and_dep_and_neither_is_filled_in() {
             Defense::AntiMalware,
             Defense::Dep,
             Defense::Hardened,
-            Defense::HostFirewall
+            Defense::HostFirewall,
+            Defense::StaticArp
         ]
     );
     assert!(Defense::Aslr.optional(EntityKind::Host) && Defense::Dep.optional(EntityKind::Host));
@@ -901,4 +903,18 @@ fn a_host_has_anti_malware_off_unless_said() {
     let host = Entity::new(EntityKind::Host, "Server");
     assert_eq!(host.defenses.get(Defense::AntiMalware), None);
     assert!(!host.parameters.contains_key(&Slot::BypassAntimalware));
+}
+
+#[test]
+fn static_arp_is_an_optional_host_switch_and_poisoning_an_optional_network_time() {
+    use effractor_core::architecture::{Defense, Entity, EntityKind, Slot};
+    assert!(Defense::StaticArp.optional(EntityKind::Host));
+    assert_eq!(Defense::StaticArp.as_str(), "static-arp");
+    assert_eq!(EntityKind::Network.slots(), &[Slot::Poison]);
+    assert!(Slot::Poison.optional(EntityKind::Network));
+    assert_eq!(Slot::Poison.as_str(), "poison");
+    let network = Entity::new(EntityKind::Network, "LAN");
+    assert!(network.parameters.is_empty(), "absent: not drawn");
+    let host = Entity::new(EntityKind::Host, "Server");
+    assert_eq!(host.defenses.get(Defense::StaticArp), None, "absent is off");
 }

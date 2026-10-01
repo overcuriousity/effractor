@@ -57,6 +57,8 @@ test('each source field leads to the place in the architecture that sets it', ()
   // An unfinished route: the flow, at its next hop; a component or flow as a whole.
   assert.deepEqual(at('flows.ssh.route'), { select: 'flow/ssh', field: 'route', path: 'flows.ssh.route' });
   assert.deepEqual(at('flows.ssh.route[1]'), { select: 'flow/ssh', field: 'route', path: 'flows.ssh.route[1]' });
+  // What a flow carries: its Carries field.
+  assert.deepEqual(at('flows.ssh.carries[0]'), { select: 'flow/ssh', field: 'carries', path: 'flows.ssh.carries[0]' });
   assert.deepEqual(at('flows.ssh.source'), { select: 'flow/ssh', path: 'flows.ssh.source' });
   assert.deepEqual(at('entities.sshd'), { select: 'entity/sshd', path: 'entities.sshd' });
   assert.deepEqual(at('entities.gone'), { source: 'entities.gone', path: 'entities.gone' });

@@ -605,6 +605,21 @@ impl Cx<'_> {
                 &[EntityKind::Service],
             );
             self.route(id, flow, &at, source.is_some(), target.is_some());
+            let mut carried = HashSet::new();
+            for (i, credential) in flow.carries.iter().enumerate() {
+                let path = format!("{at}.carries[{i}]");
+                if self
+                    .entity_of(credential, &path, &[EntityKind::Credential])
+                    .is_some()
+                    && !carried.insert(credential)
+                {
+                    self.error(
+                        Code::Cardinality,
+                        path,
+                        format!("\"{credential}\" is listed twice"),
+                    );
+                }
+            }
         }
     }
 
@@ -785,6 +800,34 @@ impl Cx<'_> {
                 _ => None,
             })
             .collect();
+        // A credential a flow carries is taken off it only where it logs in
+        // to an account the flow's target accepts.
+        let proves: HashSet<(&EntityId, &EntityId)> = m
+            .associations
+            .values()
+            .filter_map(|a| match &a.relation {
+                Relation::Authenticates { from, to, .. } => Some((from, to)),
+                _ => None,
+            })
+            .collect();
+        for (fid, flow) in &m.flows {
+            for (i, credential) in flow.carries.iter().enumerate() {
+                if self.kind_of(credential) == Some(EntityKind::Credential)
+                    && !authorized.iter().any(|&(account, service)| {
+                        service == &flow.target && proves.contains(&(credential, account))
+                    })
+                {
+                    self.warning(
+                        Code::Ineffective,
+                        format!("flows.{fid}.carries[{i}]"),
+                        format!(
+                            "\"{credential}\" proves no account \"{}\" accepts, so taking it off this flow gives nothing",
+                            flow.target
+                        ),
+                    );
+                }
+            }
+        }
         // A firewall's router: the first `filters` that names it.
         let mut router_of: HashMap<&EntityId, &EntityId> = HashMap::new();
         for a in m.associations.values() {

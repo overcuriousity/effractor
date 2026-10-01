@@ -1462,3 +1462,222 @@ fn a_host_firewall_said_on_without_a_permission_leaves_the_flow_unfinished() {
         }
     }
 }
+
+const CLIENT_NET: &str = "  client-net:\n    kind: network\n    label: Client network\n";
+const SSH_PROTOCOL: &str = "    protocol: tcp/22\n";
+const WORKSTATION: &str = "  workstation:\n    kind: host\n    label: Workstation\n";
+
+/// The lecture with the client network's ARP caches poisonable and the SSH
+/// flow saying `flow_fields` after its protocol (extract Fig. 5.33).
+fn poisonable(flow_fields: &str, more: &[(&str, &str)]) -> Architecture {
+    let mut pairs = vec![
+        (
+            CLIENT_NET.to_owned(),
+            format!(
+                "{CLIENT_NET}    parameters:\n      poison:\n        status: illustrative\n        ttc: \"Exponential(mean 1)\"\n"
+            ),
+        ),
+        (
+            SSH_PROTOCOL.to_owned(),
+            format!("{SSH_PROTOCOL}{flow_fields}"),
+        ),
+    ];
+    pairs.extend(more.iter().map(|(a, b)| (a.to_string(), b.to_string())));
+    let pairs: Vec<(&str, &str)> = pairs
+        .iter()
+        .map(|(a, b)| (a.as_str(), b.as_str()))
+        .collect();
+    edited(LECTURE, &pairs)
+}
+
+#[test]
+fn arp_poisoning_takes_a_carried_credential_off_a_plain_flow_fig_5_33() {
+    let lecture = shape(&generate(&architecture(LECTURE)).unwrap());
+    assert!(
+        !lecture
+            .keys()
+            .any(|k| k.contains("arp-poison") || k.contains("intercept")),
+        "nothing drawn for a file that says none of it"
+    );
+    let m = poisonable("    carries: [server-key]\n", &[]);
+    let g = generate(&m).unwrap();
+    let s = shape(&g);
+    assert_eq!(
+        s["action/arp-poison/client-net"],
+        strings(&["state/network/client-net/access"])
+    );
+    assert_eq!(
+        s["state/network/client-net/poisoned"],
+        strings(&["action/arp-poison/client-net"])
+    );
+    assert_eq!(
+        s["state/flow/ssh/overheard"],
+        strings(&["state/network/client-net/poisoned"])
+    );
+    assert_eq!(
+        s["action/flow-intercept/ssh"],
+        strings(&["state/flow/ssh/overheard"]),
+        "neither end says static ARP tables: nothing closes it"
+    );
+    assert_eq!(
+        s["state/flow/ssh/intercepted"],
+        strings(&["action/flow-intercept/ssh"])
+    );
+    assert!(
+        s["state/credential/server-key/possessed"]
+            .contains(&"state/flow/ssh/intercepted".to_owned())
+    );
+    let node = &g.nodes[index(&g, "action/arp-poison/client-net")];
+    assert_eq!(node.origins[0].rule, "arp-poison");
+    assert_eq!(
+        node.origins[0].paths,
+        ["entities.client-net.parameters.poison"]
+    );
+    let taken = &g.nodes[index(&g, "state/credential/server-key/possessed")];
+    assert!(
+        taken
+            .origins
+            .iter()
+            .any(|o| o.rule == "intercepted-credential"
+                && o.flows.iter().any(|f| f.as_str() == "ssh")
+                && o.paths == ["flows.ssh.carries[0]"])
+    );
+    // A network that does not say how long poisoning takes draws nothing.
+    let unsaid = edited(
+        LECTURE,
+        &[(
+            SSH_PROTOCOL,
+            "    protocol: tcp/22\n    carries: [server-key]\n",
+        )],
+    );
+    let s = shape(&generate(&unsaid).unwrap());
+    assert!(
+        !s.keys()
+            .any(|k| k.contains("arp-poison") || k.contains("intercept"))
+    );
+}
+
+#[test]
+fn a_flow_that_carries_nothing_is_not_intercepted() {
+    let s = shape(&generate(&poisonable("", &[])).unwrap());
+    assert!(s.contains_key("action/arp-poison/client-net"));
+    assert!(
+        !s.keys()
+            .any(|k| k.contains("/ssh/") && k.contains("intercept"))
+    );
+    assert!(!s.contains_key("state/flow/ssh/overheard"));
+}
+
+#[test]
+fn an_encrypted_flow_gives_nothing_away_fig_5_33() {
+    let s = shape(
+        &generate(&poisonable(
+            "    encrypted: true\n    carries: [server-key]\n",
+            &[],
+        ))
+        .unwrap(),
+    );
+    assert!(!s.contains_key("action/flow-intercept/ssh"));
+    assert!(
+        !s["state/credential/server-key/possessed"]
+            .contains(&"state/flow/ssh/intercepted".to_owned())
+    );
+}
+
+#[test]
+fn a_carried_credential_that_logs_in_nowhere_the_flow_ends_is_not_taken() {
+    let s = shape(&generate(&poisonable("    carries: [admin-key]\n", &[])).unwrap());
+    assert!(
+        !s["state/credential/admin-key/possessed"]
+            .contains(&"state/flow/ssh/intercepted".to_owned())
+    );
+}
+
+#[test]
+fn static_arp_on_both_ends_closes_interception_and_on_one_does_not_fig_5_37() {
+    let with = |server: &str, workstation: &str| {
+        poisonable(
+            "    carries: [server-key]\n",
+            &[
+                (
+                    "  server:\n    kind: host\n    label: Server\n",
+                    &format!(
+                        "  server:\n    kind: host\n    label: Server\n    defenses: {{static-arp: {server}}}\n"
+                    ),
+                ),
+                (
+                    WORKSTATION,
+                    &format!("{WORKSTATION}    defenses: {{static-arp: {workstation}}}\n"),
+                ),
+            ],
+        )
+    };
+    let both = with("true", "true");
+    let g = generate(&both).unwrap();
+    let s = shape(&g);
+    assert_eq!(
+        s["state/flow/ssh/exposed"],
+        strings(&[
+            "input/static-arp-off/server",
+            "input/static-arp-off/workstation"
+        ])
+    );
+    assert_eq!(
+        s["action/flow-intercept/ssh"],
+        strings(&["state/flow/ssh/exposed", "state/flow/ssh/overheard"])
+    );
+    let r = resolve(&both, &g, None).unwrap();
+    for host in ["server", "workstation"] {
+        assert_eq!(
+            r.ttc[index(&g, &format!("input/static-arp-off/{host}"))],
+            ResolvedTtc::Known(Distribution::Infinity),
+            "{host}: on"
+        );
+    }
+    let one = with("true", "false");
+    let g = generate(&one).unwrap();
+    let r = resolve(&one, &g, None).unwrap();
+    assert_eq!(
+        r.ttc[index(&g, "input/static-arp-off/workstation")],
+        ResolvedTtc::Known(Distribution::Zero),
+        "one end without static tables leaves the flow exposed"
+    );
+    // Said on one end only, the other end's absence reads as off.
+    let only = poisonable(
+        "    carries: [server-key]\n",
+        &[(
+            "  server:\n    kind: host\n    label: Server\n",
+            "  server:\n    kind: host\n    label: Server\n    defenses: {static-arp: true}\n",
+        )],
+    );
+    let g = generate(&only).unwrap();
+    let r = resolve(&only, &g, None).unwrap();
+    assert_eq!(
+        r.ttc[index(&g, "input/static-arp-off/workstation")],
+        ResolvedTtc::Known(Distribution::Zero)
+    );
+}
+
+#[test]
+fn a_scenario_may_keep_static_arp_tables_where_the_file_says_none() {
+    let m = poisonable(
+        "    carries: [server-key]\n",
+        &[(
+            "scenarios:\n",
+            "scenarios:\n  static:\n    label: Static ARP tables everywhere\n    changes:\n      - {entity: server, defense: static-arp, value: true}\n      - {entity: workstation, defense: static-arp, value: true}\n",
+        )],
+    );
+    let g = generate(&m).unwrap();
+    assert!(shape(&g)["action/flow-intercept/ssh"].contains(&"state/flow/ssh/exposed".to_owned()));
+    let as_written = resolve(&m, &g, None).unwrap();
+    assert_eq!(
+        as_written.ttc[index(&g, "input/static-arp-off/server")],
+        ResolvedTtc::Known(Distribution::Zero)
+    );
+    let scenario: ScenarioId = id("static");
+    let switched = resolve(&m, &g, Some(&scenario)).unwrap();
+    assert_eq!(
+        switched.ttc[index(&g, "input/static-arp-off/server")],
+        ResolvedTtc::Known(Distribution::Infinity)
+    );
+}

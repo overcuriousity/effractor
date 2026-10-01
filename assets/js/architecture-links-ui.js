@@ -392,7 +392,7 @@
 
   function flowValue(id, change) {
     var f = doc().flows[id];
-    return Object.assign({ label: f.label, source: f.source, target: f.target, route: f.route, protocol: f.protocol }, change);
+    return Object.assign({ label: f.label, source: f.source, target: f.target, route: f.route, protocol: f.protocol, encrypted: f.encrypted, carries: f.carries }, change);
   }
 
   function putFlow(id, change) {
@@ -466,6 +466,45 @@
     protocol.addEventListener("change", function () {
       putFlow(id, { protocol: protocol.value });
     });
+
+    // Encrypted on the wire, and the credentials it carries: what ARP cache
+    // poisoning on its route could take. Words from the catalog.
+    var words = {};
+    ((U.catalog() || {}).flow_fields || []).forEach(function (w) {
+      words[w.id] = w;
+    });
+    var word = function (key, fallback) {
+      return words[key] ? words[key].word : fallback;
+    };
+    var encrypted = U.field(form, "prop-encrypted", word("encrypted", "Encrypted"), M.dropdown([["false", "No"], ["true", "Yes"]], f.encrypted === true ? "true" : "false"));
+    if (words.encrypted) encrypted.title = words.encrypted.description;
+    encrypted.addEventListener("change", function () {
+      putFlow(id, { encrypted: encrypted.value === "true" });
+    });
+    var carries = el("div", null, "route");
+    (f.carries || []).forEach(function (c) {
+      carries.appendChild(endButton("entity/" + c, name(c)));
+    });
+    if (!(f.carries || []).length) carries.appendChild(el("span", "nothing", "empty"));
+    var carry = button("+", "Add a credential it carries", function () {
+      var where = at(carry);
+      var free = L.carriable(doc(), id);
+      if (!free.length) return app.say(L.emptyCarry(doc(), id));
+      app.showMenu(free.map(function (c) {
+        return [name(c), kindOf(c), function () {
+          putFlow(id, { carries: (doc().flows[id].carries || []).concat([c]) });
+        }];
+      }), where.x, where.y, where.box);
+    }, "btn btn-ghost btn-small link-add");
+    carry.id = "prop-carries-add";
+    carries.appendChild(carry);
+    if ((f.carries || []).length) {
+      carries.appendChild(button("−", "Remove the last credential", function () {
+        putFlow(id, { carries: doc().flows[id].carries.slice(0, -1) });
+      }, "btn btn-ghost btn-small link-add"));
+    }
+    var carriesField = U.field(form, "prop-carries", word("carries", "Carries"), carries);
+    if (words.carries) carriesField.title = words.carries.description;
 
     // One permission per router crossed with a firewall: given, or visibly
     // missing. A router without one lets the flow through.

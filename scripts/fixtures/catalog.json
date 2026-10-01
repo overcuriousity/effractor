@@ -12,8 +12,12 @@
         "access"
       ],
       "optional_states": [],
-      "parameters": [],
-      "optional": [],
+      "parameters": [
+        "poison"
+      ],
+      "optional": [
+        "poison"
+      ],
       "defenses": [],
       "optional_defenses": []
     },
@@ -87,14 +91,16 @@
         "anti-malware",
         "dep",
         "hardened",
-        "host-firewall"
+        "host-firewall",
+        "static-arp"
       ],
       "optional_defenses": [
         "aslr",
         "anti-malware",
         "dep",
         "hardened",
-        "host-firewall"
+        "host-firewall",
+        "static-arp"
       ]
     },
     {
@@ -277,6 +283,18 @@
         "enabled"
       ],
       "optional_defenses": []
+    }
+  ],
+  "flow_fields": [
+    {
+      "id": "encrypted",
+      "word": "Encrypted",
+      "description": "Encrypted on the wire: intercepting it gives nothing away. Not encrypted unless said."
+    },
+    {
+      "id": "carries",
+      "word": "Carries",
+      "description": "Credentials the flow carries, e.g. a password typed into a login: ARP cache poisoning on its route takes them unless it is encrypted."
     }
   ],
   "associations": [
@@ -705,6 +723,11 @@
       "id": "host-firewall",
       "word": "Host firewall",
       "description": "The host filters what comes in: a flow into a service it runs needs the host's permission too, as at a router's firewall. Off unless said."
+    },
+    {
+      "id": "static-arp",
+      "word": "Static ARP tables",
+      "description": "The host keeps static ARP tables: ARP cache poisoning does not reach a flow both of whose ends keep them. Off unless said."
     }
   ],
   "parameters": [
@@ -845,6 +868,12 @@
       "name": "Deny service",
       "owner": "host or service",
       "description": "Time to take the host or service out of service once it is reachable. Optional: not drawn until given."
+    },
+    {
+      "slot": "poison",
+      "name": "Poison the ARP caches",
+      "owner": "network",
+      "description": "Time to poison the network's ARP caches once in it, so its traffic passes the attacker. Optional: not drawn until given."
     }
   ],
   "rules": [
@@ -1395,6 +1424,78 @@
       "scope": "one per host or service with a `deny` time",
       "assumptions": [
         "Taking something out of service needs only to reach it; nothing else depends on it being down."
+      ]
+    },
+    {
+      "id": "arp-poison",
+      "title": "ARP cache poisoning",
+      "version": 1,
+      "bindings": [
+        "network"
+      ],
+      "prerequisites": "network.access",
+      "output": "the network's ARP caches poisoned: its traffic passes the attacker",
+      "duration": {
+        "kind": "slot",
+        "slot": "poison",
+        "replaced_by": null
+      },
+      "scope": "one per network with a `poison` time",
+      "assumptions": [
+        "Answering for another machine's address in the network sends its traffic through the attacker; only what a flow carries is drawn from it."
+      ]
+    },
+    {
+      "id": "static-arp-off",
+      "title": "An end keeps no static ARP tables",
+      "version": 1,
+      "bindings": [
+        "host"
+      ],
+      "prerequisites": "the `static-arp` switch of the host at either end of the flow is off",
+      "output": "the flow is exposed to ARP cache poisoning",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per flow that could be intercepted where an end's host says static ARP tables",
+      "assumptions": [
+        "Absent from a file, a host keeps no static tables; both ends must keep them to close the flow."
+      ]
+    },
+    {
+      "id": "flow-intercept",
+      "title": "Intercept the flow",
+      "version": 1,
+      "bindings": [
+        "flow"
+      ],
+      "prerequisites": "a network on the flow's route poisoned, and the flow exposed where an end says static ARP tables",
+      "output": "flow.intercepted",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per flow that is not encrypted and carries a credential, across a network with a `poison` time",
+      "assumptions": [
+        "An encrypted flow gives nothing away; one that is not gives up what it carries."
+      ]
+    },
+    {
+      "id": "intercepted-credential",
+      "title": "A credential taken off the wire",
+      "version": 1,
+      "bindings": [
+        "flow",
+        "authenticates",
+        "authorizes"
+      ],
+      "prerequisites": "flow.intercepted",
+      "output": "credential.possessed, for each credential the flow carries that proves an account its target accepts",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per carried credential",
+      "assumptions": [
+        "A credential that proves nothing the flow's target accepts is not drawn."
       ]
     },
     {

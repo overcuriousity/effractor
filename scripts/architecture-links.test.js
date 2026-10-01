@@ -754,3 +754,41 @@ test("a scenario turning a host firewall on asks for the host's permission too",
   doc.scenarios = { hf: { label: 'HF', changes: [{ entity: 'server', defense: 'host-firewall', value: true }] } };
   assert.equal(L.flowPermissions(doc, 'ssh').slice(-1)[0].firewall, 'server');
 });
+
+test('a flow says whether it is encrypted and what it carries, and an edit keeps both', () => {
+  let doc = lecture();
+  const value = (change) => Object.assign({ label: 'SSH', source: 'ssh-client', target: 'sshd', route: doc.flows.ssh.route, protocol: 'tcp/22' }, change);
+  doc = L.putFlow(doc, 'ssh', value({ encrypted: true, carries: ['server-key'] })).doc;
+  assert.equal(doc.flows.ssh.encrypted, true);
+  assert.deepEqual(doc.flows.ssh.carries, ['server-key']);
+  // Editing something else keeps them.
+  doc = L.putFlow(doc, 'ssh', value({ encrypted: true, carries: ['server-key'], protocol: 'tcp/2222' })).doc;
+  assert.deepEqual([doc.flows.ssh.encrypted, doc.flows.ssh.carries], [true, ['server-key']]);
+  // Not encrypted and nothing carried are not written.
+  doc = L.putFlow(doc, 'ssh', value({ encrypted: false, carries: [] })).doc;
+  assert.ok(!('encrypted' in doc.flows.ssh) && !('carries' in doc.flows.ssh));
+});
+
+test('removing a credential takes it off what flows carry, and keeps the flow', () => {
+  let doc = lecture();
+  doc.flows.ssh.carries = ['server-key', 'admin-key'];
+  doc = L.remove(doc, 'entities', 'server-key').doc;
+  assert.deepEqual(doc.flows.ssh.carries, ['admin-key']);
+  doc = L.remove(doc, 'entities', 'admin-key').doc;
+  assert.ok(doc.flows.ssh && !('carries' in doc.flows.ssh));
+});
+
+test('a flow is offered the credentials it does not carry yet, those its target accepts first', () => {
+  const doc = lecture();
+  // server-key proves the account sshd accepts; admin-key proves the router's.
+  assert.deepEqual(L.carriable(doc, 'ssh'), ['server-key', 'admin-key']);
+  doc.flows.ssh.carries = ['server-key'];
+  assert.deepEqual(L.carriable(doc, 'ssh'), ['admin-key']);
+  doc.flows.ssh.carries = ['server-key', 'admin-key'];
+  assert.deepEqual(L.carriable(doc, 'ssh'), []);
+  assert.match(L.emptyCarry(doc, 'ssh'), /carries every credential/);
+  delete doc.entities['server-key'];
+  delete doc.entities['admin-key'];
+  delete doc.flows.ssh.carries;
+  assert.match(L.emptyCarry(doc, 'ssh'), /no credentials yet/);
+});

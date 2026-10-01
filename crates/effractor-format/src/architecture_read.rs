@@ -688,6 +688,8 @@ fn flow(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Flow> {
             "target",
             "route",
             "protocol",
+            "encrypted",
+            "carries",
             "parameters",
         ],
     )?;
@@ -711,6 +713,16 @@ fn flow(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Flow> {
         ids.into_iter().collect::<Option<Vec<_>>>()
     });
     let protocol = cx.optional_string(&f, "protocol");
+    // Absent is not encrypted and carries nothing; canonical text writes
+    // only `true` and a list that names something.
+    let encrypted = match f.get("encrypted") {
+        Some(e) => cx.boolean(&e.value, &f.path("encrypted")),
+        None => Some(false),
+    };
+    let carries = match f.get("carries") {
+        Some(e) => id_list(cx, e, &f.path("carries")),
+        None => Some(Vec::new()),
+    };
     let connect = match f.get("parameters") {
         Some(e) => parameters(cx, e, &f.path("parameters"), &[Slot::Connect], "flow")
             .map(|mut p| p.shift_remove(&Slot::Connect).unwrap_or_default()),
@@ -722,6 +734,8 @@ fn flow(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Flow> {
         target: target?,
         route: route?,
         protocol: protocol?,
+        encrypted: encrypted?,
+        carries: carries?,
         connect: connect?,
     })
 }

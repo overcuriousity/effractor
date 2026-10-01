@@ -94,7 +94,34 @@
       return switchedOn(doc, id, "hardened") && has(doc.entities[id].parameters || {}, "escalate") ? "used while hardened · unknown until given" : null;
     }
     if (slot === "deploy-exploit" && !hasProduct(doc, id)) return null;
+    if (slot === "poison" && !plainFlows(doc).some(function (f) { return f.route.indexOf(id) >= 0; })) return null;
     return "not drawn until a time is given";
+  }
+  // Flows ARP cache poisoning could take something off: not encrypted, and
+  // carrying a credential.
+  function plainFlows(doc) {
+    return Object.keys(doc.flows || {}).map(function (k) {
+      return doc.flows[k];
+    }).filter(function (f) {
+      return !f.encrypted && (f.carries || []).length > 0 && Array.isArray(f.route);
+    });
+  }
+  // Whether a host's static ARP tables could change something: it is an end
+  // of such a flow across a network with a poisoning time.
+  function interceptable(doc, id) {
+    return plainFlows(doc).some(function (f) {
+      var poisonable = f.route.some(function (n, i) {
+        return i % 2 === 0 && has(doc.entities, n) && has(doc.entities[n].parameters || {}, "poison");
+      });
+      return poisonable && (hostOf(doc, f.source) === id || hostOf(doc, f.target) === id);
+    });
+  }
+  function hostOf(doc, id) {
+    var k = Object.keys(doc.associations || {}).find(function (k) {
+      var a = doc.associations[k];
+      return a.kind === "hosts" && a.to === id;
+    });
+    return k ? doc.associations[k].from : null;
   }
   // Whether a switch of `id` is not off: in the file, or turned on by a
   // scenario.
@@ -134,6 +161,7 @@
       if ((defense === "aslr" || defense === "dep") && !hardens(doc, id)) return;
       if ((defense === "anti-malware" || defense === "host-firewall") && !runsService(doc, id)) return;
       if (defense === "hardened" && !has(e.parameters || {}, "escalate")) return;
+      if (defense === "static-arp" && !interceptable(doc, id)) return;
       rows.push({ defense: defense, value: false });
     });
     var order = (spec && spec.defenses) || [];
@@ -579,7 +607,7 @@
     });
   }
 
-  var api = { pinStates: pinStates, outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, slotRows: slotRows, shownDefenses: shownDefenses, defenseRows: defenseRows, ringsIn: ringsIn };
+  var api = { interceptable: interceptable, pinStates: pinStates, outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, slotRows: slotRows, shownDefenses: shownDefenses, defenseRows: defenseRows, ringsIn: ringsIn };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureView = api;
 })();

@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 54] = [
+pub const RULES: [Rule; 58] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -464,6 +464,59 @@ pub const RULES: [Rule; 54] = [
         assumptions: &[
             "Taking something out of service needs only to reach it; nothing else depends on it being down.",
         ],
+    },
+    Rule {
+        id: "arp-poison",
+        title: "ARP cache poisoning",
+        version: 1,
+        bindings: &["network"],
+        prerequisites: "network.access",
+        output: "the network's ARP caches poisoned: its traffic passes the attacker",
+        duration: D::Slot {
+            slot: Slot::Poison,
+            replaced_by: None,
+        },
+        scope: "one per network with a `poison` time",
+        assumptions: &[
+            "Answering for another machine's address in the network sends its traffic through the attacker; only what a flow carries is drawn from it.",
+        ],
+    },
+    Rule {
+        id: "static-arp-off",
+        title: "An end keeps no static ARP tables",
+        version: 1,
+        bindings: &["host"],
+        prerequisites: "the `static-arp` switch of the host at either end of the flow is off",
+        output: "the flow is exposed to ARP cache poisoning",
+        duration: D::Logical,
+        scope: "one per flow that could be intercepted where an end's host says static ARP tables",
+        assumptions: &[
+            "Absent from a file, a host keeps no static tables; both ends must keep them to close the flow.",
+        ],
+    },
+    Rule {
+        id: "flow-intercept",
+        title: "Intercept the flow",
+        version: 1,
+        bindings: &["flow"],
+        prerequisites: "a network on the flow's route poisoned, and the flow exposed where an end says static ARP tables",
+        output: "flow.intercepted",
+        duration: D::Logical,
+        scope: "one per flow that is not encrypted and carries a credential, across a network with a `poison` time",
+        assumptions: &[
+            "An encrypted flow gives nothing away; one that is not gives up what it carries.",
+        ],
+    },
+    Rule {
+        id: "intercepted-credential",
+        title: "A credential taken off the wire",
+        version: 1,
+        bindings: &["flow", "authenticates", "authorizes"],
+        prerequisites: "flow.intercepted",
+        output: "credential.possessed, for each credential the flow carries that proves an account its target accepts",
+        duration: D::Logical,
+        scope: "one per carried credential",
+        assumptions: &["A credential that proves nothing the flow's target accepts is not drawn."],
     },
     Rule {
         id: "account-held",
@@ -975,6 +1028,7 @@ fn slot_name(slot: Slot) -> &'static str {
         Slot::Physical => "Physical access",
         Slot::Usb => "USB access",
         Slot::Deny => "Deny service",
+        Slot::Poison => "Poison the ARP caches",
     }
 }
 
@@ -1086,6 +1140,10 @@ fn slot_description(slot: Slot) -> (&'static str, &'static str) {
             "host",
             "The same, once the host is hardened; selected by `defenses.hardened`.",
         ),
+        Slot::Poison => (
+            "network",
+            "Time to poison the network's ARP caches once in it, so its traffic passes the attacker. Optional: not drawn until given.",
+        ),
         Slot::Escape => (
             "host or router",
             "Time to break out of a virtual machine, container or appliance to the host it runs on, once in admin control of it.",
@@ -1136,6 +1194,10 @@ fn defense_word(defense: Defense) -> (&'static str, &'static str) {
             "Host firewall",
             "The host filters what comes in: a flow into a service it runs needs the host's permission too, as at a router's firewall. Off unless said.",
         ),
+        Defense::StaticArp => (
+            "Static ARP tables",
+            "The host keeps static ARP tables: ARP cache poisoning does not reach a flow both of whose ends keep them. Off unless said.",
+        ),
         Defense::Hardened => (
             "Hardened",
             "The host is hardened against privilege escalation: `escalate-hardened` stands in for `escalate`. Off unless said.",
@@ -1162,8 +1224,8 @@ fn duration(d: Duration) -> Value {
     }
 }
 
-/// The catalog as JSON: `library`, `entities`, `associations`, `states`,
-/// `defenses`, `parameters`, `rules` and `limits`.
+/// The catalog as JSON: `library`, `entities`, `flow_fields`,
+/// `associations`, `states`, `defenses`, `parameters`, `rules` and `limits`.
 pub fn catalog() -> Value {
     let entities: Vec<Value> = EntityKind::ALL
         .iter()
@@ -1254,9 +1316,22 @@ pub fn catalog() -> Value {
             })
         })
         .collect();
+    let flow_fields = json!([
+        {
+            "id": "encrypted",
+            "word": "Encrypted",
+            "description": "Encrypted on the wire: intercepting it gives nothing away. Not encrypted unless said.",
+        },
+        {
+            "id": "carries",
+            "word": "Carries",
+            "description": "Credentials the flow carries, e.g. a password typed into a login: ARP cache poisoning on its route takes them unless it is encrypted.",
+        },
+    ]);
     json!({
         "library": {"id": LIBRARY_ID, "version": LIBRARY_VERSION},
         "entities": entities,
+        "flow_fields": flow_fields,
         "associations": associations,
         "states": states,
         "defenses": defenses,

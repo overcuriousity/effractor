@@ -85,6 +85,10 @@
     if ((m = /^flows\.([^.[\]]+)\.route(?:\[\d+\])?$/.exec(path))) {
       return has(doc.flows, m[1]) ? { select: "flow/" + m[1], field: "route", path: path } : source;
     }
+    // A credential a flow carries: its Carries field.
+    if ((m = /^flows\.([^.[\]]+)\.carries\[\d+\]$/.exec(path))) {
+      return has(doc.flows, m[1]) ? { select: "flow/" + m[1], field: "carries", path: path } : source;
+    }
     // A component or flow as a whole, or one of its ends.
     if ((m = /^(entities|flows)\.([^.[\]]+)(?:\.(?:source|target))?$/.exec(path))) {
       var kind = m[1] === "entities" ? "entity" : "flow";

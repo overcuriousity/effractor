@@ -162,3 +162,19 @@ test('the assistant may give a host the times and switches optional on it', () =
   const refused = T.edit('set_entity', { id: 'server', defenses: { patched: true } }, ctx(r.doc));
   assert.ok(refused.refused, 'a switch the kind does not have is refused');
 });
+
+test('put_flow says whether a flow is encrypted and what it carries, and keeps both when it does not say', () => {
+  const LECTURE = require('./fixtures/architecture.doc.json');
+  const ctx = (doc) => ({ doc, profile: 'architecture', catalog: CAT });
+  const flow = { id: 'ssh', label: 'SSH', source: 'ssh-client', target: 'sshd', route: ['client-net', 'bridge', 'server-net'] };
+  let r = T.edit('put_flow', Object.assign({ encrypted: true, carries: ['server-key'] }, flow), ctx(LECTURE));
+  assert.ok(r.doc, JSON.stringify(r));
+  assert.deepEqual([r.doc.flows.ssh.encrypted, r.doc.flows.ssh.carries], [true, ['server-key']]);
+  r = T.edit('put_flow', Object.assign({}, flow, { protocol: 'tcp/2222' }), ctx(r.doc));
+  assert.deepEqual([r.doc.flows.ssh.encrypted, r.doc.flows.ssh.carries], [true, ['server-key']], 'unsaid: kept');
+  r = T.edit('put_flow', Object.assign({ encrypted: false, carries: [] }, flow), ctx(r.doc));
+  assert.ok(!('encrypted' in r.doc.flows.ssh) && !('carries' in r.doc.flows.ssh));
+  assert.match(T.edit('put_flow', Object.assign({ carries: ['ghost'] }, flow), ctx(LECTURE)).refused, /ghost/);
+  const schema = catalog.find((t) => t.name === 'put_flow').schema.properties;
+  assert.deepEqual([schema.encrypted.type, schema.carries.type], ['boolean', 'array']);
+});

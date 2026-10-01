@@ -132,8 +132,12 @@ fn document(w: &mut Writer, m: &Architecture) {
         }
         let slots = entity.kind.slots();
         let extended = format!("{path}.parameters");
-        // A kind without slots writes the map only for what an editor kept in it.
-        if !slots.is_empty() || w.has_extensions(&extended) {
+        // A kind whose every slot is optional and absent (a network) writes
+        // the map only for what an editor kept in it, as a kind without slots.
+        let written = slots
+            .iter()
+            .any(|s| !s.optional(entity.kind) || entity.parameters.contains_key(s));
+        if written || w.has_extensions(&extended) {
             w.open(4, "parameters");
             for slot in slots {
                 let unknown = Parameter::unknown();
@@ -246,6 +250,12 @@ fn document(w: &mut Writer, m: &Architecture) {
         }
         if let Some(p) = &flow.protocol {
             w.line(4, "protocol", &string(p, Context::Block));
+        }
+        if flow.encrypted {
+            w.line(4, "encrypted", "true");
+        }
+        if !flow.carries.is_empty() {
+            id_list(w, "carries", &flow.carries);
         }
         w.open(4, "parameters");
         parameter(
