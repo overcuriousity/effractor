@@ -42,6 +42,10 @@ pub fn body(req: &Request<'_>) -> Value {
                     })
                     .collect();
                 let text = text_of(&m.blocks);
+                // A reply of thinking only: this wire has no message for it.
+                if text.is_empty() && calls.is_empty() {
+                    continue;
+                }
                 let mut msg = json!({"role": "assistant", "content": if text.is_empty() { Value::Null } else { Value::String(text) }});
                 if !calls.is_empty() {
                     msg["tool_calls"] = Value::Array(calls);
@@ -100,8 +104,11 @@ struct Call {
 
 #[derive(Default)]
 pub struct Parser {
-    calls: Vec<(u64, Call)>,
+    /// By the server's index; `None` for a server that sends none.
+    calls: Vec<(Option<u64>, Call)>,
     finished: bool,
+    /// `[DONE]` came: the stream is whole.
+    done: bool,
 }
 
 fn input_of(arguments: &str) -> Value {
@@ -145,6 +152,7 @@ impl Parser {
 impl Wire for Parser {
     fn event(&mut self, _event: &str, data: &str) -> Vec<Result<Event, ProviderError>> {
         if data.trim() == "[DONE]" {
+            self.done = true;
             return Vec::new();
         }
         let Ok(v) = serde_json::from_str::<Value>(data) else {
@@ -165,10 +173,25 @@ impl Wire for Parser {
                 out.push(Ok(Event::Text { text: t.to_owned() }));
             }
             for tc in delta["tool_calls"].as_array().into_iter().flatten() {
-                let index = tc["index"].as_u64().unwrap_or(0);
-                let at = match self.calls.iter().position(|(i, _)| *i == index) {
-                    Some(at) => at,
-                    None => {
+                // A piece belongs to the latest call of its index (the latest
+                // call when the server gives no index), unless it names
+                // another id: then it starts a call of its own.
+                let index = tc["index"].as_u64();
+                let id = tc["id"].as_str().filter(|i| !i.is_empty());
+                let found = match index {
+                    Some(_) => self.calls.iter().rposition(|(i, _)| *i == index),
+                    None => self.calls.len().checked_sub(1),
+                };
+                let at = match found {
+                    Some(at)
+                        if id.is_none_or(|id| {
+                            let held = &self.calls[at].1.id;
+                            held.is_empty() || held == id
+                        }) =>
+                    {
+                        at
+                    }
+                    _ => {
                         self.calls.push((index, Call::default()));
                         self.calls.len() - 1
                     }
@@ -208,6 +231,11 @@ impl Wire for Parser {
     }
 
     fn end(&mut self) -> Vec<Result<Event, ProviderError>> {
+        // Cut off before its end: a call may be half there, and is not kept.
+        if !self.finished && !self.done {
+            self.calls.clear();
+            return vec![Err(ProviderError::Incomplete)];
+        }
         let mut out = self.flush_calls();
         if !self.finished && !out.is_empty() {
             out.push(Ok(Event::Stop {
@@ -331,6 +359,95 @@ mod tests {
         unique.dedup();
         assert_eq!(unique.len(), 4, "{ids:?}");
         assert!(ids.contains(&"call_0".to_owned()), "a given id is kept");
+    }
+
+    #[test]
+    fn a_reply_of_thinking_only_is_not_sent_as_an_empty_assistant_message() {
+        let msgs = vec![
+            Message {
+                role: Role::User,
+                blocks: vec![Block::Text { text: "a".into() }],
+            },
+            Message {
+                role: Role::Assistant,
+                blocks: vec![Block::Thinking { text: "hm".into() }],
+            },
+            Message {
+                role: Role::User,
+                blocks: vec![Block::Text { text: "b".into() }],
+            },
+        ];
+        let body = body(&Request {
+            system: "S",
+            messages: &msgs,
+            tools: &[],
+            model: "m",
+            reply_tokens: 10,
+            replay_thinking: true,
+        });
+        let roles: Vec<_> = body["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|m| m["role"].as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(roles, ["system", "user", "user"]);
+    }
+
+    #[test]
+    fn parallel_calls_without_an_index_stay_apart_by_their_ids() {
+        let raw = concat!(
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[",
+            "{\"id\":\"a\",\"type\":\"function\",\"function\":{\"name\":\"show\",\"arguments\":\"{\\\"id\\\":\"}},",
+            "{\"function\":{\"arguments\":\"\\\"x\\\"}\"}},",
+            "{\"id\":\"b\",\"type\":\"function\",\"function\":{\"name\":\"problems\",\"arguments\":\"{}\"}}",
+            "]}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"c\",\"function\":{\"name\":\"read_document\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\n",
+            "data: [DONE]\n\n",
+        );
+        let calls: Vec<_> = parse_all(raw.as_bytes())
+            .unwrap()
+            .into_iter()
+            .filter_map(|e| match e {
+                Event::ToolCall { id, name, input } => Some((id, name, input)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            calls,
+            vec![
+                ("a".into(), "show".into(), serde_json::json!({"id": "x"})),
+                ("b".into(), "problems".into(), serde_json::json!({})),
+                ("c".into(), "read_document".into(), serde_json::json!({})),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_stream_cut_before_its_end_is_an_incomplete_reply_without_its_half_call() {
+        let raw = concat!(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"Adding\"}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"function\":{\"name\":\"add_entity\",\"arguments\":\"{\\\"kind\\\":\"}}]}}]}\n\n",
+        );
+        let mut p = Parser::default();
+        let mut sse = super::super::provider::Sse::default();
+        let mut out = Vec::new();
+        for (e, d) in sse.feed(raw.as_bytes()) {
+            out.extend(p.event(&e, &d));
+        }
+        out.extend(p.end());
+        assert!(
+            !out.iter().any(|e| matches!(e, Ok(Event::ToolCall { .. }))),
+            "{out:?}"
+        );
+        assert_eq!(out.last(), Some(&Err(ProviderError::Incomplete)));
+        // A stream that said [DONE] is whole, even without a finish reason.
+        assert!(
+            parse_all(
+                b"data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n\ndata: [DONE]\n\n"
+            )
+            .is_ok()
+        );
     }
 
     #[test]

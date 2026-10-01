@@ -107,6 +107,8 @@ pub enum ProviderError {
     ContextOverflow,
     Status(u16),
     Malformed,
+    /// The stream ended before the reply said it was whole.
+    Incomplete,
 }
 
 impl ProviderError {
@@ -118,6 +120,7 @@ impl ProviderError {
             ProviderError::ContextOverflow => "too long for the model".into(),
             ProviderError::Status(code) => format!("the endpoint answered {code}"),
             ProviderError::Malformed => "the endpoint's answer did not read".into(),
+            ProviderError::Incomplete => "the reply broke off before its end".into(),
         }
     }
     pub fn code(&self) -> &'static str {
@@ -128,6 +131,7 @@ impl ProviderError {
             ProviderError::ContextOverflow => "context",
             ProviderError::Status(_) => "status",
             ProviderError::Malformed => "malformed",
+            ProviderError::Incomplete => "incomplete",
         }
     }
 }

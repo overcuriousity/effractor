@@ -15,31 +15,39 @@ use super::{Config, Provider, anthropic, openai};
 #[derive(Default)]
 pub struct Sse {
     buf: Vec<u8>,
+    /// How far `buf` is known to hold no blank line: a long event that
+    /// comes in many chunks is scanned once, not once per chunk.
+    scanned: usize,
 }
 
 impl Sse {
     pub fn feed(&mut self, chunk: &[u8]) -> Vec<(String, String)> {
         self.buf.extend_from_slice(chunk);
         let mut out = Vec::new();
-        while let Some(end) = find_blank_line(&self.buf) {
+        while let Some(end) = find_blank_line(&self.buf, self.scanned) {
             let block: Vec<u8> = self.buf.drain(..end.0).collect();
             self.buf.drain(..end.1);
+            self.scanned = 0;
             if let Some(pair) = read_block(&block) {
                 out.push(pair);
             }
         }
+        // A separator is at most three bytes: its start may be among the last two.
+        self.scanned = self.buf.len().saturating_sub(2);
         out
     }
 
     pub fn finish(&mut self) -> Vec<(String, String)> {
         let block = std::mem::take(&mut self.buf);
+        self.scanned = 0;
         read_block(&block).into_iter().collect()
     }
 }
 
-/// Where the first blank line starts, and how long the separator is.
-fn find_blank_line(buf: &[u8]) -> Option<(usize, usize)> {
-    let mut i = 0;
+/// Where the first blank line at or after `from` starts, and how long the
+/// separator is.
+fn find_blank_line(buf: &[u8], from: usize) -> Option<(usize, usize)> {
+    let mut i = from;
     while i + 1 < buf.len() {
         if buf[i] == b'\n' && buf[i + 1] == b'\n' {
             return Some((i, 2));
@@ -331,6 +339,24 @@ mod tests {
         assert_eq!(
             s.feed(b":1}\n\nevent: b\r\ndata: 2\r\n\r\n"),
             vec![("a".into(), "{\"x\":1}".into()), ("b".into(), "2".into())]
+        );
+    }
+
+    #[test]
+    fn sse_fed_a_byte_at_a_time_reads_the_same() {
+        let raw = b"event: a\ndata: 1\n\nevent: b\r\ndata: 2\r\n\r\ndata: 3\n\n";
+        let mut s = Sse::default();
+        let mut out = Vec::new();
+        for b in raw.chunks(1) {
+            out.extend(s.feed(b));
+        }
+        assert_eq!(
+            out,
+            vec![
+                ("a".into(), "1".into()),
+                ("b".into(), "2".into()),
+                (String::new(), "3".into())
+            ]
         );
     }
 }

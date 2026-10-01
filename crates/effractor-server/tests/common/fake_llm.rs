@@ -24,6 +24,8 @@ pub enum Reply {
     Slow(Vec<serde_json::Value>, std::time::Duration),
     /// The reply, its headers sent only after the pause.
     Late(std::time::Duration, Box<Reply>),
+    /// As `Stream`, without `[DONE]`: the connection ends mid-reply.
+    Cut(Vec<serde_json::Value>),
 }
 
 impl Fake {
@@ -69,6 +71,10 @@ async fn answer(next: Option<Reply>) -> axum::response::Response {
                 s.push_str(&format!("data: {c}\n\n"));
             }
             s.push_str("data: [DONE]\n\n");
+            ([("content-type", "text/event-stream")], s).into_response()
+        }
+        Some(Reply::Cut(chunks)) => {
+            let s: String = chunks.iter().map(|c| format!("data: {c}\n\n")).collect();
             ([("content-type", "text/event-stream")], s).into_response()
         }
         Some(Reply::Status(code, body)) => {

@@ -489,6 +489,31 @@ async fn a_reply_cut_at_the_reply_limit_says_so() {
 }
 
 #[tokio::test]
+async fn a_reply_cut_off_mid_stream_is_an_error_and_its_half_call_is_not_kept() {
+    let c = chat().await;
+    let s = session(&c).await;
+    c.fake.push(Reply::Cut(vec![
+        json!({"choices":[{"delta":{"content":"Removing"}}]}),
+        json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"remove","arguments":"{\"collection\":"}}]}}]}),
+    ]));
+    let ev = events(say(&c, &c.ann, s, "a").await).await;
+    assert!(!ev.iter().any(|e| e.0 == "tool_call"), "{ev:?}");
+    assert_eq!(
+        ev.last().unwrap(),
+        &(
+            "error".into(),
+            json!({"code": "incomplete", "reason": "the reply broke off before its end"})
+        )
+    );
+    let got = stored(&c, s).await;
+    assert_eq!(
+        got["messages"][1]["content"],
+        json!([{"type": "text", "text": "Removing [interrupted]"}])
+    );
+    assert_eq!(got["turn"], Value::Null, "the turn is released");
+}
+
+#[tokio::test]
 async fn stop_is_heard_while_the_endpoint_has_not_answered() {
     let c = chat().await;
     let s = session(&c).await;

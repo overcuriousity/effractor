@@ -86,6 +86,8 @@ enum Open {
 #[derive(Default)]
 pub struct Parser {
     open: Vec<(u64, Open)>,
+    /// `message_stop` came: the reply is whole.
+    stopped: bool,
 }
 
 impl Wire for Parser {
@@ -177,6 +179,10 @@ impl Wire for Parser {
                 }
                 out
             }
+            "message_stop" => {
+                self.stopped = true;
+                Vec::new()
+            }
             "error" => {
                 let kind = v["error"]["type"].as_str().unwrap_or("");
                 let message = v["error"]["message"].as_str().unwrap_or("").to_lowercase();
@@ -195,8 +201,15 @@ impl Wire for Parser {
         }
     }
 
+    /// Cut off before `message_stop`: a tool call still open is half there,
+    /// and is not kept.
     fn end(&mut self) -> Vec<Result<Event, ProviderError>> {
-        Vec::new()
+        self.open.clear();
+        if self.stopped {
+            Vec::new()
+        } else {
+            vec![Err(ProviderError::Incomplete)]
+        }
     }
 }
 
@@ -246,6 +259,22 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn a_stream_cut_before_message_stop_is_incomplete_and_its_open_call_is_not_kept() {
+        let raw = concat!(
+            "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"remove\",\"input\":{}}}\n\n",
+            "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"id\\\":\"}}\n\n",
+        );
+        let mut p = Parser::default();
+        let mut sse = crate::assistant::provider::Sse::default();
+        let mut out = Vec::new();
+        for (e, d) in sse.feed(raw.as_bytes()) {
+            out.extend(p.event(&e, &d));
+        }
+        out.extend(p.end());
+        assert_eq!(out, vec![Err(ProviderError::Incomplete)]);
     }
 
     #[test]
