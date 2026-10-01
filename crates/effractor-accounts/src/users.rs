@@ -47,19 +47,30 @@ fn row(r: &Row) -> rusqlite::Result<User> {
     })
 }
 
+/// A new name: plain ASCII, so that no two of them look alike. Names made
+/// before this rule may hold any letter, and still log in and are found:
+/// lookups fold case beyond ASCII (see `crate::fold`).
 pub fn check_name(name: &str) -> Result<String> {
     let name = name.trim();
-    let ok = (1..=64).contains(&name.chars().count())
+    let ok = (1..=64).contains(&name.len())
         && name
-            .chars()
-            .all(|c| c.is_alphanumeric() || "._-@".contains(c));
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || b"._-".contains(&c));
     if ok {
         Ok(name.to_owned())
     } else {
         Err(Error::Invalid(
-            "a name is 1–64 letters, digits, . _ - @".into(),
+            "a name is 1–64 letters a–z, digits, . _ -".into(),
         ))
     }
+}
+
+pub fn check_display_name(name: &str) -> Result<String> {
+    let name = name.trim();
+    if name.chars().count() > 100 {
+        return Err(Error::Invalid("at most 100 characters".into()));
+    }
+    Ok(name.to_owned())
 }
 
 pub fn check_password(pw: &str) -> Result<()> {
@@ -93,6 +104,7 @@ fn verify(pw: &str, stored: &str) -> bool {
 
 pub fn create(t: &Transaction, new: &NewUser, now: Timestamp) -> Result<Id> {
     let name = check_name(new.name)?;
+    let display_name = check_display_name(new.display_name)?;
     let hash = match new.password {
         Some(pw) => {
             check_password(pw)?;
@@ -108,7 +120,7 @@ pub fn create(t: &Transaction, new: &NewUser, now: Timestamp) -> Result<Id> {
         params![
             name,
             crate::fold(&name),
-            new.display_name.trim(),
+            display_name,
             hash,
             &webauthn_id[..],
             now
@@ -178,10 +190,7 @@ pub fn set_password(t: &Transaction, id: Id, pw: Option<&str>) -> Result<()> {
 }
 
 pub fn set_display_name(t: &Transaction, id: Id, name: &str) -> Result<()> {
-    let name = name.trim();
-    if name.chars().count() > 100 {
-        return Err(Error::Invalid("at most 100 characters".into()));
-    }
+    let name = check_display_name(name)?;
     let n = t.execute(
         "UPDATE users SET display_name = ?2 WHERE id = ?1",
         params![id, name],

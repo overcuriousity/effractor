@@ -11,6 +11,35 @@ fn admin(h: &H, name: &str) -> i64 {
     id
 }
 
+/// A new user's name is plain ASCII and their display name 100 characters at
+/// most, as the account page allows.
+#[tokio::test]
+async fn an_admin_names_new_users_as_the_rules_allow() {
+    let h = harness();
+    admin(&h, "root");
+    let r = h.login("root").await;
+    for (name, display) in [("jörg", "Jörg"), ("jorg", &*"x".repeat(101))] {
+        let res = h
+            .call(
+                "POST",
+                "/api/admin/users",
+                Some(&r),
+                Some(json!({"name": name, "display_name": display, "password": PW})),
+            )
+            .await;
+        assert_eq!(res.status(), 400, "{name}");
+    }
+    let res = h
+        .call(
+            "POST",
+            "/api/admin/users",
+            Some(&r),
+            Some(json!({"name": "Jorg.M", "display_name": "Jörg Müller", "password": PW})),
+        )
+        .await;
+    assert_eq!(res.status(), 201);
+}
+
 #[tokio::test]
 async fn an_admin_creates_disables_resets_and_deletes_users() {
     let h = harness();

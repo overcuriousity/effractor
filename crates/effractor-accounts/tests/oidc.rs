@@ -40,7 +40,9 @@ fn a_first_login_provisions_a_user_in_no_group_and_a_taken_name_gets_a_number() 
 
 #[test]
 fn odd_usernames_become_allowed_names() {
-    assert_eq!(oidc::name_from(Some("Jörg Müller")), "JörgMüller");
+    assert_eq!(oidc::name_from(Some("Jörg Müller")), "JrgMller");
+    assert_eq!(oidc::name_from(Some("jane.doe@example.org")), "jane.doe");
+    assert_eq!(oidc::name_from(Some("Анна")), "user");
     assert_eq!(oidc::name_from(Some("  ")), "user");
     assert_eq!(oidc::name_from(None), "user");
     assert_eq!(oidc::name_from(Some(&"x".repeat(100))).chars().count(), 60);

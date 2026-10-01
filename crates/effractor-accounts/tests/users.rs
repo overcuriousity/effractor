@@ -111,9 +111,61 @@ fn short_passwords_and_odd_names_are_refused() {
         Err(Error::Invalid(_))
     ));
     assert_eq!(users::check_name("  bob ").unwrap(), "bob");
-    for bad in ["", "a b", "x/y", &"n".repeat(65)] {
+    assert_eq!(users::check_name("Bob.Smith_2-x").unwrap(), "Bob.Smith_2-x");
+    for bad in [
+        "",
+        "a b",
+        "x/y",
+        &"n".repeat(65),
+        "jörg",
+        "a@b",
+        "ｆｕｌｌ",
+        "x\u{301}",
+    ] {
         assert!(users::check_name(bad).is_err(), "{bad:?}");
     }
+}
+
+/// A new name is plain ASCII, whoever makes it.
+#[test]
+fn a_new_user_is_named_in_plain_ascii() {
+    let (_d, db) = db();
+    let made = db.write(|t| {
+        users::create(
+            t,
+            &NewUser {
+                name: "Jörg",
+                display_name: "Jörg Müller",
+                password: None,
+            },
+            1,
+        )
+    });
+    assert!(matches!(made, Err(Error::Invalid(_))));
+}
+
+/// As set_display_name allows, and no more.
+#[test]
+fn a_new_users_display_name_is_at_most_100_characters() {
+    let (_d, db) = db();
+    let make = |name: &str, display: &str| {
+        db.write(|t| {
+            users::create(
+                t,
+                &NewUser {
+                    name,
+                    display_name: display,
+                    password: None,
+                },
+                1,
+            )
+        })
+    };
+    assert!(make("a", &"ä".repeat(100)).is_ok());
+    assert!(matches!(
+        make("b", &"ä".repeat(101)),
+        Err(Error::Invalid(_))
+    ));
 }
 
 #[test]
@@ -156,22 +208,19 @@ fn a_user_without_a_password_cannot_log_in_with_one() {
     assert!(!m.password);
 }
 
+/// Names made before they had to be ASCII still log in and are found,
+/// whatever their case.
 #[test]
 fn names_fold_case_beyond_ascii() {
     let (_d, db) = db();
-    add(&db, "Ärger", Some(PW));
+    add(&db, "placeholder", Some(PW));
+    db.write(|t| {
+        Ok(t.execute(
+            "UPDATE users SET name = 'Ärger', name_key = 'ärger' WHERE name = 'placeholder'",
+            [],
+        )?)
+    })
+    .unwrap();
     assert!(db.read(|c| users::login(c, "ärger", PW)).unwrap().is_some());
     assert!(db.read(|c| users::by_name(c, "ÄRGER")).unwrap().is_some());
-    let again = db.write(|t| {
-        users::create(
-            t,
-            &NewUser {
-                name: "ärger",
-                display_name: "",
-                password: None,
-            },
-            1,
-        )
-    });
-    assert!(matches!(again, Err(Error::Exists)));
 }

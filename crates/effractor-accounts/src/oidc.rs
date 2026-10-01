@@ -43,11 +43,15 @@ pub fn unlink(t: &Transaction, user: Id) -> Result<()> {
     Ok(())
 }
 
+/// A new account's name from the issuer's preferred username, as
+/// `users::check_name` allows: of an email, the part before the @, and of
+/// that the ASCII letters, digits and . _ - only. If nothing is left it is
+/// "user"; a taken name gets a number (see `provision`).
 pub fn name_from(preferred: Option<&str>) -> String {
-    let cleaned: String = preferred
-        .unwrap_or("")
+    let local = preferred.unwrap_or("").split('@').next().unwrap_or("");
+    let cleaned: String = local
         .chars()
-        .filter(|c| c.is_alphanumeric() || "._-@".contains(*c))
+        .filter(|c| c.is_ascii_alphanumeric() || "._-".contains(*c))
         .take(60)
         .collect();
     if cleaned.is_empty() {

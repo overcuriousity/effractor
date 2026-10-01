@@ -80,12 +80,17 @@ sudo -u effractor effractor user add alice --accounts /var/lib/effractor/effract
 
 - `effractor user list | add | promote | demote | passwd` manage users from the
   shell; admins manage users and groups in the page. There is no public sign-up.
+  A new user's name is 1–64 ASCII letters, digits, `.`, `_` or `-`, unique
+  whatever its case.
 - `--public-url` (see above) is also what passkeys need, and it makes the
   session cookie `Secure` when it is `https`. Put a TLS proxy in front.
 - OIDC: `--oidc-issuer URL --oidc-client-id ID --oidc-name Nextcloud` and the
   secret in `--oidc-secret-file FILE` or `EFFRACTOR_OIDC_SECRET`. Register
   `<public url>/api/auth/oidc/callback` as the redirect URI at the issuer. A
-  first login makes an account in no group; an admin assigns groups.
+  first login makes an account in no group; an admin assigns groups. Its
+  name is the issuer's preferred username (of an email, the part before
+  the `@`) cut to what a name may hold, numbered if taken, `user` if
+  nothing is left.
 - The agent chat is set up by a site admin in Admin › Chat. The operator may
   pin its key instead, in `--assistant-key-file FILE` or
   `EFFRACTOR_ASSISTANT_KEY`, and its provider address with

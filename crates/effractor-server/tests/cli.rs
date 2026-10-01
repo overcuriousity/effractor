@@ -44,6 +44,15 @@ fn a_fresh_server_is_set_up_from_the_shell() {
     assert!(line.contains("password"), "{line}");
 }
 
+#[test]
+fn a_new_user_from_the_shell_is_named_in_plain_ascii() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("effractor.db");
+    let (ok, _, err) = effractor(&db, &["add", "jörg"], "correct horse battery\n");
+    assert!(!ok);
+    assert!(err.contains("letters a–z"), "{err}");
+}
+
 /// A mistyped path is not quietly a new, empty database: only `add` makes
 /// one, and says so.
 #[test]
