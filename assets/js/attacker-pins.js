@@ -46,10 +46,7 @@
   function drop(role, entity, from, x, y) {
     var e = doc().entities[entity];
     U.loadCatalog().then(function (catalog) {
-      var spec = (catalog.entities || []).filter(function (s) {
-        return s.kind === e.kind;
-      })[0];
-      var states = spec ? spec.states : [];
+      var states = window.effractorArchitectureView.pinStates(catalog, e.kind, role);
       var word = e.kind.replace(/-/g, " ");
       if (!states.length) return app.say((/^[aeiou]/.test(word) ? "an " : "a ") + word + " takes no pin: what an attacker gets there follows from its links");
       if (states.length === 1) return place(role, entity, states[0], from);
@@ -72,10 +69,7 @@
         return own(doc().entities, m);
       }).map(function (m) {
         var e = doc().entities[m];
-        var spec = (catalog.entities || []).filter(function (s) {
-          return s.kind === e.kind;
-        })[0];
-        var states = spec ? spec.states : [];
+        var states = window.effractorArchitectureView.pinStates(catalog, e.kind, role);
         if (!states.length) return null;
         if (states.length === 1) return [e.label, "", function () { place(role, m, states[0], from); }];
         return [e.label, "", states.map(function (s) {

@@ -1241,3 +1241,141 @@ fn escalation_is_drawn_and_hardened_replaces_its_time() {
         ResolvedTtc::Unknown(vec!["entities.server.defenses.hardened".to_owned()])
     );
 }
+
+fn edited(text: &str, pairs: &[(&str, &str)]) -> Architecture {
+    let mut t = text.to_owned();
+    for (from, to) in pairs {
+        assert_eq!(t.matches(from).count(), 1, "{from}");
+        t = t.replacen(from, to, 1);
+    }
+    architecture(&t)
+}
+
+const SERVER: &str = "  server:\n    kind: host\n    label: Server\n    parameters:\n";
+const FOOTHOLDS: &str = "  footholds:\n    - {entity: workstation, state: admin}\n";
+
+#[test]
+fn physical_access_is_drawn_only_once_a_host_says_how_long_it_takes_fig_5_33() {
+    let s = shape(&generate(&architecture(LECTURE)).unwrap());
+    assert!(!s.contains_key("action/physical-access/server"));
+    assert!(
+        !s.contains_key("state/host/server/physical"),
+        "an optional state is not drawn for nothing"
+    );
+    let m = edited(
+        LECTURE,
+        &[(
+            SERVER,
+            &format!("{SERVER}      physical:\n        status: unknown\n"),
+        )],
+    );
+    let g = generate(&m).unwrap();
+    let s = shape(&g);
+    assert_eq!(
+        s["action/physical-access/server"],
+        strings(&["state/host/server/physical"])
+    );
+    assert!(
+        s["state/host/server/physical"].is_empty(),
+        "nothing but a foothold"
+    );
+    assert!(s["state/host/server/admin"].contains(&"action/physical-access/server".to_owned()));
+    let r = resolve(&m, &g, None).unwrap();
+    assert_eq!(
+        r.ttc[index(&g, "action/physical-access/server")],
+        ResolvedTtc::Unknown(vec!["entities.server.parameters.physical".to_owned()])
+    );
+}
+
+#[test]
+fn a_usb_foothold_reaches_user_through_its_step() {
+    let m = edited(
+        LECTURE,
+        &[
+            (
+                SERVER,
+                &format!(
+                    "{SERVER}      usb:\n        status: illustrative\n        ttc: \"Exponential(mean 1)\"\n        note: exercise\n"
+                ),
+            ),
+            (
+                FOOTHOLDS,
+                &format!("{FOOTHOLDS}    - {{entity: server, state: usb}}\n"),
+            ),
+        ],
+    );
+    let s = shape(&generate(&m).unwrap());
+    assert_eq!(
+        s["state/host/server/usb"],
+        strings(&["input/foothold/server/usb"])
+    );
+    assert!(s["state/host/server/user"].contains(&"action/usb-access/server".to_owned()));
+}
+
+#[test]
+fn denial_of_service_is_drawn_once_deny_is_given_and_rests_on_reach_fig_5_34() {
+    const SSHD: &str = "  sshd:\n    kind: service\n    label: SSH server\n    parameters:\n";
+    let m = edited(
+        LECTURE,
+        &[
+            (
+                SSHD,
+                &format!("{SSHD}      deny:\n        status: unknown\n"),
+            ),
+            (
+                "  target: {entity: server, state: admin}\n",
+                "  target: {entity: sshd, state: unavailable}\n",
+            ),
+        ],
+    );
+    let s = shape(&generate(&m).unwrap());
+    assert_eq!(
+        s["action/deny-service/sshd"],
+        strings(&["state/service/sshd/reachable"])
+    );
+    assert_eq!(
+        s["state/service/sshd/unavailable"],
+        strings(&["action/deny-service/sshd"])
+    );
+    assert!(!s.contains_key("state/host/server/unavailable"));
+}
+
+#[test]
+fn a_host_that_runs_nothing_cannot_be_denied() {
+    const WS: &str = "  workstation:\n    kind: host\n    label: Workstation\n    parameters:\n";
+    let m = edited(
+        LECTURE,
+        &[
+            (WS, &format!("{WS}      deny:\n        status: unknown\n")),
+            (
+                "  target: {entity: server, state: admin}\n",
+                "  target: {entity: workstation, state: unavailable}\n",
+            ),
+        ],
+    );
+    let s = shape(&generate(&m).unwrap());
+    assert!(!s.contains_key("action/deny-service/workstation"));
+    assert!(s["state/host/workstation/unavailable"].is_empty());
+}
+
+#[test]
+fn a_held_account_gives_what_logs_it_in_fig_5_33() {
+    let m = edited(
+        LECTURE,
+        &[(
+            FOOTHOLDS,
+            "  footholds:\n    - {entity: server-account, state: held}\n",
+        )],
+    );
+    let s = shape(&generate(&m).unwrap());
+    assert_eq!(
+        s["state/account/server-account/held"],
+        strings(&["input/foothold/server-account/held"])
+    );
+    assert!(
+        s["state/account/server-account/material"]
+            .contains(&"state/account/server-account/held".to_owned())
+    );
+    let lecture = shape(&generate(&architecture(LECTURE)).unwrap());
+    assert!(!lecture.contains_key("state/account/server-account/held"));
+}

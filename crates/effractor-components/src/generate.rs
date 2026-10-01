@@ -74,6 +74,9 @@ fn generate_within(
     b.operators();
     b.guards();
     b.escalations();
+    b.host_access();
+    b.denials();
+    b.held();
     b.products();
     b.services();
     b.instances();
@@ -498,6 +501,11 @@ impl<'a> Builder<'a> {
     fn states(&mut self) {
         for (id, entity) in &self.m.entities {
             for state in entity.kind.states() {
+                // An optional state only where the attacker names it; the
+                // step that produces it draws it otherwise.
+                if state.optional(entity.kind) && !self.named(id, *state) {
+                    continue;
+                }
                 let fid = self.state_id(id, state.as_str());
                 self.fact(fid, format!("{} · {}", entity.label, state_word(*state)));
             }
@@ -1113,6 +1121,127 @@ impl<'a> Builder<'a> {
             self.produce(&from, &unseen, o);
         }
         Some(unseen)
+    }
+
+    /// Whether a foothold or the target names `entity` at `state`.
+    fn named(&self, entity: &EntityId, state: State) -> bool {
+        let a = &self.m.attacker;
+        a.footholds
+            .iter()
+            .chain(a.target.iter())
+            .any(|r| &r.entity == entity && r.state == state)
+    }
+
+    /// An optional state's fact, drawn once.
+    fn optional_state(&mut self, entity: &EntityId, state: State) -> String {
+        let fid = self.state_id(entity, state.as_str());
+        self.fact(
+            fid.clone(),
+            format!("{} · {}", self.label(entity), state_word(state)),
+        );
+        fid
+    }
+
+    /// Standing at a host or plugging into it (extract Fig. 5.33): attacker
+    /// inputs only, each a step once the host says how long it takes.
+    fn host_access(&mut self) {
+        for (hid, entity) in &self.m.entities {
+            if entity.kind != EntityKind::Host {
+                continue;
+            }
+            for (slot, state, rule, word, gives) in [
+                (
+                    Slot::Physical,
+                    State::Physical,
+                    "physical-access",
+                    "Physical access",
+                    State::Admin,
+                ),
+                (
+                    Slot::Usb,
+                    State::Usb,
+                    "usb-access",
+                    "USB access",
+                    State::User,
+                ),
+            ] {
+                if !self.has_slot(hid, slot) {
+                    continue;
+                }
+                let from = self.optional_state(hid, state);
+                let owner = Owner::Entity(hid.clone());
+                let o = Origin {
+                    entities: vec![hid.clone()],
+                    paths: vec![owner.slot_path(slot)],
+                    ..origin(rule)
+                };
+                let to = self.state_id(hid, gives.as_str());
+                self.action(
+                    format!("action/{rule}/{hid}"),
+                    format!("{word} · {}", entity.label),
+                    Binding::Parameter {
+                        owner,
+                        base: slot,
+                        replacement: None,
+                    },
+                    &[from],
+                    &to,
+                    o,
+                );
+            }
+        }
+    }
+
+    /// Taking a host or service out of service (extract Fig. 5.34): a goal
+    /// only, once it says how long that takes and something reaches it.
+    fn denials(&mut self) {
+        for (id, entity) in &self.m.entities {
+            if !matches!(entity.kind, EntityKind::Host | EntityKind::Service)
+                || !self.has_slot(id, Slot::Deny)
+            {
+                continue;
+            }
+            if entity.kind == EntityKind::Host && !self.host_reachable(id) {
+                continue;
+            }
+            let reachable = self.state_id(id, "reachable");
+            let unavailable = self.optional_state(id, State::Unavailable);
+            let owner = Owner::Entity(id.clone());
+            let o = Origin {
+                entities: vec![id.clone()],
+                paths: vec![owner.slot_path(Slot::Deny)],
+                ..origin("deny-service")
+            };
+            self.action(
+                format!("action/deny-service/{id}"),
+                format!("Denial of service · {}", entity.label),
+                Binding::Parameter {
+                    owner,
+                    base: Slot::Deny,
+                    replacement: None,
+                },
+                &[reachable],
+                &unavailable,
+                o,
+            );
+        }
+    }
+
+    /// An account the attacker starts out holding gives what logs it in
+    /// (extract Fig. 5.33); the account's own rules do the rest.
+    fn held(&mut self) {
+        for f in &self.m.attacker.footholds {
+            if f.state != State::Held {
+                continue;
+            }
+            let held = self.state_id(&f.entity, State::Held.as_str());
+            let material = self.state_id(&f.entity, "material");
+            let o = Origin {
+                entities: vec![f.entity.clone()],
+                ..origin("account-held")
+            };
+            self.produce(&held, &material, o);
+        }
     }
 
     /// User to admin on a host (extract Fig. 5.33), once the host says how

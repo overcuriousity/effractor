@@ -483,6 +483,8 @@ test('a host running an unpatched operating system is ringed exposed', () => {
 
 // The catalog as it is, for rows that depend on the kind's optional lists.
 const REAL = require('./fixtures/catalog.json');
+// The host steps every host or service offers; tested on their own below.
+const HOST_STEPS = ['physical', 'usb', 'deny'];
 
 test('ASLR and DEP are shown only on a host they can change, and say so', () => {
   const doc = lecture();
@@ -491,7 +493,7 @@ test('ASLR and DEP are shown only on a host they can change, and say so', () => 
   // srv runs sshd, a service.
   assert.deepEqual(V.defenseRows(doc, REAL, 'srv').map((r) => r.defense), ['aslr', 'anti-malware', 'dep']);
   // sshd's replacement times are shown only while their switch is not off.
-  const slots = () => V.slotRows(doc, REAL, 'sshd').filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
+  const slots = () => V.slotRows(doc, REAL, 'sshd').filter((r) => r.absent && !HOST_STEPS.includes(r.slot)).map((r) => r.slot + ': ' + r.note);
   assert.deepEqual(slots(), []);
   doc.entities.srv.defenses = { aslr: true };
   assert.deepEqual(slots(), ['deploy-exploit-aslr: used while ASLR is on · unknown until given']);
@@ -499,7 +501,7 @@ test('ASLR and DEP are shown only on a host they can change, and say so', () => 
 
 test("a host's own exploit time is offered only once it runs a product", () => {
   const doc = lecture();
-  const absent = (id) => V.slotRows(doc, REAL, id).filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
+  const absent = (id) => V.slotRows(doc, REAL, id).filter((r) => r.absent && !HOST_STEPS.includes(r.slot)).map((r) => r.slot + ': ' + r.note);
   const ESC = 'escalate: not drawn until a time is given';
   assert.deepEqual(absent('srv'), [ESC]);
   doc.entities.os = { kind: 'product', label: 'OS' };
@@ -517,7 +519,7 @@ test('a sensor line reads in words along its arrow', () => {
 
 test("a host's anti-malware time is offered once its anti-malware is on", () => {
   const doc = lecture();
-  const absent = (id) => V.slotRows(doc, REAL, id).filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
+  const absent = (id) => V.slotRows(doc, REAL, id).filter((r) => r.absent && !HOST_STEPS.includes(r.slot)).map((r) => r.slot + ': ' + r.note);
   const ESC = 'escalate: not drawn until a time is given';
   assert.deepEqual(absent('srv'), [ESC]);
   doc.entities.srv.defenses = { 'anti-malware': true };
@@ -529,17 +531,34 @@ test("a host's anti-malware time is offered once its anti-malware is on", () => 
 test('a scenario turning anti-malware on offers its time too', () => {
   const doc = lecture();
   doc.scenarios = { am: { label: 'AM', changes: [{ entity: 'srv', defense: 'anti-malware', value: true }] } };
-  const absent = V.slotRows(doc, REAL, 'srv').filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
+  const absent = V.slotRows(doc, REAL, 'srv').filter((r) => r.absent && !HOST_STEPS.includes(r.slot)).map((r) => r.slot + ': ' + r.note);
   assert.deepEqual(absent, ['bypass-antimalware: used while anti-malware is on · unknown until given', 'escalate: not drawn until a time is given']);
 });
 
 test('escalation is offered on every host; hardening only once it is given', () => {
   const doc = lecture();
-  const absent = () => V.slotRows(doc, REAL, 'ws').filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
+  const absent = () => V.slotRows(doc, REAL, 'ws').filter((r) => r.absent && !HOST_STEPS.includes(r.slot)).map((r) => r.slot + ': ' + r.note);
   assert.deepEqual(absent(), ['escalate: not drawn until a time is given']);
   assert.ok(!V.defenseRows(doc, REAL, 'ws').some((r) => r.defense === 'hardened'));
   doc.entities.ws.parameters = Object.assign({}, doc.entities.ws.parameters, { escalate: { status: 'unknown' } });
   assert.deepEqual(V.defenseRows(doc, REAL, 'ws').map((r) => r.defense), ['hardened']);
   doc.entities.ws.defenses = { hardened: true };
   assert.deepEqual(absent(), ['escalate-hardened: used while hardened · unknown until given']);
+});
+
+test('physical and USB access are offered on every host, denial where something reaches it', () => {
+  const doc = lecture();
+  const absent = (id) => V.slotRows(doc, REAL, id).filter((r) => r.absent && HOST_STEPS.includes(r.slot)).map((r) => r.slot);
+  assert.deepEqual(absent('ws'), ['physical', 'usb'], 'the workstation runs no service: nothing to deny');
+  assert.deepEqual(absent('srv'), ['physical', 'usb', 'deny']);
+  assert.deepEqual(absent('sshd'), ['deny']);
+});
+
+test('a pin offers the states its role may take', () => {
+  assert.deepEqual(V.pinStates(REAL, 'host', 'foothold'), ['user', 'admin', 'physical', 'usb']);
+  assert.deepEqual(V.pinStates(REAL, 'host', 'target'), ['user', 'admin', 'unavailable']);
+  assert.deepEqual(V.pinStates(REAL, 'account', 'foothold'), ['held']);
+  assert.deepEqual(V.pinStates(REAL, 'account', 'target'), []);
+  assert.deepEqual(V.pinStates(REAL, 'firewall', 'target'), []);
+  assert.deepEqual(V.pinStates(null, 'host', 'target'), []);
 });

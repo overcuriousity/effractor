@@ -48,6 +48,16 @@ entities:
         status: illustrative
         ttc: "Exponential(mean 30)"
         note: Test fixture; not calibrated
+      physical:
+        status: illustrative
+        ttc: "Exponential(mean 0.5)"
+        note: Test fixture; not calibrated
+      usb:
+        status: illustrative
+        ttc: "Exponential(mean 0.2)"
+        note: Test fixture; not calibrated
+      deny:
+        status: unknown
       escape:
         status: unknown
       deploy-exploit:
@@ -302,6 +312,7 @@ flows:
 attacker:
   footholds:
     - {entity: workstation, state: admin}
+    - {entity: server-account, state: held}
   target: {entity: server, state: admin}
 
 scenarios:

@@ -2348,3 +2348,38 @@ fn a_sensor_is_watched_by_a_machine_only() {
         "associations.bridge-watch.from"
     ));
 }
+
+#[test]
+fn attacker_inputs_are_footholds_and_denial_is_a_target_fig_5_33() {
+    let mut image = image(LECTURE);
+    image["attacker"]["footholds"] = serde_json::json!([
+        {"entity": "server", "state": "physical"},
+        {"entity": "workstation", "state": "usb"},
+        {"entity": "server-account", "state": "held"}
+    ]);
+    image["attacker"]["target"] = serde_json::json!({"entity": "sshd", "state": "unavailable"});
+    let text = from_document(&image).unwrap();
+    assert!(text.contains("{entity: server, state: physical}"), "{text}");
+    assert_eq!(canonicalize(&text).unwrap(), text);
+    for (target, ok) in [("physical", false), ("usb", false), ("unavailable", true)] {
+        let mut image = image.clone();
+        image["attacker"]["target"] = serde_json::json!({"entity": "server", "state": target});
+        let refused = from_document(&image).is_err();
+        assert_eq!(refused, !ok, "target {target}");
+    }
+    let mut held = image.clone();
+    held["attacker"]["target"] = serde_json::json!({"entity": "server-account", "state": "held"});
+    assert!(has(
+        &errors_of(&held),
+        "unknown-state",
+        "attacker.target.state"
+    ));
+    let mut denied = image.clone();
+    denied["attacker"]["footholds"] =
+        serde_json::json!([{"entity": "sshd", "state": "unavailable"}]);
+    assert!(has(
+        &errors_of(&denied),
+        "unknown-state",
+        "attacker.footholds[0].state"
+    ));
+}

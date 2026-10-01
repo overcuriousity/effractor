@@ -654,3 +654,33 @@ fn an_ids_whose_switch_is_unknown_withholds_the_number() {
         r["baseline"]["outcome"]
     );
 }
+
+#[test]
+fn a_held_account_behind_mfa_without_a_second_factor_stays_out() {
+    // Review Focus 5 (extract Fig. 5.33): the attacker holds the server
+    // account, whose multi-factor login is on and cannot be got past.
+    let text = LECTURE
+        .replacen(
+            "  footholds:\n    - {entity: workstation, state: admin}\n",
+            "  footholds:\n    - {entity: server-account, state: held}\n",
+            1,
+        )
+        .replacen(
+            "      mfa-bypass:\n        status: unknown\n    defenses: {mfa: false}\n  admin-account:",
+            "      mfa-bypass:\n        status: illustrative\n        ttc: \"Never\"\n        note: exercise\n    defenses: {mfa: true}\n  admin-account:",
+            1,
+        );
+    let r = solve(&text, None, 2_000);
+    let base = &r["baseline"];
+    assert_eq!(
+        node(base, "state/account/server-account/material")["status"],
+        "seeded",
+        "held from the start"
+    );
+    assert_ne!(
+        node(base, "state/account/server-account/authenticated")["status"],
+        "possible"
+    );
+    // Nothing unknown is in the way: the number is there, and it is zero.
+    assert_eq!(p_target(base), 0.0, "{}", base["outcome"]);
+}

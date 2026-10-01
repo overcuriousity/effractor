@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 49] = [
+pub const RULES: [Rule; 53] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -406,6 +406,65 @@ pub const RULES: [Rule; 49] = [
         scope: "one per host with an `escalate` time",
         assumptions: &[
             "A local privilege escalation from user to administrator; which flaw it uses is in its time's note.",
+        ],
+    },
+    Rule {
+        id: "physical-access",
+        title: "Physical access",
+        version: 1,
+        bindings: &["host"],
+        prerequisites: "host.physical, a foothold only",
+        output: "host.admin",
+        duration: D::Slot {
+            slot: Slot::Physical,
+            replaced_by: None,
+        },
+        scope: "one per host with a `physical` time",
+        assumptions: &[
+            "At the machine, the attacker can make it boot what they bring; how is in the time's note.",
+        ],
+    },
+    Rule {
+        id: "usb-access",
+        title: "USB access",
+        version: 1,
+        bindings: &["host"],
+        prerequisites: "host.usb, a foothold only",
+        output: "host.user",
+        duration: D::Slot {
+            slot: Slot::Usb,
+            replaced_by: None,
+        },
+        scope: "one per host with a `usb` time",
+        assumptions: &["A device plugged into the running machine acts as its logged-in user."],
+    },
+    Rule {
+        id: "deny-service",
+        title: "Denial of service",
+        version: 1,
+        bindings: &["host or service"],
+        prerequisites: "the host's or the service's reachable",
+        output: "host.unavailable or service.unavailable, a target only",
+        duration: D::Slot {
+            slot: Slot::Deny,
+            replaced_by: None,
+        },
+        scope: "one per host or service with a `deny` time",
+        assumptions: &[
+            "Taking something out of service needs only to reach it; nothing else depends on it being down.",
+        ],
+    },
+    Rule {
+        id: "account-held",
+        title: "The attacker holds the account",
+        version: 1,
+        bindings: &["account"],
+        prerequisites: "account.held, a foothold only",
+        output: "account.material",
+        duration: D::Logical,
+        scope: "one per account a foothold names",
+        assumptions: &[
+            "Holding an account is holding what logs it in; a second factor it needs is still needed.",
         ],
     },
     Rule {
@@ -872,6 +931,10 @@ pub(crate) fn state_word(state: State) -> &'static str {
         State::Deceived => "deceived",
         State::Read => "read",
         State::Modified => "modified",
+        State::Physical => "at the machine",
+        State::Usb => "can plug into it",
+        State::Unavailable => "out of service",
+        State::Held => "held",
     }
 }
 
@@ -898,6 +961,9 @@ fn slot_name(slot: Slot) -> &'static str {
         Slot::BypassAntimalware => "Get past the anti-malware",
         Slot::Escalate => "Escalate privilege",
         Slot::EscalateHardened => "Escalate privilege (hardened)",
+        Slot::Physical => "Physical access",
+        Slot::Usb => "USB access",
+        Slot::Deny => "Deny service",
     }
 }
 
@@ -912,6 +978,10 @@ fn state_description(state: State) -> &'static str {
         State::Deceived => "This person acts on what the attacker sent.",
         State::Read => "The attacker has read this data.",
         State::Modified => "The attacker has changed, encrypted or deleted this data.",
+        State::Physical => "The attacker is at the machine: a starting point only.",
+        State::Usb => "The attacker can plug a device into the machine: a starting point only.",
+        State::Unavailable => "The host or service is out of service: a goal only.",
+        State::Held => "The attacker holds what logs this account in: a starting point only.",
     }
 }
 
@@ -984,6 +1054,18 @@ fn slot_description(slot: Slot) -> (&'static str, &'static str) {
         Slot::BypassAntimalware => (
             "host",
             "Time to get past the host's anti-malware, once the host is reachable. Optional: while anti-malware is on and this is not given, the time is unknown.",
+        ),
+        Slot::Physical => (
+            "host",
+            "Time from standing at the machine to admin control of it. Optional: not drawn until given.",
+        ),
+        Slot::Usb => (
+            "host",
+            "Time from plugging a device into the machine to user control of it. Optional: not drawn until given.",
+        ),
+        Slot::Deny => (
+            "host or service",
+            "Time to take the host or service out of service once it is reachable. Optional: not drawn until given.",
         ),
         Slot::Escalate => (
             "host",
@@ -1076,6 +1158,12 @@ pub fn catalog() -> Value {
                 "description": kind_description(kind),
                 "meaning": kind_meaning(kind),
                 "states": kind.states().iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                "optional_states": kind
+                    .states()
+                    .iter()
+                    .filter(|s| s.optional(kind))
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>(),
                 "parameters": kind.slots().iter().map(|s| s.as_str()).collect::<Vec<_>>(),
                 "optional": kind
                     .slots()
@@ -1118,7 +1206,15 @@ pub fn catalog() -> Value {
         .collect();
     let states: Vec<Value> = State::ALL
         .iter()
-        .map(|&s| json!({"id": s.as_str(), "word": state_word(s), "description": state_description(s)}))
+        .map(|&s| {
+            json!({
+                "id": s.as_str(),
+                "word": state_word(s),
+                "description": state_description(s),
+                "foothold": s.may_start(),
+                "target": s.may_aim(),
+            })
+        })
         .collect();
     let parameters: Vec<Value> = Slot::ALL
         .iter()

@@ -46,7 +46,21 @@ fn a_new_entity_carries_every_slot_and_switch_of_its_kind_as_unknown() {
     assert!(network.parameters.is_empty());
     assert_eq!(network.defenses.patched, None);
     assert_eq!(EntityKind::Firewall.states(), &[]);
-    assert_eq!(EntityKind::Host.states(), &[State::User, State::Admin]);
+    assert_eq!(
+        EntityKind::Host.states(),
+        &[
+            State::User,
+            State::Admin,
+            State::Physical,
+            State::Usb,
+            State::Unavailable
+        ]
+    );
+    // Added after files existed: optional, so their facts are not drawn
+    // for nothing.
+    assert!(!State::Admin.optional(EntityKind::Host));
+    assert!(State::Physical.optional(EntityKind::Host));
+    assert!(State::Held.optional(EntityKind::Account));
     assert_eq!(EntityKind::Credential.defenses(), &[Defense::Protected]);
 }
 
@@ -263,7 +277,10 @@ fn every_host_and_router_carries_an_escape_slot() {
             Slot::DeployExploitDep,
             Slot::BypassAntimalware,
             Slot::Escalate,
-            Slot::EscalateHardened
+            Slot::EscalateHardened,
+            Slot::Physical,
+            Slot::Usb,
+            Slot::Deny
         ]
     );
     assert_eq!(EntityKind::Router.slots(), &[Slot::Escape]);
@@ -365,6 +382,7 @@ fn patching_belongs_to_the_product() {
             Slot::DeployExploit,
             Slot::DeployExploitAslr,
             Slot::DeployExploitDep,
+            Slot::Deny,
             Slot::Login,
             Slot::TakeOver,
             Slot::TakeOverGuarded
@@ -674,9 +692,13 @@ fn only_slots_added_to_an_existing_kind_are_optional() {
             "bypass-antimalware on host",
             "escalate on host",
             "escalate-hardened on host",
+            "physical on host",
+            "usb on host",
+            "deny on host",
             "deploy-exploit on application",
             "deploy-exploit-aslr on service",
             "deploy-exploit-dep on service",
+            "deny on service",
         ]
     );
 }

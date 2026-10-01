@@ -11,6 +11,7 @@
       "states": [
         "access"
       ],
+      "optional_states": [],
       "parameters": [],
       "optional": [],
       "defenses": [],
@@ -23,6 +24,7 @@
       "states": [
         "admin"
       ],
+      "optional_states": [],
       "parameters": [
         "escape"
       ],
@@ -35,6 +37,7 @@
       "description": "The filter managed by one router. Its permissions apply to named flows.",
       "meaning": "A router's filter: which flows it lets through.",
       "states": [],
+      "optional_states": [],
       "parameters": [],
       "optional": [],
       "defenses": [],
@@ -46,7 +49,15 @@
       "meaning": "A machine: a workstation, a server, a virtual machine or a container. It may run on another host.",
       "states": [
         "user",
-        "admin"
+        "admin",
+        "physical",
+        "usb",
+        "unavailable"
+      ],
+      "optional_states": [
+        "physical",
+        "usb",
+        "unavailable"
       ],
       "parameters": [
         "escape",
@@ -55,7 +66,10 @@
         "deploy-exploit-dep",
         "bypass-antimalware",
         "escalate",
-        "escalate-hardened"
+        "escalate-hardened",
+        "physical",
+        "usb",
+        "deny"
       ],
       "optional": [
         "deploy-exploit",
@@ -63,7 +77,10 @@
         "deploy-exploit-dep",
         "bypass-antimalware",
         "escalate",
-        "escalate-hardened"
+        "escalate-hardened",
+        "physical",
+        "usb",
+        "deny"
       ],
       "defenses": [
         "aslr",
@@ -85,6 +102,7 @@
       "states": [
         "control"
       ],
+      "optional_states": [],
       "parameters": [
         "deploy-exploit",
         "take-over",
@@ -103,19 +121,25 @@
       "description": "A reachable service running on a host or router, with exploit and login routes. Content reaching it may take it over; `guarded` is its switch.",
       "meaning": "Software that accepts connections, e.g. a web server or SSH. Exploited or logged into over the network.",
       "states": [
-        "control"
+        "control",
+        "unavailable"
+      ],
+      "optional_states": [
+        "unavailable"
       ],
       "parameters": [
         "deploy-exploit",
         "deploy-exploit-aslr",
         "deploy-exploit-dep",
+        "deny",
         "login",
         "take-over",
         "take-over-guarded"
       ],
       "optional": [
         "deploy-exploit-aslr",
-        "deploy-exploit-dep"
+        "deploy-exploit-dep",
+        "deny"
       ],
       "defenses": [
         "guarded"
@@ -127,6 +151,7 @@
       "description": "One software version, e.g. OpenSSH 9.6. Its services share one exploit discovery; patching is set here.",
       "meaning": "A software version. Every service that is an instance of it shares its vulnerabilities.",
       "states": [],
+      "optional_states": [],
       "parameters": [
         "find-exploit",
         "find-exploit-patched"
@@ -141,7 +166,12 @@
       "kind": "account",
       "description": "An identity with explicit authentication and grants; no implicit global privileges. Multi-factor login is its switch.",
       "meaning": "An identity that services accept and that has rights on machines.",
-      "states": [],
+      "states": [
+        "held"
+      ],
+      "optional_states": [
+        "held"
+      ],
       "parameters": [
         "admin-login",
         "mfa-bypass"
@@ -159,6 +189,7 @@
       "states": [
         "possessed"
       ],
+      "optional_states": [],
       "parameters": [
         "extract",
         "extract-protected"
@@ -177,6 +208,7 @@
         "contacted",
         "deceived"
       ],
+      "optional_states": [],
       "parameters": [
         "phish",
         "phish-trained"
@@ -195,6 +227,7 @@
         "read",
         "modified"
       ],
+      "optional_states": [],
       "parameters": [],
       "optional": [],
       "defenses": [
@@ -207,6 +240,7 @@
       "description": "Where accounts log in to a machine: its user database, its login (extract: AccessControl). Accounts are granted on it; that is a grant on the machine.",
       "meaning": "Where accounts log in to a machine: its user database, its login.",
       "states": [],
+      "optional_states": [],
       "parameters": [],
       "optional": [],
       "defenses": [],
@@ -217,6 +251,7 @@
       "description": "An intrusion detection system on a router's or a host's traffic (extract: IDS). While `enabled`, an exploit it watches gets past it first.",
       "meaning": "Watches traffic and reports what it recognizes.",
       "states": [],
+      "optional_states": [],
       "parameters": [
         "bypass"
       ],
@@ -231,6 +266,7 @@
       "description": "An intrusion prevention system on a router's or a host's traffic (extract: IPS). While `enabled`, an exploit it watches gets past it first.",
       "meaning": "Watches traffic and stops what it recognizes.",
       "states": [],
+      "optional_states": [],
       "parameters": [
         "bypass"
       ],
@@ -517,47 +553,93 @@
     {
       "id": "access",
       "word": "access",
-      "description": "Traffic can be originated in this network."
+      "description": "Traffic can be originated in this network.",
+      "foothold": true,
+      "target": true
     },
     {
       "id": "user",
       "word": "user control",
-      "description": "User-level control of this machine."
+      "description": "User-level control of this machine.",
+      "foothold": true,
+      "target": true
     },
     {
       "id": "admin",
       "word": "admin control",
-      "description": "Administrative control of this machine."
+      "description": "Administrative control of this machine.",
+      "foothold": true,
+      "target": true
     },
     {
       "id": "control",
       "word": "controlled",
-      "description": "This software does what the attacker says."
+      "description": "This software does what the attacker says.",
+      "foothold": true,
+      "target": true
     },
     {
       "id": "possessed",
       "word": "held",
-      "description": "The attacker holds this credential."
+      "description": "The attacker holds this credential.",
+      "foothold": true,
+      "target": true
     },
     {
       "id": "contacted",
       "word": "reached by content",
-      "description": "Content the attacker controls is in front of this reader."
+      "description": "Content the attacker controls is in front of this reader.",
+      "foothold": true,
+      "target": true
     },
     {
       "id": "deceived",
       "word": "deceived",
-      "description": "This person acts on what the attacker sent."
+      "description": "This person acts on what the attacker sent.",
+      "foothold": true,
+      "target": true
     },
     {
       "id": "read",
       "word": "read",
-      "description": "The attacker has read this data."
+      "description": "The attacker has read this data.",
+      "foothold": true,
+      "target": true
     },
     {
       "id": "modified",
       "word": "modified",
-      "description": "The attacker has changed, encrypted or deleted this data."
+      "description": "The attacker has changed, encrypted or deleted this data.",
+      "foothold": true,
+      "target": true
+    },
+    {
+      "id": "physical",
+      "word": "at the machine",
+      "description": "The attacker is at the machine: a starting point only.",
+      "foothold": true,
+      "target": false
+    },
+    {
+      "id": "usb",
+      "word": "can plug into it",
+      "description": "The attacker can plug a device into the machine: a starting point only.",
+      "foothold": true,
+      "target": false
+    },
+    {
+      "id": "unavailable",
+      "word": "out of service",
+      "description": "The host or service is out of service: a goal only.",
+      "foothold": false,
+      "target": true
+    },
+    {
+      "id": "held",
+      "word": "held",
+      "description": "The attacker holds what logs this account in: a starting point only.",
+      "foothold": true,
+      "target": false
     }
   ],
   "defenses": [
@@ -737,6 +819,24 @@
       "name": "Escalate privilege (hardened)",
       "owner": "host",
       "description": "The same, once the host is hardened; selected by `defenses.hardened`."
+    },
+    {
+      "slot": "physical",
+      "name": "Physical access",
+      "owner": "host",
+      "description": "Time from standing at the machine to admin control of it. Optional: not drawn until given."
+    },
+    {
+      "slot": "usb",
+      "name": "USB access",
+      "owner": "host",
+      "description": "Time from plugging a device into the machine to user control of it. Optional: not drawn until given."
+    },
+    {
+      "slot": "deny",
+      "name": "Deny service",
+      "owner": "host or service",
+      "description": "Time to take the host or service out of service once it is reachable. Optional: not drawn until given."
     }
   ],
   "rules": [
@@ -1213,6 +1313,80 @@
       "scope": "one per host with an `escalate` time",
       "assumptions": [
         "A local privilege escalation from user to administrator; which flaw it uses is in its time's note."
+      ]
+    },
+    {
+      "id": "physical-access",
+      "title": "Physical access",
+      "version": 1,
+      "bindings": [
+        "host"
+      ],
+      "prerequisites": "host.physical, a foothold only",
+      "output": "host.admin",
+      "duration": {
+        "kind": "slot",
+        "slot": "physical",
+        "replaced_by": null
+      },
+      "scope": "one per host with a `physical` time",
+      "assumptions": [
+        "At the machine, the attacker can make it boot what they bring; how is in the time's note."
+      ]
+    },
+    {
+      "id": "usb-access",
+      "title": "USB access",
+      "version": 1,
+      "bindings": [
+        "host"
+      ],
+      "prerequisites": "host.usb, a foothold only",
+      "output": "host.user",
+      "duration": {
+        "kind": "slot",
+        "slot": "usb",
+        "replaced_by": null
+      },
+      "scope": "one per host with a `usb` time",
+      "assumptions": [
+        "A device plugged into the running machine acts as its logged-in user."
+      ]
+    },
+    {
+      "id": "deny-service",
+      "title": "Denial of service",
+      "version": 1,
+      "bindings": [
+        "host or service"
+      ],
+      "prerequisites": "the host's or the service's reachable",
+      "output": "host.unavailable or service.unavailable, a target only",
+      "duration": {
+        "kind": "slot",
+        "slot": "deny",
+        "replaced_by": null
+      },
+      "scope": "one per host or service with a `deny` time",
+      "assumptions": [
+        "Taking something out of service needs only to reach it; nothing else depends on it being down."
+      ]
+    },
+    {
+      "id": "account-held",
+      "title": "The attacker holds the account",
+      "version": 1,
+      "bindings": [
+        "account"
+      ],
+      "prerequisites": "account.held, a foothold only",
+      "output": "account.material",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per account a foothold names",
+      "assumptions": [
+        "Holding an account is holding what logs it in; a second factor it needs is still needed."
       ]
     },
     {

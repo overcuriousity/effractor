@@ -244,9 +244,10 @@
     attacker(form, id);
   }
 
-  function statesOf(catalog, id) {
-    var spec = (catalog.entities || []).filter(function (e) { return e.kind === kindOf(id); })[0];
-    return spec ? spec.states : [];
+  // The states `id` may take as a pin of `role`: a denial is a goal only,
+  // being at the machine or holding an account a start only.
+  function statesOf(catalog, id, role) {
+    return window.effractorArchitectureView.pinStates(catalog, kindOf(id), role);
   }
 
   // Before the catalog has arrived there are no states to offer; the form
@@ -254,11 +255,19 @@
   function attacker(form, id) {
     var catalog = U.catalog();
     if (!catalog) return;
-    var states = statesOf(catalog, id);
-    if (!states.length) return;
+    var starts = statesOf(catalog, id, "foothold");
+    var goals = statesOf(catalog, id, "target");
+    if (!starts.length && !goals.length) return;
     var a = doc().attacker || {};
-    var options = [["", "no"]].concat(states.map(function (s) { return [s, window.effractorWords.state(catalog, s)]; }));
+    var word = function (s) { return [s, window.effractorWords.state(catalog, s)]; };
+    var options = [["", "no"]].concat(starts.map(word));
+    var goalOptions = [["", "no"]].concat(goals.map(word));
     var held = (a.footholds || []).filter(function (s) { return s.entity === id; }).map(function (s) { return s.state; });
+    if (starts.length) footholdField(form, id, options, held);
+    if (goals.length) targetField(form, id, a, goalOptions);
+  }
+
+  function footholdField(form, id, options, held) {
     var foothold = U.field(form, "prop-foothold", "Foothold", M.dropdown(options, held[0] || ""));
     foothold.addEventListener("change", function () {
       var v = foothold.value;
@@ -278,10 +287,13 @@
         return edit;
       }, null, true);
     });
+  }
+
+  function targetField(form, id, a, goalOptions) {
     var targeted = a.target && a.target.entity === id ? a.target.state : "";
     // The one target, when it is elsewhere, is named: choosing moves it.
     var elsewhere = a.target && a.target.entity !== id && own(doc().entities, a.target.entity);
-    var targetOptions = elsewhere ? [["", "no · on “" + name(a.target.entity) + "”"]].concat(options.slice(1)) : options;
+    var targetOptions = elsewhere ? [["", "no · on “" + name(a.target.entity) + "”"]].concat(goalOptions.slice(1)) : goalOptions;
     var target = U.field(form, "prop-target", "Target", M.dropdown(targetOptions, targeted));
     target.addEventListener("change", function () {
       var v = target.value;
@@ -298,13 +310,13 @@
     var catalog = U.catalog();
     var d = doc();
     var ids = Object.keys(d.entities || {}).filter(function (id) {
-      return catalog && statesOf(catalog, id).length;
+      return catalog && statesOf(catalog, id, role).length;
     }).sort(function (a, b) {
       return name(a).localeCompare(name(b));
     });
     if (!ids.length) return [["no components yet · A adds one", "", null]];
     return ids.map(function (id) {
-      return [name(id), "", statesOf(catalog, id).map(function (s) {
+      return [name(id), "", statesOf(catalog, id, role).map(function (s) {
         return [window.effractorWords.state(catalog, s), "", function () {
           U.apply(function () {
             return role === "target" ? L.setTarget(doc(), id, s) : L.setFoothold(doc(), id, s, true);

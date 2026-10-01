@@ -89,6 +89,7 @@
     if (slot === "bypass-antimalware") {
       return switchedOn(doc, id, "anti-malware") && runsService(doc, id) ? "used while anti-malware is on · unknown until given" : null;
     }
+    if (slot === "deny" && doc.entities[id].kind === "host" && !runsService(doc, id)) return null;
     if (slot === "escalate-hardened") {
       return switchedOn(doc, id, "hardened") ? "used while hardened · unknown until given" : null;
     }
@@ -564,7 +565,21 @@
     return { rows: rows, empty: ids.length && !rows.length ? "no component named “" + String(query).trim() + "”" : null };
   }
 
-  var api = { outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, slotRows: slotRows, shownDefenses: shownDefenses, defenseRows: defenseRows, ringsIn: ringsIn };
+  // The states a pin of `role` ("foothold" or "target") may take on `kind`:
+  // a denial is a goal only, being at the machine or holding an account a
+  // start only (the catalog's `foothold` and `target` of each state).
+  function pinStates(catalog, kind, role) {
+    var spec = ((catalog && catalog.entities) || []).filter(function (k) { return k.kind === kind; })[0];
+    var roles = Object.create(null);
+    ((catalog && catalog.states) || []).forEach(function (s) {
+      roles[s.id] = s;
+    });
+    return ((spec && spec.states) || []).filter(function (s) {
+      return !roles[s] || roles[s][role] !== false;
+    });
+  }
+
+  var api = { pinStates: pinStates, outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, slotRows: slotRows, shownDefenses: shownDefenses, defenseRows: defenseRows, ringsIn: ringsIn };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureView = api;
 })();

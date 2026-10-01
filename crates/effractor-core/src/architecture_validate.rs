@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::architecture::{
     Architecture, Change, Entity, EntityKind, Evidence, Flow, MAX_ENTITIES, MAX_RELATIONSHIPS,
-    MAX_SAMPLES, MAX_SCENARIOS, Parameter, Privilege, Relation, RelationKind, StateRef,
+    MAX_SAMPLES, MAX_SCENARIOS, Parameter, Privilege, Relation, RelationKind, State, StateRef,
 };
 use crate::{AssociationId, ClusterId, Code, Diagnostic, EntityId, FlowId, article};
 
@@ -885,15 +885,21 @@ impl Cx<'_> {
         }
     }
 
-    fn state_ref(&mut self, r: &StateRef, path: &str) {
+    fn state_ref(&mut self, r: &StateRef, path: &str, foothold: bool) {
         let Some(kind) = self
             .entity(&r.entity, &format!("{path}.entity"))
             .map(|e| e.kind)
         else {
             return;
         };
-        if !kind.states().contains(&r.state) {
-            let names: Vec<&str> = kind.states().iter().map(|s| s.as_str()).collect();
+        let allowed: Vec<State> = kind
+            .states()
+            .iter()
+            .copied()
+            .filter(|s| if foothold { s.may_start() } else { s.may_aim() })
+            .collect();
+        if !allowed.contains(&r.state) {
+            let names: Vec<&str> = allowed.iter().map(|s| s.as_str()).collect();
             let expected = if names.is_empty() {
                 "it has no state an attacker holds".to_owned()
             } else {
@@ -966,7 +972,7 @@ impl Cx<'_> {
         let mut seen = HashSet::new();
         for (i, foothold) in m.attacker.footholds.iter().enumerate() {
             let at = format!("attacker.footholds[{i}]");
-            self.state_ref(foothold, &at);
+            self.state_ref(foothold, &at, true);
             if !seen.insert(foothold) {
                 self.error(
                     Code::Cardinality,
@@ -980,7 +986,7 @@ impl Cx<'_> {
             }
         }
         match &m.attacker.target {
-            Some(target) => self.state_ref(target, "attacker.target"),
+            Some(target) => self.state_ref(target, "attacker.target", false),
             None => self.incomplete(
                 "attacker.target",
                 "no target yet: nothing says which compromise to measure",

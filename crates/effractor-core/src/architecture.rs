@@ -156,14 +156,17 @@ impl EntityKind {
         match self {
             Self::Network => &[State::Access],
             Self::Router => &[State::Admin],
-            Self::Firewall
-            | Self::Account
-            | Self::Product
-            | Self::AccessControl
-            | Self::Ids
-            | Self::Ips => &[],
-            Self::Host => &[State::User, State::Admin],
-            Self::Application | Self::Service => &[State::Control],
+            Self::Account => &[State::Held],
+            Self::Firewall | Self::Product | Self::AccessControl | Self::Ids | Self::Ips => &[],
+            Self::Host => &[
+                State::User,
+                State::Admin,
+                State::Physical,
+                State::Usb,
+                State::Unavailable,
+            ],
+            Self::Application => &[State::Control],
+            Self::Service => &[State::Control, State::Unavailable],
             Self::Credential => &[State::Possessed],
             Self::Person => &[State::Contacted, State::Deceived],
             Self::Data => &[State::Read, State::Modified],
@@ -178,6 +181,7 @@ impl EntityKind {
                 Slot::DeployExploit,
                 Slot::DeployExploitAslr,
                 Slot::DeployExploitDep,
+                Slot::Deny,
                 Slot::Login,
                 Slot::TakeOver,
                 Slot::TakeOverGuarded,
@@ -194,6 +198,9 @@ impl EntityKind {
                 Slot::BypassAntimalware,
                 Slot::Escalate,
                 Slot::EscalateHardened,
+                Slot::Physical,
+                Slot::Usb,
+                Slot::Deny,
             ],
             Self::Router => &[Slot::Escape],
             Self::Ids | Self::Ips => &[Slot::Bypass],
@@ -258,10 +265,39 @@ pub enum State {
     Deceived,
     Read,
     Modified,
+    Physical,
+    Usb,
+    Unavailable,
+    Held,
 }
 
 impl State {
-    pub const ALL: [State; 9] = [
+    /// Whether this state is optional on `kind`: added after files existed,
+    /// its fact is drawn only where a foothold or the target names it or a
+    /// step that produces it is drawn, so existing graphs keep their nodes.
+    pub fn optional(self, kind: EntityKind) -> bool {
+        matches!(
+            (self, kind),
+            (
+                Self::Physical | Self::Usb | Self::Unavailable,
+                EntityKind::Host
+            ) | (Self::Unavailable, EntityKind::Service)
+                | (Self::Held, EntityKind::Account)
+        )
+    }
+
+    /// Whether a foothold may name it: everything but a denial, a goal only.
+    pub fn may_start(self) -> bool {
+        self != Self::Unavailable
+    }
+
+    /// Whether the target may name it: not an attacker input (being at the
+    /// machine, plugged in, holding an account).
+    pub fn may_aim(self) -> bool {
+        !matches!(self, Self::Physical | Self::Usb | Self::Held)
+    }
+
+    pub const ALL: [State; 13] = [
         Self::Access,
         Self::User,
         Self::Admin,
@@ -271,6 +307,10 @@ impl State {
         Self::Deceived,
         Self::Read,
         Self::Modified,
+        Self::Physical,
+        Self::Usb,
+        Self::Unavailable,
+        Self::Held,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -284,6 +324,10 @@ impl State {
             Self::Deceived => "deceived",
             Self::Read => "read",
             Self::Modified => "modified",
+            Self::Physical => "physical",
+            Self::Usb => "usb",
+            Self::Unavailable => "unavailable",
+            Self::Held => "held",
         }
     }
 }
@@ -371,6 +415,9 @@ pub enum Slot {
     BypassAntimalware,
     Escalate,
     EscalateHardened,
+    Physical,
+    Usb,
+    Deny,
 }
 
 impl Slot {
@@ -388,13 +435,18 @@ impl Slot {
                 Self::DeployExploitAslr | Self::DeployExploitDep,
                 EntityKind::Host | EntityKind::Service
             ) | (
-                Self::BypassAntimalware | Self::Escalate | Self::EscalateHardened,
+                Self::BypassAntimalware
+                    | Self::Escalate
+                    | Self::EscalateHardened
+                    | Self::Physical
+                    | Self::Usb
+                    | Self::Deny,
                 EntityKind::Host
-            )
+            ) | (Self::Deny, EntityKind::Service)
         )
     }
 
-    pub const ALL: [Slot; 20] = [
+    pub const ALL: [Slot; 23] = [
         Self::Connect,
         Self::FindExploit,
         Self::FindExploitPatched,
@@ -415,6 +467,9 @@ impl Slot {
         Self::BypassAntimalware,
         Self::Escalate,
         Self::EscalateHardened,
+        Self::Physical,
+        Self::Usb,
+        Self::Deny,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -439,6 +494,9 @@ impl Slot {
             Self::BypassAntimalware => "bypass-antimalware",
             Self::Escalate => "escalate",
             Self::EscalateHardened => "escalate-hardened",
+            Self::Physical => "physical",
+            Self::Usb => "usb",
+            Self::Deny => "deny",
         }
     }
 }

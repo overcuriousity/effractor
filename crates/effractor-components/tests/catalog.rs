@@ -3,7 +3,7 @@
 use effractor_components::{RULES, catalog};
 use serde_json::Value;
 
-const RULE_IDS: [&str; 49] = [
+const RULE_IDS: [&str; 53] = [
     "foothold",
     "admin-implies-user",
     "host-execution",
@@ -30,6 +30,10 @@ const RULE_IDS: [&str; 49] = [
     "antimalware-off",
     "antimalware-bypass",
     "escalate",
+    "physical-access",
+    "usb-access",
+    "deny-service",
+    "account-held",
     "credential-extract",
     "account-material",
     "mfa-policy",
@@ -90,8 +94,8 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
         ]
     );
     assert_eq!(ids(&c["associations"], "kind").len(), 21);
-    assert_eq!(ids(&c["states"], "id").len(), 9);
-    assert_eq!(ids(&c["parameters"], "slot").len(), 20);
+    assert_eq!(ids(&c["states"], "id").len(), 13);
+    assert_eq!(ids(&c["parameters"], "slot").len(), 23);
     let rules = ids(&c["rules"], "id");
     assert_eq!(rules, RULE_IDS);
     for rule in &RULES {
@@ -269,10 +273,15 @@ fn every_kind_says_which_of_its_slots_are_optional() {
                 "deploy-exploit-dep",
                 "bypass-antimalware",
                 "escalate",
-                "escalate-hardened"
+                "escalate-hardened",
+                "physical",
+                "usb",
+                "deny"
             ]),
             "application" => serde_json::json!(["deploy-exploit"]),
-            "service" => serde_json::json!(["deploy-exploit-aslr", "deploy-exploit-dep"]),
+            "service" => {
+                serde_json::json!(["deploy-exploit-aslr", "deploy-exploit-dep", "deny"])
+            }
             _ => serde_json::json!([]),
         };
         assert_eq!(e["optional"], want, "{}", e["kind"]);
@@ -337,4 +346,38 @@ fn the_catalog_describes_the_sensors_and_anti_malware() {
     };
     assert_eq!(name("bypass"), "Get past it");
     assert_eq!(name("bypass-antimalware"), "Get past the anti-malware");
+}
+
+#[test]
+fn states_added_to_existing_kinds_are_optional_and_say_their_role() {
+    let c = catalog();
+    let optional = |kind: &str| {
+        c["entities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["kind"] == kind)
+            .unwrap()["optional_states"]
+            .clone()
+    };
+    assert_eq!(
+        optional("host"),
+        serde_json::json!(["physical", "usb", "unavailable"])
+    );
+    assert_eq!(optional("service"), serde_json::json!(["unavailable"]));
+    assert_eq!(optional("account"), serde_json::json!(["held"]));
+    assert_eq!(optional("router"), serde_json::json!([]));
+    let state = |id: &str| {
+        c["states"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["id"] == id)
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(state("unavailable")["foothold"], false);
+    assert_eq!(state("held")["target"], false);
+    assert_eq!(state("admin")["foothold"], true);
+    assert_eq!(state("admin")["target"], true);
 }
