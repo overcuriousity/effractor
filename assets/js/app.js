@@ -103,9 +103,7 @@
   function templateOf(profile) {
     return new URL("templates/" + TEMPLATES[profile] + ".yaml", assets).href;
   }
-  var $ = function (id) {
-    return document.getElementById(id);
-  };
+  var $ = window.effractorDom.$;
   var store = window.effractorStore.createStore(window.indexedDB);
   var solver = window.createSolver(function () {
     return new Worker(new URL("js/solver-worker.js", assets));

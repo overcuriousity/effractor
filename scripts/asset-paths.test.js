@@ -29,6 +29,7 @@ for (const [page, assets] of [
     });
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets/js/layout.js'), 'utf8'), context);
     context.window.effractorLayout.createLayout();
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets/js/dom.js'), 'utf8'), context);
     context.document.currentScript.src = assets + 'js/app.js';
     assert.throws(() => vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets/js/app.js'), 'utf8'), context), error => error === stop);
     assert.equal(elkWorker, assets + 'vendor/elk/elk-worker.min.js');

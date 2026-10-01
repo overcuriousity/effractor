@@ -14,9 +14,7 @@
   function doc() {
     return app.state.doc;
   }
-  function $(id) {
-    return document.getElementById(id);
-  }
+  var $ = window.effractorDom.$;
 
   // A row per component: its icon and name; a click selects it. `extra`
   // adds to the row (a button, a drag).

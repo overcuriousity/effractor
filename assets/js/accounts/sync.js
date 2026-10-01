@@ -7,7 +7,7 @@
   if (typeof document === "undefined") return;
   var A = window.effractorAccounts, client = A.client, app = window.effractor, D = A.documents;
   var store = window.effractorStore.createStore(window.indexedDB);
-  var $ = function (id) { return document.getElementById(id); };
+  var $ = window.effractorDom.$;
   var WORDS = {
     saved: "saved", saving: "saving…", retrying: "not saved · retrying", conflict: "not saved · changed elsewhere",
     lost: "not saved", loggedout: "not saved · logged out", refused: "not saved",

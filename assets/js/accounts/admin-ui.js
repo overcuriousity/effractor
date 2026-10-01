@@ -4,18 +4,13 @@
 (function () {
   if (typeof document === "undefined") return;
   var A = window.effractorAccounts, client = A.client, M = window.effractorMenu;
-  var $ = function (id) { return document.getElementById(id); };
+  var $ = window.effractorDom.$;
   var tab = "users", rows = [], groupsCache = [], selected = null, armedDelete = null;
 
   function say(text) { $("admin-problem").textContent = text || ""; }
   function refused(res) { return res.status === 409 || res.status === 400 ? String(res.data) : res.status === 403 ? "not yours to change" : "not done"; }
 
-  function el(tag, text, cls) {
-    var e = document.createElement(tag);
-    if (text != null) e.textContent = text;
-    if (cls) e.className = cls;
-    return e;
-  }
+  var el = window.effractorDom.el;
   function button(text, fn, cls) {
     var b = el("button", text, cls || "btn btn-ghost");
     b.type = "button";

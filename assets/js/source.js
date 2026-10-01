@@ -88,9 +88,7 @@
   var app = window.effractor;
   var blocksGraph = window.effractorProblems.blocks;
   var PAUSE_MS = 400;
-  var $ = function (id) {
-    return document.getElementById(id);
-  };
+  var $ = window.effractorDom.$;
   var area = $("source");
   var button = document.querySelector('[data-tool="source"]');
   var timer = null;

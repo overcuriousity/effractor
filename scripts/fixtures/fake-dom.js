@@ -1,6 +1,10 @@
 // The least DOM the SVG renderer needs, for `node --test`: elements that
 // remember their attributes, children, classes and listeners. Not a browser —
 // what the page looks like is checked by eye.
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+
 function element(tag) {
   const el = {
     tag,
@@ -51,6 +55,15 @@ function element(tag) {
   return el;
 }
 
+// A page script run as the page runs it: after dom.js, whose helpers it takes
+// from `window`, in one context holding the sandbox's globals. `file` is
+// under assets/js/.
+function runPage(file, sandbox) {
+  const context = vm.isContext(sandbox) ? sandbox : vm.createContext(sandbox);
+  for (const f of ["dom.js", file]) vm.runInContext(fs.readFileSync(path.join(__dirname, "../../assets/js", f), "utf8"), context);
+  return context;
+}
+
 function all(root, test, out = []) {
   if (test(root)) out.push(root);
   root.children.forEach((c) => all(c, test, out));
@@ -60,6 +73,7 @@ function all(root, test, out = []) {
 module.exports = {
   document: { createElementNS: (_ns, tag) => element(tag) },
   element,
+  runPage,
   byClass: (root, cls) => all(root, (e) => e.classList.contains(cls)),
   text: (root) => all(root, (e) => e.tag === "text" || e.tag === "tspan").map((e) => e.textContent).filter(Boolean),
 };

@@ -1,9 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 const { newProfile, withoutNew, analysisLabel, samplesOverride } = require("../assets/js/app.js");
-const { readFileSync } = require('node:fs');
-const vm = require('node:vm');
-const { element } = require('./fixtures/fake-dom.js');
+const { element, runPage } = require('./fixtures/fake-dom.js');
 
 // The real app/history, with the worker boundary paused at each asynchronous
 // stage. A cancelled link must not alter document, saved text, or undo history.
@@ -44,7 +42,7 @@ for (const stage of ['parse', 'serialize', 'commit-parse']) {
       effractorResults: require('../assets/js/results-view.js'),
       effractorAutoSolve: require('../assets/js/autosolve.js'),
     };
-    vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
+    runPage('app.js', {
       window, document, URL, location: new URL('https://example.test/'), console,
       setTimeout: () => 0, clearTimeout() {},
     });
@@ -147,7 +145,7 @@ function racePage(kept = 'original', legacy = null, opts = {}) {
     effractorAutoSolve: require('../assets/js/autosolve.js'),
     effractorCharts: require('../assets/js/charts.js'),
   };
-  vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
+  runPage('app.js', {
     window, document, URL: FileURL, Blob, location: new URL('https://example.test/' + (opts.search || '')), console,
     history: { state: null, replaceState(state, title, url) { replaced.push(url); } },
     BroadcastChannel: opts.channel,
@@ -592,7 +590,7 @@ test("the inspector follows the selection", async () => {
     effractorResults: require('../assets/js/results-view.js'),
     effractorAutoSolve: require('../assets/js/autosolve.js'),
   };
-  vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
+  runPage('app.js', {
     window, document, URL, location: new URL('https://example.test/'), console,
     setTimeout: () => 0, clearTimeout() {},
   });
@@ -634,7 +632,7 @@ test("the HUD is hidden while nothing is solved", async () => {
     effractorResults: require('../assets/js/results-view.js'),
     effractorAutoSolve: require('../assets/js/autosolve.js'),
   };
-  vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
+  runPage('app.js', {
     window, document, URL, location: new URL('https://example.test/'), console,
     setTimeout: () => 0, clearTimeout() {},
   });
@@ -677,7 +675,7 @@ function autoHarness() {
     effractorAutoSolve: require('../assets/js/autosolve.js'),
     effractorCharts: require('../assets/js/charts.js'),
   };
-  vm.runInNewContext(readFileSync('assets/js/app.js', 'utf8'), {
+  runPage('app.js', {
     window, document, URL, location: new URL('https://example.test/'), console,
     performance: { now: () => clock },
     // Like a browser's: called as some other object's method, they throw.

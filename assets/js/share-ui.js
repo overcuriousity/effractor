@@ -1,6 +1,6 @@
 (function () {
   var app = window.effractor, crypto = window.effractorShare;
-  var $ = function (id) { return document.getElementById(id); };
+  var $ = window.effractorDom.$;
   var dialog = $('share-dialog'), pending = new Map(), volatile = new Map();
   var server = dialog.dataset.serverSharing === 'true';
   // Script-relative, so Pages keeps its project path and a server its prefix

@@ -80,6 +80,8 @@ mod tests {
         ] {
             assert!(at(pure) < at("app.js"), "{pure} loads before app.js");
         }
+        // The DOM helpers first; every page script after (scripts/dom.test.js).
+        assert!(at("dom.js") < at("workspace.js"));
         assert!(at("graph.js") < at("architecture-view.js"));
         assert!(at("clusters.js") < at("architecture-view.js"));
         assert!(at("clusters.js") < at("renderer-svg.js"));

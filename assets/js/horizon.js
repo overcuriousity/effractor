@@ -1,6 +1,6 @@
 (function () {
   var app = window.effractor;
-  var $ = function (id) { return document.getElementById(id); };
+  var $ = window.effractorDom.$;
   var dialog = $('horizon-dialog'), value = $('horizon-value');
   app.onChange(function () {
     var doc = app.state.doc;

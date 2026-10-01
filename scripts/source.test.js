@@ -87,9 +87,7 @@ test("a path into a list finds the item's line: a scenario's change, a foothold"
 
 // The source view over the least DOM it needs, and a page that answers.
 function sourceView() {
-  const { readFileSync } = require("node:fs");
-  const vm = require("node:vm");
-  const { element } = require("./fixtures/fake-dom.js");
+  const { element, runPage } = require("./fixtures/fake-dom.js");
   const nodes = new Map();
   const get = (id) => { if (!nodes.has(id)) { const e = element("div"); e.hidden = true; nodes.set(id, e); } return nodes.get(id); };
   const document = { activeElement: null, getElementById: get, createElement: element };
@@ -110,7 +108,7 @@ function sourceView() {
     say() {},
   };
   const window = { effractor: app, effractorProblems: { blocks: () => false }, effractorWorkspace: { open() {} } };
-  vm.runInNewContext(readFileSync("assets/js/source.js", "utf8"), { window, document, setTimeout: (f) => (timers.push(f), timers.length), clearTimeout() {}, Event: function (t) { this.type = t; } });
+  runPage("source.js", { window, document, setTimeout: (f) => (timers.push(f), timers.length), clearTimeout() {}, Event: function (t) { this.type = t; } });
   return { app, area, button, timers, notify: () => listeners.forEach((f) => f()) };
 }
 

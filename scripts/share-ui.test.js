@@ -1,10 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
-const vm = require('node:vm');
 const { webcrypto } = require('node:crypto');
 const { gzipSync } = require('node:zlib');
-const { element } = require('./fixtures/fake-dom.js');
+const { element, runPage } = require('./fixtures/fake-dom.js');
 const share = require('../assets/js/share.js');
 const store = require('../assets/js/store.js');
 
@@ -31,7 +29,7 @@ function mount({ server = false, page = 'https://example.test/effractor/', accep
     addEventListener: (type, fn) => { events[type] = fn; },
     effractorMenu: { dropdown(options, value) { const el = element('button'); el.value = value; el.options = options; return el; } },
   };
-  vm.runInNewContext(readFileSync('assets/js/share-ui.js', 'utf8'), {
+  runPage('share-ui.js', {
     window, URL, location, setTimeout, clearTimeout,
     document: { getElementById: id => nodes[id] || null, createElement: element,
       currentScript: { src: script } },

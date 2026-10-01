@@ -3,7 +3,7 @@
 (function () {
   if (typeof document === "undefined") return;
   var A = window.effractorAccounts, client = A.client, M = window.effractorMenu;
-  var $ = function (id) { return document.getElementById(id); };
+  var $ = window.effractorDom.$;
   var target = null; // {kind, id, name}
   var role = M.dropdown([["viewer", "can view"], ["editor", "can edit"]], "viewer");
   role.setAttribute("aria-label", "Role");

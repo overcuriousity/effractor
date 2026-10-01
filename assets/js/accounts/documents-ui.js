@@ -4,7 +4,7 @@
 (function () {
   if (typeof document === "undefined") return;
   var A = window.effractorAccounts, D = A.documents, client = A.client, app = window.effractor;
-  var $ = function (id) { return document.getElementById(id); };
+  var $ = window.effractorDom.$;
   var listing = null, query = "", expanded = Object.create(null), selectedFolder = null, renderLater = false;
   var ICONS = { "fault-tree": "mode-fault-tree", "attack-tree": "mode-attack-tree", architecture: "mode-architecture" };
 

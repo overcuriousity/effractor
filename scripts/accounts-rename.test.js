@@ -38,7 +38,7 @@ function page(answer) {
     session: { user: null, onChange() {} },
   };
   const ctx = vm.createContext({ window, document, setTimeout, clearTimeout, Promise, URL });
-  for (const f of ["accounts/autosave.js", "accounts/sync-core.js", "accounts/sync.js"]) {
+  for (const f of ["dom.js", "accounts/autosave.js", "accounts/sync-core.js", "accounts/sync.js"]) {
     vm.runInContext(fs.readFileSync(JS + f, "utf8"), ctx);
   }
   return { A: window.effractorAccounts, said, requests: () => requests, end: () => { over = true; } };

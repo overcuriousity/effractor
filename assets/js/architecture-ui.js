@@ -9,9 +9,7 @@
   var L = window.effractorArchitectureLinks;
   var P = window.effractorProfiles;
   var W = window.effractorWords;
-  var $ = function (id) {
-    return document.getElementById(id);
-  };
+  var $ = window.effractorDom.$;
 
   function doc() {
     return app.state.doc;

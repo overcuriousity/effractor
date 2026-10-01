@@ -9,7 +9,7 @@
   var G = window.effractorScanGaps;
   var S = window.effractorScanners;
   var Ui = window.effractorNmapUi;
-  var $ = function (id) { return document.getElementById(id); };
+  var $ = window.effractorDom.$;
 
   function doc() {
     return app.state.doc;

@@ -12,9 +12,7 @@
   var P = window.effractorProfiles;
   var U = window.effractorArchitectureUi;
   var W = window.effractorWords;
-  var $ = function (id) {
-    return document.getElementById(id);
-  };
+  var $ = window.effractorDom.$;
 
   function doc() {
     return app.state.doc;
@@ -32,12 +30,7 @@
   function stepOf(id) {
     return typeof id === "string" && id.indexOf("step/") === 0 ? id.slice(5) : null;
   }
-  function el(tag, text, cls) {
-    var e = document.createElement(tag);
-    if (text != null) e.textContent = text;
-    if (cls) e.className = cls;
-    return e;
-  }
+  var el = window.effractorDom.el;
   function button(text, title, act, cls) {
     var b = el("button", text, cls || "btn btn-ghost btn-small");
     b.type = "button";

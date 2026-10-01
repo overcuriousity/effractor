@@ -6,9 +6,7 @@
   var app = window.effractor;
   var E = window.effractorEdit;
   var view = window.effractorResults;
-  var $ = function (id) {
-    return document.getElementById(id);
-  };
+  var $ = window.effractorDom.$;
 
   // ---- the right panel's tabs ----
 

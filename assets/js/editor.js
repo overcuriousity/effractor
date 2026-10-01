@@ -9,9 +9,7 @@
   var E = window.effractorEdit;
   var P = window.effractorProfiles;
   var NS = "http://www.w3.org/2000/svg";
-  var $ = function (id) {
-    return document.getElementById(id);
-  };
+  var $ = window.effractorDom.$;
   // Ids still named after the placeholder: the first real label names them.
   var fresh = Object.create(null);
 

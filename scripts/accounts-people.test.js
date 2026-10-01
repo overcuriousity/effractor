@@ -2,9 +2,7 @@
 // page looks like is checked by eye, the order of answers here.
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const vm = require("node:vm");
-const { element } = require("./fixtures/fake-dom.js");
+const { element, runPage } = require("./fixtures/fake-dom.js");
 
 function peopleDialog() {
   const nodes = new Map();
@@ -23,7 +21,7 @@ function peopleDialog() {
     effractorMenu: { dropdown: () => make("div") },
     effractorAccounts: { client: { request: (method, path) => new Promise((resolve) => asked.push({ method, path, resolve })) } },
   };
-  vm.runInNewContext(readFileSync("assets/js/accounts/people-ui.js", "utf8"), {
+  runPage("accounts/people-ui.js", {
     window, document,
     setTimeout: (f) => timers.push(f), clearTimeout() {},
   });

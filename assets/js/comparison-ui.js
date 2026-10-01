@@ -10,16 +10,9 @@
   var P = window.effractorProfiles;
   var menu = window.effractorMenu;
 
-  function $(id) {
-    return document.getElementById(id);
-  }
+  var $ = window.effractorDom.$;
 
-  function el(tag, text, cls) {
-    var e = document.createElement(tag);
-    if (text != null) e.textContent = text;
-    if (cls) e.className = cls;
-    return e;
-  }
+  var el = window.effractorDom.el;
 
   function button(text, title, act, cls) {
     var b = el("button", text, cls || "btn btn-ghost btn-small");

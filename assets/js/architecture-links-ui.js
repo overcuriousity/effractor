@@ -33,12 +33,7 @@
     var q = P.qualified(app.state.selected);
     return q && q.kind === "entity" && own(doc().entities, q.id) ? q.id : null;
   }
-  function el(tag, text, cls) {
-    var e = document.createElement(tag);
-    if (text != null) e.textContent = text;
-    if (cls) e.className = cls;
-    return e;
-  }
+  var el = window.effractorDom.el;
   function button(text, title, act, cls) {
     var b = el("button", text, cls || "btn btn-ghost btn-small");
     b.type = "button";

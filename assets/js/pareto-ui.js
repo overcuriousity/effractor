@@ -1,9 +1,9 @@
 (function () {
   var app = window.effractor, data = window.effractorPareto, number = window.effractorResults.number, probability = window.effractorResults.probability;
-  var $ = function (id) { return document.getElementById(id); };
+  var $ = window.effractorDom.$;
   var root = $('pareto-view'), axis = { x: 'cost', y: 'time' }, sort = 'cost', descending = false, selected = null, last;
-  function el(tag, text, cls) { var e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
-  function svg(tag, attrs, text) { var e = document.createElementNS('http://www.w3.org/2000/svg', tag); Object.keys(attrs).forEach(function (key) { e.setAttribute(key, attrs[key]); }); if (text != null) e.textContent = text; return e; }
+  var el = window.effractorDom.el;
+  var svg = window.effractorDom.svg;
   // A node without a label is named by its id, as on the canvas.
   function label(id) { var node = app.state.doc.nodes[id]; return node && node.label ? node.label : id; }
   var TIME_HELP = 'Average completion time, assuming all steps succeed.';

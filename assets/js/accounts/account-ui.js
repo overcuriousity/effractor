@@ -4,7 +4,7 @@
 (function () {
   if (typeof document === "undefined") return;
   var A = window.effractorAccounts, client = A.client, app = window.effractor;
-  var $ = function (id) { return document.getElementById(id); };
+  var $ = window.effractorDom.$;
   var listeners = [];
   var session = { user: null, login: { password: true }, onChange: function (f) { listeners.push(f); }, refresh: refresh };
   A.session = session;

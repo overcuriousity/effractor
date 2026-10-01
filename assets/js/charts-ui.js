@@ -1,16 +1,7 @@
 (function () {
   var app = window.effractor, data = window.effractorCharts, number = window.effractorResults.number, probability = window.effractorResults.probability;
   var graphs = window.effractorGraphResults;
-  var NS = 'http://www.w3.org/2000/svg';
-  function el(tag, text, className) {
-    var e = document.createElement(tag); if (text != null) e.textContent = text; if (className) e.className = className; return e;
-  }
-  function svg(tag, attrs, text) {
-    var e = document.createElementNS(NS, tag);
-    Object.keys(attrs || {}).forEach(function (key) { e.setAttribute(key, attrs[key]); });
-    if (text != null) e.textContent = text;
-    return e;
-  }
+  var el = window.effractorDom.el, svg = window.effractorDom.svg;
   function table(headers, rows) {
     var details = el('details', null, 'chart-table'), summary = el('summary', 'Table');
     var scroll = el('div', null, 'analysis-scroll'), t = el('table', null, 'analysis-table');

@@ -1,8 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
-const { readFileSync } = require("node:fs");
-const vm = require("node:vm");
-const { element: base } = require("./fixtures/fake-dom.js");
+const { element: base, runPage } = require("./fixtures/fake-dom.js");
 const { rebuild, textField, keyElsewhere } = require("../assets/js/app.js");
 
 // The tree editor over the least DOM it needs: fields that take focus, a
@@ -56,7 +54,7 @@ function page() {
     effractorMenu: { dropdown: (opts, v) => { const b = element("button"); b.value = v; return b; } },
     effractorGraph: { inscription: () => "≥1" }, effractorTtc: {}, innerWidth: 1000, innerHeight: 800,
   };
-  vm.runInNewContext(readFileSync("assets/js/editor.js", "utf8"), { window, document, console, setTimeout, Event: function () {} });
+  runPage("editor.js", { window, document, console, setTimeout, Event: function () {} });
   const notify = () => listeners.forEach((f) => f());
   notify(); // the form for the selected node
   return { app, document, notify, keys, $: (id) => document.getElementById(id) };

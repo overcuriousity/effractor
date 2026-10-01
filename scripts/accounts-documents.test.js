@@ -97,9 +97,7 @@ test("a save updates its row in the listing, and nothing else", () => {
 // The Documents tab over the least DOM it needs, its requests answered when
 // the test says so.
 function documentsTab() {
-  const { readFileSync } = require("node:fs");
-  const vm = require("node:vm");
-  const { element } = require("./fixtures/fake-dom.js");
+  const { element, runPage } = require("./fixtures/fake-dom.js");
   const nodes = new Map();
   const asked = [];
   const document = {
@@ -117,7 +115,7 @@ function documentsTab() {
       client: { request: (method, path) => new Promise((resolve) => asked.push({ method, path, resolve })) },
     },
   };
-  vm.runInNewContext(readFileSync("assets/js/accounts/documents-ui.js", "utf8"), { window, document, setTimeout, clearTimeout });
+  runPage("accounts/documents-ui.js", { window, document, setTimeout, clearTimeout });
   return { ui: window.effractorAccounts.documentsUi, asked };
 }
 

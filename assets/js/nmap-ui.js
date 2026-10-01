@@ -12,7 +12,7 @@
   var Nu = window.effractorNuclei;
   var S = window.effractorScanners;
   var St = window.effractorScanTargets;
-  var $ = function (id) { return document.getElementById(id); };
+  var $ = window.effractorDom.$;
   var dialog = $("nmap-dialog");
   // What the scan is for is kept for the session, as the range is not.
   var asked = { recipes: ["services"], adjust: {}, extra: {}, portList: "", ack: false, group: null, masscan: { ports: "common", rate: "1000" }, nuclei: { recipes: ["identify"], adjust: {}, extra: {} } };
@@ -25,12 +25,7 @@
   function doc() {
     return app.state.doc;
   }
-  function el(tag, text, cls) {
-    var e = document.createElement(tag);
-    if (text != null) e.textContent = text;
-    if (cls) e.className = cls;
-    return e;
-  }
+  var el = window.effractorDom.el;
   function specOf(kind) {
     var c = U.catalog();
     return c ? c.entities.filter(function (e) { return e.kind === kind; })[0] : null;
