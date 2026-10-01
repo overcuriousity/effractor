@@ -126,6 +126,20 @@ test('an address that is none and a port without a number or protocol are skippe
   assert.deepEqual(R.read(head + host('<address addr="zzz" addrtype="ipv4"/>', '') + '<runstats><finished exit="success"/></runstats></nmaprun>').problem, { code: 'no-address', message: 'No host here has an IP address that can be read.' });
 });
 
+test('an OS guess without a name is none; one without a certainty says none', () => {
+  const N = require('../assets/js/nmap.js');
+  const E = require('../assets/js/architecture-edit.js');
+  const withOs = os => fixture('lan-arp.xml').replace('<hostnames>\n<hostname name="gw.lab" type="PTR"/>', os + '\n<hostnames>\n<hostname name="gw.lab" type="PTR"/>');
+  const gw = os => R.read(withOs(os)).scan.hosts[0];
+  const row = os => N.plan(E.empty(), 'nmap', R.read(withOs(os)).scan, '', {}).hosts[0];
+  assert.equal(gw('<os><osmatch accuracy="90"/></os>').os, null);
+  assert.equal(gw('<os><osmatch name="  " accuracy="90"/></os>').os, null);
+  assert.equal(row('<os><osmatch accuracy="90"/></os>').os, null);
+  assert.deepEqual(gw('<os><osmatch name="Linux 5.0 - 5.4"/></os>').os, { name: 'Linux 5.0 - 5.4', accuracy: null });
+  assert.equal(row('<os><osmatch name="Linux 5.0 - 5.4"/></os>').os, 'nmap OS guess: Linux 5.0 - 5.4.');
+  assert.equal(row('<os><osmatch name="Linux 5.0 - 5.4" accuracy="96"/></os>').os, 'nmap OS guess: Linux 5.0 - 5.4 (96%).');
+});
+
 test('a reader that fails says why, never nothing', () => {
   const S = require('../assets/js/scanners.js');
   const nmap = S.TOOLS.filter(t => t.id === 'nmap')[0];

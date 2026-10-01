@@ -482,8 +482,9 @@
   }
 
   // "nmap OS guess: Linux 5.0 - 5.4 (96%)."; a reader without a certainty
-  // says none.
+  // says none; one without a name is none.
   function osLine(tool, os) {
+    if (!os.name) return null;
     var who = tool === "greenbone" ? "Greenbone" : tool || "nmap";
     return who + " OS guess: " + os.name + (os.accuracy != null ? " (" + os.accuracy + "%)" : "") + ".";
   }

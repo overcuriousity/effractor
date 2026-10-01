@@ -242,6 +242,14 @@
     return { identities: ids, names: names };
   }
 
+  // nmap's best OS guess: none without a name, no certainty without a
+  // number (an "undefined" was said once, review 2026-10-01).
+  function osOf(match) {
+    var name = match ? String(match.attrs.name || "").trim() : "";
+    if (!name) return null;
+    var accuracy = match.attrs.accuracy;
+    return { name: name, accuracy: /^\d{1,3}$/.test(accuracy || "") ? Number(accuracy) : null };
+  }
   // A port nmap can list: a protocol word and a number up to 65535.
   function portOk(p) {
     return /^[a-z][a-z0-9]*$/.test(p.attrs.protocol || "") && /^\d{1,5}$/.test(p.attrs.portid || "") && Number(p.attrs.portid) <= 65535;
@@ -267,7 +275,7 @@
       hostname: names.length ? names[0].attrs.name || null : null,
       // A root scan marks nmap's own addresses.
       self: !!kid(h, "status") && kid(h, "status").attrs.reason === "localhost-response",
-      os: match ? { name: match.attrs.name, accuracy: Number(match.attrs.accuracy) } : null,
+      os: osOf(match),
       // nmap's device classes for its best match: "WAP", "broadband router"…
       device: kids(match, "osclass").map(function (c) { return c.attrs.type; }).filter(Boolean),
       ports: ports.map(function (p) {
