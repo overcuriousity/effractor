@@ -113,14 +113,15 @@ did not ask for a change.
 
 ## What the extract draws (securicad-extract, 2026-09-30/10-01)
 
-The gaps of the table above, closed in five branches (spec
+The gaps of the table above, closed in six branches (spec
 `docs/superpowers/specs/2026-09-30-securicad-extract-design.md`, plan beside
 it), each with a fresh review and released: access control (`baddf24`),
 products on hosts and applications with ASLR and DEP (`871734d`), IDS, IPS
 and anti-malware (`52b1ac3`), the host steps — escalate privilege with
 *Hardened*, physical and USB access, denial of service, a foothold on an
-account, the host firewall (`637b2d2`) —, and the course file rebuilt as the
-extract draws it (this branch). Existing files generate the same graphs and
+account, the host firewall (`637b2d2`) —, the course file rebuilt as the
+extract draws it (`f9a91f8`), and ARP cache poisoning with static ARP tables
+(`extract-rest`, this record's release). Existing files generate the same graphs and
 numbers: the lecture as it was is a frozen fixture
 (`crates/effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml`)
 whose graph and three solves the solver's snapshot holds, natively and under
@@ -135,12 +136,13 @@ wasmtime.
 | ASLR, AntiMalware, DEP, Hardened, HostFirewall (5.37) | host switches, off unless said |
 | BypassAntiMalware, PrivilegeEscalation, PhysicalAccess, USBAccess, DenialOfService (5.33, 5.34) | rules, each drawn once its time is given |
 | An entry to an account (5.33) | the foothold *held* on an account |
-| StaticARPTables, ARPCachePoisoning | **not built** (plan task D4), waiting for the owner's word |
+| StaticARPTables, ARPCachePoisoning (5.33, 5.37) | a network's time to poison its ARP caches; a flow says whether it is *Encrypted* and which credentials it *Carries*; a plain flow across a poisoned network gives them up unless both ends keep *Static ARP tables* |
 
 The course file (`course/lecture-architecture.yaml`) now has the access
 controls, the three products and the server's IDS and anti-malware; the
-course text's table of numbers is the solver's for it (a test holds it).
-The SSH flow has no `encrypted` flag: that field belongs to D4.
+course text's table of numbers is the solver's for it (a test holds it), and
+so is its Link-menu table (a test asks the menu for every row). The SSH flow
+is encrypted, as the extract's is: no number moved.
 
 **Outstanding: the owner's walk** along the extract, sections 5.3–5.5,
 figure by figure, on a preview of the release that carries this record. It
@@ -154,7 +156,8 @@ look of every branch since access control is unseen by the owner.
   criterion.
 - Perfect blocking (`Never`) is an assumption of the exercise. The partial
   file shows finite replacements.
-- ARP cache poisoning and static ARP tables are not drawn (plan task D4).
+- ARP cache poisoning takes only the credentials a flow is said to carry;
+  what else a poisoned network would reveal is not drawn.
 - Compare sets the baseline against one scenario; two scenarios are not
   compared with each other.
 - Existing securiCAD and MAL models are not read: `mal-securicad-compatibility`

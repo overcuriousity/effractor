@@ -6,6 +6,59 @@ the repository, nothing lives in an agent's private notes. Read `CONTRIBUTING.md
 *Repository cleanup* below; this file
 says where things stand, how the owner wants the UI to be, and what bit today.
 
+## Continuation — the extract complete: ARP cache poisoning, the minors (2026-10-01)
+
+A second autonomous session (owner's authorization of 2026-10-01: land the
+branch, no looks, power off at the end) built what the milestone still
+lacked, on one branch `extract-rest` (PR and release in `git log`). Test-first,
+every required check, one fresh review on the most capable model (0
+critical, 1 important, 3 minor — all fixed test-first). Rulings with their
+cost if wrong are in the ledger
+(`.superpowers/sdd/2026-09-30-securicad-extract/progress.md`, git-ignored).
+
+- **ARP cache poisoning** (plan task D4, spec §5.3, §4, extract 5.33,
+  5.37): a network's optional `poison` time draws *ARP cache poisoning*
+  from access to it. A flow's optional `encrypted` (written only when true)
+  and `carries: [credential…]` (only when non-empty) say whether
+  interception gives anything away. A flow across a poisoned network, not
+  encrypted, gives up each carried credential that proves an account its
+  target accepts (rules `arp-poison`, `flow-intercept`,
+  `intercepted-credential`); a host's optional *Static ARP tables* closes it
+  only where both ends keep them (`static-arp-off`, the policy input, as
+  `host-firewall-off`; absent is off; drawn only where an end says it, file
+  or scenario; an end on a router never closes it). A carried credential
+  that proves nothing there is an `ineffective` warning. Catalog
+  `flow_fields` gives the form's words.
+- **Page:** the flow form's *Encrypted* (No/Yes) and *Carries* (the route's
+  + / − pattern; credentials the target accepts first); the network's
+  poisoning time and a host's Static ARP tables row (inspector and Compare)
+  only where a plain flow carries such a credential across; removing a
+  credential takes it off what flows carry; the assistant's `put_flow` says
+  and keeps both fields.
+- **Course file:** the SSH flow is `encrypted: true` (spec §8); the unknown
+  and partial files follow; no number moved.
+- **The deferred minors, all fixed:** Compare offers a sensor's *Enabled*
+  only where it guards something (or a scenario already sets it); Compare's
+  "as written" reads an unset optional switch as off (`settings`,
+  `changedSteps`, `routes` take the catalog; every caller passes it, a test
+  holds that); a host's exploit step is drawn from an ASLR/DEP replacement
+  time whose switch may be on; a goal `unavailable` without `deny`, or a
+  foothold `physical`/`usb` without its time, is an `ineffective` warning
+  naming the time; a host's `permits` goes (with the notice) when its flow's
+  target or the hosting changes, as a router's does; a test asks the Link
+  menu for every row of the course text's table
+  (`scripts/fixtures/course.doc.json`, pinned by
+  `the_javascript_course_fixture_is_the_real_image`); nmap's — and
+  Greenbone's — OS guess makes the host an `instance-of` a product of that
+  name (reused, else made, whatever the guess's accuracy; a host that says
+  one keeps it). The import fingerprints moved for that alone: stripped of
+  the OS links and products each equals the hash pinned before.
+- **Outstanding:** only the owner's walk along the extract (5.3–5.5) on a
+  preview; `ROADMAP.md` says only that. Nothing of the page since Branch A
+  has been looked at, the flow form's new fields included.
+- Housekeeping: `../SecGraph-extract` and its branch `extract-fixture` were
+  removed.
+
 ## Continuation — a whole-application review, fixed (2026-10-01)
 
 Branch `claude/magical-davinci-gz88mz`, **not landed**: a review of every
@@ -85,16 +138,14 @@ this machine) has every ruling with its cost if wrong.
   `crates/effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml`
   and `lecture-unknown-before-extract.yaml`; every library test, the solver
   snapshot and the page's graph fixtures read those.
-- **Not built: plan task D4** (ARP cache poisoning, static ARP tables, a
-  flow's `encrypted` / `carries`, the flow form's fields). The session
-  stopped short of it; it waits for the owner's word. The course file's SSH
-  flow has no `encrypted` flag for that reason.
+- **Not built then: plan task D4** — built the same day, see *the extract
+  complete* above.
 - **Outstanding:** the owner's walk along the extract (5.3–5.5, figure by
   figure) on a preview; the roadmap item says only that now. Nothing of the
   page since Branch A has been looked at by the owner — the new rows
   (physical / USB / escalate on every host, IDS and anti-malware rows,
   pins with more states) are worth a first look against the Reactor rule.
-- **Deferred minors:** Compare offers *Enabled* for an IDS that watches
+- **Deferred minors (all fixed the same day, see above):** Compare offers *Enabled* for an IDS that watches
   nothing a flow crosses; Compare's "as written" treats an unset optional
   switch as unknown; a host with ASLR on and only `deploy-exploit-aslr`
   draws no host step; a goal or foothold that can never matter (no `deny`,
@@ -103,8 +154,7 @@ this machine) has every ruling with its cost if wrong.
   warns); no test holds the course text's Link-menu table for the rebuilt
   file; nmap's OS guess does not yet become an `instance-of`.
 - Housekeeping: the worktree `../SecGraph-extract` (branch
-  `extract-fixture`, merged) is the owner's to remove
-  (`git worktree remove ../SecGraph-extract`).
+  `extract-fixture`, merged) — removed the same day.
 - **The machine was not powered off.** The owner's instruction was to power
   off only once everything was finished and master's `ci` and `release`
   were green for the pushed commit. They are green for `f9a91f8` (ci
@@ -145,9 +195,10 @@ session that finishes the milestone. Ledger: `.superpowers/sdd/2026-09-30-securi
   `crates/effractor-solver/tests/snapshots/lecture-graph.json`; Branch E
   must keep the old lecture file as a test fixture when it rebuilds the
   course file.
-- Deferred minors: a host with ASLR on and only `deploy-exploit-aslr` draws
-  no host step; Compare's "as written" treats an unset optional switch as
-  unknown; nmap's OS guess does not yet become an `instance-of`.
+- Deferred minors (fixed 2026-10-01, see *the extract complete*): a host
+  with ASLR on and only `deploy-exploit-aslr` draws no host step; Compare's
+  "as written" treats an unset optional switch as unknown; nmap's OS guess
+  does not yet become an `instance-of`.
 
 Next (done 2026-10-01, see above): land Branch B, then C, D and E.
 

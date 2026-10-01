@@ -47,12 +47,11 @@ attack steps with accumulated durations.
 
 ### securicad-extract — What the lecture extract draws that the library lacks
 needs: —            cost: 4   benefit: 5
-Built and released (2026-10-01; `docs/HANDOFF.md`, design
+Built and released, plan task D4 included (2026-10-01; `docs/HANDOFF.md`,
+design
 [`2026-09-30-securicad-extract-design.md`](docs/superpowers/specs/2026-09-30-securicad-extract-design.md)).
-Outstanding: the owner's walk along the extract, 5.3–5.5 figure by figure, on
-a preview, recorded in `docs/LECTURE-ACCEPTANCE.md`. Plan task D4 (ARP cache
-poisoning, static ARP tables, a flow's `encrypted`/`carries`) was not built
-and waits for the owner's word.
+Outstanding: only the owner's walk along the extract, 5.3–5.5 figure by
+figure, on a preview, recorded in `docs/LECTURE-ACCEPTANCE.md`.
 
 ## Compatibility after the lecture milestone
 
