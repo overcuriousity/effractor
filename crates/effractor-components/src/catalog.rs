@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 42] = [
+pub const RULES: [Rule; 48] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -246,7 +246,7 @@ pub const RULES: [Rule; 42] = [
         title: "Use the exploit",
         version: 1,
         bindings: &["service"],
-        prerequisites: "product.exploit-ready and the service's own reachable",
+        prerequisites: "product.exploit-ready and the service's own reachable; past every sensor on a route to it or on its host (reached unseen, then), and past its host's anti-malware where that is said",
         output: "service.control",
         duration: D::Slot {
             slot: Slot::DeployExploit,
@@ -263,7 +263,7 @@ pub const RULES: [Rule; 42] = [
         version: 1,
         bindings: &["hosts"],
         prerequisites: "service.reachable, for any service the host runs",
-        output: "host.reachable, for a host that is an instance of a product",
+        output: "host.reachable, for a host that is an instance of a product or that a sensor or anti-malware guards",
         duration: D::Logical,
         scope: "one per hosts association from a host with a product to a service",
         assumptions: &[
@@ -288,7 +288,7 @@ pub const RULES: [Rule; 42] = [
         title: "Use the exploit against the host",
         version: 1,
         bindings: &["host"],
-        prerequisites: "product.exploit-ready and host.reachable",
+        prerequisites: "product.exploit-ready and host.reachable; past the host's own sensors, and its anti-malware where that is said",
         output: "host.admin",
         duration: D::Slot {
             slot: Slot::DeployExploit,
@@ -314,6 +314,86 @@ pub const RULES: [Rule; 42] = [
         scope: "one per application with a product and a `deploy-exploit` time",
         assumptions: &[
             "An exploit in what the application opens makes it do what the attacker says.",
+        ],
+    },
+    Rule {
+        id: "sensor-reached",
+        title: "Traffic reaches the sensor",
+        version: 1,
+        bindings: &["watches"],
+        prerequisites: "on a router, a flow routed through it connected; on a host, host.reachable",
+        output: "sensor.reached",
+        duration: D::Logical,
+        scope: "one per watches association",
+        assumptions: &[
+            "A sensor is worked around through the traffic it watches; nothing reaches it by being near.",
+        ],
+    },
+    Rule {
+        id: "sensor-off",
+        title: "The sensor is off",
+        version: 1,
+        bindings: &["sensor"],
+        prerequisites: "the sensor's `enabled` switch is off",
+        output: "sensor.passed",
+        duration: D::Logical,
+        scope: "one per IDS or IPS that watches something",
+        assumptions: &["An unknown switch is an unknown branch, not a guess either way."],
+    },
+    Rule {
+        id: "sensor-bypass",
+        title: "Get past the sensor",
+        version: 1,
+        bindings: &["sensor"],
+        prerequisites: "sensor.reached",
+        output: "sensor.passed",
+        duration: D::Slot {
+            slot: Slot::Bypass,
+            replaced_by: None,
+        },
+        scope: "one per IDS or IPS that watches something",
+        assumptions: &[
+            "Getting past a sensor once serves every exploit it watches; an IDS and an IPS differ only in the author's time.",
+        ],
+    },
+    Rule {
+        id: "watched-flow",
+        title: "Reached past the sensors",
+        version: 1,
+        bindings: &["flow"],
+        prerequisites: "the flow connected, and sensor.passed for every sensor a router on its route has",
+        output: "service.unseen, for a service some watched flow reaches",
+        duration: D::Logical,
+        scope: "one per flow into such a service",
+        assumptions: &[
+            "Only an exploit is watched for: a login over the same flow is not.",
+        ],
+    },
+    Rule {
+        id: "antimalware-off",
+        title: "The anti-malware is off",
+        version: 1,
+        bindings: &["host"],
+        prerequisites: "the host's `anti-malware` switch is off",
+        output: "host.malware-cleared",
+        duration: D::Logical,
+        scope: "one per host whose anti-malware is said",
+        assumptions: &["Absent from a file, a host's anti-malware is off."],
+    },
+    Rule {
+        id: "antimalware-bypass",
+        title: "Get past the anti-malware",
+        version: 1,
+        bindings: &["host"],
+        prerequisites: "host.reachable",
+        output: "host.malware-cleared",
+        duration: D::Slot {
+            slot: Slot::BypassAntimalware,
+            replaced_by: None,
+        },
+        scope: "one per host whose anti-malware is said",
+        assumptions: &[
+            "Getting past a host's anti-malware once serves every exploit used there.",
         ],
     },
     Rule {
@@ -665,6 +745,12 @@ fn kind_description(kind: EntityKind) -> &'static str {
         EntityKind::Data => {
             "Information worth protecting: a database, a bucket, a vault, a file share, model weights. `read` is confidentiality, `modified` integrity; either can be the target."
         }
+        EntityKind::Ids => {
+            "An intrusion detection system on a router's or a host's traffic (extract: IDS). While `enabled`, an exploit it watches gets past it first."
+        }
+        EntityKind::Ips => {
+            "An intrusion prevention system on a router's or a host's traffic (extract: IPS). While `enabled`, an exploit it watches gets past it first."
+        }
     }
 }
 
@@ -722,6 +808,9 @@ fn relation_description(kind: RelationKind) -> &'static str {
         RelationKind::ControlsAccess => {
             "The access control of a host or router: where its accounts log in. One per machine."
         }
+        RelationKind::Watches => {
+            "A sensor on this machine's traffic: on a router, the flows routed through it; on a host, its own."
+        }
     }
 }
 
@@ -754,6 +843,8 @@ fn kind_meaning(kind: EntityKind) -> &'static str {
         EntityKind::AccessControl => {
             "Where accounts log in to a machine: its user database, its login."
         }
+        EntityKind::Ids => "Watches traffic and reports what it recognizes.",
+        EntityKind::Ips => "Watches traffic and stops what it recognizes.",
     }
 }
 
@@ -791,6 +882,8 @@ fn slot_name(slot: Slot) -> &'static str {
         Slot::TakeOverGuarded => "Take over through content (guarded)",
         Slot::DeployExploitAslr => "Use the exploit (ASLR)",
         Slot::DeployExploitDep => "Use the exploit (DEP)",
+        Slot::Bypass => "Get past it",
+        Slot::BypassAntimalware => "Get past the anti-malware",
     }
 }
 
@@ -870,6 +963,14 @@ fn slot_description(slot: Slot) -> (&'static str, &'static str) {
             "account",
             "Time to get past the second factor once a first factor is held: push fatigue, a proxy, a SIM swap — the note says which.",
         ),
+        Slot::Bypass => (
+            "IDS or IPS",
+            "Time to evade what the sensor recognizes, once traffic it watches reaches it: fragmentation, encoding, a novel exploit — the note says how.",
+        ),
+        Slot::BypassAntimalware => (
+            "host",
+            "Time to get past the host's anti-malware, once the host is reachable. Optional: while anti-malware is on and this is not given, the time is unknown.",
+        ),
         Slot::Escape => (
             "host or router",
             "Time to break out of a virtual machine, container or appliance to the host it runs on, once in admin control of it.",
@@ -911,6 +1012,14 @@ fn defense_word(defense: Defense) -> (&'static str, &'static str) {
         Defense::Dep => (
             "DEP",
             "Data-execution prevention on a host: `deploy-exploit-dep` stands in, unless ASLR is on. Off unless said.",
+        ),
+        Defense::AntiMalware => (
+            "Anti-malware",
+            "Anti-malware on a host: an exploit used there, or on a service it runs, first gets past it (`bypass-antimalware`). Off unless said.",
+        ),
+        Defense::Enabled => (
+            "Enabled",
+            "The sensor is running: an exploit it watches first gets past it (`bypass`).",
         ),
     }
 }

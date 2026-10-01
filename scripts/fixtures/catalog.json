@@ -52,19 +52,23 @@
         "escape",
         "deploy-exploit",
         "deploy-exploit-aslr",
-        "deploy-exploit-dep"
+        "deploy-exploit-dep",
+        "bypass-antimalware"
       ],
       "optional": [
         "deploy-exploit",
         "deploy-exploit-aslr",
-        "deploy-exploit-dep"
+        "deploy-exploit-dep",
+        "bypass-antimalware"
       ],
       "defenses": [
         "aslr",
+        "anti-malware",
         "dep"
       ],
       "optional_defenses": [
         "aslr",
+        "anti-malware",
         "dep"
       ]
     },
@@ -200,6 +204,34 @@
       "parameters": [],
       "optional": [],
       "defenses": [],
+      "optional_defenses": []
+    },
+    {
+      "kind": "ids",
+      "description": "An intrusion detection system on a router's or a host's traffic (extract: IDS). While `enabled`, an exploit it watches gets past it first.",
+      "meaning": "Watches traffic and reports what it recognizes.",
+      "states": [],
+      "parameters": [
+        "bypass"
+      ],
+      "optional": [],
+      "defenses": [
+        "enabled"
+      ],
+      "optional_defenses": []
+    },
+    {
+      "kind": "ips",
+      "description": "An intrusion prevention system on a router's or a host's traffic (extract: IPS). While `enabled`, an exploit it watches gets past it first.",
+      "meaning": "Watches traffic and stops what it recognizes.",
+      "states": [],
+      "parameters": [
+        "bypass"
+      ],
+      "optional": [],
+      "defenses": [
+        "enabled"
+      ],
       "optional_defenses": []
     }
   ],
@@ -460,6 +492,19 @@
       ],
       "fields": [],
       "description": "The access control of a host or router: where its accounts log in. One per machine."
+    },
+    {
+      "kind": "watches",
+      "from": [
+        "host",
+        "router"
+      ],
+      "to": [
+        "ids",
+        "ips"
+      ],
+      "fields": [],
+      "description": "A sensor on this machine's traffic: on a router, the flows routed through it; on a host, its own."
     }
   ],
   "states": [
@@ -549,6 +594,16 @@
       "id": "dep",
       "word": "DEP",
       "description": "Data-execution prevention on a host: `deploy-exploit-dep` stands in, unless ASLR is on. Off unless said."
+    },
+    {
+      "id": "anti-malware",
+      "word": "Anti-malware",
+      "description": "Anti-malware on a host: an exploit used there, or on a service it runs, first gets past it (`bypass-antimalware`). Off unless said."
+    },
+    {
+      "id": "enabled",
+      "word": "Enabled",
+      "description": "The sensor is running: an exploit it watches first gets past it (`bypass`)."
     }
   ],
   "parameters": [
@@ -647,6 +702,18 @@
       "name": "Use the exploit (DEP)",
       "owner": "host or service",
       "description": "The same, while the host's DEP is on and its ASLR is not; selected by `defenses.dep`."
+    },
+    {
+      "slot": "bypass",
+      "name": "Get past it",
+      "owner": "IDS or IPS",
+      "description": "Time to evade what the sensor recognizes, once traffic it watches reaches it: fragmentation, encoding, a novel exploit — the note says how."
+    },
+    {
+      "slot": "bypass-antimalware",
+      "name": "Get past the anti-malware",
+      "owner": "host",
+      "description": "Time to get past the host's anti-malware, once the host is reachable. Optional: while anti-malware is on and this is not given, the time is unknown."
     }
   ],
   "rules": [
@@ -912,7 +979,7 @@
       "bindings": [
         "service"
       ],
-      "prerequisites": "product.exploit-ready and the service's own reachable",
+      "prerequisites": "product.exploit-ready and the service's own reachable; past every sensor on a route to it or on its host (reached unseen, then), and past its host's anti-malware where that is said",
       "output": "service.control",
       "duration": {
         "kind": "slot",
@@ -932,7 +999,7 @@
         "hosts"
       ],
       "prerequisites": "service.reachable, for any service the host runs",
-      "output": "host.reachable, for a host that is an instance of a product",
+      "output": "host.reachable, for a host that is an instance of a product or that a sensor or anti-malware guards",
       "duration": {
         "kind": "logical"
       },
@@ -965,7 +1032,7 @@
       "bindings": [
         "host"
       ],
-      "prerequisites": "product.exploit-ready and host.reachable",
+      "prerequisites": "product.exploit-ready and host.reachable; past the host's own sensors, and its anti-malware where that is said",
       "output": "host.admin",
       "duration": {
         "kind": "slot",
@@ -995,6 +1062,112 @@
       "scope": "one per application with a product and a `deploy-exploit` time",
       "assumptions": [
         "An exploit in what the application opens makes it do what the attacker says."
+      ]
+    },
+    {
+      "id": "sensor-reached",
+      "title": "Traffic reaches the sensor",
+      "version": 1,
+      "bindings": [
+        "watches"
+      ],
+      "prerequisites": "on a router, a flow routed through it connected; on a host, host.reachable",
+      "output": "sensor.reached",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per watches association",
+      "assumptions": [
+        "A sensor is worked around through the traffic it watches; nothing reaches it by being near."
+      ]
+    },
+    {
+      "id": "sensor-off",
+      "title": "The sensor is off",
+      "version": 1,
+      "bindings": [
+        "sensor"
+      ],
+      "prerequisites": "the sensor's `enabled` switch is off",
+      "output": "sensor.passed",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per IDS or IPS that watches something",
+      "assumptions": [
+        "An unknown switch is an unknown branch, not a guess either way."
+      ]
+    },
+    {
+      "id": "sensor-bypass",
+      "title": "Get past the sensor",
+      "version": 1,
+      "bindings": [
+        "sensor"
+      ],
+      "prerequisites": "sensor.reached",
+      "output": "sensor.passed",
+      "duration": {
+        "kind": "slot",
+        "slot": "bypass",
+        "replaced_by": null
+      },
+      "scope": "one per IDS or IPS that watches something",
+      "assumptions": [
+        "Getting past a sensor once serves every exploit it watches; an IDS and an IPS differ only in the author's time."
+      ]
+    },
+    {
+      "id": "watched-flow",
+      "title": "Reached past the sensors",
+      "version": 1,
+      "bindings": [
+        "flow"
+      ],
+      "prerequisites": "the flow connected, and sensor.passed for every sensor a router on its route has",
+      "output": "service.unseen, for a service some watched flow reaches",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per flow into such a service",
+      "assumptions": [
+        "Only an exploit is watched for: a login over the same flow is not."
+      ]
+    },
+    {
+      "id": "antimalware-off",
+      "title": "The anti-malware is off",
+      "version": 1,
+      "bindings": [
+        "host"
+      ],
+      "prerequisites": "the host's `anti-malware` switch is off",
+      "output": "host.malware-cleared",
+      "duration": {
+        "kind": "logical"
+      },
+      "scope": "one per host whose anti-malware is said",
+      "assumptions": [
+        "Absent from a file, a host's anti-malware is off."
+      ]
+    },
+    {
+      "id": "antimalware-bypass",
+      "title": "Get past the anti-malware",
+      "version": 1,
+      "bindings": [
+        "host"
+      ],
+      "prerequisites": "host.reachable",
+      "output": "host.malware-cleared",
+      "duration": {
+        "kind": "slot",
+        "slot": "bypass-antimalware",
+        "replaced_by": null
+      },
+      "scope": "one per host whose anti-malware is said",
+      "assumptions": [
+        "Getting past a host's anti-malware once serves every exploit used there."
       ]
     },
     {

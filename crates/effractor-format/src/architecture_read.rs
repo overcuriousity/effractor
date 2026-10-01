@@ -667,6 +667,7 @@ fn association(cx: &mut Cx, entry: &Entry, path: &str) -> Option<Association> {
             RelationKind::EncryptedWith => Relation::EncryptedWith { from, to },
             RelationKind::Reads => Relation::Reads { from, to },
             RelationKind::ControlsAccess => Relation::ControlsAccess { from, to },
+            RelationKind::Watches => Relation::Watches { from, to },
             RelationKind::Permits => unreachable!("handled above"),
         },
     };

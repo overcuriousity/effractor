@@ -107,10 +107,12 @@ pub enum EntityKind {
     Person,
     Data,
     AccessControl,
+    Ids,
+    Ips,
 }
 
 impl EntityKind {
-    pub const ALL: [EntityKind; 12] = [
+    pub const ALL: [EntityKind; 14] = [
         Self::Network,
         Self::Router,
         Self::Firewall,
@@ -123,6 +125,8 @@ impl EntityKind {
         Self::Person,
         Self::Data,
         Self::AccessControl,
+        Self::Ids,
+        Self::Ips,
     ];
 
     /// The kebab-case spelling a document uses.
@@ -140,6 +144,8 @@ impl EntityKind {
             Self::Person => "person",
             Self::Data => "data",
             Self::AccessControl => "access-control",
+            Self::Ids => "ids",
+            Self::Ips => "ips",
         }
     }
 
@@ -150,7 +156,12 @@ impl EntityKind {
         match self {
             Self::Network => &[State::Access],
             Self::Router => &[State::Admin],
-            Self::Firewall | Self::Account | Self::Product | Self::AccessControl => &[],
+            Self::Firewall
+            | Self::Account
+            | Self::Product
+            | Self::AccessControl
+            | Self::Ids
+            | Self::Ips => &[],
             Self::Host => &[State::User, State::Admin],
             Self::Application | Self::Service => &[State::Control],
             Self::Credential => &[State::Possessed],
@@ -180,8 +191,10 @@ impl EntityKind {
                 Slot::DeployExploit,
                 Slot::DeployExploitAslr,
                 Slot::DeployExploitDep,
+                Slot::BypassAntimalware,
             ],
             Self::Router => &[Slot::Escape],
+            Self::Ids | Self::Ips => &[Slot::Bypass],
             Self::Person => &[Slot::Phish, Slot::PhishTrained],
             _ => &[],
         }
@@ -196,7 +209,8 @@ impl EntityKind {
             Self::Credential => &[Defense::Protected],
             Self::Application | Self::Service => &[Defense::Guarded],
             Self::Data => &[Defense::Encrypted],
-            Self::Host => &[Defense::Aslr, Defense::Dep],
+            Self::Host => &[Defense::Aslr, Defense::AntiMalware, Defense::Dep],
+            Self::Ids | Self::Ips => &[Defense::Enabled],
             _ => &[],
         }
     }
@@ -346,6 +360,8 @@ pub enum Slot {
     TakeOverGuarded,
     DeployExploitAslr,
     DeployExploitDep,
+    Bypass,
+    BypassAntimalware,
 }
 
 impl Slot {
@@ -362,11 +378,11 @@ impl Slot {
             ) | (
                 Self::DeployExploitAslr | Self::DeployExploitDep,
                 EntityKind::Host | EntityKind::Service
-            )
+            ) | (Self::BypassAntimalware, EntityKind::Host)
         )
     }
 
-    pub const ALL: [Slot; 16] = [
+    pub const ALL: [Slot; 18] = [
         Self::Connect,
         Self::FindExploit,
         Self::FindExploitPatched,
@@ -383,6 +399,8 @@ impl Slot {
         Self::TakeOverGuarded,
         Self::DeployExploitAslr,
         Self::DeployExploitDep,
+        Self::Bypass,
+        Self::BypassAntimalware,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -403,6 +421,8 @@ impl Slot {
             Self::TakeOverGuarded => "take-over-guarded",
             Self::DeployExploitAslr => "deploy-exploit-aslr",
             Self::DeployExploitDep => "deploy-exploit-dep",
+            Self::Bypass => "bypass",
+            Self::BypassAntimalware => "bypass-antimalware",
         }
     }
 }
@@ -453,6 +473,11 @@ pub struct Defenses {
     pub aslr: Option<Switch>,
     /// A host: `deploy-exploit-dep` stands in, unless ASLR is on. Absent is off.
     pub dep: Option<Switch>,
+    /// A host: an exploit used there, or on a service it runs, gets past the
+    /// anti-malware first. Absent is off.
+    pub anti_malware: Option<Switch>,
+    /// An IDS or IPS: while on, an exploit it watches gets past it first.
+    pub enabled: Option<Switch>,
 }
 
 impl Defenses {
@@ -466,6 +491,8 @@ impl Defenses {
             Defense::Encrypted => self.encrypted,
             Defense::Aslr => self.aslr,
             Defense::Dep => self.dep,
+            Defense::AntiMalware => self.anti_malware,
+            Defense::Enabled => self.enabled,
         }
     }
 
@@ -479,6 +506,8 @@ impl Defenses {
             Defense::Encrypted => self.encrypted = value,
             Defense::Aslr => self.aslr = value,
             Defense::Dep => self.dep = value,
+            Defense::AntiMalware => self.anti_malware = value,
+            Defense::Enabled => self.enabled = value,
         }
     }
 }
@@ -706,6 +735,9 @@ pub enum Relation {
     /// host/router → access control: where accounts log in to the machine.
     /// One each way.
     ControlsAccess { from: EntityId, to: EntityId },
+    /// host/router → IDS/IPS: a sensor on the machine's traffic — on a
+    /// router the flows routed through it, on a host its own. Any number.
+    Watches { from: EntityId, to: EntityId },
 }
 
 /// What an account may do with data.
@@ -764,10 +796,11 @@ pub enum RelationKind {
     EncryptedWith,
     Reads,
     ControlsAccess,
+    Watches,
 }
 
 impl RelationKind {
-    pub const ALL: [RelationKind; 20] = [
+    pub const ALL: [RelationKind; 21] = [
         Self::Attached,
         Self::Hosts,
         Self::Filters,
@@ -788,6 +821,7 @@ impl RelationKind {
         Self::EncryptedWith,
         Self::Reads,
         Self::ControlsAccess,
+        Self::Watches,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -812,6 +846,7 @@ impl RelationKind {
             Self::EncryptedWith => "encrypted-with",
             Self::Reads => "reads",
             Self::ControlsAccess => "controls-access",
+            Self::Watches => "watches",
         }
     }
 
@@ -819,7 +854,9 @@ impl RelationKind {
     pub fn from_kinds(self) -> &'static [EntityKind] {
         use EntityKind as K;
         match self {
-            Self::Attached | Self::Hosts | Self::ControlsAccess => &[K::Host, K::Router],
+            Self::Attached | Self::Hosts | Self::ControlsAccess | Self::Watches => {
+                &[K::Host, K::Router]
+            }
             Self::Filters => &[K::Router],
             Self::Stores => &[K::Host, K::Application],
             Self::Authenticates => &[K::Credential],
@@ -852,6 +889,7 @@ impl RelationKind {
             Self::Grants => &[K::Host, K::Router, K::AccessControl],
             Self::Administration => &[K::Host, K::Router],
             Self::ControlsAccess => &[K::AccessControl],
+            Self::Watches => &[K::Ids, K::Ips],
             Self::Permits => &[],
             Self::InstanceOf => &[K::Product],
             Self::RunsAs | Self::Assumes => &[K::Account],
@@ -907,6 +945,7 @@ impl Relation {
             Self::EncryptedWith { .. } => RelationKind::EncryptedWith,
             Self::Reads { .. } => RelationKind::Reads,
             Self::ControlsAccess { .. } => RelationKind::ControlsAccess,
+            Self::Watches { .. } => RelationKind::Watches,
         }
     }
 
@@ -931,7 +970,8 @@ impl Relation {
             | Self::Accesses { from, .. }
             | Self::EncryptedWith { from, .. }
             | Self::Reads { from, .. }
-            | Self::ControlsAccess { from, .. } => from,
+            | Self::ControlsAccess { from, .. }
+            | Self::Watches { from, .. } => from,
         }
     }
 
@@ -956,7 +996,8 @@ impl Relation {
             | Self::Accesses { to, .. }
             | Self::EncryptedWith { to, .. }
             | Self::Reads { to, .. }
-            | Self::ControlsAccess { to, .. } => Some(to),
+            | Self::ControlsAccess { to, .. }
+            | Self::Watches { to, .. } => Some(to),
             Self::Permits { .. } => None,
         }
     }
@@ -1008,6 +1049,8 @@ pub enum Defense {
     Encrypted,
     Aslr,
     Dep,
+    AntiMalware,
+    Enabled,
 }
 
 impl Defense {
@@ -1016,10 +1059,13 @@ impl Defense {
     /// after files already existed are optional there, so those files keep
     /// their graphs and numbers.
     pub fn optional(self, kind: EntityKind) -> bool {
-        matches!((self, kind), (Self::Aslr | Self::Dep, EntityKind::Host))
+        matches!(
+            (self, kind),
+            (Self::Aslr | Self::Dep | Self::AntiMalware, EntityKind::Host)
+        )
     }
 
-    pub const ALL: [Defense; 8] = [
+    pub const ALL: [Defense; 10] = [
         Self::Patched,
         Self::Protected,
         Self::Mfa,
@@ -1028,6 +1074,8 @@ impl Defense {
         Self::Encrypted,
         Self::Aslr,
         Self::Dep,
+        Self::AntiMalware,
+        Self::Enabled,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -1040,6 +1088,8 @@ impl Defense {
             Self::Encrypted => "encrypted",
             Self::Aslr => "aslr",
             Self::Dep => "dep",
+            Self::AntiMalware => "anti-malware",
+            Self::Enabled => "enabled",
         }
     }
 }
