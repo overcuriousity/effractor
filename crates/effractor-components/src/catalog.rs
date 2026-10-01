@@ -49,7 +49,7 @@ pub struct Rule {
 
 use Duration as D;
 
-pub const RULES: [Rule; 48] = [
+pub const RULES: [Rule; 49] = [
     Rule {
         id: "foothold",
         title: "The attacker starts here",
@@ -391,6 +391,22 @@ pub const RULES: [Rule; 48] = [
         },
         scope: "one per host whose anti-malware is said",
         assumptions: &["Getting past a host's anti-malware once serves every exploit used there."],
+    },
+    Rule {
+        id: "escalate",
+        title: "Escalate privilege",
+        version: 1,
+        bindings: &["host"],
+        prerequisites: "host.user",
+        output: "host.admin",
+        duration: D::Slot {
+            slot: Slot::Escalate,
+            replaced_by: Some((Defense::Hardened, Slot::EscalateHardened)),
+        },
+        scope: "one per host with an `escalate` time",
+        assumptions: &[
+            "A local privilege escalation from user to administrator; which flaw it uses is in its time's note.",
+        ],
     },
     Rule {
         id: "credential-extract",
@@ -880,6 +896,8 @@ fn slot_name(slot: Slot) -> &'static str {
         Slot::DeployExploitDep => "Use the exploit (DEP)",
         Slot::Bypass => "Get past it",
         Slot::BypassAntimalware => "Get past the anti-malware",
+        Slot::Escalate => "Escalate privilege",
+        Slot::EscalateHardened => "Escalate privilege (hardened)",
     }
 }
 
@@ -967,6 +985,14 @@ fn slot_description(slot: Slot) -> (&'static str, &'static str) {
             "host",
             "Time to get past the host's anti-malware, once the host is reachable. Optional: while anti-malware is on and this is not given, the time is unknown.",
         ),
+        Slot::Escalate => (
+            "host",
+            "Time to turn user control of the host into admin control. Optional: not drawn until given.",
+        ),
+        Slot::EscalateHardened => (
+            "host",
+            "The same, once the host is hardened; selected by `defenses.hardened`.",
+        ),
         Slot::Escape => (
             "host or router",
             "Time to break out of a virtual machine, container or appliance to the host it runs on, once in admin control of it.",
@@ -1012,6 +1038,10 @@ fn defense_word(defense: Defense) -> (&'static str, &'static str) {
         Defense::AntiMalware => (
             "Anti-malware",
             "Anti-malware on a host: an exploit used there, or on a service it runs, first gets past it (`bypass-antimalware`). Off unless said.",
+        ),
+        Defense::Hardened => (
+            "Hardened",
+            "The host is hardened against privilege escalation: `escalate-hardened` stands in for `escalate`. Off unless said.",
         ),
         Defense::Enabled => (
             "Enabled",

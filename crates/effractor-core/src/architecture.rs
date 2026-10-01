@@ -192,6 +192,8 @@ impl EntityKind {
                 Slot::DeployExploitAslr,
                 Slot::DeployExploitDep,
                 Slot::BypassAntimalware,
+                Slot::Escalate,
+                Slot::EscalateHardened,
             ],
             Self::Router => &[Slot::Escape],
             Self::Ids | Self::Ips => &[Slot::Bypass],
@@ -209,7 +211,12 @@ impl EntityKind {
             Self::Credential => &[Defense::Protected],
             Self::Application | Self::Service => &[Defense::Guarded],
             Self::Data => &[Defense::Encrypted],
-            Self::Host => &[Defense::Aslr, Defense::AntiMalware, Defense::Dep],
+            Self::Host => &[
+                Defense::Aslr,
+                Defense::AntiMalware,
+                Defense::Dep,
+                Defense::Hardened,
+            ],
             Self::Ids | Self::Ips => &[Defense::Enabled],
             _ => &[],
         }
@@ -362,6 +369,8 @@ pub enum Slot {
     DeployExploitDep,
     Bypass,
     BypassAntimalware,
+    Escalate,
+    EscalateHardened,
 }
 
 impl Slot {
@@ -378,11 +387,14 @@ impl Slot {
             ) | (
                 Self::DeployExploitAslr | Self::DeployExploitDep,
                 EntityKind::Host | EntityKind::Service
-            ) | (Self::BypassAntimalware, EntityKind::Host)
+            ) | (
+                Self::BypassAntimalware | Self::Escalate | Self::EscalateHardened,
+                EntityKind::Host
+            )
         )
     }
 
-    pub const ALL: [Slot; 18] = [
+    pub const ALL: [Slot; 20] = [
         Self::Connect,
         Self::FindExploit,
         Self::FindExploitPatched,
@@ -401,6 +413,8 @@ impl Slot {
         Self::DeployExploitDep,
         Self::Bypass,
         Self::BypassAntimalware,
+        Self::Escalate,
+        Self::EscalateHardened,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -423,6 +437,8 @@ impl Slot {
             Self::DeployExploitDep => "deploy-exploit-dep",
             Self::Bypass => "bypass",
             Self::BypassAntimalware => "bypass-antimalware",
+            Self::Escalate => "escalate",
+            Self::EscalateHardened => "escalate-hardened",
         }
     }
 }
@@ -478,6 +494,8 @@ pub struct Defenses {
     pub anti_malware: Option<Switch>,
     /// An IDS or IPS: while on, an exploit it watches gets past it first.
     pub enabled: Option<Switch>,
+    /// A host: `escalate-hardened` stands in for `escalate`. Absent is off.
+    pub hardened: Option<Switch>,
 }
 
 impl Defenses {
@@ -493,6 +511,7 @@ impl Defenses {
             Defense::Dep => self.dep,
             Defense::AntiMalware => self.anti_malware,
             Defense::Enabled => self.enabled,
+            Defense::Hardened => self.hardened,
         }
     }
 
@@ -508,6 +527,7 @@ impl Defenses {
             Defense::Dep => self.dep = value,
             Defense::AntiMalware => self.anti_malware = value,
             Defense::Enabled => self.enabled = value,
+            Defense::Hardened => self.hardened = value,
         }
     }
 }
@@ -1051,6 +1071,7 @@ pub enum Defense {
     Dep,
     AntiMalware,
     Enabled,
+    Hardened,
 }
 
 impl Defense {
@@ -1061,11 +1082,14 @@ impl Defense {
     pub fn optional(self, kind: EntityKind) -> bool {
         matches!(
             (self, kind),
-            (Self::Aslr | Self::Dep | Self::AntiMalware, EntityKind::Host)
+            (
+                Self::Aslr | Self::Dep | Self::AntiMalware | Self::Hardened,
+                EntityKind::Host
+            )
         )
     }
 
-    pub const ALL: [Defense; 10] = [
+    pub const ALL: [Defense; 11] = [
         Self::Patched,
         Self::Protected,
         Self::Mfa,
@@ -1076,6 +1100,7 @@ impl Defense {
         Self::Dep,
         Self::AntiMalware,
         Self::Enabled,
+        Self::Hardened,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -1090,6 +1115,7 @@ impl Defense {
             Self::Dep => "dep",
             Self::AntiMalware => "anti-malware",
             Self::Enabled => "enabled",
+            Self::Hardened => "hardened",
         }
     }
 }

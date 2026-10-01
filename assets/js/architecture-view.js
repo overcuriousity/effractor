@@ -87,18 +87,24 @@
       return on ? "used while " + REPLACED[slot][1] + " is on · unknown until given" : null;
     }
     if (slot === "bypass-antimalware") {
-      var am = doc.entities[id].defenses;
-      var switched = Object.keys(doc.scenarios || {}).some(function (k) {
-        return (doc.scenarios[k].changes || []).some(function (c) {
-          return c.entity === id && c.defense === "anti-malware" && c.value === true;
-        });
-      });
-      var on = (!!am && has(am, "anti-malware") && am["anti-malware"] !== false) || switched;
-      var guarding = on && runsService(doc, id);
-      return guarding ? "used while anti-malware is on · unknown until given" : null;
+      return switchedOn(doc, id, "anti-malware") && runsService(doc, id) ? "used while anti-malware is on · unknown until given" : null;
+    }
+    if (slot === "escalate-hardened") {
+      return switchedOn(doc, id, "hardened") ? "used while hardened · unknown until given" : null;
     }
     if (slot === "deploy-exploit" && !hasProduct(doc, id)) return null;
     return "not drawn until a time is given";
+  }
+  // Whether a switch of `id` is not off: in the file, or turned on by a
+  // scenario.
+  function switchedOn(doc, id, defense) {
+    var d = doc.entities[id].defenses;
+    if (!!d && has(d, defense) && d[defense] !== false) return true;
+    return Object.keys(doc.scenarios || {}).some(function (k) {
+      return (doc.scenarios[k].changes || []).some(function (c) {
+        return c.entity === id && c.defense === defense && c.value === true;
+      });
+    });
   }
   // Whether a host runs a service: what its anti-malware guards, and what
   // its own reachability rests on.
@@ -126,6 +132,7 @@
       if (has(e.defenses || {}, defense)) return;
       if ((defense === "aslr" || defense === "dep") && !hardens(doc, id)) return;
       if (defense === "anti-malware" && !runsService(doc, id)) return;
+      if (defense === "hardened" && !has(e.parameters || {}, "escalate")) return;
       rows.push({ defense: defense, value: false });
     });
     var order = (spec && spec.defenses) || [];

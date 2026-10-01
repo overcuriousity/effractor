@@ -283,3 +283,9 @@ test('Compare offers anti-malware only on a host that runs a service', () => {
   const cat = { entities: [{ kind: 'host', defenses: ['anti-malware'], optional_defenses: ['anti-malware'] }, { kind: 'service', defenses: [] }, { kind: 'product', defenses: [] }], defenses: [] };
   assert.deepEqual(C.switches(doc, cat).map((x) => x.entity + ':' + x.defense + ':' + x.baseline), ['srv:anti-malware:false']);
 });
+
+test('Compare offers hardening only on a host that can escalate', () => {
+  const doc = { entities: { srv: { kind: 'host', label: 'Server', parameters: { escalate: { status: 'unknown' } } }, ws: { kind: 'host', label: 'Workstation' } }, associations: {} };
+  const cat = { entities: [{ kind: 'host', defenses: ['hardened'], optional_defenses: ['hardened'] }], defenses: [] };
+  assert.deepEqual(C.switches(doc, cat).map((x) => x.entity + ':' + x.defense), ['srv:hardened']);
+});

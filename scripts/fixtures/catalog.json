@@ -53,23 +53,29 @@
         "deploy-exploit",
         "deploy-exploit-aslr",
         "deploy-exploit-dep",
-        "bypass-antimalware"
+        "bypass-antimalware",
+        "escalate",
+        "escalate-hardened"
       ],
       "optional": [
         "deploy-exploit",
         "deploy-exploit-aslr",
         "deploy-exploit-dep",
-        "bypass-antimalware"
+        "bypass-antimalware",
+        "escalate",
+        "escalate-hardened"
       ],
       "defenses": [
         "aslr",
         "anti-malware",
-        "dep"
+        "dep",
+        "hardened"
       ],
       "optional_defenses": [
         "aslr",
         "anti-malware",
-        "dep"
+        "dep",
+        "hardened"
       ]
     },
     {
@@ -604,6 +610,11 @@
       "id": "enabled",
       "word": "Enabled",
       "description": "The sensor is running: an exploit it watches first gets past it (`bypass`)."
+    },
+    {
+      "id": "hardened",
+      "word": "Hardened",
+      "description": "The host is hardened against privilege escalation: `escalate-hardened` stands in for `escalate`. Off unless said."
     }
   ],
   "parameters": [
@@ -714,6 +725,18 @@
       "name": "Get past the anti-malware",
       "owner": "host",
       "description": "Time to get past the host's anti-malware, once the host is reachable. Optional: while anti-malware is on and this is not given, the time is unknown."
+    },
+    {
+      "slot": "escalate",
+      "name": "Escalate privilege",
+      "owner": "host",
+      "description": "Time to turn user control of the host into admin control. Optional: not drawn until given."
+    },
+    {
+      "slot": "escalate-hardened",
+      "name": "Escalate privilege (hardened)",
+      "owner": "host",
+      "description": "The same, once the host is hardened; selected by `defenses.hardened`."
     }
   ],
   "rules": [
@@ -1168,6 +1191,28 @@
       "scope": "one per host whose anti-malware is said",
       "assumptions": [
         "Getting past a host's anti-malware once serves every exploit used there."
+      ]
+    },
+    {
+      "id": "escalate",
+      "title": "Escalate privilege",
+      "version": 1,
+      "bindings": [
+        "host"
+      ],
+      "prerequisites": "host.user",
+      "output": "host.admin",
+      "duration": {
+        "kind": "slot",
+        "slot": "escalate",
+        "replaced_by": {
+          "defense": "hardened",
+          "slot": "escalate-hardened"
+        }
+      },
+      "scope": "one per host with an `escalate` time",
+      "assumptions": [
+        "A local privilege escalation from user to administrator; which flaw it uses is in its time's note."
       ]
     },
     {

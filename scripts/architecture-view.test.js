@@ -500,10 +500,11 @@ test('ASLR and DEP are shown only on a host they can change, and say so', () => 
 test("a host's own exploit time is offered only once it runs a product", () => {
   const doc = lecture();
   const absent = (id) => V.slotRows(doc, REAL, id).filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
-  assert.deepEqual(absent('srv'), []);
+  const ESC = 'escalate: not drawn until a time is given';
+  assert.deepEqual(absent('srv'), [ESC]);
   doc.entities.os = { kind: 'product', label: 'OS' };
   doc.associations['srv-os'] = { kind: 'instance-of', from: 'srv', to: 'os' };
-  assert.deepEqual(absent('srv'), ['deploy-exploit: not drawn until a time is given']);
+  assert.deepEqual(absent('srv'), ['deploy-exploit: not drawn until a time is given', ESC]);
 });
 
 test('a sensor line reads in words along its arrow', () => {
@@ -517,9 +518,10 @@ test('a sensor line reads in words along its arrow', () => {
 test("a host's anti-malware time is offered once its anti-malware is on", () => {
   const doc = lecture();
   const absent = (id) => V.slotRows(doc, REAL, id).filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
-  assert.deepEqual(absent('srv'), []);
+  const ESC = 'escalate: not drawn until a time is given';
+  assert.deepEqual(absent('srv'), [ESC]);
   doc.entities.srv.defenses = { 'anti-malware': true };
-  assert.deepEqual(absent('srv'), ['bypass-antimalware: used while anti-malware is on · unknown until given']);
+  assert.deepEqual(absent('srv'), ['bypass-antimalware: used while anti-malware is on · unknown until given', ESC]);
   // On a host that runs nothing, anti-malware guards nothing: no row at all.
   assert.deepEqual(V.defenseRows(doc, REAL, 'ws').map((r) => r.defense), []);
 });
@@ -528,5 +530,16 @@ test('a scenario turning anti-malware on offers its time too', () => {
   const doc = lecture();
   doc.scenarios = { am: { label: 'AM', changes: [{ entity: 'srv', defense: 'anti-malware', value: true }] } };
   const absent = V.slotRows(doc, REAL, 'srv').filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
-  assert.deepEqual(absent, ['bypass-antimalware: used while anti-malware is on · unknown until given']);
+  assert.deepEqual(absent, ['bypass-antimalware: used while anti-malware is on · unknown until given', 'escalate: not drawn until a time is given']);
+});
+
+test('escalation is offered on every host; hardening only once it is given', () => {
+  const doc = lecture();
+  const absent = () => V.slotRows(doc, REAL, 'ws').filter((r) => r.absent).map((r) => r.slot + ': ' + r.note);
+  assert.deepEqual(absent(), ['escalate: not drawn until a time is given']);
+  assert.ok(!V.defenseRows(doc, REAL, 'ws').some((r) => r.defense === 'hardened'));
+  doc.entities.ws.parameters = Object.assign({}, doc.entities.ws.parameters, { escalate: { status: 'unknown' } });
+  assert.deepEqual(V.defenseRows(doc, REAL, 'ws').map((r) => r.defense), ['hardened']);
+  doc.entities.ws.defenses = { hardened: true };
+  assert.deepEqual(absent(), ['escalate-hardened: used while hardened · unknown until given']);
 });

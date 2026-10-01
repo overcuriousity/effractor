@@ -73,6 +73,7 @@ fn generate_within(
     b.flows();
     b.operators();
     b.guards();
+    b.escalations();
     b.products();
     b.services();
     b.instances();
@@ -1112,6 +1113,40 @@ impl<'a> Builder<'a> {
             self.produce(&from, &unseen, o);
         }
         Some(unseen)
+    }
+
+    /// User to admin on a host (extract Fig. 5.33), once the host says how
+    /// long it takes; `escalate-hardened` while it is hardened.
+    fn escalations(&mut self) {
+        for (hid, entity) in &self.m.entities {
+            if entity.kind != EntityKind::Host || !self.has_slot(hid, Slot::Escalate) {
+                continue;
+            }
+            let owner = Owner::Entity(hid.clone());
+            let o = Origin {
+                entities: vec![hid.clone()],
+                paths: vec![
+                    owner.slot_path(Slot::Escalate),
+                    owner.slot_path(Slot::EscalateHardened),
+                    format!("entities.{hid}.defenses.hardened"),
+                ],
+                ..origin("escalate")
+            };
+            let user = self.state_id(hid, State::User.as_str());
+            let admin = self.state_id(hid, State::Admin.as_str());
+            self.action(
+                format!("action/escalate/{hid}"),
+                format!("Escalate privilege · {}", entity.label),
+                Binding::Parameter {
+                    owner,
+                    base: Slot::Escalate,
+                    replacement: Some((Defense::Hardened, Slot::EscalateHardened)),
+                },
+                &[user],
+                &admin,
+                o,
+            );
+        }
     }
 
     /// A sensor's `passed` fact, its bypass and its off input, once.

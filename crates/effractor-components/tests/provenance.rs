@@ -1198,3 +1198,46 @@ fn an_ids_on_the_route_guards_the_exploit_against_the_host_too() {
         strings(&["state/host/server/reachable"])
     );
 }
+
+/// The lecture with the server's escalation time given (extract Fig. 5.33).
+fn with_escalation(hardened: &str) -> Architecture {
+    let text = LECTURE.replacen(
+        "  server:\n    kind: host\n    label: Server\n    parameters:\n",
+        &format!("  server:\n    kind: host\n    label: Server\n{hardened}    parameters:\n      escalate:\n        status: illustrative\n        ttc: \"Exponential(mean 3)\"\n        note: exercise\n      escalate-hardened:\n        status: illustrative\n        ttc: \"Exponential(mean 30)\"\n        note: exercise\n"),
+        1,
+    );
+    architecture(&text)
+}
+
+#[test]
+fn escalation_is_absent_until_a_host_says_how_long_it_takes_fig_5_33() {
+    let s = shape(&generate(&architecture(LECTURE)).unwrap());
+    assert!(!s.contains_key("action/escalate/server"));
+    let s = shape(&generate(&with_escalation("")).unwrap());
+    assert_eq!(
+        s["action/escalate/server"],
+        strings(&["state/host/server/user"])
+    );
+    assert!(s["state/host/server/admin"].contains(&"action/escalate/server".to_owned()));
+}
+
+#[test]
+fn escalation_is_drawn_and_hardened_replaces_its_time() {
+    let ttc = |m: &Architecture| {
+        let g = generate(m).unwrap();
+        resolve(m, &g, None).unwrap().ttc[index(&g, "action/escalate/server")].clone()
+    };
+    assert_eq!(
+        ttc(&with_escalation("")),
+        ResolvedTtc::Known(Distribution::ExponentialMean(3.0)),
+        "absent is not hardened"
+    );
+    assert_eq!(
+        ttc(&with_escalation("    defenses: {hardened: true}\n")),
+        ResolvedTtc::Known(Distribution::ExponentialMean(30.0))
+    );
+    assert_eq!(
+        ttc(&with_escalation("    defenses: {hardened: unknown}\n")),
+        ResolvedTtc::Unknown(vec!["entities.server.defenses.hardened".to_owned()])
+    );
+}

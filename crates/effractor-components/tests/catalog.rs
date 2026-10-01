@@ -3,7 +3,7 @@
 use effractor_components::{RULES, catalog};
 use serde_json::Value;
 
-const RULE_IDS: [&str; 48] = [
+const RULE_IDS: [&str; 49] = [
     "foothold",
     "admin-implies-user",
     "host-execution",
@@ -29,6 +29,7 @@ const RULE_IDS: [&str; 48] = [
     "watched-flow",
     "antimalware-off",
     "antimalware-bypass",
+    "escalate",
     "credential-extract",
     "account-material",
     "mfa-policy",
@@ -90,7 +91,7 @@ fn the_catalog_names_the_pin_every_kind_and_every_rule_once() {
     );
     assert_eq!(ids(&c["associations"], "kind").len(), 21);
     assert_eq!(ids(&c["states"], "id").len(), 9);
-    assert_eq!(ids(&c["parameters"], "slot").len(), 18);
+    assert_eq!(ids(&c["parameters"], "slot").len(), 20);
     let rules = ids(&c["rules"], "id");
     assert_eq!(rules, RULE_IDS);
     for rule in &RULES {
@@ -266,7 +267,9 @@ fn every_kind_says_which_of_its_slots_are_optional() {
                 "deploy-exploit",
                 "deploy-exploit-aslr",
                 "deploy-exploit-dep",
-                "bypass-antimalware"
+                "bypass-antimalware",
+                "escalate",
+                "escalate-hardened"
             ]),
             "application" => serde_json::json!(["deploy-exploit"]),
             "service" => serde_json::json!(["deploy-exploit-aslr", "deploy-exploit-dep"]),
@@ -302,7 +305,7 @@ fn the_catalog_describes_the_sensors_and_anti_malware() {
     assert_eq!(ids["defenses"], serde_json::json!(["enabled"]));
     assert_eq!(
         entity("host")["optional_defenses"],
-        serde_json::json!(["aslr", "anti-malware", "dep"])
+        serde_json::json!(["aslr", "anti-malware", "dep", "hardened"])
     );
     let watches = c["associations"]
         .as_array()

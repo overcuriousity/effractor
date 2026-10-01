@@ -356,7 +356,7 @@ fn every_lecture_step_has_exactly_its_prerequisites() {
 
 #[test]
 fn every_rule_is_used_by_a_fixture_and_names_what_it_bound() {
-    const FIXTURES: [&str; 7] = [
+    const FIXTURES: [&str; 8] = [
         include_str!("fixtures/architectures/branch-office.yaml"),
         include_str!("fixtures/architectures/web-shop.yaml"),
         include_str!("fixtures/architectures/clinic-records.yaml"),
@@ -364,6 +364,7 @@ fn every_rule_is_used_by_a_fixture_and_names_what_it_bound() {
         include_str!("fixtures/architectures/self-hosted-nextcloud.yaml"),
         include_str!("fixtures/architectures/extract-products.yaml"),
         include_str!("fixtures/architectures/extract-sensors.yaml"),
+        include_str!("fixtures/architectures/extract-host-steps.yaml"),
     ];
     let mut used: BTreeSet<String> = BTreeSet::new();
     for text in std::iter::once(LECTURE).chain(FIXTURES) {

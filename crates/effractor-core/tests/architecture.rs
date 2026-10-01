@@ -261,7 +261,9 @@ fn every_host_and_router_carries_an_escape_slot() {
             Slot::DeployExploit,
             Slot::DeployExploitAslr,
             Slot::DeployExploitDep,
-            Slot::BypassAntimalware
+            Slot::BypassAntimalware,
+            Slot::Escalate,
+            Slot::EscalateHardened
         ]
     );
     assert_eq!(EntityKind::Router.slots(), &[Slot::Escape]);
@@ -670,6 +672,8 @@ fn only_slots_added_to_an_existing_kind_are_optional() {
             "deploy-exploit-aslr on host",
             "deploy-exploit-dep on host",
             "bypass-antimalware on host",
+            "escalate on host",
+            "escalate-hardened on host",
             "deploy-exploit on application",
             "deploy-exploit-aslr on service",
             "deploy-exploit-dep on service",
@@ -682,7 +686,12 @@ fn a_host_has_aslr_and_dep_and_neither_is_filled_in() {
     use effractor_core::architecture::{Defense, Entity, EntityKind, Switch};
     assert_eq!(
         EntityKind::Host.defenses(),
-        &[Defense::Aslr, Defense::AntiMalware, Defense::Dep]
+        &[
+            Defense::Aslr,
+            Defense::AntiMalware,
+            Defense::Dep,
+            Defense::Hardened
+        ]
     );
     assert!(Defense::Aslr.optional(EntityKind::Host) && Defense::Dep.optional(EntityKind::Host));
     assert!(!Defense::Patched.optional(EntityKind::Product));

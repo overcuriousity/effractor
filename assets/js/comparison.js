@@ -157,6 +157,8 @@
         if ((d === "aslr" || d === "dep") && !hardens && !(e.defenses && has(e.defenses, d))) return;
         // Its anti-malware only where it runs a service: what it guards.
         if (d === "anti-malware" && !runsService && !(e.defenses && has(e.defenses, d))) return;
+        // Hardening only where the host can escalate.
+        if (d === "hardened" && !(e.parameters && has(e.parameters, "escalate")) && !(e.defenses && has(e.defenses, d))) return;
         // An optional switch not set is off; any other one unsaid, unknown.
         var v = e.defenses && has(e.defenses, d) ? e.defenses[d] : (optionalOf[e.kind] || []).indexOf(d) >= 0 ? false : "unknown";
         out.push({ key: keyOf({ entity: id, defense: d }), entity: id, defense: d, label: labelOf(doc, "entities", id), word: words[d] || d, baseline: v });
