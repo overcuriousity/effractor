@@ -4,7 +4,9 @@ use indexmap::IndexMap;
 
 use crate::architecture::MAX_SAMPLES;
 use crate::distribution::probability;
-use crate::{Code, ControlId, Diagnostic, Distribution, Gate, Model, NodeId, NodeKind, Profile};
+use crate::{
+    AssetId, Code, ControlId, Diagnostic, Dim, Distribution, Gate, Model, NodeId, NodeKind, Profile,
+};
 
 /// Everything that can be wrong with a model that parsed. Errors mean the
 /// solver must not run; warnings mean it will, and the author should look.
@@ -143,8 +145,24 @@ fn nodes(m: &Model, out: &mut Vec<Diagnostic>) {
                 }
             }
         }
+        // The sampler takes, per asset and dimension, the largest fraction
+        // breached: a second one on the same node adds nothing to the first.
+        let mut first: HashMap<(&AssetId, Dim), usize> = HashMap::new();
         for (i, c) in node.consequences.iter().enumerate() {
             let at = format!("{at}.consequences[{i}]");
+            if let Some(&j) = first.get(&(&c.asset, c.dim)) {
+                out.push(Diagnostic::warning(
+                    Code::OverlappingConsequences,
+                    &at,
+                    format!(
+                        "this node already loses the `{}` of \"{}\" (consequences[{j}]); the largest fraction counts, not their sum",
+                        c.dim.key(),
+                        c.asset
+                    ),
+                ));
+            } else {
+                first.insert((&c.asset, c.dim), i);
+            }
             match m.assets.get(&c.asset) {
                 None => out.push(Diagnostic::error(Code::UnknownAsset, format!("{at}.asset"), format!("\"{}\" is not an asset", c.asset))),
                 Some(asset) if asset.loss.get(c.dim).is_none() => out.push(Diagnostic::error(

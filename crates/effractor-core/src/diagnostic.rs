@@ -32,6 +32,8 @@ pub enum Code {
     NoMagnitude,
     EffectOnGate,
     OverlappingEffects,
+    /// One node losing one asset's dimension twice: the largest counts.
+    OverlappingConsequences,
     Unreachable,
     ProfileAttribute,
     // What an architecture can get wrong; `validate_architecture` reports these.
@@ -79,6 +81,7 @@ impl Code {
             Self::NoMagnitude => "no-magnitude",
             Self::EffectOnGate => "effect-on-gate",
             Self::OverlappingEffects => "overlapping-effects",
+            Self::OverlappingConsequences => "overlapping-consequences",
             Self::Unreachable => "unreachable",
             Self::ProfileAttribute => "profile-attribute",
             Self::Incomplete => "incomplete",

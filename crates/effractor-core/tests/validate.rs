@@ -273,6 +273,40 @@ fn consequence_problems() {
 }
 
 #[test]
+fn a_loss_said_twice_on_one_node_warns() {
+    let consequence = |dim, fraction| Consequence {
+        asset: id("web"),
+        dim,
+        fraction,
+    };
+    let mut m = valid();
+    m.assets[&id::<AssetId>("web")].loss.c = Some(Distribution::Const(10.0));
+    let top = &mut m.nodes[&id::<NodeId>("top")].consequences;
+    top.push(consequence(Dim::C, 1.0));
+    assert_eq!(validate(&m), [], "another dimension is another loss");
+    let top = &mut m.nodes[&id::<NodeId>("top")].consequences;
+    top.push(consequence(Dim::A, 0.5));
+    top.push(consequence(Dim::A, 0.7));
+    let d: Vec<_> = validate(&m)
+        .into_iter()
+        .map(|d| (d.code, d.severity, d.path, d.message))
+        .collect();
+    let said = |i: usize| {
+        (
+            Code::OverlappingConsequences,
+            Severity::Warning,
+            format!("nodes.top.consequences[{i}]"),
+            "this node already loses the `a` of \"web\" (consequences[0]); the largest fraction counts, not their sum".to_owned(),
+        )
+    };
+    assert_eq!(d, [said(2), said(3)]);
+    assert_eq!(
+        Code::OverlappingConsequences.as_str(),
+        "overlapping-consequences"
+    );
+}
+
+#[test]
 fn control_problems() {
     let mut m = valid();
     m.controls[&id::<ControlId>("psu")].effects[0].node = id("ghost");

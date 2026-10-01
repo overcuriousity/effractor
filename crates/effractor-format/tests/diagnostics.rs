@@ -285,6 +285,30 @@ fn warnings_do_not_stop_a_load() {
 }
 
 #[test]
+fn a_loss_said_twice_on_one_node_is_a_warning_where_it_is_said_again() {
+    let text = doc(concat!(
+        "  t:\n",
+        "    label: T\n",
+        "    leaf: basic\n",
+        "    consequences:\n",
+        "      - {asset: web, dim: a, fraction: 0.6}\n",
+        "      - {asset: web, dim: a, fraction: 0.6}\n",
+        "assets:\n",
+        "  web: {label: W, loss: {a: 1000}}\n",
+    ));
+    assert_eq!(
+        report(&text),
+        [(
+            "overlapping-consequences",
+            "nodes.t.consequences[1]".into(),
+            11,
+            9
+        )]
+    );
+    assert!(load(&text).is_ok());
+}
+
+#[test]
 fn hostile_input_is_a_diagnostic_not_a_crash() {
     let nested = |depth: usize| {
         let (open, close) = ("[".repeat(depth), "]".repeat(depth));
