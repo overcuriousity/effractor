@@ -30,6 +30,7 @@
     var conflicts = new Map();  // document id -> the notice's arguments, until resolved
     var gone = new Map();       // document id -> {p, rec, seq} of a delete that may be undone
     var unloading = false;      // the page is closing: saves must outlive it
+    var fromTabs = new Map();   // document id -> texts other tabs of this browser kept, newest last
 
     function persist(p) { return o.store.bind(p, recs[p] || null); }
     function bump(p) { seq[p] = (seq[p] || 0) + 1; return seq[p]; }
@@ -173,20 +174,23 @@
 
     // A 409 may be this browser's own save whose answer never came (the page
     // closed while it was on its way): the server then has exactly the text
-    // sent, which is saved, not a conflict.
+    // sent, which is saved, not a conflict. Nor is a text another tab of
+    // this browser saved, which this page took over: what is here is built
+    // on it.
     function conflict(id, q, c) {
       q.checking = true;
       return o.request("GET", "/api/documents/" + id).then(function (res) {
         q.checking = false;
         if (queues.get(id) !== q) return;
-        if (!res.ok || res.data.body !== c.mine) {
+        var body = res.ok ? res.data.body : null;
+        if (!res.ok || (body !== c.mine && (fromTabs.get(id) || []).indexOf(body) < 0)) {
           conflicts.set(id, { q: q, c: c });
           return sayConflict(id);
         }
-        adopt(id, res.data.version, c.mine);
-        q.autosave.bind({ version: res.data.version, saved: c.mine });
+        adopt(id, res.data.version, body);
+        q.autosave.bind({ version: res.data.version, saved: body });
         var p = recordsOf(id)[0];
-        if (p && recs[p].text !== c.mine) q.autosave.change(recs[p].text, names[p]);
+        if (p && recs[p].text !== body) q.autosave.change(recs[p].text, names[p]);
         showState();
       });
     }
@@ -271,7 +275,60 @@
       if (q) q.autosave.stop();
       queues.delete(id);
       conflicts.delete(id);
+      fromTabs.delete(id);
       showState();
+    }
+
+    // A text another tab of this browser kept, now on this page: that tab
+    // saves it. The mode holds what that tab left in the storage both share
+    // — the same document, another one or none — so an edit here goes where
+    // the other tab's would, and never into the document this tab held
+    // before. The storage is the other tab's: it is read, not written.
+    function follow(t, p) {
+      var token = bump(p);
+      return o.store.binding(p).then(function (stored) {
+        if (seq[p] !== token) return;
+        var r = recs[p];
+        if (!user) {
+          if (stored) recs[p] = stored;
+          else delete recs[p];
+          return showState();
+        }
+        if (!stored || stored.user !== user.id) {
+          if (r) {
+            var left = queues.get(r.id);
+            if (left) left.autosave.flush();
+            delete recs[p];
+          }
+          prune();
+          return showState();
+        }
+        if (r && r.id !== stored.id) {
+          // What was typed here for the other document still goes to it.
+          var old = queues.get(r.id);
+          if (old) old.autosave.flush();
+          r = null;
+        }
+        if (!r) r = recs[p] = { user: stored.user, id: stored.id, base: stored.base, saved: stored.saved };
+        else if (stored.base > r.base) {
+          r.base = stored.base;
+          r.saved = stored.saved;
+        }
+        r.text = lastText[p];
+        var seen = fromTabs.get(r.id) || [];
+        seen.push(t);
+        fromTabs.set(r.id, seen.slice(-8));
+        var q = queues.get(r.id);
+        if (!q) queueFor(r, p);
+        // What waited here is overtaken by the other tab's text, which that
+        // tab saves; a conflict stays until it is resolved.
+        else if (!q.checking && !conflicts.has(r.id) && q.autosave.state() !== "conflict") {
+          var v = q.autosave.version();
+          q.autosave.bind(v !== null && v >= r.base ? { version: v, saved: q.autosave.saved() } : { version: r.base, saved: r.saved });
+        }
+        prune();
+        showState();
+      });
     }
 
     // A delete undone: the mode it was in holds it again, with what was
@@ -285,7 +342,8 @@
     }
 
     // Every accepted text of the page: an edit (origin null), a mode switch
-    // (null too), or a replacement with where it came from.
+    // (null too), a text another tab kept ("tab"), or a replacement with
+    // where it came from.
     function text(t, p, origin, name) {
       if (!loaded || loaded.pending) {
         early.push([t, p, origin, name]);
@@ -295,6 +353,7 @@
       current = p;
       lastText[p] = t;
       names[p] = name;
+      if (origin === "tab") return follow(t, p);
       // Logged out, the records follow the page, to be saved at the next
       // login: an edit updates its mode's record, anything that replaces
       // the text ends it. (The first text of a page is kept as it is.)

@@ -140,6 +140,13 @@ function tab(server, opts = {}) {
       slots[p] = text;
       page.current = p;
     },
+    // A text another tab kept, taken over (app.js takeOver): not kept again.
+    takeOver(text) {
+      const p = profileOf(text);
+      core.text(text, p, "tab", nameOf(text));
+      slots[p] = text;
+      page.current = p;
+    },
     // A mode switch: the mode's last text comes back (app.switchMode).
     switchTo(p) {
       core.text(slots[p], p, null, nameOf(slots[p]));
@@ -850,4 +857,101 @@ test("a save answered 200 without a version is tried again, and saving goes on",
   await t.timers.advance(5000);
   assert.equal(server.body(F), doc("fault-tree", "F", "f2"));
   assert.equal(t.states[t.states.length - 1], "saved");
+});
+
+// ---- two tabs of one browser on one document ----
+
+// Two tabs over one browser's storage: B opened after A, on what A holds.
+async function twoTabs(server, F) {
+  const shared = new Map(), timers = fakeTimers();
+  const a = tab(server, { shared, timers });
+  await a.core.login(USER);
+  await a.core.open(F);
+  const b = tab(server, { shared, timers });
+  await b.core.init();
+  b.load(a.page.text());
+  await b.core.login(USER, { fresh: false });
+  return { a, b, timers };
+}
+
+const conflicted = (...tabs) => tabs.flatMap((t) => t.said).filter((s) => /Changed by/.test(s.text));
+
+test("an edit taken over from another tab is not a conflict with oneself", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const { a, b, timers } = await twoTabs(server, F);
+  a.edit(doc("fault-tree", "F", "a1"));
+  b.takeOver(doc("fault-tree", "F", "a1"));
+  await timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "a1"));
+  b.edit(doc("fault-tree", "F", "b1"));
+  a.takeOver(doc("fault-tree", "F", "b1"));
+  await timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "b1"));
+  a.edit(doc("fault-tree", "F", "a2"));
+  b.takeOver(doc("fault-tree", "F", "a2"));
+  await timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "a2"));
+  assert.deepEqual(conflicted(a, b), []);
+  assert.equal(b.states[b.states.length - 1], "saved");
+});
+
+test("a tab's edit made before the other tab's save arrived is still no conflict", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const { a, b, timers } = await twoTabs(server, F);
+  a.edit(doc("fault-tree", "F", "a1"));
+  b.takeOver(doc("fault-tree", "F", "a1"));
+  await settle();
+  // Built on A's text, so saved over it.
+  b.edit(doc("fault-tree", "F", "b1"));
+  a.takeOver(doc("fault-tree", "F", "b1"));
+  await timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "b1"));
+  assert.deepEqual(conflicted(a, b), []);
+});
+
+test("another document opened in another tab is never saved into the one this tab held", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const G = server.add("fault-tree", "G", "g0");
+  const { a, b, timers } = await twoTabs(server, F);
+  await a.core.open(G);
+  b.takeOver(a.page.text());
+  await settle();
+  b.edit(doc("fault-tree", "G", "b1"));
+  await timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "f0"), "F untouched");
+  assert.equal(server.body(G), doc("fault-tree", "G", "b1"), "the edit went to G");
+  assert.equal(b.core.openId(), G);
+});
+
+test("a tab with nothing bound follows the document another tab holds there", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const shared = new Map(), timers = fakeTimers();
+  const b = tab(server, { shared, timers });
+  await b.core.init();
+  b.load(doc("fault-tree", "Local", "l0"));
+  await b.core.login(USER, { fresh: false });
+  const a = tab(server, { shared, timers });
+  await a.core.login(USER);
+  await a.core.open(F);
+  b.takeOver(a.page.text());
+  await settle();
+  b.edit(doc("fault-tree", "F", "b1"));
+  await timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "b1"));
+});
+
+test("a new document started in another tab leaves this tab's document alone", async () => {
+  const server = fakeServer();
+  const F = server.add("fault-tree", "F", "f0");
+  const { a, b, timers } = await twoTabs(server, F);
+  await a.page.replace(doc("fault-tree", "New", "n0"), "new", { origin: "new" });
+  b.takeOver(doc("fault-tree", "New", "n0"));
+  await settle();
+  b.edit(doc("fault-tree", "New", "b1"));
+  await timers.advance(5000);
+  assert.equal(server.body(F), doc("fault-tree", "F", "f0"), "F untouched");
 });

@@ -1050,9 +1050,12 @@ test('a text another tab kept in the mode shown is taken over, the one it replac
   const a = racePage('original', null, { channel });
   const b = racePage('original', null, { channel });
   await a.app.ready; await b.app.ready; await a.settle();
+  const told = [];
+  b.app.onText((text, profile, origin) => told.push([text, origin]));
   await a.app.applyEdit({ doc: a.docOf('two') }); await a.settle(); await b.settle(); await b.settle();
   assert.equal(b.app.state.text, 'two');
   assert.deepEqual(b.writes, [], 'kept already: not written again, nor sent back');
+  assert.deepEqual(told.slice(1), [['two', 'tab']], 'what the server keeps hears it came from another tab');
   assert.equal(b.nodes.get('note').textContent, 'changed in another tab · Ctrl+Z goes back');
   b.app.undo(); await b.settle(); await b.settle(); await a.settle(); await a.settle();
   assert.equal(b.app.state.text, 'original');

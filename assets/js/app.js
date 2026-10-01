@@ -1048,14 +1048,14 @@
       }
       var origin = replacing;
       replacing = null;
-      // A text another tab kept is kept already, and was its edit, not this one's.
+      // A text another tab kept is kept already, and was its edit, not this
+      // one's: told as "tab", so what the server keeps follows that tab.
       var quiet = fromTab;
       fromTab = false;
-      if (!quiet) {
-        keep(text, parsed.ok.profile);
-        // The name goes with it: the page's state is only updated after.
-        textListeners.forEach(function (f) { f(text, parsed.ok.profile, origin, parsed.ok.name); });
-      }
+      if (quiet) origin = "tab";
+      else keep(text, parsed.ok.profile);
+      // The name goes with it: the page's state is only updated after.
+      textListeners.forEach(function (f) { f(text, parsed.ok.profile, origin, parsed.ok.name); });
       return loaded(text, parsed.ok, !!fit).then(function (outcome) {
         // A newer text overtook this one's attack graph: the selection, and
         // what is solved, are that text's to settle.
