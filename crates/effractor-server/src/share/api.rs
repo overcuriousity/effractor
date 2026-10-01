@@ -16,9 +16,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use sha2::{Digest, Sha256};
 
-use super::{
-    MemoryStorage, ShareId, ShareMeta, Storage, StorageError, Timestamp, Ttl, random_token,
-};
+use super::{MemoryStorage, ShareId, ShareMeta, Storage, StorageError, Timestamp, Ttl};
 use crate::limiter::Limiter;
 
 #[derive(Debug, Clone, Copy)]
@@ -181,7 +179,7 @@ async fn create(
     }
 
     let id = ShareId::random();
-    let delete_token = random_token();
+    let delete_token = effractor_accounts::token();
     let expires_at = ttl.seconds().map(|s| now + s);
     let meta = ShareMeta {
         expires_at,

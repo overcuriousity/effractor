@@ -14,6 +14,8 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use axum::body::Bytes;
+// Share ids and delete tokens are the accounts' tokens, spelled the same way.
+use effractor_accounts::ALPHABET;
 use serde::{Deserialize, Serialize};
 
 pub use api::{Limits, Shares, routes};
@@ -23,22 +25,6 @@ pub use memory::MemoryStorage;
 /// Seconds since the Unix epoch.
 pub type Timestamp = u64;
 
-const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
-/// 128 random bits as 22 characters of base64url, for ids and delete tokens.
-pub(crate) fn random_token() -> String {
-    let mut bytes = [0u8; 16];
-    getrandom::fill(&mut bytes).expect("the operating system has randomness");
-    let mut out = String::with_capacity(22);
-    for chunk in bytes.chunks(3) {
-        let n = chunk.iter().fold(0u32, |n, b| n << 8 | u32::from(*b)) << (8 * (3 - chunk.len()));
-        for i in 0..=chunk.len() {
-            out.push(ALPHABET[(n >> (18 - 6 * i) & 63) as usize] as char);
-        }
-    }
-    out
-}
-
 /// A share's name: 128 random bits, generated here, never chosen by a client.
 /// Parsing accepts exactly the shape `random` produces, which is also what
 /// makes an id safe to build a file name from.
@@ -47,7 +33,7 @@ pub struct ShareId(String);
 
 impl ShareId {
     pub fn random() -> Self {
-        Self(random_token())
+        Self(effractor_accounts::token())
     }
 
     pub fn as_str(&self) -> &str {

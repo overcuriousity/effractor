@@ -185,9 +185,11 @@ impl Db {
     }
 }
 
-const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+/// base64url: what a token is spelled with.
+pub const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-/// 128 random bits as 22 characters of base64url: session tokens and ceremony ids.
+/// 128 random bits as 22 characters of base64url: session tokens, ceremony
+/// ids, and the server's share ids and delete tokens.
 pub fn token() -> String {
     let mut bytes = [0u8; 16];
     getrandom::fill(&mut bytes).expect("the operating system has randomness");
