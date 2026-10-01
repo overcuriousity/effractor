@@ -1072,6 +1072,48 @@ impl<'a> Builder<'a> {
         }
     }
 
+    /// Where a watched flow reaches one of a host's services, the host is
+    /// reached unseen only as its services are: `host.unseen` from each
+    /// service's `unseen` (or `reachable` where nothing watches it). None
+    /// when no flow into the host is watched.
+    fn host_unseen(&mut self, host: &'a EntityId) -> Option<String> {
+        let served: Vec<(&'a EntityId, &'a AssociationId)> = self
+            .m
+            .associations
+            .iter()
+            .filter_map(|(aid, a)| match &a.relation {
+                Relation::Hosts { from, to, .. }
+                    if from == host && self.kind(to) == EntityKind::Service =>
+                {
+                    Some((to, aid))
+                }
+                _ => None,
+            })
+            .collect();
+        if !served.iter().any(|(sid, _)| self.unseen.contains(sid)) {
+            return None;
+        }
+        let unseen = self.state_id(host, "unseen");
+        self.fact(
+            unseen.clone(),
+            format!("{} · reached unseen", self.label(host)),
+        );
+        for (sid, hosts) in served {
+            let from = if self.unseen.contains(sid) {
+                self.state_id(sid, "unseen")
+            } else {
+                self.state_id(sid, "reachable")
+            };
+            let o = Origin {
+                entities: vec![sid.clone(), host.clone()],
+                associations: vec![hosts.clone()],
+                ..origin("watched-flow")
+            };
+            self.produce(&from, &unseen, o);
+        }
+        Some(unseen)
+    }
+
     /// A sensor's `passed` fact, its bypass and its off input, once.
     fn sensor(&mut self, sensor: &'a EntityId) -> String {
         let passed = self.state_id(sensor, "passed");
@@ -1264,7 +1306,12 @@ impl<'a> Builder<'a> {
                 ..origin(rule)
             };
             let ready = self.state_id(pid, "exploit-ready");
-            let mut prerequisites = vec![ready, reachable];
+            let reached = if entity.kind == EntityKind::Host {
+                self.host_unseen(eid).unwrap_or(reachable)
+            } else {
+                reachable
+            };
+            let mut prerequisites = vec![ready, reached];
             if entity.kind == EntityKind::Host {
                 prerequisites.extend(self.host_guards.get(eid).cloned().unwrap_or_default());
             }

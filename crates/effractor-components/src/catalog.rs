@@ -265,7 +265,7 @@ pub const RULES: [Rule; 48] = [
         prerequisites: "service.reachable, for any service the host runs",
         output: "host.reachable, for a host that is an instance of a product or that a sensor or anti-malware guards",
         duration: D::Logical,
-        scope: "one per hosts association from a host with a product to a service",
+        scope: "one per hosts association to a service, from a host with a product or a guard",
         assumptions: &[
             "A host's operating system is reached through the services it runs; being in the same network reaches nothing.",
         ],
@@ -288,7 +288,7 @@ pub const RULES: [Rule; 48] = [
         title: "Use the exploit against the host",
         version: 1,
         bindings: &["host"],
-        prerequisites: "product.exploit-ready and host.reachable; past the host's own sensors, and its anti-malware where that is said",
+        prerequisites: "product.exploit-ready and host.reachable (host.unseen where a watched flow reaches one of its services); past the host's own sensors, and its anti-malware where that is said",
         output: "host.admin",
         duration: D::Slot {
             slot: Slot::DeployExploit,
@@ -324,7 +324,7 @@ pub const RULES: [Rule; 48] = [
         prerequisites: "on a router, a flow routed through it connected; on a host, host.reachable",
         output: "sensor.reached",
         duration: D::Logical,
-        scope: "one per watches association",
+        scope: "one per watches association from a host; one per flow routed through a watching router",
         assumptions: &[
             "A sensor is worked around through the traffic it watches; nothing reaches it by being near.",
         ],
@@ -342,7 +342,7 @@ pub const RULES: [Rule; 48] = [
     },
     Rule {
         id: "sensor-bypass",
-        title: "Get past the sensor",
+        title: "Get past the IDS or IPS",
         version: 1,
         bindings: &["sensor"],
         prerequisites: "sensor.reached",
@@ -362,9 +362,9 @@ pub const RULES: [Rule; 48] = [
         version: 1,
         bindings: &["flow"],
         prerequisites: "the flow connected, and sensor.passed for every sensor a router on its route has",
-        output: "service.unseen, for a service some watched flow reaches",
+        output: "service.unseen, for a service some watched flow reaches; and host.unseen, from its services, for the host it runs on",
         duration: D::Logical,
-        scope: "one per flow into such a service",
+        scope: "one per flow into such a service, and per service of its host",
         assumptions: &["Only an exploit is watched for: a login over the same flow is not."],
     },
     Rule {

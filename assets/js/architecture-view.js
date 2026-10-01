@@ -88,7 +88,13 @@
     }
     if (slot === "bypass-antimalware") {
       var am = doc.entities[id].defenses;
-      var guarding = !!am && has(am, "anti-malware") && am["anti-malware"] !== false && runsService(doc, id);
+      var switched = Object.keys(doc.scenarios || {}).some(function (k) {
+        return (doc.scenarios[k].changes || []).some(function (c) {
+          return c.entity === id && c.defense === "anti-malware" && c.value === true;
+        });
+      });
+      var on = (!!am && has(am, "anti-malware") && am["anti-malware"] !== false) || switched;
+      var guarding = on && runsService(doc, id);
       return guarding ? "used while anti-malware is on · unknown until given" : null;
     }
     if (slot === "deploy-exploit" && !hasProduct(doc, id)) return null;

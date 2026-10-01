@@ -637,3 +637,20 @@ fn a_disabled_ids_costs_nothing_and_one_never_got_past_blocks_like_a_patch() {
         "a login is not watched for"
     );
 }
+
+#[test]
+fn an_ids_whose_switch_is_unknown_withholds_the_number() {
+    let text = LECTURE.replacen(
+        "\nassociations:\n",
+        "  sensor:\n    kind: ids\n    label: IDS\n    parameters:\n      bypass:\n        status: illustrative\n        ttc: \"Exponential(mean 2)\"\n        note: exercise\n    defenses: {enabled: unknown}\n\nassociations:\n  sensor-watch:\n    kind: watches\n    from: bridge\n    to: sensor\n",
+        1,
+    );
+    let r = solve(&text, None, 1_000);
+    let missing = &r["baseline"]["outcome"]["unavailable"]["missing"];
+    assert_eq!(
+        missing,
+        &serde_json::json!(["entities.sensor.defenses.enabled"]),
+        "{}",
+        r["baseline"]["outcome"]
+    );
+}
