@@ -312,3 +312,40 @@ test('Compare offers static ARP tables only on an end of a plain flow that carri
   doc.flows.ssh.encrypted = true;
   assert.deepEqual(offered(), []);
 });
+
+test('Compare offers a sensor\'s switch only where it guards something', () => {
+  const doc = {
+    entities: {
+      lan: { kind: 'network', label: 'LAN' }, dmz: { kind: 'network', label: 'DMZ' },
+      r1: { kind: 'router', label: 'Router' }, r2: { kind: 'router', label: 'Spare router' },
+      srv: { kind: 'host', label: 'Server' }, ws: { kind: 'host', label: 'Workstation' },
+      cli: { kind: 'application', label: 'Client' }, sshd: { kind: 'service', label: 'SSH' },
+      onroute: { kind: 'ids', label: 'On the route', defenses: { enabled: true } },
+      offroute: { kind: 'ids', label: 'Off the route', defenses: { enabled: true } },
+      onhost: { kind: 'ips', label: 'On the server', defenses: { enabled: true } },
+      idle: { kind: 'ids', label: 'Watching nothing', defenses: { enabled: 'unknown' } },
+      onws: { kind: 'ids', label: 'On the workstation', defenses: { enabled: true } },
+    },
+    associations: {
+      h1: { kind: 'hosts', from: 'ws', to: 'cli', privilege: 'user' }, h2: { kind: 'hosts', from: 'srv', to: 'sshd', privilege: 'admin' },
+      w1: { kind: 'watches', from: 'r1', to: 'onroute' }, w2: { kind: 'watches', from: 'r2', to: 'offroute' },
+      w3: { kind: 'watches', from: 'srv', to: 'onhost' }, w4: { kind: 'watches', from: 'ws', to: 'onws' },
+    },
+    flows: { ssh: { label: 'SSH', source: 'cli', target: 'sshd', route: ['lan', 'r1', 'dmz'] } },
+  };
+  const cat = { entities: [{ kind: 'ids', defenses: ['enabled'] }, { kind: 'ips', defenses: ['enabled'] }], defenses: [] };
+  // The workstation runs no service: its sensor guards nothing there.
+  assert.deepEqual(C.switches(doc, cat).map((x) => x.entity), ['onroute', 'onhost']);
+});
+
+test('a scenario turning an optional switch off on a component that never said it is as written', () => {
+  const doc = {
+    entities: { srv: { kind: 'host', label: 'Server' } },
+    associations: {},
+    scenarios: { off: { label: 'No ASLR', changes: [{ entity: 'srv', defense: 'aslr', value: false }] }, on: { label: 'ASLR', changes: [{ entity: 'srv', defense: 'aslr', value: true }] } },
+  };
+  const cat = { entities: [{ kind: 'host', defenses: ['aslr'], optional_defenses: ['aslr'] }], defenses: [] };
+  assert.deepEqual(C.settings(doc, 'off', cat).asWritten, ['entities.srv.defenses.aslr'], 'absent is off');
+  assert.deepEqual(C.settings(doc, 'on', cat).asWritten, []);
+  assert.deepEqual(C.changedSteps({ nodes: [] }, doc, 'off', cat), { steps: [], speed: null });
+});

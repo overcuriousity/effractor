@@ -116,6 +116,20 @@
       return poisonable && (hostOf(doc, f.source) === id || hostOf(doc, f.target) === id);
     });
   }
+  // Whether a sensor guards anything: it is watched from a router some flow
+  // is routed through, or from a host that runs a service.
+  function guards(doc, sensor) {
+    return Object.keys(doc.associations || {}).some(function (k) {
+      var a = doc.associations[k];
+      if (a.kind !== "watches" || a.to !== sensor || !has(doc.entities, a.from)) return false;
+      if (doc.entities[a.from].kind === "host") return runsService(doc, a.from);
+      return Object.keys(doc.flows || {}).some(function (f) {
+        return (doc.flows[f].route || []).some(function (hop, i) {
+          return i % 2 === 1 && hop === a.from;
+        });
+      });
+    });
+  }
   function hostOf(doc, id) {
     var k = Object.keys(doc.associations || {}).find(function (k) {
       var a = doc.associations[k];
@@ -607,7 +621,7 @@
     });
   }
 
-  var api = { interceptable: interceptable, pinStates: pinStates, outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, slotRows: slotRows, shownDefenses: shownDefenses, defenseRows: defenseRows, ringsIn: ringsIn };
+  var api = { guards: guards, interceptable: interceptable, pinStates: pinStates, outlineRows: outlineRows, describe: describe, route: route, shownSlots: shownSlots, slotRows: slotRows, shownDefenses: shownDefenses, defenseRows: defenseRows, ringsIn: ringsIn };
   if (typeof module !== "undefined") module.exports = api;
   if (typeof window !== "undefined") window.effractorArchitectureView = api;
 })();

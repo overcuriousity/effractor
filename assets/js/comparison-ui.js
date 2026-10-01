@@ -123,7 +123,7 @@
   }
 
   function settingsForm(box, d, id) {
-    var set = C.settings(d, id);
+    var set = C.settings(d, id, catalog());
     var form = el("div", null, "compare-form");
 
     var name = el("input");
@@ -168,7 +168,7 @@
 
     var head = el("h3", "Changes");
     var add = button("+", "Set a defence or a permission", function () {
-      addMenu(add, doc(), id, C.settings(doc(), id));
+      addMenu(add, doc(), id, C.settings(doc(), id, catalog()));
     }, "label-action");
     add.setAttribute("aria-label", "Set a defence or a permission");
     head.appendChild(add);
@@ -318,8 +318,8 @@
       }));
       return;
     }
-    var r = C.routes(g.graph, results, d, id);
-    var changed = C.changedSteps(g.graph, d, id);
+    var r = C.routes(g.graph, results, d, id, catalog());
+    var changed = C.changedSteps(g.graph, d, id, catalog());
     if (changed.speed !== null) box.appendChild(el("p", "every timed step at " + C.speedText(changed.speed), "hint"));
     if (r.targetBlocked) box.appendChild(el("p", "the target is blocked", "hint"));
     // What the attacker does instead: the scenario's own routes.

@@ -161,6 +161,8 @@
         if ((d === "anti-malware" || d === "host-firewall") && !runsService && !(e.defenses && has(e.defenses, d))) return;
         // Hardening only where the host can escalate.
         if (d === "hardened" && !(e.parameters && has(e.parameters, "escalate")) && !(e.defenses && has(e.defenses, d))) return;
+        // A sensor's switch only where it guards something.
+        if (d === "enabled" && !view.guards(doc, id)) return;
         // Static ARP tables only where ARP cache poisoning can take something.
         if (d === "static-arp" && !view.interceptable(doc, id) && !(e.defenses && has(e.defenses, d))) return;
         // An optional switch not set is off; any other one unsaid, unknown.
@@ -178,26 +180,30 @@
   }
 
   // A switch as the file writes it, before any scenario: true, false or
-  // "unknown" (also for one the file leaves out).
-  function written_(doc, change) {
+  // "unknown" (also for one the file leaves out) — but a switch optional on
+  // its kind (`catalog`, when given) that the file leaves out is off.
+  function written_(doc, change, catalog) {
     if (change.association != null) {
       var a = doc.associations && doc.associations[change.association];
       return a && a.allowed !== undefined ? a.allowed : "unknown";
     }
     var e = doc.entities && doc.entities[change.entity];
-    return e && e.defenses && has(e.defenses, change.defense) ? e.defenses[change.defense] : "unknown";
+    if (e && e.defenses && has(e.defenses, change.defense)) return e.defenses[change.defense];
+    var spec = e ? ((catalog && catalog.entities) || []).filter(function (k) { return k.kind === e.kind; })[0] : null;
+    return spec && (spec.optional_defenses || []).indexOf(change.defense) >= 0 ? false : "unknown";
   }
 
   // What one scenario sets, by switch path; which of those only repeat what
-  // the file says (no change at all); and its attacker's speed.
-  function settings(doc, id) {
+  // the file says (no change at all); and its attacker's speed. `catalog`,
+  // when given, says which switches are optional (absent is off).
+  function settings(doc, id, catalog) {
     if (!has(doc && doc.scenarios, id)) return null;
     var s = doc.scenarios[id];
     var values = {};
     var asWritten = [];
     (s.changes || []).forEach(function (c) {
       values[keyOf(c)] = c.value;
-      if (written_(doc, c) === c.value) asWritten.push(keyOf(c));
+      if (written_(doc, c, catalog) === c.value) asWritten.push(keyOf(c));
     });
     return { label: s.label, values: values, asWritten: asWritten, speed: s.attacker && typeof s.attacker.speed === "number" ? s.attacker.speed : null };
   }
@@ -264,8 +270,8 @@
 
   // The generated steps that read a switch the scenario sets, and the speed
   // it gives the attacker (which touches every timed step alike).
-  function changedSteps(graph, doc, id) {
-    var s = settings(doc, id);
+  function changedSteps(graph, doc, id, catalog) {
+    var s = settings(doc, id, catalog);
     if (!s) return { steps: [], speed: null };
     var keys = Object.keys(s.values).filter(function (k) {
       return s.asWritten.indexOf(k) < 0;
@@ -306,12 +312,12 @@
   // steps through which the target can still be reached under the scenario.
   // Open and closed are the solver's per-side states: a step that no sample
   // reached can still be open.
-  function routes(graph, result, doc, id) {
+  function routes(graph, result, doc, id, catalog) {
     if (!result || !result.scenario) return null;
     var base = statuses(result.baseline);
     var scen = statuses(result.scenario);
     var target = result.target;
-    var changed = changedSteps(graph, doc, id).steps;
+    var changed = changedSteps(graph, doc, id, catalog).steps;
     var byId = Object.create(null);
     graph.nodes.forEach(function (n) {
       byId[n.id] = n;

@@ -164,9 +164,10 @@
       return fresh(app).then(function (f) {
         if (!f.results) return f;
         var C = window.effractorComparison, r = f.results;
+        var U = window.effractorArchitectureUi;
         var graph = app.state.generated && app.state.generated.graph;
         try {
-          return done(shape({ summary: C.summary(r), routes: C.routes(graph, r, app.state.doc, i.scenario) }));
+          return done(shape({ summary: C.summary(r), routes: C.routes(graph, r, app.state.doc, i.scenario, U ? U.catalog() : null) }));
         } catch (e) {
           return done(shape(r));
         }
