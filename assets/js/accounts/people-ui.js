@@ -42,14 +42,18 @@
   }
 
   // Suggestions under the name field: the app's own list, not a datalist.
-  var picked = null, suggestTimer = null;
+  // Only the answer for what the field holds now is shown: one for an
+  // earlier spelling that arrives late is dropped.
+  var picked = null, suggestTimer = null, suggestAsked = 0;
   $("share-people-name").addEventListener("input", function () {
     picked = null;
     clearTimeout(suggestTimer);
+    var mine = ++suggestAsked;
     var q = $("share-people-name").value.trim();
     if (!q) { $("share-people-suggest").hidden = true; return; }
     suggestTimer = setTimeout(function () {
       client.request("GET", "/api/directory?q=" + encodeURIComponent(q)).then(function (res) {
+        if (mine !== suggestAsked) return;
         var ul = $("share-people-suggest");
         ul.innerHTML = "";
         (res.ok ? res.data : []).forEach(function (e) {

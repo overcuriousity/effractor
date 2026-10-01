@@ -43,15 +43,21 @@
     searchTimer = setTimeout(function () { query = $("documents-search").value.trim(); refresh(); }, 200);
   });
 
+  // Only the latest request's answer is drawn: an older one arriving after
+  // it (a search typed on, a login meanwhile) would bring back a list
+  // nobody asks for any more. Its callers get the latest listing instead.
+  var asked = 0, answer = Promise.resolve(null);
   function refresh() {
     var user = A.session.user;
+    var mine = ++asked;
     $("documents-logged-out").hidden = !!user;
     ["documents-search", "documents-recent-section", "documents-mine-section", "documents-shared-section"].forEach(function (id) {
       $(id).hidden = !user;
     });
-    if (!user) return Promise.resolve(null);
+    if (!user) return (answer = Promise.resolve(null));
     var path = "/api/documents" + (query ? "?q=" + encodeURIComponent(query) : "");
-    return client.request("GET", path).then(function (res) {
+    answer = client.request("GET", path).then(function (res) {
+      if (mine !== asked) return answer;
       if (!res.ok) {
         $("documents-mine").innerHTML = "";
         $("documents-mine").appendChild(empty(res.status === 0 ? "Server unreachable" : "Could not load"));
@@ -64,6 +70,7 @@
       if (A.sync && A.sync.showPath) A.sync.showPath();
       return listing;
     });
+    return answer;
   }
 
   // ---- drawing ----

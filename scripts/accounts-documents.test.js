@@ -93,3 +93,41 @@ test("a save updates its row in the listing, and nothing else", () => {
   assert.equal(D.patch(listing, 404, { name: "x" }), listing, "an unknown id changes nothing");
   assert.equal(D.patch(null, 3, { name: "x" }), null);
 });
+
+// The Documents tab over the least DOM it needs, its requests answered when
+// the test says so.
+function documentsTab() {
+  const { readFileSync } = require("node:fs");
+  const vm = require("node:vm");
+  const { element } = require("./fixtures/fake-dom.js");
+  const nodes = new Map();
+  const asked = [];
+  const document = {
+    getElementById(id) { if (!nodes.has(id)) nodes.set(id, Object.assign(element("div"), { style: { setProperty() {} }, dataset: {}, innerHTML: "" })); return nodes.get(id); },
+    createElement: (tag) => Object.assign(element(tag), { style: { setProperty() {} }, dataset: {} }),
+    createTextNode: (text) => Object.assign(element("#text"), { textContent: text }),
+    querySelectorAll: () => [],
+    querySelector: (sel) => (sel === ".doc-rename" || / svg$/.test(sel) ? null : element("div")),
+  };
+  const window = {
+    effractor: {},
+    effractorAccounts: {
+      documents: D,
+      session: { user: { id: 1 }, onChange() {} },
+      client: { request: (method, path) => new Promise((resolve) => asked.push({ method, path, resolve })) },
+    },
+  };
+  vm.runInNewContext(readFileSync("assets/js/accounts/documents-ui.js", "utf8"), { window, document, setTimeout, clearTimeout });
+  return { ui: window.effractorAccounts.documentsUi, asked };
+}
+
+test("the Documents list draws only the latest request's answer", async () => {
+  const { ui, asked } = documentsTab();
+  const first = ui.refresh();
+  const second = ui.refresh();
+  asked[1].resolve({ ok: true, status: 200, data: { me: "new", folders: [], documents: [] } });
+  assert.equal((await second).me, "new");
+  asked[0].resolve({ ok: true, status: 200, data: { me: "old", folders: [], documents: [] } });
+  assert.equal((await first).me, "new", "the older one's caller gets the latest listing");
+  assert.equal(ui.listing().me, "new", "and the older answer is not drawn over it");
+});
