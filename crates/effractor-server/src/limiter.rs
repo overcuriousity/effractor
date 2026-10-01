@@ -10,6 +10,8 @@ use crate::share::Timestamp;
 pub struct Limiter {
     per_hour: u32,
     buckets: HashMap<Key, Bucket>,
+    /// How many addresses make the next prune.
+    prune_at: usize,
 }
 
 /// Tagged by family, so a v6 prefix never shares a bucket with the v4 address
@@ -25,7 +27,9 @@ struct Bucket {
     at: Timestamp,
 }
 
-/// Addresses tracked before the full buckets — which say nothing — are dropped.
+/// Addresses tracked before the full buckets — which say nothing — are
+/// dropped. When most are not full, the next prune waits until the map has
+/// doubled, so that a crowd of live addresses is not scanned on every take.
 const PRUNE_AT: usize = 10_000;
 
 impl Limiter {
@@ -33,6 +37,7 @@ impl Limiter {
         Self {
             per_hour,
             buckets: HashMap::new(),
+            prune_at: PRUNE_AT,
         }
     }
 
@@ -54,9 +59,10 @@ impl Limiter {
     pub fn take(&mut self, ip: IpAddr, now: Timestamp) -> Result<(), u64> {
         let capacity = f64::from(self.per_hour);
         let per_second = capacity / 3600.0;
-        if self.buckets.len() >= PRUNE_AT {
+        if self.buckets.len() >= self.prune_at {
             self.buckets
                 .retain(|_, b| b.tokens + now.saturating_sub(b.at) as f64 * per_second < capacity);
+            self.prune_at = (2 * self.buckets.len()).max(PRUNE_AT);
         }
         let bucket = self.buckets.entry(Self::key(ip)).or_insert(Bucket {
             tokens: capacity,
@@ -96,6 +102,28 @@ mod tests {
 
     fn free(limiter: &mut Limiter, ip: &str) -> bool {
         limiter.take(ip.parse().unwrap(), 0).is_ok()
+    }
+
+    /// One take each from `n` addresses from `from` on.
+    fn crowd(limiter: &mut Limiter, from: u32, n: u32, now: Timestamp) {
+        for i in from..from + n {
+            assert!(limiter.take(IpAddr::V4(i.into()), now).is_ok());
+        }
+    }
+
+    #[test]
+    fn live_buckets_are_pruned_again_only_once_they_have_doubled() {
+        let mut limiter = Limiter::new(2);
+        // Each has taken one of two: none is full, so a prune drops none.
+        crowd(&mut limiter, 0, PRUNE_AT as u32 + 1, 0);
+        assert_eq!(limiter.buckets.len(), PRUNE_AT + 1);
+        assert_eq!(limiter.prune_at, 2 * PRUNE_AT);
+        // An hour on they are all full again, and the next prune drops them.
+        crowd(&mut limiter, PRUNE_AT as u32 + 1, PRUNE_AT as u32 - 1, 3600);
+        assert_eq!(limiter.buckets.len(), 2 * PRUNE_AT);
+        assert!(limiter.take("192.0.2.1".parse().unwrap(), 3600).is_ok());
+        assert_eq!(limiter.buckets.len(), PRUNE_AT, "the older half went");
+        assert_eq!(limiter.prune_at, 2 * PRUNE_AT - 2);
     }
 
     #[test]
