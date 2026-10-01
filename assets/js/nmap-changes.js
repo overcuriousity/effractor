@@ -213,7 +213,7 @@
       });
 
       // ---- another way to it ----
-      if (path && path.hops.length && !path.cut) {
+      if (path && path.hops.length && !path.cut && !path.loop) {
         var drawn = path.hops.map(function (k) { return routerAt[k].router; });
         var toIt = all.filter(function (f) { return f.source === appId && mine.indexOf(f.target) >= 0; });
         var off = toIt.filter(function (f) {
@@ -241,7 +241,7 @@
     if (firewallRan && !ackOnly) {
       rows.forEach(function (h) {
         var path = (way.paths || {})[h.key];
-        if (!path || path.cut) return;
+        if (!path || path.cut || path.loop) return;
         var walls = path.hops.map(function (k) { return routerAt[k].router; }).filter(function (id) { return id && firewallOf(ix, id); });
         if (!walls.length) return;
         h.ports.forEach(function (r) {

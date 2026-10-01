@@ -63,15 +63,22 @@
       for (var i = 0; i < hops.length && Ad.isPrivate(hops[i].address); i++) kept.push(hops[i]);
       var path = { hops: [], cut: hops.length - kept.length, first: null, last: r.on[0] || null };
       var before = null;
-      kept.forEach(function (hop) {
+      for (var j = 0; j < kept.length; j++) {
+        var hop = kept[j];
+        // A route that comes by the same router twice is not one to draw:
+        // what it saw up to there is, nothing after, and no flow takes it.
+        // `loop`: the router it came back to.
+        var key = "r:" + Ad.addressKey(hop.address);
+        if (path.hops.indexOf(key) >= 0) {
+          path.loop = byKey[key].label;
+          break;
+        }
         var it = router(hop);
-        // A route that comes by the same router twice is not one to draw.
-        if (path.hops.indexOf(it.key) >= 0) return;
         it.targets++;
         if (before) between(before.router, it, hop.ttl - before.ttl - 1);
         path.hops.push(it.key);
         before = { router: it, ttl: hop.ttl };
-      });
+      }
       if (path.hops.length) {
         var one = byKey[path.hops[0]];
         path.first = ctx.appNets.filter(function (n) { return n === "new" ? ctx.proposed && Ad.inCidr(one.address, ctx.proposed.cidr) : holds(doc, n, one.address); })[0]
@@ -83,7 +90,7 @@
   }
 
   // The way as the preview says it: "via gw.lab, 172.16.0.1 · then 7 hops
-  // on the internet".
+  // on the internet", or "… · then back to gw.lab" where it looped.
   function said(p, rowKey) {
     var path = p.paths && p.paths[rowKey];
     if (!path || (!path.hops.length && !path.cut)) return "";
@@ -92,7 +99,8 @@
     });
     var parts = [];
     if (via.length) parts.push("via " + via.join(", "));
-    if (path.cut) parts.push((via.length ? "then " : "") + path.cut + (path.cut === 1 ? " hop" : " hops") + " on the internet");
+    if (path.loop) parts.push("then back to " + path.loop);
+    else if (path.cut) parts.push((via.length ? "then " : "") + path.cut + (path.cut === 1 ? " hop" : " hops") + " on the internet");
     return parts.join(" · ");
   }
 
@@ -148,7 +156,7 @@
     var routesOf = {};
     Object.keys(p.paths || {}).forEach(function (rowKey) {
       var path = p.paths[rowKey], n = path.hops.length;
-      if (!n || path.cut) return;
+      if (!n || path.cut || path.loop) return;
       var first = path.first ? env.net(path.first) : null, last = path.last ? env.net(path.last) : null;
       if (!first || !last || path.hops.some(function (k) { return !routerOf[k]; })) return;
       var route = [first];

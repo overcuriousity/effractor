@@ -117,6 +117,25 @@ test('an unticked router is not drawn, and the flows through it have no route', 
   assert.deepEqual(Object.values(doc.flows).map(f => f.route.length), [0, 5, 0]);
 });
 
+test('a trace that comes by a router twice is drawn up to the loop, and no flow takes it', () => {
+  // gw.lab, 172.16.0.1, gw.lab again, then 172.16.9.1 and the host.
+  const s = N.read(fixture('route.xml').replace('<hop ttl="1" ipaddr="10.0.1.1" rtt="1.00" host="gw.lab"/>\n<hop ttl="2" ipaddr="172.16.0.1" rtt="2.00"/>\n<hop ttl="3" ipaddr="10.9.0.10" rtt="3.00"/>',
+    '<hop ttl="1" ipaddr="10.0.1.1" rtt="1.00" host="gw.lab"/>\n<hop ttl="2" ipaddr="172.16.0.1" rtt="2.00"/>\n<hop ttl="3" ipaddr="10.0.1.1" rtt="3.00" host="gw.lab"/>\n<hop ttl="4" ipaddr="172.16.9.1" rtt="4.00"/>\n<hop ttl="5" ipaddr="10.9.0.10" rtt="5.00"/>')).scan;
+  s.hosts = s.hosts.slice(0, 1);
+  const p = N.plan(lab(), 'nmap', s, '', {});
+  assert.deepEqual(p.routers.map(r => r.address), ['10.0.1.1', '172.16.0.1'], 'nothing past the loop');
+  assert.deepEqual(p.links.map(l => l.label), ['between gw.lab and 172.16.0.1']);
+  const path = p.paths[p.hosts[0].key];
+  assert.deepEqual([path.hops.length, path.loop], [2, 'gw.lab']);
+  assert.equal(N.routeSaid(p, p.hosts[0].key), 'via gw.lab, 172.16.0.1 · then back to gw.lab');
+  const doc = imported(lab(), s);
+  assert.equal(kinds(doc, 'router').length, 2, 'what was seen before the loop is drawn');
+  assert.deepEqual(Object.values(doc.flows).map(f => f.route), [[]], 'the way to the host is not known');
+  // A rescan offers no way through the loop either.
+  const again = N.plan(doc, 'nmap', s, '', {});
+  assert.deepEqual(again.changes.list.filter(c => c.kind === 'route'), []);
+});
+
 test('a scan without traces plans and applies as before', () => {
   const s = N.read(fixture('deep-lab.xml')).scan;
   const p = N.plan(lab(), 'nmap', s, '', {});
