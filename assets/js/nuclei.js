@@ -105,7 +105,10 @@
 
     // effractor's own templates (nuclei templates spec §4): their answers
     // are facts about a port, a host or a name, not findings.
-    var ours = got.list.filter(function (r) { return /^effractor-/.test(word(r["template-id"])); });
+    // Told apart in one pass: asking `ours` for each other line was
+    // quadratic (review 2026-10-01).
+    var ours = [], theirs = [];
+    got.list.forEach(function (r) { (/^effractor-/.test(word(r["template-id"])) ? ours : theirs).push(r); });
     var answers = T.read(ours);
     var points = [];
 
@@ -115,7 +118,7 @@
       var day = /^\d{4}-\d{2}-\d{2}/.exec(word(r.timestamp));
       if (day && (!first || day[0] < first)) first = day[0];
     });
-    var read = got.list.filter(function (r) { return ours.indexOf(r) < 0; }).map(function (r) {
+    var read = theirs.map(function (r) {
       var at = target(r["matched-at"]), url = target(r.url), host = target(r.host);
       var scheme = at.scheme || url.scheme || word(r.scheme).toLowerCase() || null;
       var said = host.host || at.host || url.host;
