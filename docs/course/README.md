@@ -68,6 +68,8 @@ and the server network and has a firewall. The workstation is in the client
 network and runs an SSH client as a user. The server is in the server network
 and runs the SSH server (OpenSSH) as admin. One flow, SSH over tcp/22, goes
 from the client through the router to the server, and the firewall permits it.
+It is encrypted, as SSH is: ARP cache poisoning in a network on its way would
+take nothing off it.
 
 As the extract draws them: the router and the server each have an access
 control, where their accounts log in; the server runs Ubuntu Linux, the
@@ -95,8 +97,8 @@ admin control of the server.
 2. Link them with **L**, or add a component already linked to the selected
    one with **Tab**. The table below lists every relationship. Add the flow
    from the SSH client to the SSH server and select it: in its form, lead
-   its route over the client network, the router and the server network, and
-   set the firewall's entry to *Allowed*.
+   its route over the client network, the router and the server network,
+   set the firewall's entry to *Allowed* and *Encrypted* to *Yes*.
 3. Drag *Foothold* onto the workstation and *Target* onto the server, both
    with admin control.
 4. Open *Attack graph* (G). Two ways lead to the target: finding and using an

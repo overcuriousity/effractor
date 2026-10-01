@@ -282,6 +282,7 @@ flows:
     target: sshd
     route: [client-net, bridge, server-net]
     protocol: tcp/22
+    encrypted: true
     parameters:
       connect:
         status: illustrative
