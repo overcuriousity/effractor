@@ -145,6 +145,19 @@ pub fn sample(d: &Distribution, rng: &mut ChaCha8Rng) -> f64 {
     }
 }
 
+/// The exponential CDF at `t >= 0`. A rate that overflowed to `INFINITY` is
+/// all its mass at 0, as [`sample`] draws it, and a rate of 0 is never; the
+/// formula would give ∞·0 = NaN at t = 0 and 0·∞ at t = ∞.
+fn exponential(rate: f64, t: f64) -> f64 {
+    if rate == f64::INFINITY {
+        1.0
+    } else if rate == 0.0 {
+        0.0
+    } else {
+        -expm1(-rate * t)
+    }
+}
+
 /// P(X <= t). For a time-to-compromise this is the probability the step has
 /// happened by `t`; it tops out at the mass that is not "never".
 pub fn cdf(d: &Distribution, t: f64) -> f64 {
@@ -154,8 +167,8 @@ pub fn cdf(d: &Distribution, t: f64) -> f64 {
     }
     match d {
         D::Bernoulli(p) => *p,
-        D::Exponential(rate) => -expm1(-rate * t),
-        D::ExponentialMean(mean) => -expm1(-(1.0 / mean) * t),
+        D::Exponential(rate) => exponential(*rate, t),
+        D::ExponentialMean(mean) => exponential(1.0 / mean, t),
         D::Gamma { shape, scale } => gamma_p(*shape, t / scale),
         D::LogNormal { mu, sigma } => {
             if t == 0.0 {
@@ -173,7 +186,7 @@ pub fn cdf(d: &Distribution, t: f64) -> f64 {
         }
         D::TruncatedNormal { mean, sd } => match truncation(*mean, *sd) {
             Truncation::Tail(q_a) => (1.0 - upper((t - mean) / sd) / q_a).clamp(0.0, 1.0),
-            Truncation::Exponential(rate) => -expm1(-rate * t),
+            Truncation::Exponential(rate) => exponential(rate, t),
         },
         D::Zero => 1.0,
         D::Infinity => 0.0,

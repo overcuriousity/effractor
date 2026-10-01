@@ -191,6 +191,33 @@ fn a_uniform_never_reaches_either_end() {
     assert_eq!((lo, hi), (0.5 / 4_503_599_627_370_496.0, 1.0 - lo));
 }
 
+/// A rate that overflowed — written so, from a mean too small to invert, or
+/// a truncated normal whose tail rate is past the largest float — put all
+/// the mass at 0, as the sampler has it; at t = 0 the CDF was ∞·0, NaN. A
+/// rate of 0 is never, at t = ∞ too.
+#[test]
+fn an_overflowed_rate_is_everything_at_once() {
+    for d in [
+        D::Exponential(f64::INFINITY),
+        D::ExponentialMean(5e-324),
+        D::TruncatedNormal {
+            mean: -1e308,
+            sd: 1e-300,
+        },
+    ] {
+        for t in [0.0, 1e-300, 1.0, f64::INFINITY] {
+            assert_eq!(cdf(&d, t), 1.0, "{d:?} at {t}");
+        }
+        let mut rng = chunk_rng(3, 0);
+        assert_eq!(sample(&d, &mut rng), 0.0, "{d:?}");
+    }
+    for d in [D::Exponential(0.0), D::ExponentialMean(f64::INFINITY)] {
+        for t in [0.0, 1.0, f64::INFINITY] {
+            assert_eq!(cdf(&d, t), 0.0, "{d:?} at {t}");
+        }
+    }
+}
+
 #[test]
 fn nothing_happens_before_time_zero() {
     for d in [
