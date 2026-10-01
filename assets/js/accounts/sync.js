@@ -48,6 +48,7 @@
       folder: function () { return A.documentsUi ? A.documentsUi.selectedFolder() : null; },
       say: function (text, actions, sticky) { app.say(text, actions, sticky); },
       replace: function (text, said, opts) { return app.replaceDocument(text, said, null, opts); },
+      freshHistory: function (p) { app.freshHistory(p); },
     },
     renameText: renameText,
     time: function (ts) {
@@ -82,6 +83,7 @@
   });
 
   app.onText(core.text);
+  app.setServerHolds(core.holds);
   core.init();
   A.session.onChange(function (user) {
     // Only a login in this page offers local work, not a page load.

@@ -1014,7 +1014,7 @@
       historyOf(state.doc.profile).push(state.text);
       return true;
     }).then(function (applied) {
-      if (applied) say("changed in another tab · Ctrl+Z goes back");
+      if (applied) say("changed in another tab" + GOES_BACK);
     }).catch(function (e) {
       console.error(e);
     });
@@ -1133,8 +1133,11 @@
       return keptElsewhere(parsed.ok.profile).then(function (kept) {
         return adopt(text, state.selected, state.parent, false, function () {
           // Text of another mode goes into that mode: what it replaces there
-          // is one Ctrl+Z away, as for a file opened (replaceDocument).
-          keepReplaced(parsed.ok.profile, kept);
+          // is one Ctrl+Z away, as for a file opened (replaceDocument) —
+          // unless that is a document the server keeps.
+          var into = parsed.ok.profile;
+          if (state.doc && state.doc.profile !== into && serverHolds(into)) freshHistory(into);
+          else keepReplaced(into, kept);
           return true;
         });
       }).then(function (applied) {
@@ -1154,10 +1157,26 @@
   // A text of mode `into` is about to replace that mode's document: the one
   // it replaces goes into that mode's history. That is the text on the page,
   // or the one last seen in that mode, or else what this browser keeps for
-  // it (`kept`, read beforehand with keptElsewhere).
+  // it (`kept`, read beforehand with keptElsewhere). Says whether one went in.
   function keepReplaced(into, kept) {
     var before = state.doc && state.doc.profile === into ? state.text : slots[into] !== undefined ? slots[into] : kept;
-    if (before !== undefined && before !== null) historyOf(into).push(before);
+    if (before === undefined || before === null) return false;
+    historyOf(into).push(before);
+    return true;
+  }
+  // A document the server keeps is in mode `profile` (accounts: sync.js
+  // answers). An undo never crosses from one such document into another
+  // text, nor from another text into it: the mode's history starts anew.
+  var serverHolds = function () { return false; };
+  var GOES_BACK = " · Ctrl+Z goes back";
+  function freshHistory(profile) {
+    histories[profile] = window.effractorEdit.createHistory();
+    if (state.doc && state.doc.profile === profile) {
+      undoStack = histories[profile];
+      // What was said about going back no longer holds.
+      var note = $("note"), said = note ? note.textContent : "";
+      if (said.slice(-GOES_BACK.length) === GOES_BACK) note.textContent = said.slice(0, -GOES_BACK.length);
+    }
   }
   function keptElsewhere(profile) {
     return (state.doc && state.doc.profile === profile) || slots[profile] !== undefined ? Promise.resolve(null) : keptText(profile);
@@ -1654,6 +1673,7 @@
   // mode's undo history anew (accounts: what the server keeps).
   function replaceDocument(text, said, isCurrent, opts) {
     gate.issue("mode"); // a mode switch on its way gives way to this document
+    var back = false; // what it replaces is a Ctrl+Z away
     return solver.parse(text).then(function (parsed) {
       if (isCurrent && !isCurrent()) return false;
       if (!parsed.ok) return notOpened(text, parsed.diagnostics);
@@ -1667,17 +1687,18 @@
             // Check before touching either the document or its undo history.
             if (isCurrent && !isCurrent()) return false;
             replacing = (opts && opts.origin) || "other";
-            // A document the server keeps starts its own history: the one it
-            // replaces is safe on the server, and an undo must never write one
-            // document's text into another.
-            if (opts && opts.fresh) histories[parsed.ok.profile] = window.effractorEdit.createHistory();
+            // A document the server keeps starts its own history, and so
+            // does the mode of one it replaces: that one is safe on the
+            // server, and an undo must never write one document's text into
+            // another.
+            if ((opts && opts.fresh) || serverHolds(parsed.ok.profile)) freshHistory(parsed.ok.profile);
             // Opened into its own mode: what it replaces there is one Ctrl+Z away.
-            else keepReplaced(parsed.ok.profile, kept);
+            else back = keepReplaced(parsed.ok.profile, kept);
             return true;
           });
         }).then(function (applied) {
           if (!applied || (isCurrent && !isCurrent())) return false;
-          say(opts && opts.fresh ? said : said + " · Ctrl+Z goes back");
+          say(back ? said + GOES_BACK : said);
           return true;
         });
       });
@@ -1879,6 +1900,10 @@
   });
 
   window.effractor.replaceDocument = replaceDocument;
+  window.effractor.freshHistory = freshHistory;
+  window.effractor.setServerHolds = function (f) {
+    serverHolds = f;
+  };
   window.effractor.markSourceDirty = markSourceDirty;
   // Architecture or attack graph (setView); `generate` asks for the graph
   // of the text on the page without changing the view.

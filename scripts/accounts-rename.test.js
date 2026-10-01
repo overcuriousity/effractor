@@ -25,7 +25,7 @@ function page(answer) {
     effractorStore: { createStore: () => store, fileName: (n) => n },
     effractor: {
       state: { text: "fault-tree text", doc: { profile: "fault-tree", name: "X" } },
-      onText() {}, ready: Promise.resolve(), say: (t) => said.push(t),
+      onText() {}, setServerHolds() {}, freshHistory() {}, ready: Promise.resolve(), say: (t) => said.push(t),
       replaceDocument: async () => true, adoptSource: async () => [],
       solver: { parse: async () => ({ ok: {} }), serialize: async () => ({ ok: "t" }) },
     },

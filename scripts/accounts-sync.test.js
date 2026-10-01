@@ -100,7 +100,9 @@ function tab(server, opts = {}) {
   const store = fakeStore(opts.shared);
   const said = [];
   const slots = {};
+  const fresh = [];
   const page = {
+    freshHistory: (p) => fresh.push(p),
     current: null,
     text: () => (page.current ? slots[page.current] : null),
     profile: () => page.current,
@@ -132,7 +134,7 @@ function tab(server, opts = {}) {
     time: (ts) => `t${ts}`,
   });
   return {
-    core, page, timers, said, states, loggedOut, store, created,
+    core, page, timers, said, states, loggedOut, store, created, fresh,
     // An edit, as app.js's onText reports it.
     edit(text) {
       const p = profileOf(text);
@@ -894,6 +896,7 @@ test("an edit taken over from another tab is not a conflict with oneself", async
   assert.equal(server.body(F), doc("fault-tree", "F", "a2"));
   assert.deepEqual(conflicted(a, b), []);
   assert.equal(b.states[b.states.length - 1], "saved");
+  assert.deepEqual([...a.fresh, ...b.fresh], [], "the same document keeps its undo history");
 });
 
 test("a tab's edit made before the other tab's save arrived is still no conflict", async () => {
@@ -919,6 +922,7 @@ test("another document opened in another tab is never saved into the one this ta
   await a.core.open(G);
   b.takeOver(a.page.text());
   await settle();
+  assert.deepEqual(b.fresh, ["fault-tree"], "F's texts are no longer an undo away");
   b.edit(doc("fault-tree", "G", "b1"));
   await timers.advance(5000);
   assert.equal(server.body(F), doc("fault-tree", "F", "f0"), "F untouched");

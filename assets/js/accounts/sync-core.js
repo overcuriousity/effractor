@@ -289,6 +289,9 @@
       return o.store.binding(p).then(function (stored) {
         if (seq[p] !== token) return;
         var r = recs[p];
+        // Another document (or none) in the mode: an undo here must not
+        // carry this tab's texts of the one before into it.
+        if ((r ? r.id : null) !== (stored ? stored.id : null) && o.page.freshHistory) o.page.freshHistory(p);
         if (!user) {
           if (stored) recs[p] = stored;
           else delete recs[p];
@@ -526,6 +529,9 @@
       },
       openId: function () { return current && recs[current] ? recs[current].id : null; },
       isOpen: isOpen,
+      // Whether mode p holds a server document (app.js: its undo history
+      // never crosses into another text).
+      holds: function (p) { return !!recs[p]; },
       // The documents with a save queue, for the tests.
       queued: function () { return Array.from(queues.keys()); },
     };

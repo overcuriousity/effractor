@@ -1090,3 +1090,107 @@ test('the chat edits through tryEdit: one undo step, and a refusal as words with
   assert.equal(noted(), 'that changes nothing', 'a person is told by the notice, as before');
   assert.deepEqual(await h.app.tryEdit(null), { ok: false, reason: 'that changes nothing' });
 });
+
+// ---- the page with the real sync core (accounts): an undo never crosses a binding ----
+
+// A page logged in, its texts told to the real sync core, over a server of
+// documents in memory. Saves wait for `flush()`.
+async function syncedPage(kept = 'original') {
+  const { createSyncCore } = require('../assets/js/accounts/sync-core.js');
+  const h = racePage(kept);
+  await h.app.ready; await h.settle();
+  const docs = new Map();
+  let nextId = 100;
+  async function request(method, path, body) {
+    let m;
+    if (method === 'POST' && path === '/api/documents') {
+      const id = nextId++;
+      docs.set(id, { name: body.name, profile: body.profile, body: body.body, version: 1 });
+      return { ok: true, status: 201, data: { id, version: 1 } };
+    }
+    if ((m = /^\/api\/documents\/(\d+)$/.exec(path))) {
+      const d = docs.get(Number(m[1]));
+      if (!d) return { ok: false, status: 404, data: null };
+      if (method === 'GET') return { ok: true, status: 200, data: { id: Number(m[1]), ...d, role: 'owner' } };
+      if (method === 'PUT') {
+        if (body.base !== d.version) return { ok: false, status: 409, data: { version: d.version } };
+        d.version++; d.body = body.body;
+        return { ok: true, status: 200, data: { version: d.version } };
+      }
+    }
+    return { ok: false, status: 404, data: null };
+  }
+  const bindings = new Map();
+  const timers = [];
+  const app = h.app;
+  const core = createSyncCore({
+    request,
+    store: { binding: async p => bindings.get(p) || null, bind: async (p, r) => { if (r) bindings.set(p, JSON.parse(JSON.stringify(r))); else bindings.delete(p); } },
+    page: {
+      text: () => app.state.text,
+      profile: () => (app.state.doc ? app.state.doc.profile : null),
+      folder: () => null,
+      say: app.say,
+      replace: (text, said, opts) => app.replaceDocument(text, said, null, opts),
+      freshHistory: app.freshHistory,
+    },
+    timers: { set: f => timers.push(f), clear: id => { timers[id - 1] = null; } },
+    delay: 800,
+    onState() {}, onSaved() {}, onLoggedOut() {},
+  });
+  app.onText(core.text);
+  app.setServerHolds(core.holds);
+  await core.login({ id: 1, name: 'alice' }, { fresh: false });
+  return Object.assign(h, {
+    core, docs,
+    add(body) { const id = nextId++; docs.set(id, { name: body, profile: 'fault-tree', body, version: 1 }); return id; },
+    async flush() { for (let i = 0; i < 5; i++) { timers.splice(0).filter(Boolean).forEach(f => f()); await h.settle(); } },
+    async undo() { app.undo(); await h.settle(); await h.settle(); },
+  });
+}
+
+test('review: after New over a server document, Ctrl+Z never brings that document into the new one', async () => {
+  const h = await syncedPage();
+  const F = h.add('F0');
+  await h.core.open(F); await h.settle();
+  assert.equal(h.app.state.text, 'F0');
+  // Without the account modules freshFor says nothing: the binding alone decides.
+  assert.equal(await h.app.replaceDocument('N0', 'new fault tree', null, { origin: 'new' }), true);
+  await h.flush();
+  assert.equal(h.nodes.get('note').textContent, 'new fault tree', 'nothing to go back to is not offered');
+  assert.equal(h.app.canUndo(), false);
+  await h.undo();
+  await h.flush();
+  assert.equal(h.app.state.text, 'N0');
+  const created = [...h.docs.values()].find(d => d.name === 'N0');
+  assert.equal(created.body, 'N0', 'the new document has its own text');
+  assert.equal(h.docs.get(F).body, 'F0');
+});
+
+test('review: after a link over a server document, Ctrl+Z does not bring it back unbound', async () => {
+  const h = await syncedPage();
+  const F = h.add('F0');
+  await h.core.open(F); await h.settle();
+  assert.equal(await h.app.replaceDocument('L0', 'opened local copy', null, { origin: 'link' }), true);
+  assert.equal(h.app.canUndo(), false, 'the server document is reopened from the list, not by an undo');
+  assert.doesNotMatch(h.nodes.get('note').textContent, /Ctrl\+Z/);
+});
+
+test('review: source of another mode pasted over a server document there starts that mode afresh', async () => {
+  const h = await syncedPage();
+  const A = h.add('arch server');
+  h.docs.get(A).profile = 'architecture';
+  await h.core.open(A); await h.settle();
+  assert.equal(await h.app.switchMode('fault-tree'), true); await h.settle();
+  h.app.markSourceDirty();
+  assert.deepEqual(await h.app.adoptSource('arch pasted'), []);
+  assert.equal(h.app.canUndo(), false);
+});
+
+test('local work replaced by a local file is still a Ctrl+Z away, and said so', async () => {
+  const h = await syncedPage();
+  assert.equal(await h.app.replaceDocument('other', 'opened other.yaml', null, { origin: 'file' }), true);
+  assert.equal(h.nodes.get('note').textContent, 'opened other.yaml · Ctrl+Z goes back');
+  await h.undo();
+  assert.equal(h.app.state.text, 'original');
+});
