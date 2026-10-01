@@ -151,9 +151,22 @@ fn free_name(t: &Transaction, owner: Id, parent: Option<Id>, name: &str) -> Resu
     Ok(candidate)
 }
 
+/// How many levels `id` and what was deleted with it at `at` take.
+fn deleted_height(t: &Transaction, id: Id, at: Timestamp) -> Result<i64> {
+    Ok(t.query_row(
+        "WITH RECURSIVE down(id, n) AS (
+           SELECT id, 1 FROM folders WHERE id = ?1
+           UNION ALL SELECT f.id, down.n + 1 FROM folders f JOIN down ON f.parent_id = down.id
+           WHERE f.deleted_at = ?2 AND down.n <= ?3)
+         SELECT max(n) FROM down",
+        params![id, at, MAX_DEPTH],
+        |r| r.get(0),
+    )?)
+}
+
 /// Brings back what went with this folder. If the folder it was in is gone
-/// too, it comes back at the root; if its name was taken meanwhile, under a
-/// free one.
+/// too, or has moved so deep that it would not fit there any more, it comes
+/// back at the root; if its name was taken meanwhile, under a free one.
 pub fn restore(t: &Transaction, owner: Id, id: Id) -> Result<()> {
     let found: Option<(Timestamp, Option<Id>, String)> = t
         .query_row(
@@ -165,7 +178,10 @@ pub fn restore(t: &Transaction, owner: Id, id: Id) -> Result<()> {
     let Some((at, parent, name)) = found else {
         return Err(Error::NotFound);
     };
-    let parent = parent.filter(|&p| own(t, owner, p).is_ok());
+    let parent = match parent.filter(|&p| own(t, owner, p).is_ok()) {
+        Some(p) if depth(t, p)? + deleted_height(t, id, at)? <= MAX_DEPTH => Some(p),
+        _ => None,
+    };
     let name = free_name(t, owner, parent, &name)?;
     t.execute(
         "UPDATE folders SET parent_id = ?2, name = ?3, name_key = ?4 WHERE id = ?1",

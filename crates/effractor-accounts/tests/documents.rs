@@ -104,6 +104,52 @@ fn folders_nest_to_thirty_two_and_never_into_themselves() {
     );
 }
 
+/// A folder whose parent moved deeper while it was deleted would come back
+/// too deep: deleting above it would then mark only the first 32 levels, and
+/// the purge's cascade take the live ones below. It comes back at the root.
+#[test]
+fn a_folder_that_would_come_back_too_deep_comes_back_at_the_root() {
+    let (_d, db) = db();
+    let alice = user(&db, "alice");
+    let chain = |top: Option<i64>, prefix: &str| {
+        let mut parent = top;
+        let mut ids = Vec::new();
+        for i in 1..=31 {
+            let id = db
+                .write(|t| folders::create(t, alice, parent, &format!("{prefix}{i}")))
+                .unwrap();
+            ids.push(id);
+            parent = Some(id);
+        }
+        ids
+    };
+    let r = db.write(|t| folders::create(t, alice, None, "R")).unwrap();
+    let a = chain(Some(r), "A");
+    let d = db
+        .write(|t| documents::create(t, alice, Some(a[30]), "D", "fault-tree", "x", 0))
+        .unwrap();
+    db.write(|t| folders::delete(t, alice, a[0], 100)).unwrap();
+    let s = chain(None, "S");
+    db.write(|t| folders::move_to(t, alice, r, Some(s[30])))
+        .unwrap();
+    db.write(|t| folders::restore(t, alice, a[0])).unwrap();
+    let parent_of = |id| {
+        db.read(|c| perms::visible(c, alice, None))
+            .unwrap()
+            .folders
+            .into_iter()
+            .find(|f| f.id == id)
+            .map(|f| f.parent)
+    };
+    assert_eq!(parent_of(a[0]), Some(None), "back at the root");
+    assert_eq!(parent_of(a[30]), Some(Some(a[29])), "with what was in it");
+    // Deleting the other chain and purging it leaves the restored one alone.
+    db.write(|t| folders::delete(t, alice, s[0], 200)).unwrap();
+    db.write(|t| documents::purge(t, 200 + 7 * DAY)).unwrap();
+    assert!(db.read(|c| documents::get(c, d)).unwrap().is_some());
+    assert_eq!(parent_of(a[30]), Some(Some(a[29])));
+}
+
 #[test]
 fn folder_names_are_unique_per_parent_and_only_the_owner_changes_them() {
     let (_d, db) = db();
