@@ -13,7 +13,9 @@ use effractor_core::architecture::{
 };
 use effractor_core::{AssociationId, Code, Document, FlowId, ScenarioId};
 
-const LECTURE: &str = include_str!("../../effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml");
+const LECTURE: &str = include_str!(
+    "../../effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml"
+);
 
 fn architecture(text: &str) -> Architecture {
     match effractor_format::load_document(text) {

@@ -277,7 +277,10 @@ fn the_javascript_fixture_is_the_real_image() {
 #[test]
 fn the_javascript_architecture_fixture_is_the_real_image() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let text = std::fs::read_to_string(root.join("crates/effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml")).unwrap();
+    let text = std::fs::read_to_string(root.join(
+        "crates/effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml",
+    ))
+    .unwrap();
     let fixture =
         std::fs::read_to_string(root.join("scripts/fixtures/architecture.doc.json")).unwrap();
     let fixture: Value = serde_json::from_str(&fixture).unwrap();

@@ -10,8 +10,12 @@ use effractor_solver::graph_plan::{EventPlan, GraphOp::*};
 use effractor_solver::graph_results::{GraphConfig, GraphSolve};
 use serde_json::Value;
 
-const LECTURE: &str = include_str!("../../effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml");
-const UNKNOWN: &str = include_str!("../../effractor-components/tests/fixtures/architectures/lecture-unknown-before-extract.yaml");
+const LECTURE: &str = include_str!(
+    "../../effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml"
+);
+const UNKNOWN: &str = include_str!(
+    "../../effractor-components/tests/fixtures/architectures/lecture-unknown-before-extract.yaml"
+);
 
 fn architecture(text: &str) -> Architecture {
     match effractor_format::load_document(text) {
