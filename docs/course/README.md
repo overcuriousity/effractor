@@ -107,7 +107,8 @@ admin control of the server.
    both keys, *Multi-factor login* on both accounts; and to *On*: *Enabled*
    on the IDS, *Anti-malware* on the server. A new component has its
    switch at *Unknown*, and the target has no number while one that matters
-   is. Fill in the times from the table further down, each with Confidence
+   is; a host's *Anti-malware* is off until set, and its time is asked for
+   once it is on. Fill in the times from the table further down, each with Confidence
    *Illustrative* and its note as Reason. Or open the file, which has all of
    it. Calculate, and read the Time tab.
 6. In Compare, **+** adds a scenario; name it, and set what it changes with
@@ -118,7 +119,7 @@ admin control of the server.
    the router*. Choose one and read which paths it blocks and which remain;
    *nothing · baseline only* shows the baseline alone again. Undo takes back
    an edit to a scenario, not the choice of one.
-7. Set the Confidence of the time to find an exploit to *Unknown*: the
+7. Set the Confidence of OpenSSH's time to find an exploit to *Unknown*: the
    target has no number until it is set again, and the path is still drawn.
 
 | Select | In the Link menu | Choose |
@@ -161,7 +162,7 @@ time that averages 10 days; `Never` is a step that cannot be taken.
 | OpenSSH | Find an exploit | `Exponential(mean 10)` | the same | Find an exploit |
 | OpenSSH | Find an exploit (patched) | `Never` | `Exponential(mean 100)` | Find an exploit, while *Patched* is on |
 | SSH server | Use the exploit | `Exponential(mean 2)` | the same | Use the exploit |
-| Server IDS | Get past it | `Exponential(mean 1)` | the same | Get past the IDS |
+| Server IDS | Get past it | `Exponential(mean 1)` | the same | Get past the IDS or IPS |
 | Server | Get past the anti-malware | `Exponential(mean 1)` | the same | Get past the anti-malware |
 | SSH server | Log in | `Exponential(mean 1)` | the same | Log in to a service |
 | Both keys | Extract | `Exponential(mean 5)` | the same | Extract a credential |
