@@ -60,6 +60,10 @@ impl Oidc {
     pub fn new(cfg: OidcConfig, public_url: &str) -> anyhow::Result<Oidc> {
         let issuer = reqwest::Url::parse(&cfg.issuer)?;
         let http = reqwest::Client::builder()
+            // An issuer that hangs must not hold a login, and its pending
+            // entry and connection, open for ever.
+            .connect_timeout(CONNECT_TIMEOUT)
+            .timeout(REQUEST_TIMEOUT)
             // openidconnect's advice is never to follow redirects (SSRF). One
             // on the issuer's own origin is not that: Nextcloud answers
             // /.well-known/… with a 301 to /index.php/.well-known/….
@@ -91,6 +95,10 @@ impl Oidc {
         &self.cfg.label
     }
 }
+
+/// How long reaching the issuer, and a whole request to it, may take.
+const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 /// How many redirects on the issuer's origin are followed in one request.
 const MAX_REDIRECTS: usize = 5;
