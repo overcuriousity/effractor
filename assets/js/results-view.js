@@ -119,6 +119,11 @@
       // The interval is still given; it is its assumption that fails.
       out.push("Expected loss interval: " + results.sampled.available.loss.mean_ci_unreliable);
     }
+    // One reason for every control's interval: the same draws are in each.
+    var doubted = ((results.controls && results.controls.available && results.controls.available.controls) || []).filter(function (c) {
+      return c.value_ci_unreliable;
+    })[0];
+    if (doubted) out.push("Control value intervals: " + doubted.value_ci_unreliable);
     if (results.attacker && results.attacker.unavailable) out.push("Attacker: " + results.attacker.unavailable.reason);
     return out;
   }

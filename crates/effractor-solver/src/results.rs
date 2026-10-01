@@ -234,6 +234,10 @@ pub struct ControlResult {
     /// random numbers, so this is the interval of a paired difference — and if
     /// it straddles another control's value, more samples will settle it.
     pub value_ci: Option<Band>,
+    /// Present when `value_ci` is given but its normal approximation cannot be
+    /// trusted, for the reason the expected loss's interval cannot.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_ci_unreliable: Option<String>,
     /// `value / cost`, disabled controls only; `null` when it costs nothing.
     pub value_per_cost: Option<f64>,
     /// 1 is the best buy. Disabled controls only.
@@ -665,6 +669,7 @@ impl Solve {
                             flipped: None,
                             value: None,
                             value_ci: None,
+                            value_ci_unreliable: None,
                             value_per_cost: None,
                             rank: None,
                             unavailable: Some(reason.to_owned()),
@@ -697,6 +702,17 @@ impl Solve {
                                 }
                             })
                             .filter(|b| b.lo.is_finite() && b.hi.is_finite());
+                        // The same draws as either scenario's own loss, so the
+                        // same reason to doubt the interval, if there is one.
+                        let unreliable = |j: usize| {
+                            merged[j]
+                                .as_ref()
+                                .and_then(|s| s.loss.as_ref())
+                                .and_then(|l| l.mean_ci_unreliable.clone())
+                        };
+                        let value_ci_unreliable = value_ci
+                            .as_ref()
+                            .and_then(|_| unreliable(0).or_else(|| unreliable(i)));
                         let value_per_cost = (!control.enabled && control.cost > 0.0)
                             .then(|| value / control.cost)
                             .filter(|v| v.is_finite());
@@ -707,6 +723,7 @@ impl Solve {
                             flipped: Some(flipped),
                             value: Some(value),
                             value_ci,
+                            value_ci_unreliable,
                             value_per_cost,
                             rank: None,
                             unavailable: None,

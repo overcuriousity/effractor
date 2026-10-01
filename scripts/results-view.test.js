@@ -81,6 +81,16 @@ test("an expected loss whose interval cannot be trusted says why", () => {
   assert.deepEqual(reasons({ sampled: { available: { loss: { mean: 10, mean_ci: { lo: 2, hi: 18 } } } } }), []);
 });
 
+test("control value intervals that cannot be trusted say why, once", () => {
+  const why = "a loss distribution has so heavy a tail that its variance is infinite";
+  const controls = [
+    { id: "a", value: 2, value_ci: { lo: 1, hi: 3 }, value_ci_unreliable: why },
+    { id: "b", value: 1, value_ci: { lo: 0, hi: 2 }, value_ci_unreliable: why },
+  ];
+  assert.deepEqual(reasons({ controls: { available: { controls } } }), ["Control value intervals: " + why]);
+  assert.deepEqual(reasons({ controls: { available: { controls: [{ id: "a", value: 2, value_ci: { lo: 1, hi: 3 } }] } } }), []);
+});
+
 test("a control whose flip has no numbers carries the solver's reason", () => {
   const doc = { controls: { mfa: { enabled: true, effects: [{}] } } };
   const results = { controls: { available: { controls: [

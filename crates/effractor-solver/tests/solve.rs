@@ -264,6 +264,48 @@ fn an_expected_loss_interval_without_its_assumptions_says_so() {
     assert_eq!(loss(&m, 2000).mean_ci_unreliable, None);
 }
 
+/// A control's value interval is the same normal approximation, of a paired
+/// difference of losses: without a finite variance, or with one sample, it is
+/// said to be unsure for the same reason as the expected loss's.
+#[test]
+fn a_control_value_interval_without_its_assumptions_says_so() {
+    let controls = |m: &Model, samples: u64| {
+        let r = solve(m, &Config { samples, ..cfg(m) }).unwrap();
+        r.controls.available().unwrap().controls.clone()
+    };
+    let m = webserver();
+    assert!(
+        controls(&m, 2000)
+            .iter()
+            .all(|c| c.value_ci_unreliable.is_none())
+    );
+    let one = controls(&m, 1);
+    assert!(one.iter().filter(|c| c.value_ci.is_some()).all(|c| {
+        c.value_ci_unreliable
+            .as_deref()
+            .is_some_and(|r| r.contains("one sample"))
+    }));
+
+    let mut m = webserver();
+    m.assets[&id::<AssetId>("web")].loss.a = Some(D::Pareto {
+        xm: 1e5,
+        alpha: 1.5,
+    });
+    let heavy = controls(&m, 2000);
+    assert!(heavy.iter().any(|c| c.value_ci.is_some()));
+    for c in heavy.iter().filter(|c| c.value_ci.is_some()) {
+        let reason = c.value_ci_unreliable.as_deref().unwrap();
+        assert!(reason.contains("variance"), "{reason}");
+    }
+    assert!(
+        heavy
+            .iter()
+            .filter(|c| c.value_ci.is_none())
+            .all(|c| c.value_ci_unreliable.is_none()),
+        "no interval, nothing to doubt"
+    );
+}
+
 #[test]
 fn a_huge_horizon_keeps_its_time_axis() {
     let mut m = webserver();
