@@ -597,11 +597,239 @@ fn the_lecture_fixture_generates_exactly_as_before() {
 - Tests: `escalation_is_absent_until_a_host_says_how_long_it_takes`; `escalation_is_drawn_and_hardened_replaces_its_time`; `a_user_foothold_reaches_admin_only_through_escalation` (with the slot: `host.admin` has the escalate input; without: it does not — the frozen lecture test still passes).
 - Commit — "Escalate privilege: user to admin on a host, hardened or not".
 
-### Tasks D2 onward and Branch E: planned when Branch C has landed
+### Optional states (applies to D2, D3, D5)
 
-Not written in this plan. They are planned in a separate pass, before Branch D
-starts, from the spec: §5.2–5.4 and the remaining switches of §4 for Branch D,
-§8 for Branch E (`extract-fixture`: the rebuilt course files and text, the
-owner's walk along the extract, the roadmap item removed). Branches A–C and
-Task D1 do not depend on them: nothing those tasks add changes an interface
-that A–C produce.
+Spec §5.2–5.4 add states to kinds that already exist (`physical` and `usb`
+on a host, `unavailable` on a host and a service, `held` on an account).
+`Builder::states()` draws a fact for every state a kind declares, so a
+plain addition to `EntityKind::states()` would add nodes to every existing
+graph. As with optional slots: `State::optional(self, kind) -> bool`
+(true exactly for those four pairs), the validator accepts them where the
+spec says (footholds: `physical`, `usb`, `held`; targets: `unavailable`),
+and the generator draws an optional state's fact only when a foothold or
+the target names it, or when the step that produces it is drawn (its
+optional slot given). Catalog: `entities[].optional_states`. Interfaces:
+`State::optional`, `Builder::draws_state(entity, state) -> bool`.
+
+### Task D2: Physical and USB access (spec §5.2)
+
+**Files:** core (`State::Physical`, `State::Usb` on Host, optional;
+`Slot::Physical`, `Slot::Usb` optional on Host), validator (both are
+foothold states only: a target naming them is `Code::UnknownState` with
+"an attacker input, not a goal"), format `STATES`/`SLOTS` follow from
+`as_str`, catalog (state words *at the machine* / *can plug into it*,
+slot names *Physical access* / *USB access*, rules `physical-access`,
+`usb-access`), `generate.rs` (`host_access()` after `admin_implies_user()`).
+
+**Interfaces:** facts `state/host/<h>/physical`, `state/host/<h>/usb`;
+actions `action/physical-access/<h>` (`[host.physical]` → `host.admin`,
+`Binding::Parameter { owner: h, base: Physical }`), `action/usb-access/<h>`
+(`[host.usb]` → `host.user`). Drawn only with the slot given; the fact is
+drawn with the step or with a foothold naming it.
+
+- [ ] **Step 1: Failing tests** (`provenance.rs`):
+  `physical_access_is_drawn_only_once_a_host_says_how_long_it_takes_fig_5_33`
+  (no slot: no node; slot unknown: the step reads `state/host/server/physical`
+  and its time is withheld naming the slot);
+  `a_usb_foothold_reaches_user_through_its_step` (foothold `{server, usb}`
+  plus slot: `state/host/server/user` has `action/usb-access/server`);
+  `nothing_but_a_foothold_puts_the_attacker_at_the_machine` (the
+  `physical` fact has no producer but the foothold input); core:
+  `physical_and_usb_are_optional_foothold_states_of_a_host`; format:
+  round trip of a foothold `{entity: server, state: physical}` and the
+  target refusal.
+- [ ] **Step 2: Run** — Expected: compile errors, then FAIL.
+- [ ] **Step 3: Implement** as in Files and *Optional states*.
+- [ ] **Step 4: Run** `cargo test --workspace` — PASS; the lecture snapshot
+  and every graph fixture unchanged; regenerate `catalog.json`.
+- [ ] **Step 5: Commit** — "Physical and USB access: attacker inputs at the machine".
+
+### Task D3: Denial of service (spec §5.3, first item)
+
+**Files:** core (`State::Unavailable` on Host and Service, optional, a
+target only; `Slot::Deny` optional on Host and Service), validator (a
+foothold naming `unavailable` is refused), catalog (state word *out of
+service*, rule `deny-service`, slot name *Deny service*), `generate.rs`
+(`denials()` after `guards()`: for each host or service with `deny`
+given, `action/deny-service/<id>` with input its `reachable` — a host's
+from `host_reachable()` — → `state/<kind>/<id>/unavailable`).
+
+- [ ] **Step 1: Failing tests:** `denial_of_service_is_a_target_only_fig_5_34`
+  (the target `{sshd, unavailable}` validates, a foothold does not);
+  `denial_is_drawn_once_deny_is_given_and_rests_on_reach` (inputs
+  `[state/service/sshd/reachable]`; the host's from `host.reachable`);
+  `a_host_that_runs_nothing_cannot_be_denied` (slot given, no service:
+  no step, and the target is unreachable, not unknown).
+- [ ] **Steps 2–5:** RED → implement → `cargo test --workspace` (frozen
+  images unchanged) → commit "Denial of service: a target on a host or a
+  service".
+
+### Task D4: Static ARP tables and ARP cache poisoning (spec §5.3, §4)
+
+**Files:** core (`Defense::StaticArp` optional on Host, word *Static ARP
+tables*; `Slot::Poison` optional on Network; `Flow.encrypted: bool`
+(default false, written only when true) and `Flow.carries: Vec<EntityId>`
+(credentials; written only when non-empty)), validator (`carries` names
+credentials; unknown flow keys stay errors), format (read/write the two
+flow fields), catalog (rules `arp-poison`, `flow-intercept`,
+`intercepted-credential`; slot *Poison the ARP cache*), `generate.rs`
+(`interception()` after `flows()`).
+
+**Interfaces:** `state/network/<n>/poisoned` ← `action/arp-poison/<n>`
+(`[network.access]`, slot `poison` on the network); per flow that carries
+something, is not encrypted, and whose route has a network with `poison`
+given: `state/flow/<f>/exposed` = ANY of `input/static-arp-off/<host>` for
+the source's and the target's host (`Binding::Policy { host, StaticArp }`,
+absent = off) — so both ends must have static ARP on to close it, and a
+scenario can switch it; `action/flow-intercept/<f>` (Logical, `[poisoned
+of each such network (one ANY fact state/flow/<f>/overheard), exposed]`) →
+`state/flow/<f>/intercepted`; `intercepted` → `credential.possessed` for
+each carried credential that authenticates an account the target service
+authorizes (rule `intercepted-credential`). Nothing carried, encrypted, or
+no poisonable network on the route: nothing drawn.
+
+- [ ] **Step 1: Failing tests:** `arp_poisoning_takes_a_carried_credential_off_a_plain_flow`;
+  `an_encrypted_flow_gives_nothing_away` (the extract's SSH flow);
+  `static_arp_on_both_ends_closes_interception_and_on_one_does_not`
+  (resolve the two policy inputs: both On → the exposed fact is never);
+  `a_flow_that_carries_nothing_is_not_intercepted`; format round trip of
+  `encrypted: true` and `carries: [server-key]`, and `carries` naming an
+  account refused.
+- [ ] **Steps 2–5:** RED → implement → `cargo test --workspace` →
+  regenerate fixtures → commit "ARP cache poisoning: what a plain flow
+  carries, unless both ends keep static tables".
+
+### Task D5: A foothold on an account (spec §5.4)
+
+**Files:** core (`State::Held` on Account, optional, foothold only),
+validator, catalog (state word *held*, rule `account-held`), `generate.rs`
+(`account-held`: `state/account/<a>/held` → `state/account/<a>/material`,
+drawn only for a foothold naming it).
+
+- [ ] **Step 1: Failing tests:** `a_held_account_logs_in_like_its_credential_fig_5_33`
+  (foothold `{server-account, held}`: the service login is possible without
+  the key); Review Focus 5 `a_held_account_behind_mfa_without_a_second_factor_stays_out`
+  (mfa on, no second factor: material yes, authenticated never, the
+  target's number rests on nothing unknown); `held_is_not_a_target`.
+- [ ] **Steps 2–5:** RED → implement → test → commit "A foothold on an
+  account: the attacker holds what logs it in".
+
+### Task D6: Host firewall (spec §4)
+
+**Files:** core (`Defense::HostFirewall` optional on Host, word *Host
+firewall*; `RelationKind::Permits.from_kinds` → `[Firewall, Host]`),
+validator (a host's `permits` names a flow whose target runs on that host;
+a flow into a service on a host whose `host-firewall` is said On or Unknown
+in the file and that has no permission from it is `unfinished` with path
+`flows.<f>.route`, as for a router's firewall), catalog (`permits`
+description; rule `host-firewall-off`), `generate.rs` (`flows()`: for the
+target's host when its host firewall is said in the file or by a
+scenario, or a permits from it exists: prerequisite
+`state/host-permission/<host>/<flow>` = ANY of the permission input (if
+any) and `input/host-firewall-off/<host>` (`Policy { host, HostFirewall }`),
+read last on the route).
+
+- [ ] **Step 1: Failing tests:** `a_host_firewall_lets_a_flow_in_only_with_its_permission`;
+  `a_host_firewall_said_on_without_a_permission_leaves_the_flow_unfinished`;
+  `a_host_firewall_off_changes_no_number` (resolve: the off input is zero);
+  format round trip of a `permits` from a host.
+- [ ] **Steps 2–5:** RED → implement → `cargo test --workspace` → commit
+  "A host firewall: a flow into the host needs its permission too".
+
+### Task D7: Page, checks, review, landing
+
+- Pins: the pin's state choice offers a host's `physical` and `usb` and an
+  account's `held` (from the catalog's states, optional ones included), the
+  target choice `unavailable` (`attacker-pins.js`, tests in
+  `scripts/attacker-pins.test.js` or the existing pin tests).
+- Rows: *Hardened*, *Host firewall*, *Static ARP tables* in Fig. 5.37's
+  order, each shown only where it can change something (as ASLR/DEP and
+  anti-malware: `architecture-view.js defenseRows/optionalNote`,
+  `comparison.js switches`); absent optional slots say *not drawn until a
+  time is given* where their step could be drawn.
+- Flow form: *Encrypted* (Unknown is not offered: a boolean field) and
+  *Carries* (credentials, the hierarchical menu, no native select).
+- The assistant's tool enums held to the catalog (existing test).
+- Required checks; fresh review; land (CONTRIBUTING.md).
+
+---
+
+# Branch E — `extract-fixture` (spec §8)
+
+### Task E1: Freeze the old lecture file
+
+**Files:** copy `docs/course/lecture-architecture.yaml` to
+`crates/effractor-components/tests/fixtures/architectures/lecture-before-extract.yaml`
+unchanged; every Rust test and script that reads the course file **as a
+library test** (generation.rs, provenance.rs, graph_solve.rs,
+graph_determinism.rs — whose snapshot `tests/snapshots/lecture-graph.json`
+it freezes —, graph_support.rs, graph_clusters.rs, wasm `api.rs`,
+`generate.rs`'s own test, format `json.rs`) reads the frozen copy;
+`course_files.rs`, `scripts/graph-fixtures.js`, `check-graph-agreement.js`,
+the performance scripts and the JS tests that load the course file keep
+reading the course file.
+
+- [ ] **Step 1:** copy, repoint, run `cargo test --workspace` and the
+  wasip1 run — Expected: PASS with nothing changed (the copy is
+  byte-identical, so the snapshot holds).
+- [ ] **Step 2: Commit** — "The lecture before the extract is a frozen fixture".
+
+### Task E2: The course file as the extract draws it
+
+**Files:** `docs/course/lecture-architecture.yaml`.
+
+Rebuild, keeping every id, flow and scenario the course text uses:
+access controls on the router (`bridge-login`, the administrator granted
+admin on it) and the server (`server-login`, the server account granted on
+it); Ubuntu Linux (`ubuntu`) as the server's product, Windows 7
+(`windows-7`) the workstation's, putty (`putty`) the SSH client's; an IDS
+(`server-ids`, enabled, `bypass` illustrative) and anti-malware on the
+server (`bypass-antimalware` illustrative); the SSH flow `encrypted: true`.
+Times are illustrative exercise assumptions with notes; the server's and
+the client's own `deploy-exploit` are left out (absent = not drawn) unless
+the extract's story uses them — it uses the exploit against the server's
+software, the IDS and anti-malware got past, patching, root on the router
+through its access control. Scenarios `patch`, `protect`, `both`, `deny`
+stay; `sshd`'s deploy note no longer says the bypass is folded in.
+
+- [ ] **Step 1: Failing test** (`course_files.rs`):
+  `the_course_file_draws_the_extract` — the generated graph has
+  `action/service-deploy-exploit/sshd` reading the IDS's and the
+  anti-malware's `passed`/`malware-cleared`, `state/router/bridge/admin`
+  from an administration login through `bridge-login`, the products'
+  find-exploit steps, and no interception of the encrypted SSH flow.
+- [ ] **Step 2:** rebuild the file; run — PASS; `node scripts/graph-fixtures.js --write`
+  (lecture-doc and graph fixtures move: intended) and
+  `node scripts/check-graph-agreement.js` — same.
+- [ ] **Step 3: Commit** — "The course file draws what the extract draws".
+
+### Task E3: The course text's numbers from the solver
+
+**Files:** `docs/course/README.md` (the table of what to expect, and any
+sentence the rebuilt file makes untrue), `crates/effractor-solver/tests/course_files.rs`.
+
+- [ ] **Step 1:** run `the_course_text_quotes_what_the_solver_says` —
+  Expected: FAIL (the numbers moved).
+- [ ] **Step 2:** rewrite the table from the solver's output (a scratch run
+  of the same solve the test does); the test holds it.
+- [ ] **Step 3: Commit** — "The course text quotes the rebuilt exercise".
+
+### Task E4: The unknown and partial-defences files follow
+
+**Files:** `docs/course/lecture-unknown.yaml`,
+`docs/course/lecture-partial-defenses.yaml`, `course_files.rs` (their
+`rewritten` expectations follow the rebuilt file's texts).
+
+- [ ] **Steps:** regenerate both from the rebuilt file by the same
+  rewrites the tests state; run `course_files.rs` — PASS; commit "The
+  unknown and partial-defences files follow the rebuilt exercise".
+
+### Task E5: Checks, review, landing, records
+
+- Required checks, `graph-fixtures.js --write`, agreement; fresh review;
+  land.
+- `docs/HANDOFF.md`: delivered state, rulings, deferred minors.
+  `docs/LECTURE-ACCEPTANCE.md`: a section on this milestone with the
+  owner's walk along the extract (5.3–5.5, figure by figure) marked
+  outstanding. `ROADMAP.md`: `securicad-extract` reduced to that one walk;
+  spec and plan stay until it is done.
