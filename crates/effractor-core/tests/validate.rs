@@ -396,6 +396,13 @@ fn a_mean_must_be_positive_and_is_a_time_or_a_magnitude() {
     );
     assert!(D::ExponentialMean(-1.0).check_params().is_err());
     assert!(D::ExponentialMean(f64::INFINITY).check_params().is_err());
+    // Its rate must be a number too: a sampler and a CDF work from it.
+    let message = D::ExponentialMean(1e-310).check_params().unwrap_err();
+    assert!(
+        message.starts_with("mean ") && message.contains("too small"),
+        "{message}"
+    );
+    assert!(D::ExponentialMean(f64::MIN_POSITIVE).check_params().is_ok());
     assert!(D::ExponentialMean(3.0).check_ttc().is_ok());
     assert!(D::ExponentialMean(3.0).check_magnitude().is_ok());
     assert!(

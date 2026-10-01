@@ -138,7 +138,16 @@ impl Distribution {
                     ))
                 }
             }),
-            Self::ExponentialMean(mean) => positive("mean", *mean),
+            // And its rate a number, which the sampler and the CDF work from.
+            Self::ExponentialMean(mean) => positive("mean", *mean).and_then(|()| {
+                if (1.0 / mean).is_finite() {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "mean {mean} is too small: its rate is past any number"
+                    ))
+                }
+            }),
             Self::Gamma { shape, scale } => {
                 positive("shape", *shape).and(positive("scale", *scale))
             }
