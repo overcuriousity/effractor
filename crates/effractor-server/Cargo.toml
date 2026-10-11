@@ -58,7 +58,7 @@ http-body-util = "0.1"
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 # A software authenticator that answers usernameless requests, for the tests.
-passkey = "0.5"
+passkey = "0.6"
 url = "2"
 
 [lints]
